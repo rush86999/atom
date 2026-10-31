@@ -107,6 +107,13 @@ def _artifact_lesson_fields(
         normalize_lesson_context,
     )
 
+    if not format_spec and not applies_to:
+        # Context-only lessons (conversation learning) do not declare an
+        # artifact format; do not manufacture a "format_spec is required"
+        # error for them.
+        lesson_context = normalize_lesson_context(context or {})
+        return {"revision": 1, "context": lesson_context} if lesson_context else {}
+
     normalized = normalize_artifact_teaching(
         applies_to, format_spec or {}, conditions or {})
     fields: Dict[str, Any] = {
@@ -439,6 +446,203 @@ def _reference_bound_stale_ids(
 
 
 
+def _teaching_relevance_tokens(query: Optional[str]) -> set:
+    """Bounded relevance vocabulary for deciding whether a scoped lesson is
+    about this task. Mirrors the existing requirement resolver so an
+    unrelated scoped lesson cannot become a blocker."""
+    return {
+        token for token in re.findall(r"[a-z0-9]{3,}", str(query or "").lower())
+        if token not in {
+            "the", "and", "for", "with", "this", "that", "please", "can",
+            "you", "your", "from", "into", "what", "when", "where", "which",
+            "use", "using", "order", "task", "work",
+        }
+    }
+
+
+def _lesson_relevance_haystack(entry: Dict[str, Any]) -> str:
+    canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
+    return " ".join((
+        str(entry.get("topic") or ""),
+        _lesson_text(entry),
+        str(canvas.get("name") or ""),
+        str(canvas.get("label") or ""),
+    )).lower()
+
+
+def _context_allowed_values(value: Any) -> List[str]:
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if str(item).strip()]
+    text = str(value or "").strip()
+    return [text] if text else []
+
+
+def resolve_teaching_contract(
+    db: Session,
+    agent_id: str,
+    *,
+    query: Optional[str] = None,
+    task_context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """Structured work-time teaching decision.
+
+    Applicable guidance and unresolved requirements are resolved
+    INDEPENDENTLY: a general lesson never hides a relevant scoped lesson
+    whose context is missing, and an unrelated scoped lesson never blocks
+    the current task. This function is the control signal; prompt text is
+    rendered from it by the caller.
+    """
+    from core.artifact_teaching import evaluate_lesson_context
+    from core.conversation_learning import method_from_lesson
+
+    lessons = get_agent_lessons(
+        db, str(agent_id), query=query, limit=max(1, int(limit)),
+        include_context_bound=True, workspace_id=workspace_id,
+    )
+    tokens = _teaching_relevance_tokens(query)
+    applicable: List[Dict[str, Any]] = []
+    required: Dict[str, Dict[str, Any]] = {}
+    conflicts: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+    method_candidates: List[Dict[str, Any]] = []
+    all_context_values: Dict[str, List[str]] = {}
+    source_bindings: List[Dict[str, Any]] = []
+
+    for entry in lessons:
+        lesson_id = str(entry.get("id") or "")
+        revision = int(entry.get("revision") or 1)
+        lesson_context = entry.get("context") or {}
+        for key, value in (lesson_context or {}).items():
+            if key in {"exceptions", "effective_from", "effective_to",
+                       "replaces", "field_mappings"}:
+                continue
+            values = all_context_values.setdefault(str(key), [])
+            for allowed in _context_allowed_values(value):
+                if allowed not in values:
+                    values.append(allowed)
+        if lesson_context and tokens:
+            haystack = _lesson_relevance_haystack(entry)
+            if not any(token in haystack for token in tokens):
+                excluded.append({
+                    "id": lesson_id, "revision": revision,
+                    "reason": "unrelated_to_task",
+                })
+                continue
+        _details = entry.get("details") if isinstance(
+            entry.get("details"), dict) else {}
+        _learning = _details.get("conversation_learning") if isinstance(
+            _details.get("conversation_learning"), dict) else {}
+        for _ref in (_learning.get("references") or [])[:20]:
+            if not isinstance(_ref, dict):
+                continue
+            source_bindings.append({
+                "lesson_id": lesson_id,
+                "resource_id": str(_ref.get("resource_id") or ""),
+                "source_version": str(_ref.get("source_version") or ""),
+                "relation": str(_ref.get("relation") or ""),
+                "resolution_status": str(
+                    _ref.get("resolution_status") or ""),
+            })
+        evaluation = evaluate_lesson_context(
+            lesson_context,
+            task_context or {},
+            workspace_id=workspace_id or entry.get("workspace_id"),
+        )
+        status = str(evaluation.get("status") or "")
+        if status == "applicable":
+            applicable.append(entry)
+            method = method_from_lesson(entry)
+            if method is not None:
+                method_candidates.append({
+                    "entry": entry,
+                    "method": method,
+                    "specificity": int(evaluation.get("specificity") or 0),
+                    "applicability": evaluation,
+                })
+            continue
+        if status == "needs_context":
+            missing = [str(key) for key in (evaluation.get("missing") or [])]
+            for key in missing:
+                allowed = _context_allowed_values(
+                    (lesson_context or {}).get(key))
+                row = required.setdefault(key, {
+                    "key": key,
+                    "allowed_values": [],
+                    "lesson_ids": [],
+                    "authority": "user_confirmation",
+                })
+                for value in allowed:
+                    if value not in row["allowed_values"]:
+                        row["allowed_values"].append(value)
+                if lesson_id and lesson_id not in row["lesson_ids"]:
+                    row["lesson_ids"].append(lesson_id)
+            excluded.append({
+                "id": lesson_id, "revision": revision,
+                "reason": "missing_required_context",
+                "missing": missing,
+            })
+            continue
+        reason = str(evaluation.get("reason") or status or "not_applicable")
+        if reason == "context_mismatch":
+            for conflict in evaluation.get("conflicts") or []:
+                conflicts.append({
+                    "lesson_id": lesson_id,
+                    "revision": revision,
+                    **dict(conflict or {}),
+                })
+        excluded.append({
+            "id": lesson_id, "revision": revision,
+            "reason": reason,
+            "conflicts": list(evaluation.get("conflicts") or []),
+        })
+
+    required_rows = sorted(required.values(), key=lambda row: row["key"])
+    consumed = [
+        {"id": str(entry.get("id") or ""),
+         "revision": int(entry.get("revision") or 1)}
+        for entry in applicable if entry.get("id")
+    ]
+    method_status = "not_applicable"
+    method_lessons: List[Dict[str, Any]] = []
+    if method_candidates:
+        top = max(item["specificity"] for item in method_candidates)
+        top_items = [item for item in method_candidates
+                     if item["specificity"] == top]
+        signatures = {
+            json.dumps(item["method"].model_dump(mode="json"), sort_keys=True)
+            for item in top_items
+        }
+        if len(signatures) > 1:
+            method_status = "conflict"
+        else:
+            method_status = "applicable"
+            method_lessons = top_items
+    if required_rows:
+        status = "needs_context"
+    elif method_status == "conflict":
+        status = "conflict"
+    elif method_lessons:
+        status = "applicable"
+    else:
+        status = "no_method"
+    return {
+        "status": status,
+        "applicable_lessons": applicable,
+        "required_context": required_rows,
+        "conflicts": conflicts,
+        "excluded_lessons": excluded,
+        "consumed_lesson_refs": consumed,
+        "all_context_values": all_context_values,
+        "source_bindings": source_bindings[:80],
+        "method_status": method_status,
+        "method_lessons": method_lessons,
+        "needs_context": bool(required_rows),
+        "mismatch": bool(conflicts),
+    }
+
+
 def lesson_context_requirements(
     db: Session,
     agent_id: str,
@@ -453,57 +657,23 @@ def lesson_context_requirements(
     relevant but cannot be safely applied because the task has not established
     its required context, the caller must ask rather than silently continue.
     """
-    from core.artifact_teaching import evaluate_lesson_context
-
-    tokens = {
-        token for token in re.findall(r"[a-z0-9]{3,}", str(query or "").lower())
-        if token not in {
-            "the", "and", "for", "with", "this", "that", "please", "can",
-            "you", "your", "from", "into", "what", "when", "where", "which",
-        }
-    }
-    missing: set = set()
+    resolution = resolve_teaching_contract(
+        db, agent_id, query=query, task_context=task_context,
+        workspace_id=workspace_id)
+    missing = [row["key"] for row in resolution.get("required_context") or []]
     lesson_ids: List[str] = []
-    conflicts: List[Dict[str, Any]] = []
-    for entry in _permanent_lessons(db, agent_id):
-        lesson_context = entry.get("context") or {}
-        if not lesson_context:
-            continue
-        if tokens:
-            canvas = entry.get("canvas") if isinstance(
-                entry.get("canvas"), dict) else {}
-            haystack = " ".join((
-                str(entry.get("topic") or ""),
-                _lesson_text(entry),
-                str(canvas.get("name") or ""),
-                str(canvas.get("label") or ""),
-            )).lower()
-            if not any(token in haystack for token in tokens):
-                continue
-        evaluation = evaluate_lesson_context(
-            lesson_context,
-            task_context or {},
-            workspace_id=workspace_id or entry.get("workspace_id"),
-        )
-        if evaluation.get("status") == "not_applicable" and (
-                evaluation.get("reason") == "context_mismatch"):
-            conflicts.append({
-                "lesson_id": str(entry.get("id") or ""),
-                "conflicts": list(evaluation.get("conflicts") or []),
-            })
-            continue
-        if evaluation.get("status") != "needs_context":
-            continue
-        missing.update(str(key) for key in (evaluation.get("missing") or []))
-        lesson_id = str(entry.get("id") or "")
-        if lesson_id and lesson_id not in lesson_ids:
-            lesson_ids.append(lesson_id)
+    for row in resolution.get("required_context") or []:
+        for lesson_id in row.get("lesson_ids") or []:
+            if lesson_id not in lesson_ids:
+                lesson_ids.append(lesson_id)
     return {
         "missing": sorted(missing),
         "lesson_ids": lesson_ids,
-        "conflicts": conflicts,
+        "conflicts": list(resolution.get("conflicts") or []),
         "needs_context": bool(missing),
-        "mismatch": bool(conflicts),
+        "mismatch": bool(resolution.get("conflicts")),
+        "required_context": list(resolution.get("required_context") or []),
+        "excluded_lessons": list(resolution.get("excluded_lessons") or []),
     }
 
 

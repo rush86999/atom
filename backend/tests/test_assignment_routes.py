@@ -1679,7 +1679,12 @@ def test_assignment_consumes_contextual_conversation_method(
     formula = next(step for step in assignment["steps"]
                    if step["adapter"] == "formula.calculate")
     assert Decimal(str(formula["result_value"])) == Decimal("20")
-    record = route_env["lifecycle"].get_task(matching.json()["run_id"]) or {}
-    effective = ((record.get("assignment") or {}).get(
-        "teaching_snapshot") or {}).get("effective_lesson_ids") or []
-    assert any(item.get("id") == lesson["id"] for item in effective), effective
+    effective = assignment.get("effective_lesson_ids") or []
+    assert any(item.get("id") == lesson["id"] and item.get("revision") == 1
+               for item in effective), effective
+    status = route_env["client"].get(
+        f"/api/assignments/{matching.json()['run_id']}")
+    assert status.status_code == 200, status.text
+    persisted = status.json()["assignment"].get("effective_lesson_ids") or []
+    assert any(item.get("id") == lesson["id"] and item.get("revision") == 1
+               for item in persisted), persisted

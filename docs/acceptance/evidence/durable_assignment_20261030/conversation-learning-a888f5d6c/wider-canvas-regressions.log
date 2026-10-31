@@ -1,0 +1,1725 @@
+
+----------------------------- live log collection ------------------------------
+2026-10-30 19:46:43 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-10-30 19:46:43 [    INFO] EscalationManager initialized
+2026-10-30 19:46:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:43 [    INFO] EscalationManager initialized
+2026-10-30 19:46:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:46:43 [    INFO] MCP Service initialized
+2026-10-30 19:46:43 [    INFO] ComputerUseAgent initialized for tenant default
+2026-10-30 19:46:43 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-10-30 19:46:43 [    INFO] No token storage file found, starting empty
+2026-10-30 19:46:43 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-10-30 19:46:43 [    INFO] EscalationManager initialized
+2026-10-30 19:46:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:46:43 [    INFO] EscalationManager initialized
+2026-10-30 19:46:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:46:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:46:43 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_conversation_learning.py::test_promoted_context_blocks_wrong_and_missing_application 
+-------------------------------- live log setup --------------------------------
+2026-10-30 19:46:44 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_conversation_learning.py::test_work_time_lessons_enforce_context PASSED [  0%]
+tests/test_conversation_learning.py::test_conflicting_applicable_methods_surface_conflict PASSED [  1%]
+tests/test_conversation_learning.py::test_context_survives_restart_and_still_blocks_wrong_use PASSED [  1%]
+tests/test_conversation_learning.py::test_lesson_context_requirements_clarifies_missing_and_mismatch PASSED [  1%]
+tests/test_conversation_learning.py::test_memory_lessons_leg_carries_context_and_clarifies PASSED [  2%]
+tests/test_conversation_learning.py::test_chat_reply_asks_for_missing_teaching_context 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:48 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:46:48 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:46:48 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] [MEMCTX] agent_id='agent-1'
+2026-10-30 19:46:48 [ WARNING] No LLM clients available
+2026-10-30 19:46:48 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-10-30 19:46:48 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-10-30 19:46:48 [    INFO] [source-requirements] required=[] evidence=[] candidates=[]
+2026-10-30 19:46:48 [    INFO] [planner-boundary] research turn recovery state: research=True required=[] consulted=[] planned=False block=False turn_left=infs
+2026-10-30 19:46:48 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:46:48 [    INFO] LanceDBHandler initialized. ID: 6108052496. LANCEDB_AVAILABLE: True
+2026-10-30 19:46:48 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:46:48 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory/default with storage_options=None
+2026-10-30 19:46:48 [    INFO] LanceDB connected successfully
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-10-30 19:46:48 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-10-30 19:46:48 [    INFO] EscalationManager initialized
+2026-10-30 19:46:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:46:48 [    INFO] Webhook processor initialized and callback registered
+2026-10-30 19:46:48 [ WARNING] sentence_transformers not available (error: dlopen(/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/_C.cpython-311-darwin.so, 0x0002): Library not loaded: @loader_path/libtorch_cpu.dylib
+  Referenced from: <93B052AD-B16C-3D0F-A6FC-DFFBB7CD9584> /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/lib/libtorch_python.dylib
+  Reason: tried: '/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/lib/libtorch_cpu.dylib' (no such file), '/usr/local/lib/libtorch_cpu.dylib' (no such file), '/usr/lib/libtorch_cpu.dylib' (no such file, not in dyld cache)), embeddings will be disabled
+2026-10-30 19:46:48 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-10-30 19:46:48 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-10-30 19:46:48 [    INFO] Opened existing atom_communications table
+2026-10-30 19:46:48 [    INFO] FTS index enabled on 'content' column
+2026-10-30 19:46:48 [    INFO] Opened existing ingestion_metadata table
+2026-10-30 19:46:48 [    INFO] LanceDB memory manager initialized successfully
+2026-10-30 19:46:48 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-10-30 19:46:48 [    INFO] [prompt-budget] routing-default model=auto: input=775 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-10-30 19:46:48 [    INFO] [stage-timing] reply generation: 0.5s (incl. tool plan + exec above)
+2026-10-30 19:46:48 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-10-30 19:46:48 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-10-30 19:46:48 [    INFO] [review-diag] generation_completed content_len=20 review_ask=False
+PASSED                                                                   [  2%]
+tests/test_conversation_learning.py::test_conversation_method_compiles_for_assignment PASSED [  2%]
+tests/test_conversation_learning.py::test_core_profile_exposes_learning_surface PASSED [  3%]
+tests/test_conversation_learning.py::test_explicit_attachment_reference_resolves PASSED [  3%]
+tests/test_conversation_learning.py::test_same_name_attachments_require_clarification PASSED [  3%]
+tests/test_conversation_learning.py::test_punctuation_sensitive_identifiers_do_not_collide PASSED [  4%]
+tests/test_conversation_learning.py::test_previous_workbook_resolves_only_when_unambiguous PASSED [  4%]
+tests/test_conversation_learning.py::test_usual_method_remains_unresolved_until_established PASSED [  4%]
+tests/test_conversation_learning.py::test_conflicting_examples_do_not_produce_a_fabricated_rule PASSED [  5%]
+tests/test_conversation_learning.py::test_complete_referenced_method_transfers_to_unfamiliar_data PASSED [  5%]
+tests/test_conversation_learning.py::test_missing_units_block_a_numerical_conclusion PASSED [  6%]
+tests/test_conversation_learning.py::test_version_change_invalidates_relevant_reuse PASSED [  6%]
+tests/test_conversation_learning.py::test_version_change_marks_promoted_lesson_stale PASSED [  6%]
+tests/test_conversation_learning.py::test_revoked_access_prevents_source_retrieval PASSED [  7%]
+tests/test_conversation_learning.py::test_quoted_instructions_do_not_become_new_authority PASSED [  7%]
+tests/test_conversation_learning.py::test_source_content_permission_request_is_not_authority PASSED [  7%]
+tests/test_conversation_learning.py::test_restart_preserves_dependencies_and_confirmations PASSED [  8%]
+tests/test_conversation_learning.py::test_changed_candidate_content_invalidates_old_approval PASSED [  8%]
+tests/test_conversation_learning.py::test_rejecting_a_proposal_has_no_governing_effect PASSED [  8%]
+tests/test_conversation_learning.py::test_promoted_lesson_applies_its_method_to_new_rows PASSED [  9%]
+tests/test_conversation_learning.py::test_correction_preserves_unrelated_teaching PASSED [  9%]
+tests/test_conversation_learning_routes.py::test_empty_workspace_sees_no_threads_or_evidence 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:54 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 200 OK"
+2026-10-30 19:46:54 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-10-30 19:46:54 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads/thread-1/evidence "HTTP/1.1 200 OK"
+2026-10-30 19:46:54 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads/thread-1/candidates "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_conversation_learning_routes.py::test_foreign_employee_cannot_be_targeted 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:55 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 404 Not Found"
+2026-10-30 19:46:55 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:46:55 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-69a3f5b02de84899/confirm "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_conversation_learning_routes.py::test_viewer_cannot_create_or_promote 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:56 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_conversation_learning_routes.py::test_reviewer_identity_comes_from_authentication 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-86bdfd717ce74910/confirm "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_conversation_learning_routes.py::test_source_change_blocks_work_time_reuse_without_manual_revalidation 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-79a10fb911c04776/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-79a10fb911c04776/promote "HTTP/1.1 200 OK"
+2026-10-30 19:46:57 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-79a10fb911c04776?thread_id=thread-1 "HTTP/1.1 200 OK"
+2026-10-30 19:46:57 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-79a10fb911c04776/apply "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 11%]
+tests/test_conversation_learning_routes.py::test_promotion_blocks_after_source_change 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:58 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:46:58 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-51c67705cdd84fdd/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:46:58 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-51c67705cdd84fdd/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 11%]
+tests/test_conversation_learning_routes.py::test_apply_context_matching_wrong_missing 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78/promote "HTTP/1.1 200 OK"
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78/apply "HTTP/1.1 200 OK"
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78/apply "HTTP/1.1 409 Conflict"
+2026-10-30 19:46:59 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78/apply "HTTP/1.1 409 Conflict"
+2026-10-30 19:46:59 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-43855dac89554e78?thread_id=thread-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_conversation_learning_routes.py::test_apply_conflicting_applicable_teaching 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-f4f65b2416234afb/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-f4f65b2416234afb/promote "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-3f6447f7bd144666/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-3f6447f7bd144666/promote "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-f4f65b2416234afb/apply "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_conversation_learning_routes.py::test_context_survives_route_restart 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-085415a0c0904f67/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-085415a0c0904f67/promote "HTTP/1.1 200 OK"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-085415a0c0904f67/apply "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:00 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-085415a0c0904f67/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_conversation_learning_routes.py::test_route_lists_local_email_threads 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:01 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_conversation_learning_routes.py::test_route_evidence_resolves_attachment 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_conversation_learning_routes.py::test_route_candidate_review_confirm_promote 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-0aed939c7a474419/confirm "HTTP/1.1 200 OK"
+2026-10-30 19:47:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-0aed939c7a474419/promote "HTTP/1.1 200 OK"
+2026-10-30 19:47:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-0aed939c7a474419/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_conversation_learning_routes.py::test_route_rejects_unreviewed_candidate 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:03 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:03 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-94bd422c08bb4758/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_conversation_learning_routes.py::test_route_scope_hides_foreign_candidate 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-10-30 19:47:04 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-ababdbac79704cd0?thread_id=thread-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 14%]
+tests/test_assignment_routes.py::test_authorized_team_lead_approves_once 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:06 [    INFO] runtime identity: source_id=55dddd6d4c21-dirty.620b5d0f5e8d revision=55dddd6d4c21 dirty=True (5 modified, 0 untracked)
+2026-10-30 19:47:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/ba58e139-e7d9-4bd0-8042-ad0f410858e6/approve/send "HTTP/1.1 200 OK"
+2026-10-30 19:47:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/ba58e139-e7d9-4bd0-8042-ad0f410858e6/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 14%]
+tests/test_assignment_routes.py::test_same_workspace_member_cannot_approve 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/fb55f345-fe5a-4bbc-b239-162d3e103ef7/approve/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 15%]
+tests/test_assignment_routes.py::test_wrong_workspace_approver_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/52f10fbf-7d23-4f0e-a9e2-e1f931a60b64/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+tests/test_assignment_routes.py::test_changed_payload_is_not_approved_under_old_request 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/af394770-837d-449c-a733-781bc5da0d73/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/01794200-64dc-4abe-8193-115023c5410a/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_assignment_routes.py::test_start_from_chat_objective_uses_registered_plan_and_teaching 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:10 [    INFO] Learning skipped for agent-47b03816: status intern (not STUDENT)
+2026-10-30 19:47:10 [    INFO] Learning skipped for agent-47b03816: status intern (not STUDENT)
+2026-10-30 19:47:10 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-10-30 19:47:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/e3182e99-20bc-4561-8a9f-08f555939d5d/responses/corr-A "HTTP/1.1 200 OK"
+2026-10-30 19:47:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/e3182e99-20bc-4561-8a9f-08f555939d5d/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_assignment_routes.py::test_start_rejects_unregistered_proposed_adapter 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:11 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 17%]
+tests/test_assignment_routes.py::test_guided_discovery_mode_needs_no_paths 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:11 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_assignment_routes.py::test_public_proposed_steps_are_gated 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:12 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 17%]
+tests/test_assignment_routes.py::test_guided_connected_aggregate_is_grounded_and_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:13 [    INFO] Learning skipped for agent-a6d79f6f: status intern (not STUDENT)
+2026-10-30 19:47:13 [    INFO] Learning skipped for agent-a6d79f6f: status intern (not STUDENT)
+2026-10-30 19:47:13 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-10-30 19:47:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/26b519a6-3fcd-4226-b055-43d672d92b09/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_assignment_routes.py::test_guided_connected_count_presentation 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:14 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:15 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_assignment_routes.py::test_bounded_taught_method_job_with_wait_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:15 [    INFO] Learning skipped for agent-85ad8104: status intern (not STUDENT)
+2026-10-30 19:47:15 [    INFO] Learning skipped for agent-85ad8104: status intern (not STUDENT)
+2026-10-30 19:47:16 [    INFO] Learning skipped for agent-85ad8104: status intern (not STUDENT)
+2026-10-30 19:47:16 [    INFO] Learning skipped for agent-85ad8104: status intern (not STUDENT)
+2026-10-30 19:47:16 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-10-30 19:47:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/7333e14e-2b89-4d08-9695-b009421228d0/responses/bounded-correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_assignment_routes.py::test_taught_method_missing_wait_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:17 [    INFO] Learning skipped for agent-393e6e24: status intern (not STUDENT)
+2026-10-30 19:47:17 [    INFO] Learning skipped for agent-393e6e24: status intern (not STUDENT)
+2026-10-30 19:47:17 [    INFO] Learning skipped for agent-393e6e24: status intern (not STUDENT)
+2026-10-30 19:47:17 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_assignment_routes.py::test_unsupported_taught_method_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:18 [    INFO] Learning skipped for agent-d4fd2004: status intern (not STUDENT)
+2026-10-30 19:47:18 [    INFO] Learning skipped for agent-d4fd2004: status intern (not STUDENT)
+2026-10-30 19:47:18 [    INFO] Learning skipped for agent-d4fd2004: status intern (not STUDENT)
+2026-10-30 19:47:18 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_assignment_routes.py::test_guided_no_match_is_explicit_pending_work 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:18 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_assignment_routes.py::test_guided_wrong_workspace_scope_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:19 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/test_assignment_routes.py::test_real_catalog_resource_from_another_workspace_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:20 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/test_assignment_routes.py::test_client_cannot_choose_an_output_path 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:21 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_assignment_routes.py::test_start_second_domain_presentation_completes 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:21 [    INFO] Learning skipped for agent-c69764c0: status intern (not STUDENT)
+2026-10-30 19:47:21 [    INFO] Learning skipped for agent-c69764c0: status intern (not STUDENT)
+2026-10-30 19:47:21 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_assignment_routes.py::test_mapping_correction_route_applies_and_resumes 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/040dc984-69b1-4a07-8d36-b98ebfe0e6c6/mappings/correct "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_stale_mapping_correction_is_refused_before_source_resolution 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/a9ff7fbb-2c18-4b0b-85d9-3991874e7966/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_wrong_workspace_mapping_correction_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/cfb3f6c5-7d85-4136-9d2e-c83f23712159/mappings/correct "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/9f817cbd-b45b-486e-97e0-55a21d8d906d/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 200 OK"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 404 Not Found"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 200 OK"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 200 OK"
+2026-10-30 19:47:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4f8b3f1-42f0-4767-b498-d138eb8961ae/gaps/b5a267c2-5c17-473d-9a75-f1e8282e8cf7/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_incomplete_inline_evidence_cannot_resume_route 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/7159cde2-f0d3-4d4a-872d-731727735e5d/responses/inline-corr "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_assignment_consumes_contextual_conversation_method 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:28 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:28 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-10-30 19:47:28 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-10-30 19:47:28 [    INFO] HTTP Request: GET http://testserver/api/assignments/9abe2b3b-7ebe-4a44-9cc6-7c03b4dba7a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 24%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 24%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 25%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 25%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 25%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 26%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 26%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 27%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 27%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 27%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 28%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 28%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 28%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 29%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 29%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 29%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 30%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 30%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 30%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 31%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 31%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 32%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 32%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 32%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 33%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 33%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 33%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 34%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 34%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 34%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 35%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 35%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 35%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 36%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 36%]
+tests/test_deterministic_assignment_plan.py::test_explicit_assignment_compiles_exact_patch PASSED [ 37%]
+tests/test_deterministic_assignment_plan.py::test_negated_instruction_is_not_compiled PASSED [ 37%]
+tests/test_deterministic_assignment_plan.py::test_ambiguous_field_is_not_compiled PASSED [ 37%]
+tests/test_deterministic_assignment_plan.py::test_wrong_subject_is_not_compiled PASSED [ 38%]
+tests/test_deterministic_assignment_plan.py::test_stale_revision_is_not_compiled PASSED [ 38%]
+tests/test_deterministic_assignment_plan.py::test_already_satisfied_is_left_to_noop_check PASSED [ 38%]
+tests/test_deterministic_assignment_plan.py::test_negated_current_value_is_not_mechanically_replaced PASSED [ 39%]
+tests/test_deterministic_assignment_plan.py::test_mixed_request_is_not_compiled PASSED [ 39%]
+tests/test_deterministic_assignment_plan.py::test_intervening_negation_is_not_compiled PASSED [ 39%]
+tests/test_deterministic_assignment_plan.py::test_value_residue_is_not_compiled PASSED [ 40%]
+tests/test_deterministic_assignment_plan.py::test_completion_mapping_is_allowed_in_quotation_section PASSED [ 40%]
+tests/test_deterministic_assignment_plan.py::test_wrong_section_does_not_bind_by_completion_mapping PASSED [ 40%]
+tests/test_deterministic_assignment_plan.py::test_email_canvas_uses_the_content_key_not_the_label PASSED [ 41%]
+tests/test_deterministic_assignment_plan.py::test_edit_verb_mixed_request_is_not_compiled PASSED [ 41%]
+tests/test_deterministic_assignment_plan.py::test_verbless_second_clause_is_not_compiled PASSED [ 41%]
+tests/test_deterministic_assignment_plan.py::test_negation_variants_are_not_compiled PASSED [ 42%]
+tests/test_deterministic_assignment_plan.py::test_noop_refuses_mixed_request PASSED [ 42%]
+tests/test_deterministic_assignment_plan.py::test_noop_refuses_header_only_mixed_request PASSED [ 43%]
+tests/test_assignment_resource_boundary.py::test_public_source_rejects_filesystem_path PASSED [ 43%]
+tests/test_assignment_resource_boundary.py::test_internal_fixture_must_stay_under_configured_root PASSED [ 43%]
+tests/test_assignment_resource_boundary.py::test_forged_catalog_reference_is_refused PASSED [ 44%]
+tests/test_assignment_resource_boundary.py::test_wrong_workspace_catalog_reference_is_refused PASSED [ 44%]
+tests/test_assignment_resource_boundary.py::test_revoked_grant_is_refused PASSED [ 44%]
+tests/test_assignment_resource_boundary.py::test_stale_version_is_refused PASSED [ 45%]
+tests/test_assignment_resource_boundary.py::test_expired_access_token_is_not_current_source_access PASSED [ 45%]
+tests/test_assignment_resource_boundary.py::test_default_workspace_user_resolves_connected_source PASSED [ 45%]
+tests/test_assignment_resource_boundary.py::test_output_is_allocated_under_owned_storage PASSED [ 46%]
+tests/test_assignment_resource_boundary.py::test_external_adapter_declared_read_only_is_rejected PASSED [ 46%]
+tests/test_assignment_resource_boundary.py::test_action_registry_write_declared_retrieval_is_rejected PASSED [ 46%]
+tests/test_assignment_resource_boundary.py::test_action_registry_read_requires_accepted_retrieval PASSED [ 47%]
+tests/test_assignment_resource_boundary.py::test_invented_standing_authorization_is_rejected PASSED [ 47%]
+tests/test_assignment_resource_boundary.py::test_action_outside_accepted_scope_is_rejected PASSED [ 48%]
+tests/test_assignment_resource_boundary.py::test_deliverable_nonexistent_step_is_rejected PASSED [ 48%]
+tests/test_assignment_resource_boundary.py::test_read_step_cannot_produce_docx_deliverable PASSED [ 48%]
+tests/test_assignment_resource_boundary.py::test_duplicate_deliverable_identity_is_rejected PASSED [ 49%]
+tests/test_assignment_resource_boundary.py::test_matching_artifact_step_is_valid PASSED [ 49%]
+tests/test_assignment_resource_boundary.py::test_distractor_ranked_first_is_not_adopted PASSED [ 49%]
+tests/test_assignment_resource_boundary.py::test_same_workbook_several_plausible_sheets_is_a_clarification PASSED [ 50%]
+tests/test_assignment_resource_boundary.py::test_explicit_sheet_selects_that_sheet PASSED [ 50%]
+tests/test_assignment_resource_boundary.py::test_required_two_sources_are_preserved PASSED [ 50%]
+tests/test_assignment_resource_boundary.py::test_no_justified_candidate_is_pending_work PASSED [ 51%]
+tests/test_assignment_resource_boundary.py::test_real_parquet_read_returns_rows_and_provenance PASSED [ 51%]
+tests/test_assignment_resource_boundary.py::test_real_parquet_read_preserves_formula_sidecar_for_matched_rows PASSED [ 51%]
+tests/test_assignment_resource_boundary.py::test_revoked_access_between_start_and_resumed_read_is_refused PASSED [ 52%]
+tests/test_assignment_resource_boundary.py::test_derived_aggregate_uses_actual_numeric_schema PASSED [ 52%]
+tests/test_assignment_resource_boundary.py::test_short_version_prefix_cannot_satisfy_active_version PASSED [ 53%]
+tests/test_assignment_resource_boundary.py::test_sum_over_zero_eligible_rows_is_a_clarification PASSED [ 53%]
+tests/test_assignment_resource_boundary.py::test_artifact_with_missing_required_result_is_rejected PASSED [ 53%]
+tests/test_assignment_resource_boundary.py::test_mapping_gap_confirmation_resumes_same_assignment PASSED [ 54%]
+tests/test_assignment_resource_boundary.py::test_mapping_unit_without_source_evidence_requires_explicit_confirmation PASSED [ 54%]
+tests/test_assignment_resource_boundary.py::test_mapping_correction_invalidates_only_dependants_and_preserves_history PASSED [ 54%]
+tests/test_assignment_resource_boundary.py::test_revoked_grant_between_start_and_resumed_executor_read PASSED [ 55%]
+tests/test_chat_orchestrator.py::TestChatOrchestrator::test_fallback_to_agent_service 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:41 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-30 19:47:41 [    INFO] Created DB session: 0b7784dc-5c0a-4eb3-8e17-5469dc058746
+2026-10-30 19:47:41 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)
+2026-10-30 19:47:41 [    INFO] LocalOnlyGuard initialized
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:41 [    INFO] Routing to features: [<FeatureType.AGENT: 'agent'>]
+2026-10-30 19:47:41 [    INFO] Feature handling complete. Handled: False, Intent: ChatIntent.AGENT_REQUEST
+2026-10-30 19:47:41 [    INFO] Fallback to ComputerUseAgent for: len=24 fp=3275b6f466f6
+2026-10-30 19:47:41 [    INFO] Calling agent_service.execute_task with goal: len=24 fp=3275b6f466f6
+2026-10-30 19:47:41 [    INFO] Agent task started: {'id': 'task_123', 'status': 'running'}
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.1s elapsed=0.1s remaining=94.9s budget=95.0s
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] [stage-timing] turn finalization: elapsed_s=0.1 review_at_s=None success=True outcome=None review_required=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 55%]
+tests/test_chat_orchestrator.py::TestChatOrchestrator::test_explicit_agent_request 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:41 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-30 19:47:41 [    INFO] Created DB session: 563d80e1-343f-40d0-8dff-b46d5f95a736
+2026-10-30 19:47:41 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:41 [    INFO] Routing to features: [<FeatureType.AGENT: 'agent'>]
+2026-10-30 19:47:41 [    INFO] Executing handler for FeatureType.AGENT
+2026-10-30 19:47:41 [    INFO] Handler FeatureType.AGENT returned failure/empty
+2026-10-30 19:47:41 [    INFO] Feature handling complete. Handled: False, Intent: ChatIntent.AGENT_REQUEST
+2026-10-30 19:47:41 [    INFO] Fallback to ComputerUseAgent for: len=20 fp=6578edbc5ce5
+2026-10-30 19:47:41 [    INFO] Calling agent_service.execute_task with goal: len=20 fp=6578edbc5ce5
+2026-10-30 19:47:41 [    INFO] Agent task started: {'id': 'task_456', 'status': 'running'}
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.1s elapsed=0.1s remaining=94.9s budget=95.0s
+2026-10-30 19:47:41 [    INFO] [stage-timing] turn finalization: elapsed_s=0.1 review_at_s=None success=True outcome=None review_required=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 55%]
+tests/test_chat_orchestrator.py::TestChatOrchestrator::test_successful_agent_answer_is_not_overwritten 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:41 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:41 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-30 19:47:41 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-959' coro=<LLMService.generate() running at /Users/rushiparikh/projects/atom-conversation-learning/backend/core/llm_service.py:543> cb=[_release_waiter(<Future pendi...ask_wakeup()]>)() at /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py:431]>
+2026-10-30 19:47:41 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-958' coro=<TurnFactExtractor.extract_from_turn() done, defined at /Users/rushiparikh/projects/atom-conversation-learning/backend/core/turn_fact_extractor.py:351> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[ChatOrchestrator._dispatch_turn_fact_extraction.<locals>.<lambda>() at /Users/rushiparikh/projects/atom-conversation-learning/backend/integrations/chat_orchestrator.py:19339]>
+2026-10-30 19:47:41 [    INFO] Created DB session: d98db6b8-bb25-4085-82d3-4de4dd15b47c
+2026-10-30 19:47:41 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:41 [    INFO] EscalationManager initialized
+2026-10-30 19:47:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:41 [    INFO] Routing to features: [<FeatureType.AGENT: 'agent'>]
+2026-10-30 19:47:41 [    INFO] Executing handler for FeatureType.AGENT
+2026-10-30 19:47:41 [    INFO] Handler FeatureType.AGENT succeeded
+2026-10-30 19:47:41 [    INFO] Feature handling complete. Handled: True, Intent: ChatIntent.AGENT_REQUEST
+2026-10-30 19:47:41 [ WARNING] No LLM clients available
+2026-10-30 19:47:41 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.1s elapsed=0.1s remaining=94.9s budget=95.0s
+2026-10-30 19:47:41 [    INFO] [stage-timing] turn finalization: elapsed_s=0.1 review_at_s=None success=True outcome=None review_required=False
+2026-10-30 19:47:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 56%]
+tests/test_chat_orchestrator.py::test_planner_timeout_injects_deterministic_mailbox_evidence PASSED [ 56%]
+tests/test_chat_orchestrator.py::test_planner_timeout_without_evidence_says_nothing_ran PASSED [ 56%]
+tests/test_chat_orchestrator.py::test_planner_timeout_fallback_is_fault_isolated PASSED [ 57%]
+tests/test_chat_orchestrator.py::test_planner_timeout_fallback_skipped_without_user PASSED [ 57%]
+tests/test_chat_orchestrator.py::test_verbatim_mail_evidence_finds_the_quoted_amount PASSED [ 58%]
+tests/test_chat_orchestrator.py::test_verbatim_mail_evidence_skips_queries_without_a_figure PASSED [ 58%]
+tests/test_chat_orchestrator.py::test_verbatim_mail_evidence_is_fault_isolated PASSED [ 58%]
+tests/test_chat_orchestrator.py::test_live_failure_note_does_not_bury_mail_evidence PASSED [ 59%]
+tests/test_chat_orchestrator.py::test_planner_prompt_forbids_pasted_quotes_going_to_inventory PASSED [ 59%]
+tests/test_chat_orchestrator.py::test_invented_derivation_figures_are_detected PASSED [ 59%]
+tests/test_chat_orchestrator.py::test_grounded_derivation_is_not_flagged PASSED [ 60%]
+tests/test_chat_orchestrator.py::test_user_supplied_figures_are_grounded_by_their_own_message PASSED [ 60%]
+tests/test_chat_orchestrator.py::test_bare_small_numbers_are_not_money_claims PASSED [ 60%]
+tests/test_chat_orchestrator.py::test_fabrication_scores_worst_and_is_named PASSED [ 61%]
+tests/test_chat_orchestrator.py::test_fabrication_feedback_feeds_the_per_model_predictor 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:41 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-948' coro=<TurnFactExtractor.extract_from_turn() running at /Users/rushiparikh/projects/atom-conversation-learning/backend/core/turn_fact_extractor.py:384> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[ChatOrchestrator._dispatch_turn_fact_extraction.<locals>.<lambda>() at /Users/rushiparikh/projects/atom-conversation-learning/backend/integrations/chat_orchestrator.py:19339]>
+2026-10-30 19:47:41 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-949' coro=<LLMService.generate() running at /Users/rushiparikh/projects/atom-conversation-learning/backend/core/llm_service.py:543> cb=[_release_waiter(<Future pendi...ask_wakeup()]>)() at /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py:431]>
+PASSED                                                                   [ 61%]
+tests/test_chat_orchestrator.py::test_fabrication_signal_records_even_with_routing_flag_off 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [LearningRouter] fabrication observed for provider/inventor (question_answering): unsupported_figures [routing flag off — recorded, not routed]
+PASSED                                                                   [ 61%]
+tests/test_chat_orchestrator.py::test_clean_reply_records_no_fabrication_signal PASSED [ 62%]
+tests/test_chat_orchestrator.py::test_credit_exhaustion_is_terminal_truthful_persisted 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] Created DB session: s-credit-f33792c5
+2026-10-30 19:47:43 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:43 [    INFO] Routing to features: [<FeatureType.SEARCH: 'search'>, <FeatureType.AI_ANALYTICS: 'ai_analytics'>]
+2026-10-30 19:47:43 [    INFO] Feature handling complete. Handled: False, Intent: ChatIntent.SEARCH_REQUEST
+2026-10-30 19:47:43 [    INFO] Fallback to ComputerUseAgent for: len=5 fp=2cf24dba5fb0
+2026-10-30 19:47:43 [    INFO] Calling agent_service.execute_task with goal: len=5 fp=2cf24dba5fb0
+2026-10-30 19:47:43 [    INFO] Agent task started: {'id': 'task_1_1720134', 'goal': 'hello', 'mode': 'thinker', 'status': 'running', 'logs': ['Task started in thinker mode: hello'], 'result': None}
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [   ERROR] Agent task failed: type object 'ServiceFactory' has no attribute 'get_lux_model'
+2026-10-30 19:47:43 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.1s elapsed=0.1s remaining=94.9s budget=95.0s
+2026-10-30 19:47:43 [ WARNING] [provider] reply leg returned provider failure as content — terminal failed outcome
+2026-10-30 19:47:43 [    INFO] [stage-timing] turn finalization: elapsed_s=0.1 review_at_s=None success=False outcome=failed review_required=False
+2026-10-30 19:47:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:43 [   ERROR] DB Create Session failed: (sqlite3.IntegrityError) UNIQUE constraint failed: chat_sessions.id
+[SQL: INSERT INTO chat_sessions (id, user_id, title, metadata_json, channel_id, thread_id, created_at, updated_at, message_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('s-credit-f33792c5', 'u-credit-66c71ba1', None, '{}', None, None, '2026-10-30 23:47:43.387540', '2026-10-30 23:47:43.387540', 0)]
+(Background on this error at: https://sqlalche.me/e/20/gkpj). Falling back to file.
+2026-10-30 19:47:43 [    INFO] Backfilled missing ChatSession row for s-credit-f33792c5
+2026-10-30 19:47:43 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)
+2026-10-30 19:47:43 [    INFO] [timeline] chat planner finished: 0.1s after the turn's canvas-edit clock started
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-10-30 19:47:43 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:43 [    INFO] [request-reference] unresolved turn (no_history) — clarify, no lookup scheduled: request='hello again' candidates=[]
+2026-10-30 19:47:43 [    INFO] Routing to features: [<FeatureType.SEARCH: 'search'>, <FeatureType.AI_ANALYTICS: 'ai_analytics'>]
+2026-10-30 19:47:43 [    INFO] Feature handling complete. Handled: False, Intent: ChatIntent.SEARCH_REQUEST
+2026-10-30 19:47:43 [    INFO] Fallback to ComputerUseAgent for: len=11 fp=3908c567feda
+2026-10-30 19:47:43 [    INFO] Calling agent_service.execute_task with goal: len=11 fp=3908c567feda
+2026-10-30 19:47:43 [    INFO] Agent task started: {'id': 'task_2_1720134', 'goal': 'hello again', 'mode': 'thinker', 'status': 'running', 'logs': ['Task started in thinker mode: hello again'], 'result': None}
+2026-10-30 19:47:43 [   ERROR] Agent task failed: type object 'ServiceFactory' has no attribute 'get_lux_model'
+2026-10-30 19:47:43 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.1s elapsed=0.1s remaining=94.9s budget=95.0s
+2026-10-30 19:47:43 [    INFO] [stage-timing] turn finalization: elapsed_s=0.1 review_at_s=None success=True outcome=None review_required=False
+2026-10-30 19:47:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 62%]
+tests/test_chat_canvas_editor.py::test_plan_returns_none_without_llm_service PASSED [ 62%]
+tests/test_chat_canvas_editor.py::test_plan_returns_none_without_canvas_id PASSED [ 63%]
+tests/test_chat_canvas_editor.py::test_plan_builds_prompt_with_canvas_content_and_routes_via_bpc 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 113, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=True restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1483
+PASSED                                                                   [ 63%]
+tests/test_chat_canvas_editor.py::test_plan_raises_when_llm_fails_entirely 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 52, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=1 contract=- detail=structured call returned None
+PASSED                                                                   [ 64%]
+tests/test_chat_canvas_editor.py::test_history_transcript_includes_agent_findings_and_skips_errors PASSED [ 64%]
+tests/test_chat_canvas_editor.py::test_editor_prompt_demands_preservation_and_excludes_sends 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 70, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-10-30 19:47:43 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-10-30 19:47:43 [    INFO] canvas edit: planner input identity | prompt_chars=10535 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=87af8c9a2ad9 request_value_occurrences_in_body=0
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [ 64%]
+tests/test_chat_canvas_editor.py::test_editor_prompt_excludes_teaching_points_and_pure_lookups 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 71, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-10-30 19:47:43 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-10-30 19:47:43 [    INFO] canvas edit: planner input identity | prompt_chars=10537 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=c0dcac36a69e request_value_occurrences_in_body=0
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [ 65%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_carries_sender_identity_and_bans_cc_guessing 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-10-30 19:47:43 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-10-30 19:47:43 [    INFO] canvas edit: planner input identity | prompt_chars=1804 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=4343e89f29b2 request_value_occurrences_in_body=0
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [ 65%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_recent_supervisor_corrections 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 10, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 350, "included": true, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 65%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_omits_corrections_section_when_empty 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 66%]
+tests/test_chat_canvas_editor.py::test_corrections_section_bounds_huge_entries PASSED [ 66%]
+tests/test_chat_canvas_editor.py::test_patch_ops_match_is_validated_against_current_content 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 51, "included": true, "truncated": false}, {"section": "history", "size": 70, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1436 ops_match_current_content=true
+PASSED                                                                   [ 66%]
+tests/test_chat_canvas_editor.py::test_failed_patch_ops_get_one_replace_mode_reask 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 71, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+PASSED                                                                   [ 67%]
+tests/test_chat_canvas_editor.py::test_double_failed_patch_plan_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 57, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+2026-10-30 19:47:43 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 67%]
+tests/test_chat_canvas_editor.py::test_apply_patch_preserves_untouched_bytes PASSED [ 67%]
+tests/test_chat_canvas_editor.py::test_apply_patch_edits_only_the_named_field_of_object_content PASSED [ 68%]
+tests/test_chat_canvas_editor.py::test_apply_refuses_patch_when_content_moved_under_the_plan 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [ WARNING] canvas edit: patch ops no longer match — refusing partial write
+PASSED                                                                   [ 68%]
+tests/test_chat_canvas_editor.py::test_apply_detects_noop_and_skips_the_write PASSED [ 69%]
+tests/test_chat_canvas_editor.py::test_describe_apply_failure_no_change_reads_honestly PASSED [ 69%]
+tests/test_chat_canvas_editor.py::test_patch_ops_edit_one_cell_of_rows_grid PASSED [ 69%]
+tests/test_chat_canvas_editor.py::test_patch_ops_edit_bare_list_grid_and_cells_dict PASSED [ 70%]
+tests/test_chat_canvas_editor.py::test_patch_ops_cell_mismatch_fails_that_op_only PASSED [ 70%]
+tests/test_chat_canvas_editor.py::test_plan_validation_routes_grid_mismatch_to_replace_reask 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 52, "included": true, "truncated": false}, {"section": "history", "size": 65, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:43 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:43 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+PASSED                                                                   [ 70%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_plans_against_durable_store_content 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 71%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_supervisor_corrections_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.2s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 71%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_survives_corrections_lookup_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 71%]
+tests/test_chat_canvas_editor.py::test_canvas_action_plans_against_durable_store_content 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [ WARNING] canvas action planning skipped: test_canvas_action_plans_against_durable_store_content.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+FAILED                                                                   [ 72%]
+tests/test_chat_canvas_editor.py::test_canvas_action_plan_overlaps_edit_plan_singleflight 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+2026-10-30 19:47:43 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 72%]
+tests/test_chat_canvas_editor.py::test_canvas_action_leg_still_plans_when_not_prestarted 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 72%]
+tests/test_chat_canvas_editor.py::test_apply_persists_full_content_through_crud_tool PASSED [ 73%]
+tests/test_chat_canvas_editor.py::test_apply_discards_malformed_json_for_object_content PASSED [ 73%]
+tests/test_chat_canvas_editor.py::test_apply_accepts_bare_string_for_string_content 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [ WARNING] canvas edit: updated_content_json is not valid JSON even after repair — discarding. Payload head: 'plain new body'
+PASSED                                                                   [ 74%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_when_no_edit_requested PASSED [ 74%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_when_crud_fails 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [ WARNING] canvas edit store reported failure for c-123 with write_outcome='(not reported)' — the write may already be durable: Canvas c-123 not found
+PASSED                                                                   [ 74%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_on_crud_exception 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [ WARNING] canvas edit apply failed for c-123: db down
+PASSED                                                                   [ 75%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_planning_failure_replies_honestly 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-10-30 19:47:43 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-10-30 19:47:43 [ WARNING] canvas edit planning unavailable for c-123: provider down — replying honestly instead of falling through to conversation
+PASSED                                                                   [ 75%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_evidence_failure_flags_turn_as_unedited 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] canvas edit declined: the turn needs live data and the lookup failed — falling through to the tool path instead of editing without evidence
+PASSED                                                                   [ 75%]
+tests/test_chat_canvas_editor.py::test_canvas_no_edit_note_forbids_claiming_an_edit PASSED [ 76%]
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [MEMCTX] agent_id=None
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6159022992. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6263914384. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-10-30 19:47:43 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6248127568. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-10-30 19:47:43 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-10-30 19:47:43 [    INFO] [source-requirements] required=[] evidence=[] candidates=[]
+2026-10-30 19:47:43 [    INFO] [planner-boundary] research turn recovery state: research=True required=[] consulted=[] planned=False block=False turn_left=infs
+2026-10-30 19:47:43 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-10-30 19:47:43 [    INFO] [prompt-budget] routing-default model=auto: input=1074 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-10-30 19:47:43 [    INFO] [stage-timing] reply generation: 0.0s (incl. tool plan + exec above)
+2026-10-30 19:47:43 [ WARNING] reply is a generic non-answer despite tool results — grounded regeneration
+2026-10-30 19:47:43 [    INFO] tool-turn reply was protocol syntax; retrying firmly
+2026-10-30 19:47:43 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-10-30 19:47:43 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-10-30 19:47:43 [    INFO] [review-diag] generation_completed content_len=15 review_ask=False
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [MEMCTX] agent_id=None
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6133642384. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6261982672. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-10-30 19:47:43 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-30 19:47:43 [    INFO] LanceDBHandler initialized. ID: 6247669776. LANCEDB_AVAILABLE: True
+2026-10-30 19:47:43 [    INFO] Lazy loading LanceDB connection...
+2026-10-30 19:47:43 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-conversation-learning/backend/data/atom_memory with storage_options=None
+2026-10-30 19:47:43 [    INFO] LanceDB connected successfully
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-10-30 19:47:43 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-10-30 19:47:43 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-10-30 19:47:43 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-10-30 19:47:43 [    INFO] [prompt-budget] routing-default model=auto: input=1019 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-10-30 19:47:43 [    INFO] [stage-timing] reply generation: 0.0s (incl. tool plan + exec above)
+2026-10-30 19:47:43 [ WARNING] reply is a generic non-answer despite tool results — grounded regeneration
+2026-10-30 19:47:43 [    INFO] tool-turn reply was protocol syntax; retrying firmly
+2026-10-30 19:47:43 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-10-30 19:47:43 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-10-30 19:47:43 [    INFO] [review-diag] generation_completed content_len=15 review_ask=False
+PASSED                                                                   [ 76%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_replies_honestly_on_noop 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-10-30 19:47:43 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] canvas edit was a no-op for c-123 — replying honestly instead of claiming an update
+PASSED                                                                   [ 76%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_sender_identity_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+2026-10-30 19:47:43 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 77%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_turn_returns_early_without_feature_routing 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-10-30 19:47:43 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-10-30 19:47:43 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-10-30 19:47:43 [    INFO] canvas co-editor edit applied: canvas=c-123 type=document
+2026-10-30 19:47:43 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] bounded wait=75.0s (remaining=115.0s reserve=35.0s)
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:43 [    INFO] [tool-plan] pre-start skipped — the accepted request requires no live evidence and the edit lane owns this turn (self-contained edit)
+2026-10-30 19:47:43 [    INFO] [stage-timing] canvas-edit plan: 0.0s
+PASSED                                                                   [ 77%]
+tests/test_chat_canvas_editor.py::test_non_edit_canvas_turn_falls_through_to_normal_path 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:43 [    INFO] [stage-timing] canvas-edit leg skipped — the turn's own words do not authorize a canvas mutation (deterministic authorization: 'needs_grant')
+2026-10-30 19:47:43 [ WARNING] No LLM clients available
+2026-10-30 19:47:43 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-10-30 19:47:43 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 77%]
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[set a follow-up for tomorrow] 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:43 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:43 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:43 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:43 [    INFO] EscalationManager initialized
+2026-10-30 19:47:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:44 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+2026-10-30 19:47:44 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-10-30 19:47:44 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 78%]
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[remove this task] 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:44 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+2026-10-30 19:47:44 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-10-30 19:47:44 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 78%]
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[create a task for the email] 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:44 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+2026-10-30 19:47:44 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-10-30 19:47:44 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 79%]
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[remove the sign-off from the draft] PASSED [ 79%]
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[update the email body] PASSED [ 79%]
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[tighten the draft] PASSED [ 80%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_decline_marks_explicit_no_apply 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-10-30 19:47:44 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+PASSED                                                                   [ 80%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_none_marks_retryable_no_apply 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=canvas_refresh_heal
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=corrections_versions_lessons
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=job_findings
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=cross_canvas_learning
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=identity_playbooks
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage] eid=exec-2 stage=fresh_data edit_requested=True
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=fresh_data_lookup
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=outcome_values
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=catalog_probe
+2026-10-30 19:47:44 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:44 [    INFO] [lane-stage-begin] eid=exec-2 stage=edit_plan
+2026-10-30 19:47:44 [    INFO] [lane-stage-end] eid=exec-2 stage=edit_plan elapsed=0.0s
+PASSED                                                                   [ 80%]
+tests/test_chat_canvas_editor.py::test_no_apply_message_does_not_reask_an_explicit_assignment PASSED [ 81%]
+tests/test_chat_canvas_editor.py::test_no_apply_message_keeps_naming_advice_without_an_assignment PASSED [ 81%]
+tests/test_chat_canvas_editor.py::test_process_edit_no_apply_stops_before_conversation 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] bounded wait=75.0s (remaining=115.0s reserve=35.0s)
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:44 [    INFO] [stage-timing] canvas-edit plan: 0.0s
+2026-10-30 19:47:44 [    INFO] [stage-timing] canvas-action plan: 0.0s (overlapped with canvas-edit plan)
+FAILED                                                                   [ 81%]
+tests/test_chat_canvas_editor.py::test_canvas_no_apply_is_not_an_agent_success_outcome 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 82%]
+tests/test_chat_canvas_editor.py::test_turn_without_canvas_context_skips_edit_step_entirely 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:44 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:44 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:44 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-10-30 19:47:44 [    INFO] EscalationManager initialized
+2026-10-30 19:47:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-10-30 19:47:44 [ WARNING] No LLM clients available
+2026-10-30 19:47:44 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-10-30 19:47:44 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=True outcome=None review_required=False
+PASSED                                                                   [ 82%]
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_persists_binding PASSED [ 82%]
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_skips_placeholder_ids PASSED [ 83%]
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:44 [ WARNING] canvas chat-session binding skipped: db down
+PASSED                                                                   [ 83%]
+tests/test_chat_canvas_editor.py::test_binding_works_on_fresh_install_and_survives_restart PASSED [ 83%]
+tests/test_chat_canvas_editor.py::test_binding_is_idempotent_and_latest_session_wins PASSED [ 84%]
+tests/test_chat_canvas_editor.py::test_resolve_canvas_agent_prefers_context_binding PASSED [ 84%]
+tests/test_chat_canvas_editor.py::test_resolve_canvas_agent_falls_back_to_audit_and_skips_dead_agents PASSED [ 85%]
+tests/test_chat_canvas_editor.py::test_immature_hire_edits_in_learning_mode 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:47 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:47 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 85%]
+tests/test_chat_canvas_editor.py::test_mature_hire_edits_normally 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:47 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:47 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 85%]
+tests/test_chat_canvas_editor.py::test_human_always_edit_policy_forces_proposal_even_for_mature_hire 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:47 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:47 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 86%]
+tests/test_chat_canvas_editor.py::test_no_agent_means_no_governance_gate 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] EscalationManager initialized
+2026-10-30 19:47:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:47 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:47 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:47 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:47 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:47 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 86%]
+tests/test_chat_canvas_editor.py::test_supervisor_correction_feeds_learning_loop 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:48 [    INFO] [LEARNING] Recorded user correction for agent hire-9
+2026-10-30 19:47:48 [    INFO] Capability 'canvas_edit' for agent hire-9 graduated to student
+2026-10-30 19:47:48 [    INFO] Reset maturity for hire-9:canvas_edit to STUDENT. Reason: canvas correction
+2026-10-30 19:47:48 [    INFO] autonomy cycle reset: hire-9 lost earned canvas_edit autonomy (canvas correction)
+2026-10-30 19:47:48 [    INFO] Initialized global governance cache
+2026-10-30 19:47:48 [    INFO] [LEARNING] Correction journaled as work-time lesson for hire-9
+2026-10-30 19:47:48 [    INFO] incident eval generated: canvas=c-corr class=persistence property=changed
+2026-10-30 19:47:48 [    INFO] [LEARNING] real-time rule journaled for agent hire-9: Persistence: report honestly when an edit changes nothing; never claim an update
+2026-10-30 19:47:48 [    INFO] canvas correction recorded for agent hire-9 on c-corr (learning signal)
+PASSED                                                                   [ 86%]
+tests/test_chat_canvas_editor.py::test_correction_capture_noops_without_agent_draft PASSED [ 87%]
+tests/test_chat_canvas_editor.py::test_autonomy_policy_defaults_and_override PASSED [ 87%]
+tests/test_chat_canvas_editor.py::test_send_action_always_proposes_when_policy_demands_human 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 87%]
+tests/test_chat_canvas_editor.py::test_send_action_executes_when_autonomous_mature_and_allowlisted 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 88%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_when_trust_below_bar 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 88%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_for_external_recipient_even_when_mature 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 88%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_when_autonomous_but_immature 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 89%]
+tests/test_chat_canvas_editor.py::test_non_action_messages_fall_through 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] EscalationManager initialized
+2026-10-30 19:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:49 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:49 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 89%]
+tests/test_chat_canvas_editor.py::test_send_email_proposal_row_created 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:50 [    INFO] canvas action proposal filed: 58c377c0-3c69-4e87-a28c-a76220b24c3b (send_email, canvas=c-p)
+PASSED                                                                   [ 90%]
+tests/test_chat_canvas_editor.py::test_journey_events_expose_actual_content PASSED [ 90%]
+tests/test_chat_canvas_editor.py::test_identical_feedback_resubmit_creates_no_duplicate_training_rows PASSED [ 90%]
+tests/test_chat_canvas_editor.py::test_canvas_chat_feedback_persists_and_clears PASSED [ 91%]
+tests/test_chat_canvas_editor.py::test_versions_section_renders_skips_current_and_trims PASSED [ 91%]
+tests/test_chat_canvas_editor.py::test_versions_section_empty_when_nothing_restorable PASSED [ 91%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_recent_versions_with_restore_rule 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 11, "included": true, "truncated": false}, {"section": "history", "size": 78, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 624, "included": true, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 92%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_recent_versions_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:52 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-10-30 19:47:52 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-10-30 19:47:52 [ WARNING] canvas edit planning skipped: test_canvas_edit_passes_recent_versions_to_planner.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+FAILED                                                                   [ 92%]
+tests/test_chat_canvas_editor.py::test_history_transcript_gives_last_agent_reply_full_budget PASSED [ 92%]
+tests/test_chat_canvas_editor.py::test_degenerate_replace_plan_reasks_instead_of_reaching_apply 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 45, "included": true, "truncated": false}, {"section": "history", "size": 67, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+PASSED                                                                   [ 93%]
+tests/test_chat_canvas_editor.py::test_degenerate_replace_plan_still_empty_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 4, "included": true, "truncated": false}, {"section": "history", "size": 67, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 93%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_taught_lessons 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 5, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 605, "included": true, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 93%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_omits_lessons_section_when_empty 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 94%]
+tests/test_chat_canvas_editor.py::test_plan_lessons_section_survives_renderer_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 4, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=True restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1357
+PASSED                                                                   [ 94%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_taught_lessons_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:52 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:52 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 95%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_without_agent_passes_no_lessons 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:52 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-10-30 19:47:52 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-10-30 19:47:52 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-10-30 19:47:52 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 95%]
+tests/test_chat_canvas_editor.py::test_direct_agent_send_carries_cc 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:52 [    INFO] Loaded 1 persisted sessions from file.
+PASSED                                                                   [ 95%]
+tests/test_chat_canvas_editor.py::test_send_proposal_carries_cc_from_canvas_fallback 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] EscalationManager initialized
+2026-10-30 19:47:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-30 19:47:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-30 19:47:52 [    INFO] Slack Enhanced Service initialized
+2026-10-30 19:47:52 [    INFO] Loaded 1 persisted sessions from file.
+2026-10-30 19:47:52 [    INFO] canvas action proposal filed: prop-cc-1 (send_email, canvas=c-123)
+PASSED                                                                   [ 96%]
+tests/test_chat_canvas_editor.py::test_approved_proposal_execution_sends_cc PASSED [ 96%]
+tests/test_chat_canvas_editor.py::test_approved_proposal_send_refusal_still_records_failed_execution PASSED [ 96%]
+tests/test_chat_canvas_editor.py::test_apply_restore_routes_through_audit_trail_restore PASSED [ 97%]
+tests/test_chat_canvas_editor.py::test_apply_restore_without_explicit_mode_still_routes_by_id PASSED [ 97%]
+tests/test_chat_canvas_editor.py::test_apply_restore_noop_reports_honestly PASSED [ 97%]
+tests/test_chat_canvas_editor.py::test_apply_restore_unknown_version_maps_to_honest_reason PASSED [ 98%]
+tests/test_chat_canvas_editor.py::test_describe_apply_failure_version_not_found_is_actionable PASSED [ 98%]
+tests/test_chat_canvas_editor.py::test_restore_plan_with_version_id_needs_no_reask 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 12, "included": true, "truncated": false}, {"section": "history", "size": 75, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=True contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1407
+PASSED                                                                   [ 98%]
+tests/test_chat_canvas_editor.py::test_restore_plan_without_version_id_gets_one_reask 
+-------------------------------- live log call ---------------------------------
+2026-10-30 19:47:52 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 57, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-10-30 19:47:52 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-10-30 19:47:52 [    INFO] canvas edit: restore plan carried no version id — falling back to a replace-mode re-ask
+PASSED                                                                   [ 99%]
+tests/test_chat_canvas_editor.py::test_versions_section_carries_version_ids PASSED [ 99%]
+tests/test_chat_canvas_editor.py::test_versions_section_dropped_when_versions_match_current PASSED [100%]
+
+=================================== FAILURES ===================================
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:495: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:529: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:553: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:593: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:638: assert (None is not None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:903: KeyError: 'identity'
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:1169: assert False is True
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:1478: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:1508: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:1544: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:1567: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:2207: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:2342: assert (None)
+/Users/rushiparikh/projects/atom-conversation-learning/backend/tests/test_chat_canvas_editor.py:2364: assert (None)
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom-conversation-learning/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 562 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_chat_orchestrator.py::TestChatOrchestrator::test_successful_agent_answer_is_not_overwritten
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py:2287: RuntimeWarning: coroutine 'LLMService.generate' was never awaited
+    for name, default in zip(f.args.kwonlyargs, f.args.kw_defaults):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_chat_orchestrator.py::test_fabrication_feedback_feeds_the_per_model_predictor
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/collections/__init__.py:503: RuntimeWarning: coroutine 'LLMService.generate' was never awaited
+    result = type(typename, (tuple,), class_namespace)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_chat_orchestrator.py::test_credit_exhaustion_is_terminal_truthful_persisted
+tests/test_chat_orchestrator.py::test_credit_exhaustion_is_terminal_truthful_persisted
+  /Users/rushiparikh/projects/atom-conversation-learning/backend/services/agent_service.py:67: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    return task.dict()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------------------------- live log sessionfinish ----------------------------
+2026-10-30 19:47:53 [   ERROR] Task was destroyed but it is pending!
+task: <Task cancelling name='Task-1275' coro=<ChatOrchestrator.process_chat_message.<locals>._planned_with_provenance() running at /Users/rushiparikh/projects/atom-conversation-learning/backend/integrations/chat_orchestrator.py:15328> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[ChatOrchestrator.process_chat_message.<locals>.<lambda>() at /Users/rushiparikh/projects/atom-conversation-learning/backend/integrations/chat_orchestrator.py:15830]>
+2026-10-30 19:47:53 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-1278' coro=<_structured_with_fallback() running at /Users/rushiparikh/projects/atom-conversation-learning/backend/core/chat_tool_planner.py:1844> cb=[_release_waiter(<Future pendi...ask_wakeup()]>)() at /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py:431]>
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_plans_against_durable_store_content
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_supervisor_corrections_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_survives_corrections_lookup_failure
+FAILED tests/test_chat_canvas_editor.py::test_canvas_action_plans_against_durable_store_content
+FAILED tests/test_chat_canvas_editor.py::test_canvas_action_plan_overlaps_edit_plan_singleflight
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_sender_identity_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_process_edit_no_apply_stops_before_conversation
+FAILED tests/test_chat_canvas_editor.py::test_immature_hire_edits_in_learning_mode
+FAILED tests/test_chat_canvas_editor.py::test_mature_hire_edits_normally - as...
+FAILED tests/test_chat_canvas_editor.py::test_human_always_edit_policy_forces_proposal_even_for_mature_hire
+FAILED tests/test_chat_canvas_editor.py::test_no_agent_means_no_governance_gate
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_recent_versions_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_taught_lessons_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_without_agent_passes_no_lessons
+=========================== warnings summary (final) ===========================
+../../../../../usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50: RuntimeWarning: coroutine '_structured_with_fallback' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 14 failed, 267 passed, 575 warnings in 83.88s (0:01:23) ============

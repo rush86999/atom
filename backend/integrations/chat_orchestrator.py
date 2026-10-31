@@ -89,6 +89,50 @@ def _presentation_record_from_meta(
 
 logger = logging.getLogger(__name__)
 
+from core.teaching_clarification import (  # noqa: E402 — stdlib-only module
+    extract_confirmation as extract_teaching_confirmation,
+    infer_context_from_message as infer_teaching_context,
+    mark_confirmed as mark_teaching_confirmed,
+    mark_pending as mark_teaching_pending,
+    merge_confirmed_context as merge_teaching_context,
+    new_pending as new_teaching_pending,
+    render_user_question as render_teaching_question,
+)
+
+
+def _teaching_all_values(resolution: Dict[str, Any]) -> Dict[str, List[str]]:
+    return {
+        str(key): [str(value) for value in (values or [])]
+        for key, values in (resolution.get("all_context_values") or {}).items()
+    }
+
+
+def _teaching_lesson_refs(resolution: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Consumed guidance plus the scoped lessons whose context is missing.
+
+    The clarification's provenance must name the lesson that cannot be
+    applied yet, not only the general guidance that was injected.
+    """
+    refs: List[Dict[str, Any]] = []
+    seen = set()
+
+    def _add(item: Dict[str, Any]) -> None:
+        lesson_id = str(item.get("id") or "")
+        revision = int(item.get("revision") or 1)
+        if not lesson_id or (lesson_id, revision) in seen:
+            return
+        seen.add((lesson_id, revision))
+        refs.append({"id": lesson_id, "revision": revision})
+
+    for item in (resolution.get("consumed_lesson_refs") or []):
+        if isinstance(item, dict):
+            _add(item)
+    for item in (resolution.get("excluded_lessons") or []):
+        if (isinstance(item, dict)
+                and item.get("reason") == "missing_required_context"):
+            _add(item)
+    return refs[:40]
+
 
 def _capture_review_payload(kind: str, execution_id: str, payload: Any) -> None:
     """Private, env-gated capture of review generation input/output.
@@ -8504,6 +8548,11 @@ class ChatOrchestrator:
             )
             if isinstance(_pending, dict):
                 sessions_dict[s["session_id"]]["_pending_file_task"] = _pending
+            _teaching_pending = sessions_dict[s["session_id"]][
+                "metadata"].get("_pending_teaching_clarification")
+            if isinstance(_teaching_pending, dict):
+                sessions_dict[s["session_id"]][
+                    "_pending_teaching_clarification"] = _teaching_pending
             
             # Opportunistically cache in memory if missing
             if s["session_id"] not in self.conversation_sessions:
@@ -8535,6 +8584,13 @@ class ChatOrchestrator:
                     )
                     if isinstance(_pending, dict):
                         self.conversation_sessions[s["session_id"]]["_pending_file_task"] = _pending
+                    _teaching_pending = self.conversation_sessions[
+                        s["session_id"]]["metadata"].get(
+                            "_pending_teaching_clarification")
+                    if isinstance(_teaching_pending, dict):
+                        self.conversation_sessions[s["session_id"]][
+                            "_pending_teaching_clarification"] = (
+                                _teaching_pending)
                 logger.info(f"Loaded {len(persisted)} persisted sessions from file.")
         except Exception as e:
             logger.error(f"Failed to load persisted sessions: {e}")
@@ -10122,6 +10178,32 @@ class ChatOrchestrator:
                             _tl_entry, session, session_id, message)
             except Exception as _tl_err:  # noqa: BLE001 — best-effort only
                 logger.debug("task lifecycle resolve skipped: %r", _tl_err)
+            # TEACHING-CONTEXT CLARIFICATION (2026-10-30): bind the user's
+            # answer to the durable pending obligation before any other
+            # lane can reinterpret it as a new objective. A confirmed answer
+            # merges only the confirmed fields and resumes the original ask.
+            try:
+                _resume_workspace = (context or {}).get("workspace_id")
+                _resume_agent = (context or {}).get("agent_id")
+                message, _resumed_context, _teaching_resume_state = (
+                    self._resume_teaching_clarification(
+                        session=session,
+                        session_id=session_id,
+                        user_id=str(user_id or ""),
+                        message=message,
+                        context=context,
+                        workspace_id=_resume_workspace,
+                        agent_id=_resume_agent,
+                    ))
+                if _resumed_context is not None:
+                    context = _resumed_context
+                if (_teaching_resume_state or {}).get("foreign"):
+                    logger.warning(
+                        "[teaching-context] ignored a clarification answer "
+                        "bound to a different session/user/scope")
+            except Exception as _tc_err:  # noqa: BLE001 — additive
+                logger.warning(
+                    "teaching-context resume skipped: %r", _tc_err)
             # JOB CONTINUATION (2026-10-04 reviewer assignment): a bare
             # continuation over a job with open work EXECUTES the next
             # unfinished action from the durable ledger instead of asking
@@ -10429,6 +10511,144 @@ class ChatOrchestrator:
             await self._emit_agent_status(
                 session_id, _trace_agent_id, _execution_id, "running"
             )
+            # TEACHING-FIRST GATE (2026-10-30): resolve scoped teaching
+            # BEFORE intent analysis / reply generation. A missing context
+            # clarification or a uniquely applicable executable method must
+            # not spend the model budget, and the model must never generate
+            # a speculative answer that is later replaced.
+            try:
+                _early_ctx = dict(context or {})
+                _early_agent = (
+                    _early_ctx.get("agent_id")
+                    or getattr(self, "_last_agent_id", None))
+                _early_resume = (
+                    session.get("_teaching_resume")
+                    if isinstance(session, dict) else None)
+                _early_message = str(message or "")
+                if (isinstance(_early_resume, dict)
+                        and _early_resume.get("objective")):
+                    _early_message = str(_early_resume["objective"])
+                if _early_agent:
+                    from core.memory_context_assembler import (
+                        assemble_memory_context,
+                    )
+
+                    _early_task_context: Dict[str, Any] = {}
+                    for _ctx_key in ("task_context", "business_context"):
+                        if isinstance(_early_ctx.get(_ctx_key), dict):
+                            _early_task_context.update(
+                                _early_ctx[_ctx_key])
+                    for _ctx_key in ("customer", "qualification",
+                                     "task_scope", "recipient"):
+                        if _early_ctx.get(_ctx_key) is not None:
+                            _early_task_context[_ctx_key] = (
+                                _early_ctx[_ctx_key])
+                    _early_resolution: Dict[str, Any] = {}
+                    _early_memory = await assemble_memory_context(
+                        message=_early_message,
+                        workspace_id=(
+                            _early_ctx.get("workspace_id")
+                            or resolve_user_workspace(user_id)),
+                        tenant_id=self.tenant_id,
+                        agent_id=_early_agent,
+                        user_id=user_id,
+                        lessons_only=True,
+                        task_context=_early_task_context or None,
+                        teaching_resolution_out=_early_resolution,
+                    )
+                    if _early_resolution.get("needs_context"):
+                        _inferred_context = infer_teaching_context(
+                            _early_message,
+                            _early_resolution.get(
+                                "all_context_values") or {})
+                        if _inferred_context:
+                            _early_task_context.update(_inferred_context)
+                            _early_resolution = {}
+                            _early_memory = await assemble_memory_context(
+                                message=_early_message,
+                                workspace_id=(
+                                    _early_ctx.get("workspace_id")
+                                    or resolve_user_workspace(user_id)),
+                                tenant_id=self.tenant_id,
+                                agent_id=_early_agent,
+                                user_id=user_id,
+                                lessons_only=True,
+                                task_context=_early_task_context or None,
+                                teaching_resolution_out=_early_resolution,
+                            )
+                    _early_reply = self._apply_teaching_resolution(
+                        resolution=_early_resolution,
+                        message=_early_message,
+                        session=session,
+                        session_id=str(session_id or ""),
+                        user_id=str(user_id or ""),
+                        agent_id=_early_agent,
+                        workspace_id=(
+                            _early_ctx.get("workspace_id")
+                            or resolve_user_workspace(user_id)),
+                        task_context=_early_task_context or None,
+                        memory_context=_early_memory,
+                        request_id=str(_execution_id or ""),
+                    )
+                    if _early_reply is not None:
+                        _early_outcome = _early_reply.get(
+                            "_recorded_outcome") or {
+                                "state": "partial", "work_turn": True}
+                        _early_response = {
+                            "success": True,
+                            "message": _early_reply.get("content"),
+                            "session_id": session_id,
+                            "execution_id": _execution_id,
+                            "intent": "teaching_context",
+                            "confidence": 0.95,
+                            "data": {
+                                key: _early_reply[key]
+                                for key in (
+                                    "teaching_execution",
+                                    "teaching_clarification",
+                                    "teaching_method_conflict",
+                                    "teaching_exclusion")
+                                if _early_reply.get(key) is not None
+                            },
+                            "model": _early_reply.get("model"),
+                            "provider": _early_reply.get("provider"),
+                            "requires_confirmation": False,
+                            "next_steps": [],
+                            "suggested_actions": [],
+                            "timestamp": datetime.now().isoformat(),
+                            "memory_context": _early_memory,
+                            "deterministic_delivery": True,
+                            "outcome": _early_outcome.get("state"),
+                            "_recorded_outcome": _early_outcome,
+                        }
+                        self._update_session(
+                            session, message, _early_response,
+                            {"primary_intent": "teaching_context",
+                             "confidence": 0.95})
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id,
+                            "success")
+                        self._finish_chat_execution(
+                            _execution_id, "success",
+                            _early_response["message"],
+                            session=session, message=message,
+                            response=_early_response,
+                            deadline=_deadline,
+                            pending_task=session.get(
+                                "_pending_file_task"),
+                        )
+                        logger.info(
+                            "[teaching-context] deterministic %s before "
+                            "intent analysis (session=%s)",
+                            "clarification"
+                            if _early_reply.get(
+                                "teaching_clarification")
+                            else "method result",
+                            str(session_id)[:8])
+                        return _early_response
+            except Exception as _early_err:  # noqa: BLE001 — additive
+                logger.warning(
+                    "teaching-first gate skipped: %r", _early_err)
             # ACCEPTANCE BARRIER (test-only; confined by
             # core/acceptance_barrier — inert unless
             # ATOM_ACCEPTANCE_BARRIER names a stage, and refused outside an
@@ -17770,6 +17990,15 @@ class ChatOrchestrator:
                     if _execution_id:
                         self._budget_exceeded_runs.add(_execution_id)
                 else:
+                    _lesson_task_context: Dict[str, Any] = {}
+                    for _ctx_key in ("task_context", "business_context"):
+                        if isinstance((context or {}).get(_ctx_key), dict):
+                            _lesson_task_context.update(context[_ctx_key])
+                    for _ctx_key in ("customer", "qualification",
+                                     "task_scope", "recipient"):
+                        if (context or {}).get(_ctx_key) is not None:
+                            _lesson_task_context[_ctx_key] = context[_ctx_key]
+
                     async def _reply_leg():
                         ai_response = await self._get_qwen_response(
                             message, history, routing_overrides,
@@ -17814,6 +18043,7 @@ class ChatOrchestrator:
                             canvas_provenance=(context or {}).get("canvas_provenance"),
                             images=images,
                             review_objective=(_review_objective_hint or None),
+                            task_context=_lesson_task_context or None,
                         )
                         return ai_response
                     if _reply_leg_budget is not None:
@@ -18581,6 +18811,14 @@ class ChatOrchestrator:
                     combined_data[feature_type.value] = response["data"]
                 if response and "suggested_actions" in response:
                     suggested_actions.extend(response.get("suggested_actions", []))
+            for _teaching_key in (
+                    "teaching_execution",
+                    "teaching_clarification",
+                    "teaching_method_conflict",
+                    "teaching_exclusion"):
+                _teaching_value = (ai_response or {}).get(_teaching_key)
+                if _teaching_value is not None:
+                    combined_data[_teaching_key] = _teaching_value
             _objective_result = (ai_response or {}).get(
                 "objective_evidence"
             )
@@ -18679,6 +18917,9 @@ class ChatOrchestrator:
             # aligns success/error_code/outcome. Non-work turns resolve no
             # outcome and keep established semantics.
             _fb_outcome = locals().get("_fallback_outcome") or None
+            _teaching_outcome = (ai_response or {}).get("_recorded_outcome")
+            if isinstance(_teaching_outcome, dict):
+                _fb_outcome = _teaching_outcome
             # The honesty gate firing IS the work signal: the lane fell
             # through and served a completion claim, so work was
             # attempted whatever the durable carriers say.
@@ -21186,6 +21427,7 @@ class ChatOrchestrator:
         miss_handoff_block: Optional[str] = None,
         shared_tool_state: Optional[Dict[str, Any]] = None,
         review_objective: Optional[str] = None,
+        task_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -21232,6 +21474,16 @@ class ChatOrchestrator:
         """
         if not self.llm_service:
             return None
+
+        _teaching_replay = (
+            (session or {}).get("_teaching_replay")
+            if isinstance(session, dict) else None)
+        if isinstance(_teaching_replay, dict) and _teaching_replay.get("content"):
+            # Duplicate confirmation is idempotent: replay the stored
+            # deterministic result instead of recalculating or asking again.
+            if isinstance(session, dict):
+                session.pop("_teaching_replay", None)
+            return dict(_teaching_replay)
 
         # THE REQUEST'S LLM DISPATCH SCOPE (J2 user-boundary,
         # 2026-10-12): the authenticated user's own workspace/tenant,
@@ -21483,6 +21735,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # lesson that names the original subject. Judge the restored
                 # ask, the same way the planner boundary does.
                 _lesson_query = message
+                _teaching_resume_info = (
+                    (session or {}).get("_teaching_resume")
+                    if isinstance(session, dict) else None)
+                if (isinstance(_teaching_resume_info, dict)
+                        and _teaching_resume_info.get("objective")):
+                    # The user's answer is the turn's text; the original
+                    # objective is what teaching retrieval and execution
+                    # must judge.
+                    _lesson_query = str(_teaching_resume_info["objective"])
                 if isinstance(pending_file_task, dict):
                     try:
                         from core.pending_file_task import (
@@ -21526,14 +21787,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # the actual retrieval source identities for the
                     # durable outcome's evidence refs.
                     _retrieval_observations: List[Dict[str, Any]] = []
-                    _task_context: Dict[str, Any] = {}
-                    for _ctx_key in ("task_context", "business_context"):
-                        if isinstance(context.get(_ctx_key), dict):
-                            _task_context.update(context[_ctx_key])
-                    for _ctx_key in ("customer", "qualification",
-                                     "task_scope", "recipient"):
-                        if context.get(_ctx_key) is not None:
-                            _task_context[_ctx_key] = context[_ctx_key]
+                    _task_context: Dict[str, Any] = dict(task_context or {})
+                    _teaching_resolution: Dict[str, Any] = {}
                     memory_block = await assemble_memory_context(
                         message=_lesson_query,
                         workspace_id=user_workspace,
@@ -21550,7 +21805,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         source_observations_out=_retrieval_observations,
                         lessons_only=_lessons_only,
                         task_context=_task_context or None,
+                        teaching_resolution_out=_teaching_resolution,
                     )
+                    if _teaching_resolution.get("needs_context"):
+                        _inferred_context = infer_teaching_context(
+                            _lesson_query,
+                            _teaching_resolution.get(
+                                "all_context_values") or {})
+                        if _inferred_context:
+                            _task_context.update(_inferred_context)
+                            _teaching_resolution = {}
+                            memory_block = await assemble_memory_context(
+                                message=_lesson_query,
+                                workspace_id=user_workspace,
+                                tenant_id=self.tenant_id,
+                                agent_id=_agent_id,
+                                user_id=user_id,
+                                canvas_type=(canvas_context or {}).get(
+                                    "canvas_type"),
+                                source_observations_out=(
+                                    _retrieval_observations),
+                                lessons_only=_lessons_only,
+                                task_context=_task_context or None,
+                                teaching_resolution_out=_teaching_resolution,
+                            )
+                    _teaching_reply = self._apply_teaching_resolution(
+                        resolution=_teaching_resolution,
+                        message=_lesson_query,
+                        session=session,
+                        session_id=str(session_id or ""),
+                        user_id=str(user_id or ""),
+                        agent_id=_agent_id,
+                        workspace_id=user_workspace,
+                        task_context=_task_context or None,
+                        memory_context=memory_block,
+                        request_id=str(execution_id or ""),
+                    )
+                    if _teaching_reply is not None:
+                        return _teaching_reply
                     # C4 (owner directive): observations are committed only
                     # when content reaches the answer context (memory_block
                     # exists) — a failed assembly must not certify sources
@@ -24460,8 +24752,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # = not found, 'multiple'/'ambiguous' = needs
                             # the user's pick).
                             _rc_outcomes = _rc_ds.active_item_outcomes(
-                                str((context or {}).get(
-                                    "conversation_id") or ""),
+                                str(session_id or ""),
                                 statuses=("none", "absent", "multiple",
                                           "ambiguous"))
                             _rc_open = sorted(
@@ -30111,11 +30402,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.warning(
                             "[review-result] render skipped: %r",
                             _review_err)
+                _final_content = str(_claimed_content or "").strip()
                 return {
                     # STRIPPED (restored 2026-10-01): leading/trailing
                     # whitespace on the model's reply leaked to the user
                     # verbatim — pinned by the w115 contract tests.
-                    "content": str(_claimed_content or "").strip(),
+                    "content": _final_content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
@@ -34736,6 +35028,518 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"Could not hydrate session history from DB (non-fatal): {e}")
 
 
+    def _load_pending_teaching_clarification(
+        self, session_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """The conversation's durable pending context clarification.
+
+        Session metadata is the primary carrier (it survives refresh and
+        backend restart). Assistant-message metadata is the fallback used by
+        the existing pending-file-task carrier when a metadata write was
+        missed.
+        """
+        if not session_id:
+            return None
+        session = self.conversation_sessions.get(session_id)
+        if isinstance(session, dict):
+            pending = session.get("_pending_teaching_clarification")
+            if isinstance(pending, dict):
+                return pending
+        try:
+            persisted = (self.session_manager.get_session(session_id)
+                         if self.session_manager else None)
+            pending = ((persisted or {}).get("metadata") or {}).get(
+                "_pending_teaching_clarification")
+            if isinstance(pending, dict):
+                if isinstance(session, dict):
+                    session["_pending_teaching_clarification"] = pending
+                return pending
+        except Exception:  # noqa: BLE001 — fallback below
+            pass
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(
+                        ChatMessageModel.conversation_id == session_id,
+                        ChatMessageModel.role == "assistant",
+                    )
+                    .order_by(
+                        ChatMessageModel.created_at.desc(),
+                        ChatMessageModel.id.desc(),
+                    )
+                    .limit(24)
+                    .all()
+                )
+            for row in rows:
+                try:
+                    meta = json.loads(row.metadata_json or "{}")
+                except Exception:
+                    continue
+                pending = meta.get("pending_teaching_clarification")
+                if isinstance(pending, dict):
+                    if isinstance(session, dict):
+                        session["_pending_teaching_clarification"] = pending
+                    return pending
+        except Exception:  # noqa: BLE001 — best-effort recovery
+            pass
+        return None
+
+    def _persist_pending_teaching_clarification(
+        self,
+        session: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        pending: Optional[Dict[str, Any]],
+    ) -> None:
+        if isinstance(session, dict):
+            if pending is None:
+                session.pop("_pending_teaching_clarification", None)
+            else:
+                session["_pending_teaching_clarification"] = pending
+            metadata = session.get("metadata")
+            if isinstance(metadata, dict):
+                metadata["_pending_teaching_clarification"] = pending
+        if not session_id or not self.session_manager:
+            return
+        try:
+            self.session_manager.update_session_metadata(
+                session_id,
+                {"_pending_teaching_clarification": pending},
+            )
+        except Exception as exc:  # noqa: BLE001 — delivery never depends on it
+            logger.debug("teaching clarification metadata skipped: %r", exc)
+
+    def _teaching_lifecycle(self, workspace_id: Optional[str]):
+        return _task_lifecycle_for(
+            getattr(self, "tenant_id", None), workspace_id)
+
+    def _record_teaching_question(
+        self,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        pending: Dict[str, Any],
+        workspace_id: Optional[str],
+    ) -> None:
+        """Mirror the pending clarification into the existing task ledger.
+
+        The session metadata is always written; this adds the durable
+        open-question record when the task-lifecycle configuration is on.
+        It reuses TaskLifecycle, not a second task engine.
+        """
+        try:
+            lifecycle = self._teaching_lifecycle(workspace_id)
+            if lifecycle is None or not isinstance(session, dict):
+                return
+            from core.task_lifecycle import (
+                add_unresolved_questions,
+                resolve_unresolved_questions,
+            )
+
+            run_id = str(session.get("_task_run_id") or "")
+            record = lifecycle.get_task(run_id) if run_id else None
+            if record is None:
+                record = lifecycle.find_active_task(session_id)
+            if record is None:
+                # Do not create a second task engine (or a fresh GoalRun)
+                # just to hold a clarification. The session/metadata carrier
+                # is the durable obligation for a conversation with no task.
+                return
+            run_id = str(record.get("run_id") or run_id)
+            if not run_id:
+                return
+            session["_task_run_id"] = run_id
+            previous = str(pending.get("question_id") or "")
+            if previous:
+                try:
+                    resolve_unresolved_questions(
+                        lifecycle, run_id, question_ids=[previous],
+                        resolution=(
+                            "superseded by an updated teaching-context "
+                            "clarification"))
+                except Exception:  # noqa: BLE001 — best-effort
+                    pass
+            questions = add_unresolved_questions(
+                lifecycle, run_id,
+                [{
+                    "item": "teaching context",
+                    "question": render_teaching_question(pending),
+                    "kind": "business_decision",
+                    "inputs": pending,
+                    "concept": "teaching_context",
+                    "reason": (
+                        "scoped teaching requires user-confirmed context "
+                        "before it can govern this task"),
+                }],
+                source_operation="teaching_context",
+            )
+            if questions:
+                pending["task_run_id"] = run_id
+                pending["question_id"] = questions[0].get("question_id")
+        except Exception as exc:  # noqa: BLE001 — ledger is additive
+            logger.debug("teaching clarification ledger skipped: %r", exc)
+
+    def _resolve_teaching_question(
+        self,
+        session: Optional[Dict[str, Any]],
+        pending: Dict[str, Any],
+        workspace_id: Optional[str],
+        resolution: str,
+    ) -> None:
+        try:
+            lifecycle = self._teaching_lifecycle(workspace_id)
+            run_id = str((pending or {}).get("task_run_id") or (
+                (session or {}).get("_task_run_id") if isinstance(
+                    session, dict) else "") or "")
+            question_id = str((pending or {}).get("question_id") or "")
+            if lifecycle is None or not run_id or not question_id:
+                return
+            from core.task_lifecycle import resolve_unresolved_questions
+
+            resolve_unresolved_questions(
+                lifecycle, run_id, question_ids=[question_id],
+                resolution=resolution)
+        except Exception as exc:  # noqa: BLE001 — ledger is additive
+            logger.debug("teaching clarification resolution skipped: %r", exc)
+
+    def _resume_teaching_clarification(
+        self,
+        *,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        message: str,
+        context: Optional[Dict[str, Any]],
+        workspace_id: Optional[str],
+        agent_id: Optional[str],
+    ) -> tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+        """Bind the user's answer to the pending clarification, or replay a
+        duplicate confirmation. Returns ``(message, context, state)``.
+        """
+        pending = (
+            session.get("_pending_teaching_clarification")
+            if isinstance(session, dict) else None)
+        if not isinstance(pending, dict):
+            pending = self._load_pending_teaching_clarification(session_id)
+        if not isinstance(pending, dict):
+            return message, context, None
+        context = dict(context or {})
+        state = str(pending.get("state") or "")
+        logger.info(
+            "[teaching-context] resume state=%s last_answer=%r "
+            "has_result=%s session=%s",
+            state, pending.get("last_answer"),
+            bool(pending.get("last_result")), str(session_id)[:12])
+        # Scope binding: a foreign session/user/workspace/agent can never
+        # mutate this obligation.
+        if str(pending.get("session_id") or "") not in ("", str(session_id)):
+            return message, context, {"foreign": True}
+        if str(pending.get("user_id") or "") not in ("", str(user_id)):
+            return message, context, {"foreign": True}
+        if (workspace_id and pending.get("workspace_id")
+                and str(pending["workspace_id"]) != str(workspace_id)):
+            return message, context, {"foreign": True}
+        if (agent_id and pending.get("agent_id")
+                and str(pending["agent_id"]) != str(agent_id)):
+            return message, context, {"foreign": True}
+        if state == "confirmed":
+            last_answer = str(pending.get("last_answer") or "")
+            last_result = pending.get("last_result")
+            if (last_answer and last_result
+                    and " ".join(str(message or "").split()).casefold()
+                    == " ".join(last_answer.split()).casefold()):
+                context["_teaching_replay"] = last_result
+                if isinstance(session, dict):
+                    session["_teaching_replay"] = last_result
+                return message, context, {"replayed": True, "pending": pending}
+            # A later, different turn is a new objective; the old
+            # confirmation is history, not a trap.
+            self._persist_pending_teaching_clarification(
+                session, session_id, None)
+            return message, context, None
+        if state != "pending":
+            self._persist_pending_teaching_clarification(
+                session, session_id, None)
+            return message, context, None
+
+        confirmation = extract_teaching_confirmation(message, pending)
+        if confirmation.get("status") == "cancelled":
+            self._persist_pending_teaching_clarification(
+                session, session_id, None)
+            self._resolve_teaching_question(
+                session, pending, workspace_id,
+                "user cancelled the teaching-context clarification")
+            return message, context, {"cancelled": True}
+        if confirmation.get("status") == "confirmed":
+            merged = merge_teaching_context(pending, confirmation)
+            updated = mark_teaching_confirmed(pending, confirmation)
+            updated["last_answer"] = str(message or "")[:1000]
+            updated["last_result"] = None  # filled by the executing turn
+            context["task_context"] = {
+                **(context.get("task_context") or {}),
+                **merged,
+            }
+            context["_teaching_resume"] = {
+                "clarification_id": updated.get("clarification_id"),
+                "objective": updated.get("objective"),
+                "lesson_refs": list(updated.get("lesson_refs") or []),
+                "confirmed_context": dict(
+                    confirmation.get("answers") or {}),
+                "scope_updates": dict(
+                    confirmation.get("scope_updates") or {}),
+                "confirmation_source": "user",
+            }
+            if isinstance(session, dict):
+                session["_teaching_resume"] = context["_teaching_resume"]
+                session.pop("_teaching_replay", None)
+            self._resolve_teaching_question(
+                session, updated, workspace_id,
+                "user confirmed teaching context: " + ", ".join(
+                    f"{key}={value}" for key, value in
+                    (confirmation.get("answers") or {}).items()))
+            self._persist_pending_teaching_clarification(
+                session, session_id, updated)
+            return message, context, {"confirmed": True, "pending": updated}
+
+        # Partial, uncertain, ambiguous or unresolved: keep the obligation
+        # open and merge only definite values. Uncertainty is never
+        # promoted to confirmation.
+        updated = mark_teaching_pending(pending, confirmation, message)
+        definite = dict(confirmation.get("answers") or {})
+        merged = {**dict(pending.get("established_context") or {}), **definite}
+        context["task_context"] = {
+            **(context.get("task_context") or {}),
+            **merged,
+        }
+        context["_teaching_resume"] = {
+            "clarification_id": updated.get("clarification_id"),
+            "objective": updated.get("objective"),
+            "pending": True,
+            "confirmed_context": definite,
+        }
+        if isinstance(session, dict):
+            session["_teaching_resume"] = context["_teaching_resume"]
+            session.pop("_teaching_replay", None)
+        self._record_teaching_question(
+            session, session_id, updated, workspace_id)
+        self._persist_pending_teaching_clarification(
+            session, session_id, updated)
+        return message, context, {"pending": updated}
+
+    def _apply_teaching_resolution(
+        self,
+        *,
+        resolution: Optional[Dict[str, Any]],
+        message: str,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        workspace_id: Optional[str],
+        task_context: Optional[Dict[str, Any]],
+        memory_context: Optional[str],
+        request_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Turn a typed teaching decision into a deterministic reply.
+
+        Clarification is created BEFORE reply generation. A uniquely
+        applicable executable method runs through the existing allowlist.
+        """
+        if not isinstance(resolution, dict):
+            return None
+        _replay = (
+            (session or {}).get("_teaching_replay")
+            if isinstance(session, dict) else None)
+        if isinstance(_replay, dict) and _replay.get("content"):
+            if isinstance(session, dict):
+                session.pop("_teaching_replay", None)
+            return dict(_replay)
+        required = list(resolution.get("required_context") or [])
+        if required:
+            pending = (
+                session.get("_pending_teaching_clarification")
+                if isinstance(session, dict) else None)
+            if not isinstance(pending, dict):
+                pending = self._load_pending_teaching_clarification(
+                    session_id)
+            if not isinstance(pending, dict) or pending.get("state") != "pending":
+                pending = new_teaching_pending(
+                    session_id=session_id,
+                    user_id=user_id,
+                    agent_id=agent_id or "",
+                    workspace_id=workspace_id or "",
+                    tenant_id=str(getattr(self, "tenant_id", "") or ""),
+                    objective=message,
+                    required_context=required,
+                    established_context=task_context or {},
+                    lesson_refs=_teaching_lesson_refs(resolution),
+                    source_bindings=resolution.get("source_bindings") or [],
+                    request_id=request_id,
+                    all_context_values=_teaching_all_values(resolution),
+                )
+            else:
+                pending["required_context"] = required
+                pending["established_context"] = dict(task_context or {})
+                pending["lesson_refs"] = _teaching_lesson_refs(resolution)
+                pending["all_context_values"] = _teaching_all_values(
+                    resolution)
+                pending["source_bindings"] = list(
+                    resolution.get("source_bindings") or [])
+                pending["updated_at"] = datetime.now(
+                    timezone.utc).isoformat()
+            self._record_teaching_question(
+                session, session_id, pending, workspace_id)
+            self._persist_pending_teaching_clarification(
+                session, session_id, pending)
+            content = render_teaching_question(pending)
+            return {
+                "content": content,
+                "model": "teaching-resolver",
+                "provider": "deterministic",
+                "memory_context": memory_context,
+                "teaching_clarification": {
+                    "schema": "teaching-clarification-1",
+                    "clarification_id": pending.get("clarification_id"),
+                    "state": "pending",
+                    "required_context": required,
+                    "lesson_refs": list(pending.get("lesson_refs") or []),
+                    "authority": "user_confirmation",
+                },
+                "deterministic_delivery": True,
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
+        if (resolution.get("mismatch")
+                and not resolution.get("method_lessons")):
+            from core.chat_teaching_runtime import looks_like_calculation
+
+            if looks_like_calculation(message):
+                conflicts = list(resolution.get("conflicts") or [])
+                detail = "; ".join(
+                    f"{item.get('key')}={item.get('actual')} does not match "
+                    f"required {item.get('required')}"
+                    for item in conflicts[:4] if isinstance(item, dict))
+                return {
+                    "content": (
+                        "The scoped taught method does not apply to this "
+                        "task" + (f": {detail}" if detail else "")
+                        + ". I did not calculate anything; the general "
+                        "guidance still applies."),
+                    "model": "teaching-resolver",
+                    "provider": "deterministic",
+                    "memory_context": memory_context,
+                    "teaching_exclusion": {
+                        "reason": "teaching_context_mismatch",
+                        "conflicts": conflicts[:20],
+                        "lesson_refs": list(
+                            resolution.get("excluded_lessons") or [])[:20],
+                    },
+                    "deterministic_delivery": True,
+                    "_recorded_outcome": {
+                        "state": "partial",
+                        "work_turn": True,
+                    },
+                }
+        if resolution.get("method_status") == "conflict":
+            return {
+                "content": (
+                    "Two equally specific taught methods apply to this "
+                    "task, so I did not calculate anything. Tell me which "
+                    "method governs and I will use that one."),
+                "model": "teaching-resolver",
+                "provider": "deterministic",
+                "memory_context": memory_context,
+                "teaching_method_conflict": {
+                    "lesson_refs": list(
+                        resolution.get("consumed_lesson_refs") or []),
+                    "conflicts": list(resolution.get("conflicts") or []),
+                },
+                "deterministic_delivery": True,
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
+        method_lessons = list(resolution.get("method_lessons") or [])
+        if len(method_lessons) == 1:
+            from core.chat_teaching_runtime import execute_method_lesson
+
+            entry = method_lessons[0].get("entry") or {}
+            execution = execute_method_lesson(
+                entry, message, task_context=task_context,
+                workspace_id=workspace_id)
+            if execution.get("status") == "applied":
+                metadata = {
+                    key: value for key, value in execution.items()
+                    if key not in ("content", "method", "_recorded_outcome")
+                }
+                reply = {
+                    "content": execution.get("content"),
+                    "model": "teaching-method",
+                    "provider": "deterministic",
+                    "memory_context": memory_context,
+                    "teaching_execution": metadata,
+                    "deterministic_delivery": True,
+                    "_recorded_outcome": execution.get(
+                        "_recorded_outcome") or {
+                            "state": "completed", "work_turn": True},
+                }
+                if isinstance(session, dict):
+                    pending = session.get(
+                        "_pending_teaching_clarification")
+                    if isinstance(pending, dict) and pending.get(
+                            "state") == "confirmed":
+                        pending["last_result"] = {
+                            "content": reply["content"],
+                            "model": reply["model"],
+                            "provider": reply["provider"],
+                            "teaching_execution": metadata,
+                            "deterministic_delivery": True,
+                            "_recorded_outcome": reply["_recorded_outcome"],
+                        }
+                        self._persist_pending_teaching_clarification(
+                            session, session_id, pending)
+                    session.pop("_teaching_resume", None)
+                    session.pop("_teaching_replay", None)
+                return reply
+            if execution.get("status") in ("needs_inputs", "blocked"):
+                missing = list(execution.get("missing") or [])
+                if missing:
+                    content = (
+                        "I can apply the taught method, but I need these "
+                        "inputs: " + ", ".join(missing) + ".")
+                else:
+                    reason = str(
+                        execution.get("reason")
+                        or "the required inputs are not available")
+                    content = (
+                        "The taught method could not be applied: "
+                        f"{reason}. No calculation was run.")
+                return {
+                    "content": content,
+                    "model": "teaching-method",
+                    "provider": "deterministic",
+                    "memory_context": memory_context,
+                    "teaching_execution": {
+                        "status": execution.get("status"),
+                        "lesson_id": entry.get("id"),
+                        "lesson_revision": int(
+                            entry.get("revision") or 1),
+                        "missing": missing,
+                        "reason": execution.get("reason"),
+                    },
+                    "deterministic_delivery": True,
+                    "_recorded_outcome": {
+                        "state": "partial",
+                        "work_turn": True,
+                    },
+                }
+        return None
+
     def _get_or_create_session(
         self, user_id: str, session_id: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -34773,6 +35577,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _pending = _metadata.get("_pending_file_task")
                 if isinstance(_pending, dict):
                     existing["_pending_file_task"] = _pending
+                _teaching_pending = _metadata.get(
+                    "_pending_teaching_clarification")
+                if (isinstance(_teaching_pending, dict)
+                        and not isinstance(existing.get(
+                            "_pending_teaching_clarification"), dict)):
+                    existing["_pending_teaching_clarification"] = (
+                        _teaching_pending)
             return self.conversation_sessions[session_id]
 
         # New session — create in-memory AND persist the ChatSession row.
@@ -34794,6 +35605,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _pending = _metadata.get("_pending_file_task")
             if isinstance(_pending, dict):
                 self.conversation_sessions[session_id]["_pending_file_task"] = _pending
+            _teaching_pending = _metadata.get(
+                "_pending_teaching_clarification")
+            if isinstance(_teaching_pending, dict):
+                self.conversation_sessions[session_id][
+                    "_pending_teaching_clarification"] = _teaching_pending
         except Exception:
             pass
         # Persist the session row so it survives restarts and appears in the
@@ -35062,6 +35878,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _msg_meta["_pending_file_task"] = session.get(
                                 "_pending_file_task"
                             )
+                            _msg_meta[
+                                "pending_teaching_clarification"] = session.get(
+                                    "_pending_teaching_clarification")
+                            _response_data = (
+                                response.get("data")
+                                if isinstance(response, dict) else None) or {}
+                            for _teaching_key in (
+                                    "teaching_execution",
+                                    "teaching_clarification",
+                                    "teaching_method_conflict",
+                                    "teaching_exclusion"):
+                                _teaching_value = _response_data.get(
+                                    _teaching_key)
+                                if _teaching_value is not None:
+                                    _msg_meta[_teaching_key] = _teaching_value
+                            if isinstance(response, dict) and response.get(
+                                    "outcome"):
+                                _msg_meta["outcome"] = response.get("outcome")
                             if _shadow_decision is not None:
                                 _msg_meta["turn_decision"] = (
                                     _shadow_decision)
@@ -35083,7 +35917,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if self.session_manager and session.get("id"):
                 self.session_manager.update_session_metadata(
                     session["id"],
-                    {"_pending_file_task": session.get("_pending_file_task")},
+                    {
+                        "_pending_file_task": session.get(
+                            "_pending_file_task"),
+                        "_pending_teaching_clarification": session.get(
+                            "_pending_teaching_clarification"),
+                    },
                 )
         except Exception as e:
             logger.debug(f"Session metadata persistence skipped: {e}")

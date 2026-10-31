@@ -611,7 +611,8 @@ async def test_lessons_leg_rendered_first(monkeypatch):
         "1. [tone] Address the client as Dr. Reyes"
     )
 
-    async def fake_lessons(message, agent_id):
+    async def fake_lessons(message, agent_id, task_context=None,
+                           workspace_id=None, resolution_out=None):
         assert agent_id == "hire-1"
         return lessons_block
 
@@ -672,7 +673,8 @@ async def test_lessons_only_returns_training_without_reference_legs(monkeypatch)
     """
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
 
-    async def lessons(message, agent):
+    async def lessons(message, agent, task_context=None, workspace_id=None,
+                      resolution_out=None):
         assert message == "review O-1010"
         assert agent == "agent-1"
         return "TRAINING LESSONS — PERMANENT INSTRUCTIONS: escalate O-1010."
