@@ -11,12 +11,14 @@ jest.mock("@/lib/assignment-api", () => ({
   resolveAssignmentGap: jest.fn(),
   recordAssignmentResponse: jest.fn(),
   approveAssignmentStep: jest.fn(),
+  reconcileAssignmentStep: jest.fn(),
 }));
 
 import {
   approveAssignmentStep,
   getAssignment,
   listAssignments,
+  reconcileAssignmentStep,
   resolveAssignmentGap,
   resumeAssignment,
 } from "@/lib/assignment-api";
@@ -128,6 +130,7 @@ beforeEach(() => {
   (approveAssignmentStep as jest.Mock).mockResolvedValue({ status: "approved" });
   (resolveAssignmentGap as jest.Mock).mockResolvedValue(detail);
   (resumeAssignment as jest.Mock).mockResolvedValue(detail);
+  (reconcileAssignmentStep as jest.Mock).mockResolvedValue(detail);
 });
 
 test("shows objective, completed work, gaps, waiting party and approval payload", async () => {
@@ -167,6 +170,30 @@ test("resolving a gap posts the answer and resumes through the backend", async (
       "run-1",
       "q-1",
       "2027-01-01"
+    )
+  );
+});
+
+test("uncertain effect reconciliation sends evidence and verdict", async () => {
+  const uncertain = JSON.parse(JSON.stringify(detail));
+  uncertain.assignment.steps[1].status = "uncertain";
+  uncertain.assignment.steps[1].failure = {
+    message: "The provider may have accepted the effect.",
+  };
+  (getAssignment as jest.Mock).mockResolvedValue(uncertain);
+
+  render(<AssignmentPanel />);
+  const evidence = await screen.findByTestId("assignment-reconcile-evidence");
+  fireEvent.change(evidence, {
+    target: { value: "provider receipt row 42" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Mark applied/i }));
+  await waitFor(() =>
+    expect(reconcileAssignmentStep).toHaveBeenCalledWith(
+      "run-1",
+      "send",
+      "applied",
+      "provider receipt row 42"
     )
   );
 });

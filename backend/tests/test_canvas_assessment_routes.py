@@ -256,3 +256,76 @@ def test_unsupported_approval_fails_the_qualification_gate():
     assert judgment["safe_abstention"]["passed"] is False
     assert judgment["safe_abstention"]["violations"][0]["kind"] == (
         "unsupported_approval")
+
+
+def test_route_clarification_resumes_and_invalidates_prior_approval(
+        store, user, monkeypatch):
+    import re
+
+    from core import review_result
+
+    db, _Session = store
+    canvas = _seed(db, user)
+    state = {"calls": 0}
+
+    async def fake_generate(llm, **kwargs):
+        state["calls"] += 1
+        policy_id = re.search(
+            r"policy:[0-9a-f]+", kwargs["messages"][0]["content"]).group(0)
+        unresolved = (
+            ["Confirm the amount for R-2."] if state["calls"] == 1 else [])
+        return "```review_result\n" + json.dumps({"assessments": [
+            {
+                "subject_id": "R-1", "decision": "APPROVE",
+                "basis": ["Amount 120 is at least 100"],
+                "evidence_ids": ["ev:R-1:2"],
+                "policy_ids": [policy_id],
+                "unresolved_requirements": [],
+            },
+            {
+                "subject_id": "R-2",
+                "decision": "REVIEW" if unresolved else "APPROVE",
+                "basis": ["Amount 75"],
+                "evidence_ids": ["ev:R-2:3"],
+                "policy_ids": [policy_id],
+                "unresolved_requirements": unresolved,
+            },
+        ]}) + "\n```"
+
+    monkeypatch.setenv("ATOM_REVIEW_MODEL", "deepseek-flash")
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "always")
+    monkeypatch.setattr(review_result, "generate_structured_review",
+                        fake_generate)
+    client = _client(db, user)
+
+    first = client.post(
+        f"/api/canvas/{canvas.id}/capability/assess",
+        json={"ask": "Assess every row."})
+    assert first.status_code == 200, first.text
+    first_body = first.json()
+    assert first_body["authorized"] is False
+    clarification = first_body["clarification"]
+    assert clarification["state"] == "open"
+    assert clarification["open_count"] == 1
+    assert clarification["request"]["ask"] == "Assess every row."
+    execution_id = first_body["execution_id"]
+
+    approved = client.post(
+        f"/api/canvas/{canvas.id}/capability/assess/{execution_id}/approve")
+    assert approved.status_code == 200, approved.text
+
+    resumed = client.post(
+        f"/api/canvas/{canvas.id}/capability/assess/{execution_id}/clarify",
+        json={"answers": [{"subject": "R-2", "answer": "75.00"}]})
+    assert resumed.status_code == 200, resumed.text
+    body = resumed.json()
+    assert body["clarification_resumed"] is True
+    assert body["execution_id"] != execution_id
+    assert body["certified"] is True
+    # The resumed assessment is a NEW execution and still needs review; the
+    # earlier approval cannot authorize it.
+    assert body["authorized"] is False
+    assert body["rendered"] == ""
+    assert body["clarification"]["state"] == "none"
+    decisions = client.get(f"/api/canvas/{canvas.id}/capability/decisions")
+    assert decisions.status_code == 409, decisions.text

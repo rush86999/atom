@@ -108,8 +108,8 @@ correction with a real restart:
 - **Attempt 1** (default 600 s provider budget, 4096 context): **incomplete** —
   three calls ended at exactly 10m0s; no judgment observed. Preserved.
 - **Attempt 2** (same set; `OLLAMA_REQUEST_TIMEOUT=1800`, context 8192):
-  completed. `create` **17/18 (94.4%)**, `correct` **17/18**, `after-restart`
-  **17/18**; all **8** V1→V3 flips correct, including the three non-North
+  completed. `create` **17/18 (94.4%)**, `correct` **18/19 (94.7%)**,
+  `after-restart` **18/19 (94.7%)**; all **8** V1→V3 flips correct, including the three non-North
   `Risk High` records that isolate the two rule changes; 10/10 restart gates.
 - Stable error: `Q-021` (Region blank, otherwise approvable) returns REVIEW.
 - Serious gap behaviour: `Q-012` (**Amount 0**) is APPROVE in every phase,

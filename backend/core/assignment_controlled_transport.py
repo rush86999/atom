@@ -100,7 +100,7 @@ default_adapter_registry.register(
     description="Acceptance-only local outbox sender",
     metadata={"effect": "external", "required_actions": ["outbound"],
               "requires_approval": True,
-              "allow_standing_authorization": False},
+              "allow_standing_authorization": True},
 )
 default_adapter_registry.register(
     "assignment.controlled_wait",

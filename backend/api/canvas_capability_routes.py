@@ -312,15 +312,9 @@ async def capability_clarify(
             return result
         original = (result.get("clarification") or {}).get(
             "request", {}).get("ask") or "Assess every selected row."
-        answers_text = "; ".join(
-            f"{item.get('subject')}: {item.get('answer')}"
-            for item in (result["clarification"]["requirements"]))
-        ask = (
-            f"{original} Clarification answers: {answers_text}. "
-            "Reassess every record under the policy using these answers."
-        )
         resumed = await assess_operation(
-            db, canvas, current_user, ask)
+            db, canvas, current_user, original,
+            clarification_answers=result["clarification"]["requirements"])
         resumed["clarification_resumed"] = True
         return resumed
     except CapabilityError as exc:

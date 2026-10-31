@@ -25,7 +25,10 @@ from core.assignment_planner import (
     plan_assignment,
     validate_proposed_plan,
 )
-from core.assignment_plan import new_teaching_snapshot
+from core.assignment_plan import (
+    new_teaching_snapshot,
+    normalize_standing_authority,
+)
 from core.assignment_resources import (
     AssignmentResourceError,
     allocate_output_path,
@@ -58,6 +61,12 @@ class AssignmentCancel(BaseModel):
 
 class AssignmentApproval(BaseModel):
     note: str = ""
+
+
+class AssignmentReconciliation(BaseModel):
+    verdict: str
+    evidence: str
+    evidence_ref: Optional[str] = None
 
 
 class AssignmentGapResolution(BaseModel):
@@ -99,6 +108,7 @@ class AssignmentStart(BaseModel):
     task_context: Dict[str, Any] = {}
     transport: Optional[str] = None
     proposed_steps: Optional[List[Dict[str, Any]]] = None
+    standing_authority: Optional[Dict[str, Any]] = None
 
 
 def _scoped_run(run_id: str, current_user: User) -> Dict[str, Any]:
@@ -552,6 +562,11 @@ async def start_assignment(
                 detail="controlled transport is not enabled in this runtime")
 
     try:
+        standing_authority = normalize_standing_authority(
+            body.standing_authority, granted_by=current_user.id)
+    except Exception as exc:  # noqa: BLE001 — a bad grant is a client error
+        raise HTTPException(status_code=422, detail=str(exc))
+    try:
         plan = plan_assignment(
             objective=body.objective,
             sources=resolved_sources,
@@ -559,6 +574,7 @@ async def start_assignment(
             calculation=body.calculation,
             outbound=body.outbound,
             wait=body.wait,
+            standing_authority=standing_authority,
             teaching_snapshot=teaching,
             authorized_actions=accepted_actions,
             employee_id=employee.id,
@@ -1060,4 +1076,45 @@ async def approve_assignment_step(
         action.reviewed_at = datetime.now(timezone.utc)
         db.commit()
         result["assignment"] = await executor.resume(run_id)
+    return result
+
+
+@router.post("/{run_id}/reconcile/{step_id}")
+async def reconcile_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentReconciliation,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Settle one uncertain external effect against durable evidence.
+
+    ``applied`` records completion and advances; ``not_applied`` permits a
+    NEW operation on the next resume; ``insufficient`` leaves the uncertain
+    state intact and never resends. Evidence is required for every verdict.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    record = executor.lifecycle.get_task(run_id) or {}
+    if str((record.get("task_revision") or {}).get("authorization")
+           or "").lower() == "cancelled":
+        raise HTTPException(
+            status_code=409,
+            detail="The assignment is cancelled; reconciliation cannot revive it")
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if user is None or not user_meets_role(user, UserRole.TEAM_LEAD):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient reconciliation authority for this assignment")
+    try:
+        result = executor.reconcile_step(
+            run_id, step_id, body.verdict,
+            evidence=body.evidence,
+            evidence_ref=body.evidence_ref,
+        )
+    except Exception as exc:  # noqa: BLE001 — keep the uncertain state
+        raise HTTPException(status_code=409, detail=str(exc))
+    if body.verdict == "insufficient":
+        return result
+    result["assignment"] = await executor.resume(run_id)
     return result

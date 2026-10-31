@@ -32,6 +32,7 @@ from core.assignment_plan import (
     new_deliverable,
     new_step,
     new_teaching_snapshot,
+    normalize_standing_authority,
     step_by_id,
 )
 from core.goals.goal_run_events import ingest_event
@@ -101,7 +102,7 @@ def _teaching(**overrides):
 
 def _create(env, *, objective, steps, teaching, deliverables=None,
             authorized_actions=None, completion_criteria=None,
-            employee="user-1"):
+            employee="user-1", standing_authority=None, budget=None):
     plan = new_assignment(
         objective=objective,
         employee_id=employee,
@@ -112,8 +113,9 @@ def _create(env, *, objective, steps, teaching, deliverables=None,
         deliverables=deliverables or [],
         authorized_actions=authorized_actions or [],
         completion_criteria=completion_criteria or [],
-        budget={"max_steps": 40, "max_attempts_per_step": 3,
-                "max_wall_seconds": 600},
+        standing_authority=standing_authority,
+        budget=budget or {"max_steps": 40, "max_attempts_per_step": 3,
+                          "max_wall_seconds": 600},
     )
     record = env["executor"].create_assignment(
         f"conv-{uuid.uuid4().hex[:8]}", objective, assignment=plan)
@@ -225,7 +227,12 @@ def _install_controlled_adapters(env, monkeypatch, outbox: Path):
     registry.register("test.request_fact", request_fact)
     registry.register("test.assess", assess)
     registry.register(
-        "test.outbox.send", outbox_send, prepare=outbox_prepare)
+        "test.outbox.send", outbox_send, prepare=outbox_prepare,
+        metadata={
+            "effect": "external",
+            "required_actions": ["outbound"],
+            "allow_standing_authorization": True,
+        })
 
     async def fake_hitl(**kwargs):
         return {"status": "PAUSED", "action_id": f"hitl-{uuid.uuid4().hex[:8]}"}
@@ -1833,3 +1840,168 @@ def test_fact_evidence_branch_matrix(env):
     no_measure = _source_fact_resolution(aggregate_no_measure, "currency")
     assert no_measure["status"] == "unavailable"
     assert no_measure["reason"] == "aggregate_measure_missing"
+
+
+def _standing_send_steps(count, recipients, **step_overrides):
+    steps = [new_step(
+        step_id="read", title="Read", operation_type="retrieve",
+        adapter="workbook.read",
+        inputs={"path": str(step_overrides["workbook"]), "sheet": "Records"},
+        effect="read_only")]
+    for index in range(count):
+        steps.append(new_step(
+            step_id=f"send-{index + 1}", title=f"Send {index + 1}",
+            operation_type="outbound", adapter="test.outbox.send",
+            depends_on=["read"],
+            inputs={
+                "to": [recipients[index]],
+                "subject": f"Standing {index + 1}",
+                "body": "Bounded standing authority",
+            },
+            effect="external", approval_required=True,
+            approval_purpose="Send the prepared response"))
+    return steps
+
+
+def test_bounded_standing_authority_covers_two_sends_without_approval(
+        env, monkeypatch, tmp_path):
+    outbox = tmp_path / "standing-outbox.jsonl"
+    _install_controlled_adapters(env, monkeypatch, outbox)
+    workbook = _make_workbook(tmp_path / "standing.xlsx")
+    grant = normalize_standing_authority(
+        {"actions": ["outbound"], "max_effects": 2,
+         "recipients": ["one@example.invalid", "two@example.invalid"]},
+        granted_by="owner-1")
+    run_id, _ = _create(
+        env, objective="Two covered sends",
+        steps=_standing_send_steps(
+            2, ["one@example.invalid", "two@example.invalid"],
+            workbook=workbook),
+        teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
+        standing_authority=grant)
+
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    effects = [json.loads(line) for line in outbox.read_text().splitlines()]
+    assert result["assignment"]["status"] == "completed"
+    assert len(effects) == 2
+    assert {item["to"][0] for item in effects} == {
+        "one@example.invalid", "two@example.invalid"}
+    assert assignment["standing_authority"]["used_effects"] == 2
+    assert assignment["standing_authority"]["status"] == "exhausted"
+    for step in assignment["steps"]:
+        if step["step_id"].startswith("send-"):
+            assert step["status"] == "applied"
+            receipt = step["standing_authority_receipt"]
+            assert receipt["grant_id"] == grant["grant_id"]
+            assert receipt["use"] in (1, 2)
+            assert receipt["payload_sha256"]
+
+
+def test_standing_authority_bound_falls_back_to_approval(
+        env, monkeypatch, tmp_path):
+    outbox = tmp_path / "standing-bound.jsonl"
+    _install_controlled_adapters(env, monkeypatch, outbox)
+    workbook = _make_workbook(tmp_path / "standing-bound.xlsx")
+    grant = normalize_standing_authority(
+        {"actions": ["outbound"], "max_effects": 1,
+         "recipients": ["one@example.invalid", "two@example.invalid"]},
+        granted_by="owner-1")
+    run_id, _ = _create(
+        env, objective="One covered send then approval",
+        steps=_standing_send_steps(
+            2, ["one@example.invalid", "two@example.invalid"],
+            workbook=workbook),
+        teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
+        standing_authority=grant)
+
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    effects = [json.loads(line) for line in outbox.read_text().splitlines()]
+    by_id = {step["step_id"]: step for step in assignment["steps"]}
+    assert len(effects) == 1
+    assert effects[0]["to"] == ["one@example.invalid"]
+    assert by_id["send-1"]["status"] == "applied"
+    assert by_id["send-2"]["status"] == "awaiting_approval"
+    assert assignment["standing_authority"]["used_effects"] == 1
+    assert assignment["standing_authority"]["status"] == "exhausted"
+
+
+def test_recipient_outside_the_grant_requires_approval(
+        env, monkeypatch, tmp_path):
+    outbox = tmp_path / "standing-recipient.jsonl"
+    _install_controlled_adapters(env, monkeypatch, outbox)
+    workbook = _make_workbook(tmp_path / "standing-recipient.xlsx")
+    grant = normalize_standing_authority(
+        {"actions": ["outbound"], "max_effects": 1,
+         "recipients": ["allowed@example.invalid"]},
+        granted_by="owner-1")
+    steps = _standing_send_steps(
+        1, ["other@example.invalid"], workbook=workbook)
+    run_id, _ = _create(
+        env, objective="Recipient outside grant", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
+        standing_authority=grant)
+
+    _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert not outbox.exists() or not outbox.read_text().strip()
+    assert step_by_id(assignment, "send-1")["status"] == "awaiting_approval"
+    assert assignment["standing_authority"]["used_effects"] == 0
+
+
+def test_expired_standing_authority_requires_approval(
+        env, monkeypatch, tmp_path):
+    outbox = tmp_path / "standing-expired.jsonl"
+    _install_controlled_adapters(env, monkeypatch, outbox)
+    workbook = _make_workbook(tmp_path / "standing-expired.xlsx")
+    grant = normalize_standing_authority(
+        {"actions": ["outbound"], "max_effects": 1,
+         "recipients": ["one@example.invalid"],
+         "expires_at": "2000-01-01T00:00:00+00:00"},
+        granted_by="owner-1")
+    run_id, _ = _create(
+        env, objective="Expired grant",
+        steps=_standing_send_steps(
+            1, ["one@example.invalid"], workbook=workbook),
+        teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
+        standing_authority=grant)
+
+    _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert not outbox.exists() or not outbox.read_text().strip()
+    assert step_by_id(assignment, "send-1")["status"] == "awaiting_approval"
+    assert assignment["standing_authority"]["used_effects"] == 0
+
+
+def test_cost_budget_stops_before_the_next_step(env):
+    async def costed(inputs, context):
+        return {"status": "applied", "summary": "costed work",
+                "cost_usd": 10.0}
+
+    env["registry"].register("test.cost", costed)
+    steps = [
+        new_step(step_id="cost", title="Costed work",
+                 operation_type="calculate", adapter="test.cost",
+                 effect="local"),
+        new_step(step_id="after", title="After budget",
+                 operation_type="retrieve", adapter="workbook.read",
+                 depends_on=["cost"],
+                 inputs={"path": str(_make_workbook(
+                     env["tmp"] / "budget.xlsx")), "sheet": "Records"},
+                 effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Cost budget", steps=steps, teaching=_teaching(),
+        budget={"max_steps": 40, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600, "max_cost_usd": 5})
+
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert assignment["budget"]["cost_usd"] == 10.0
+    assert step_by_id(assignment, "cost")["status"] == "applied"
+    assert step_by_id(assignment, "after")["status"] == "failed"
+    assert step_by_id(assignment, "after")["failure"]["reason"] == (
+        "assignment_budget_exhausted")
+    assert result["assignment"]["status"] in (
+        "running", "blocked", "failed", "partial")

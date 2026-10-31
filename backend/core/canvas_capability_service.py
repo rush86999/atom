@@ -1426,6 +1426,7 @@ async def assess_operation(
     db, canvas: Canvas, user: Any, ask: str,
     llm_service: Any = None,
     max_subjects: Optional[int] = None,
+    clarification_answers: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
@@ -1544,6 +1545,18 @@ async def assess_operation(
         f"{len(unassessed_subjects)} selected but unassessed "
         f"(cap {cap}, {coverage['limit_source']})."
     )
+    clarification_text = ""
+    if clarification_answers:
+        clarification_text = (
+            "\n\nCLARIFICATION ANSWERS\n"
+            + "\n".join(
+                f"- subject={item.get('subject')} | "
+                f"requirement={item.get('requirement')} | "
+                f"answer={item.get('answer')}"
+                for item in clarification_answers
+                if isinstance(item, dict)
+            )
+        )
     system = (
         "You assess authoritative canvas rows under the task policy below. "
         "Use only the supplied rows and policy. Do not invent rows, columns, "
@@ -1553,6 +1566,7 @@ async def assess_operation(
         + "\n" + coverage_text
         + "\n\nSOURCE ROWS\n" + source_rows
         + "\n\nPOLICY TEXT\n" + policy_text
+        + clarification_text
     )
     messages = [
         {"role": "system", "content": system},
@@ -1663,6 +1677,7 @@ async def assess_operation(
         "max_subjects": cap,
         "assessed_subjects": subjects,
         "decisions": decisions,
+        "clarification_answers": list(clarification_answers or []),
     })[:24]
     # Deep copy: SQLAlchemy's JSON column compares old and new values, so an
     # in-place mutation of a nested record would be seen as "no change" and

@@ -296,6 +296,7 @@ def plan_assignment(
     transport_adapter: Optional[str] = None,
     provenance: Optional[Dict[str, Any]] = None,
     proposed_steps: Optional[Sequence[Dict[str, Any]]] = None,
+    standing_authority: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build and validate an assignment plan from opaque descriptors."""
     teaching = teaching_snapshot or new_teaching_snapshot(
@@ -438,6 +439,14 @@ def plan_assignment(
     else:
         steps = source_steps + wait_steps + calc_steps + deliverable_steps + send_steps
 
+    if standing_authority and "outbound" in (
+            standing_authority.get("actions") or []):
+        for step in steps:
+            if (str(step.get("effect") or "") == "external"
+                    and str(step.get("operation_type") or "") == "outbound"):
+                step["standing_authorization"] = (
+                    f"grant:{standing_authority.get('grant_id')}")
+
     criteria: List[Dict[str, Any]] = []
     for record in deliverable_records:
         criterion = _DELIVERABLE_CRITERIA.get(record["kind"])
@@ -460,6 +469,7 @@ def plan_assignment(
         teaching_snapshot=teaching,
         steps=steps,
         deliverables=deliverable_records,
+        standing_authority=standing_authority,
         sources=[
             {
                 "kind": source.get("kind"),

@@ -30,6 +30,7 @@ import {
   listAssignmentAgents,
   listAssignments,
   listAssignmentSources,
+  reconcileAssignmentStep,
   recordAssignmentResponse,
   resolveAssignmentGap,
   resumeAssignment,
@@ -129,6 +130,9 @@ export function AssignmentPanel({
   const [qualification, setQualification] = useState("");
   const [taskScope, setTaskScope] = useState("");
   const [missingFact, setMissingFact] = useState("");
+  const [standingRecipients, setStandingRecipients] = useState("");
+  const [standingMax, setStandingMax] = useState("");
+  const [reconcileEvidence, setReconcileEvidence] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
     deliverableKind: "document",
@@ -286,6 +290,18 @@ export function AssignmentPanel({
       if (process.env.NEXT_PUBLIC_ASSIGNMENT_TRANSPORT) {
         payload.transport = process.env.NEXT_PUBLIC_ASSIGNMENT_TRANSPORT;
       }
+      const grantMax = Number(standingMax);
+      const grantRecipients = standingRecipients
+        .split(/[,\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (Number.isInteger(grantMax) && grantMax > 0 && grantRecipients.length) {
+        payload.standing_authority = {
+          actions: ["outbound"],
+          max_effects: grantMax,
+          recipients: grantRecipients,
+        };
+      }
       const result = await createAssignment(payload);
       setStartDraft({
         objective: "",
@@ -302,6 +318,8 @@ export function AssignmentPanel({
       setQualification("");
       setTaskScope("");
       setMissingFact("");
+      setStandingRecipients("");
+      setStandingMax("");
       setSelected(result.run_id);
       await refreshList();
       await refreshDetail(result.run_id);
@@ -594,6 +612,29 @@ export function AssignmentPanel({
               aria-label="Missing fact"
               data-testid="assignment-missing-fact-input"
             />
+            <div className="grid grid-cols-2 gap-1">
+              <input
+                value={standingRecipients}
+                onChange={(e) => setStandingRecipients(e.target.value)}
+                placeholder="Standing authority recipients"
+                className="w-full rounded border px-1.5 py-1"
+                aria-label="Standing authority recipients"
+                data-testid="assignment-standing-recipients"
+              />
+              <input
+                value={standingMax}
+                onChange={(e) => setStandingMax(e.target.value)}
+                placeholder="Max sends"
+                inputMode="numeric"
+                className="w-full rounded border px-1.5 py-1"
+                aria-label="Standing authority max sends"
+                data-testid="assignment-standing-max"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Optional bounded authority: the named recipients and send count
+              are granted now; matching sends need no per-step approval.
+            </p>
             <p className="text-[10px] text-muted-foreground">
               Sending stays disabled unless this local build enables the
               controlled transport or a separate live-send authorization is in
@@ -673,6 +714,18 @@ export function AssignmentPanel({
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
             </p>
+            {detail.assignment.standing_authority ? (
+              <p
+                className="text-[10px] text-emerald-700"
+                data-testid="assignment-standing-authority"
+              >
+                Standing authority:{" "}
+                {String(detail.assignment.standing_authority.used_effects || 0)}
+                /{String(detail.assignment.standing_authority.max_effects || 0)}{" "}
+                sends used ·{" "}
+                {(detail.assignment.standing_authority.recipients || []).join(", ")}
+              </p>
+            ) : null}
             <p
               className="text-[10px] text-muted-foreground"
               data-testid="teaching-snapshot-note"
@@ -696,6 +749,16 @@ export function AssignmentPanel({
               {waitingParty ? (
                 <p className="text-[10px] text-amber-700">
                   Waiting for {waitingParty}
+                </p>
+              ) : null}
+              {step?.standing_authority_receipt?.grant_id ? (
+                <p
+                  className="text-[10px] text-emerald-700"
+                  data-testid="assignment-standing-receipt"
+                >
+                  Covered by bounded standing authority · use{" "}
+                  {String(step.standing_authority_receipt.use)}/
+                  {String(step.standing_authority_receipt.max_effects)}
                 </p>
               ) : null}
             </div>
@@ -1209,6 +1272,68 @@ export function AssignmentPanel({
                 {String(uncertain.failure?.message || "The provider may have accepted the effect.")}
                 {" "}It will not be resent automatically. Reconcile before retrying.
               </p>
+              <input
+                value={reconcileEvidence}
+                onChange={(e) => setReconcileEvidence(e.target.value)}
+                placeholder="Evidence (provider receipt, audit row, or absence proof)"
+                className="mt-1 w-full rounded border px-1.5 py-1"
+                aria-label="Reconciliation evidence"
+                data-testid="assignment-reconcile-evidence"
+              />
+              <div className="mt-1 flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  disabled={busy || !reconcileEvidence.trim()}
+                  onClick={() =>
+                    act(async () => {
+                      await reconcileAssignmentStep(
+                        detail.run_id,
+                        String(uncertain.step_id),
+                        "applied",
+                        reconcileEvidence.trim()
+                      );
+                      setReconcileEvidence("");
+                    }, detail.run_id)
+                  }
+                >
+                  Mark applied
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || !reconcileEvidence.trim()}
+                  onClick={() =>
+                    act(async () => {
+                      await reconcileAssignmentStep(
+                        detail.run_id,
+                        String(uncertain.step_id),
+                        "not_applied",
+                        reconcileEvidence.trim()
+                      );
+                      setReconcileEvidence("");
+                    }, detail.run_id)
+                  }
+                >
+                  Mark not applied
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy || !reconcileEvidence.trim()}
+                  onClick={() =>
+                    act(async () => {
+                      await reconcileAssignmentStep(
+                        detail.run_id,
+                        String(uncertain.step_id),
+                        "insufficient",
+                        reconcileEvidence.trim()
+                      );
+                    }, detail.run_id)
+                  }
+                >
+                  Evidence insufficient
+                </Button>
+              </div>
             </div>
           ) : null}
 

@@ -191,6 +191,7 @@ def _authorization_revision(assignment: Dict[str, Any]) -> str:
         "plan_revision": assignment.get("plan_revision"),
         "teaching_fingerprint": snapshot.get("fingerprint"),
         "authorized_actions": assignment.get("authorized_actions") or [],
+        "standing_authority": assignment.get("standing_authority") or {},
         "workspace_id": assignment.get("workspace_id"),
     })[:32]
 
@@ -3025,7 +3026,42 @@ class AssignmentExecutor:
         result = self.lifecycle.reconcile_uncertain_operation(
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)
-        return {"status": "reconciled", "operation": result}
+        if verdict == "applied":
+            assignment = self._mark_step(
+                (self.lifecycle.get_assignment(run_id) or {}),
+                step_id,
+                {
+                    "status": "applied",
+                    "result": _json_safe(result.get("execution") or {
+                        "summary": "reconciled applied",
+                        "evidence": [evidence],
+                    }),
+                    "failure": None,
+                })
+            self._persist_assignment(
+                run_id, assignment, f"step {step_id} reconciled applied")
+        elif verdict == "not_applied":
+            # No effect landed. Clear the operation binding so the next
+            # resume creates a NEW operation (the original failed record is
+            # preserved); never rewind or overwrite the evidence.
+            assignment = self.lifecycle.get_assignment(run_id) or {}
+            assignment = self._mark_step(assignment, step_id, {
+                "status": "pending",
+                "operation_id": None,
+                "attempts": int(step.get("attempts") or 0) + 1,
+                "failure": {
+                    "reason": "reconciled_not_applied",
+                    "message": _bounded(evidence, 500),
+                },
+            })
+            self._persist_assignment(
+                run_id, assignment, f"step {step_id} reconciled not applied")
+        return {
+            "status": "reconciled",
+            "verdict": verdict,
+            "operation": result,
+            "assignment": self.lifecycle.get_assignment(run_id) or {},
+        }
 
     # ------------------------------------------------------------- cancel
 
@@ -3173,7 +3209,7 @@ class AssignmentExecutor:
                 "tool": step.get("adapter"),
                 "verified": applied,
                 "outcome": (execution.get("summary")
-                            or step.get("failure", {}).get("message") or ""),
+                            or (step.get("failure") or {}).get("message") or ""),
                 "required": bool(step.get("required", True)),
                 "evidence_refs": list(step.get("evidence_refs") or []),
             })
@@ -3382,7 +3418,26 @@ class AssignmentExecutor:
                     return False
             except (TypeError, ValueError):
                 pass
+        cost_limit = float(budget.get("max_cost_usd") or 0)
+        if cost_limit > 0 and float(budget.get("cost_usd") or 0) >= cost_limit:
+            return False
         return True
+
+    def _record_step_cost(
+        self, assignment: Dict[str, Any], result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        try:
+            cost = float(result.get("cost_usd") or 0)
+        except (TypeError, ValueError):
+            cost = 0.0
+        if cost <= 0:
+            return assignment
+        updated = copy.deepcopy(assignment)
+        budget = dict(updated.get("budget") or {})
+        budget["cost_usd"] = round(
+            float(budget.get("cost_usd") or 0) + cost, 6)
+        updated["budget"] = budget
+        return updated
 
     def _bump_steps_started(
         self, assignment: Dict[str, Any],
@@ -3601,6 +3656,8 @@ class AssignmentExecutor:
                 assignment.get("deliverables") or []),
             "authorized_actions": list(
                 assignment.get("authorized_actions") or []),
+            "standing_authority": copy.deepcopy(
+                assignment.get("standing_authority") or {}),
             "task_revision": copy.deepcopy(record.get("task_revision") or {}),
             "resolved_gaps": [
                 copy.deepcopy(item)
@@ -3679,6 +3736,100 @@ class AssignmentExecutor:
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
 
+    def _standing_grant_covers(
+        self, assignment: Dict[str, Any], step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """The explicit bounded grant covering this outbound step, if any.
+
+        Coverage is deliberately narrow: outbound effects only, an adapter
+        that opted in, an unexpired active grant with remaining uses, and
+        every actual recipient inside the named recipient set.
+        """
+        grant = assignment.get("standing_authority")
+        if not isinstance(grant, dict) or grant.get("status") != "active":
+            return None
+        if "outbound" not in (grant.get("actions") or []):
+            return None
+        if str(step.get("effect") or "") != "external" or str(
+                step.get("operation_type") or "") != "outbound":
+            return None
+        adapter = self.adapters.get(step.get("adapter") or "")
+        if adapter is None or not (adapter.metadata or {}).get(
+                "allow_standing_authorization"):
+            return None
+        if int(grant.get("used_effects") or 0) >= int(
+                grant.get("max_effects") or 0):
+            return None
+        expires_at = str(grant.get("expires_at") or "").strip()
+        if expires_at:
+            try:
+                if self.clock() >= datetime.fromisoformat(expires_at).timestamp():
+                    return None
+            except (TypeError, ValueError):
+                return None
+        allowed = {
+            str(item).strip().lower()
+            for item in (grant.get("recipients") or []) if str(item).strip()
+        }
+        inputs = self._resolve_inputs(assignment, step)
+        recipients = {
+            str(item).strip().lower()
+            for key in ("to", "cc")
+            for item in (inputs.get(key) or [])
+            if str(item).strip()
+        }
+        if not recipients or not recipients <= allowed:
+            return None
+        return grant
+
+    def _reserve_standing_grant(
+        self, run_id: str, assignment: Dict[str, Any], step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Atomically consume one bounded grant use before dispatch.
+
+        A lost CAS or an exhausted/out-of-scope grant returns None; the
+        caller then falls back to the ordinary human approval path. The grant
+        is never consumed by a step the grant does not cover.
+        """
+        grant_id = str(
+            (assignment.get("standing_authority") or {}).get("grant_id") or "")
+        if not grant_id:
+            return None
+
+        def compute(record, current):
+            grant = self._standing_grant_covers(current, step)
+            if not grant or str(grant.get("grant_id")) != grant_id:
+                raise AssignmentError("standing authority is no longer usable")
+            use = int(grant.get("used_effects") or 0) + 1
+            updated = copy.deepcopy(current)
+            next_grant = dict(updated.get("standing_authority") or {})
+            next_grant["used_effects"] = use
+            next_grant["usage"] = list(next_grant.get("usage") or []) + [{
+                "use": use,
+                "step_id": step.get("step_id"),
+                "operation_id": step.get("operation_id"),
+                "at": _utc_now_iso(),
+            }]
+            if use >= int(next_grant.get("max_effects") or 0):
+                next_grant["status"] = "exhausted"
+            updated["standing_authority"] = next_grant
+            return updated, {
+                "assignment": updated,
+                "grant": next_grant,
+                "use": use,
+            }
+
+        try:
+            return self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale=(
+                    f"standing authority use for {step.get('step_id')}"))
+        except Exception as exc:  # noqa: BLE001 — fall back to approval
+            logger.warning(
+                "assignment %s: standing authority reservation refused: %s",
+                run_id, exc)
+            return None
+
     async def _run_step(
         self,
         run_id: str,
@@ -3698,8 +3849,42 @@ class AssignmentExecutor:
         external = step.get("effect") == "external"
         approval = step.get("approval") or {}
         standing = str(step.get("standing_authorization") or "").strip()
+        standing_reservation = None
+        if self._standing_grant_covers(assignment, step):
+            try:
+                prepared = self._prepare_effect(assignment, step, record)
+            except Exception as exc:  # noqa: BLE001 — fall back to approval
+                logger.warning(
+                    "assignment %s: standing authority prepare refused for "
+                    "%s: %s", run_id, step.get("step_id"), exc)
+                prepared = None
+            if prepared is not None:
+                standing_reservation = self._reserve_standing_grant(
+                    run_id, assignment, step)
+            if standing_reservation:
+                assignment = standing_reservation["assignment"]
+                grant = standing_reservation["grant"]
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "standing_authority_receipt": {
+                        "grant_id": grant.get("grant_id"),
+                        "use": standing_reservation["use"],
+                        "max_effects": grant.get("max_effects"),
+                        "recipients": list(grant.get("recipients") or []),
+                        "payload_sha256": prepared.get("payload_sha256"),
+                        "authorized_at": _utc_now_iso(),
+                    },
+                })
+                self._persist_assignment(
+                    run_id, assignment,
+                    f"step {step['step_id']} covered by standing authority")
+                step = step_by_id(assignment, step["step_id"]) or step
+
+        authorized_by_grant = standing_reservation is not None
         if external and not approval.get("required") and not (
-                standing and standing in (assignment.get("authorized_actions") or [])):
+                authorized_by_grant or (
+                    standing
+                    and standing in (assignment.get("authorized_actions") or [])
+                )):
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "failed",
                 "failure": {
@@ -3714,7 +3899,7 @@ class AssignmentExecutor:
                 run_id, assignment, "step blocked: action not authorized")
             return
 
-        if approval.get("required"):
+        if approval.get("required") and not authorized_by_grant:
             operation = _operation_by_id(
                 self.lifecycle.get_task(run_id) or record, operation_id) or operation
             if operation.get("status") == "awaiting_approval":
@@ -4055,6 +4240,7 @@ class AssignmentExecutor:
             "artifact_revision": artifact.get("revision"),
             "evidence_refs": list(result.get("evidence_refs") or []),
             "updated_at": _utc_now_iso()})
+        assignment = self._record_step_cost(assignment, result)
         assignment = self._apply_deliverables(assignment, step, result)
         self._persist_assignment(
             run_id, assignment, f"step {step['step_id']} applied")

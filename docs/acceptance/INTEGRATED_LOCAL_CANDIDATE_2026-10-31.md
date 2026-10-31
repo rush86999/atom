@@ -333,7 +333,8 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
 - **Canvas assessment requires human review for substantive recommendations.**
   The pipeline is verified end-to-end on `ollama`/`llama3.1:8b` with real
   provenance, correction and post-restart stability. Qualification on a frozen
-  24-record set scored **17/18 determinate (94.4%)** in every phase, with all
+  24-record set scored **17/18 on V1 and 18/19 on V3/post-restart**
+  (94.4% / 94.7%), with all
   eight V1→V3 flips correct and 10/10 restart gates. But the error is stable
   (`Q-021`, blank Region → REVIEW) and one untaught value was **approved**
   (`Q-012`, Amount 0). Autonomous substantive decisions therefore stay outside

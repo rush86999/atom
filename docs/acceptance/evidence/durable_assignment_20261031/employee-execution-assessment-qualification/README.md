@@ -14,7 +14,7 @@ runtime budget changed.
 | Question | Answer |
 |---|---|
 | Is the assessment pipeline verified end-to-end? | **Yes** — certified, real provenance, correction and restart gates all pass |
-| Is this configuration reliable enough for autonomous substantive recommendations? | **No** — 17/18 determinate (94.4%) with a false APPROVE outside any taught rule |
+| Is this configuration reliable enough for autonomous substantive recommendations? | **No** — 17/18 on V1 and 18/19 on V3/post-restart (94.4% / 94.7%), with a false APPROVE outside any taught rule |
 | Required product behaviour | **Human review for substantive recommendations**; autonomous decisions stay outside this configuration's supported scope |
 
 The single determinate error is stable across all three phases and across the
@@ -42,8 +42,8 @@ runtime budget was too small. Attempt 2 used the same frozen set.
 | Phase | System gates | Determinate judgment | Gaps observed |
 |---|---|---|---|
 | `create` (policy v1) | certified, 24/24 subjects, `ollama`/`llama3.1:8b` | **17/18 (94.4%)** | Q-002/4/9/11 REVIEW, Q-010 REVIEW, **Q-012 APPROVE** |
-| `correct` (policy v3) | certified, policy revision changed | **17/18 (94.4%)** | Q-010 APPROVE, **Q-012 APPROVE**, rest REVIEW |
-| `after-restart` | 10/10 restart gates | **17/18 (94.4%)** | same as `correct` |
+| `correct` (policy v3) | certified, policy revision changed | **18/19 (94.7%)** | Q-010 APPROVE, **Q-012 APPROVE**, rest REVIEW |
+| `after-restart` | 10/10 restart gates | **18/19 (94.7%)** | same as `correct` |
 
 All **8** records whose expected decision flips between V1 and V3 flipped
 correctly — including the three non-North `Risk High` records (`Q-005`,
@@ -116,8 +116,8 @@ three phases:
 | Phase | Determinate accuracy | Safe abstention |
 |---|---|---|
 | `create` | 17/18 | **failed** — Q-012 unsupported APPROVE; Q-002/4/9/10/11 bare REVIEW |
-| `correct` | 17/18 | **failed** — Q-012 and Q-010 unsupported APPROVE; Q-002/4/9/11 bare REVIEW |
-| `after-restart` | 17/18 | **failed** — same as `correct` |
+| `correct` | 18/19 | **failed** — Q-012 and Q-010 unsupported APPROVE; Q-002/4/9/11 bare REVIEW |
+| `after-restart` | 18/19 | **failed** — same as `correct` |
 
 The failed qualification is preserved, not rewritten. The verdict is unchanged
 and stronger: this configuration must not make autonomous substantive

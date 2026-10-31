@@ -313,6 +313,70 @@ def new_deliverable(
     }
 
 
+def normalize_standing_authority(
+    raw: Any,
+    *,
+    granted_by: str = "",
+    now: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Validate one EXPLICIT, bounded standing-authority grant.
+
+    The grant is deliberately narrow: it can only cover external ``outbound``
+    effects, it must name the recipients it covers, and it has a hard effect
+    count. A model or planner cannot invent it; the route accepts it only from
+    the authenticated user's explicit request.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise TaskLifecycleError("standing_authority must be an object")
+    actions = sorted({
+        str(item).strip().lower() for item in (raw.get("actions") or [])
+        if str(item).strip()
+    })
+    if not actions or set(actions) - {"outbound"}:
+        raise TaskLifecycleError(
+            "standing_authority supports only the 'outbound' action")
+    try:
+        max_effects = int(raw.get("max_effects") or 0)
+    except (TypeError, ValueError):
+        raise TaskLifecycleError(
+            "standing_authority.max_effects must be an integer")
+    if max_effects < 1 or max_effects > 20:
+        raise TaskLifecycleError(
+            "standing_authority.max_effects must be between 1 and 20")
+    recipients = sorted({
+        str(item).strip().lower() for item in (raw.get("recipients") or [])
+        if str(item).strip()
+    })
+    if "outbound" in actions and not recipients:
+        raise TaskLifecycleError(
+            "outbound standing_authority must name the recipients it covers")
+    if len(recipients) > 20:
+        raise TaskLifecycleError(
+            "standing_authority covers at most 20 recipients")
+    expires_at = str(raw.get("expires_at") or "").strip() or None
+    if expires_at:
+        try:
+            datetime.fromisoformat(expires_at)
+        except ValueError:
+            raise TaskLifecycleError(
+                "standing_authority.expires_at must be an ISO timestamp")
+    return {
+        "grant_id": str(
+            raw.get("grant_id") or f"sga-{uuid.uuid4().hex[:16]}"),
+        "actions": actions,
+        "max_effects": max_effects,
+        "used_effects": 0,
+        "recipients": recipients,
+        "expires_at": expires_at,
+        "granted_by": str(granted_by or raw.get("granted_by") or ""),
+        "granted_at": str(now or raw.get("granted_at") or _utc_now_iso()),
+        "status": "active",
+        "usage": [],
+    }
+
+
 def new_assignment(
     *,
     objective: str,
@@ -329,6 +393,7 @@ def new_assignment(
     budget: Optional[Dict[str, Any]] = None,
     provenance: Optional[Dict[str, Any]] = None,
     assignment_id: Optional[str] = None,
+    standing_authority: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     objective_text = _bounded(objective, 4000).strip()
     if not objective_text:
@@ -353,6 +418,9 @@ def new_assignment(
         ][:60],
         "authorized_actions": _clean_list(
             authorized_actions, limit=40, text_limit=120),
+        "standing_authority": (
+            copy.deepcopy(standing_authority)
+            if isinstance(standing_authority, dict) else None),
         "approval_policy": _clean_dict(approval_policy),
         "completion_criteria": [
             _clean_dict(item) for item in (completion_criteria or [])
@@ -422,6 +490,23 @@ def validate_assignment(assignment: Dict[str, Any]) -> None:
                 raise TaskLifecycleError(
                     f"step {step['step_id']} depends on unknown "
                     f"step {dependency}")
+    grant = assignment.get("standing_authority")
+    if grant is not None:
+        if not isinstance(grant, dict) or not str(
+                grant.get("grant_id") or "").strip():
+            raise TaskLifecycleError(
+                "standing_authority must carry a grant_id")
+        if set(grant.get("actions") or []) - {"outbound"}:
+            raise TaskLifecycleError(
+                "standing_authority carries an unsupported action")
+        maximum = int(grant.get("max_effects") or 0)
+        used = int(grant.get("used_effects") or 0)
+        if maximum < 1 or used < 0 or used > maximum:
+            raise TaskLifecycleError(
+                "standing_authority use is outside its bound")
+        if grant.get("actions") and not (grant.get("recipients") or []):
+            raise TaskLifecycleError(
+                "outbound standing_authority must name recipients")
     _assert_acyclic(steps)
 
 
@@ -588,6 +673,8 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
                 step.get("external_response") or {}),
             "approval_request": copy.deepcopy(
                 step.get("approval_request") or {}),
+            "standing_authority_receipt": copy.deepcopy(
+                step.get("standing_authority_receipt") or {}),
             "failure": copy.deepcopy(step.get("failure") or {}),
         })
     sources = assignment.get("sources") or []
@@ -665,6 +752,8 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             assignment.get("deliverables") or []),
         "sources": copy.deepcopy(assignment.get("sources") or []),
         "authorized_actions": list(assignment.get("authorized_actions") or []),
+        "standing_authority": copy.deepcopy(
+            assignment.get("standing_authority")),
         "budget": copy.deepcopy(assignment.get("budget") or {}),
         "steps": steps,
         "created_at": assignment.get("created_at"),

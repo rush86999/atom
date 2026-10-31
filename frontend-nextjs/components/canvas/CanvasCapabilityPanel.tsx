@@ -55,6 +55,8 @@ export function CanvasCapabilityPanel({
     const [editRow, setEditRow] = useState("");
     const [editColumn, setEditColumn] = useState("");
     const [editValue, setEditValue] = useState("");
+    const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+    const [decisions, setDecisions] = useState<Record<string, string> | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
 
     const effective = useMemo(() => new Set(state?.operations?.effective || []), [state]);
@@ -89,6 +91,10 @@ export function CanvasCapabilityPanel({
                 throw new Error(res.data?.error?.message || "Operation refused");
             }
             setResult(res.data);
+            if (String(path).includes("/capability/assess") && !String(path).includes("/clarify")) {
+                setClarificationAnswers({});
+                setDecisions(null);
+            }
             if (res.data?.revision != null) {
                 setState((prev) => prev ? {
                     ...prev,
@@ -168,6 +174,73 @@ export function CanvasCapabilityPanel({
             URL.revokeObjectURL(url);
         } catch (e: any) {
             setError(e?.message || "Artifact download failed");
+        }
+    };
+
+    const approveAssessment = async () => {
+        if (!result?.execution_id) return;
+        setBusy("assess-approve");
+        setError(null);
+        try {
+            const res = await apiClient.post(
+                `/api/canvas/${canvasId}/capability/assess/${encodeURIComponent(result.execution_id)}/approve`,
+            );
+            if (res.data?.success === false) {
+                throw new Error(res.data?.error?.message || "Approval refused");
+            }
+            setResult((prev: any) => ({
+                ...prev,
+                authorized: true,
+                authorization: res.data.authorization,
+            }));
+        } catch (e: any) {
+            setError(e?.response?.data?.error?.message || e?.message || "Approval failed");
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const submitClarification = async () => {
+        if (!result?.execution_id) return;
+        const answers = Object.entries(clarificationAnswers)
+            .filter(([, answer]) => answer.trim())
+            .map(([subject, answer]) => ({ subject, answer: answer.trim() }));
+        if (!answers.length) {
+            setError("Answer at least one clarification requirement");
+            return;
+        }
+        setBusy("assess-clarify");
+        setError(null);
+        try {
+            const res = await apiClient.post(
+                `/api/canvas/${canvasId}/capability/assess/${encodeURIComponent(result.execution_id)}/clarify`,
+                { answers },
+            );
+            if (res.data?.success === false) {
+                throw new Error(res.data?.error?.message || "Clarification refused");
+            }
+            setResult(res.data);
+            setClarificationAnswers({});
+        } catch (e: any) {
+            setError(e?.response?.data?.error?.message || e?.message || "Clarification failed");
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const useDecisions = async () => {
+        setBusy("decisions");
+        setError(null);
+        try {
+            const res = await apiClient.get(`/api/canvas/${canvasId}/capability/decisions`);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.error?.message || "Decisions refused");
+            }
+            setDecisions(res.data.decisions || {});
+        } catch (e: any) {
+            setError(e?.response?.data?.error?.message || e?.message || "Decisions failed");
+        } finally {
+            setBusy(null);
         }
     };
 
@@ -315,6 +388,78 @@ export function CanvasCapabilityPanel({
                             {!!result.gaps?.length && <div className="text-amber-600 mt-1">gaps: {result.gaps.length} (no certified total)</div>}
                             {result.certified === false && (
                                 <div className="text-red-600 mt-1">failed closed — no certified assessment</div>
+                            )}
+                            {result.operation === "assess" && (
+                                <div className="mt-1 space-y-1" data-testid="capability-assessment-state">
+                                    <p className={result.authorized === true ? "text-emerald-700" : "text-amber-700"}>
+                                        {result.authorized === true
+                                            ? "Authorized assessment — decisions may be used."
+                                            : result.certified
+                                                ? "Draft assessment — not authorized. A human must approve this exact assessment before the decisions can be used."
+                                                : "Draft assessment — not certified; no decision may be used."}
+                                    </p>
+                                    {result.authorized !== true && result.certified && result.execution_id ? (
+                                        <Button
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            disabled={busy !== null}
+                                            data-testid="capability-assess-approve"
+                                            onClick={approveAssessment}
+                                        >
+                                            Approve this assessment
+                                        </Button>
+                                    ) : null}
+                                    {result.authorized === true ? (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            disabled={busy !== null}
+                                            data-testid="capability-decisions"
+                                            onClick={useDecisions}
+                                        >
+                                            Use decisions
+                                        </Button>
+                                    ) : null}
+                                    {decisions ? (
+                                        <div className="font-mono text-[11px]" data-testid="capability-decisions-result">
+                                            {Object.entries(decisions).map(([subject, decision]) => (
+                                                <div key={subject}>{subject}: {String(decision)}</div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                    {result.clarification?.state === "open" ? (
+                                        <div className="rounded border border-amber-300 bg-amber-50 p-2" data-testid="capability-clarification">
+                                            <p className="font-medium">Clarification required</p>
+                                            {(result.clarification.requirements || [])
+                                                .filter((item: any) => !item.answer)
+                                                .map((item: any) => (
+                                                    <label key={`${item.subject}:${item.requirement}`} className="mt-1 block text-[11px]">
+                                                        {item.subject}: {item.requirement}
+                                                        <input
+                                                            value={clarificationAnswers[item.subject] || ""}
+                                                            onChange={(e) => setClarificationAnswers((prev) => ({
+                                                                ...prev,
+                                                                [item.subject]: e.target.value,
+                                                            }))}
+                                                            className="mt-0.5 w-full rounded border px-1.5 py-0.5"
+                                                            aria-label={`Clarification answer ${item.subject}`}
+                                                            data-testid={`capability-clarification-${item.subject}`}
+                                                        />
+                                                    </label>
+                                                ))}
+                                            <Button
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                disabled={busy !== null}
+                                                data-testid="capability-clarification-submit"
+                                                onClick={submitClarification}
+                                            >
+                                                Submit answers and resume
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                </div>
                             )}
                             {!!result.assessments?.length && (
                                 <table className="mt-1 border-collapse">

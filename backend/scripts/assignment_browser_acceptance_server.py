@@ -6,6 +6,7 @@ transport; no live provider is contacted.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import uuid
@@ -152,6 +153,46 @@ if scotch_entry is None:
     )
     db.add(scotch_entry)
     db.commit()
+
+grant_parquet = datasets_dir / "grant-applications.parquet"
+grant_frame = pd.DataFrame({
+    "Application": ["G-1", "G-2", "G-3"],
+    "Approved Amount": [1500.0, 2000.0, 750.0],
+    "Status": ["approved", "approved", "pending"],
+    "Region": ["North", "South", "North"],
+    "__sheet_row": [2, 3, 4],
+})
+grant_frame.to_parquet(grant_parquet, index=False)
+grant_entry = db.query(DatasetEntry).filter(
+    DatasetEntry.dataset_name == "grant_applications").first()
+if grant_entry is None:
+    grant_entry = DatasetEntry(
+        id="browser-grant-entry",
+        workspace_id="default", tenant_id="default",
+        created_by=admin.id, source_kind="file", source="onedrive",
+        external_id="browser-grant-drive-1",
+        file_name="grant-applications.xlsx", content_hash="c" * 40,
+        entity_name="GRANT APPLICATIONS",
+        dataset_name="grant_applications",
+        parquet_path=str(grant_parquet), row_count=len(grant_frame),
+        column_count=len(grant_frame.columns),
+        columns_json={
+            "columns": [
+                {"name": column,
+                 "samples": [value.item() if hasattr(value, "item") else value
+                             for value in grant_frame[column].head(2).tolist()]}
+                for column in grant_frame.columns
+            ],
+            "coverage": {
+                "known": True, "source_row_count": len(grant_frame),
+                "materialized_row_count": len(grant_frame),
+                "truncated": False,
+            },
+        },
+        status="active",
+    )
+    db.add(grant_entry)
+    db.commit()
 if db.query(IntegrationToken).filter(
         IntegrationToken.user_id == admin.id,
         IntegrationToken.provider == "onedrive").first() is None:
@@ -267,6 +308,16 @@ def acceptance_state():
         "dataset_version": entry.content_hash if entry else None,
         "outbox_path": str(SCRATCH / "outbox.jsonl"),
         "outbox_lines": len(_outbox_lines()),
+        "hitl_assignment_approvals": db.query(HITLAction).filter(
+            HITLAction.action_type == "assignment_approval").count(),
+    }
+
+
+@app.get("/_acceptance/outbox")
+def acceptance_outbox():
+    return {
+        "ok": True,
+        "lines": [json.loads(line) for line in _outbox_lines()],
     }
 
 
@@ -326,6 +377,9 @@ def health():
         "document": str(source_document),
         "commercial_output": str(SCRATCH / "commercial.docx"),
         "eligibility_output": str(SCRATCH / "eligibility.pptx"),
+        "grant_dataset": "grant_applications",
+        "grant_sheet": "GRANT APPLICATIONS",
+        "grant_output": str(SCRATCH / "grant-summary.pptx"),
         "outbox": str(SCRATCH / "outbox.jsonl"),
         "guided": [
             {
@@ -343,6 +397,14 @@ def health():
                 "recipient": "",
                 "expected": "3",
                 "source": "scotch-parts.xlsx",
+            },
+            {
+                "objective": "Summarize the grant applications",
+                "scope": "grant applications",
+                "kind": "presentation",
+                "recipient": "grants@example.invalid",
+                "expected": "4250.00",
+                "source": "grant-applications.xlsx",
             },
         ],
     }
