@@ -188,18 +188,133 @@ if agent is None:
         format_spec={"font_name": "Georgia", "font_size": 18},
         workspace_id="default",
     )
+    # Two confirmed mappings for the same concept/sheet/version family. The
+    # current dataset version (a*40) binds the first; the second names an
+    # alternate version and is visible but not correctable. This is the
+    # ambiguous-identity surface the browser journey must disambiguate.
+    for label, version in (
+        ("Use the Total field for the current price list", "a" * 40),
+        ("Use the Total field for the alternate price list", "b" * 40),
+    ):
+        deliver_teacher_lesson(
+            db, agent.id, label, topic="field mapping",
+            applies_to=["document"],
+            format_spec={"font_name": "Arial", "font_size": 11},
+            context={"field_mappings": [{
+                "concept": "Total", "sheet": "US$ SCOTCH PARTS",
+                "column": "Total", "unit": "USD",
+                "unit_authority": "source_evidence",
+                "required_unit": "USD", "source_unit": "USD",
+                "source_unit_column": "Currency",
+                "source_version": version, "revision": 1,
+            }]},
+            workspace_id="default",
+        )
 
 from api.assignment_routes import router  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 app = FastAPI(title="Assignment browser acceptance")
 app.add_middleware(
     CORSMiddleware, allow_origins=["http://127.0.0.1:3003",
-                                   "http://localhost:3003"],
+                                   "http://localhost:3003",
+                                   "http://127.0.0.1:3004",
+                                   "http://localhost:3004"],
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(router)
 app.dependency_overrides[get_current_user] = lambda: admin
 app.dependency_overrides[get_db] = lambda: db
+
+
+class TeachMappingRequest(BaseModel):
+    concept: str = "Total"
+    sheet: str = "US$ SCOTCH PARTS"
+    column: str = "Total"
+    source_version: str = "a" * 40
+    revision: int = 1
+    unit: str = "USD"
+    unit_authority: str = "source_evidence"
+    required_unit: str = "USD"
+    source_unit: str = "USD"
+    source_unit_column: str = "Currency"
+
+
+class SourceVersionRequest(BaseModel):
+    dataset_name: str = "scotch_parts_price_list"
+    content_hash: str
+
+
+def _outbox_lines():
+    outbox = SCRATCH / "outbox.jsonl"
+    if not outbox.exists():
+        return []
+    return [
+        line for line in outbox.read_text().splitlines() if line.strip()
+    ]
+
+
+@app.get("/_acceptance/state")
+def acceptance_state():
+    entry = db.query(DatasetEntry).filter(
+        DatasetEntry.dataset_name == "scotch_parts_price_list").first()
+    return {
+        "ok": True,
+        "pid": os.getpid(),
+        "world": str(SCRATCH),
+        "agent_id": agent.id,
+        "dataset_name": entry.dataset_name if entry else None,
+        "dataset_version": entry.content_hash if entry else None,
+        "outbox_path": str(SCRATCH / "outbox.jsonl"),
+        "outbox_lines": len(_outbox_lines()),
+    }
+
+
+@app.post("/_acceptance/source-version")
+def acceptance_set_source_version(body: SourceVersionRequest):
+    entry = db.query(DatasetEntry).filter(
+        DatasetEntry.dataset_name == body.dataset_name).first()
+    if entry is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="dataset not found")
+    entry.content_hash = body.content_hash
+    db.commit()
+    db.expire_all()
+    return {
+        "ok": True,
+        "dataset_name": entry.dataset_name,
+        "content_hash": entry.content_hash,
+    }
+
+
+@app.post("/_acceptance/teach-mapping")
+def acceptance_teach_mapping(body: TeachMappingRequest):
+    """Setup-only: append one mapping lesson and return its entry id."""
+    result = deliver_teacher_lesson(
+        db, agent.id,
+        f"Use the {body.concept} field from {body.column} "
+        f"({body.source_version[-8:]})",
+        topic="field mapping", applies_to=["document"],
+        format_spec={"font_name": "Arial", "font_size": 11},
+        context={"field_mappings": [{
+            "concept": body.concept, "sheet": body.sheet,
+            "column": body.column, "unit": body.unit,
+            "unit_authority": body.unit_authority,
+            "required_unit": body.required_unit,
+            "source_unit": body.source_unit,
+            "source_unit_column": body.source_unit_column,
+            "source_version": body.source_version,
+            "revision": body.revision,
+        }]},
+        workspace_id="default",
+    )
+    db.expire_all()
+    return {
+        "ok": result.get("status") == "ok",
+        "status": result.get("status"),
+        "entry": result.get("entry"),
+    }
 
 
 @app.get("/api/health")
@@ -236,4 +351,7 @@ def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8090, log_level="warning")
+    uvicorn.run(
+        app, host="127.0.0.1",
+        port=int(os.getenv("ATOM_ASSIGNMENT_BROWSER_PORT", "8090")),
+        log_level="warning")

@@ -287,8 +287,30 @@ that pass (executor and route level, scratch store):
 
 Run: **8 passed**, 0 failed. Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assignment-boundaries/`.
-Not claimed: a browser-level rerun of these five on this candidate, or
-multi-worker/soak behaviour.
+
+### Browser journey
+
+The same five boundaries were then exercised through the real Assignments
+page against the standalone acceptance server (real routes and executor, one
+scratch world, controlled outbox):
+
+| Scenario | Browser evidence |
+|---|---|
+| Wait → restart → resume | backend PID changed, the assignment stayed `waiting` across the restart, then completed with the calculated result |
+| Changed source revision | changing the active dataset version made the mapping correction show `Requested version … is not the active version …`; the mapping and the completed `85.00` result survived |
+| Ambiguity | two confirmed mappings for `Total` were visible; an unqualified correction was refused with `more than one confirmed mapping exists`; choosing the identified mapping resolved to `Total → Unit Price` |
+| Cancellation | cancelled status survived reload; a late correlated response returned the cancelled assignment and produced no effect |
+| Duplicate resume | submitting the same correlated response from two pages at once produced one calculation dispatch/result and no outbox effect |
+
+Run: **5/5 checks passed**, 0 failed, 0 controlled-outbox effects. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/`
+(`browser-recovery.json` + screenshots).
+
+Not claimed: multi-worker or soak behaviour. The ambiguity scenario also
+notes a UX limitation: the correction form is keyed by concept, so two
+mappings that share a concept open the form on both cards. The route still
+requires the mapping's sheet/version identity, and the safe path is the
+correctable card.
 
 ## README breadth on the integrated candidate
 

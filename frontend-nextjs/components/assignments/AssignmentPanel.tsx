@@ -208,7 +208,7 @@ export function AssignmentPanel({
       await refreshDetail(runId);
       await refreshList();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(userFacingError(err, "Action failed"));
     } finally {
       setBusy(false);
     }
