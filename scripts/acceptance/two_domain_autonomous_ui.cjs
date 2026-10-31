@@ -335,7 +335,7 @@ function hashFile(relative) {
       JSON.stringify(payload, null, 2) + '\n');
     log(`EVIDENCE ${path.join(OUT, 'two-domain.json')}`);
     log(`RESULT ${payload.passed}/${checks.length} checks passed`);
-    process.exit(payload.failed === 0 ? 0 : 1);
+    process.exitCode = payload.failed === 0 ? 0 : 1;
   } finally {
     await context.close();
     await browser.close();
