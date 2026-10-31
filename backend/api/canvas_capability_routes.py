@@ -330,7 +330,8 @@ async def capability_clarify(
             "request", {}).get("ask") or "Assess every selected row."
         resumed = await assess_operation(
             db, canvas, current_user, original,
-            clarification_answers=result["clarification"]["requirements"])
+            clarification_answers=result["clarification"]["requirements"],
+            clarification_revisions=readiness.get("accepted_revisions"))
         resumed["clarification_resumed"] = True
         return resumed
     except CapabilityError as exc:

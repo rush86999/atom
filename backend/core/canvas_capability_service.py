@@ -1427,6 +1427,7 @@ async def assess_operation(
     llm_service: Any = None,
     max_subjects: Optional[int] = None,
     clarification_answers: Optional[Sequence[Dict[str, Any]]] = None,
+    clarification_revisions: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
@@ -1547,8 +1548,19 @@ async def assess_operation(
     )
     clarification_text = ""
     if clarification_answers:
+        revisions = clarification_revisions or {}
+        revision_text = ""
+        if revisions:
+            revision_text = (
+                "\n\nACCEPTED REVISIONS (the answers were given against these)"
+                "\nsource=%s | policy=%s | manifest=%s" % (
+                    revisions.get("source"),
+                    revisions.get("policy"),
+                    revisions.get("manifest"),
+                )
+            )
         clarification_text = (
-            "\n\nCLARIFICATION ANSWERS\n"
+            "\n\nCLARIFICATION ANSWERS" + revision_text + "\n"
             + "\n".join(
                 f"- requirement_id={item.get('requirement_id')} | "
                 f"subject={item.get('subject')} | "
