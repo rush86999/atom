@@ -48,6 +48,26 @@ _SUPPORTED_BASE_COMPONENTS = {"table"}
 _MAX_BIND_BYTES = int(os.getenv("ATOM_CANVAS_BIND_MAX_BYTES", str(20 * 1024 * 1024)))
 _MAX_ASSESS_SUBJECTS = int(os.getenv("ATOM_ASSESS_MAX_SUBJECTS", "50") or 50)
 
+#: Server-controlled review policy for assessments.
+#:
+#: ``always`` (default) requires human review for EVERY assessment, whatever
+#: the model reports about its own uncertainty. That is the correct default for
+#: an unqualified configuration: a confident, wrong APPROVE reports no
+#: uncertainty, and certification only proves the contract was satisfied, not
+#: that the decision is correct.
+#:
+#: ``model_reported`` is an explicit opt-out for a configuration that has been
+#: independently qualified; it restores the old behaviour (review only when
+#: uncertified or the model reports unresolved requirements).
+_REVIEW_POLICY_ALWAYS = "always"
+_REVIEW_POLICY_MODEL = "model_reported"
+
+
+def assessment_review_policy() -> str:
+    raw = (os.getenv("ATOM_ASSESSMENT_REVIEW_POLICY") or _REVIEW_POLICY_ALWAYS)
+    value = raw.strip().lower()
+    return value if value in {_REVIEW_POLICY_ALWAYS, _REVIEW_POLICY_MODEL} else _REVIEW_POLICY_ALWAYS
+
 # A connected catalog row names a provider. These are the token families the
 # existing journey services already resolve; adding a provider here does not
 # grant access, it only lets the binding ask the existing token store whether
@@ -1462,12 +1482,24 @@ async def assess_operation(
         for item in (review.get("assessments") or [])
         if isinstance(item, dict) and (item.get("unresolved_requirements") or [])
     ]
+    review_policy = assessment_review_policy()
     review_reasons: List[str] = []
     if not certified:
         review_reasons.append("assessment_uncertified")
     if unresolved_subjects:
         review_reasons.append("unresolved_requirements")
+    if review_policy == _REVIEW_POLICY_ALWAYS:
+        review_reasons.append("review_policy_always")
     review_required = bool(review_reasons)
+    assessment_content_sha256 = _sha256_json([
+        {
+            key: item.get(key)
+            for key in ("subject_id", "decision", "basis", "evidence_ids",
+                        "policy_ids", "unresolved_requirements")
+        }
+        for item in (review.get("assessments") or [])
+        if isinstance(item, dict)
+    ])
     execution_fingerprint = _sha256_json({
         "policy_revision": policy_revision(manifest),
         "teaching_context": manifest.get("teaching_context") or {},
@@ -1491,6 +1523,8 @@ async def assess_operation(
         "certified": certified,
         "review_required": review_required,
         "review_reasons": review_reasons,
+        "review_policy": review_policy,
+        "assessment_content_sha256": assessment_content_sha256,
         "unresolved_subjects": unresolved_subjects,
         "decisions": {
             str(item.get("subject_id")): str(item.get("decision"))
@@ -1521,7 +1555,18 @@ async def assess_operation(
         "assessments": review.get("assessments") or [],
         "errors": review.get("errors") or [],
         "review": review,
-        "rendered": render_review_result(review) if certified else "",
+        # `rendered` is the human-readable decision artifact. Until the
+        # assessment is authorized (and under the default policy that means a
+        # human approved it), the existing consumer must not receive it as an
+        # actionable decision set.
+        "rendered": (
+            render_review_result(review)
+            if certified and assessment_authorization(canvas).get("state")
+            == "authorized" else ""),
+        "rendered_suppressed": bool(
+            certified and assessment_authorization(canvas).get("state")
+            != "authorized"),
+        "authorized": assessment_authorization(canvas).get("state") == "authorized",
         "route": route,
         "source": source,
         "source_revision": source.get("source_version"),
@@ -1690,6 +1735,7 @@ def _assessment_binding(record: Dict[str, Any]) -> Dict[str, Any]:
         for key in (
             "execution_id", "execution_fingerprint", "source_revision",
             "policy_revision", "manifest_revision",
+            "assessment_content_sha256",
         )
     }
 
@@ -1697,10 +1743,12 @@ def _assessment_binding(record: Dict[str, Any]) -> Dict[str, Any]:
 def assessment_authorization(canvas: Canvas) -> Dict[str, Any]:
     """Authorization state of the CURRENT assessment on this canvas.
 
-    ``authorized`` means the assessment is certified with no unresolved
-    requirements, or a human approved exactly THIS execution at the same
-    source/policy revisions. Everything else refuses downstream use: an
-    assessment must never become an authorized decision by being old.
+    ``authorized`` means a human approved exactly THIS assessment: same
+    execution, source revision, policy revision and assessment CONTENT hash.
+    Under the default policy every assessment needs that approval, whatever the
+    model reported about its own uncertainty. Everything else refuses
+    downstream use: an assessment must never become an authorized decision by
+    being old or by being confident.
     """
     content = _canvas_content(canvas)
     record = content.get("assessment_review")
@@ -1720,7 +1768,13 @@ def assessment_authorization(canvas: Canvas) -> Dict[str, Any]:
             "binding": _assessment_binding(record),
         }
     if not record.get("review_required"):
-        return {"state": "authorized", "approval": None, "binding": _assessment_binding(record)}
+        # Only reachable under the explicit ``model_reported`` opt-out.
+        return {
+            "state": "authorized",
+            "approval": None,
+            "binding": _assessment_binding(record),
+            "reason": "review_policy_model_reported",
+        }
     approval = record.get("authorization") or {}
     binding = _assessment_binding(record)
     if approval and all(approval.get(key) == value for key, value in binding.items()):

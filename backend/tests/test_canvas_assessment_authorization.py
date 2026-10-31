@@ -172,6 +172,7 @@ def test_human_approval_binds_to_the_exact_assessment(
     assert approval["policy_revision"] == result["policy_revision"]
     assert approval["source_revision"] == result["source_revision"]
     assert approval["approved_by"] == "user-1"
+    assert len(approval["assessment_content_sha256"]) == 64
 
     decisions = decisions_operation(canvas)
     assert decisions["decisions"] == {
@@ -238,10 +239,37 @@ def test_policy_change_after_approval_requires_fresh_review(
     assert exc.value.extra["authorization"]["state"] == "stale_assessment"
 
 
-def test_certified_assessment_without_unresolved_requirements_needs_no_approval(
+def test_default_policy_requires_review_even_when_certified_and_uncertainty_free(
         db, canvas, user, monkeypatch):
+    """A confident, wrong assessment reports no uncertainty — review anyway."""
+    from core.canvas_capability_service import (
+        CapabilityError, decisions_operation,
+    )
+
+    monkeypatch.delenv("ATOM_ASSESSMENT_REVIEW_POLICY", raising=False)
+    _bind(db, canvas, user)
+    # Certified, every subject resolved, no reported uncertainty at all.
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+
+    assert result["certified"] is True
+    assert result["review_required"] is True
+    assert "review_policy_always" in result["review_reasons"]
+    assert result["authorized"] is False
+    assert result["rendered"] == ""
+    assert result["rendered_suppressed"] is True
+
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas)
+    assert exc.value.code == "review_required"
+
+
+def test_model_reported_policy_is_an_explicit_opt_out(
+        db, canvas, user, monkeypatch):
+    """Only an explicitly qualified deployment may skip human review."""
     from core.canvas_capability_service import decisions_operation
 
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "model_reported")
     _bind(db, canvas, user)
     _fake_review(monkeypatch)
     result = _assess(db, canvas, user)
@@ -249,3 +277,32 @@ def test_certified_assessment_without_unresolved_requirements_needs_no_approval(
     assert result["review_required"] is False
     assert result["authorization"]["state"] == "authorized"
     assert decisions_operation(canvas)["decisions"]["R-1"] == "APPROVE"
+
+
+def test_approval_is_bound_to_the_assessment_content(
+        db, canvas, user, monkeypatch):
+    """A changed decision invalidates the approval, not just a new execution."""
+    from core.canvas_capability_service import (
+        CapabilityError, _canvas_content, approve_assessment,
+        decisions_operation,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    approve_assessment(db, canvas, user, result["execution_id"])
+    assert decisions_operation(canvas)["success"] is True
+
+    # Simulate the assessment content changing under an unchanged execution
+    # identity: the content hash no longer matches the approved one.
+    import copy
+
+    content = copy.deepcopy(_canvas_content(canvas))
+    record = content["assessment_review"]
+    record["assessment_content_sha256"] = "tampered"
+    canvas.content = content
+    db.commit()
+
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas)
+    assert exc.value.code == "review_required"

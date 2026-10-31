@@ -118,7 +118,23 @@ correction with a real restart:
 **Verdict:** pipeline verified, configuration **not** reliable enough for
 autonomous substantive recommendations. Substantive recommendations from this
 configuration require **human review**; autonomous decisions stay outside its
-supported scope. Evidence:
+supported scope.
+
+Review is enforced server-side, not just documented. The default policy
+(`ATOM_ASSESSMENT_REVIEW_POLICY=always`) requires human approval for **every**
+assessment, whatever the model reports about its own uncertainty — a confident
+wrong APPROVE reports none, so model-reported uncertainty cannot be the gate.
+Approval is bound to the execution, source and policy revisions **and** the
+assessment content hash; re-assessing or changing a decision invalidates it.
+The existing assess response withholds the actionable artifact (`rendered`,
+`authorized=false`) until approval, and the capability read exposes the
+authorization state. `model_reported` is an explicit opt-out only for an
+independently qualified deployment.
+
+Scoring correction (v2): a blank field is a gap only when the policy in force
+depends on it. `Q-010` (blank Risk) is a gap under V1 but scored under V3
+("regardless of Risk"). Under v2 the v3 phases are 18/19 (0.9474); the verdict
+is unchanged. Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/`.
 
 ## README marketed-surface coverage

@@ -314,7 +314,12 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   (`Q-021`, blank Region → REVIEW) and one untaught value was **approved**
   (`Q-012`, Amount 0). Autonomous substantive decisions therefore stay outside
   this configuration's supported scope; a human must review its
-  recommendations. A stronger model is a candidate remedy, not a proven one.
+  recommendations, and the product enforces that: the default
+  `ATOM_ASSESSMENT_REVIEW_POLICY=always` requires approval for every
+  assessment even when the model reports no uncertainty, approval is bound to
+  the assessment content as well as the execution/source/policy revisions, and
+  the assess response withholds the actionable artifact until approval. A
+  stronger model is a candidate remedy, not a proven one.
   Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
   see `employee-execution-assessment-qualification/`,
   `employee-execution-substantive-assessment/` and the historical

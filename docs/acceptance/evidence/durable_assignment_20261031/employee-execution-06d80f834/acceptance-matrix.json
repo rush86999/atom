@@ -293,16 +293,24 @@
   },
   "assessment_review_enforcement": {
     "status": "implemented",
+    "default_policy": "always (human approval for every assessment, regardless of model-reported uncertainty)",
+    "opt_out": "ATOM_ASSESSMENT_REVIEW_POLICY=model_reported, only for an independently qualified deployment",
     "review_required_state": true,
-    "downstream_guard": "capability/decisions refuses unless certified-without-unresolved or human-approved for the exact execution/source/policy",
+    "existing_consumers_enforced": [
+      "assess response withholds rendered/actionable artifact (authorized=false, rendered_suppressed=true)",
+      "capability read exposes review_policy and authorization",
+      "capability/decisions refuses unless authorized"
+    ],
     "approval_binding": [
       "execution_id",
       "execution_fingerprint",
       "source_revision",
       "policy_revision",
-      "manifest_revision"
+      "manifest_revision",
+      "assessment_content_sha256"
     ],
-    "controls": 6,
-    "judge_safe_abstention": true
+    "controls": 10,
+    "judge_safe_abstention": true,
+    "scoring_version": "v2-2026-10-31 (phase-specific materiality)"
   }
 }

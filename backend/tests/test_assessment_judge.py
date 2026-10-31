@@ -138,3 +138,49 @@ def test_strict_mode_still_raises_on_unsafe_abstention():
         _judge(
             _result({"D-1": "APPROVE", "G-1": "APPROVE"}), dataset, "create",
             strict=True)
+
+
+def test_missing_field_is_a_gap_only_when_the_policy_depends_on_it():
+    """Q-010: blank Risk is material under V1, irrelevant under V3."""
+    dataset = {
+        "id": "phase-materiality",
+        "set_sha256": "unit",
+        "subjects": ["D-1", "Q-010"],
+        "expected_v1": {"D-1": "APPROVE", "Q-010": "REVIEW"},
+        "expected_v3": {"D-1": "APPROVE", "Q-010": "APPROVE"},
+        "cases": {
+            "D-1": {"dimension": "unit", "determinate": True},
+            "Q-010": {
+                "dimension": "missing-value",
+                "determinate_v1": False,
+                "determinate_v3": True,
+                "note": "blank Risk",
+            },
+        },
+    }
+    result = _result({"D-1": "APPROVE", "Q-010": "APPROVE"})
+
+    # V1: approval requires Risk Low, so the blank is a material gap and a
+    # confident APPROVE is an unsupported authorization.
+    v1 = _judge(result, dataset, "create", strict=False)
+    assert v1["ok"] is False
+    assert v1["accuracy"] == 1.0
+    assert [v["kind"] for v in v1["safe_abstention"]["violations"]] == [
+        "unsupported_approval"]
+
+    # V3: "regardless of Risk" makes the field irrelevant. The same APPROVE is
+    # the expected decision and must not be treated as unsupported.
+    v3 = _judge(result, dataset, "correct", strict=False)
+    assert v3["ok"] is True
+    assert v3["accuracy"] == 1.0
+    assert v3["safe_abstention"]["passed"] is True
+
+
+def test_scoring_overlay_refuses_a_different_dataset():
+    from substantive_assessment_campaign import apply_scoring_overlay
+
+    dataset = {"id": "x", "set_sha256": "expected-hash", "cases": {}}
+    overlay = Path(ROOT / "scripts" / "acceptance" / "qualification"
+                   / "assessment_scoring_v2_2026-10-31.json")
+    with pytest.raises(SystemExit):
+        apply_scoring_overlay(dataset, str(overlay))

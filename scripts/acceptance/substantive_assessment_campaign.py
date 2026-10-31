@@ -99,6 +99,49 @@ def _builtin_dataset() -> Dict[str, Any]:
     }
 
 
+def apply_scoring_overlay(dataset: Dict[str, Any], path: str) -> Dict[str, Any]:
+    """Apply a versioned scoring correction without touching frozen inputs.
+
+    The qualification inputs stay frozen; what changes is the JUDGING rule.
+    A correction must name the dataset hash it applies to, so a stale overlay
+    can never silently rescore a different set.
+    """
+    file_path = Path(path)
+    raw = file_path.read_bytes()
+    overlay = json.loads(raw.decode())
+    if overlay.get("dataset_sha256") != dataset.get("set_sha256"):
+        raise SystemExit(
+            "scoring overlay does not apply to this dataset: "
+            f"{overlay.get('dataset_sha256')} != {dataset.get('set_sha256')}")
+    cases = dict(dataset.get("cases") or {})
+    for subject, change in (overlay.get("overrides") or {}).items():
+        if subject not in cases:
+            raise SystemExit(f"scoring overlay names unknown subject {subject}")
+        cases[subject] = {**cases[subject], **change}
+    dataset = dict(dataset)
+    dataset["cases"] = cases
+    dataset["scoring"] = {
+        "version": overlay.get("version"),
+        "rationale": overlay.get("rationale"),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    return dataset
+
+
+def _is_determinate(case: Dict[str, Any], phase: str) -> bool:
+    """Phase-specific materiality.
+
+    A missing field is not automatically a gap: if the policy in force in THIS
+    phase makes the field irrelevant ("regardless of Risk"), an approval is
+    not unsupported merely because the field is blank. The per-phase flag is
+    explicit; there is no inference from the policy text.
+    """
+    key = "determinate_v1" if phase == "create" else "determinate_v3"
+    if key in case:
+        return bool(case[key])
+    return bool(case.get("determinate", True))
+
+
 def load_dataset(path: str) -> Dict[str, Any]:
     """Load and validate a fixed qualification set.
 
@@ -241,7 +284,7 @@ def _judge(result: Dict[str, Any], dataset: Dict[str, Any], phase: str,
     cases = dataset.get("cases") or {}
     determinate = [
         subject for subject in expected
-        if (cases.get(subject) or {}).get("determinate", True)]
+        if _is_determinate(cases.get(subject) or {}, phase)]
     gaps = [subject for subject in expected if subject not in determinate]
 
     actual = _decision_map(result)
@@ -327,6 +370,7 @@ def _judge(result: Dict[str, Any], dataset: Dict[str, Any], phase: str,
         "phase": phase,
         "dataset_id": dataset.get("id"),
         "dataset_sha256": dataset.get("set_sha256"),
+        "scoring": dataset.get("scoring"),
         "served_provider": route.get("served_provider"),
         "served_model": route.get("served_model"),
         "expected": expected,
@@ -578,6 +622,11 @@ def main() -> int:
              "per-case determinate/gap labels. Its sha256 is recorded.",
     )
     ap.add_argument(
+        "--scoring-overlay", default="",
+        help="versioned scoring correction (per-phase materiality); must name "
+             "the dataset sha256 it applies to",
+    )
+    ap.add_argument(
         "--continue-on-judgment-mismatch", action="store_true",
         help=("Record decision accuracy and keep running the correction and "
               "restart phases. System gates (certification, provenance, "
@@ -592,6 +641,8 @@ def main() -> int:
     dataset = (
         load_dataset(args.qualification_set) if args.qualification_set
         else _builtin_dataset())
+    if args.scoring_overlay:
+        dataset = apply_scoring_overlay(dataset, args.scoring_overlay)
     if args.phase == "preflight":
         return _preflight(out, dataset)
     if not args.password_file:

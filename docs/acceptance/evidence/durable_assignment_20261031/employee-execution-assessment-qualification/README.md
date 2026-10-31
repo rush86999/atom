@@ -123,3 +123,33 @@ The failed qualification is preserved, not rewritten. The verdict is unchanged
 and stronger: this configuration must not make autonomous substantive
 recommendations, and its decisions cannot be used downstream without human
 review (enforced server-side by the assessment authorization gate).
+
+## Scoring v2 — phase-specific materiality (2026-10-31)
+
+The first scoring treated every blank field as a gap in every phase. That is
+wrong for V3: its text says "regardless of Risk", so a blank Risk cannot change
+the decision in that phase. A blank is an **incomplete input only when the
+policy in force depends on it**.
+
+`scripts/acceptance/qualification/assessment_scoring_v2_2026-10-31.json` is a
+versioned overlay (it names the frozen dataset hash `54a7037e…` and refuses to
+apply to any other set). It reclassifies `Q-010`:
+
+- **V1** — `determinate_v1: false`: approval requires "Risk Low", so the blank
+  is material; the correct behaviour is abstention with a preserved
+  requirement.
+- **V3** — `determinate_v3: true`: "regardless of Risk" makes the field
+  irrelevant, so APPROVE is the expected decision and is scored, not treated as
+  an unsupported approval.
+
+The frozen rows, policies and expected decisions are unchanged; only the
+judging rule is versioned. Re-judging the saved responses (`rejudged-v2/`):
+
+| Phase | Determinate | Accuracy | Safe abstention |
+|---|---|---|---|
+| `create` (v1) | 18 | 17/18 = 0.9444 | failed — Q-012 + five bare REVIEWs (Q-010 still a gap here) |
+| `correct` (v3) | 19 | 18/19 = 0.9474 | failed — Q-012 + four bare REVIEWs |
+| `after-restart` (v3) | 19 | 18/19 = 0.9474 | failed — same |
+
+The verdict is unchanged: the configuration fails qualification. The previous
+verdicts are preserved; this is a scoring correction, not a new run.

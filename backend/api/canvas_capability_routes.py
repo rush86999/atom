@@ -22,6 +22,7 @@ from core.canvas_capability_service import (
     approve_assessment,
     assess_operation,
     assessment_authorization,
+    assessment_review_policy,
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
@@ -136,6 +137,10 @@ async def read_capability(
             "operations": effective_operations(canvas, manifest),
             "policy_revision": policy_revision(manifest) if manifest else None,
             "revision": current_revision(canvas),
+            # Existing read consumers see the review state, so none of them
+            # can treat the assessment as authorized by omission.
+            "review_policy": assessment_review_policy(),
+            "authorization": assessment_authorization(canvas),
             "dataset": {
                 "columns": dataset.get("columns") or [],
                 "row_count": len(dataset.get("rows") or []),
