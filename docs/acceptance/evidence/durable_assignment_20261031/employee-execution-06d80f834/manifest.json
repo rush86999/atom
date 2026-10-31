@@ -9,16 +9,16 @@
   },
   "files": {
     "README.md": {
-      "sha256": "f1e7db3b7692d266afc9f694956627a35a54f73fe754aa1c6e9a535b7ea99427",
-      "bytes": 5045
+      "sha256": "be1e27a19bb3451446798b69dbeedf5bd18604f768031aaaded3257cffd0a90f",
+      "bytes": 5044
     },
     "acceptance-matrix.json": {
-      "sha256": "86b90453d0c2655f793640d520693791fc96738bac7a135c41a38a5209e6b6fa",
-      "bytes": 6902
+      "sha256": "b0e68f4d63bccd934e29149f827d6adb1fa38a0629766f09a4297346956c4aca",
+      "bytes": 7320
     },
     "runtime.json": {
-      "sha256": "f7fad6ae75f62a51d295ca0206365519315afe95b18cd8ebac583d3053210a4e",
-      "bytes": 1647
+      "sha256": "b251909f1b40cdd23167ac5026e884d99909c81df3bd3d90f5d090a901052e12",
+      "bytes": 1733
     },
     "sales/active-assignment-artifact.docx": {
       "sha256": "44ccb68f06e6cb11b24a8263adcc2f731fd91bbb5606edfe2d011447b90acd90",
@@ -172,5 +172,7 @@
       "sha256": "f49bbf7a5ec83e128a259bf332ff292e5c51dc112b9a2016c2d32b601ca9f0ec",
       "bytes": 1182
     }
-  }
+  },
+  "final_candidate": "2ebeddfb1",
+  "evidence_source": "06d80f834"
 }

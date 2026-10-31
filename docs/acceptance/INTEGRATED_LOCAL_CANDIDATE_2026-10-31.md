@@ -10,7 +10,8 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Source checkpoint | `06d80f834` (product teaching `3e344f5b1`) |
+| Final candidate | `2ebeddfb1` |
+| Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Preserved core | `local-core-2026-10-30-final` → `da9cc8b12` |
 | Preserved reviewed successor | `conversation-learning-2026-10-30` → `d2b297deb` |
 | Python | 3.11.16 |

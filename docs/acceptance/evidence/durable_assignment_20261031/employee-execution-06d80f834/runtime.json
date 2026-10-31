@@ -5,7 +5,10 @@
     "url": "http://127.0.0.1:8071",
     "current_pid": 66963,
     "current_started": "2026-10-31T08:38:24-04:00",
-    "prior_processes_observed_in_logs": [63913, 62728],
+    "prior_processes_observed_in_logs": [
+      63913,
+      62728
+    ],
     "restart_boundary": "backend stopped and restarted against the same world between composite part 1 and part 2 for both domains"
   },
   "frontend": {
@@ -27,5 +30,7 @@
     "canvas_assessment": "not run: ATOM_REVIEW_MODEL unconfigured",
     "local_ollama": "not available on this host (external model volume unreadable)",
     "historical_live_provider_evidence": "separate source/configuration; not merged into this candidate"
-  }
+  },
+  "final_candidate": "2ebeddfb1",
+  "evidence_source": "06d80f834"
 }
