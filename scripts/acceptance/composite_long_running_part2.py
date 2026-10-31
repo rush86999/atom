@@ -41,8 +41,10 @@ def api(page, path: str):
 
 
 def teach(page, *, lesson: str, topic: str, font: str, size: str,
-          headings: str, columns: str, task_scope: str) -> None:
-    page.get_by_test_id("teach-lesson-input").fill(lesson)
+          headings: str, columns: str, task_scope: str,
+          context: str = "sales", qualification: str = "licensed") -> None:
+    page.get_by_test_id("teach-lesson-input").fill(
+        lesson, timeout=60000, force=True)
     page.get_by_test_id("teach-topic-input").fill(topic)
     page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
     for box in page.locator('[data-testid^="teach-applies-"]').all():
@@ -53,8 +55,8 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_test_id("teach-format-size").fill(size)
     page.get_by_test_id("teach-format-headings").fill(headings)
     page.get_by_test_id("teach-format-columns").fill(columns)
-    page.get_by_test_id("teach-context").fill("sales")
-    page.get_by_test_id("teach-qualification").fill("licensed")
+    page.get_by_test_id("teach-context").fill(context)
+    page.get_by_test_id("teach-qualification").fill(qualification)
     page.get_by_test_id("teach-task-scope").fill(task_scope)
     page.get_by_test_id("teach-effective-from").fill("2026-01-01")
     page.get_by_test_id("teach-effective-to").fill("2027-12-31")
@@ -109,7 +111,8 @@ def download(page, out: Path, stem: str) -> dict:
 
 def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
                       objective: str, task_scope: str, candidate: str,
-                      measure: str = "Price") -> None:
+                      measure: str = "Price", context: str = "sales",
+                      qualification: str = "licensed") -> None:
     page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
               wait_until="domcontentloaded")
     page.get_by_test_id("assignment-source-select").wait_for(timeout=30000)
@@ -126,8 +129,8 @@ def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
     page.get_by_test_id("assignment-measure-select").select_option(
         label="Other business concept…")
     page.get_by_test_id("assignment-custom-measure-input").fill(measure)
-    page.get_by_test_id("assignment-context-input").fill("sales")
-    page.get_by_test_id("assignment-qualification-input").fill("licensed")
+    page.get_by_test_id("assignment-context-input").fill(context)
+    page.get_by_test_id("assignment-qualification-input").fill(qualification)
     page.get_by_test_id("assignment-task-scope-input").fill(task_scope)
     page.get_by_test_id("assignment-start-button").click()
     page.get_by_test_id("mapping-candidates").wait_for(timeout=60000)
@@ -146,6 +149,12 @@ def main() -> int:
     ap.add_argument("--objective", default="Sum Price for the integrated quote sheet")
     ap.add_argument("--second-objective",
                     default="Sum Price for the revised clean quote sheet")
+    ap.add_argument("--measure", default="Price")
+    ap.add_argument("--context", default="sales")
+    ap.add_argument("--qualification", default="licensed")
+    ap.add_argument("--second-source", default="clean_quote.csv")
+    ap.add_argument("--second-candidate", default="Net Amount")
+    ap.add_argument("--domain-label", default="quote")
     ap.add_argument("--outbox", default="")
     ap.add_argument(
         "--response",
@@ -159,7 +168,7 @@ def main() -> int:
     old_revision = part1["teaching_revision"]
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True, channel="chrome")
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
         open_assignment(page, args.frontend, args.objective, run_id)
@@ -178,12 +187,14 @@ def main() -> int:
         page.get_by_test_id("training-panel").wait_for(timeout=30000)
         teach(
             page,
-            lesson=("Revised quote format for revised-scope work: use Calibri 14 "
-                    "with Summary, Findings and Sources and an Item/Value table."),
+            lesson=(f"Revised {args.domain_label} format for revised-scope "
+                    "work: use Calibri 14 with Summary, Findings and Sources "
+                    "and an Item/Value table."),
             topic="revised document format",
             font="Calibri", size="14",
             headings="Summary, Findings, Sources", columns="Item, Value",
-            task_scope="revised",
+            task_scope="revised", context=args.context,
+            qualification=args.qualification,
         )
 
         after_teach = api(page, f"/api/assignments/{run_id}")
@@ -213,8 +224,10 @@ def main() -> int:
         # New work at revised scope uses the new lesson; the active run did not.
         start_and_resolve(
             page, frontend=args.frontend, agent_id=part1["agent_id"],
-            source_file="clean_quote.csv", objective=args.second_objective,
-            task_scope="revised", candidate="Net Amount")
+            source_file=args.second_source, objective=args.second_objective,
+            task_scope="revised", candidate=args.second_candidate,
+            measure=args.measure, context=args.context,
+            qualification=args.qualification)
         second = download(page, out, "revised")
         second_rows = api(page, "/api/assignments?include_terminal=true")
         second_run = next(
