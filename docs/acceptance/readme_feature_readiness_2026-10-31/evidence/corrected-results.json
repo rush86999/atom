@@ -124,11 +124,11 @@
     },
     {
       "claim_id": "GOAL-01",
-      "status": "verified",
+      "status": "partial",
       "evidence": [
         "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-corrected-world/evidence/goals/objective_loop.json"
       ],
-      "notes": "predicate stop at 2/5 calls; control burned 3/3; status reporting bug recorded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/corrected-affected.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/README_ACCEPTANCE_RESULTS.json]",
+      "notes": "predicate stop at 2/5 calls; control burned 3/3; status reporting bug recorded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/corrected-affected.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/README_ACCEPTANCE_RESULTS.json] [audit verified->partial: The verifier observed status=max_steps_exceeded after the early predicate break. A targeted rerun now records objective_satisfied on the 2/5 break and max_steps_exceeded on the 3/3 control, but the claim is held Partial until Agent 1's integrated repair and the verifier's recheck; not counted yet.]",
       "blocker": ""
     },
     {
@@ -1176,6 +1176,12 @@
     "audit_file": "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/CLAIM_AUDIT_2026-10-31.json",
     "policy": "A claim is verified only when the harness executes the claimed operation and asserts its expected observable. Source-string checks, unconditional passes, existence-only checks, and assertions weaker than the stated acceptance are downgraded.",
     "applied": [
+      {
+        "claim_id": "GOAL-01",
+        "from": "verified",
+        "to": "partial",
+        "reason": "The verifier observed status=max_steps_exceeded after the early predicate break. A targeted rerun now records objective_satisfied on the 2/5 break and max_steps_exceeded on the 3/3 control, but the claim is held Partial until Agent 1's integrated repair and the verifier's recheck; not counted yet."
+      },
       {
         "claim_id": "ORACLE-01",
         "from": "verified",

@@ -212,18 +212,26 @@ without invalidating the accepted local-core work and without deploying.
   `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md`
   §6. This is a shared Chat/lifecycle defect, not patched here.
 
-**Result (after verifier correction):** 83/123 eligible functional claims
-verified (67.5%). The earlier 100/123 (81.3%) self-assessment was not accepted:
-source-string, unconditional and status-only passes were removed. Security 8/8
-separately. 40 functional claims remain unverified/partial/blocked/
-environment-limited or inaccurate; none are counted. ORCH-08 (delegation
-nesting depth) is documented as **inaccurate** — the DB model stores
-`max_depth`, but `AgentFleetService.recruit_member` does not enforce it.
-The harness world deletion boundary is now guarded (protected paths, symlinks,
-ownership marker); ORACLE-06 and GOAL-01 are executable tests; SEC-06 has
-negative egress controls; SEARCH-02/04 are strengthened; the evidence manifest
-and pre-rename frontend artifact are preserved under
+**Result (after verifier correction):** 82/123 eligible functional claims
+verified (66.7%). The earlier 100/123 (81.3%) and 83/123 self-assessments are
+withdrawn. Source-string, unconditional, status-only, synthetic-history and
+prerequisite-only passes were removed. Security 8/8 separately. 41 functional
+claims remain unverified/partial/blocked/environment-limited or inaccurate;
+none are counted. ORCH-08 (delegation nesting depth) is documented as
+**inaccurate** — the DB model stores `max_depth`, but
+`AgentFleetService.recruit_member` does not enforce it. GOAL-01 is **partial**
+until Agent 1's objective-termination reporting repair is integrated and
+rechecked; its test is now self-contained (fresh schema) and asserts both the
+early-break status and the exhausted-budget control. The harness world deletion
+boundary is guarded (protected paths, symlinks, ownership marker); ORACLE-06 is
+executable; SEC-06 has negative egress controls; SEARCH-02/04 are strengthened;
+the evidence manifest and pre-rename frontend artifact are preserved under
 `docs/acceptance/readme_feature_readiness_2026-10-31/evidence/`.
+A targeted goals rerun now records `objective_satisfied` on the 2/5 break and
+`max_steps_exceeded` on the 3/3 control (`evidence/goals-status-recheck.json`);
+it is submitted for reconciliation, not counted while GOAL-01 is held Partial.
+The 17-claim path to 99/123 is in
+`docs/acceptance/readme_feature_readiness_2026-10-31/NEXT_CLAIM_BATCHES_2026-10-31.md`.
 
 **Worlds/ports:** harness worlds live under
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;

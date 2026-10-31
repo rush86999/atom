@@ -18,9 +18,9 @@
 | Measure | Value |
 |---|---|
 | Eligible functional claims (unchanged denominator) | **123** |
-| Verified functional claims | **83** |
-| Coverage | **67.5%** |
-| Not verified (partial / unverified / blocked / env-limited / inaccurate) | 40 |
+| Verified functional claims | **82** |
+| Coverage | **66.7%** |
+| Not verified (partial / unverified / blocked / env-limited / inaccurate) | 41 |
 | Security claims (tracked separately) | 8 / 8 verified |
 | Performance claims (tracked separately) | 1 / 3 verified |
 | Compatibility claims (tracked separately) | 0 / 4 verified |
@@ -41,7 +41,7 @@ change claim granularity or remove failed claims.**
 | ask | 5 | 2 | 3 |
 | core-workspace | 7 | 5 | 2 |
 | gateway | 6 | 6 | 0 |
-| goals | 5 | 2 | 3 |
+| goals | 5 | 1 | 4 |
 | governance | 8 | 4 | 4 |
 | graphrag | 5 | 4 | 1 |
 | hybrid-search | 5 | 5 | 0 |
@@ -98,7 +98,7 @@ fake REVIEW verifier that rejects once and accepts once. Evidence:
 
 Test: `backend/tests/test_reviewer_redelegation_execution.py`.
 
-### 2.3 GOAL-01 — replaced with a running-loop test
+### 2.3 GOAL-01 — executable test, still Partial
 
 The old check evaluated a predicate directly and searched source text. It now
 runs `GenericAgent.execute()` with a scripted `_react_step`:
@@ -106,10 +106,23 @@ runs `GenericAgent.execute()` with a scripted `_react_step`:
 - satisfying predicate at step 2 → **2 calls out of max_steps=5**;
 - impossible predicate with max_steps=3 → **3 calls** (negative control).
 
-Test: `backend/tests/test_objective_loop_termination.py`. The loop exits early,
-but the returned `status` field still says `max_steps_exceeded` after the
-predicate break; that is a separate shared-loop reporting defect handed to
-Agent 1, not counted as a pass for a different claim.
+Test: `backend/tests/test_objective_loop_termination.py`. The fixture now
+creates its own schema in a fresh scratch SQLite file (patching
+`core.database.SessionLocal`), so neither test needs a pre-populated test
+world. The test asserts the frozen acceptance: stop at the satisfying step
+**and** return `status=objective_satisfied`; the impossible-predicate control
+must return `status=max_steps_exceeded`. **GOAL-01 remains Partial pending
+Agent 1's integrated repair and verifier confirmation** — the verifier observed
+`max_steps_exceeded` on the early break in their run, and the claim is not
+counted until that shared defect is closed and independently rechecked.
+
+A targeted goals-group rerun on this branch now records
+`status=objective_satisfied` for the 2/5 break and `max_steps_exceeded` for the
+3/3 control (`evidence/goals-status-recheck.json`). That evidence is submitted
+for Agent 1/verifier reconciliation; it is **not counted here** because the
+verifier's decision was to hold GOAL-01 Partial until the integrated repair is
+rechecked. If accepted, the count moves to 83/123 and only 16 of the 17 planned
+claims are needed for 99/123.
 
 ### 2.4 SEC-06 — egress policy and negative controls
 
@@ -155,7 +168,7 @@ superseded artifacts.
 
 ## 3. What the corrected verified set means
 
-83 functional claims were executed at a user/API/service boundary with an
+82 functional claims were executed at a user/API/service boundary with an
 assertion matching the claim. Representative strong areas:
 
 - **Office:** DOCX append with heading/table/font preserved; XLSX leading zeros
@@ -193,7 +206,7 @@ assertion matching the claim. Representative strong areas:
 
 ---
 
-## 4. Not verified (40 functional claims)
+## 4. Not verified (41 functional claims)
 
 | Claim | What is missing | Status |
 |---|---|---|
@@ -201,6 +214,7 @@ assertion matching the claim. Representative strong areas:
 | ORCH-02 Fleet open-ended task | needs a model-backed TASK turn and recruitment | unverified |
 | ORCH-07 fleet routing audit row | same model-backed TASK turn | unverified |
 | ORCH-08 delegation depth | `max_depth` is stored but `AgentFleetService.recruit_member` does not enforce it | **inaccurate** |
+| GOAL-01 objective termination | verifier observed `max_steps_exceeded` after the early break; test now asserts `objective_satisfied` and is self-contained | **partial** |
 | GOV-02 execute-after-approval | queue/approve observed; no approved mutation/side effect re-read | partial |
 | GOV-03 comprehensive audit trail | one HITL row inspected; no cross-action audit exercise | partial |
 | GOV-04 training session | queue/proposals/complete served; session creation needs a blocked model-backed run | partial |
@@ -247,7 +261,9 @@ assertion matching the claim. Representative strong areas:
 2. **ORACLE-06** — source-string pass replaced with a real conductor
    re-delegation test (same step, feedback, six branch executions).
 3. **GOAL-01** — predicate/source check replaced with a real ReAct loop:
-   2 calls with a satisfying predicate vs 3 with an impossible one.
+   2 calls with a satisfying predicate vs 3 with an impossible one; the test
+   now asserts the returned status and self-creates its schema. The claim stays
+   Partial until Agent 1's reporting repair is integrated and rechecked.
 4. **SEC-06** — MCP transport/scheme/host policy before any socket/process;
    permitted local server plus metadata/file/allowlist/transport refusals;
    no network client constructed; no leaked registration.
@@ -269,11 +285,12 @@ truthful 67-provider catalog, episode metadata/tenant robustness.
 1. **Cached BYOK key refresh.** A key stored after `LLMService` construction is
    not seen by the cached chat service; gateway works, chat says no provider
    until restart.
-2. **Objective-loop status reporting.** The loop stops early at the satisfying
-   predicate (call-count evidence), but the returned status remains
-   `max_steps_exceeded` because the inner `run_loop` assignment does not reach
-   the outer result. `GOAL-01` is counted for termination only; this bug is
-   not fixed in shared agent files here.
+2. **Objective-loop status reporting.** The verifier observed the loop stop
+   early at the satisfying predicate but return `max_steps_exceeded`. The
+   self-contained test now asserts the required status (`objective_satisfied`)
+   and the exhausted-budget control (`max_steps_exceeded`). `GOAL-01` is
+   **Partial** until Agent 1's integrated repair is rechecked; this bug is not
+   fixed in shared agent files here.
 
 ---
 

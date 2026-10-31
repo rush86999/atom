@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-10-31T15:06:30.898624+00:00",
+  "generated_at": "2026-10-31T15:58:22.716000+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
@@ -2151,12 +2151,12 @@
       "acceptance": "Run an objective with a satisfiable predicate and max_steps above it",
       "expected": "Loop stops at the satisfying step, not max_steps, and records why",
       "external": false,
-      "status": "verified",
+      "status": "partial",
       "evidence": [
         "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-corrected-world/evidence/goals/objective_loop.json"
       ],
       "blocker": "",
-      "notes": "predicate stop at 2/5 calls; control burned 3/3; status reporting bug recorded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/corrected-affected.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/README_ACCEPTANCE_RESULTS.json]"
+      "notes": "predicate stop at 2/5 calls; control burned 3/3; status reporting bug recorded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/corrected-affected.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/README_ACCEPTANCE_RESULTS.json] [audit verified->partial: The verifier observed status=max_steps_exceeded after the early predicate break. A targeted rerun now records objective_satisfied on the 2/5 break and max_steps_exceeded on the 3/3 control, but the claim is held Partial until Agent 1's integrated repair and the verifier's recheck; not counted yet.]"
     },
     {
       "id": "GOAL-02",
@@ -3235,8 +3235,8 @@
     },
     "goals": {
       "total": 5,
-      "verified": 2,
-      "partial": 1,
+      "verified": 1,
+      "partial": 2,
       "failed": 0,
       "unverified": 2,
       "blocked_external": 0,
@@ -3329,8 +3329,8 @@
     "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py"
   },
   "score": {
-    "verified_functional": 83,
+    "verified_functional": 82,
     "eligible_functional": 123,
-    "percent": 67.5
+    "percent": 66.7
   }
 }

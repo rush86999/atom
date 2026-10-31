@@ -26,14 +26,14 @@ The denominator is unchanged: **123 eligible functional claims**.
 | Question | Proposed answer |
 |---|---|
 | Is the denominator still frozen? | Yes — 123 eligible functional claims; the README hash/commit are pinned and unchanged |
-| Corrected score | **83 / 123 = 67.5%** |
-| Are partial/failed/unverified excluded? | Yes — 40 functional claims are not counted |
+| Corrected score | **82 / 123 = 66.7%** |
+| Are partial/failed/unverified excluded? | Yes — 41 functional claims are not counted |
 | Security | 8/8 separately |
 | Performance | 1/3 (test count; latency/throughput unmeasured) |
 | Compatibility / comparative | 0/4 and 0/5; tracked separately |
 | Is any category entirely untested? | No, but governance, agent teams, ask/trust, memory, orchestration and routing are thin |
 
-The drop from 81.3% is deliberate: 17 claims that passed on existence-only,
+The drop from 81.3% is deliberate: 18 claims that passed on existence-only,
 status-only, synthetic-history or prerequisite checks were downgraded. The
 audit file gives the reason per claim.
 
@@ -43,7 +43,8 @@ audit file gives the reason per claim.
 |---|---|
 | Unsafe world deletion | `common.reset_world()` now refuses protected paths, symlinks, outside-root paths and unmarked directories; install uses the same helper. Tests: `tests/test_readme_harness_world_guard.py` (10 cases). |
 | ORACLE-06 | Executable conductor test: one REVIEW rejection → same step re-delegated with feedback → three branches rerun → accepted revised answer. `reviewer_calls=2`, `attempts=6`. Test: `tests/test_reviewer_redelegation_execution.py`. |
-| GOAL-01 | Running `GenericAgent.execute()`: satisfying predicate stops at 2/5 calls; impossible predicate burns 3/3. Test: `tests/test_objective_loop_termination.py`. |
+| GOAL-01 | Running `GenericAgent.execute()`: satisfying predicate stops at 2/5 calls; impossible predicate burns 3/3. The test now asserts `status=objective_satisfied` on the early break and `status=max_steps_exceeded` on the control, and self-creates its scratch schema. Marked **Partial** until Agent 1's integrated reporting repair is rechecked. Test: `tests/test_objective_loop_termination.py`. |
+| GOAL-01 recheck | A targeted goals-group rerun records `satisfied_status=objective_satisfied` (2 calls) and `impossible_status=max_steps_exceeded` (3 calls) in `evidence/goals-status-recheck.json`. Submitted for reconciliation, not counted while GOAL-01 is held Partial. |
 | SEC-06 | Transport/scheme/host policy before any network; permitted local server plus metadata/file/allowlist/transport refusals; `httpx.AsyncClient` sentinel proves no prohibited connection; failed registrations do not leak. Test: `tests/test_mcp_client_egress.py`. |
 | SEARCH-02 | Zero-lexical query retrieves the semantic document (`lexical_hits=0`, `vector_hits=1`). |
 | SEARCH-04 | Requires `citation_path` and resolves it via `documents.cat` to line-numbered content; an ID alone fails. |
@@ -51,7 +52,7 @@ audit file gives the reason per claim.
 
 ## 4. Specific claims still open
 
-See `COVERAGE_REPORT_2026-10-31.md` §4 for all 40. Notable:
+See `COVERAGE_REPORT_2026-10-31.md` §4 for all 41. Notable:
 
 - **ORCH-08** is `inaccurate` (delegation `max_depth` is stored, not enforced).
 - **GOV-05** is `partial` (OIDC config only; login 503; no callback).
@@ -69,12 +70,13 @@ See `COVERAGE_REPORT_2026-10-31.md` §4 for all 40. Notable:
 - Cached BYOK key: a key stored after `LLMService` construction is not seen by
   chat until restart; gateway works.
 - Objective-loop status: the loop stops at the satisfying predicate but returns
-  `max_steps_exceeded`; GOAL-01 is counted for termination only. This is a
+  `max_steps_exceeded`; GOAL-01 is Partial until the integrated repair is
+  rechecked. This is a
   separate shared-loop reporting bug.
 
 ## 6. Decision requested
 
-- **Agree** — denominator and 83/123 corrected set accepted as reviewed.
+- **Agree** — denominator and 82/123 corrected set accepted as reviewed.
 - **Disagree** — name the claim(s) and the boundary/evidence problem; I will
   rerun or downgrade rather than argue a number.
 - **Conditional** — specify the additional worlds required (local IdP, live

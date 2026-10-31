@@ -2,8 +2,10 @@
   "schema_version": 1,
   "generated_at": "2026-10-31",
   "authoritative_claim_result": "evidence/corrected-results.json",
-  "authoritative_score": "83/123 eligible functional claims verified (67.5%)",
+  "authoritative_score": "82/123 eligible functional claims verified (66.7%)",
   "audit": "evidence/CLAIM_AUDIT_2026-10-31.json",
+  "next_batches": "NEXT_CLAIM_BATCHES_2026-10-31.md",
+  "goal01_recheck": "evidence/goals-status-recheck.json",
   "hash_history": [
     {
       "artifact": "evidence/frontend-results.json",
@@ -28,38 +30,48 @@
   "files": [
     {
       "path": "README.md",
-      "sha256": "0c7e18cc5ba60409eec359f574c2488420a781ce41e23c52622a069ac68c675b",
-      "bytes": 1747
+      "sha256": "639e0eb8e07e5cfb2cebe20e796c5c362cb479c927def364cfe60c667dcbff04",
+      "bytes": 2159
     },
     {
       "path": "CLAIM_INVENTORY.json",
-      "sha256": "f1352fa91e8d6aa80f7453231fc0df4727d5b424a489c3e706f445659e98a21f",
-      "bytes": 164577
+      "sha256": "1ab30a060cdb2f5f5562740c9da26fcb24d11186e107e95ecc9f277b3dfcc052",
+      "bytes": 164902
     },
     {
       "path": "CLAIM_INVENTORY.md",
-      "sha256": "c923c655c4420c29d6371f0b99f9136c5607e60ee9fbfcf6590ff57457352cb0",
-      "bytes": 65290
+      "sha256": "fa035adadca528e83473b18474935dab1f2701aa05b9eace9e0a8f0f241a5001",
+      "bytes": 65288
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "bde620d523d0f23a719480054eaa3aec21da2824c560ea66b5ddb216e17685f1",
-      "bytes": 17194
+      "sha256": "f0f064ecace7651f4b3d5bcc2106a0e501da70960645ab26bfd2d6738b222cda",
+      "bytes": 18468
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "4087fb6b484b3d2ee095df8d5de577a8166bd1f5b47c9080dfe41f61988098d2",
-      "bytes": 4679
+      "sha256": "1bb3d7d6a8db3874621e0ed9d82c33419bcb4dc91ff5757a838adbd455ca79ad",
+      "bytes": 5207
+    },
+    {
+      "path": "NEXT_CLAIM_BATCHES_2026-10-31.md",
+      "sha256": "676b3ce1beddb294f9dc64d51e10c151e61a45ea5e1aa2578de7443e3f1277a8",
+      "bytes": 25498
     },
     {
       "path": "evidence/corrected-results.json",
-      "sha256": "8cd1146a42cbe97922fdad6b0bc13d4bfe3bbde298b81a70ff21b80f93bfc63f",
-      "bytes": 80826
+      "sha256": "093dfad608698e6396dfa4b50fef99061411a7359d6bdf565bfbf2aec30b2c9e",
+      "bytes": 81571
     },
     {
       "path": "evidence/CLAIM_AUDIT_2026-10-31.json",
-      "sha256": "c405b7b0cfea4c73066bf63964e0268f308d2dd01f8b7f2d9025576dad506fac",
-      "bytes": 4171
+      "sha256": "aa774b47d7a8e97e77fd68f22cfd0e9c599243de51024f49ced273eb21516337",
+      "bytes": 4579
+    },
+    {
+      "path": "evidence/goals-status-recheck.json",
+      "sha256": "18bed86bea2f9d58cf6232042e085932d94be3d01701ce53e90974c78f61a4b8",
+      "bytes": 283
     },
     {
       "path": "evidence/corrected-affected.json",

@@ -1,6 +1,6 @@
 # README feature-readiness claim inventory
 
-Generated: 2026-10-31T15:06:30.898624+00:00
+Generated: 2026-10-31T15:58:22.716000+00:00
 
 README: `README.md` @ `da9cc8b12de3639f59cc5b8ea84338c5f507dc6d` (tag `local-core-2026-10-30-final`), sha256 `392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0`
 
@@ -8,7 +8,7 @@ Eligible functional claims: **123** · tracked separately: 20
 
 > Partial/failed/unverified/blocked/environment-limited do not count as passing. Category count alone is never a score.
 
-**Verified functional: 83/123 (67.5%)**
+**Verified functional: 82/123 (66.7%)**
 
 ## Category coverage
 
@@ -21,7 +21,7 @@ Eligible functional claims: **123** · tracked separately: 20
 | compatibility | 4 | 0 | 0 | 0 | 4 | 0 | 0 |
 | core-workspace | 7 | 5 | 2 | 0 | 0 | 0 | 0 |
 | gateway | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
-| goals | 5 | 2 | 1 | 0 | 2 | 0 | 0 |
+| goals | 5 | 1 | 2 | 0 | 2 | 0 | 0 |
 | governance | 8 | 4 | 4 | 0 | 0 | 0 | 0 |
 | graphrag | 5 | 4 | 1 | 0 | 0 | 0 | 0 |
 | hybrid-search | 5 | 5 | 0 | 0 | 0 | 0 | 0 |
@@ -225,7 +225,7 @@ Eligible functional claims: **123** · tracked separately: 20
 
 | ID | README | Operation | Entry point | Status |
 |---|---|---|---|---|
-| GOAL-01 | L160 | Stop the ReAct loop early when the predicate is satisfied | `core.agent_objective.Objective + GenericAgent loop` | **verified** |
+| GOAL-01 | L160 | Stop the ReAct loop early when the predicate is satisfied | `core.agent_objective.Objective + GenericAgent loop` | **partial** |
 | GOAL-02 | L160 | Score candidate trajectories against a utility target | `agent objective runtime` | **unverified** |
 | GOAL-03 | L160 | Register a custom action and gate it by maturity | `Objective.register_action` | **verified** |
 | GOAL-04 | L160 | Detect repeated no-progress steps and stop/redirect | `agent loop stuck detector` | **unverified** |
@@ -962,7 +962,7 @@ Eligible functional claims: **123** · tracked separately: 20
 - Expected: Span ids/parents are recorded; export payload is well-formed when enabled
 - Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-corrected-world/evidence/interop/tracing.json`
 
-### GOAL-01 — verified
+### GOAL-01 — partial
 
 - Claim: terminate on a definition_of_done predicate instead of always burning to max_steps
 - Acceptance: Run an objective with a satisfiable predicate and max_steps above it
