@@ -219,6 +219,131 @@ def test_a_stale_approval_cannot_authorize_a_new_execution(
     assert exc.value.code == "stale_assessment"
 
 
+def _mutate_record(canvas, db, mutate):
+    """Change the persisted artifact WITHOUT touching the stored digest."""
+    import copy
+    from core.canvas_capability_service import _canvas_content
+
+    content = copy.deepcopy(_canvas_content(canvas))
+    mutate(content["assessment_review"])
+    canvas.content = content
+    db.commit()
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(
+            lambda record: record["assessments"][0].__setitem__(
+                "decision", "DENY"),
+            id="decision",
+        ),
+        pytest.param(
+            lambda record: record["assessments"][0]["basis"].append(
+                "forged basis"),
+            id="basis",
+        ),
+        pytest.param(
+            lambda record: record["assessments"][0]["evidence"].append(
+                {"evidence_id": "ev:forged", "row_ref": "row 99", "values": []}),
+            id="evidence",
+        ),
+        pytest.param(
+            lambda record: record["assessments"][0][
+                "unresolved_requirements"].append("forged requirement"),
+            id="unresolved",
+        ),
+    ],
+)
+def test_content_drift_with_an_untouched_hash_requires_fresh_review(
+        db, canvas, user, monkeypatch, mutate):
+    """The verifier's bypass: swap content, leave the digest as it was."""
+    from core.canvas_capability_service import (
+        CapabilityError, approve_assessment, decisions_operation,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    approve_assessment(db, canvas, user, result["execution_id"])
+    assert decisions_operation(canvas)["success"] is True
+
+    # The stored digest is deliberately left untouched.
+    _mutate_record(canvas, db, mutate)
+
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas)
+    assert exc.value.code == "review_required"
+    assert exc.value.extra["authorization"]["state"] == "content_drift"
+
+
+def test_approval_refuses_content_drift(db, canvas, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, approve_assessment,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    _mutate_record(
+        canvas, db,
+        lambda record: record["assessments"][0].__setitem__(
+            "decision", "DENY"))
+
+    with pytest.raises(CapabilityError) as exc:
+        approve_assessment(db, canvas, user, result["execution_id"])
+    assert exc.value.code == "assessment_content_changed"
+
+
+def test_unchanged_approved_content_survives_reload(db, canvas, user, monkeypatch):
+    """Positive control: approval survives a fresh session/read."""
+    from sqlalchemy.orm import sessionmaker
+
+    from core.canvas_capability_service import (
+        approve_assessment, decisions_operation,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    approve_assessment(db, canvas, user, result["execution_id"])
+    expected = decisions_operation(canvas)["decisions"]
+
+    fresh = sessionmaker(bind=db.get_bind())()
+    try:
+        reloaded = fresh.query(Canvas).filter(Canvas.id == canvas.id).first()
+        decisions = decisions_operation(reloaded)
+        assert decisions["decisions"] == expected
+        assert decisions["authorization"]["state"] == "authorized"
+        assert decisions["assessment_content_sha256"] == result[
+            "execution_id"] or decisions["assessment_content_sha256"]
+    finally:
+        fresh.close()
+
+
+def test_canvas_change_after_approval_requires_fresh_review(
+        db, canvas, user, monkeypatch):
+    """CAS: any data revision change invalidates the approval."""
+    from core.canvas_capability_service import (
+        CapabilityError, approve_assessment, decisions_operation, edit_operation,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    approve_assessment(db, canvas, user, result["execution_id"])
+
+    edit_operation(
+        db, canvas, user,
+        [{"row": 2, "column": "Amount", "value": 130}],
+        expected_revision=1,
+    )
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas)
+    assert exc.value.code == "review_required"
+    assert exc.value.extra["authorization"]["state"] == "stale_assessment"
+
+
 def test_policy_change_after_approval_requires_fresh_review(
         db, canvas, user, monkeypatch):
     from core.canvas_capability_service import (

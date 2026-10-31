@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-06d80f834",
-  "source_checkpoint": "18a3b3b94",
+  "source_checkpoint": "1fb4c7557",
   "product_teaching_commit": "3e344f5b1",
   "preserved_tags": {
     "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
@@ -13,8 +13,8 @@
       "bytes": 5076
     },
     "acceptance-matrix.json": {
-      "sha256": "eaca324c180d9c8503826cd18a992721b6ca174fa7c6e70696353071ff93bd79",
-      "bytes": 12859
+      "sha256": "f6f06754289865441917d02716005eda236802c5aaac1332304df2f3c5af89ac",
+      "bytes": 13340
     },
     "runtime.json": {
       "sha256": "9a93232623cca6fa82656f10c293675f6f390ba982b6277a8055e12ceabbfa90",
@@ -181,6 +181,6 @@
       "bytes": 1182
     }
   },
-  "final_candidate": "18a3b3b94",
+  "final_candidate": "1fb4c7557",
   "evidence_source": "06d80f834"
 }

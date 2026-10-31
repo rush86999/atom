@@ -1491,15 +1491,7 @@ async def assess_operation(
     if review_policy == _REVIEW_POLICY_ALWAYS:
         review_reasons.append("review_policy_always")
     review_required = bool(review_reasons)
-    assessment_content_sha256 = _sha256_json([
-        {
-            key: item.get(key)
-            for key in ("subject_id", "decision", "basis", "evidence_ids",
-                        "policy_ids", "unresolved_requirements")
-        }
-        for item in (review.get("assessments") or [])
-        if isinstance(item, dict)
-    ])
+
     execution_fingerprint = _sha256_json({
         "policy_revision": policy_revision(manifest),
         "teaching_context": manifest.get("teaching_context") or {},
@@ -1514,27 +1506,31 @@ async def assess_operation(
     # in-place mutation of a nested record would be seen as "no change" and
     # silently skip the UPDATE.
     content = copy.deepcopy(_canvas_content(canvas))
+    assessment_artifact = _canonical_assessment_artifact(
+        review.get("assessments") or [])
     content["assessment_review"] = {
         "execution_id": execution_id,
         "execution_fingerprint": execution_fingerprint,
         "source_revision": source.get("source_version"),
         "policy_revision": policy_revision(manifest),
         "manifest_revision": manifest.get("manifest_revision"),
+        "canvas_revision": current_revision(canvas),
         "certified": certified,
         "review_required": review_required,
         "review_reasons": review_reasons,
         "review_policy": review_policy,
-        "assessment_content_sha256": assessment_content_sha256,
-        "unresolved_subjects": unresolved_subjects,
-        "decisions": {
-            str(item.get("subject_id")): str(item.get("decision"))
-            for item in (review.get("assessments") or [])
-            if isinstance(item, dict)
-        },
+        # The single reviewed artifact and its digest. No separate decision
+        # map: what is approved is exactly what is returned downstream.
+        "assessments": assessment_artifact,
+        "assessment_content_sha256": _assessment_digest(assessment_artifact),
+        "unresolved_subjects": [
+            item["subject_id"] for item in assessment_artifact
+            if item["unresolved_requirements"]
+        ],
         "assessed_at": _now().isoformat(),
         # A new assessment invalidates any earlier human approval: the
         # authorization below is cleared here and must be granted again for
-        # THIS execution, source revision and policy revision.
+        # THIS execution, source/policy revision and assessment content.
         "authorization": None,
     }
     canvas.content = content
@@ -1729,31 +1725,115 @@ def edit_operation(
 _APPROVER_ROLES = {"workspace_admin", "admin", "owner", "super_admin"}
 
 
-def _assessment_binding(record: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        key: record.get(key)
-        for key in (
-            "execution_id", "execution_fingerprint", "source_revision",
-            "policy_revision", "manifest_revision",
-            "assessment_content_sha256",
+def _canonical_assessment_artifact(
+    assessments: Any,
+) -> List[Dict[str, Any]]:
+    """The ONE reviewed artifact: decisions, basis, evidence, policy, gaps.
+
+    Canonical form (subjects sorted, nested lists sorted, fixed keys) so the
+    digest is a function of the reviewed content and nothing else. Downstream
+    decisions are derived from THIS artifact — there is no separately mutable
+    decision map that could disagree with what was approved.
+    """
+    normalized: List[Dict[str, Any]] = []
+    for item in sorted(
+        (a for a in (assessments or []) if isinstance(a, dict)),
+        key=lambda a: str(a.get("subject_id")),
+    ):
+        evidence = sorted(
+            (
+                {
+                    "evidence_id": entry.get("evidence_id"),
+                    "row_ref": entry.get("row_ref"),
+                    "values": list(entry.get("values") or []),
+                }
+                for entry in (
+                    item.get("evidence_refs") or item.get("evidence") or [])
+                if isinstance(entry, dict)
+            ),
+            key=lambda e: str(e.get("evidence_id")),
         )
+        policies = sorted(
+            (
+                {
+                    "policy_id": entry.get("policy_id"),
+                    "lesson": entry.get("lesson"),
+                }
+                for entry in (
+                    item.get("policy_refs") or item.get("policies") or [])
+                if isinstance(entry, dict)
+            ),
+            key=lambda e: str(e.get("policy_id")),
+        )
+        normalized.append({
+            "subject_id": str(item.get("subject_id")),
+            "decision": str(item.get("decision")),
+            "basis": [str(entry) for entry in (item.get("basis") or [])],
+            "evidence": evidence,
+            "policies": policies,
+            "unresolved_requirements": [
+                str(entry)
+                for entry in (item.get("unresolved_requirements") or [])
+            ],
+        })
+    return normalized
+
+
+def _assessment_digest(assessments: Any) -> str:
+    """Digest computed from the artifact itself, never from a stored hash."""
+    return _sha256_json(_canonical_assessment_artifact(assessments))
+
+
+def _assessment_binding(
+    record: Dict[str, Any], digest: Optional[str] = None,
+) -> Dict[str, Any]:
+    return {
+        "execution_id": record.get("execution_id"),
+        "execution_fingerprint": record.get("execution_fingerprint"),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+        "canvas_revision": record.get("canvas_revision"),
+        "assessment_content_sha256": (
+            digest if digest is not None
+            else _assessment_digest(record.get("assessments") or [])),
     }
 
 
 def assessment_authorization(canvas: Canvas) -> Dict[str, Any]:
     """Authorization state of the CURRENT assessment on this canvas.
 
-    ``authorized`` means a human approved exactly THIS assessment: same
-    execution, source revision, policy revision and assessment CONTENT hash.
-    Under the default policy every assessment needs that approval, whatever the
-    model reported about its own uncertainty. Everything else refuses
-    downstream use: an assessment must never become an authorized decision by
-    being old or by being confident.
+    The digest is RECOMPUTED from the persisted artifact on every call. A
+    stored hash is not evidence: content mutated after approval (a decision,
+    basis, evidence entry or unresolved requirement) changes the recomputed
+    digest and refuses downstream use until a fresh review.
     """
     content = _canvas_content(canvas)
     record = content.get("assessment_review")
     if not isinstance(record, dict) or not record:
         return {"state": "no_assessment"}
+
+    artifact = record.get("assessments")
+    if not isinstance(artifact, list) or not artifact:
+        return {
+            "state": "content_drift",
+            "reason": "assessment artifact is missing or unreadable",
+        }
+    digest = _assessment_digest(artifact)
+    if digest != record.get("assessment_content_sha256"):
+        return {
+            "state": "content_drift",
+            "reason": "assessment content changed since it was recorded",
+            "recomputed_sha256": digest,
+            "recorded_sha256": record.get("assessment_content_sha256"),
+        }
+    if record.get("canvas_revision") != current_revision(canvas):
+        return {
+            "state": "stale_assessment",
+            "reason": "canvas data changed since this assessment",
+            "binding": _assessment_binding(record, digest),
+        }
+
     manifest = get_manifest(canvas) or {}
     source = _dataset_source(canvas)
     current_policy = policy_revision(manifest) if manifest else None
@@ -1765,34 +1845,40 @@ def assessment_authorization(canvas: Canvas) -> Dict[str, Any]:
         return {
             "state": "stale_assessment",
             "reason": "policy or source changed since this assessment",
-            "binding": _assessment_binding(record),
+            "binding": _assessment_binding(record, digest),
         }
+
+    binding = _assessment_binding(record, digest)
     if not record.get("review_required"):
         # Only reachable under the explicit ``model_reported`` opt-out.
         return {
             "state": "authorized",
             "approval": None,
-            "binding": _assessment_binding(record),
+            "binding": binding,
             "reason": "review_policy_model_reported",
         }
     approval = record.get("authorization") or {}
-    binding = _assessment_binding(record)
-    if approval and all(approval.get(key) == value for key, value in binding.items()):
+    if approval and all(
+        approval.get(key) == value for key, value in binding.items()
+    ):
         return {"state": "authorized", "approval": approval, "binding": binding}
     return {
         "state": "review_required",
         "review_reasons": list(record.get("review_reasons") or []),
-        "unresolved_subjects": list(record.get("unresolved_subjects") or []),
+        "unresolved_subjects": [
+            item["subject_id"] for item in artifact
+            if item.get("unresolved_requirements")
+        ],
         "binding": binding,
     }
 
 
 def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict[str, Any]:
-    """Record a human approval bound to one exact assessment.
+    """Record a human approval bound to the artifact's RECOMPUTED digest.
 
-    The approval carries the execution fingerprint, source revision and policy
-    revision it was granted for. Re-assessing (or changing the policy/source)
-    produces a different binding, so the old approval cannot authorize it.
+    Approval refuses when the persisted content no longer matches the digest
+    recorded at assessment time, so a decision cannot be swapped in between
+    review and approval.
     """
     content = copy.deepcopy(_canvas_content(canvas))
     record = content.get("assessment_review")
@@ -1814,6 +1900,24 @@ def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict
             "Only a workspace admin or owner can approve an assessment.",
             403,
         )
+    artifact = record.get("assessments")
+    digest = _assessment_digest(artifact or [])
+    if not isinstance(artifact, list) or not artifact or (
+        digest != record.get("assessment_content_sha256")
+    ):
+        raise CapabilityError(
+            "assessment_content_changed",
+            "The assessment content changed after it was recorded; run a fresh "
+            "assessment before approving.",
+            409,
+        )
+    if record.get("canvas_revision") != current_revision(canvas):
+        raise CapabilityError(
+            "stale_assessment",
+            "The canvas data changed since this assessment; run a fresh "
+            "assessment before approving.",
+            409,
+        )
     if not record.get("review_required"):
         return {
             "success": True,
@@ -1821,7 +1925,7 @@ def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict
             "authorization": assessment_authorization(canvas),
         }
     approval = {
-        **_assessment_binding(record),
+        **_assessment_binding(record, digest),
         "approved_by": str(getattr(user, "id", "") or ""),
         "approved_role": role,
         "approved_at": _now().isoformat(),
@@ -1832,8 +1936,12 @@ def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict
     _audit(db, canvas, user, "capability_assessment_approved", {
         **{key: approval.get(key) for key in (
             "execution_id", "execution_fingerprint", "source_revision",
-            "policy_revision", "manifest_revision")},
-        "unresolved_subjects": list(record.get("unresolved_subjects") or []),
+            "policy_revision", "manifest_revision", "canvas_revision",
+            "assessment_content_sha256")},
+        "unresolved_subjects": [
+            item["subject_id"] for item in artifact
+            if item.get("unresolved_requirements")
+        ],
     })
     db.commit()
     return {
@@ -1844,12 +1952,10 @@ def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict
 
 
 def decisions_operation(canvas: Canvas) -> Dict[str, Any]:
-    """Downstream consumer: return the decisions only when authorized.
+    """Downstream consumer: decisions derived from the authorized artifact.
 
-    This is the action-taking boundary. An assessment that needs review, is
-    stale against the current policy/source, or has never been approved
-    refuses here with an explicit state instead of handing out decisions that
-    a caller could treat as authorized.
+    There is no separate decision map: the returned decisions ARE the reviewed
+    artifact, and the authorization gate recomputes its digest first.
     """
     record = _canvas_content(canvas).get("assessment_review")
     if not isinstance(record, dict) or not record:
@@ -1863,6 +1969,7 @@ def decisions_operation(canvas: Canvas) -> Dict[str, Any]:
             409,
             authorization=authorization,
         )
+    artifact = _canonical_assessment_artifact(record.get("assessments") or [])
     return {
         "success": True,
         "operation": "decisions",
@@ -1872,7 +1979,13 @@ def decisions_operation(canvas: Canvas) -> Dict[str, Any]:
         "source_revision": record.get("source_revision"),
         "policy_revision": record.get("policy_revision"),
         "manifest_revision": record.get("manifest_revision"),
-        "decisions": dict(record.get("decisions") or {}),
+        "canvas_revision": record.get("canvas_revision"),
+        "assessment_content_sha256": authorization.get("binding", {}).get(
+            "assessment_content_sha256"),
+        "decisions": {
+            item["subject_id"]: item["decision"] for item in artifact
+        },
+        "assessments": artifact,
         "authorization": authorization,
     }
 

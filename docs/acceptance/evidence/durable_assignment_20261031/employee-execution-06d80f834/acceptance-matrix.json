@@ -309,8 +309,16 @@
       "manifest_revision",
       "assessment_content_sha256"
     ],
-    "controls": 10,
+    "controls": 15,
     "judge_safe_abstention": true,
-    "scoring_version": "v2-2026-10-31 (phase-specific materiality)"
+    "scoring_version": "v2-2026-10-31 (phase-specific materiality)",
+    "artifact": "one canonical assessment artifact (decisions, basis, evidence, policy refs, unresolved requirements)",
+    "digest": "recomputed from persisted content at approval, authorization and consumption; stored hashes are not trusted",
+    "refusal_states": [
+      "review_required",
+      "content_drift",
+      "stale_assessment"
+    ],
+    "revision_cas": "approval binds canvas_revision; a data change between review, approval and consumption requires fresh review"
   }
 }

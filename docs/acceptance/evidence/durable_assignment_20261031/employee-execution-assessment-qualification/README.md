@@ -153,3 +153,32 @@ judging rule is versioned. Re-judging the saved responses (`rejudged-v2/`):
 
 The verdict is unchanged: the configuration fails qualification. The previous
 verdicts are preserved; this is a scoring correction, not a new run.
+
+## Approval binding repair — canonical artifact (2026-10-31)
+
+The verifier's reproduction: approve `R-1` as APPROVE, change the stored decision
+to DENY **without touching the stored digest**, then consume. It stayed
+authorized. The cause was that authorization compared stored hashes instead of
+recomputing from the content, and downstream decisions came from a separate
+mutable map.
+
+Repair:
+
+- One **canonical assessment artifact** is persisted: subject, decision, basis,
+  evidence entries (id/row/values), policy references (id/lesson) and
+  unresolved requirements, sorted for a stable digest. There is no separate
+  decision map — downstream decisions are derived from this artifact.
+- The digest is **recomputed from freshly loaded content** at approval, at
+  authorization and at consumption, and compared with the approved digest.
+  A stored hash is never treated as evidence.
+- Approval binds the recomputed digest plus execution, source, policy, manifest
+  and **canvas revision**. The existing revision/CAS mechanism refuses a data
+  change between review, approval and consumption.
+- `content_drift` is a distinct refusal state, so a mutated artifact cannot be
+  mistaken for a plain unapproved one.
+
+Controls (`authorization-controls.log`, 22 passed): decision, basis, evidence
+and unresolved-requirement mutations each require fresh review while the stored
+hash is untouched; approval refuses drift; a canvas edit after approval
+requires fresh review; **positive control** — unchanged approved content
+survives a fresh session reload and remains usable.
