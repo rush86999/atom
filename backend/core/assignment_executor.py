@@ -2077,6 +2077,120 @@ class AssignmentExecutor:
             run_id, compute, rationale=f"invalidate {step_id}: {reason}")
         return {"status": "invalidated", **result}
 
+    def reassess_teaching(
+        self,
+        run_id: str,
+        teaching_snapshot: Dict[str, Any],
+        *,
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        """Adopt corrected teaching and invalidate only dependent work.
+
+        Active work keeps its historical results and artifacts in
+        ``prior_results``; steps whose behavior can depend on teaching (and
+        their descendants) become pending under a NEW plan revision. Source
+        reads and independent branches are preserved.
+        """
+        sensitive = {
+            "quote.calculate", "formula.calculate", "artifact.document",
+            "artifact.spreadsheet", "artifact.presentation", "email.draft",
+            "action.registry", "assignment.controlled_outbox",
+            "email.send_outlook", "external.research",
+        }
+        record = self.lifecycle.get_task(run_id)
+        if record is None:
+            raise AssignmentError(f"no task record on run {run_id}")
+        assignment = record.get("assignment") or {}
+        running = [step.get("step_id") for step in assignment.get("steps") or []
+                   if step.get("status") == "running"]
+        if running:
+            raise AssignmentError(
+                "reassessment cannot invalidate work while steps are running: "
+                + ", ".join(str(item) for item in running))
+
+        def compute(record, current):
+            roots = [
+                step["step_id"] for step in current.get("steps") or []
+                if str(step.get("adapter") or "") in sensitive
+            ]
+            affected = downstream_step_ids(current, roots) if roots else []
+            new_plan = copy.deepcopy(current)
+            previous = copy.deepcopy(current.get("teaching_snapshot") or {})
+            new_plan["plan_revision"] = int(
+                current.get("plan_revision") or 1) + 1
+            new_plan["teaching_snapshot"] = copy.deepcopy(teaching_snapshot)
+            requirements = dict(
+                (teaching_snapshot or {}).get("output_requirements") or {})
+            for step in new_plan.get("steps") or []:
+                adapter = str(step.get("adapter") or "")
+                inputs = dict(step.get("inputs") or {})
+                if adapter == "quote.calculate":
+                    inputs["discount_rules"] = list(
+                        requirements.get("line_discount_rules") or [])
+                    step["inputs"] = inputs
+                elif adapter.startswith("artifact."):
+                    inputs["format_spec"] = dict(requirements)
+                    step["inputs"] = inputs
+            history = list(new_plan.get("teaching_history") or [])
+            if previous:
+                history.append({
+                    "revision": previous.get("revision"),
+                    "fingerprint": previous.get("fingerprint"),
+                    "replaced_by": teaching_snapshot.get("revision"),
+                    "reason": _bounded(reason, 300),
+                    "at": _utc_now_iso(),
+                })
+            new_plan["teaching_history"] = history[-20:]
+            for item in new_plan.get("steps") or []:
+                if item.get("step_id") not in affected:
+                    continue
+                prior = item.get("prior_results") or []
+                if item.get("result") is not None or item.get(
+                        "artifact_revision"):
+                    prior.append({
+                        "plan_revision": current.get("plan_revision"),
+                        "status": item.get("status"),
+                        "result": copy.deepcopy(item.get("result")),
+                        "artifact_revision": item.get("artifact_revision"),
+                        "reason": _bounded(reason, 300),
+                    })
+                item["prior_results"] = prior[-10:]
+                item["status"] = "pending"
+                item["operation_id"] = None
+                item["result"] = None
+                item["artifact_revision"] = None
+                item["failure"] = None
+                item["waiting"] = None
+                item["approval_request"] = None
+                item["standing_authority_receipt"] = None
+                item["gap_ids"] = []
+                item["updated_at"] = _utc_now_iso()
+            new_plan["status"] = "planned"
+            new_plan["completed_at"] = None
+            new_plan["last_transition"] = {
+                "kind": "reassess_teaching",
+                "reason": _bounded(reason, 500),
+                "previous_revision": previous.get("revision"),
+                "revision": teaching_snapshot.get("revision"),
+                "affected_steps": affected,
+                "at": _utc_now_iso(),
+            }
+            new_plan["updated_at"] = _utc_now_iso()
+            return new_plan, {
+                "previous_revision": previous.get("revision"),
+                "revision": teaching_snapshot.get("revision"),
+                "affected_steps": affected,
+                "preserved_steps": [
+                    step["step_id"] for step in new_plan.get("steps") or []
+                    if step["step_id"] not in affected
+                ],
+            }
+
+        result = self.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale=f"reassess teaching: {reason or 'explicit reassessment'}")
+        return {"status": "reassessed", **result}
+
     # --------------------------------------------------------------- gaps
 
     def resolve_gap(
