@@ -49,6 +49,7 @@ class ZohoInventoryService(IntegrationService):
         self.access_token = config.get("access_token")
         self.organization_id = config.get("organization_id") or os.getenv("ZOHO_ORG_ID")
         self.client = httpx.AsyncClient(timeout=30.0)
+        self.last_error: Optional[Dict[str, Any]] = None
 
     # ---- IntegrationService abstract-method implementations ----
     # Satisfies the ABC contract from core.integration_service so the class
@@ -497,17 +498,21 @@ class ZohoInventoryService(IntegrationService):
             logger.warning(f"zoho_inventory.search_items({query!r}) failed: {type(e).__name__}: {e}")
             return []
 
-    async def get_items(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_items(self, token: Optional[str] = None,
+                        organization_id: Optional[str] = None,
+                        user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch items list for pricing and availability checks"""
+        self.last_error = None
         try:
             active_token = token or self.access_token
             active_org = organization_id or self.organization_id
 
             if not active_token:
                 # Same resolution chain search_items uses: explicit arg >
-                # config > env > the tenant's stored OAuth grant (the DB
-                # row is where the token actually lives in production).
-                active_token = await self._get_active_token(self.tenant_id)
+                # config > env > the user's stored OAuth grant (token rows are
+                # user-keyed in the unified connect flow).
+                active_token = await self._get_active_token(
+                    self.tenant_id, user_id=user_id)
             if not active_token:
                  raise HTTPException(status_code=401, detail="Not authenticated")
             if not active_org:
@@ -532,6 +537,16 @@ class ZohoInventoryService(IntegrationService):
             raise
         except Exception as e:
             logger.error(f"Failed to fetch Zoho Inventory items: {e}")
+            self.last_error = {
+                "status": "error",
+                "success": False,
+                "provider": "zoho_inventory",
+                "operation": "get_items",
+                "error_kind": "provider_error",
+                "error": f"Zoho Inventory item read failed: {type(e).__name__}",
+                "retryable": False,
+                "requires_reconnect": False,
+            }
             return []
 
     async def check_stock(self, item_id: str, token: Optional[str] = None,

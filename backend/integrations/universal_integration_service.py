@@ -3407,8 +3407,33 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": await zoho_mail_service.get_recent_inbox(access_token)}
         elif service == "zoho_inventory":
             from integrations.zoho_inventory_service import zoho_inventory_service
-            if action == "list":
-                return {"status": "success", "data": await zoho_inventory_service.get_items(access_token)}
+            org = params.get("organization_id") or context.get("organization_id")
+            user_id = context.get("user_id") or params.get("user_id")
+            if action in ("list", "get_items"):
+                data = await zoho_inventory_service.get_items(
+                    access_token, org, user_id=user_id)
+                if getattr(zoho_inventory_service, "last_error", None):
+                    return zoho_inventory_service.last_error
+                return {"status": "success", "data": data}
+            if action in ("search", "search_items"):
+                return {"status": "success", "data": await zoho_inventory_service.search_items(
+                    params.get("query") or params.get("q") or "",
+                    token=access_token, organization_id=org,
+                    user_id=user_id, limit=int(params.get("limit") or 8))}
+            if action == "check_stock":
+                if not params.get("item_id"):
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "check_stock requires item_id."}
+                stock = await zoho_inventory_service.check_stock(
+                    params["item_id"], token=access_token,
+                    organization_id=org, user_id=user_id)
+                if stock.get("error"):
+                    return {"status": "error", "error_kind": "provider_error",
+                            "error": stock["error"]}
+                return {"status": "success", "data": stock}
+            return {"status": "error", "error_kind": "unsupported_operation",
+                    "error": f"Unsupported zoho_inventory action: {action}",
+                    "supported": ["list", "get_items", "search", "search_items", "check_stock"]}
         elif service == "zoho_projects":
             from integrations.zoho_projects_service import ZohoProjectsService
             zoho_projects_service = ZohoProjectsService()
