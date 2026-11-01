@@ -51,6 +51,9 @@ def test_joint_quote_total_posts_and_drafts_without_sending(monkeypatch):
                 "date": data["date"],
                 "currency_code": data["currency_code"],
                 "total": totals["total"],
+                "sub_total": totals["subtotal"],
+                "tax_total": totals["tax"],
+                "line_items": data["line_items"],
             }
 
     async def fake_books(ids):
@@ -64,6 +67,8 @@ def test_joint_quote_total_posts_and_drafts_without_sending(monkeypatch):
         "date": "2026-11-01",
         "currency_code": totals["currency"],
         "total": totals["total"],
+        "sub_total": totals["subtotal"],
+        "tax_total": totals["tax"],
         "line_items": [
             {"name": line["sku"], "quantity": line["quantity"],
              "rate": line["unit_price"],
@@ -120,8 +125,18 @@ def test_executor_adapter_preserves_connected_action_outcome():
     from core.assignment_executor import _action_registry_adapter
 
     async def outcome_action(args, context):
-        return {"status": "success", "action_result": args["outcome"],
-                "remote_id": "remote-1", "error": "controlled"}
+        outcome = args["outcome"]
+        status = {
+            "applied": "success",
+            "proven_not_applied": "error",
+            "conflict": "conflict",
+            "uncertain": "uncertain",
+        }[outcome]
+        result = {"status": status, "action_result": outcome,
+                  "remote_id": "remote-1"}
+        if outcome == "proven_not_applied":
+            result["error_kind"] = "invalid_request"
+        return result
 
     name = f"test.joint.outcome.{uuid.uuid4().hex[:8]}"
     action_registry.register(name, outcome_action,
