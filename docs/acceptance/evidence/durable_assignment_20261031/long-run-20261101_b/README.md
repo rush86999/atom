@@ -26,11 +26,18 @@ effect counters.
   pid 68921 started against the same database/stores; the run is still
   `waiting`, same assignment, same teaching revision, `source-1` still
   `110.00` with operation `3e8eba43-…` and `attempts=1`
+- `18:37:40Z` — **pinned restart** for closure: pid 73022 started from the
+  clean worktree `/private/…/c2-pin` at `414d8add3` (backend tree
+  `715969f01d23`); same waiting state and receipts (`state-pinned.json`).
+  The cancellation repair `f5d2e085a` is a separate source and is not loaded
+  by this process.
 - **no resume before `20:04:53Z`** (two real hours after the wait)
 
-The restart moved from source `d535aa7d36cf` to `414d8add3112`; the product
+The restarts moved from source `d535aa7d36cf` to `414d8add3112`; the product
 trees are identical (`backend 715969f01d23`, `frontend c921cb82e784`), so the
-only change is harness/test history. See `state-after-restart.json`.
+only change is harness/test history. The pinned closure process serves
+`414d8add3112` from `c2-pin`. See `state-after-restart.json` and
+`state-pinned.json`.
 
 ## Completed work before the wait
 

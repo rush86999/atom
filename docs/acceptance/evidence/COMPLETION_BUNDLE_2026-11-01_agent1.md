@@ -1,24 +1,27 @@
 # Agent 1 completion bundle — 2026-11-01
 
 One source-bound bundle for the runtime batch, Campaign A (complex teaching),
-Campaign C (elapsed durable assignment) and the sibling recovery controls.
-Hosted deployment, live sends and broad model campaigns were not performed.
+Campaign C (restart/upgrade control), Campaign C2 (elapsed gate), the sibling
+recovery controls and the cancellation repair. Hosted deployment, live sends
+and broad model campaigns were not performed.
 
-## 1. Identified product source
+## 1. Identified product sources
 
 | Item | Value |
 |---|---|
-| Repository HEAD at assembly | `d535aa7d3` |
-| Product trees at HEAD | `backend/` = `715969f01d23`, `frontend-nextjs/` = `c921cb82e784` |
-| Serving backend source (all live runs) | `cf102eeac1ce-dirty.b0c55aa8fb39` (Campaign C) and `cf102eeac1ce-dirty.13b4ffec1724` (Campaign A) |
-| Product diff serving → HEAD | **empty** for `backend/` and `frontend-nextjs/` (`git diff cf102eeac1ce..HEAD -- backend frontend-nextjs`) |
-| C before the wait | backend tree `68aa1a826d0d` (`2d01d31772da`) |
-| C restart/resume | backend tree `715969f01d23` (`cf102eeac1ce`) |
+| Campaign A / C1 / recovery product | backend tree `715969f01d23`, frontend tree `c921cb82e784` |
+| Campaign A serving commits | `cf102eeac1ce-dirty.13b4ffec1724` |
+| Campaign C serving commits | `2d01d31772da-dirty…` before the wait; `cf102eeac1ce-dirty…` on restart |
+| Campaign C2 start | `d535aa7d36cf` (product `715969f01d23`) |
+| **C2 closure (pinned)** | **`414d8add3`** / backend tree `715969f01d23`, worktree `/private/…/c2-pin` |
+| **Cancellation repair** | **`f5d2e085a`** / backend tree `d37da0be5943` (frontend unchanged) |
+| Product diff repair vs campaigns | only the four cancellation files (`assignment_executor.py`, `assignment_routes.py`, `goal_run_service.py`, `test_assignment_routes.py`) |
 
-The checkout is **not** clean: one harness file is modified
-(`scripts/acceptance/launch_integrated_local_candidate.sh`, which gains
-`ATOM_FRONTEND_DIR`). That is the launcher, not product code, and it is included
-in this bundle. No product file is uncommitted.
+The campaign sources and the repair source are deliberately distinct: the
+repair landed after C2 reached its wait, and C2's wait/resume path does not
+exercise cancellation, so C2 is pinned to its original source instead of being
+re-run on the repair. Campaign A, C1 and the recovery controls ran on the
+pre-repair product tree `715969f01d23`.
 
 Campaign C deliberately spans a product upgrade **without resetting its clock**:
 the wait was created at 15:37:56Z by `2d01…`; the restart at 16:42Z moved the
@@ -119,6 +122,30 @@ work at revised scope used revision `0ceff61904cb889b+map`, produced
 Run `d74e637f-86c8-4643-91f3-c469e52ff33e`, assignment
 `asg-888cbd5d67cf4560`.
 
+## 2b. Campaign C2 — the elapsed gate (fresh identity)
+
+C1 resumed 11 minutes before the gate and is kept as the upgrade control. C2
+is the separate run that carries the elapsed requirement; its clock was never
+reset.
+
+| Item | Value |
+|---|---|
+| World | `long_run_20261101_b`, backend 8085 / frontend 3145 |
+| Run | `cac9cbd6-f72b-4fbb-b106-f0990fc5b191` |
+| Assignment | `asg-bc8171a465894137` |
+| Objective | Sum Price for the second integrated quote sheet |
+| Teaching revision | `851207ec455336d3+cabba8f03b6894fa+map` |
+| Correlation | `quote-missing-currency-2` |
+| Wait reached | `18:04:53Z` |
+| Two-hour gate | **`20:04:53Z`** |
+| Pinned closure source | `414d8add3`, backend tree `715969f01d23`, pid 73022 |
+| Pre-wait work | `source-1` applied **110.00** (15.10 + 20.20 + 30.30 + 44.40), operation `3e8eba43-…`, **attempts=1** |
+
+Restart evidence before the gate: pid 66715 → 68921 → 73022, all against the
+same SQLite stores; each time the run stayed `waiting` with the same
+assignment/revision and `source-1` still `attempts=1`. The closure sequence
+below is filled after `20:04:53Z`.
+
 ## 3. Campaign A — complex teaching through the ordinary UI
 
 Agent `d956a428-d7c1-4399-afa1-95eee5f920ce`; seven lessons were authored through
@@ -197,10 +224,13 @@ delivered; the active run kept Arial 11. New revised work used revision
    correlation never belonged to that run. This proves the correlation check,
    **not** the cancellation path; the first case proves the cancellation path.
 
-**Defect observed (no data/effect risk):** after the public API cancel of the
-mapping-gap run, the assignment is cancelled and no effect occurs, but
-`goal_runs.status`/`waiting_on` still read `waiting`/`human_input`. The UI cancel
-path clears the run projection; the API path does not. Evidence:
+**Defect found here and repaired separately:** after the public API cancel of
+the mapping-gap run, the assignment was cancelled and no effect occurred, but
+`goal_runs.status`/`waiting_on` still read `waiting`/`human_input`; the
+recovery run's late reply also matched its historical wait and produced a
+`wake`. The focused repair (`f5d2e085a`, section 4b) projects the terminal state
+immediately, clears the live wait, and refuses late replies before matching.
+Pre-repair evidence is preserved in
 `complex_teaching_20261101/part2/cancellation-proof.json`.
 
 ### Clarification boundary
@@ -233,37 +263,90 @@ line; `reconcile_step(... "applied")` then `execute` leaves the outbox at
 **one** line (no automatic resend). Evidence: `/tmp/uncertain2.log` (3 passed)
 and the test bodies in `backend/tests/test_assignment_executor.py`.
 
+## 4b. Cancellation consistency repair (own source identity)
+
+Source `f5d2e085a`, backend tree `d37da0be5943`, developed in an isolated
+worktree. Full detail:
+`cancellation_repair_20261101/README.md`.
+
+- Root cause: both UI and API call `POST /api/assignments/{run_id}/cancel` →
+  `AssignmentExecutor.cancel`, which mutated only the assignment/task ledger;
+  `GoalRunService.transition` changed `status` but not `waiting_on`; and
+  `record_external_response` matched a cancelled step's historical wait and
+  woke it.
+- Repair: terminal transitions clear the live `waiting_on`; `cancel` projects
+  `cancelled` to the GoalRun and is idempotent; late replies for terminal work
+  are refused **before** matching, logged as `external_response_refused`, and
+  return **409**; the route/consumer checks see nothing to revive.
+- Preserved: assignment step status/history, the step's historical `waiting`
+  correlation, decision log, and the first cancellation evidence.
+- Public-API controls: correlated-response wait and mapping wait; fresh-session
+  read; late reply and gap resolve refused; repeated cancel harmless; resume
+  and `find_active_task`/`list_runs(include_terminal=False)` see no active work;
+  outbox empty.
+- Results: **129 passed** across routes, executor, goal service/events/routes,
+  watchdog sweep; the two new public-API cancellation tests pass.
+
 ## 5. Tests run once on the integrated source
 
-| Suite | Result |
-|---|---|
-| Fleet / revocation / no-progress / both workflow suites / training / calibration / world fixture | **48 passed** |
-| `tests/test_assignment_executor.py` | **50 passed** |
-| Uncertain-effect controls | **3 passed** |
-| Browser recovery | **5/5 checks** |
+| Suite | Source | Result |
+|---|---|---|
+| Fleet / revocation / no-progress / both workflow suites / training / calibration / world fixture | `715969f01d23` | **48 passed** |
+| `tests/test_assignment_executor.py` | `715969f01d23` | **50 passed** |
+| Uncertain-effect controls | `715969f01d23` | **3 passed** |
+| Browser recovery | `715969f01d23` | **5/5 checks** |
+| Cancellation routes/executor/goal suites | `d37da0be5943` | **129 passed** |
 
-Logs: `/tmp/runtime-batch-final.log`, `/tmp/executor-final.log`,
+Evidence: `sibling_controls_20261101/`, `cancellation_repair_20261101/`,
 `assignment-recovery-browser-20261101/browser-recovery.json`.
 
-## 6. Claim-count proposal (no denominator change)
+## 6. Claim-by-claim proposed count (denominator unchanged at 123)
 
-This bundle supplies independent evidence for the six submitted runtime claims:
+The frozen inventory already contains **111 verified / 12 excluded** eligible
+claims. The 12 claims that move the verifier's **accepted 99** baseline to 111
+are these, exactly; no test-total substitution and no splitting:
 
-| Claim | Control supplied here |
-|---|---|
-| ORCH-08 | whole-graph depth/cycle/scope, descendant push over limit refused without mutation |
-| TEAM-01 | exactly-one accountable delegation contract |
-| ASK-03 | revocation fail-closed, re-entry at 20, second regression resets, unreadable store refuses |
-| GOAL-04 | real loop stops before the third equivalent call; critique read back from a scratch LanceDB |
-| WF-05 | real persisted `ExecutionStateManager`: deny → pause → approve → once → new engine adds 0 |
-| GOV-04 | start/guidance/approval/evidence/completion/promotion; repeated start reuses; no evidence no promotion |
+### Agent 1 — six runtime claims (evidenced in this bundle)
 
-The practical gates (Campaign A, Campaign C, recovery controls) support the
-existing durable-work boundaries (GOAL-05, WF-03, CORE-04, INST-05) but this
-bundle does **not** count them as new claim IDs. I am not claiming 111/123 from
-this bundle alone: the 123-claim denominator is unchanged, partial
-implementations are not counted, and Agent 2's breadth claims remain a separate
-submission. Reserve claims named in the task table: TEAM-05, MEM-07, GOAL-02.
+| Claim | Proposed | Control |
+|---|---|---|
+| ORCH-08 | verified | whole-graph depth/cycle/scope; descendant push over limit refused without mutation; wide-shallow allowed |
+| TEAM-01 | verified | exactly-one accountable delegation contract; zero/two/duplicate rejected |
+| ASK-03 | verified | fail-closed revocation; 1/19 successes still blocked; clears at 20; second regression resets; unreadable store refuses |
+| GOAL-04 | verified | real loop stops before the third equivalent call; critique read back from a scratch LanceDB |
+| WF-05 | verified | real persisted `ExecutionStateManager`: deny → pause → approve → once → new engine adds 0 |
+| GOV-04 | verified | start/guidance/approval/evidence/completion/promotion; repeated start reuses; no evidence no promotion |
+
+### Agent 2 — six product claims (owned by Agent 2; not independently run here)
+
+`CORE-06`, `ROUTE-06`, `ROUTE-03`, `GRAPH-05`, `INST-01`, `GOV-05` — each is
+marked verified in the shared inventory with its own evidence; this bundle does
+not re-run them.
+
+### Arithmetic
+
+`99 (accepted baseline) + 6 (Agent 1 runtime) + 6 (Agent 2 product) = 111/123`
+(90.2%). The denominator is unchanged; no partial implementation is counted.
+
+### The 12 excluded from the 123 (not counted, with reason)
+
+| Claim | Status | Reason |
+|---|---|---|
+| ORCH-01 | unverified | plain-language workflow generation; no model-backed control in this candidate |
+| ORCH-02 | unverified | open-ended TASK routing; no model-backed control |
+| ORCH-07 | unverified | fleet-routing audit decision; no model-backed control |
+| ORACLE-01 | partial | registry/postcondition verifiers incomplete |
+| TEAM-05 | partial | nightly alignment automation path not exercised |
+| MEM-07 | unverified | evolution harness disabled in this controlled world |
+| MINI-03 | environment_limited | isolated mini-app runtime not available |
+| MINI-04 | environment_limited | mini-app install/reopen not available |
+| MINI-05 | architecture_only | microVM isolation is architectural, not exercised |
+| INT-09 | blocked_external | 46+ live external accounts not authorized |
+| ROUTE-07 | unverified | opencode-go custom rate limits not exercised |
+| GOAL-02 | unverified | utility scoring is model-backed; no cloud key used |
+
+Reserves remain `TEAM-05`, `MEM-07`, `GOAL-02`; they are **not** needed for the
+proposal above and are not counted.
 
 ## 7. Limitations stated plainly
 
@@ -289,10 +372,15 @@ submission. Reserve claims named in the task table: TEAM-05, MEM-07, GOAL-02.
   GOAL-04 scratch-store control uses its own LanceDB directory.
 - `goal_runs.steps_executed` is not authoritative; the assignment step receipts
   are.
-- The serving checkout is dirty by one harness file; it is not called clean.
+- The campaign serving checkout carried one modified harness file (the launcher
+  `ATOM_FRONTEND_DIR` override) at the time; it is committed in the bundle, and
+  C2's pinned worktree is clean. No product file was uncommitted during a run.
 - Effects are controlled transport only. No live Microsoft read and no real
   Outlook send were performed; the accepted qualifications for those remain at
   their previous scope.
+- C2's closure is source-bound to `414d8add3`; the cancellation repair
+  `f5d2e085a` is a separate product source. C2 does not exercise cancellation,
+  so it was not repeated on the repair.
 
 ## 8. Superseded / failed attempts
 
