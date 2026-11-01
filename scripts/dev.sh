@@ -38,7 +38,7 @@ cd ..
 echo "Starting frontend on :$FRONTEND_PORT (API :$BACKEND_PORT)..."
 cd frontend-nextjs
 if [ -f .env.local ]; then
-  grep -v '^NEXT_PUBLIC_API_URL=' .env.local > .env.local.tmp
+  grep -v '^NEXT_PUBLIC_API_URL=' .env.local > .env.local.tmp || true
   printf 'NEXT_PUBLIC_API_URL=http://localhost:%s\n' "$BACKEND_PORT" >> .env.local.tmp
   mv .env.local.tmp .env.local
 fi
