@@ -219,6 +219,37 @@ Still open:
 - multi-worker/soak, live connectors and real sends remain outside this
   candidate's scope.
 
+## Accepted milestone — bounded autonomous local execution (2026-10-31)
+
+Verifier-accepted within its controlled, single-worker scope.
+
+**What is accepted**
+
+- Unfamiliar fixture data in two domains, durable waiting, a real backend
+  restart, resume, artifact creation and **controlled** effects without
+  redundant per-send approval.
+- Bounded standing authority: one 1-use grant per domain, consumed under the
+  assignment CAS and **durably recorded** at
+  `GoalRun.parameters.task_lifecycle.assignment.standing_authority`
+  (`used_effects=1`, `max_effects=1`, `status=exhausted`), with the usage
+  operation id matching the outbox effect.
+- The repaired-source smoke: 5/5 checks, PID 43597 → 43717, exactly two
+  controlled effects, zero `assignment_approval` HITL rows, both DOCX hashes
+  verified.
+
+**Limits that remain**
+
+- The model qualification **failed**; autonomous substantive judgment is
+  outside this configuration's supported scope and requires human review.
+- Live autonomous sending is unsupported (controlled outbox only).
+- Multi-worker/soak and live-connector qualification are unclaimed.
+- Hard-cost protection depends on trusted adapters declaring truthful bounds.
+- Hosted deployment remains deferred.
+
+**Identity:** code/evidence `caee1a057` (repaired source `b7ee7ee22`;
+recorded head `803ef2666`); evidence
+`two-domain-autonomous-journey-repaired/`.
+
 ## README marketed-surface coverage
 
 The frozen README claim inventory (123 eligible functional claims) was

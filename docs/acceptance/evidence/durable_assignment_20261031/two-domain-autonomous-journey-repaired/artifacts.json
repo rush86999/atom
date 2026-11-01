@@ -23,15 +23,39 @@
   "grants": [
     {
       "domain": "sales",
+      "durable_path": "GoalRun.parameters.task_lifecycle.assignment.standing_authority",
+      "grant_id": "sga-2c58c11bcf4342d6",
       "max_effects": 1,
       "used_effects": 1,
-      "consumed_once": true
+      "status": "exhausted",
+      "recipients": [
+        "sales@example.invalid"
+      ],
+      "usage": [
+        {
+          "use": 1,
+          "step_id": "send",
+          "operation_id": "5707b16e-04f8-4c6e-9173-c1add5f157c6"
+        }
+      ]
     },
     {
       "domain": "grants",
+      "durable_path": "GoalRun.parameters.task_lifecycle.assignment.standing_authority",
+      "grant_id": "sga-c212266b61554ec2",
       "max_effects": 1,
       "used_effects": 1,
-      "consumed_once": true
+      "status": "exhausted",
+      "recipients": [
+        "grants@example.invalid"
+      ],
+      "usage": [
+        {
+          "use": 1,
+          "step_id": "send",
+          "operation_id": "c98c5678-d260-412e-8d4b-9454d8049e6a"
+        }
+      ]
     }
   ],
   "artifacts": [

@@ -25,10 +25,16 @@ bundle predates the execution-boundary repair; this run does not.
 
 - controlled outbox: **exactly 2** rows — `sales@example.invalid` and
   `grants@example.invalid`;
-- one **1-use** grant per domain, consumed once (`usedOnce: true`,
-  `covered: true` in the runner's check details). Grant counters are runtime
-  state; they are not persisted in the world database, so the assertion is the
-  live check output rather than a post-hoc table read.
+- one **1-use** grant per domain, consumed once and **durably recorded** at
+  `GoalRun.parameters.task_lifecycle.assignment.standing_authority`:
+
+  | Domain | grant_id | max | used | status | usage operation |
+  |---|---|---|---|---|---|
+  | Sales | `sga-2c58c11bcf4342d6` | 1 | 1 | `exhausted` | `5707b16e…` |
+  | Grants | `sga-c212266b61554ec2` | 1 | 1 | `exhausted` | `c98c5678…` |
+
+  Each usage entry names `step_id=send` and the outbox operation id, so the
+  grant consumption and the controlled effect are joined by the same id.
 
 ## Artifacts
 
