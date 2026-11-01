@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "base_component": "table",
+  "operations": [
+    "read",
+    "select",
+    "calculate",
+    "assess",
+    "edit",
+    "export",
+    "bind"
+  ],
+  "data_binding": {
+    "subject_field": "Ref",
+    "measure_field": "Amount",
+    "status_field": "Status"
+  },
+  "editable_fields": [
+    "Amount",
+    "Status"
+  ],
+  "teaching_binding": {
+    "agent_id": "cb8df6f1-f824-470b-9015-e1516ea34480",
+    "scope_id": "det-ui-clean"
+  },
+  "decision_options": [
+    "APPROVE",
+    "REVIEW",
+    "DENY"
+  ],
+  "task_policy": "Deny Closed. Approve Open Amount >= 100. Review Open 50-99. Otherwise review.",
+  "assessment_mode": "deterministic",
+  "decision_rules": [
+    {
+      "decision": "DENY",
+      "when": [
+        {
+          "field": "Status",
+          "op": "eq",
+          "value": "Closed"
+        }
+      ],
+      "basis": "Closed records are denied."
+    },
+    {
+      "decision": "APPROVE",
+      "when": [
+        {
+          "field": "Status",
+          "op": "eq",
+          "value": "Open"
+        },
+        {
+          "field": "Amount",
+          "op": "gte",
+          "value": 100
+        }
+      ],
+      "basis": "Open and Amount >= 100."
+    },
+    {
+      "decision": "REVIEW",
+      "when": [
+        {
+          "field": "Status",
+          "op": "eq",
+          "value": "Open"
+        },
+        {
+          "field": "Amount",
+          "op": "gte",
+          "value": 50
+        },
+        {
+          "field": "Amount",
+          "op": "lte",
+          "value": 99
+        }
+      ],
+      "basis": "Open and Amount 50-99."
+    }
+  ],
+  "outputs": [
+    "xlsx"
+  ],
+  "required_approvals": []
+}

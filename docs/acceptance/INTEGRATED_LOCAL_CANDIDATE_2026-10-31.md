@@ -11,11 +11,11 @@ publication remain deferred by the owner.
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
 | Verifier acceptance | `VERIFIER_ACCEPTANCE_2026-10-31.md` — accepted source `b7ee7ee22` |
-| Final code/evidence | `614db9c18` (code `589389218`) |
+| Final code/evidence | `31ba9725e02a` (product code `589389218`; post-repair evidence in this tree) |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
-| Deterministic judgment | `assessment_mode=deterministic`; 18/18 V1 and 19/19 V3 under the V2 overlay, safe abstention passed (`employee-execution-deterministic-judgment/`) |
-| Normal-app employee journey | `589389218` / `3a33e34de`: teach/conflict/qualification, upload, mapping, wait, backend restart, resume, DOCX, revised work (`employee-execution-integrated-local-journey/`) |
-| Office workbook | multi-sheet formulas, edit/sync/download/reload 6/6 (`employee-execution-office-workbook/`) |
+| Deterministic judgment | `assessment_mode=deterministic`; 18/18 V1 and 19/19 V3 under the V2 overlay, safe abstention passed (`employee-execution-deterministic-judgment/`); rules authored through the ordinary capability panel (`employee-execution-deterministic-rule-authoring/`) |
+| Normal-app employee journey | `31ba9725e02a`, clean (`dirty=false`): teach/conflict/qualification, upload, mapping, wait, real backend restart, resume, DOCX (550.00 Arial 11), revised work (500.00 Calibri 14) (`employee-execution-integrated-local-journey-repaired/`) |
+| Office workbook | 24 sheets / 500 data rows / 547 catalog rows; 25-row retrieval 1725.00; edit `B2 2→5` recalculates 55 / 1758 / 34533; byte-identical export; restart/reopen with 24 tabs (`employee-execution-large-workbook/`). Two-sheet edit/sync/download/reload 6/6 remains in `employee-execution-office-workbook/` |
 | Canvas capability | 290 → edit → 325, XLSX export, revision 2 reload (`employee-execution-canvas-capability/`) |
 | Real-transport gate | both live flags + one-use recipient-bound grant; no send (`employee-execution-live-authority-gate/`) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
@@ -429,9 +429,11 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
 - **Live connectors**: current candidate uses controlled local uploads. The
   historical Microsoft live-connector evidence is source-bound to `001f93472`
   and is not repeated here.
-- **Large workbook/formula recalculation** was not rerun on this candidate;
-  historical 24-sheet evidence is preserved but not merged into the current
-  claim.
+- **Large workbook/formula recalculation** was rerun on this candidate with a
+  24-sheet, 500-row fixture: full-population retrieval, supported edit
+  recalculation, byte-identical export and restart/reopen all passed
+  (`employee-execution-large-workbook/`). Arbitrary Excel functions, macros,
+  charts and external links are not claimed.
 - **Long-running**: one worker, controlled transport, actual backend restart
   and browser close. No multi-day soak, multi-worker campaign or real
   credential expiry.

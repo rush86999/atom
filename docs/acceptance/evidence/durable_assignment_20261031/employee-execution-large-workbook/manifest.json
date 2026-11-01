@@ -1,0 +1,73 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-large-workbook",
+  "source_checkpoint": "31ba9725e02a",
+  "final_candidate": "31ba9725e02a",
+  "note": "Goal 5 large-workbook exercise: 24 sheets / 500 data rows / 547 catalog rows; full-population retrieval without supplied rows, edit recalculation, byte-identical export, restart/reopen. Clean source 31ba9725e02a (dirty=false).",
+  "files": {
+    "README.md": {
+      "sha256": "9d70b0451112de6fb45777af67e80ca47b6a4bdac41130af4b2b9f0b9e77addc",
+      "bytes": 3326
+    },
+    "assignment-full-population.json": {
+      "sha256": "14a3c38d53275a3e107a36c3795c6e34188eed377309c6f18a76f868b0e9fb0b",
+      "bytes": 1231
+    },
+    "assignment-request.json": {
+      "sha256": "e052be4edc12b66a250ebf4dd24d62877b477308cd00d0cf45322f5cef76004c",
+      "bytes": 924
+    },
+    "catalog/sources.json": {
+      "sha256": "6a135826bdefe63dd4dcd566c58ac69af152424333b5048fccc3cfce3025a8b8",
+      "bytes": 19297
+    },
+    "edit-recalc.json": {
+      "sha256": "6016ce0be724db60b3f9627cb929a70fbe296fa4445bb9ba03d6fb2dbd756ceb",
+      "bytes": 906
+    },
+    "export-verification.json": {
+      "sha256": "316ac4c0e55a52f632b3ea193b7299cd5bcf3c067fc100fd1d34b2fedd9e4a7f",
+      "bytes": 911
+    },
+    "health-ingest-edit.json": {
+      "sha256": "085b971c8d5127510bae0ec4a6282651dc2165a180b8ef83cf1afcc1564fce22",
+      "bytes": 1227
+    },
+    "health-reopen.json": {
+      "sha256": "892aaa9d7a25c729b558e0901b279b467ca49612f4d577b419c67db56d48028a",
+      "bytes": 725
+    },
+    "reopen-after-restart.json": {
+      "sha256": "8036986220d10586184b7190e1baaa3cca09ae52f201d6cc0f2084760c033fea",
+      "bytes": 1333
+    },
+    "screenshots/data01-edited.png": {
+      "sha256": "2cf3fb57ca463299b6be19f3b1d5127ec3968194d0d47eb1ca939ba467112af0",
+      "bytes": 164044
+    },
+    "screenshots/reopen-data01.png": {
+      "sha256": "2cf3fb57ca463299b6be19f3b1d5127ec3968194d0d47eb1ca939ba467112af0",
+      "bytes": 164044
+    },
+    "screenshots/reopen-summary.png": {
+      "sha256": "1aa5fe5b38bff626320872af4fbc65b05449dea6a8037fc1cec330e25c371689",
+      "bytes": 119150
+    },
+    "screenshots/summary-edited.png": {
+      "sha256": "1aa5fe5b38bff626320872af4fbc65b05449dea6a8037fc1cec330e25c371689",
+      "bytes": 119150
+    },
+    "ui-observation.json": {
+      "sha256": "3ba957bc9c16d0e87d0f2d3c36c044f3609afca57fe8fd361f25027716691357",
+      "bytes": 286
+    },
+    "workbook/exported-download.xlsx": {
+      "sha256": "7decf9685f48965e7c1381c59d7b4e87a4572f5435178b3d7285d45cfe27eb2b",
+      "bytes": 34469
+    },
+    "workbook/twenty_four_sheet_workbook.xlsx": {
+      "sha256": "7decf9685f48965e7c1381c59d7b4e87a4572f5435178b3d7285d45cfe27eb2b",
+      "bytes": 34469
+    }
+  }
+}

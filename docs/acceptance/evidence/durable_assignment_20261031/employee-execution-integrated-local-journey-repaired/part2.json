@@ -1,0 +1,142 @@
+{
+  "schema": "atom-composite-long-running-part2-1",
+  "status": "passed",
+  "run_id": "31813426-75e6-4650-b99d-368d1c721a20",
+  "teaching_revision_before": "18a91124dffee366+bb65be344cc0a5b6+map",
+  "teaching_revision_after_teach": "18a91124dffee366+bb65be344cc0a5b6+map",
+  "status_after_restart": "waiting",
+  "status_after_completion": "completed",
+  "artifact": {
+    "path": "/private/tmp/repair4-journey/active-assignment-artifact.docx",
+    "bytes": 37207,
+    "sha256": "9dfe4204455c2f0458b58aa07a00760350984a9531b991d40f2a6c2d44b549dc",
+    "normal_font": "Arial",
+    "normal_size": 11.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the repaired clean quote sheet 4\nSummary\nsum of Gross Amount: 550.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\n24f8b3eb-8fa1-47b9-921a-a44f3f4924c6\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the repaired clean quote sheet 4\nintegrated_quote.csv / integrated_quote"
+  },
+  "second_objective": "Sum Price for the revised repaired clean quote sheet 4b",
+  "second_run_id": "666bd110-b597-4489-9349-19728be4ce2d",
+  "second_teaching_revision": "85d26e59abf79bf3+map",
+  "second_artifact": {
+    "path": "/private/tmp/repair4-journey/revised-assignment-artifact.docx",
+    "bytes": 37148,
+    "sha256": "1b404c9e08e2cddfafe47f562cf85de0a2d1b3cef683f1b79e7f19a7bfddbfde",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the revised repaired clean quote sheet 4b\nSummary\nsum of Net Amount: 500.00 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\n0a8641b6-c198-4eb2-8be1-b2a33c8c7f65\nclean_quote.csv / clean_quote\nObjective\nSum Price for the revised repaired clean quote sheet 4b\nclean_quote.csv / clean_quote"
+  },
+  "outbox_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_repair4_20261031/controlled-outbox.jsonl",
+  "outbox_lines": 1
+}

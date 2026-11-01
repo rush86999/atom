@@ -1,0 +1,107 @@
+{
+  "schema": "atom-composite-long-running-verify-2",
+  "status": "passed",
+  "active": {
+    "run_id": "31813426-75e6-4650-b99d-368d1c721a20",
+    "status": "completed",
+    "teaching_revision": "18a91124dffee366+bb65be344cc0a5b6+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "integrated_quote",
+        "column": "Gross Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "18a91124dffee366+bb65be344cc0a5b6+map",
+        "source": "upload",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "external_id": "sha1:93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "available_columns": [
+          "Item",
+          "Gross Amount",
+          "Currency",
+          "Status",
+          "Qualification"
+        ],
+        "numeric_columns": [
+          "Gross Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "550.00",
+    "artifact": {
+      "path": "/private/tmp/repair4-journey/active-reload-assignment-artifact.docx",
+      "bytes": 37207,
+      "sha256": "9dfe4204455c2f0458b58aa07a00760350984a9531b991d40f2a6c2d44b549dc",
+      "normal_font": "Arial",
+      "normal_size": 11.0,
+      "text": "Sum Price for the repaired clean quote sheet 4\nSummary\nsum of Gross Amount: 550.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\n24f8b3eb-8fa1-47b9-921a-a44f3f4924c6\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the repaired clean quote sheet 4\nintegrated_quote.csv / integrated_quote"
+    }
+  },
+  "second": {
+    "run_id": "3080ae7f-07ae-4d31-9ac4-1969b05c76dc",
+    "status": "completed",
+    "teaching_revision": "85d26e59abf79bf3+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "clean_quote",
+        "column": "Net Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "85d26e59abf79bf3+map",
+        "source": "upload",
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "external_id": "sha1:fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "available_columns": [
+          "Item",
+          "Net Amount",
+          "Currency",
+          "Status",
+          "Qualification"
+        ],
+        "numeric_columns": [
+          "Net Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "500.00",
+    "artifact": {
+      "path": "/private/tmp/repair4-journey/revised-assignment-artifact.docx",
+      "bytes": 37148,
+      "sha256": "11711129e996cb01eb60224e0ebf1a76e6c86da2d94ad2b43368f01ea094da80",
+      "normal_font": "Calibri",
+      "normal_size": 14.0,
+      "text": "Sum Price for the revised repaired clean quote sheet 4b\nSummary\nsum of Net Amount: 500.00 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\n0a8641b6-c198-4eb2-8be1-b2a33c8c7f65\nclean_quote.csv / clean_quote\nObjective\nSum Price for the revised repaired clean quote sheet 4b\nclean_quote.csv / clean_quote"
+    }
+  },
+  "teaching_revision_changed_for_new_work": true,
+  "outbox": [
+    {
+      "operation_id": "9322b6b8-5860-4ad8-b647-da397256935e",
+      "to": [
+        "acceptance@example.invalid"
+      ],
+      "subject": "[Quote] Sum Price for the repaired clean quote sheet 4",
+      "body": "Dear colleague,\n\nResult:\n- sum of Gross Amount: 550.00 USD\n- controlled reply received: FOB destination; delivery term supplied by the customer.\nFindings:\n- integrated_quote.csv / integrated_quote\n  - row 2 | sheet_row | 2 | 110.00 | USD | B2\n  - row 3 | sheet_row | 3 | 165.00 | USD | B3\n  - row 4 | sheet_row | 4 | 275.00 | USD | B4\nSources:\n- upload_integrated_quote__integrated_quote\n- integrated_quote.csv\n- integrated_quote\n- 24f8b3eb-8fa1-47b9-921a-a44f3f4924c6\n- integrated_quote.csv / integrated_quote\n\nSales team",
+      "teaching_revision": "18a91124dffee366+bb65be344cc0a5b6+map"
+    }
+  ],
+  "outbox_all_lines": 1
+}

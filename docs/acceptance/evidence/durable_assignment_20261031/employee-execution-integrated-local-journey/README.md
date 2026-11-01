@@ -1,5 +1,10 @@
 # Integrated local employee journey — normal application
 
+> **PRE-REPAIR — historical only.** This run predates the deterministic
+> precedence repair. It is preserved for comparison and is **not** evidence for
+> the repaired source. See `PRE_REPAIR.md` and
+> `../employee-execution-integrated-local-journey-repaired/`.
+
 This is the merged candidate running the normal product UI (backend
 `127.0.0.1:8071`, frontend `127.0.0.1:3130`) in an isolated world. It exercises
 teaching, conflict, missing qualification, connected-data upload, mapping,

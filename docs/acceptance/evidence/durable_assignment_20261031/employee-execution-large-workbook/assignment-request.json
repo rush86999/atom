@@ -1,0 +1,30 @@
+{
+  "objective": "Full-population total of Data01 (all 25 rows, no supplied rows)",
+  "agent_id": "cb8df6f1-f824-470b-9015-e1516ea34480",
+  "sources": [
+    {
+      "source": "upload",
+      "dataset_name": "upload_twenty_four_sheet_workbook__data01",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "sheet": "Data01",
+      "kind": "workbook"
+    }
+  ],
+  "deliverables": [
+    {
+      "kind": "document",
+      "description": "Full-population total",
+      "content": "## Summary\n\nTotal ${source-1.value}\n\n## Sources\n\n- twenty_four_sheet_workbook.xlsx / Data01"
+    }
+  ],
+  "calculation": {
+    "aggregate": {
+      "operation": "sum",
+      "value_column": "Total"
+    }
+  },
+  "transport": "controlled",
+  "supplied_rows": null,
+  "note": "No row values were supplied; the source adapter materialized all 25 rows."
+}
