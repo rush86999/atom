@@ -1,0 +1,24 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-canvas-capability",
+  "source_checkpoint": "merged-working-tree",
+  "final_candidate": "merged-working-tree",
+  "files": {
+    "README.md": {
+      "sha256": "fa968ef10e09354026763999226e84822f30863840fabc4c37009f3267db9d21",
+      "bytes": 964
+    },
+    "canvas-export.xlsx": {
+      "sha256": "1df677f9aacb5d9c2f5c7717cdbd57cb9aebc5f2210d0edfc64f80c6b42ba8fa",
+      "bytes": 5690
+    },
+    "canvas.json": {
+      "sha256": "d7b62bf0b49be21ca6ff904c493c2f4be7713b8956eb9ceb7bde136b193f45ea",
+      "bytes": 5060
+    },
+    "screenshot.png": {
+      "sha256": "9c51e8626ee4e363094f34b9df87b4c5646d149abe0b3d29b1eb108930199abb",
+      "bytes": 181277
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "schema": "atom-composite-long-running-part2-1",
+  "status": "passed",
+  "run_id": "9e2ebe30-4e7a-4015-9caf-21a77f9bf904",
+  "teaching_revision_before": "9d2be203e5f7500f+f012bcf9e64e7fb5+map",
+  "teaching_revision_after_teach": "9d2be203e5f7500f+f012bcf9e64e7fb5+map",
+  "status_after_restart": "waiting",
+  "status_after_completion": "completed",
+  "artifact": {
+    "path": "/private/tmp/merged-composite-sales6/active-assignment-artifact.docx",
+    "bytes": 37194,
+    "sha256": "404d205e005502049fa172f6987bb0d479c1e9b7d6c07b4fb4ead799396a6ba2",
+    "normal_font": "Arial",
+    "normal_size": 11.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the merged quote sheet 6\nSummary\nsum of Gross Amount: 550.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\n23c5a7c0-e73e-4705-96c1-7863e881246b\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the merged quote sheet 6\nintegrated_quote.csv / integrated_quote"
+  },
+  "second_objective": "Sum Price for the revised merged quote sheet 6b",
+  "second_run_id": "255dd91f-d35e-4031-a45e-666244a71a6f",
+  "second_teaching_revision": "92253b224a3f0d4f+map",
+  "second_artifact": {
+    "path": "/private/tmp/merged-composite-sales6/revised-assignment-artifact.docx",
+    "bytes": 37141,
+    "sha256": "a092ebbbec4310bf6a9d49c563b624a27d1d30f467a0a90572036d97ee80b4cc",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the revised merged quote sheet 6b\nSummary\nsum of Net Amount: 500.00 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\ne512e57f-fb47-4021-ab79-575aaa4e4c0b\nclean_quote.csv / clean_quote\nObjective\nSum Price for the revised merged quote sheet 6b\nclean_quote.csv / clean_quote"
+  },
+  "outbox_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_20261031_v2/controlled-outbox.jsonl",
+  "outbox_lines": 1
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-office-workbook",
+  "source_checkpoint": "merged-working-tree",
+  "final_candidate": "merged-working-tree",
+  "files": {
+    "README.md": {
+      "sha256": "9a76184cb1ffcbd8860665362e4cc94d0edc943754e04adb19c1a0a0085c4596",
+      "bytes": 1256
+    },
+    "canvas.json": {
+      "sha256": "9b90b7d177afe8950e028c98d15cac9a517bcb189c52f3e5adbddeab20f88661",
+      "bytes": 174
+    },
+    "downloaded.xlsx": {
+      "sha256": "241a41715f2c47edd3c3245c4390cf682dea7f29837a4196f23b953ce2a94c6e",
+      "bytes": 5543
+    },
+    "result.json": {
+      "sha256": "b1b2329737e99de0755b07047c7c8a80f1ad6e487935f090fde256afd0d01de6",
+      "bytes": 898
+    },
+    "screenshot.png": {
+      "sha256": "ceeac03d6879a5001f7ef4ce86b64ee38da48705cfd16986e080a03a06483f70",
+      "bytes": 131375
+    }
+  }
+}

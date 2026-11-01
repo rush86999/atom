@@ -1,0 +1,16 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-live-authority-gate",
+  "source_checkpoint": "merged-working-tree",
+  "final_candidate": "merged-working-tree",
+  "files": {
+    "README.md": {
+      "sha256": "a47f341c054cae96fe80af8c1811ac4ca16913067c69db372d491404a60fe6ea",
+      "bytes": 1258
+    },
+    "live-authority.log": {
+      "sha256": "e58cdfb2c6d54a9fcfb59f189e6a3983993fb1162950ea13aec22dfc60a778e0",
+      "bytes": 3634
+    }
+  }
+}

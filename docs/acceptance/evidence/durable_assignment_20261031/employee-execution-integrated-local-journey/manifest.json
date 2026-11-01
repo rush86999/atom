@@ -1,0 +1,68 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-integrated-local-journey",
+  "source_checkpoint": "merged-working-tree",
+  "final_candidate": "merged-working-tree",
+  "files": {
+    "README.md": {
+      "sha256": "41d6ade0a1b67f08e5bbb56793c649395270e11530c7565876758e72c504cd15",
+      "bytes": 2819
+    },
+    "artifacts/active-assignment-artifact.docx": {
+      "sha256": "404d205e005502049fa172f6987bb0d479c1e9b7d6c07b4fb4ead799396a6ba2",
+      "bytes": 37194
+    },
+    "artifacts/active-reload-assignment-artifact.docx": {
+      "sha256": "404d205e005502049fa172f6987bb0d479c1e9b7d6c07b4fb4ead799396a6ba2",
+      "bytes": 37194
+    },
+    "artifacts/revised-assignment-artifact.docx": {
+      "sha256": "741b99c5dc609b34dd5ddbb014229f922ffbf9ffd1206cafbfb0c508154d3cf7",
+      "bytes": 37141
+    },
+    "first-conflict.txt": {
+      "sha256": "ab6cd1eb7e8f9645daf5f898ede404b513294c8ce981f04485a4bf7ca526db43",
+      "bytes": 1762
+    },
+    "missing-qualification.txt": {
+      "sha256": "d19c881bedeba156c780c5811c3c26b946dacb227622bc529d25cc6bfd6e8163",
+      "bytes": 1723
+    },
+    "outbox.jsonl": {
+      "sha256": "0c8c6d6e3b2b03142c4bc1363a50f0cb1984773e3c5f93bfd66507e464676d8d",
+      "bytes": 769
+    },
+    "part1.json": {
+      "sha256": "8e801f9ba23a109439634605b56b0255980b2b38b38d5badcb5836ce2a94eb06",
+      "bytes": 4170
+    },
+    "part2.json": {
+      "sha256": "de8c7365ea4928014df70f86780792bacc08994424bfb373c21b928f624bd663",
+      "bytes": 3686
+    },
+    "screenshots/active-completed.png": {
+      "sha256": "5b2a317910511db951f8cefe084c9b35973ca7391441bc1099ac0517a28316d8",
+      "bytes": 180803
+    },
+    "screenshots/reopened-after-restart.png": {
+      "sha256": "721838cd0ffc4694f910a23597bdbe301b730fe0a94f46138a698ddae853c537",
+      "bytes": 165836
+    },
+    "screenshots/revised-completed.png": {
+      "sha256": "f4967261306d4d54856eff14d2e6ea8955c3ad79eec43c19ec27a418b4eb4f1e",
+      "bytes": 169276
+    },
+    "screenshots/waiting-before-restart.png": {
+      "sha256": "1cb9b50538505d858c20e8c2adb09a0c2679f459bf8c8e3f5fb293027607aba1",
+      "bytes": 192489
+    },
+    "sources.json": {
+      "sha256": "69e4de199c50a3dd10d44878d8ca1677863d3f14673382161f7a3632b446c350",
+      "bytes": 3479
+    },
+    "verify.json": {
+      "sha256": "2a3179f6fc5813923b30478365e79157d8f4d9143609f7d023cb3f2e287235b8",
+      "bytes": 4584
+    }
+  }
+}
