@@ -54,7 +54,8 @@ integrated product still needs. It is not a claim that the goals are met.
   Advanced path only.
 - **Post-repair journey**: executed on clean source `31ba9725e02a` and recorded
   in `employee-execution-integrated-local-journey-repaired/`; it is accepted as
-  execution evidence, with the teaching-interaction caveat above.
+  execution evidence. Teaching usability is separately confirmed on the stock
+  build (`employee-execution-unforced-teaching/`).
 
 ## Genuine external dependencies (one consolidated request)
 

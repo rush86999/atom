@@ -1,3 +1,16 @@
+# SUPERSEDED — retargeted-build teaching stall (historical)
+
+**Superseded by the stock-build verification at `bc164fb96632`.** This bundle
+records a blocked unforced-teaching attempt on a string-retargeted production
+build (API base rewritten from 8071 to 8077). Its own limits note said a
+stock-build rerun was required; that rerun passed **9/9** in
+`employee-execution-unforced-teaching/`.
+
+Keep this directory as history for the "do not conclude a product loop from a
+retargeted build" lesson. Do not cite it as the current teaching status.
+
+---
+
 # Unforced teaching interaction — blocked (2026-10-31)
 
 > **SUPERSEDED — historical.** This run used a string-retargeted build at
