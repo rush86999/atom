@@ -5,7 +5,7 @@ contract. The prior ledger and its appended history are preserved separately
 at `docs/acceptance/PRODUCT_GOAL_LEDGER_HISTORY_2026-10-29.md`; historical
 statuses there do not override this table.
 
-**Candidate source:** `589389218` on branch `codex/employee-execution-readiness` (accepted product source `b7ee7ee22`)
+**Candidate source:** `5664c46c5` on branch `codex/employee-execution-readiness` (accepted product source `b7ee7ee22`)
 (evidence source `06d80f834`; product teaching `3e344f5b1`; Agent 2
 README-readiness merge `931892be0`). **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
 `ATOM_LOCAL_ONLY=true`, `ATOM_TURN_DECISION_ROUTING=0`,
@@ -169,7 +169,7 @@ is removed — a model cannot authorize itself.
 
 Scoring correction (v2): a blank field is a gap only when the policy in force
 depends on it. `Q-010` (blank Risk) is a gap under V1 but scored under V3
-("regardless of Risk"). Under v2 the v3 phases are 18/19 (0.9474); the verdict
+("regardless of Risk"). Under v2 the deterministic V3 phase is 19/19 (1.0); the verdict
 is unchanged. Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/`.
 
