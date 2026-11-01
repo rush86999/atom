@@ -46,9 +46,23 @@ def api(page, path: str):
 
 
 def dismiss_overlays(page) -> None:
-    for _ in range(4):
-        if page.locator('[role="dialog"]').count() == 0:
+    # The guided-creation success dialog and the optional first-run wizard
+    # are normal product surfaces, not test failures. Close them the same way
+    # a user would before operating the Training panel.
+    for _ in range(6):
+        dialogs = page.locator('[role="dialog"]')
+        if dialogs.count() == 0:
             return
+        done = page.get_by_test_id("guided-done-button")
+        if done.count() and done.first.is_visible():
+            done.first.click(force=True)
+            page.wait_for_timeout(400)
+            continue
+        next_button = page.get_by_role("button", name="Next", exact=True)
+        if next_button.count() and next_button.first.is_visible():
+            next_button.first.click(force=True)
+            page.wait_for_timeout(400)
+            continue
         page.keyboard.press("Escape")
         page.wait_for_timeout(350)
 
