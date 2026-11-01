@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import uuid
+from pathlib import Path
 from datetime import datetime, timedelta
 
 import pytest
@@ -23,6 +24,7 @@ os.environ.setdefault("TESTING", "1")
 
 from core.assignment_executor import (
     AssignmentExecutor,
+    NeedsContext,
     WaitingForExternal,
     default_adapter_registry,
 )
@@ -34,7 +36,8 @@ import core.assignment_controlled_transport  # noqa: F401,E402
 from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_service import GoalService
 from core.models import (
-    Base, DatasetEntry, HITLAction, HITLActionStatus, IntegrationToken, User,
+    Base, DatasetEntry, GoalRun, HITLAction, HITLActionStatus,
+    IntegrationToken, User,
 )
 from core.task_lifecycle import TaskLifecycle
 
@@ -1867,3 +1870,174 @@ def test_over_limit_outbound_body_is_rejected_before_run_creation(
     })
     assert response.status_code == 422
     assert "20000 UTF-8 bytes" in response.text
+
+
+def _waiting_route_assignment(env, *, adapter: str, waiting: dict) -> str:
+    async def wait_step(inputs, context):
+        raise WaitingForExternal(waiting)
+
+    env["executor"].adapters.register(adapter, wait_step)
+    default_adapter_registry.register(adapter, wait_step)
+    plan = new_assignment(
+        objective=f"Route cancel {uuid.uuid4().hex[:8]}",
+        employee_id="owner-1",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="route-cancel-r1"),
+        steps=[new_step(
+            step_id="wait", title="Wait for an authorized reply",
+            operation_type="retrieve", adapter=adapter, effect="read_only")],
+    )
+    record = env["executor"].create_assignment(
+        "conv-cancel-route", plan["objective"], assignment=plan)
+    _run(env["executor"].execute(record["run_id"]))
+    return record["run_id"]
+
+
+def _outbox_empty() -> bool:
+    outbox = Path(os.environ["ATOM_ASSIGNMENT_OUTBOX"])
+    return not outbox.exists() or not outbox.read_text().strip()
+
+
+def test_cancel_clears_correlated_wait_and_refuses_late_reply(route_env):
+    env = route_env
+    run_id = _waiting_route_assignment(
+        env, adapter="test.route.cancel.correlated",
+        waiting={
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier", "correlation_id": "corr-cancel-route",
+            "resume_on": "response", "detail": "reply on thread-route",
+        })
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "waiting" and run["waiting_on"], run
+
+    cancelled = env["client"].post(
+        f"/api/assignments/{run_id}/cancel",
+        json={"reason": "owner cancel"})
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["assignment"]["status"] == "cancelled"
+
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "cancelled", run
+    assert run["waiting_on"] is None, run
+    detail = env["executor"].status(run_id)
+    assert detail["assignment"]["status"] == "cancelled"
+    wait_step = next(step for step in detail["assignment"]["steps"]
+                     if step["step_id"] == "wait")
+    assert wait_step["status"] == "cancelled"
+    # Historical wait record is preserved; only the live projection is cleared.
+    assert (wait_step.get("waiting") or {}).get("correlation_id") == (
+        "corr-cancel-route")
+
+    # Fresh session, not the route dependency session.
+    with env["factory"]() as fresh:
+        row = fresh.query(GoalRun).filter(GoalRun.id == run_id).first()
+        assert row is not None and row.status == "cancelled"
+        assert row.waiting_on is None
+
+    late = env["client"].post(
+        f"/api/assignments/{run_id}/responses/corr-cancel-route",
+        json={"response": "late reply after cancellation"})
+    assert late.status_code == 409, late.text
+    assert "cancelled" in late.json()["detail"].lower()
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "cancelled" and run["waiting_on"] is None
+    assert _outbox_empty()
+
+    again = env["client"].post(
+        f"/api/assignments/{run_id}/cancel", json={"reason": "again"})
+    assert again.status_code == 200
+    assert again.json()["assignment"]["status"] == "cancelled"
+    decisions = env["runs"].get_run(run_id)["decision_log"]
+    assert sum(1 for item in decisions
+               if item.get("kind") == "external_response_refused") == 1
+    assert sum(1 for item in decisions
+               if item.get("rationale") == "assignment cancelled: owner cancel"
+               ) == 1
+    assert all(item["id"] != run_id for item in
+               env["runs"].list_runs(include_terminal=False))
+    # The active-task consumer must not find cancelled work.
+    assert env["lifecycle"].find_active_task("conv-cancel-route") is None
+
+    read = env["client"].get(f"/api/assignments/{run_id}")
+    assert read.status_code == 200, read.text
+    assert read.json()["assignment"]["status"] == "cancelled"
+
+    resumed = env["client"].post(f"/api/assignments/{run_id}/resume")
+    assert resumed.status_code in (200, 409), resumed.text
+    if resumed.status_code == 200:
+        assert resumed.json()["assignment"]["status"] == "cancelled"
+    assert _outbox_empty()
+
+
+def test_cancel_clears_mapping_wait_and_refuses_gap_and_reply(route_env):
+    env = route_env
+
+    async def mapping_gap(inputs, context):
+        raise NeedsContext({
+            "concept": "column",
+            "reason": "required column not found: Price",
+            "question": "Which column should supply Price?",
+            "checked_evidence": ["columns=['Item', 'Quantity', 'Unit Price']"],
+            "next_retrieval": "confirm the column mapping",
+            "kind": "missing_evidence",
+            "inputs": {"mapping": {
+                "concept": "Price", "sheet": "Records",
+                "source_version": "v1",
+                "candidates": [{"column": "Unit Price"}],
+            }},
+            "waiting": {
+                "state": "waiting_for_person", "party": "owner",
+                "resume_on": "answer", "correlation_id": "corr-map-cancel",
+                "detail": "which column supplies Price",
+            },
+        })
+
+    env["executor"].adapters.register("test.route.cancel.mapping", mapping_gap)
+    default_adapter_registry.register(
+        "test.route.cancel.mapping", mapping_gap)
+    plan = new_assignment(
+        objective="Route mapping cancel",
+        employee_id="owner-1",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="route-cancel-r2"),
+        steps=[new_step(
+            step_id="read", title="Read the sheet",
+            operation_type="retrieve",
+            adapter="test.route.cancel.mapping", effect="read_only")],
+    )
+    record = env["executor"].create_assignment(
+        "conv-cancel-route-map", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    _run(env["executor"].execute(run_id))
+    detail = env["executor"].status(run_id)
+    assert detail["assignment"]["status"] == "waiting"
+    gap = detail["open_gaps"][0]
+    assert gap["kind"] == "missing_evidence"
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "waiting" and run["waiting_on"], run
+
+    cancelled = env["client"].post(
+        f"/api/assignments/{run_id}/cancel",
+        json={"reason": "mapping run cancelled"})
+    assert cancelled.status_code == 200, cancelled.text
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "cancelled" and run["waiting_on"] is None, run
+    with env["factory"]() as fresh:
+        row = fresh.query(GoalRun).filter(GoalRun.id == run_id).first()
+        assert row.status == "cancelled" and row.waiting_on is None
+
+    revived = env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "Unit Price"})
+    assert revived.status_code == 409, revived.text
+    assert "cancelled" in revived.json()["detail"].lower()
+
+    late = env["client"].post(
+        f"/api/assignments/{run_id}/responses/corr-map-cancel",
+        json={"response": "late mapping reply"})
+    assert late.status_code == 409, late.text
+    assert _outbox_empty()
+    assert env["executor"].status(run_id)["assignment"]["status"] == (
+        "cancelled")

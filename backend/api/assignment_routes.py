@@ -821,6 +821,10 @@ async def record_assignment_response(
         evidence=body.evidence,
         value=body.value,
     )
+    if result.get("status") == "terminal":
+        # The run exists and is terminal; the reply is refused rather than
+        # matched to a historical wait and woken.
+        raise HTTPException(status_code=409, detail=result.get("message"))
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
     if result.get("status") in (

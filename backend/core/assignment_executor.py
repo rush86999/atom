@@ -2819,6 +2819,28 @@ class AssignmentExecutor:
         record = self.lifecycle.get_task(run_id)
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
+        assignment_status = str(
+            (record.get("assignment") or {}).get("status") or "")
+        if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+            # A late reply must not match or wake terminal work, even when a
+            # cancelled step still carries its historical wait record.
+            try:
+                self.lifecycle.runs.append_decision(run_id, {
+                    "kind": "external_response_refused",
+                    "rationale": (
+                        f"assignment {assignment_status}: response for "
+                        f"{correlation_id} not used"),
+                    "correlation_id": str(correlation_id or ""),
+                })
+            except Exception:  # noqa: BLE001 — refusal must still return
+                pass
+            return {
+                "status": "terminal",
+                "assignment_status": assignment_status,
+                "message": (
+                    f"The assignment is {assignment_status}; the response "
+                    "was not used to resume work."),
+            }
         from core.task_lifecycle import open_unresolved_questions
 
         for question in open_unresolved_questions(record):
@@ -3148,6 +3170,11 @@ class AssignmentExecutor:
         record = self.lifecycle.get_task(run_id)
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
+        if str((record.get("assignment") or {}).get("status") or "") == (
+                "cancelled"):
+            # Repeated cancellation is a status read, not a second transition:
+            # keep the first cancellation evidence and dispatch nothing.
+            return self.status(run_id)
         self.lifecycle.apply_transition(run_id, {
             "kind": "cancel",
             "requested_change": _bounded(
@@ -3172,8 +3199,14 @@ class AssignmentExecutor:
             }
             return new_plan, {"status": "cancelled"}
 
-        return self.lifecycle.mutate_assignment(
+        result = self.lifecycle.mutate_assignment(
             run_id, compute, rationale=f"assignment cancelled: {reason}")
+        # Project the terminal state on the shared GoalRun row immediately.
+        # The assignment/task ledger stays authoritative for history; this
+        # clears the run's live waiting projection so public status cannot
+        # claim a cancelled assignment is still waiting for input.
+        self._set_run_status(run_id, "cancelled")
+        return result
 
     # ------------------------------------------------------------ internals
 

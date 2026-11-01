@@ -282,6 +282,12 @@ class GoalRunService:
                     f"illegal transition {run.status} -> {new_status} "
                     f"(allowed: {sorted(allowed) or 'none — terminal'})")
             run.status = new_status
+            if new_status in ("achieved", "failed", "cancelled"):
+                # A terminal run has no active obligation. Keep the historical
+                # wait on the assignment/task record and decision log; only the
+                # run's live waiting projection is cleared. Without this, a
+                # cancelled run stays publicly "waiting for input" forever.
+                run.waiting_on = None
             session.commit()
             session.refresh(run)
             result = self._to_dict(run)
