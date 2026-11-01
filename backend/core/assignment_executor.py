@@ -3240,6 +3240,10 @@ class AssignmentExecutor:
             step = step_by_id(assignment, step_id)
             if step is None:
                 raise AssignmentError(f"unknown step {step_id!r}")
+            if str(step.get("status") or "") == "uncertain":
+                raise AssignmentError(
+                    "step is uncertain; reconcile the existing operation "
+                    "before retrying so a second effect cannot be created")
             failure = step.get("failure") or {}
             # A pre-dispatch budget refusal is not an execution attempt. It
             # must not consume the retry budget or permanently wedge a step

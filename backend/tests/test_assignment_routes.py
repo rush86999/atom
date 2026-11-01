@@ -2684,3 +2684,176 @@ def test_quote_same_sku_different_pack_asks_before_arithmetic(
     deliverable = next(step for step in assignment["steps"]
                        if step["step_id"] == "deliverable-1")
     assert deliverable["status"] == "pending"
+
+
+def test_real_books_estimate_uncertainty_blocks_and_keeps_one_effect(
+        route_env, tmp_path, monkeypatch):
+    """Real registered Books action: create accepted, readback lost -> uncertain.
+
+    The handler returns its actual uncertainty envelope. The assignment must
+    not complete, dependent work stays blocked, retry/restart adds no provider
+    effect, and reconciliation settles the original operation.
+    """
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "readback": 0}
+
+    class FakeBooks:
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False, "page": page}
+
+        async def create_estimate(self, token, org, estimate_data):
+            calls["create"] += 1
+            return {"estimate_id": "est-uncertain-1"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            calls["readback"] += 1
+            raise RuntimeError("connection lost after provider acceptance")
+
+    async def fake_service(ids):
+        return FakeBooks()
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    source = tmp_path / "estimate-source.txt"
+    source.write_text("Authorized estimate source.\n")
+    estimate_data = {
+        "customer_id": "cust-1", "currency_code": "USD",
+        "date": "2026-11-01", "reference_number": "QUOTE-1",
+        "tax_treatment": "none", "total": "362.50",
+        "line_items": [{"item_id": "A", "quantity": 2, "rate": "100.00"}],
+    }
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Create the authorized Books estimate",
+        "sources": [{"kind": "document", "path": str(source)}],
+        "actions": [{
+            "action": "connected.books.create_estimate",
+            "arguments": {
+                "organization_id": "org-1",
+                "estimate_data": estimate_data,
+                "authority_reference": "grant-estimate-1",
+                "operation_id": "op-route-uncertain-1",
+            },
+        }],
+        "deliverables": [{
+            "kind": "email_draft", "description": "Estimate note",
+            "to": ["owner@example.invalid"], "subject": "Estimate request",
+            "body": "Authorized Books estimate request.",
+        }],
+    })
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    action_step = next(step for step in internal["steps"]
+                       if step["adapter"] == "action.registry")
+    if (action_step.get("approval_request")
+            or action_step["status"] == "awaiting_approval"):
+        approved = route_env["client"].post(
+            f"/api/assignments/{run_id}/approve/{action_step['step_id']}",
+            json={"note": "authorized estimate"})
+        assert approved.status_code in (200, 409), approved.text
+        route_env["client"].post(f"/api/assignments/{run_id}/resume")
+        if route_env["lifecycle"].get_assignment(run_id)["steps"][-1][
+                "status"] == "pending":
+            route_env["client"].post(f"/api/assignments/{run_id}/resume")
+
+    after = route_env["lifecycle"].get_assignment(run_id)
+    action_after = next(step for step in after["steps"]
+                        if step["adapter"] == "action.registry")
+    assert action_after["status"] == "uncertain", action_after
+    assert action_after["failure"]["reason"] == "external_outcome_unknown"
+    assert calls["create"] == 1
+    dependent = next(step for step in after["steps"]
+                     if step["adapter"] == "email.draft")
+    assert dependent["status"] not in ("applied", "completed")
+    operations = route_env["lifecycle"].get_task(run_id)["operations"]
+    operation = next(op for op in operations
+                     if op.get("step_id") == action_after["step_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["needs_reconciliation"] is True
+
+    # Retry/restart cannot create a second provider effect.
+    retry = route_env["client"].post(
+        f"/api/assignments/{run_id}/retry/{action_after['step_id']}",
+        json={"reason": "try again"})
+    assert retry.status_code in (200, 409, 422), retry.text
+    assert calls["create"] == 1
+    route_env["client"].get(f"/api/assignments/{run_id}")
+    assert calls["create"] == 1
+    assert calls["readback"] >= 1
+
+    # Reconcile the original operation; no new create.
+    reconciled = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/{action_after['step_id']}",
+        json={"verdict": "applied",
+              "evidence": "provider receipt proves estimate est-uncertain-1"})
+    assert reconciled.status_code == 200, reconciled.text
+    assert calls["create"] == 1
+
+
+def test_discount_obligation_binds_line_and_resumes_same_quote(
+        route_env, tmp_path, monkeypatch):
+    """Missing qualification is durable; licensed answer changes 5% -> 10%."""
+    from core.student_learning_service import deliver_teacher_lesson
+
+    agent_id = _teaching_agent(
+        route_env, "Discount obligation employee", "Arial", "quote-reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id, "Scoped discount policy",
+        topic="quote discount", applies_to=["document"],
+        format_spec={
+            "font_name": "Arial",
+            "line_discount_rules": [
+                {"lesson_id": "general", "revision": 1, "name": "general",
+                 "when": {}, "rate": "0.05"},
+                {"lesson_id": "licensed", "revision": 1, "name": "licensed",
+                 "when": {"qualification": "licensed", "category": "B"},
+                 "rate": "0.10"},
+            ],
+        },
+        context={"audience": "quote-reviewer"}, workspace_id="ws-1")
+    started = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Obligation")
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    assert body["assignment"]["assignment"]["status"] == "waiting"
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc.get("result") is None
+    gaps = route_env["client"].get(
+        f"/api/assignments/{run_id}").json().get("open_gaps") or []
+    gap = next(item for item in gaps
+               if item.get("concept") == "discount_scope")
+    binding = gap["inputs"]["quote_discount"]
+    assert binding["line_item_id"] == "B"
+    assert binding["missing_fields"] == ["qualification"]
+    assert binding["teaching_revision"]
+    assert binding["candidate_rules"]
+
+    answered = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed"})
+    assert answered.status_code == 200, answered.text
+    resumed = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in resumed["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "applied"
+    assert calc["result"]["value"] == "345.00"
+
+    duplicate = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed"})
+    assert duplicate.status_code in (200, 409)
+    assert next(step for step in route_env["lifecycle"].get_assignment(
+        run_id)["steps"] if step["step_id"] == "calculate")[
+        "result"]["value"] == "345.00"
+
+    stale = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "unlicensed"})
+    assert stale.status_code == 409
