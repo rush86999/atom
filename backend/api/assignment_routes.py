@@ -98,6 +98,10 @@ class AssignmentReassessment(BaseModel):
     task_context: Dict[str, Any] = {}
 
 
+class AssignmentInvalidation(BaseModel):
+    reason: str = "authorized evidence changed"
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -866,6 +870,30 @@ async def reassess_assignment(
             reason=body.reason or "explicit reassessment")
         status = await executor.execute(run_id, max_steps=12)
     except (AssignmentPlanError, TaskLifecycleError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
+
+
+@router.post("/{run_id}/invalidate/{step_id}")
+async def invalidate_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentInvalidation,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Explicitly reopen one branch after its evidence changed.
+
+    Prior results/artifacts remain in the audit history. The step and every
+    descendant run under a new plan revision, so old approvals/payloads do
+    not ride the changed evidence.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        result = executor.invalidate_step(
+            run_id, step_id, reason=body.reason or "evidence changed")
+        status = await executor.execute(run_id, max_steps=12)
+    except TaskLifecycleError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return {**result, "assignment": status}
 

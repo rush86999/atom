@@ -2579,3 +2579,63 @@ def test_quote_missing_tax_is_a_typed_clarification_not_zero(
                 if step["step_id"] == "calculate")
     assert calc["status"] == "waiting"
     assert calc["result_value"] is None
+
+
+def test_source_revision_change_invalidates_dependent_artifact(
+        route_env, tmp_path, monkeypatch):
+    import pandas as pd
+
+    agent_id = _teaching_agent(
+        route_env, "Source change employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    started = _start_quote(route_env, tmp_path, monkeypatch, agent_id)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    before = route_env["lifecycle"].get_assignment(run_id)
+    before_doc = next(item for item in before["deliverables"]
+                      if item["kind"] == "document")
+    assert before_doc["status"] == "applied"
+    before_revision = before_doc["artifact_revision"]
+
+    # The authorized source is revised while the job is retained.
+    parquet = tmp_path / "sheet_datasets" / "scotch-parts.parquet"
+    frame = pd.read_parquet(parquet)
+    frame.loc[0, "Description"] = "Changed Scotch A"
+    frame.to_parquet(parquet, index=False)
+
+    invalidated = route_env["client"].post(
+        f"/api/assignments/{run_id}/invalidate/source-1",
+        json={"reason": "authorized source revision changed"})
+    assert invalidated.status_code == 200, invalidated.text
+    result = invalidated.json()
+    assert "source-1" in result["affected_steps"]
+    status = result["assignment"]
+    assert status["assignment"]["status"] == "completed", status
+    after = route_env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == before["plan_revision"] + 1
+    source_step = next(step for step in after["steps"]
+                       if step["step_id"] == "source-1")
+    assert source_step["status"] == "applied"
+    before_rows = next(step for step in before["steps"]
+                       if step["step_id"] == "source-1")["result"]["rows"]
+    assert source_step["result"]["rows"] != before_rows
+    after_doc = next(item for item in after["deliverables"]
+                     if item["kind"] == "document")
+    assert after_doc["status"] == "applied"
+    assert after_doc["artifact_revision"] != before_revision
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["prior_results"], calc
+    deliverable_step = next(step for step in after["steps"]
+                            if step["step_id"] == "deliverable-1")
+    assert deliverable_step["prior_results"], deliverable_step
+    text = "\n".join(
+        paragraph.text for paragraph in __import__("docx").Document(
+            after_doc["artifact_path"]).paragraphs)
+    for table in __import__("docx").Document(
+            after_doc["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "Changed Scotch A" in text, text
