@@ -145,16 +145,55 @@ def test_complete_relisting_reports_remote_deletions_without_deleting(monkeypatc
     async def fake_read(provider, **kwargs):
         return _page("a", cursor=None, has_more=False)
 
+    tombstoned = []
+
+    async def fake_tombstone(self, integration_id, external_ids,
+                             reason="removed_from_provider"):
+        tombstoned.extend(external_ids)
+        return {"success": True, "tombstoned": len(external_ids),
+                "errors": []}
+
     monkeypatch.setattr(checkpoints, "_read_page", fake_read)
+    monkeypatch.setattr(
+        "core.drive_tree_ingestion.IntegrationMemoryIndexer.tombstone_rows",
+        fake_tombstone)
     result = asyncio.run(checkpoints.sync_drive_page(
         provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
         tenant_id="t1", folder_id="folder-1",
         provider_workspace_id="provider-ws", fresh=True))
 
     assert result["missing_external_ids"] == ["b"]
+    assert result["tombstoned_external_ids"] == ["b"]
+    assert tombstoned == ["b"]
+    assert result["deletion_check"] == "complete_tombstoned"
     assert result["checkpoint"]["coverage"] == "complete_with_remote_deletions"
     assert [row["external_id"] for row in writes] == ["a"]
     assert result["checkpoint"]["checkpoint"]["known_ids"] == ["a"]
+
+
+def test_tombstone_rows_replaces_retrieval_row(monkeypatch):
+    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+    class Handler(FakeIndexHandler):
+        def __init__(self):
+            super().__init__()
+            self.deleted = []
+
+        def delete_documents_by_id(self, table_name, doc_id):
+            self.deleted.append(doc_id)
+            return True
+
+    handler = Handler()
+    monkeypatch.setattr(IntegrationMemoryIndexer, "_handler", lambda self: handler)
+    result = asyncio.run(IntegrationMemoryIndexer("ws-1").tombstone_rows(
+        "zoho_workdrive", ["file-1"]))
+
+    assert result["success"] is True
+    assert result["tombstoned"] == 1
+    doc_id = "idx_zoho_workdrive_file-1"
+    assert handler.deleted == [doc_id]
+    assert handler.rows[doc_id]["extra_columns"]["freshness_status"] == "removed"
+    assert handler.rows[doc_id]["metadata"]["removal_reason"] == "removed_from_provider"
 
 
 def test_revoked_grant_is_persisted_and_not_an_empty_page(monkeypatch):

@@ -406,9 +406,29 @@ async def sync_drive_page(
             state["missing_external_ids"] = []
             state["deletion_check"] = "skipped_truncated"
         else:
-            state["missing_external_ids"] = sorted(prior - seen)[
-                :MAX_TRACKED_IDS]
-            state["deletion_check"] = "complete"
+            missing = sorted(prior - seen)[:MAX_TRACKED_IDS]
+            state["missing_external_ids"] = missing
+            state["tombstoned_external_ids"] = []
+            if missing and index_content:
+                from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+                tombstone = await IntegrationMemoryIndexer(
+                    workspace_id).tombstone_rows(provider, missing)
+                if tombstone.get("success"):
+                    state["tombstoned_external_ids"] = list(missing)
+                    state["deletion_check"] = "complete_tombstoned"
+                else:
+                    state["deletion_check"] = "reported_not_tombstoned"
+                    state["last_error"] = {
+                        "error_kind": "memory_unavailable",
+                        "error": "remote deletions were reported but the "
+                                 "retrieval tombstone write failed.",
+                        "operation": "tombstone_rows",
+                        "at": _now(),
+                    }
+            else:
+                state["deletion_check"] = (
+                    "reported_only" if missing else "complete")
         state["known_ids"] = sorted(seen)[:MAX_TRACKED_IDS]
         state["prior_known_ids"] = []
         state["next_cursor"] = None
@@ -433,6 +453,8 @@ async def sync_drive_page(
         "coverage": "partial" if has_more else "page_complete",
         "deletion_check": state.get("deletion_check"),
         "missing_external_ids": state.get("missing_external_ids") or [],
+        "tombstoned_external_ids": state.get(
+            "tombstoned_external_ids") or [],
         "checkpoint": checkpoint,
         "read_receipt": {
             "provider": provider,
