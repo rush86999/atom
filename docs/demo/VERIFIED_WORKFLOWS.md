@@ -137,7 +137,8 @@ budget controls separately prove that working time is not erased by retries:
   controlled providers are not model-quality evidence.
 - Multi-worker execution or long soak behaviour.
 - The unqualified live-send and connector breadth listed above.
-- Hosted deployment or publication.
+- Hosted deployment only. The repository is already published on GitHub; a new
+  release announcement or downloadable package is optional.
 
 ## Branch policy
 

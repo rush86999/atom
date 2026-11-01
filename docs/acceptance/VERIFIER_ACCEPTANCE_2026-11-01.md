@@ -1,7 +1,7 @@
 # Verifier acceptance — 2026-11-01
 
 **Status: accepted within the documented local and controlled-provider scope.
-This is not a release, hosted deployment, publication or universal reliability
+This is not a release announcement, hosted deployment or universal reliability
 claim.**
 
 > **Post-acceptance note:** the budget pause-credit defect was found after this
@@ -31,7 +31,7 @@ claim.**
 | Verified launcher/first-use successor | `d8120737e` (backend `c2963fbcdc8e`, frontend `756642ecb165`) |
 | Successor documentation | `14b1928e2` |
 | Breadth | **111/123 = 90.2%** accepted within the documented local/controlled scope |
-| Hosted deployment / publication | deferred |
+| Hosted deployment | deferred; the repository is already published on GitHub |
 
 The accepted tag is not moved, re-created or rewritten. Its known budget defect
 is linked to the repaired successor above; the successor does not retroactively
@@ -146,7 +146,8 @@ used controlled effects only and did not attempt a second live send.
 - Multi-worker execution and long soak behaviour are not claimed.
 - Broader live sending, autonomous live sending, connector breadth and
   recipient delivery beyond the accepted one-use qualification are not claimed.
-- Hosted deployment and publication remain deferred.
+- Hosted deployment remains deferred. The repository is already published on
+  GitHub; a new release announcement or downloadable package is optional.
 - The accepted Microsoft read-only and one-use Outlook send qualifications
   remain closed; no second live send was attempted.
 

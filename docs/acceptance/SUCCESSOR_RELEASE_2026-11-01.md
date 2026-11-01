@@ -84,7 +84,8 @@ does not change the install or sample-job path.
   closed.
 - Broader live sending, autonomous live sending, connector breadth and
   discretionary-model judgment remain unqualified.
-- Hosted deployment and publication remain deferred.
+- Hosted deployment remains deferred. The repository is already published on
+  GitHub; a new release announcement or downloadable package is optional.
 - No new broad campaign was run for this successor.
 
 ## Reproduce the accepted demo
