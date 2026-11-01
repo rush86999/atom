@@ -3023,8 +3023,15 @@ class AssignmentExecutor:
             step = step_by_id(assignment, step_id)
             if step is None:
                 raise AssignmentError(f"unknown step {step_id!r}")
-            if int(step.get("attempts") or 0) >= int(
-                    step.get("max_attempts") or 3):
+            failure = step.get("failure") or {}
+            # A pre-dispatch budget refusal is not an execution attempt. It
+            # must not consume the retry budget or permanently wedge a step
+            # that never reached the adapter.
+            budget_blocked = (
+                failure.get("reason") == "assignment_budget_exhausted")
+            if (not budget_blocked
+                    and int(step.get("attempts") or 0) >= int(
+                        step.get("max_attempts") or 3)):
                 raise AssignmentError(
                     f"step {step_id} exhausted its attempt budget")
             # Migration/recovery: assignments created before wait time was
@@ -3033,7 +3040,6 @@ class AssignmentExecutor:
             # the last completed step to the recorded response, so the retry
             # can run without a manual budget edit. This is bounded to that
             # exact failure and an already-recorded external response.
-            failure = step.get("failure") or {}
             if (failure.get("reason") == "assignment_budget_exhausted"
                     and step.get("external_response")):
                 budget = dict(assignment.get("budget") or {})
@@ -3061,7 +3067,9 @@ class AssignmentExecutor:
                     budget.pop("waiting_since", None)
                     assignment["budget"] = budget
             step["status"] = "pending"
-            step["attempts"] = int(step.get("attempts") or 0) + 1
+            step["attempts"] = (
+                1 if budget_blocked
+                else int(step.get("attempts") or 0) + 1)
             step["operation_id"] = None
             step["failure"] = None
             step["waiting"] = None
