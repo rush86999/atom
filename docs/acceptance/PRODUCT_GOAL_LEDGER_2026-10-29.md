@@ -209,7 +209,7 @@ Closed after the verifier handoff:
   from unfamiliar datasets, one bounded grant per send, backend restart while
   both wait, both complete on return, **2 effects / 0 assignment approvals**
   (`two-domain-autonomous-journey/`, 5/5). The same journey was rerun on the
-  repaired execution boundary (`caee1a057`): 5/5, PID 43597 → 43717, exactly
+  repaired execution boundary (`0e21fd0f7`): 5/5, PID 43597 → 43717, exactly
   two controlled effects, zero HITL rows, artifact hashes recorded
   (`two-domain-autonomous-journey-repaired/`).
 
