@@ -26,9 +26,11 @@ from core.assignment_planner import (
     validate_proposed_plan,
 )
 from core.assignment_plan import (
+    StepInputError,
     new_teaching_snapshot,
     normalize_standing_authority,
 )
+from core.task_lifecycle import TaskLifecycleError
 from core.assignment_resources import (
     AssignmentResourceError,
     allocate_output_path,
@@ -594,7 +596,7 @@ async def start_assignment(
         )
         if body.proposed_steps is not None:
             validate_proposed_plan(plan)
-    except AssignmentPlanError as exc:
+    except (AssignmentPlanError, StepInputError, TaskLifecycleError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
     executor = _executor({
