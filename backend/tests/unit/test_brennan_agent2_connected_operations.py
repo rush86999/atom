@@ -967,3 +967,178 @@ def test_list_accounts_returns_exact_ids(monkeypatch):
         "account_id": "acct-1", "name": "Freight",
         "type": "expense", "code": "5100"}]
     assert result["read_receipt"]["coverage"] == "complete"
+
+
+def test_bookkeeping_campaign_resolves_vendor_accounts_and_posts(monkeypatch):
+    """Controlled vertical slice: vendor -> CoA -> proposal -> duplicate -> post -> readback."""
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    calls = []
+    posted = {}
+
+    def handler(request):
+        body = (__import__("json").loads(request.content or b"{}")
+                if request.method == "POST" else None)
+        calls.append((request.method, request.url.path, body))
+        if request.method == "GET" and request.url.path.endswith("/contacts"):
+            return httpx.Response(200, json={
+                "code": 0,
+                "contacts": [
+                    {"contact_id": "vendor-1", "contact_name": "Acme",
+                     "contact_type": "vendor"},
+                    {"contact_id": "vendor-2", "contact_name": "Acme Holdings",
+                     "contact_type": "vendor"},
+                ],
+                "page_context": {"has_more_page": False},
+            })
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0,
+                "chartofaccounts": [
+                    {"account_id": "acct-1", "account_name": "Parts",
+                     "account_type": "expense", "account_code": "5200"},
+                    {"account_id": "acct-2", "account_name": "Freight",
+                     "account_type": "expense", "account_code": "5300"},
+                ],
+                "page_context": {"has_more_page": False},
+            })
+        if request.method == "GET" and request.url.path.endswith("/bills"):
+            return httpx.Response(200, json={
+                "code": 0, "bills": [],
+                "page_context": {"has_more_page": False},
+            })
+        if request.method == "POST" and request.url.path.endswith("/bills"):
+            posted.update(body)
+            return httpx.Response(200, json={
+                "code": 0,
+                "bill": {
+                    "bill_id": "bill-campaign",
+                    "bill_number": body["bill_number"],
+                    "reference_number": body["reference_number"],
+                    "vendor_id": body["vendor_id"],
+                    "date": body["date"],
+                    "currency_code": body["currency_code"],
+                    "total": "120.00",
+                },
+            })
+        if request.method == "GET" and request.url.path.endswith(
+                "/bills/bill-campaign"):
+            return httpx.Response(200, json={
+                "code": 0, "bill": {
+                    "bill_id": "bill-campaign",
+                    "bill_number": posted.get("bill_number"),
+                    "reference_number": posted.get("reference_number"),
+                    "vendor_id": posted.get("vendor_id"),
+                    "date": posted.get("date"),
+                    "currency_code": posted.get("currency_code"),
+                    "total": "120.00",
+                },
+            })
+        return httpx.Response(404, json={"message": "unexpected"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    context = {"user_id": "user-1", "tenant_id": "t1",
+               "workspace_id": "ws-1"}
+
+    vendor = asyncio.run(actions.books_resolve_vendor(
+        {"name": "Acme", "organization_id": "org-1"}, context))
+    assert vendor["match_status"] == "resolved"
+    assert vendor["candidates"][0]["id"] == "vendor-1"
+
+    accounts = asyncio.run(actions.books_list_accounts(
+        {"organization_id": "org-1"}, context))
+    assert {item["account_id"] for item in accounts["accounts"]} == {
+        "acct-1", "acct-2"}
+
+    proposal = asyncio.run(actions.books_propose_bill(
+        {"proposal_input": {
+            "provider": "zoho_books", "organization_id": "org-1",
+            "entity_type": "bill", "external_id": "INV-900",
+            "vendor_candidates": vendor["candidates"],
+            "currency": "USD", "document_date": "2026-11-01",
+            "due_date": "2026-12-01",
+            "lines": [
+                {"description": "Parts", "amount": "100.00",
+                 "account_id": "acct-1"},
+                {"description": "Freight", "amount": "20.00",
+                 "account_id": "acct-2"},
+            ],
+            "tax_total": "0.00", "document_total": "120.00",
+            "payment": {"amount": "50.00", "reference": "EFT-1"},
+        }}, context))
+    assert proposal["data"]["status"] == "proposed"
+    assert proposal["data"]["payment"]["posted"] is False
+
+    applied = asyncio.run(actions.books_create_bill(
+        {"proposal": proposal["data"], "authority_reference": "grant-book-1",
+         "operation_id": "op-book-1"}, context))
+    asyncio.run(service.client.aclose())
+
+    assert applied["action_result"] == "applied"
+    assert applied["remote_id"] == "bill-campaign"
+    assert applied["data"]["total"] == "120.00"
+    assert applied["provider_receipt"]["payload_sha256"]
+    assert posted["vendor_id"] == "vendor-1"
+    assert posted["line_items"][0]["account_id"] == "acct-1"
+    assert posted["line_items"][1]["account_id"] == "acct-2"
+    posts = [entry for entry in calls if entry[0] == "POST"]
+    assert len(posts) == 1
+
+
+def test_bill_duplicate_on_second_page_is_found_before_post(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    posts = []
+    pages_seen = []
+
+    def handler(request):
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0, "chartofaccounts": [{"account_id": "acct-1"}],
+                "page_context": {"has_more_page": False}})
+        if request.method == "GET" and request.url.path.endswith("/bills"):
+            page = int(request.url.params.get("page") or 1)
+            pages_seen.append(page)
+            if page == 1:
+                return httpx.Response(200, json={
+                    "code": 0,
+                    "bills": [{"bill_id": "bill-other",
+                               "reference_number": "INV-999"}],
+                    "page_context": {"has_more_page": True},
+                })
+            return httpx.Response(200, json={
+                "code": 0,
+                "bills": [{"bill_id": "bill-old",
+                           "reference_number": "INV-001"}],
+                "page_context": {"has_more_page": False},
+            })
+        if request.method == "POST":
+            posts.append(1)
+            return httpx.Response(500, json={"message": "must not post"})
+        return httpx.Response(404, json={"message": "unexpected"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-pages-1"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert pages_seen == [1, 2]
+    assert posts == []
+    assert result["status"] == "duplicate"
+    assert result["existing"]["bill_id"] == "bill-old"
