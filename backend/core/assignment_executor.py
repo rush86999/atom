@@ -2973,6 +2973,27 @@ class AssignmentExecutor:
                 if fact_confirmation:
                     item["external_response"]["fact_confirmation"] = (
                         fact_confirmation)
+                # The wait is durable work, not wall-budget consumption.
+                # Accumulate the paused interval here because this path
+                # clears ``waiting`` before the executor's resume loop runs.
+                budget = dict(new_plan.get("budget") or {})
+                waiting_since = (
+                    budget.get("waiting_since")
+                    or step.get("updated_at")
+                    or (step.get("waiting") or {}).get("since"))
+                if waiting_since:
+                    try:
+                        paused = max(
+                            0.0,
+                            self.clock() - datetime.fromisoformat(
+                                str(waiting_since)).timestamp())
+                        budget["paused_seconds"] = (
+                            float(budget.get("paused_seconds") or 0.0)
+                            + paused)
+                    except (TypeError, ValueError):
+                        pass
+                    budget.pop("waiting_since", None)
+                    new_plan["budget"] = budget
                 item["updated_at"] = _utc_now_iso()
                 new_plan["status"] = "planned"
                 new_plan["updated_at"] = _utc_now_iso()

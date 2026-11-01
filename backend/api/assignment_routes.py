@@ -76,6 +76,10 @@ class AssignmentGapResolution(BaseModel):
     evidence: str = ""
 
 
+class AssignmentRetry(BaseModel):
+    reason: str = "retry a failed step after the cause was repaired"
+
+
 class AssignmentMappingCorrection(BaseModel):
     concept: str
     expected_revision: int
@@ -750,6 +754,28 @@ async def download_assignment_deliverable(
         filename=path.name,
         headers={"Cache-Control": "no-store"},
     )
+
+
+@router.post("/{run_id}/retry/{step_id}")
+async def retry_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentRetry,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Retry one failed step as a new attempt, then resume the same run.
+
+    Used when a failure cause (for example an exhausted wall budget during a
+    legitimate durable wait) has been repaired. The step's attempt counter and
+    the operation history keep the failed attempt visible.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        executor.retry_step(run_id, step_id, reason=body.reason)
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc))
+    return await executor.resume(run_id)
 
 
 @router.post("/{run_id}/resume")
