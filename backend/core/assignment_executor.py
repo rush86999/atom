@@ -5594,7 +5594,7 @@ async def _action_registry_adapter(
         }
     if action_result == "proven_not_applied":
         return {
-            "status": "proven_not_applied",
+            "status": "failed",
             "error_class": "proven_not_applied",
             "message": _bounded(
                 body.get("error") or body.get("message")
