@@ -1,0 +1,11 @@
+{
+ "SECRET_KEY": "<set len=64>",
+ "JWT_SECRET_KEY": "<set len=43>",
+ "BYOK_ENCRYPTION_KEY": "<set len=44>",
+ "DATABASE_URL": "sqlite:///./atom_dev.db",
+ "ENVIRONMENT": "development",
+ "CHAT_FINALIZATION_M1": "1",
+ "CHAT_FINALIZATION_M2": "1",
+ "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+ "ATOM_CHAT_STREAMING": "false"
+}

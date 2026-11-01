@@ -1,0 +1,59 @@
+{
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-graph-776c-world",
+  "checks": {
+    "login": {
+      "status": 200,
+      "token": true
+    },
+    "entities": [
+      {
+        "name": "Atlas",
+        "status": 200,
+        "id": "a4d98c08-6078-476f-83ca-6e41faf62140"
+      },
+      {
+        "name": "Borealis",
+        "status": 200,
+        "id": "745b4e5b-d4f4-4f0a-ac6e-49091195bd09"
+      },
+      {
+        "name": "Finance",
+        "status": 200,
+        "id": "2f903526-022f-4183-9c93-9d94c14d3f16"
+      }
+    ],
+    "relationships": [
+      {
+        "from": "Atlas",
+        "to": "Borealis",
+        "status": 200
+      },
+      {
+        "from": "Finance",
+        "to": "Atlas",
+        "status": 200
+      }
+    ],
+    "api_list": {
+      "status": 200,
+      "count": 3
+    },
+    "product_profile": "full",
+    "page_debug": {
+      "url": "http://127.0.0.1:3131/dashboards/knowledge",
+      "text": "A\nATOM\nCORE\nDashboard\nChat\nWorkspace\nData\nAgents\nLearning\nAssignments\nActivity\nPLATFORM\nSettings\n\nadmin\n\nadmin@example.com\n\nNo unread notifications\nChecking this surface against the release scope\u2026"
+    },
+    "browser": {
+      "node_count": 3,
+      "relationship_count": 2,
+      "selected_name": "Atlas",
+      "relationship_text": "RELATIONSHIPS\n2\nAtlas\u2192BorealisDEPENDS_ON\nFinance\u2190AtlasOWNS",
+      "selected": true,
+      "page_errors": [],
+      "error_visible": false,
+      "url": "http://127.0.0.1:3131/dashboards/knowledge",
+      "screenshot": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-graph-776c-world/graph-explorer.png"
+    }
+  },
+  "status": "verified"
+}

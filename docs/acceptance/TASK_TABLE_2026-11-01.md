@@ -43,3 +43,13 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 - Product batch: CORE-06 passed; ROUTE-03/06 3 passed; GOV-05 20 passed; GRAPH-05 verified; INST-01 clean bootstrap passed.
 - Recovery browser: **5/5** at `aba2754ec` (wait/restart/resume, changed source, ambiguity, cancellation, duplicate resume).
 - Remaining: elapsed long-run resume (15:40 UTC), sales + grants teaching campaign, final coverage report/manifests.
+
+## Hard release target
+
+- **111/123 verified functional claims** remains mandatory. Current:
+  **111/123 (90.2%)**.
+- Reserve claims if a target is rejected: **TEAM-05**, **MEM-07**, **GOAL-02**.
+  Do not change the frozen denominator.
+- First-use path: clean install -> `make setup` -> `make dev` -> `make sample`
+  completed `232990.00` and a DOCX in **13 seconds** after backend start on the
+  clean-install world at `776c6644f`.

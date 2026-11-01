@@ -1,0 +1,35 @@
+{
+  "schema": "atom-sample-workspace-1",
+  "status": "passed",
+  "backend": "http://127.0.0.1:8074",
+  "frontend": "http://localhost:3001",
+  "agent_id": "09c5b890-47cf-444a-a264-133878b2bc26",
+  "run_id": "9bd32bd6-6335-4bb7-8439-a10e27422a9a",
+  "objective": "Sum Price for the sample quote sheet",
+  "assignment_status": "completed",
+  "source": {
+    "dataset_name": "upload_sample_quote__sample_quote",
+    "sheet": "sample_quote",
+    "rows": 5,
+    "columns": [
+      "Item",
+      "Price",
+      "Currency",
+      "Status",
+      "Qualification",
+      "__sheet_row"
+    ],
+    "source_version": "1e02e1384baa9af5c53d37b0ab7d993ff1f87182"
+  },
+  "result_value": "232990.00",
+  "artifacts": [
+    {
+      "deliverable_id": "del-deliverable-1",
+      "sha256": "e71f40c31211f28a188a04d44b43bfbf69bfd3a0ee06e9a1805aede493152900",
+      "download_url": "http://127.0.0.1:8074/api/assignments/9bd32bd6-6335-4bb7-8439-a10e27422a9a/deliverables/del-deliverable-1/download"
+    }
+  ],
+  "open_in_ui": "http://localhost:3001/assignments",
+  "teaching": "editable in the employee's Training panel",
+  "controlled_effects": "none (this sample is read + local document only)"
+}

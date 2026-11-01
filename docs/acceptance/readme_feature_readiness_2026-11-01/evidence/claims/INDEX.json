@@ -1,0 +1,178 @@
+{
+  "schema": "atom-readme-claim-evidence-2026-11-01",
+  "source": {
+    "commit": "776c6644f0b122082de2a2188c90a174877c1fc3",
+    "branch": "codex/employee-execution-readiness",
+    "working_tree": "clean at capture",
+    "denominator": 123,
+    "prior_verified": 99,
+    "target_verified": 111,
+    "note": "Final candidate adds the scoped employee-creation first-use fix and the sample-workspace loader. Runtime batch 229 passed; product batch and clean-install first job rerun on this source."
+  },
+  "configuration": {
+    "backend": "isolated SQLite worlds; local controlled OpenAI-compatible endpoints; no cloud credential or live provider",
+    "frontend": "Next.js production build from clean checkout, NEXT_PUBLIC_API_URL=http://127.0.0.1:8071",
+    "install": "git worktree at 42773f234; make setup (fresh backend venv + frontend npm install); empty data root; documented uvicorn bootstrap; real restart",
+    "first_use": "clean-install world at 776c; make setup; empty data root; sample loader completed 232990.00 and a DOCX in 13 seconds after backend start"
+  },
+  "claims": [
+    {
+      "claim_id": "ORCH-08",
+      "title": "delegation nesting depth",
+      "status": "verified",
+      "evidence": [
+        "orch-team/fleet-pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/test_fleet_delegation_enforcement.py -q",
+      "result": "16 passed (fleet controls); full runtime batch 229 passed",
+      "positive": "wide shallow fleet accepted; max-depth chain allowed",
+      "negative": "depth 3 at max 2 refused; self/back/multi-parent cycle refused; new edge that deepens an existing descendant refused; cross-tenant and unknown parent refused; no link/count mutation on refusal"
+    },
+    {
+      "claim_id": "TEAM-01",
+      "title": "single accountable agent",
+      "status": "verified",
+      "evidence": [
+        "orch-team/fleet-pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/test_fleet_delegation_enforcement.py -q",
+      "result": "16 passed (fleet controls); full runtime batch 229 passed",
+      "positive": "exactly-one accountable contract accepted",
+      "negative": "zero, multiple and duplicate-list accountable contracts rejected before the link exists; validator reports the reason"
+    },
+    {
+      "claim_id": "ASK-03",
+      "title": "runtime revocation",
+      "status": "verified",
+      "evidence": [
+        "ask-runtime/pytest.log",
+        "ask-runtime/revocation-pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/test_autonomy_revocation.py tests/test_trust_calibration_runtime_authorization.py -q",
+      "result": "12 passed (revocation + runtime calibration); full batch 229 passed",
+      "positive": "certified enable reaches the runtime gate; a verified regression revokes; 20 new verified successes re-earn",
+      "negative": "first failure without prior success is not a regression; one and 19 new successes remain blocked; restart and new sessions stay revoked; unreadable authority store fails closed; post-wait assignment resume requires explicit approval after revocation"
+    },
+    {
+      "claim_id": "GOAL-04",
+      "title": "no-progress handling",
+      "status": "verified",
+      "evidence": [
+        "goal-no-progress/pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/core/test_agent_environment_harness.py -q",
+      "result": "10 passed (plus dedicated no-progress loop controls); full batch 229 passed",
+      "positive": "real GenericAgent loop halts before a third identical tool+args dispatch and records stuck_reason",
+      "negative": "different args do not halt; flag-off behavior unchanged; repeated identical observations inject a recorded strategy-change directive instead of spinning"
+    },
+    {
+      "claim_id": "WF-05",
+      "title": "policy pause/resume",
+      "status": "verified",
+      "evidence": [
+        "wf-hitl/pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/test_workflow_hitl_resume_once.py -q",
+      "result": "7 passed (payload drift, fresh engine and crash-after-dispatch included); full batch 229 passed",
+      "positive": "durable HITL approval resumes the same workflow and executes the critical step once; completed state survives a fresh engine",
+      "negative": "zero effects before approval; wrong execution/step/action refused; rejected or missing row refused; changed payload refused; crash-after-dispatch pauses for reconciliation and does not resend"
+    },
+    {
+      "claim_id": "GOV-04",
+      "title": "training lifecycle",
+      "status": "verified",
+      "evidence": [
+        "training-lifecycle/pytest.log",
+        "orch-team/full-runtime-batch.log"
+      ],
+      "command": "pytest tests/test_training_lifecycle_manual_start.py -q",
+      "result": "4 passed (start/approval/guidance/evidence/completion/unauthorized transitions); full batch 229 passed",
+      "positive": "supervisor POST /api/maturity/training/start creates a pending proposal; approval creates a persisted session with guidance; linked evidence completion promotes to INTERN",
+      "negative": "non-supervisor refused; duplicate approval/completion idempotent or refused; no evidence raises InsufficientTrainingEvidenceError and leaves the hire a STUDENT"
+    },
+    {
+      "claim_id": "CORE-06",
+      "title": "Settings credential lifecycle",
+      "status": "verified",
+      "evidence": [
+        "core06/result.json",
+        "core06/run.log"
+      ],
+      "command": "scripts/acceptance/byok_settings_chat_no_restart.py",
+      "result": "passed",
+      "positive": "save first key -> chat uses it; replace second key -> chat uses it; delete -> chat fails closed, all without process restart",
+      "negative": "deleted key is not resent; no key material appears in logs; third chat returns the truthful all-providers-failed message and makes no new provider call"
+    },
+    {
+      "claim_id": "ROUTE-06",
+      "title": "local OpenAI-compatible endpoint",
+      "status": "verified",
+      "evidence": [
+        "routing/pytest.log"
+      ],
+      "command": "pytest tests/test_local_provider_dispatch_scope.py::TestDispatchControls::test_absolute_fallback_serves_a_registered_local_route tests/test_local_provider_dispatch_scope.py::TestChatPublicRouteScope::test_first_chat_message_reaches_the_user_endpoint_isolation -q",
+      "result": "2 passed (plus ROUTE-03 in the same run)",
+      "positive": "provider registered through POST /api/local-models + capabilities; first public chat and absolute fallback dispatch reach that controlled local endpoint with no cloud key",
+      "negative": "an unconfigured workspace dispatches nowhere and reports no provider; a registered but capability-less route is truthfully ineligible"
+    },
+    {
+      "claim_id": "ROUTE-03",
+      "title": "provider fallback",
+      "status": "verified",
+      "evidence": [
+        "routing/pytest.log"
+      ],
+      "command": "pytest tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback -q",
+      "result": "1 passed",
+      "positive": "allowed primary fails (502), allowed secondary serves the recorded response; result provider is the secondary",
+      "negative": "policy-denied third endpoint receives zero calls; the test logs/asserts primary and secondary HTTP hits separately",
+      "note": "The scratch world's global pricing catalog is empty, so the test pins provider/model compatibility for the two isolated endpoints; policy, fallback order, real HTTP dispatch and provenance are not patched."
+    },
+    {
+      "claim_id": "GRAPH-05",
+      "title": "D3 graph explorer",
+      "status": "verified",
+      "evidence": [
+        "graph05/result.json",
+        "graph05/graph-explorer.png"
+      ],
+      "command": "scripts/acceptance/readme_graph_browser.py --world <isolated> --backend-port 8142 --frontend-port 3131",
+      "result": "verified; 3 nodes, 2 relationships, selected Atlas, 2 relationships rendered, zero page errors",
+      "positive": "real browser loads the explorer from the Next proxy/backend, renders populated nodes/edges, selects a node and shows incoming/outgoing relationships",
+      "negative": "empty graph, API-only route, or page error does not pass; the assertion requires real DOM nodes and a relationship list"
+    },
+    {
+      "claim_id": "INST-01",
+      "title": "pristine bootstrap",
+      "status": "verified",
+      "evidence": [
+        "install01/setup.log",
+        "install01/install-result.json",
+        "install01/generated-env.json",
+        "install01/frontend-build.log",
+        "install01/install-run.log"
+      ],
+      "command": "git worktree add <fresh> 42773f234; make setup; scripts/acceptance/readme_local_install.py --world <empty> --port 8137; npm run build",
+      "result": "setup exited 0; bootstrap password file 0600; login 200; durable task and workflow survive a real backend restart; production frontend build exited 0; final rerun at aba2754ec",
+      "positive": "fresh venv and node_modules from package manifests; generated .env has valid SECRET/JWT/Fernet keys; documented uvicorn bootstrap; real restart; browser login on the production build",
+      "negative": "no borrowed venv, PYTHONPATH overlay, absolute node_modules link, or pre-existing data root was used; the clean worktree has its own backend/venv and node_modules"
+    },
+    {
+      "claim_id": "GOV-05",
+      "title": "OIDC lifecycle",
+      "status": "verified",
+      "evidence": [
+        "oidc/pytest.log"
+      ],
+      "command": "pytest tests/api/test_sso_oidc_routes.py -q",
+      "result": "20 passed",
+      "positive": "real controlled local IdP: config round-trip, redirect with state/nonce, callback token exchange, verified ID-token claims, application session",
+      "negative": "bad state, replay, invalid signature/issuer/audience/nonce, missing token, token failure, callback error, disallowed domain and discovery mismatch all refused"
+    }
+  ]
+}
