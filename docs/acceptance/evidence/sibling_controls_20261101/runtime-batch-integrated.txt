@@ -1,0 +1,393 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 14:48:33 [    INFO] MCP Service initialized
+2026-11-01 14:48:33 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-01 14:48:33 [    INFO] No token storage file found, starting empty
+2026-11-01 14:48:33 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 14:48:33 [    INFO] EscalationManager initialized
+2026-11-01 14:48:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:33 [    INFO] EscalationManager initialized
+2026-11-01 14:48:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:33 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_fleet_delegation_enforcement.py::test_nesting_beyond_max_depth_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:33 [    INFO] AgentTaskRegistry initialized
+2026-11-01 14:48:33 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:33 [    INFO] Recruiting fleet member a for chain caeb5f64-ca27-4770-a565-590ed6157384
+2026-11-01 14:48:33 [    INFO] Recruiting fleet member b for chain caeb5f64-ca27-4770-a565-590ed6157384
+2026-11-01 14:48:33 [    INFO] Recruiting fleet member c for chain caeb5f64-ca27-4770-a565-590ed6157384
+PASSED                                                                   [  2%]
+tests/test_fleet_delegation_enforcement.py::test_wide_shallow_chain_is_allowed 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:34 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member a for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member b for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member c for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member d for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member e for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member f for chain 593845fe-3422-4adc-8f1e-c8a5db9734fc
+PASSED                                                                   [  4%]
+tests/test_fleet_delegation_enforcement.py::test_cycles_are_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:34 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member root for chain 451725d4-0512-452c-8da0-a03e0d0c501e
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member a for chain 451725d4-0512-452c-8da0-a03e0d0c501e
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member b for chain 451725d4-0512-452c-8da0-a03e0d0c501e
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member a for chain 451725d4-0512-452c-8da0-a03e0d0c501e
+PASSED                                                                   [  6%]
+tests/test_fleet_delegation_enforcement.py::test_cross_scope_child_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:34 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member other for chain 28e9c238-8915-4682-8b06-a04c9ec811aa
+PASSED                                                                   [  8%]
+tests/test_fleet_delegation_enforcement.py::test_unknown_parent_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:34 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:34 [    INFO] Recruiting fleet member a for chain d92d06cb-1bcb-4269-b46a-794b1d60c23e
+PASSED                                                                   [ 10%]
+tests/test_fleet_delegation_enforcement.py::test_contract_with_exactly_one_accountable_agent_is_accepted 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:35 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:35 [    INFO] Recruiting fleet member a for chain b6390f7a-3bdc-4260-bc2a-317637715cf9
+PASSED                                                                   [ 12%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload0-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:35 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:35 [    INFO] Recruiting fleet member a for chain 9e8492c5-2298-4e26-82c6-cac7eaf6a0c7
+PASSED                                                                   [ 14%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload1-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:35 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:35 [    INFO] Recruiting fleet member a for chain 1a48d8e4-c04b-4377-93d8-7d2df04e942c
+PASSED                                                                   [ 16%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload2-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:35 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:35 [    INFO] Recruiting fleet member a for chain 389b53fb-1591-4bb1-817c-26e085e5b75a
+PASSED                                                                   [ 18%]
+tests/test_fleet_delegation_enforcement.py::test_contract_validator_reports_the_reason PASSED [ 20%]
+tests/test_fleet_delegation_enforcement.py::test_build_contract_requires_one_accountable_agent PASSED [ 22%]
+tests/test_fleet_delegation_enforcement.py::test_cycle_is_refused_with_multiple_parents_in_the_graph 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:35 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain ed4b7133-59e8-401f-bfb7-e35dc4b2a60b
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain ed4b7133-59e8-401f-bfb7-e35dc4b2a60b
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain ed4b7133-59e8-401f-bfb7-e35dc4b2a60b
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain ed4b7133-59e8-401f-bfb7-e35dc4b2a60b
+PASSED                                                                   [ 25%]
+tests/test_fleet_delegation_enforcement.py::test_depth_uses_the_longest_dag_path_not_the_shortest 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:36 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain ae1ad8c5-4a1f-4388-87b8-e3117ac449d5
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain ae1ad8c5-4a1f-4388-87b8-e3117ac449d5
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain ae1ad8c5-4a1f-4388-87b8-e3117ac449d5
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member c for chain ae1ad8c5-4a1f-4388-87b8-e3117ac449d5
+PASSED                                                                   [ 27%]
+tests/test_fleet_delegation_enforcement.py::test_new_edge_that_deepens_an_existing_descendant_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:36 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain bc6ccffd-59c7-4238-a3e7-3eb83dfc8e91
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain bc6ccffd-59c7-4238-a3e7-3eb83dfc8e91
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member c for chain bc6ccffd-59c7-4238-a3e7-3eb83dfc8e91
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain bc6ccffd-59c7-4238-a3e7-3eb83dfc8e91
+PASSED                                                                   [ 29%]
+tests/test_fleet_delegation_enforcement.py::test_existing_descendants_over_a_lowered_limit_block_new_recruitment 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:36 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain f8ccc0e5-61a0-4ae1-bec3-24bf6cf2254c
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member b for chain f8ccc0e5-61a0-4ae1-bec3-24bf6cf2254c
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member c for chain f8ccc0e5-61a0-4ae1-bec3-24bf6cf2254c
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member d for chain f8ccc0e5-61a0-4ae1-bec3-24bf6cf2254c
+PASSED                                                                   [ 31%]
+tests/test_fleet_delegation_enforcement.py::test_a_refused_recruitment_does_not_mutate_the_chain 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:36 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain 11aeb3ed-3c36-4df0-a61b-7c7646ad3f74
+2026-11-01 14:48:36 [    INFO] Recruiting fleet member a for chain 11aeb3ed-3c36-4df0-a61b-7c7646ad3f74
+PASSED                                                                   [ 33%]
+tests/test_fleet_delegation_enforcement.py::test_descendant_push_over_the_limit_is_refused_without_mutation 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:48:37 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:37 [    INFO] Recruiting fleet member a for chain a73dc891-775d-4f83-b154-35c91986bde9
+2026-11-01 14:48:37 [    INFO] Recruiting fleet member d for chain a73dc891-775d-4f83-b154-35c91986bde9
+2026-11-01 14:48:37 [    INFO] Recruiting fleet member b for chain a73dc891-775d-4f83-b154-35c91986bde9
+2026-11-01 14:48:37 [    INFO] Recruiting fleet member c for chain a73dc891-775d-4f83-b154-35c91986bde9
+2026-11-01 14:48:37 [    INFO] Recruiting fleet member b for chain a73dc891-775d-4f83-b154-35c91986bde9
+PASSED                                                                   [ 35%]
+tests/test_autonomy_revocation.py::test_verified_regression_blocks_the_runtime_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:37 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+PASSED                                                                   [ 37%]
+tests/test_autonomy_revocation.py::test_revocation_survives_a_new_session 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:38 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+PASSED                                                                   [ 39%]
+tests/test_autonomy_revocation.py::test_first_failure_without_prior_success_is_not_a_regression PASSED [ 41%]
+tests/test_autonomy_revocation.py::test_verified_work_can_reearn_the_capability 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:40 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 14:48:40 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 14:48:40 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 43%]
+tests/test_autonomy_revocation.py::test_reentry_requires_new_successes_after_the_revocation 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 45%]
+tests/test_autonomy_revocation.py::test_second_regression_resets_the_reentry_baseline 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 14:48:41 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 47%]
+tests/test_autonomy_revocation.py::test_revocation_lookup_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:41 [ WARNING] autonomy revocation check unavailable: authority store down
+2026-11-01 14:48:41 [ WARNING] autonomy revocation check unavailable: authority store down
+PASSED                                                                   [ 50%]
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:41 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-01 14:48:41 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 14:48:41 [    INFO] EscalationManager initialized
+2026-11-01 14:48:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:41 [    INFO] LanceDBHandler initialized. ID: 5732621072. LANCEDB_AVAILABLE: True
+2026-11-01 14:48:41 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 14:48:41 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 14:48:41 [    INFO] LanceDB connected successfully
+2026-11-01 14:48:42 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-01 14:48:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-01 14:48:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-01 14:48:42 [    INFO] EscalationManager initialized
+2026-11-01 14:48:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:42 [   ERROR] AUDIT GAP for execution 94f6fecd-3d45-4e9e-a30a-6a18ab291cb7: {'complete': False, 'execution_id': '94f6fecd-3d45-4e9e-a30a-6a18ab291cb7', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-01T19:48:42.106953+00:00'}
+PASSED                                                                   [ 52%]
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:42 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Try different inputs.
+2026-11-01 14:48:42 [    INFO] EscalationManager initialized
+2026-11-01 14:48:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:42 [    INFO] LanceDBHandler initialized. ID: 5748508944. LANCEDB_AVAILABLE: True
+2026-11-01 14:48:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 14:48:42 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 14:48:42 [    INFO] LanceDB connected successfully
+2026-11-01 14:48:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-01 14:48:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-01 14:48:42 [   ERROR] AUDIT GAP for execution 05aabb1f-386e-4803-91cb-cab8f2a80442: {'complete': False, 'execution_id': '05aabb1f-386e-4803-91cb-cab8f2a80442', 'expected_events': 12, 'actual_events': 2, 'coverage_percentage': 16.7, 'checked_at': '2026-11-01T19:48:42.127359+00:00'}
+PASSED                                                                   [ 54%]
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:42 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-01 14:48:42 [    INFO] EscalationManager initialized
+2026-11-01 14:48:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:42 [    INFO] LanceDBHandler initialized. ID: 5739973328. LANCEDB_AVAILABLE: True
+2026-11-01 14:48:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 14:48:42 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 14:48:42 [    INFO] LanceDB connected successfully
+2026-11-01 14:48:42 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-01 14:48:42 [    INFO] Added critique 3a5f5b25-6d1a-41d1-90c0-212307a54596 for agent goal04-agent
+2026-11-01 14:48:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-01 14:48:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-01 14:48:42 [   ERROR] AUDIT GAP for execution 27084a6b-8c52-40e3-834e-d6281a465ffd: {'complete': False, 'execution_id': '27084a6b-8c52-40e3-834e-d6281a465ffd', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-01T19:48:42.180173+00:00'}
+PASSED                                                                   [ 56%]
+tests/test_workflow_hitl_resume_once.py::test_denial_pauses_without_executing_and_files_exact_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:42 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 14:48:42 [    INFO] Event bus started
+2026-11-01 14:48:42 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 58%]
+tests/test_workflow_hitl_resume_once.py::test_durable_approval_resumes_same_workflow_once 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:43 [    INFO] Workflow ex-1 step s1 authorized by durable HITL hitl-1
+2026-11-01 14:48:43 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-01 14:48:43 [    INFO] Initialized global governance cache
+2026-11-01 14:48:43 [    INFO] Observation event 'workflow_execution' learned by 15 student(s) in default
+2026-11-01 14:48:43 [    INFO] Observation event 'workflow_execution' learned by 15 student(s) in default
+PASSED                                                                   [ 60%]
+tests/test_workflow_hitl_resume_once.py::test_approval_for_a_different_step_or_execution_cannot_unlock 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:44 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 14:48:44 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 62%]
+tests/test_workflow_hitl_resume_once.py::test_rejected_or_missing_hitl_row_cannot_unlock 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:45 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 14:48:45 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 64%]
+tests/test_workflow_hitl_resume_once.py::test_crash_after_dispatch_does_not_resend_approved_step PASSED [ 66%]
+tests/test_workflow_hitl_resume_once.py::test_payload_drift_does_not_reuse_the_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:47 [ WARNING] workflow ex-1: durable approval hitl-1 does not bind the current step payload
+2026-11-01 14:48:47 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 14:48:47 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 68%]
+tests/test_workflow_hitl_resume_once.py::test_fresh_engine_resume_does_not_execute_twice 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:48 [    INFO] Workflow ex-1 step s1 authorized by durable HITL hitl-1
+2026-11-01 14:48:48 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-01 14:48:48 [    INFO] Observation event 'workflow_execution' learned by 15 student(s) in default
+2026-11-01 14:48:48 [    INFO] Observation event 'workflow_execution' learned by 15 student(s) in default
+PASSED                                                                   [ 70%]
+tests/test_workflow_hitl_persisted_resume.py::test_persisted_pause_approval_resume_once_new_engine 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:48 [ WARNING] 🚫 Governance pause for execution ee095c14-5f22-4994-8927-ae8f9266163a at step s1: maturity too low
+2026-11-01 14:48:48 [    INFO] Workflow ee095c14-5f22-4994-8927-ae8f9266163a step s1 authorized by durable HITL hitl-persisted-749e5d31
+2026-11-01 14:48:48 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-01 14:48:48 [ WARNING] Slack token not configured, skipping notification
+2026-11-01 14:48:48 [    INFO] Observation event 'workflow_execution' learned by 16 student(s) in default
+2026-11-01 14:48:48 [ WARNING] Slack token not configured, skipping notification
+2026-11-01 14:48:48 [    INFO] Observation event 'workflow_execution' learned by 16 student(s) in default
+PASSED                                                                   [ 72%]
+tests/test_training_lifecycle_manual_start.py::test_start_creates_only_a_pending_proposal_with_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:48 [    INFO] Created training proposal 7916fd88-3123-4b63-b236-e5fbe8198c48 for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:48 [    INFO] Manual training proposal 7916fd88-3123-4b63-b236-e5fbe8198c48 opened for STUDENT student-1 by supervisor-1
+PASSED                                                                   [ 75%]
+tests/test_training_lifecycle_manual_start.py::test_start_route_is_supervisor_only_and_persists_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:48 [    INFO] Created training proposal d5c60e04-6b9a-4caf-b79f-1ef5d302529f for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:48 [    INFO] Manual training proposal d5c60e04-6b9a-4caf-b79f-1ef5d302529f opened for STUDENT student-1 by lead-1
+2026-11-01 14:48:48 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/start "HTTP/1.1 200 OK"
+2026-11-01 14:48:48 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/start "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 77%]
+tests/test_training_lifecycle_manual_start.py::test_approve_creates_session_with_guidance_then_completion_promotes 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:49 [    INFO] Created training proposal 03febe62-b742-4d10-847d-edd365e9a76d for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:49 [    INFO] Manual training proposal 03febe62-b742-4d10-847d-edd365e9a76d opened for STUDENT student-1 by supervisor-1
+2026-11-01 14:48:49 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-01 14:48:49 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-01 14:48:49 [    INFO] EscalationManager initialized
+2026-11-01 14:48:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:49 [    INFO] LanceDBHandler initialized. ID: 5737122320. LANCEDB_AVAILABLE: True
+2026-11-01 14:48:49 [    INFO] EscalationManager initialized
+2026-11-01 14:48:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:49 [    INFO] EscalationManager initialized
+2026-11-01 14:48:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:48:49 [    INFO] EscalationManager initialized
+2026-11-01 14:48:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:48:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 14:48:49 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory/default with storage_options=None
+2026-11-01 14:48:49 [    INFO] LanceDB connected successfully
+2026-11-01 14:48:49 [    INFO] Session mini-canvas created: 59c09ab2-40c7-4922-b87c-0d993cb85b19 for training 978d2b5b-2fff-448d-b587-fde492cdec89
+2026-11-01 14:48:49 [    INFO] spawned 2 role canvases for session 978d2b5b-2fff-448d-b587-fde492cdec89 (template=operations)
+2026-11-01 14:48:49 [    INFO] Approved training proposal 03febe62-b742-4d10-847d-edd365e9a76d, created session 978d2b5b-2fff-448d-b587-fde492cdec89, duration: 25.0 hours, ends: 2026-11-04T17:48:49.171100
+2026-11-01 14:48:49 [    INFO] Agent student-1 promoted from STUDENT to INTERN (confidence: 0.700, evidence: {'ready': True, 'pathway': 'self_directed', 'reason': None, 'training_sessions': 1, 'required_training_sessions': 1, 'mentored_sessions': 0, 'episodes': 3, 'required_episodes': 3, 'success_ratio': 1.0, 'required_success_ratio': 0.7, 'policy_source': 'seeded'})
+2026-11-01 14:48:49 [    INFO] Completed training session 978d2b5b-2fff-448d-b587-fde492cdec89 for agent student-1. Performance: 1.00 (claimed 1.0; evidence 3/3 successful runs), Confidence boost: 0.200 (0.500 → 0.700), Promoted: True
+2026-11-01 14:48:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-01 14:48:49 [    INFO] Training session 978d2b5b-2fff-448d-b587-fde492cdec89 already completed; ignoring duplicate completion (idempotent)
+PASSED                                                                   [ 79%]
+tests/test_training_lifecycle_manual_start.py::test_unauthorized_transitions_and_insufficient_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:49 [    INFO] Created training proposal 50e3c816-e5e0-4159-926d-4567df367572 for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:49 [    INFO] Manual training proposal 50e3c816-e5e0-4159-926d-4567df367572 opened for STUDENT student-1 by supervisor-1
+2026-11-01 14:48:49 [    INFO] Session mini-canvas created: 184bd4e7-7211-4b5c-bacd-208cdf7aa035 for training 0b887052-27b9-4751-9ad7-c57ed1a83e99
+2026-11-01 14:48:49 [    INFO] spawned 2 role canvases for session 0b887052-27b9-4751-9ad7-c57ed1a83e99 (template=operations)
+2026-11-01 14:48:49 [    INFO] Approved training proposal 50e3c816-e5e0-4159-926d-4567df367572, created session 0b887052-27b9-4751-9ad7-c57ed1a83e99, duration: 25.0 hours, ends: 2026-11-04T17:48:49.439552
+2026-11-01 14:48:49 [    INFO] Created training proposal faa18bb5-5f1e-466a-931f-3b5d1bfd632f for agent student-2 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:49 [    INFO] Manual training proposal faa18bb5-5f1e-466a-931f-3b5d1bfd632f opened for STUDENT student-2 by supervisor-1
+2026-11-01 14:48:49 [    INFO] Session mini-canvas created: a4ce76d8-098e-4469-bc0f-71182d203d9b for training 7300ceca-ce09-4a50-bcb9-3d9a008a2cc3
+2026-11-01 14:48:49 [    INFO] spawned 2 role canvases for session 7300ceca-ce09-4a50-bcb9-3d9a008a2cc3 (template=operations)
+2026-11-01 14:48:49 [    INFO] Approved training proposal faa18bb5-5f1e-466a-931f-3b5d1bfd632f, created session 7300ceca-ce09-4a50-bcb9-3d9a008a2cc3, duration: 25.0 hours, ends: 2026-11-04T17:48:49.452471
+PASSED                                                                   [ 81%]
+tests/test_training_lifecycle_manual_start.py::test_repeated_start_reuses_the_proposal_without_a_duplicate_session 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:49 [    INFO] Created training proposal 7fb2b442-78b4-4c36-ab27-008eb4e79106 for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 14:48:49 [    INFO] Manual training proposal 7fb2b442-78b4-4c36-ab27-008eb4e79106 opened for STUDENT student-1 by supervisor-1
+2026-11-01 14:48:49 [    INFO] Duplicate training trigger for student-1: returning open proposal 7fb2b442-78b4-4c36-ab27-008eb4e79106 (status=pending_approval, open_session=False) instead of creating a clone
+2026-11-01 14:48:49 [    INFO] Manual training proposal 7fb2b442-78b4-4c36-ab27-008eb4e79106 opened for STUDENT student-1 by supervisor-1
+2026-11-01 14:48:49 [    INFO] Session mini-canvas created: 9061bf9e-077e-4a38-aaaa-dd75cf54ddb7 for training 10bd1667-9375-487c-91b8-e06d8f18c2b7
+2026-11-01 14:48:49 [    INFO] spawned 2 role canvases for session 10bd1667-9375-487c-91b8-e06d8f18c2b7 (template=operations)
+2026-11-01 14:48:49 [    INFO] Approved training proposal 7fb2b442-78b4-4c36-ab27-008eb4e79106, created session 10bd1667-9375-487c-91b8-e06d8f18c2b7, duration: 25.0 hours, ends: 2026-11-04T17:48:49.698586
+PASSED                                                                   [ 83%]
+tests/test_trust_calibration_runtime_authorization.py::test_flag_off_keeps_legacy_gate_neutral PASSED [ 85%]
+tests/test_trust_calibration_runtime_authorization.py::test_enabled_without_certification_does_not_relax PASSED [ 87%]
+tests/test_trust_calibration_runtime_authorization.py::test_certified_enable_executes_then_regression_revokes_across_restart PASSED [ 89%]
+tests/test_trust_calibration_runtime_authorization.py::test_assignment_dispatch_rechecks_revoked_calibration PASSED [ 91%]
+tests/test_trust_calibration_runtime_authorization.py::test_assignment_wait_resume_after_revocation_requires_new_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:48:53 [    INFO] runtime identity: source_id=455a936dc917-dirty.e387b6e3db2f revision=455a936dc917 dirty=True (0 modified, 9 untracked)
+2026-11-01 14:48:54 [    INFO] Created HITL action beb995d2-cd24-451f-9cee-5393a5badd41 for agent None
+PASSED                                                                   [ 93%]
+tests/test_acceptance_world_fixture.py::test_foreign_keys_are_enforced PASSED [ 95%]
+tests/test_acceptance_world_fixture.py::test_effect_ledger_counts_attempts PASSED [ 97%]
+tests/test_acceptance_world_fixture.py::test_fault_injection_is_explicit PASSED [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 96 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/generic_agent.py:756: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    complexity = QueryComplexity.MODERATE
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 48 passed, 108 warnings in 39.25s =======================

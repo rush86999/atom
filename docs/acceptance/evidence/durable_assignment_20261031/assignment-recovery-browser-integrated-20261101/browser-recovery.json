@@ -1,0 +1,137 @@
+{
+  "schema": "atom-assignment-recovery-browser-1",
+  "generated_at": "2026-11-01T19:48:01.059Z",
+  "ui_base": "http://127.0.0.1:3003",
+  "api_base": "http://127.0.0.1:8090",
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-recovery-browser-integrated-20261101",
+  "backend_reset_pid": 81831,
+  "scenarios": [
+    {
+      "objective": "Recovery wait restart resume 1793562174276",
+      "runId": "44d208bc-c335-4fd2-bf9f-dfa6f0464972"
+    },
+    {
+      "objective": "Recovery revision invalidation 1793562241472",
+      "runId": "f4203670-9adf-4587-b9c9-d6ee285318e9"
+    },
+    {
+      "objective": "Recovery ambiguous mapping 1793562285231",
+      "runId": "feb4e972-5c19-463d-a61c-bd11e37d8ef1"
+    },
+    {
+      "objective": "Recovery cancellation 1793562329666",
+      "runId": "d29a99e0-55c0-40b5-84e4-48c9ef10b75c"
+    },
+    {
+      "objective": "Recovery duplicate resume 1793562384763",
+      "runId": "db847114-d4cf-4dda-b124-5032a70cf034"
+    }
+  ],
+  "checks": [
+    {
+      "name": "wait -> restart -> resume",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery wait restart resume 1793562174276",
+        "pid1": 81831,
+        "pid2": 81959,
+        "waiting": true,
+        "durable": true,
+        "completed": true,
+        "result80": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/01-wait-before-restart.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/02-wait-resumed-after-restart.png"
+        ]
+      }
+    },
+    {
+      "name": "changed source revision invalidates stale work",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery revision invalidation 1793562241472",
+        "runId": "f4203670-9adf-4587-b9c9-d6ee285318e9",
+        "cards": 2,
+        "errorText": "Requested version 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is not the active version 'bbbbbbbbbbbb'.",
+        "completedPreserved": true,
+        "mappingPreserved": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/03-mapping-before-revision.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/04-revision-refused.png"
+        ]
+      }
+    },
+    {
+      "name": "ambiguous mapping identity",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery ambiguous mapping 1793562285231",
+        "runId": "feb4e972-5c19-463d-a61c-bd11e37d8ef1",
+        "cards": 2,
+        "correctable": 1,
+        "disabled": 1,
+        "unboundStatus": 409,
+        "unboundBody": {
+          "detail": "more than one confirmed mapping exists for concept 'Total'; name the sheet or source version"
+        },
+        "ambiguousRefusal": true,
+        "resolved": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/05-ambiguous-mappings.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/06-ambiguous-resolved.png"
+        ]
+      }
+    },
+    {
+      "name": "cancellation refuses a late response",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery cancellation 1793562329666",
+        "runId": "d29a99e0-55c0-40b5-84e4-48c9ef10b75c",
+        "persisted": true,
+        "lateStatus": 409,
+        "lateBody": {
+          "detail": "The assignment is cancelled; the response was not used to resume work."
+        },
+        "beforeEffects": 0,
+        "afterEffects": 0,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/07-cancelled.png"
+        ]
+      }
+    },
+    {
+      "name": "duplicate concurrent resume dispatches once",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery duplicate resume 1793562384763",
+        "runId": "db847114-d4cf-4dda-b124-5032a70cf034",
+        "clicks": [
+          "fulfilled",
+          "fulfilled"
+        ],
+        "calcSteps": 1,
+        "calcResults": 1,
+        "priorResults": 0,
+        "status": "completed",
+        "beforeEffects": 0,
+        "afterEffects": 0,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-integrated-20261101/screenshots/08-duplicate-resume.png"
+        ]
+      }
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "outbox_effects": 0,
+  "source": {
+    "backend_head": "315413f61",
+    "files": {
+      "backend/scripts/assignment_browser_acceptance_server.py": "867ae38df24050dc74b23ed07d8a3bddf8de36debd01657f5308648fbc0455ac",
+      "backend/core/assignment_executor.py": "9c5e2a88951bce382ebccde3e9525546b12a4127c2dc03dab7f1d9026538cffe",
+      "backend/api/assignment_routes.py": "0d4941aa632f469300f35f1ae2951f013e895aea685cd2c22461d3f74749c30a",
+      "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "8da558483bed4ec215846a6d3257417db059c360daff94cd332306671720c4f7"
+    }
+  }
+}
