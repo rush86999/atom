@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-integrated-local-journey",
-  "source_checkpoint": "589389218",
+  "source_checkpoint": "2ca5e7f03",
   "final_candidate": "589389218",
   "files": {
     "README.md": {
@@ -68,5 +68,7 @@
       "sha256": "1cb9b50538505d858c20e8c2adb09a0c2679f459bf8c8e3f5fb293027607aba1",
       "bytes": 192489
     }
-  }
+  },
+  "bound_candidate": "589389218",
+  "note": "This normal-app journey was recorded before the deterministic precedence repair (a0e4dd7ed / 589389218); a post-repair rerun is still required to cite it as the final integrated journey."
 }
