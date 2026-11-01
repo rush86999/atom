@@ -152,6 +152,7 @@ class WorkflowEngine:
         action_type: str,
         input_data: Dict[str, Any],
         *,
+        payload: Optional[Any] = None,
         workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
@@ -193,6 +194,25 @@ class WorkflowEngine:
                     return None
                 if str(action.action_type or "") != str(action_type or ""):
                     return None
+                # The approval names the exact executable payload reviewed.
+                # A changed parameter set is a different effect and must be
+                # reviewed again instead of inheriting the old decision.
+                if payload is not None and "parameters" in params:
+                    def _canonical(value: Any) -> str:
+                        if isinstance(value, str):
+                            try:
+                                value = json.loads(value)
+                            except (TypeError, ValueError):
+                                pass
+                        return json.dumps(
+                            value, sort_keys=True, separators=(",", ":"),
+                            default=str)
+
+                    if _canonical(params.get("parameters")) != _canonical(payload):
+                        logger.warning(
+                            "workflow %s: durable approval %s does not bind "
+                            "the current step payload", execution_id, hitl_id)
+                        return None
                 if (tenant_id
                         and action.tenant_id
                         and str(action.tenant_id) != str(tenant_id)):
@@ -872,6 +892,7 @@ class WorkflowEngine:
                                     execution_id, step_id,
                                     step.get("action", "default"),
                                     execution_inputs,
+                                    payload=resolved_params,
                                     workspace_id=workspace_id,
                                     tenant_id=tenant_id,
                                 )

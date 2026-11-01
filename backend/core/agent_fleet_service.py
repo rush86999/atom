@@ -115,34 +115,48 @@ class AgentFleetService:
                     f"Recruiting {child_agent_id} under {parent_agent_id} would "
                     "create a delegation cycle.")
 
-            # Depth is the LONGEST root path to the parent, not the shortest:
+            # Depth is the LONGEST root path to a node, not the shortest:
             # a DAG can reach a node at several depths and the deepest path is
-            # the one that breaches the recursion limit.
+            # the one that breaches the recursion limit. Evaluate the ENTIRE
+            # proposed graph, not just the new child: a new edge can deepen an
+            # existing descendant even when the immediate child is in range.
             depths: Dict[str, int] = {chain.root_agent_id: 0}
 
-            def _walk(node: str, path: frozenset) -> None:
-                for nxt in adjacency.get(node, []):
+            def _walk(node: str, path: frozenset,
+                      edges: Dict[str, List[str]],
+                      out: Dict[str, int]) -> None:
+                for nxt in edges.get(node, []):
                     if nxt in path:
                         continue  # legacy graph already cyclic; do not loop
-                    candidate = depths.get(node, 0) + 1
-                    if candidate > depths.get(nxt, -1):
-                        depths[nxt] = candidate
-                    _walk(nxt, path | {nxt})
+                    candidate = out.get(node, 0) + 1
+                    if candidate > out.get(nxt, -1):
+                        out[nxt] = candidate
+                    _walk(nxt, path | {nxt}, edges, out)
 
-            _walk(chain.root_agent_id, frozenset({chain.root_agent_id}))
+            _walk(chain.root_agent_id, frozenset({chain.root_agent_id}),
+                  adjacency, depths)
             if parent_agent_id not in depths:
                 raise FleetDelegationError(
                     "unknown_parent",
                     f"Parent agent {parent_agent_id} is not part of chain "
                     f"{chain_id}.")
+
+            proposed = {node: list(children)
+                        for node, children in adjacency.items()}
+            proposed.setdefault(parent_agent_id, []).append(child_agent_id)
+            proposed_depths: Dict[str, int] = {chain.root_agent_id: 0}
+            _walk(chain.root_agent_id, frozenset({chain.root_agent_id}),
+                  proposed, proposed_depths)
             new_depth = depths[parent_agent_id] + 1
+            deepest = max(proposed_depths.values(), default=0)
             max_depth = int(chain.max_depth or 5)
-            if new_depth > max_depth:
+            if new_depth > max_depth or deepest > max_depth:
                 raise FleetDelegationError(
                     "depth_exceeded",
-                    f"Delegation depth {new_depth} exceeds the chain limit "
-                    f"{max_depth}; a wide but shallow fleet is allowed.",
-                    depth=new_depth, max_depth=max_depth)
+                    f"Delegation depth {max(new_depth, deepest)} exceeds the "
+                    f"chain limit {max_depth}; a wide but shallow fleet is "
+                    f"allowed.",
+                    depth=max(new_depth, deepest), max_depth=max_depth)
 
             # --- cross-scope references ---------------------------------
             root_agent = self.db.query(AgentRegistry).filter(

@@ -190,3 +190,57 @@ def test_approve_creates_session_with_guidance_then_completion_promotes(db):
     assert db.query(AgentRegistry).filter(
         AgentRegistry.id == "student-1").first().confidence_score == (
             agent.confidence_score)
+
+
+def test_unauthorized_transitions_and_insufficient_evidence(db):
+    """Invalid lifecycle transitions are refused; no evidence, no promotion."""
+    _student(db)
+    service = StudentTrainingService(db)
+
+    # Unknown proposal / session.
+    with pytest.raises(ValueError):
+        asyncio.run(service.approve_training("missing-proposal", "supervisor-1"))
+    with pytest.raises(ValueError):
+        asyncio.run(service.complete_training_session(
+            "missing-session",
+            TrainingOutcome(
+                performance_score=1.0, supervisor_feedback="x",
+                errors_count=0, tasks_completed=0, total_tasks=1,
+                capabilities_developed=[], capability_gaps_remaining=[])))
+
+    # Approve once, then a second approval of the same proposal is refused.
+    proposal = asyncio.run(service.start_training(
+        "student-1", "supervisor-1", reason="onboarding"))
+    asyncio.run(service.approve_training(proposal.id, "supervisor-1"))
+    with pytest.raises(ValueError):
+        asyncio.run(service.approve_training(proposal.id, "supervisor-1"))
+
+    # A session completed with no linked evidence cannot promote.
+    db.add(AgentRegistry(
+        id="student-2", name="Second Hire", category="Operations",
+        module_path="tests.student", class_name="StudentAgent",
+        status="student", confidence_score=0.5, capabilities=[],
+        workspace_id="default", tenant_id="default",
+    ))
+    db.commit()
+    second = asyncio.run(service.start_training(
+        "student-2", "supervisor-1", reason="second round"))
+    session = asyncio.run(service.approve_training(second.id, "supervisor-1"))
+    from core.student_training_service import InsufficientTrainingEvidenceError
+
+    with pytest.raises(InsufficientTrainingEvidenceError):
+        asyncio.run(service.complete_training_session(
+            session.id,
+            TrainingOutcome(
+                performance_score=1.0,
+                supervisor_feedback="no evidence recorded",
+                errors_count=0,
+                tasks_completed=3,
+                total_tasks=3,
+                capabilities_developed=[],
+                capability_gaps_remaining=[],
+            ),
+        ))
+    agent = db.query(AgentRegistry).filter(
+        AgentRegistry.id == "student-2").first()
+    assert agent.status == "student"

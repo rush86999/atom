@@ -11,7 +11,7 @@ from core.database import Base
 from core.fleet_orchestration.delegation_contracts import (
     ContractError, build_contract, validate_contract_payload,
 )
-from core.models import AgentRegistry, DelegationChain
+from core.models import AgentRegistry, ChainLink, DelegationChain
 
 
 @pytest.fixture()
@@ -187,3 +187,61 @@ def test_depth_uses_the_longest_dag_path_not_the_shortest(fleet):
         service.recruit_member(chain.id, "b", "c", "4")
     assert exc.value.code == "depth_exceeded"
     assert exc.value.extra == {"depth": 3, "max_depth": 2}
+
+
+def test_new_edge_that_deepens_an_existing_descendant_is_refused(fleet):
+    """The whole proposed graph must stay within max_depth, not just the child.
+
+    root->a->b is depth 2 (the limit). root->c is depth 1. Adding c->a leaves
+    the NEW child (a) at depth 2, but pushes the existing descendant b to
+    depth 3. A child-only check wrongly allows it.
+    """
+    service, chain = fleet
+    chain.max_depth = 2
+    service.db.commit()
+    service.recruit_member(chain.id, "root", "a", "1")
+    service.recruit_member(chain.id, "a", "b", "2")
+    service.recruit_member(chain.id, "root", "c", "3")
+    before = service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links
+    with pytest.raises(FleetDelegationError) as exc:
+        service.recruit_member(chain.id, "c", "a", "4")
+    assert exc.value.code == "depth_exceeded"
+    assert exc.value.extra["depth"] == 3
+    assert service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links == before
+
+
+def test_existing_descendants_over_a_lowered_limit_block_new_recruitment(fleet):
+    """The whole proposed graph is evaluated, not only the new child."""
+    service, chain = fleet
+    chain.max_depth = 10
+    service.db.commit()
+    service.recruit_member(chain.id, "root", "a", "1")
+    service.recruit_member(chain.id, "a", "b", "2")
+    service.recruit_member(chain.id, "b", "c", "3")
+
+    chain.max_depth = 2
+    service.db.commit()
+    with pytest.raises(FleetDelegationError) as exc:
+        service.recruit_member(chain.id, "root", "d", "sibling")
+    assert exc.value.code == "depth_exceeded"
+    assert exc.value.extra["depth"] == 3
+    assert exc.value.extra["max_depth"] == 2
+
+
+def test_a_refused_recruitment_does_not_mutate_the_chain(fleet):
+    service, chain = fleet
+    service.recruit_member(chain.id, "root", "a", "1")
+    before_links = service.db.query(ChainLink).filter(
+        ChainLink.chain_id == chain.id).count()
+    before_total = service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links
+
+    with pytest.raises(FleetDelegationError):
+        service.recruit_member(chain.id, "a", "a", "self cycle")
+
+    assert service.db.query(ChainLink).filter(
+        ChainLink.chain_id == chain.id).count() == before_links
+    assert service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links == before_total

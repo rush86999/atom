@@ -83,11 +83,14 @@ def world(tmp_path):
 
 
 def _approved_action(db, *, execution_id="ex-1", step_id="s1",
-                     action_type="send_email", status="approved"):
+                     action_type="send_email", status="approved",
+                     parameters=None, hitl_id="hitl-1"):
     db.add(HITLAction(
-        id="hitl-1", action_type=action_type, platform="workflow",
+        id=hitl_id, action_type=action_type, platform="workflow",
         params={"execution_id": execution_id, "workflow_id": "wf-1",
-                "step_id": step_id, "parameters": {"to": "x"}},
+                "step_id": step_id,
+                "parameters": (dict(_step()["parameters"])
+                               if parameters is None else parameters)},
         status=status, workspace_id="default", tenant_id="default",
         created_at=datetime.now(),
     ))
@@ -221,3 +224,42 @@ def test_crash_after_dispatch_does_not_resend_approved_step(world):
     assert sm.state["steps"]["s1"]["status"] == "PAUSED"
     assert "uncertain" in (sm.state["steps"]["s1"].get("error") or "").lower()
     assert sm.state["status"] == "PAUSED"
+
+
+def test_payload_drift_does_not_reuse_the_approval(world):
+    """The approved payload is the executable payload; a change re-pauses."""
+    with world["session"]() as db:
+        _approved_action(db, parameters={"to": "different@example.invalid"})
+    engine = WorkflowEngine()
+    state = {
+        "status": "PAUSED",
+        "steps": {"s1": {"status": "PAUSED"}},
+        "input_data": {"approved": True, "hitl_action_id": "hitl-1"},
+        "outputs": {},
+    }
+    sm, executed, governance = _run(engine, state, world, None)
+    executed.assert_not_called()
+    assert sm.state["status"] == "PAUSED"
+    assert sm.state["steps"]["s1"]["status"] == "PAUSED"
+    governance.request_approval.assert_called_once()
+
+
+def test_fresh_engine_resume_does_not_execute_twice(world):
+    """A new engine reading the same consumed durable state adds no effect."""
+    with world["session"]() as db:
+        _approved_action(db)
+    first_engine = WorkflowEngine()
+    state = {
+        "status": "PAUSED",
+        "steps": {"s1": {"status": "PAUSED"}},
+        "input_data": {"approved": True, "hitl_action_id": "hitl-1"},
+        "outputs": {},
+    }
+    first_sm, first_executed, _ = _run(first_engine, state, world, None)
+    assert first_executed.await_count == 1
+
+    second_engine = WorkflowEngine()
+    second_sm, second_executed, _ = _run(
+        second_engine, first_sm.state, world, None)
+    assert second_executed.await_count == 0
+    assert second_sm.state["steps"]["s1"]["status"] == "COMPLETED"
