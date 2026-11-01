@@ -15,7 +15,9 @@ and broad model campaigns were not performed.
 | Campaign C2 start | `d535aa7d36cf` (product `715969f01d23`) |
 | **C2 closure (pinned)** | **`414d8add3`** / backend tree `715969f01d23`, worktree `/private/…/c2-pin` |
 | **Cancellation repair** | **`f5d2e085a`** / backend tree `d37da0be5943` (frontend unchanged) |
-| Product diff repair vs campaigns | only the four cancellation files (`assignment_executor.py`, `assignment_routes.py`, `goal_run_service.py`, `test_assignment_routes.py`) |
+| **Budget pause-credit repair** | **`bec60978b` + `019aa1eeb`** / backend tree `c2963fbcdc8e` |
+| **Integrated verification source** | **`f94d7a44b`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` |
+| Product diff repair vs campaigns | cancellation files plus the budget-credit files (`assignment_executor.py`, `assignment_plan.py`, `test_assignment_executor.py`) |
 
 The campaign sources and the repair source are deliberately distinct: the
 repair landed after C2 reached its wait, and C2's wait/resume path does not
@@ -287,6 +289,27 @@ worktree. Full detail:
 - Results: **129 passed** across routes, executor, goal service/events/routes,
   watchdog sweep; the two new public-API cancellation tests pass.
 
+## 4c. Budget pause-credit repair (own source identity)
+
+Source `bec60978b` plus follow-up `019aa1eeb`, backend tree
+`c2963fbcdc8e`; full detail `budget_repair_20261101/README.md`.
+
+- Reproduced defect: a legacy budget with `paused_seconds=500` **and** the same
+  interval in `waiting_since` was subtracted twice. 1500s of genuine active
+  work against a 900s budget reported ~0s and was allowed. The legacy credit
+  path also left the live wait in place on retry.
+- Repair: clear the matching `active_wait`/`waiting_since` on every credit
+  outcome; ignore a `waiting_since` already in the credit ledger; for a legacy
+  paused ledger with no live active-wait identity, do not subtract the same
+  interval again. A new wait always records `active_wait`, so it is still
+  excluded. Genuine active-work exhaustion remains exhausted.
+- Controls: legacy double-subtraction, legacy credit clearing, legacy retry,
+  recorded credit with stale wait, concurrent external responses, restart while
+  waiting. **140 focused tests pass** on `c2963fbcdc8e`.
+
+C2 ran on `414d8add3` and does not load this repair; its budget snapshots are
+historical execution, not a relabelled verification of the repaired code.
+
 ## 5. Tests run once on the integrated source
 
 | Suite | Source | Result |
@@ -299,6 +322,9 @@ worktree. Full detail:
 | Runtime claim batch re-run | `d37da0be5943` | **48 passed** |
 | Uncertain-effect controls re-run | `d37da0be5943` | **3 passed** |
 | Browser recovery (pre-repair path) | `715969f01d23` | **5/5 checks** |
+| Browser recovery (integrated) | `c2963fbcdc8e` | **5/5 checks** |
+| Cancellation + budget + goal suites | `c2963fbcdc8e` | **140 passed** |
+| Runtime claim batch (integrated) | `c2963fbcdc8e` | **48 passed** |
 
 Evidence: `sibling_controls_20261101/`, `cancellation_repair_20261101/`,
 `assignment-recovery-browser-20261101/browser-recovery.json`.
