@@ -19,6 +19,17 @@ import docx
 from playwright.sync_api import sync_playwright
 
 
+def wait_for_training_panel(page, timeout_ms: int = 30000) -> None:
+    import time as _time
+
+    deadline = _time.time() + (timeout_ms / 1000.0)
+    while _time.time() < deadline:
+        if page.get_by_test_id("training-panel").count():
+            return
+        page.wait_for_timeout(250)
+    raise SystemExit("REFUSED: training panel did not render")
+
+
 def login(page, frontend: str, password: str) -> None:
     page.goto(f"{frontend}/login", wait_until="domcontentloaded")
     page.get_by_test_id("login-email-input").fill("admin@example.com")
@@ -216,7 +227,7 @@ def main() -> int:
 
         # A relevant, more-specific teaching change while the run is waiting.
         page.goto(part1["canvas_url"], wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(timeout=30000)
+        wait_for_training_panel(page)
         teach(
             page,
             lesson=(f"Revised {args.domain_label} format for revised-scope "

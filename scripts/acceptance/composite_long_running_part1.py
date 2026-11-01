@@ -19,6 +19,17 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 
+def wait_for_training_panel(page, timeout_ms: int = 30000) -> None:
+    import time as _time
+
+    deadline = _time.time() + (timeout_ms / 1000.0)
+    while _time.time() < deadline:
+        if page.get_by_test_id("training-panel").count():
+            return
+        page.wait_for_timeout(250)
+    raise SystemExit("REFUSED: training panel did not render")
+
+
 def login(page, frontend: str, password: str) -> None:
     page.goto(f"{frontend}/login", wait_until="domcontentloaded")
     page.get_by_test_id("login-email-input").fill("admin@example.com")
@@ -116,7 +127,7 @@ def open_teaching(page, frontend: str, agent_id: str) -> str:
     button.wait_for(timeout=30000)
     button.click()
     page.wait_for_url("**/canvas/**", timeout=30000)
-    page.get_by_test_id("training-panel").wait_for(state="attached", timeout=30000)
+    wait_for_training_panel(page)
     page.wait_for_timeout(800)
     return page.url
 
@@ -335,6 +346,16 @@ def main() -> int:
         )
         teach(
             page,
+            lesson=("Grant award letters use Georgia 13 with the heading Award "
+                    "and the funder's reference. Context: grants."),
+            topic="grants document format",
+            applies="document", font="Georgia", size="13",
+            headings="Award, Sources", columns="Item, Value",
+            context="grants", qualification="authorized",
+            effective_from="2026-01-01", effective_to="2027-12-31",
+        )
+        teach(
+            page,
             lesson=("Conflicting instruction: use Times New Roman 12 for sales "
                     "quote documents."),
             topic="conflicting document format",
@@ -368,39 +389,29 @@ def main() -> int:
         page.screenshot(path=str(out / "first-conflict.png"), full_page=True)
         page.close()
 
-        # Remove the conflicting lesson through the normal teaching surface.
+        # Remove the conflicting lesson through the visible teaching journal.
         page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(
-            state="attached", timeout=30000)
+        wait_for_training_panel(page)
         dismiss_overlays(page)
         page.wait_for_timeout(800)
-        canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
-        training = api(
-            page,
-            f"/api/maturity/training/context?canvas_id={canvas_id}")
-        point = next(
-            (item for item in (training.get("teaching_points") or [])
-             if "Times New Roman" in str(
-                 item.get("text") or item.get("lesson") or "")),
-            None)
-        if point is None:
-            raise SystemExit("REFUSED: conflicting teaching point not found")
-        status = page.evaluate(
-            """async ({agentId, pointId}) => {
-                const token = localStorage.getItem('auth_token')
-                    || localStorage.getItem('token');
-                const response = await fetch(
-                    `/api/maturity/agents/${agentId}/teaching-points/`
-                    + encodeURIComponent(pointId),
-                    {method: 'DELETE',
-                     headers: {Authorization: `Bearer ${token}`}});
-                return response.status;
-            }""",
-            {"agentId": agent_id, "pointId": point.get("id")})
-        if int(status) >= 300:
+        conflict_card = page.get_by_test_id("teaching-point").filter(
+            has_text="Times New Roman").first
+        conflict_card.wait_for(state="visible", timeout=30000)
+        conflict_card.get_by_test_id("teaching-point-delete").click()
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            if page.get_by_test_id("teaching-point").filter(
+                    has_text="Times New Roman").count() == 0:
+                break
+            page.wait_for_timeout(500)
+        if page.get_by_test_id("teaching-point").filter(
+                has_text="Times New Roman").count() != 0:
             raise SystemExit(
-                f"REFUSED: teaching point delete returned {status}")
+                "REFUSED: deleting the conflicting point through the UI did "
+                "not remove it")
+        (out / "conflict-removed-via-ui.txt").write_text(
+            "conflicting teaching point deleted through teaching-point-delete\n")
         page.close()
 
         # Second attempt in another fresh context: the required qualification
