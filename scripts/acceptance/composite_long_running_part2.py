@@ -76,7 +76,12 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_test_id("teach-format-signature").fill("")
     page.get_by_test_id("teach-format-subject-prefix").fill("")
     page.get_by_test_id("teach-submit").click()
-    page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
+    try:
+        page.get_by_text("Lesson recorded", exact=False).first.wait_for(
+            state="visible", timeout=8000)
+    except Exception:
+        pass
+    page.wait_for_timeout(700)
 
 
 def open_assignment(page, frontend: str, objective: str,

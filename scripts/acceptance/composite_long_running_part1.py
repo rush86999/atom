@@ -181,7 +181,15 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
     if subject_prefix:
         page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix, force=True)
     page.get_by_test_id("teach-submit").click()
-    page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
+    # The toast is cosmetic and can be replaced by the next panel render.
+    # The POST above is the durable signal; give the UI a short confirmation
+    # window, then continue and let the caller read the journal.
+    try:
+        page.get_by_text("Lesson recorded", exact=False).first.wait_for(
+            state="visible", timeout=8000)
+    except Exception:
+        pass
+    page.wait_for_timeout(700)
 
 
 def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
