@@ -398,3 +398,9 @@ create, and unit/action controls in
 temporary integration tests for the real connected handler and document-byte
 data flow; these are being finalized after Agent 1 commits the pricing
 obligation/executor repairs. No live provider call.
+
+**User-authored canvases addendum (2026-11-01):** added as a post-repair task
+from `docs/engineering/USER_AUTHORED_CANVASES.md`. Agent 2 scope is recorded
+in `docs/engineering/brennan/AGENT_2_CANVAS_TASKS.md`: provider bindings,
+version/provenance receipts, canvas-action mapping, complete readback, sandbox
+refusal, and no authority from canvas text. Not started in this repair batch.
