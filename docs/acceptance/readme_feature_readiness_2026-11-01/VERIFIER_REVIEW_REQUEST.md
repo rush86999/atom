@@ -1,7 +1,7 @@
 # Independent verifier review request — 2026-11-01
 
-**Candidate:** `a0fce85b0` (runtime code); final docs/evidence commit
-`dce03d804`.
+**Candidate:** `bec60978b` (runtime code); final docs/evidence commit
+`9d60278c1`.
 **Branch:** `codex/employee-execution-readiness`
 **Claimed breadth:** **111/123 = 90.2%** functional claims, frozen denominator.
 **Practical scope:** local, single-worker, SQLite scratch world, controlled
@@ -28,7 +28,13 @@ Evidence:
 - `evidence/claims/goal-no-progress/pytest.log` — 10 controls, real loop halt and
   strategy-change directive.
 - `evidence/claims/orch-team/full-runtime-batch.log` — **229 passed** on the
-  final runtime source.
+  earlier runtime source.
+- `evidence/campaigns/budget-repair/focused-executor-tests.log` — **55 passed**
+  on the final source, including the verifier’s double-credit reproduction,
+  repeated/restart/concurrent retries, multiple waits and genuine active-work
+  exhaustion.
+- `evidence/campaigns/budget-repair/full-runtime-batch.log` — **235 passed** on
+  the repaired runtime source.
 - `evidence/campaigns/recovery/execution-boundaries.log` — **18 focused**
   recovery/effect controls.
 - `evidence/campaigns/recovery/browser-final/browser-recovery.json` — **5/5**
@@ -91,7 +97,10 @@ Preserved boundaries:
   remain closed;
 - no deployment or connected-system write was performed.
 
-Please verify the evidence hashes in `MANIFEST.json`, the excluded claims in the
-inventory, and the negative controls listed above. A numerical threshold alone
+Every `MANIFEST.json` entry is tracked in Git (force-added where global
+`*.log`/`*.txt` ignore rules would hide it). Verify the manifest from the
+committed tree with the command in `README.md`; the submitted tree reports
+**94 entries, 0 untracked, 0 hash/byte mismatches**. Please also verify the
+excluded claims in the inventory and the negative controls listed above. A numerical threshold alone
 is not the release criterion; the practical teaching, recovery, installation and
 first-use gates must hold together on this candidate.

@@ -59,7 +59,11 @@ Evidence: [`evidence/campaigns/recovery/execution-boundaries.log`](evidence/camp
 
 ### Budget repair found by the long-run
 
-The first resume exposed a real defect: the 15-minute wall budget counted the two-hour durable wait as working time and failed the wait step. The failure is preserved in `evidence/campaigns/long-run/budget-failure-preserved.json`. The fix excludes `paused_seconds`/`waiting_since` from wall time, charges the pause in both the direct-response and resume paths, and lets a pre-dispatch budget refusal be retried without consuming an execution attempt. The same run then completed without recreating the source result or repeating the effect.
+The first resume exposed a real defect: the 15-minute wall budget counted the two-hour durable wait as working time and failed the wait step. The failure is preserved in `evidence/campaigns/long-run/budget-failure-preserved.json`. The repair credits each actual wait interval **once**, keyed by the persisted wait operation id and bounded by the recorded wait start and external response time; no interval is inferred from unrelated steps or extended to a retry. Legacy assignments with an existing `paused_seconds` record the interval as already credited instead of adding it again. The `wait_credits` ledger is written under the existing assignment CAS, so repeated, concurrent and post-restart retries cannot double-credit. A pre-dispatch budget refusal keeps its real attempt count and is admitted for the repair retry; genuine active-work exhaustion still refuses.
+
+Evidence: `evidence/campaigns/budget-repair/repair.json`, `focused-executor-tests.log` (**55 passed**) and `full-runtime-batch.log` (**235 passed**).
+
+The earlier two-hour run remains historical elapsed/resume evidence. Its successful completion is **not** used as proof of correct budget enforcement; the focused repair controls are.
 
 Recovery browser evidence:
 [`evidence/campaigns/recovery/browser-final/browser-recovery.json`](evidence/campaigns/recovery/browser-final/browser-recovery.json)
