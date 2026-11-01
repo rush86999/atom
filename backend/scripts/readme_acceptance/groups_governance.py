@@ -1,10 +1,14 @@
 """Governance/maturity/oracle/ask/agent-team acceptance scenarios."""
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+import subprocess
+import sys
 import uuid
 
-from .common import Ctx, make_agent, parse
+from .common import BACKEND, REPO, Ctx, make_agent, parse
 
 
 def _enforce(ctx: Ctx, agent_id: str, action: str, details=None):
@@ -41,67 +45,291 @@ def governance(ctx: Ctx) -> None:
                notes=f"complexity-3 statuses={statuses}; "
                      f"student read={(read_student or {}).get('status')}")
 
-    # ---- GOV-02 HITL approval / rejection -------------------------------
-    approval_agent = ids["supervised"]
-    submit = ctx.post("/api/agent-governance/submit-for-approval", json={
-        "agent_id": approval_agent,
-        "workflow_name": "acceptance-approval",
-        "workflow_definition": {"steps": [{"id": "s1", "type": "action"}]},
-        "trigger_type": "manual",
-        "actions": ["create_task"],
-        "requested_by": ctx.admin_id,
+    # ---- GOV-02 approval executes only after approval -------------------
+    # A goal-run plan with a process-intrinsic checkpoint and a deterministic
+    # deliverable step. The controlled router returns ADVANCE; the checkpoint
+    # waits for the human, and approval resumes the SAME run into the
+    # deliverable. Before approval the canvas must not exist.
+    goal_create = ctx.post("/api/goals", json={
+        "title": f"approval execution {uuid.uuid4().hex[:6]}",
+        "description": "GOV-02 approval execution acceptance",
+        "criteria": [{"description": "the approved deliverable exists"}],
     })
-    submit_body = submit.json() if submit.status_code == 200 else {"text": submit.text[:500]}
-    approval_id = (submit_body.get("approval_id") or submit_body.get("id")
-                   or (submit_body.get("data") or {}).get("approval_id"))
-    pending = ctx.get("/api/agent-governance/pending-approvals")
-    pending_body = pending.json() if pending.status_code == 200 else {}
-    found = any(str(a.get("id") or a.get("approval_id")) == str(approval_id)
-                for a in pending_body.get("pending_approvals", []))
-    approve = None
-    if approval_id:
-        approve = ctx.post(f"/api/agent-governance/approve/{approval_id}")
-    evidence = [ctx.save("governance/hitl.json", {
-        "submit": {"status": submit.status_code, "body": submit_body},
-        "pending": {"status": pending.status_code, "count": pending_body.get("count")},
-        "approve": None if approve is None else {
-            "status": approve.status_code, "body": approve.text[:1200]},
-    })]
-    await_ok = (submit.status_code == 200 and approval_id is not None and found
-                and approve is not None and approve.status_code in (200, 204))
-    ctx.record("GOV-02", "verified" if await_ok else "partial", evidence,
-               notes=f"approval_id={approval_id} pending_found={found} "
-                     f"approve={None if approve is None else approve.status_code}")
+    goal_body = goal_create.json() if goal_create.status_code == 200 else {}
+    goal_id = (goal_body.get("goal_id") or goal_body.get("id")
+               or (goal_body.get("goal") or {}).get("id")
+               or (goal_body.get("data") or {}).get("id"))
+    run_create = ctx.post("/api/goal-runs", json={
+        "goal_id": goal_id,
+        "role": "acceptance",
+        "start": False,
+        "supervision_mode": "shadow",
+        "plan": [
+            {"id": "approval-checkpoint", "kind": "human_checkpoint",
+             "title": "Approve the acceptance deliverable",
+             "note": "GOV-02 approval boundary"},
+            {"id": "approved-deliverable", "kind": "canvas_work",
+             "title": "Create the approved deliverable",
+             "canvas_type": "document"},
+        ],
+    }) if goal_id else None
+    run_body = (run_create.json() if run_create is not None
+                and run_create.headers.get("content-type", "").startswith("application/json")
+                else {})
+    run_id = (run_body.get("run_id") or run_body.get("id")
+              or (run_body.get("data") or {}).get("id"))
+    advance = ctx.post(f"/api/goal-runs/{run_id}/advance") if run_id else None
+    advance_body = (advance.json() if advance is not None
+                    and advance.headers.get("content-type", "").startswith("application/json")
+                    else {})
 
-    # ---- GOV-03 durable audit trail ------------------------------------
-    from core.models import AgentRegistry, HITLAction
+    from core.models import HITLAction
+    from core.models_board import BoardTask
     db = ctx.db()
     try:
-        hitl = db.query(HITLAction).order_by(HITLAction.created_at.desc()).first()
-        audit = {
-            "hitl_id": getattr(hitl, "id", None),
-            "agent_id": getattr(hitl, "agent_id", None),
-            "action_type": getattr(hitl, "action_type", None),
-            "status": getattr(hitl, "status", None),
-            "created_at": str(getattr(hitl, "created_at", None)),
-        }
-        from core.models import AuditLog
-        log = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).first()
-        if log:
-            audit["audit_log"] = {
-                "action": getattr(log, "action", None),
-                "user_email": getattr(log, "user_email", None),
-                "success": getattr(log, "success", None),
-                "timestamp": str(getattr(log, "timestamp", None)),
-            }
-    except Exception as exc:
-        audit = {"error": str(exc)}
+        pending_rows = (db.query(HITLAction)
+                        .filter(HITLAction.action_type == "goal_run_checkpoint",
+                                HITLAction.status == "pending")
+                        .order_by(HITLAction.created_at.desc()).limit(20).all())
+        checkpoint = next(
+            (a for a in pending_rows
+             if str((a.params or {}).get("run_id")) == str(run_id)), None)
+        checkpoint_id = getattr(checkpoint, "id", None)
     finally:
         db.close()
-    ok = bool(audit.get("hitl_id") and audit.get("action_type"))
-    ctx.record("GOV-03", "verified" if ok else "partial",
-               [ctx.save("governance/audit.json", audit)],
-               notes=json.dumps(audit)[:500])
+
+    pre_canvases = ctx.get(f"/api/goal-runs/{run_id}/canvases") if run_id else None
+    pre_body = (pre_canvases.json() if pre_canvases is not None
+                and pre_canvases.status_code == 200 else {})
+    pre_count = len(pre_body.get("canvases") or [])
+
+    approve = (ctx.post(f"/api/agents/approvals/{checkpoint_id}",
+                        json={"decision": "approved",
+                              "feedback": "GOV-02 acceptance approval"})
+               if checkpoint_id else None)
+    approve_body = (approve.json() if approve is not None
+                    and approve.headers.get("content-type", "").startswith("application/json")
+                    else {})
+    post_canvases = ctx.get(f"/api/goal-runs/{run_id}/canvases") if run_id else None
+    post_body = (post_canvases.json() if post_canvases is not None
+                 and post_canvases.status_code == 200 else {})
+    post_count = len(post_body.get("canvases") or [])
+    approve_resume = approve_body.get("data", {}).get("resume") or approve_body.get("resume") or {}
+
+    # Negative control: rejecting a second checkpoint must not create the
+    # deliverable canvas.
+    run2 = ctx.post("/api/goal-runs", json={
+        "goal_id": goal_id, "role": "acceptance", "start": False,
+        "supervision_mode": "shadow",
+        "plan": [
+            {"id": "reject-checkpoint", "kind": "human_checkpoint",
+             "title": "Reject this deliverable"},
+            {"id": "rejected-deliverable", "kind": "canvas_work",
+             "title": "Must not be created", "canvas_type": "document"},
+        ],
+    }) if goal_id else None
+    run2_body = (run2.json() if run2 is not None
+                 and run2.headers.get("content-type", "").startswith("application/json")
+                 else {})
+    run2_id = (run2_body.get("run_id") or run2_body.get("id")
+               or (run2_body.get("data") or {}).get("id"))
+    advance2 = ctx.post(f"/api/goal-runs/{run2_id}/advance") if run2_id else None
+    db = ctx.db()
+    try:
+        rows2 = (db.query(HITLAction)
+                 .filter(HITLAction.action_type == "goal_run_checkpoint",
+                         HITLAction.status == "pending")
+                 .order_by(HITLAction.created_at.desc()).limit(20).all())
+        checkpoint2 = next(
+            (a for a in rows2
+             if str((a.params or {}).get("run_id")) == str(run2_id)), None)
+        checkpoint2_id = getattr(checkpoint2, "id", None)
+    finally:
+        db.close()
+    reject = (ctx.post(f"/api/agents/approvals/{checkpoint2_id}",
+                       json={"decision": "rejected",
+                             "feedback": "GOV-02 rejection control"})
+              if checkpoint2_id else None)
+    reject_canvases = ctx.get(f"/api/goal-runs/{run2_id}/canvases") if run2_id else None
+    reject_body = (reject_canvases.json() if reject_canvases is not None
+                   and reject_canvases.status_code == 200 else {})
+    reject_count = len(reject_body.get("canvases") or [])
+
+    gov02_ok = (goal_create.status_code in (200, 201) and goal_id
+                and run_create is not None and run_create.status_code in (200, 201)
+                and run_id and checkpoint_id
+                and pre_count == 0
+                and approve is not None and approve.status_code == 200
+                and str(approve_resume.get("resumed")).lower() == "true"
+                and post_count >= 1
+                and reject is not None and reject.status_code == 200
+                and reject_count == 0)
+    ctx.record("GOV-02", "verified" if gov02_ok else "failed",
+               [ctx.save("governance/approval_execution.json", {
+                   "goal": {"status": goal_create.status_code, "id": goal_id},
+                   "run": {"status": run_create.status_code if run_create else None,
+                           "id": run_id, "body": run_body},
+                   "advance": {"status": advance.status_code if advance else None,
+                               "body": advance_body},
+                   "checkpoint_id": checkpoint_id,
+                   "canvases_before": pre_count,
+                   "approve": {"status": approve.status_code if approve else None,
+                               "body": approve_body},
+                   "approve_resume": approve_resume,
+                   "canvases_after": post_count,
+                   "reject_run": run2_id,
+                   "reject_status": reject.status_code if reject else None,
+                   "reject_canvases": reject_count,
+                   "mock_calls": (__import__("scripts.readme_acceptance.mock_llm_server",
+                                              fromlist=["calls"]).calls())[-8:],
+               })],
+               notes=f"checkpoint={checkpoint_id} before={pre_count} "
+                     f"approve={approve.status_code if approve else None} "
+                     f"resumed={approve_resume.get('resumed')} after={post_count} "
+                     f"reject={reject.status_code if reject else None} "
+                     f"reject_canvases={reject_count}")
+
+    # ---- GOV-03 audit records from an actual execution -------------------
+    # Run a real GenericAgent turn whose tool call is dispatched through the
+    # audited _step_act path; then read the execution feed and replay.
+    import asyncio
+    from core.generic_agent import GenericAgent
+    from core.models import AgentRegistry
+    from core.react_models import ReActStep, ToolCall
+
+    board = ctx.post("/api/boards", json={
+        "name": f"audit-{uuid.uuid4().hex[:6]}",
+        "seed_default_columns": True})
+    board_body = board.json() if board.status_code in (200, 201) else {}
+    board_id = board_body.get("id")
+    detail = ctx.get(f"/api/boards/{board_id}") if board_id else None
+    detail_body = detail.json() if detail is not None and detail.status_code == 200 else {}
+    columns = detail_body.get("columns") or []
+    column_id = (columns[0] or {}).get("id") if columns else None
+    audit_agent_id = make_agent(ctx, f"audit-{uuid.uuid4().hex[:6]}",
+                                tier="autonomous", capabilities=["*"])
+    audit_task_title = f"audit-task-{uuid.uuid4().hex[:8]}"
+    audit_exec_id = f"gov03-{uuid.uuid4().hex}"
+    audit_error = None
+    audit_result = None
+    audit_task_id = None
+    try:
+        db = ctx.db()
+        try:
+            row = (db.query(AgentRegistry)
+                   .filter(AgentRegistry.id == audit_agent_id).first())
+            audit_agent = GenericAgent(row, workspace_id=ctx.workspace_id)
+        finally:
+            db.close()
+        calls = {"n": 0}
+
+        async def fake_react_step(task_input, memory, history, context=None,
+                                  utility_delta=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return ReActStep(
+                    thought="create the audit task",
+                    action=ToolCall(tool="tasks.create", params={
+                        "title": audit_task_title,
+                        "board_id": board_id,
+                        "column_id": column_id,
+                        "priority": "normal",
+                        "status": "backlog",
+                    }),
+                )
+            return ReActStep(thought="finished", final_answer="audit task created")
+
+        audit_agent._react_step = fake_react_step
+        audit_result = asyncio.run(audit_agent.execute(
+            "create the audit acceptance task",
+            context={"execution_id": audit_exec_id,
+                     "user_id": ctx.admin_id,
+                     "workspace_id": ctx.workspace_id},
+        ))
+    except Exception as exc:
+        audit_error = repr(exc)
+
+    # The agent's execution id is generated inside execute(); locate the
+    # actual audited run by actor and tool, then replay THAT execution.
+    audit_events = ctx.get("/api/audit/events",
+                           params={"agent_id": audit_agent_id, "limit": 100})
+    audit_body = audit_events.json() if audit_events.status_code == 200 else {}
+    items = audit_body.get("items") or []
+    def _audit_params(event):
+        meta = event.get("metadata")
+        if not isinstance(meta, dict):
+            return {}
+        params = meta.get("params")
+        if isinstance(params, str):
+            try:
+                params = json.loads(params)
+            except (TypeError, ValueError):
+                return {}
+        return params if isinstance(params, dict) else {}
+
+    def _audit_title(event):
+        return str(_audit_params(event).get("title") or "")
+
+    tool_event = next((
+        e for e in items
+        if (e.get("action") or "") == "tool:tasks.create"
+        and _audit_title(e) == audit_task_title
+    ), {})
+    actual_exec_id = tool_event.get("agent_execution_id") or audit_exec_id
+    replay = ctx.get(f"/api/audit/executions/{actual_exec_id}")
+    replay_body = replay.json() if replay.status_code == 200 else {}
+    replay_events = replay_body.get("events") or []
+    replay_actions = [e.get("action") for e in replay_events]
+    unauthenticated = ctx.client.get("/api/audit/events")
+    bogus = ctx.get("/api/audit/events",
+                    params={"execution_id": "gov03-does-not-exist", "limit": 5})
+    bogus_body = bogus.json() if bogus.status_code == 200 else {}
+
+    db = ctx.db()
+    try:
+        task_row = (db.query(BoardTask)
+                    .filter(BoardTask.title == audit_task_title).first())
+        audit_task_id = getattr(task_row, "id", None)
+    finally:
+        db.close()
+
+    tool_meta = (tool_event.get("metadata")
+                 if isinstance(tool_event.get("metadata"), dict) else {})
+    tool_params = _audit_params(tool_event)
+    gov03_ok = (audit_error is None and audit_result is not None
+                and tool_event
+                and str(tool_event.get("agent_id")) == str(audit_agent_id)
+                and tool_event.get("success") is True
+                and tool_meta.get("tool") == "tasks.create"
+                and str(tool_params.get("board_id")) == str(board_id)
+                and audit_task_id
+                and replay.status_code == 200
+                and "execution_start" in replay_actions
+                and "execution_complete" in replay_actions
+                and unauthenticated.status_code in (401, 403)
+                and bogus.status_code == 200
+                and (bogus_body.get("total") or 0) == 0)
+    ctx.record("GOV-03", "verified" if gov03_ok else "failed",
+               [ctx.save("governance/audit_execution.json", {
+                   "execution_id": actual_exec_id,
+                   "requested_execution_id": audit_exec_id,
+                   "agent_id": audit_agent_id,
+                   "board_id": board_id,
+                   "task_id": audit_task_id,
+                   "execute_result": audit_result,
+                   "execute_error": audit_error,
+                   "events": items,
+                   "tool_event": tool_event,
+                   "replay": replay_body,
+                   "unauthenticated_status": unauthenticated.status_code,
+                   "bogus_total": bogus_body.get("total"),
+               })],
+               notes=f"actor={tool_event.get('agent_id')} "
+                     f"action={tool_event.get('action')} "
+                     f"target={tool_params.get('board_id')} "
+                     f"outcome={tool_event.get('success')} "
+                     f"task={audit_task_id} replay={replay_actions[:4]} "
+                     f"unauth={unauthenticated.status_code}")
 
     # ---- GOV-04 training session ---------------------------------------
     # Session creation is triggered by a blocked agent run (student_training
@@ -540,30 +768,227 @@ def ask(ctx: Ctx) -> None:
                [ctx.save("ask/cold_start.json", {"status": r.status_code, "body": body})],
                notes=f"cold-start recommendation={cold}")
 
-    # ASK-01 / ASK-05: per-action autonomy is learned from verified history.
+    # ASK-01: per-action autonomy earned from oracle-verified tool outcomes
+    # recorded through the capability-graduation path. The action is a real
+    # tasks.create (oracle read-back); no manual maturity grant.
+    from core.capability_graduation_service import CapabilityGraduationService
+    from core.generic_agent import GenericAgent
+    from core.models import AgentRegistry, BoardTask
+    from core.autonomy_policy import (
+        MODE_AUTO_UNTIL_CORRECTED, gate_for_topic, set_mode)
+
+    ask_agent = make_agent(ctx, f"ask-verified-{uuid.uuid4().hex[:6]}",
+                           tier="supervised", capabilities=["*"])
+    board = ctx.post("/api/boards", json={
+        "name": f"ask-verified-{uuid.uuid4().hex[:6]}",
+        "seed_default_columns": True})
+    board_body = board.json() if board.status_code in (200, 201) else {}
+    board_id = board_body.get("id")
+    detail = ctx.get(f"/api/boards/{board_id}") if board_id else None
+    detail_body = detail.json() if detail is not None and detail.status_code == 200 else {}
+    columns = detail_body.get("columns") or []
+    column_id = (columns[0] or {}).get("id") if columns else None
+
+    db = ctx.db()
     try:
-        from core.trust_calibration.gateway import TrustCalibrationGateway
-        gateway = TrustCalibrationGateway(db=None)
-        cold = gateway.assess("search_contacts")
-        gateway.seed_synthetic_history()
-        gateway.refresh(force=True)
-        warm = gateway.assess("search_contacts")
-        dangerous = gateway.assess("bulk_delete_leads")
-        learned = (cold.get("recommendation") == "ask"
-                   and warm.get("recommendation") == "allow"
-                   and dangerous.get("recommendation") in ("block", "ask"))
-        ctx.record("ASK-01", "verified" if learned else "failed",
-                   [ctx.save("ask/learned_autonomy.json", {
-                       "cold": cold, "warm": warm, "dangerous": dangerous})],
-                   notes=f"cold={cold.get('recommendation')} "
-                         f"warm={warm.get('recommendation')} "
-                         f"dangerous={dangerous.get('recommendation')}")
-        ctx.record("ASK-05", "verified" if learned else "partial",
-                   [f"ask/learned_autonomy.json"],
-                   notes="Relaxation follows verified history; cold start stays ask")
+        svc = CapabilityGraduationService(db)
+        svc.reset_maturity(ask_agent, "task_create", reason="ASK-01 baseline")
+        svc.reset_maturity(ask_agent, "canvas_edit", reason="ASK-01 control")
+        set_mode(db, ctx.admin_id, "task_create", MODE_AUTO_UNTIL_CORRECTED)
+        set_mode(db, ctx.admin_id, "canvas_edit", MODE_AUTO_UNTIL_CORRECTED)
+        gate_before = gate_for_topic(db, ctx.admin_id, "task_create", ask_agent)
+        canvas_gate_before = gate_for_topic(db, ctx.admin_id, "canvas_edit", ask_agent)
+    finally:
+        db.close()
+
+    ask_results = []
+    ask_verified = 0
+    ask_error = None
+    try:
+        db = ctx.db()
+        try:
+            row = (db.query(AgentRegistry)
+                   .filter(AgentRegistry.id == ask_agent).first())
+            agent = GenericAgent(row, workspace_id=ctx.workspace_id)
+            agent.tenant_id = ctx.tenant_id
+        finally:
+            db.close()
+        for index in range(20):
+            title = f"ask-verified-task-{uuid.uuid4().hex[:8]}"
+            result = asyncio.run(agent._step_act("tasks.create", {
+                "title": title,
+                "board_id": board_id,
+                "column_id": column_id,
+                "priority": "normal",
+                "status": "backlog",
+            }, {}, pre_approved=True))
+            result_text = json.dumps(result, default=str)
+            if isinstance(result, dict):
+                task_payload = result.get("task") or {}
+            else:
+                try:
+                    task_payload = json.loads(result_text).get("task") or {}
+                except (TypeError, ValueError):
+                    task_payload = {}
+            task_id = task_payload.get("id")
+            db = ctx.db()
+            try:
+                persisted = (db.query(BoardTask)
+                             .filter(BoardTask.id == task_id).first()
+                             if task_id else None)
+                verified = persisted is not None
+                if verified:
+                    ask_verified += 1
+                    CapabilityGraduationService(db).record_usage(
+                        ask_agent, "task_create", success=True,
+                        verified="verified")
+            finally:
+                db.close()
+            ask_results.append({
+                "index": index,
+                "verified": verified,
+                "result": result_text[:400],
+            })
     except Exception as exc:
-        ctx.record("ASK-01", "unverified", notes=f"gateway assess failed: {exc}")
-        ctx.record("ASK-05", "partial", notes=f"gateway assess failed: {exc}")
+        import traceback as _tb
+        ask_error = f"{type(exc).__name__}: {exc}"
+        ctx.save("ask/verified_error.txt", _tb.format_exc())
+
+    db = ctx.db()
+    try:
+        svc = CapabilityGraduationService(db)
+        maturity_after = svc.get_maturity(ask_agent, "task_create")
+        canvas_maturity = svc.get_maturity(ask_agent, "canvas_edit")
+        gate_after = gate_for_topic(db, ctx.admin_id, "task_create", ask_agent)
+        canvas_gate_after = gate_for_topic(db, ctx.admin_id, "canvas_edit", ask_agent)
+    finally:
+        db.close()
+
+    ask01_ok = (ask_error is None and ask_verified == 20
+                and gate_before.get("outcome") == "propose"
+                and gate_after.get("outcome") == "execute"
+                and maturity_after in ("supervised", "autonomous")
+                and canvas_maturity == "student"
+                and canvas_gate_after.get("outcome") == "propose")
+    ctx.record("ASK-01", "verified" if ask01_ok else "failed",
+               [ctx.save("ask/verified_autonomy.json", {
+                   "agent": ask_agent,
+                   "verified_outcomes": ask_verified,
+                   "task_results": ask_results,
+                   "error": ask_error,
+                   "gate_before": gate_before,
+                   "gate_after": gate_after,
+                   "canvas_gate_before": canvas_gate_before,
+                   "canvas_gate_after": canvas_gate_after,
+                   "maturity_after": maturity_after,
+                   "canvas_maturity": canvas_maturity,
+               })],
+               notes=f"verified={ask_verified}/20 before={gate_before.get('outcome')} "
+                     f"after={gate_after.get('outcome')} "
+                     f"maturity={maturity_after} "
+                     f"control_canvas={canvas_gate_after.get('outcome')} "
+                     f"error={ask_error}")
+
+    # ASK-05: stats and consent-gated relaxation. The calibration history is
+    # controlled (labelled); the admin gate and applied switch are real.
+    from core.trust_calibration import automation as trust_auto
+    from core.models import (
+        HITLAction as _HITL, TrustCalibrationAction,
+        TrustCalibrationAssessment)
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    from core.trust_calibration.features import tool_vector, context_vector
+
+    stats0 = ctx.get("/api/v1/trust-calibration/stats")
+    stats0_body = stats0.json() if stats0.status_code == 200 else {}
+    trust_auto.set_automation_config(mode="approve", interval_min=1)
+    run_uncertified = ctx.post("/api/v1/trust-calibration/run-now")
+    uncertified_body = (run_uncertified.json()
+                        if run_uncertified.status_code == 200 else {})
+
+    now = _dt.now(_tz.utc)
+    db = ctx.db()
+    try:
+        for i in range(18):
+            good_ref = f"ask05-good-{i}"
+            bad_ref = f"ask05-bad-{i}"
+            good_time = now - _td(hours=(1.5 * i) + 1)
+            bad_time = now - _td(hours=(1.5 * i) + 3)
+            db.add(_HITL(
+                id=good_ref, action_type="search_contacts",
+                platform="internal", params={}, status="approved",
+                agent_id=ask_agent, reviewed_at=good_time,
+                created_at=good_time))
+            db.add(TrustCalibrationAssessment(
+                id=f"ask05-a-good-{i}", action_type="search_contacts",
+                platform="internal", p_approve=0.9, uncertainty=0.05,
+                recommendation="allow", source_path="ask05_controlled",
+                decision_ref=good_ref,
+                features_json={"tool": tool_vector("search_contacts").tolist(),
+                               "ctx": context_vector(None, "internal").tolist()},
+                created_at=good_time))
+            db.add(_HITL(
+                id=bad_ref, action_type=f"bulk_delete_leads_{i}",
+                platform="payment", params={}, status="rejected",
+                agent_id=ask_agent, reviewed_at=bad_time,
+                created_at=bad_time))
+            db.add(TrustCalibrationAssessment(
+                id=f"ask05-a-bad-{i}",
+                action_type=f"bulk_delete_leads_{i}",
+                platform="payment", p_approve=0.1, uncertainty=0.05,
+                recommendation="block", source_path="ask05_controlled",
+                decision_ref=bad_ref,
+                features_json={"tool": tool_vector("bulk_delete_leads").tolist(),
+                               "ctx": context_vector(None, "payment").tolist()},
+                created_at=bad_time))
+        db.commit()
+    finally:
+        db.close()
+
+    stats1 = ctx.get("/api/v1/trust-calibration/stats")
+    stats1_body = stats1.json() if stats1.status_code == 200 else {}
+    run_certified = ctx.post("/api/v1/trust-calibration/run-now")
+    certified_body = (run_certified.json()
+                      if run_certified.status_code == 200 else {})
+    db = ctx.db()
+    try:
+        queued = (db.query(TrustCalibrationAction)
+                  .order_by(TrustCalibrationAction.created_at.desc()).first())
+        queued_id = getattr(queued, "id", None)
+        queued_state = getattr(queued, "state", None)
+        enforce_before = trust_auto.resolved_trust_enforce(db)
+    finally:
+        db.close()
+    approve = (ctx.post(f"/api/v1/trust-calibration/approve/{queued_id}")
+               if queued_id else None)
+    db = ctx.db()
+    try:
+        enforce_after = trust_auto.resolved_trust_enforce(db)
+    finally:
+        db.close()
+    ask05_ok = (stats0.status_code == 200 and stats1.status_code == 200
+                and uncertified_body.get("verdict") in ("collecting", "revoke")
+                and certified_body.get("verdict") == "enable"
+                and queued_state == "approval"
+                and enforce_before is False
+                and approve is not None and approve.status_code == 200
+                and enforce_after is True)
+    ctx.record("ASK-05", "verified" if ask05_ok else "failed",
+               [ctx.save("ask/gated_relaxation.json", {
+                   "controlled_history": True,
+                   "stats_before": stats0_body,
+                   "stats_after": stats1_body,
+                   "uncertified": uncertified_body,
+                   "certified": certified_body,
+                   "queued_id": queued_id,
+                   "queued_state": queued_state,
+                   "enforce_before": enforce_before,
+                   "approve_status": None if approve is None else approve.status_code,
+                   "enforce_after": enforce_after,
+               })],
+               notes=f"stats={stats1.status_code} "
+                     f"uncertified={uncertified_body.get('verdict')} "
+                     f"certified={certified_body.get('verdict')} "
+                     f"queued={queued_state} enforce={enforce_before}->{enforce_after}")
 
     # ASK-04 certification gate
     from datetime import datetime, timedelta, timezone
@@ -747,33 +1172,74 @@ def agent_teams(ctx: Ctx) -> None:
     except Exception as exc:
         ctx.record("TEAM-05", "unverified", notes=f"alignment sweep unavailable: {exc}")
 
-    # TEAM-06 org telemetry
+    # TEAM-06 org telemetry baselines: emit real events, then run the
+    # documented report and assert incumbency/review/COI math.
     try:
         from core.org_telemetry_service import AgentOrgTelemetryService, emit_org_event
-        from core.models import AgentOrgEvent
         db = ctx.db()
         try:
-            emit_org_event(db, "fleet_recruit", actor_agent_id="a",
-                           target_agent_id="b",
-                           payload={"acceptance": True})
+            for actor, target in (("a", "b"), ("a", "b"), ("a", "c")):
+                emit_org_event(db, "fleet_recruit", actor_agent_id=actor,
+                               target_agent_id=target,
+                               payload={"acceptance": True})
+            emit_org_event(db, "radio_message", actor_agent_id="a",
+                           target_agent_id="b", payload={"acceptance": True})
+            emit_org_event(db, "review_verdict", actor_agent_id="r",
+                           target_agent_id="b", payload={"accepted": True})
+            emit_org_event(db, "review_verdict", actor_agent_id="r",
+                           target_agent_id="c", payload={"accepted": False})
             svc = AgentOrgTelemetryService(db)
-            events = svc._events("fleet_recruit", window_hours=24)
+            incumbency = svc.compute_incumbency(window_hours=24)
+            reviews = svc.compute_review_rates(window_hours=24)
             coi = svc.compute_coi_pairs(window_hours=24)
-            latest = events[-1] if events else None
-            payload = {
-                "events": len(events),
-                "coi_pairs": len(coi),
-                "latest": {
-                    "type": getattr(latest, "event_type", None),
-                    "actor": getattr(latest, "actor_agent_id", None),
-                    "target": getattr(latest, "target_agent_id", None),
-                } if latest else None,
-            }
+            empty_incumbency = svc.compute_incumbency(window_hours=-1)
         finally:
             db.close()
-        ok = payload["events"] >= 1 and payload["latest"]["actor"] == "a"
-        ctx.record("TEAM-06", "verified" if ok else "partial",
-                   [ctx.save("teams/telemetry.json", payload)],
-                   notes=json.dumps(payload))
+
+        env = {**os.environ,
+               "PYTHONPATH": f"{REPO}:{BACKEND}",
+               "DATABASE_URL": f"sqlite:///{ctx.world / 'atom.db'}"}
+        report = subprocess.run(
+            [sys.executable, str(BACKEND / "scripts" / "org_dynamics_report.py"),
+             "--window-hours", "24", "--json"],
+            cwd=str(BACKEND), env=env, capture_output=True, text=True,
+            timeout=120)
+        report_body = {}
+        if report.returncode == 0 and report.stdout.strip():
+            try:
+                report_body = json.loads(report.stdout)
+            except (TypeError, ValueError):
+                report_body = {}
+        top = incumbency.get("top_pairs") or []
+        ok = (incumbency.get("total_recruits") == 3
+              and incumbency.get("distinct_pairs") == 2
+              and incumbency.get("repeat_pairs") == 1
+              and top and top[0].get("actor") == "a"
+              and top[0].get("target") == "b" and top[0].get("count") == 2
+              and reviews.get("total_reviews") == 2
+              and reviews.get("by_target", {}).get("b", {}).get("accepted") == 1
+              and reviews.get("by_target", {}).get("c", {}).get("rejected") == 1
+              and any(p.get("actor") == "a" and p.get("target") == "b"
+                      for p in coi)
+              and empty_incumbency.get("total_recruits") == 0
+              and report.returncode == 0
+              and report_body.get("incumbency", {}).get("total_recruits") == 3
+              and report_body.get("review_rates", {}).get("total_reviews") == 2)
+        ctx.record("TEAM-06", "verified" if ok else "failed",
+                   [ctx.save("teams/telemetry.json", {
+                       "incumbency": incumbency,
+                       "reviews": reviews,
+                       "coi_pairs": coi,
+                       "empty_window": empty_incumbency,
+                       "report_returncode": report.returncode,
+                       "report_stderr": report.stderr[-500:],
+                       "report": report_body,
+                   })],
+                   notes=f"recruits={incumbency.get('total_recruits')} "
+                         f"pairs={incumbency.get('distinct_pairs')} "
+                         f"repeat={incumbency.get('repeat_pairs')} "
+                         f"reviews={reviews.get('total_reviews')} "
+                         f"coi={len(coi)} empty={empty_incumbency.get('total_recruits')} "
+                         f"report={report.returncode}")
     except Exception as exc:
-        ctx.record("TEAM-06", "unverified", notes=f"telemetry unavailable: {exc}")
+        ctx.record("TEAM-06", "failed", notes=f"telemetry unavailable: {exc}")

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 
 from .common import Ctx
 from . import mock_llm_server
@@ -119,10 +120,13 @@ def gateway(ctx: Ctx) -> None:
     # real transport failure, then restart it. This is a genuine failure path,
     # not a synthetic handler probe.
     server = ctx.cache.get("llm_server")
+    secondary_server = ctx.cache.get("llm_server_secondary")
     failure = None
     try:
         if server is not None:
             server.stop()
+        if secondary_server is not None:
+            secondary_server.stop()
         bad_key = ctx.post("/api/gateway/keys", json={
             "name": "acceptance-failure", "rate_limit_per_minute": 60})
         bk = (bad_key.json() or {}).get("key") if bad_key.status_code in (200, 201) else None
@@ -131,11 +135,15 @@ def gateway(ctx: Ctx) -> None:
             "messages": [{"role": "user", "content": "force transport failure"}],
         }) if bk else None
     finally:
-        if server is not None:
-            try:
-                ctx.cache["llm_server"] = mock_llm_server.Server(59997).start()
-            except Exception:
-                pass
+        try:
+            ctx.cache["llm_server"] = mock_llm_server.Server(59997).start()
+        except Exception:
+            pass
+        try:
+            ctx.cache["llm_server_secondary"] = mock_llm_server.Server(
+                59998, fail_model=False).start()
+        except Exception:
+            pass
     fbody = failure.json() if failure is not None and failure.headers.get("content-type", "").startswith("application/json") else {}
     err = (fbody.get("error") or {})
     propagated = (failure is not None and failure.status_code in (502, 503)
@@ -186,13 +194,83 @@ def gateway(ctx: Ctx) -> None:
                            for p in plist]})],
                notes=f"provider_count={len(plist)}")
 
-    # ---- ROUTE-04 learning router status ------------------------------
-    lr = ctx.get("/api/v1/llm/learning-router/status")
-    ctx.record("ROUTE-04", "partial" if lr.status_code == 200 else "unverified",
-               [ctx.save("routing/learning_router.json", {
-                   "status": lr.status_code, "body": lr.text[:1000]})],
-               notes="Learning-router flag/status surface served; re-ranking "
-                     "needs accumulated feedback rows")
+    # ---- ROUTE-03 provider fallback ------------------------------------
+    # The gateway's configured provider policy exposes one OpenAI client in
+    # this world; the local Ollama client is present but not admitted into the
+    # fallback ladder, so a failed primary still returns all_providers_failed.
+    # Record the gap rather than claim a fallback that did not happen.
+    ctx.record("ROUTE-03", "partial",
+               notes="Configured provider policy admits one gateway route; a "
+                     "failed upstream returns all_providers_failed instead of "
+                     "falling back to the local provider")
+
+    # ---- ROUTE-04 learning router: feedback changes the selected route --
+    try:
+        import asyncio as _asyncio
+        from core.learning_llm_router import LearningBasedRouter, RoutingRequest
+        from core.models import LLMRoutingFeedback
+        import core.llm.learning_router_registry as lr_registry
+
+        request = RoutingRequest(
+            tenant_id=ctx.tenant_id,
+            task_type="question_answering",
+            estimated_tokens=1200,
+            requires_quality=True,
+        )
+        db = ctx.db()
+        try:
+            baseline_router = LearningBasedRouter(db)
+            baseline = _asyncio.run(baseline_router.route(request))
+            for i in range(25):
+                for model_id, good in (("gpt-4o-mini", False),
+                                       ("gpt-4o", True)):
+                    db.add(LLMRoutingFeedback(
+                        id=f"route04-{uuid.uuid4().hex}",
+                        routing_result_id=f"route04-result-{i}-{model_id}",
+                        tenant_id=ctx.tenant_id,
+                        task_type="question_answering",
+                        model_id=model_id,
+                        success=good,
+                        quality_satisfied=good,
+                        cost_within_budget=True,
+                        prompt_features={"tokens": 1200, "quality": 1.0},
+                    ))
+            db.commit()
+            trained_router = LearningBasedRouter(db)
+            loaded = trained_router.load_feedback_from_db(tenant_id=ctx.tenant_id)
+            trained = _asyncio.run(trained_router.route(request))
+        finally:
+            db.close()
+        lr_registry._lr_ready_cache["ts"] = 0
+        status = ctx.get("/api/v1/llm/learning-router/status")
+        status_body = status.json() if status.status_code == 200 else {}
+        readiness = (status_body.get("data") or {})
+        baseline_model = baseline.selected_model.model_id
+        trained_model = trained.selected_model.model_id
+        ok = (loaded >= 50
+              and trained_model != baseline_model
+              and trained_model == "gpt-4o"
+              and readiness.get("ready") is True
+              and (readiness.get("rows_in_window") or 0) >= 30
+              and (readiness.get("models_with_enough_observations") or 0) >= 2)
+        ctx.record("ROUTE-04", "verified" if ok else "failed",
+                   [ctx.save("routing/learning_rerank.json", {
+                       "controlled_feedback": True,
+                       "loaded": loaded,
+                       "baseline_model": baseline_model,
+                       "trained_model": trained_model,
+                       "baseline_confidence": baseline.confidence,
+                       "trained_confidence": trained.confidence,
+                       "status": {"status": status.status_code,
+                                  "body": status_body},
+                   })],
+                   notes=f"loaded={loaded} baseline={baseline_model} "
+                         f"trained={trained_model} ready={readiness.get('ready')} "
+                         f"rows={readiness.get('rows_in_window')} "
+                         f"models={readiness.get('models_with_enough_observations')}")
+    except Exception as exc:
+        ctx.record("ROUTE-04", "failed",
+                   notes=f"learning re-rank failed: {type(exc).__name__}: {exc}")
 
     # ---- ROUTE-06 local provider wiring --------------------------------
     local_models = ctx.get("/api/local-models")
@@ -203,9 +281,6 @@ def gateway(ctx: Ctx) -> None:
                notes="Local OpenAI-compatible provider is the harness upstream; "
                      "the user-facing settings surface is served")
 
-    ctx.record("ROUTE-03", "partial",
-               notes="Cost-aware fallback needs two configured providers; this "
-                     "world configures one bounded upstream")
     # ---- ROUTE-05 RTK compression -------------------------------------
     try:
         from core.llm.compression.rtk_engine import RTKEngine

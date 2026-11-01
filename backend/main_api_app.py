@@ -2962,7 +2962,10 @@ try:
     try:
         from api.graphrag_routes import router as graphrag_router
 
-        app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
+        # graphrag_router already carries /api/graphrag; adding the prefix
+        # again produced /api/graphrag/api/graphrag and 404'd the public and
+        # frontend paths.
+        app.include_router(graphrag_router, tags=["graphrag"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
@@ -3762,8 +3765,10 @@ try:
     # --- PORTED FEATURES ---
     try:
         from api.canvas_routes import router as canvas_router
+        from api.canvas_routes import ws_router as canvas_ws_router
 
         app.include_router(canvas_router)
+        app.include_router(canvas_ws_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas routes not found: {e}")
 

@@ -796,6 +796,23 @@ class OfficeSyncService:
                     except Exception:
                         pass
 
+            # The canvas page connects through api.canvas_routes' dedicated
+            # CanvasStateConnectionManager, not the channel-aware manager
+            # above. Deliver the same shaped event there so an open canvas
+            # actually receives the agent write.
+            try:
+                from api.canvas_routes import manager as canvas_ws_manager
+                canvas_broadcast = canvas_ws_manager.broadcast_message(
+                    canvas_id, dict(message))
+                asyncio.create_task(canvas_broadcast)
+            except RuntimeError:
+                try:
+                    canvas_broadcast.close()
+                except Exception:
+                    pass
+            except Exception as canvas_err:
+                logger.debug(f"canvas ws manager mirror skipped: {canvas_err}")
+
             # The channel-aware ws_manager only reaches clients connected via
             # the (currently unmounted) root websocket_routes /ws. Clients
             # actually connect through api/websocket_routes, which uses

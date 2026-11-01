@@ -52,6 +52,9 @@ except Exception:  # pragma: no cover - defensive
                                        "filtered_tokens": 0, "embedding_pass": False,
                                        "enabled": False}
 
+_SUCCESS_STATUSES = {"success", "objective_satisfied"}
+
+
 class GenericAgent:
     """
     A runtime wrapper for dynamically configured agents.
@@ -731,7 +734,7 @@ class GenericAgent:
         
         # Plan Adherence Check
         # Basic heuristic: Did the agent reach a final answer, or was it forced?
-        plan_adherence = 1.0 if status == "success" else 0.5
+        plan_adherence = 1.0 if status in _SUCCESS_STATUSES else 0.5
         if status in ["failed", "timeout"]:
              plan_adherence = 0.0
 
@@ -781,7 +784,7 @@ class GenericAgent:
             if _bpe_on():
                 _scope_key = str((context or {}).get("session_id") or (context or {}).get("execution_id") or "")
                 _ws = _get_ws(self.workspace_id, str(self.id), _scope_key)
-                _success = status == "success"
+                _success = status in _SUCCESS_STATUSES
                 _bpe_consolidated = (
                     consolidate_workspace_notes(_ws) if _success
                     else {"dropped_notes": len(_ws.drain_pending_notes())}
@@ -910,7 +913,7 @@ class GenericAgent:
                         "steps": len(steps),
                         "task_input": task_input[:2000],
                     },
-                    success=(status == "success"),
+                    success=(status in _SUCCESS_STATUSES),
                 )
                 _tool_steps = sum(1 for s in steps if s.get("action"))
                 _completeness = check_execution_audit_completeness(
@@ -1817,7 +1820,10 @@ What is your next step?"""
     async def _record_execution(self, input_text: str, result: Dict, context: Dict = None):
         """Save result to World Model and update Governance maturity"""
         # 1. Save to World Model
-        success = result["status"] == "success"
+        success = result["status"] in _SUCCESS_STATUSES
+        persisted_status = (
+            "completed" if result["status"] == "objective_satisfied"
+            else result["status"])
 
         # Calculate robust confidence score
         # 1.0 = Perfect success
@@ -1874,7 +1880,7 @@ What is your next step?"""
                         agent_id=self.id,
                         workspace_id=getattr(self, "workspace_id", "default"),
                         tenant_id=getattr(self, "tenant_id", None) or "default",
-                        status=result["status"],
+                        status=persisted_status,
                         input_summary=input_text[:200],
                         output_summary=str(result.get("output", ""))[:500],
                         triggered_by=(context or {}).get("trigger", "agent_loop"),
@@ -1889,14 +1895,14 @@ What is your next step?"""
                     await EpisodeService(db).create_episode_from_execution(
                         execution_id=_exec.id,
                         task_description=input_text[:200],
-                        outcome=result["status"],
+                        outcome=persisted_status,
                         success=success,
                     )
             except Exception as exec_err:
                 logger.debug(f"execution persistence skipped: {exec_err}")
 
         # 2. Update Governance Maturity
-        success = result["status"] == "success"
+        success = result["status"] in _SUCCESS_STATUSES
         with get_db_session() as db:
             try:
                 gov = AgentGovernanceService(db)

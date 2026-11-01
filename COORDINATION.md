@@ -212,24 +212,42 @@ without invalidating the accepted local-core work and without deploying.
   `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md`
   §6. This is a shared Chat/lifecycle defect, not patched here.
 
-**Result (after verifier correction):** 83/123 eligible functional claims
-verified (67.5%). The earlier 100/123 (81.3%) self-assessment was not accepted:
-source-string, unconditional and status-only passes were removed. Security 8/8
-separately. 40 functional claims remain unverified/partial/blocked/
-environment-limited or inaccurate; none are counted. ORCH-08 (delegation
-nesting depth) is documented as **inaccurate** — the DB model stores
-`max_depth`, but `AgentFleetService.recruit_member` does not enforce it.
-The harness world deletion boundary is now guarded (protected paths, symlinks,
-ownership marker); ORACLE-06 and GOAL-01 are executable tests; SEC-06 has
-negative egress controls; SEARCH-02/04 are strengthened; the evidence manifest
-and pre-rename frontend artifact are preserved under
-`docs/acceptance/readme_feature_readiness_2026-10-31/evidence/`.
+**Result (integrated campaign):** 99/123 eligible functional claims verified
+(80.5%). The earlier 100/123 (81.3%), 83/123 and 82/123 self-assessments are
+withdrawn; the denominator is unchanged. Security 8/8 separately. 24 functional
+claims remain unverified/partial/blocked/environment-limited or inaccurate;
+none are counted. ORCH-08 remains **inaccurate** (delegation `max_depth` is
+stored but not enforced). GOAL-01 is **verified**: the loop stops at 2/5 with
+`objective_satisfied`, the 3/3 control returns `max_steps_exceeded`, and the
+satisfied run persists as a successful execution/audit close-out. GOAL-05 is
+verified across a real backend restart. ASK-03, ROUTE-03 and GRAPH-05 are
+deliberately left partial rather than counted on weaker evidence.
+
+The final audit (`evidence/CLAIM_AUDIT_2026-10-31_final.json`) downgrades only
+ORACLE-01, GOV-05, TEAM-01, TEAM-05 and CORE-06. The earlier 18-claim audit is
+retained as history. The broad campaign ran 130 claims with 0 failed and 0
+group errors; the install/restart script and acceptance harness now exit
+nonzero on assertion failure. The mandatory practical employee gate and the
+substantive model-quality assessment are still separate open items. Cached
+BYOK refresh code is in place (credential revision, dispatch backstop,
+negative-cache reset), but the full Settings → Chat acceptance remains partial
+because the chat router selects an unsupported catalog model in the harness.
+Model access is now available locally; the assessment issue is failed
+qualification/review enforcement, not unavailable infrastructure. Unsupported
+approvals must fail qualification and human review must be enforced before
+downstream action. Firecracker/KVM and live-provider environments remain
+external blockers. No deployment, send, credential change or connected-system
+write was performed.
 
 **Worlds/ports:** harness worlds live under
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;
 the install check uses port 8137. No external credentials, sends, deployments
 or writes to connected systems.
 
-**Status:** COMPLETE for this coverage pass; awaiting independent verifier
-agreement and Agent 1's integrated checkpoint. Not a release declaration.
+**Status:** README coverage target reached (99/123); awaiting independent
+verifier agreement. The controlled practical-assignment gate passed for
+retrieval/calculation/artifact/approval/durable reopen; process restart while
+waiting, changed-revision invalidation, ambiguity, cancellation and duplicate
+resume remain open. The substantive model-quality assessment remains blocked
+on authorized model access. Not a release declaration.
 

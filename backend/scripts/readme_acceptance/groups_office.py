@@ -1,6 +1,7 @@
 """Office automation / Canvas co-editing scenarios (DOCX, XLSX, PPTX)."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import uuid
@@ -105,20 +106,90 @@ def office(ctx: Ctx) -> None:
                      f"heading_preserved={'Heading 1' in pag_styles} "
                      f"tables={len(after_sync.tables)}")
 
-    # ---- OFF-07 structured snapshot -----------------------------------
+    # ---- OFF-07 live canvas broadcast on BOTH channels -----------------
+    off07_error = None
+    canvas_message = None
+    user_message = None
+    tool_result = None
+    second_canvas = None
     try:
-        from core.office_sync_service import OfficeSyncService
-        db = ctx.db()
-        try:
-            snap = OfficeSyncService(db)._read_structured_content(str(docx_path))
-        finally:
-            db.close()
-        ctx.record("OFF-07", "partial",
-                   [ctx.save("office/snapshot.json", snap)],
-                   notes="Structured snapshot is computed/persisted; live WS "
-                         "delivery needs a subscribed browser client")
+        from tools.office_tool import modify_word_document
+        if not canvas_id:
+            raise RuntimeError("OFF-05 did not return a canvas id")
+
+        # An unrelated canvas bound to a different file must not be targeted.
+        other_path = root / f"acceptance_other_{suffix}.docx"
+        other_doc = docx.Document()
+        other_doc.add_paragraph("unrelated canvas")
+        other_doc.save(str(other_path))
+        other_present = ctx.post("/api/v1/office/present", json={
+            "file_path": str(other_path), "user_id": ctx.admin_id,
+            "title": "unrelated canvas"})
+        second_canvas = (other_present.json() if other_present.status_code == 200
+                         else {}).get("canvas_id")
+
+        async def _write_and_wait():
+            res = await modify_word_document(
+                ctx.admin_id, str(docx_path), "append",
+                "LIVE-BROADCAST-MARKER: agent write reached both channels.")
+            await asyncio.sleep(1.0)
+            return res
+
+        def _receive_update(ws, label):
+            for _ in range(12):
+                candidate = ws.receive_json()
+                if candidate.get("type") == "canvas:update":
+                    return candidate
+            raise RuntimeError(f"no canvas:update on {label}")
+
+        # The canvas page subscribes on canvas:{id}; the working chat panel
+        # listens on user:{uid}. Both are first-class delivery channels.
+        with ctx.client.websocket_connect(
+                f"/api/canvas/ws/{canvas_id}?token={ctx.token}") as canvas_ws,                 ctx.client.websocket_connect(
+                    f"/ws/default?token={ctx.token}") as user_ws:
+            tool_result = asyncio.run(_write_and_wait())
+            canvas_message = _receive_update(canvas_ws, "canvas")
+            user_message = _receive_update(user_ws, "user")
     except Exception as exc:
-        ctx.record("OFF-07", "unverified", notes=f"snapshot failed: {exc}")
+        import traceback as _tb
+        off07_error = f"{type(exc).__name__}: {exc}"
+        ctx.save("office/live_error.txt", _tb.format_exc())
+
+    def _channel_ok(message, label):
+        data = (message or {}).get("data") or {}
+        content = data.get("data") or {}
+        paragraphs = content.get("paragraphs") or []
+        rendered = json.dumps(paragraphs)
+        return (message is not None
+                and data.get("canvas_id") == canvas_id
+                and data.get("canvas_type") in ("docs", "document")
+                and "LIVE-BROADCAST-MARKER" in rendered)
+
+    canvas_ok = _channel_ok(canvas_message, "canvas")
+    user_ok = _channel_ok(user_message, "user")
+    same_revision = (
+        (canvas_message or {}).get("data", {}).get("data")
+        == (user_message or {}).get("data", {}).get("data"))
+    off07_ok = (off07_error is None and tool_result is not None
+                and tool_result.get("success") is True
+                and canvas_ok and user_ok and same_revision
+                and second_canvas is not None
+                and second_canvas != canvas_id)
+    ctx.record("OFF-07", "verified" if off07_ok else "failed",
+               [ctx.save("office/live_broadcast.json", {
+                   "canvas_id": canvas_id,
+                   "second_canvas": second_canvas,
+                   "tool_result": tool_result,
+                   "canvas_channel": canvas_message,
+                   "user_channel": user_message,
+                   "canvas_ok": canvas_ok,
+                   "user_ok": user_ok,
+                   "same_revision": same_revision,
+                   "error": off07_error,
+               })],
+               notes=f"canvas={canvas_id} canvas_channel={canvas_ok} "
+                     f"user_channel={user_ok} same_revision={same_revision} "
+                     f"unrelated_canvas={second_canvas} error={off07_error}")
 
     # ---- OFF-08 reopen after restart ----------------------------------
     if canvas_id:

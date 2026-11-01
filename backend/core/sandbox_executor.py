@@ -99,7 +99,12 @@ class SandboxExecutor:
                 })
                 interventions += 1
 
-            metadata = segment.metadata or {}
+            # ``metadata`` is SQLAlchemy's declarative MetaData, not a JSON
+            # payload. EpisodeSegment has no metadata column; use an explicit
+            # JSON field when present, otherwise no metadata.
+            metadata = getattr(segment, "metadata_json", None) or {}
+            if not isinstance(metadata, dict):
+                metadata = {}
             if metadata.get("human_intervention_required"):
                 interventions += 1
 

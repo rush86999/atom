@@ -130,6 +130,152 @@ class AgentIntegrationGateway:
                             "message": "Action paused for manual review (External Stakeholder Governance)"
                         }
 
+                approved = contact_governance.find_approved_action(
+                    workspace_id, action_type.value, platform, params)
+                if approved:
+                    from core import outbound_operation_claim as operation_claim
+
+                    if approved.get("binding_ok") is not True:
+                        return {
+                            "status": "approval_binding_mismatch",
+                            "requires_new_approval": True,
+                            "hitl_id": approved.get("id"),
+                            "message": (
+                                "The request changed after human review; the "
+                                "approved payload is not the payload being "
+                                "dispatched."),
+                            "error": approved.get("reason"),
+                        }
+
+                    # Dispatch exactly the captured reviewed payload, not the
+                    # possibly-mutated current request.
+                    dispatch_params = dict(approved.get("params") or {})
+                    payload_hash = operation_claim.payload_sha256(
+                        workspace_id=workspace_id,
+                        approval_id=approved["id"],
+                        action_type=action_type.value,
+                        platform=platform,
+                        params=dispatch_params,
+                    )
+                    claim = operation_claim.claim_or_replay(
+                        workspace_id=workspace_id,
+                        tenant_id=params.get("tenant_id"),
+                        approval_id=approved["id"],
+                        payload_hash=payload_hash,
+                        operation_type=f"outbound:{action_type.value}",
+                    )
+                    if not claim.get("won"):
+                        status = claim.get("status")
+                        if status == operation_claim.SUCCEEDED:
+                            return {
+                                "status": "duplicate",
+                                "idempotent": True,
+                                "hitl_id": approved.get("id"),
+                                "message": "This approved outbound payload was already applied",
+                            }
+                        if status == operation_claim.CLAIMED:
+                            return {
+                                "status": "in_progress",
+                                "idempotent": True,
+                                "hitl_id": approved.get("id"),
+                                "message": "Another worker has claimed this approved operation",
+                            }
+                        if status == operation_claim.DISPATCHING:
+                            return {
+                                "status": operation_claim.UNCERTAIN_EFFECT,
+                                "requires_reconciliation": True,
+                                "hitl_id": approved.get("id"),
+                                "message": "Dispatch started but has no confirmed receipt; reconcile before retrying",
+                            }
+                        if status in (operation_claim.FAILED_BEFORE_EFFECT,
+                                      operation_claim.UNCERTAIN_EFFECT):
+                            return {
+                                "status": status,
+                                "requires_reconciliation": status == operation_claim.UNCERTAIN_EFFECT,
+                                "hitl_id": approved.get("id"),
+                                "message": "Claim is terminal for automatic retry; reconcile before resending",
+                            }
+                        if status == "conflict":
+                            return {
+                                "status": "conflict",
+                                "error": claim.get("error"),
+                                "hitl_id": approved.get("id"),
+                            }
+                        return {
+                            "status": status or "unavailable",
+                            "error": claim.get("error"),
+                            "hitl_id": approved.get("id"),
+                        }
+
+                    record_id = claim["record_id"]
+                    if not operation_claim.mark_status(
+                            record_id, operation_claim.DISPATCHING):
+                        return {
+                            "status": operation_claim.UNCERTAIN_EFFECT,
+                            "requires_reconciliation": True,
+                            "hitl_id": approved.get("id"),
+                            "error": "claim could not enter the dispatch state",
+                        }
+                    try:
+                        result = await self._handle_send_message(platform, dispatch_params)
+                    except Exception as exc:  # noqa: BLE001 — transport may have applied
+                        effect_possible = getattr(exc, "effect_possible", True)
+                        status = (
+                            operation_claim.FAILED_BEFORE_EFFECT
+                            if effect_possible is False
+                            else operation_claim.UNCERTAIN_EFFECT
+                        )
+                        operation_claim.mark_status(record_id, status)
+                        return {
+                            "status": status,
+                            "requires_reconciliation": (
+                                status == operation_claim.UNCERTAIN_EFFECT),
+                            "hitl_id": approved.get("id"),
+                            "error": str(exc)[:500],
+                        }
+
+                    if result.get("status") == "success":
+                        # Persist the confirmed state BEFORE the side receipt.
+                        # If this write fails, the durable row stays
+                        # dispatching and a retry is treated as uncertain.
+                        if not operation_claim.mark_status(
+                                record_id, operation_claim.SUCCEEDED):
+                            return {
+                                "status": operation_claim.UNCERTAIN_EFFECT,
+                                "requires_reconciliation": True,
+                                "hitl_id": approved.get("id"),
+                                "message": "Transport succeeded but confirmation was not persisted; reconcile before retrying",
+                            }
+                        try:
+                            contact_governance.mark_effect_applied(
+                                approved["id"], {
+                                    "platform": platform,
+                                    "recipient": dispatch_params.get("recipient_id"),
+                                    "status": result.get("status"),
+                                })
+                        except Exception as receipt_err:  # noqa: BLE001
+                            logger.error(
+                                "outbound receipt attach failed after success: %s",
+                                receipt_err)
+                        return result
+
+                    # Transport returned a non-success result. Only a result
+                    # that explicitly says no effect is possible may be
+                    # classified as failed_before_effect.
+                    effect_possible = result.get("effect_possible", True)
+                    status = (
+                        operation_claim.FAILED_BEFORE_EFFECT
+                        if effect_possible is False
+                        else operation_claim.UNCERTAIN_EFFECT
+                    )
+                    operation_claim.mark_status(record_id, status)
+                    return {
+                        **result,
+                        "status": status,
+                        "requires_reconciliation": (
+                            status == operation_claim.UNCERTAIN_EFFECT),
+                        "hitl_id": approved.get("id"),
+                    }
                 return await self._handle_send_message(platform, params)
                 
             elif action_type == ActionType.UPDATE_RECORD:

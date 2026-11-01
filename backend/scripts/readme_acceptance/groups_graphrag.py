@@ -10,7 +10,7 @@ from .common import Ctx, make_agent
 
 
 def graphrag(ctx: Ctx) -> None:
-    base = "/api/graphrag/api/graphrag"
+    base = "/api/graphrag"
     ws = ctx.workspace_id or "default"
     suffix = uuid.uuid4().hex[:6]
 
@@ -42,9 +42,21 @@ def graphrag(ctx: Ctx) -> None:
     b = ctx.post(f"{base}/entities", params={"workspace_id": ws}, json={
         "name": f"Borealis-{suffix}", "type": "project",
         "description": "downstream project"})
+    # A third connected node makes a triangle; the community detector's
+    # documented floor is min_community_size=3, so a two-node fixture can
+    # never produce a community even when detection is healthy.
+    c = ctx.post(f"{base}/entities", params={"workspace_id": ws}, json={
+        "name": f"Cassiopeia-{suffix}", "type": "project",
+        "description": "acceptance reporting project"})
     rel = ctx.post(f"{base}/relationships", params={"workspace_id": ws}, json={
         "from_entity": f"Atlas-{suffix}", "to_entity": f"Borealis-{suffix}",
         "relationship_type": "depends_on", "description": "acceptance edge"})
+    rel2 = ctx.post(f"{base}/relationships", params={"workspace_id": ws}, json={
+        "from_entity": f"Borealis-{suffix}", "to_entity": f"Cassiopeia-{suffix}",
+        "relationship_type": "reports_to", "description": "acceptance edge"})
+    rel3 = ctx.post(f"{base}/relationships", params={"workspace_id": ws}, json={
+        "from_entity": f"Cassiopeia-{suffix}", "to_entity": f"Atlas-{suffix}",
+        "relationship_type": "supports", "description": "acceptance edge"})
     neighbors = ctx.get(f"{base}/entities/{a.json().get('data', {}).get('id', 'missing')}/neighbors"
                         if a.status_code == 200 else f"{base}/entities/missing/neighbors",
                         params={"workspace_id": ws, "depth": 2})
@@ -55,7 +67,10 @@ def graphrag(ctx: Ctx) -> None:
     ctx.record("GRAPH-02", "verified" if hop_ok else "partial",
                [ctx.save("graphrag/hop.json", {
                    "entity_a": a.text[:500], "entity_b": b.text[:500],
-                   "relationship": rel.text[:500], "neighbors": nbody})],
+                   "relationship": rel.text[:500],
+                   "relationship_2": rel2.text[:300],
+                   "relationship_3": rel3.text[:300],
+                   "neighbors": nbody})],
                notes=f"two_hop_visible={hop_ok}")
 
     communities = ctx.post(f"{base}/build-communities",
@@ -201,14 +216,41 @@ def goals(ctx: Ctx) -> None:
                     "objective_done": done,
                 },
             )
-            return calls, result
+            return agent_id, calls, result
 
-        satisfied_calls, satisfied = asyncio.run(_run_loop_case(
+        satisfied_agent, satisfied_calls, satisfied = asyncio.run(_run_loop_case(
             "satisfied", lambda state: int(state.get("current_step", 0)) >= 2, 5))
-        impossible_calls, impossible = asyncio.run(_run_loop_case(
+        impossible_agent, impossible_calls, impossible = asyncio.run(_run_loop_case(
             "impossible", lambda state: False, 3))
-        ok = (len(satisfied_calls) == 2 and len(satisfied.get("steps") or []) == 2
-              and len(impossible_calls) == 3)
+
+        # Downstream semantics: objective_satisfied must be persisted and
+        # scored as a successful completion, never as budget exhaustion.
+        from core.models import AgentExecution, AuditLog
+        db = ctx.db()
+        try:
+            execution = (db.query(AgentExecution)
+                         .filter(AgentExecution.agent_id == satisfied_agent)
+                         .order_by(AgentExecution.started_at.desc()).first())
+            completion = (db.query(AuditLog)
+                          .filter(AuditLog.resource == satisfied_agent,
+                                  AuditLog.action == "execution_complete")
+                          .order_by(AuditLog.timestamp.desc()).first())
+            downstream = {
+                "execution_status": getattr(execution, "status", None),
+                "audit_success": getattr(completion, "success", None),
+                "audit_metadata": getattr(completion, "metadata_json", None),
+            }
+        finally:
+            db.close()
+        downstream_ok = (downstream["execution_status"] == "completed"
+                         and downstream["audit_success"] is True
+                         and "objective_satisfied" in (downstream["audit_metadata"] or ""))
+        ok = (len(satisfied_calls) == 2
+              and len(satisfied.get("steps") or []) == 2
+              and satisfied.get("status") == "objective_satisfied"
+              and len(impossible_calls) == 3
+              and impossible.get("status") == "max_steps_exceeded"
+              and downstream_ok)
         ctx.record("GOAL-01", "verified" if ok else "failed",
                    [ctx.save("goals/objective_loop.json", {
                        "satisfied_calls": len(satisfied_calls),
@@ -216,12 +258,15 @@ def goals(ctx: Ctx) -> None:
                        "satisfied_steps": len(satisfied.get("steps") or []),
                        "impossible_calls": len(impossible_calls),
                        "impossible_status": impossible.get("status"),
-                       "note": "status field says max_steps despite the early "
-                               "predicate break; shared-loop reporting bug",
+                       "downstream": downstream,
+                       "downstream_ok": downstream_ok,
+                       "note": "frozen acceptance requires objective_satisfied on "
+                               "the early break and max_steps_exceeded on the control; "
+                               "the satisfied run persists as a successful completion",
                    })],
-                   notes=f"predicate stop at {len(satisfied_calls)}/5 calls; "
-                         f"control burned {len(impossible_calls)}/3; "
-                         f"status reporting bug recorded")
+                   notes=f"predicate stop at {len(satisfied_calls)}/5 calls "
+                         f"status={satisfied.get('status')}; control burned "
+                         f"{len(impossible_calls)}/3 status={impossible.get('status')}")
     except Exception as exc:
         ctx.record("GOAL-01", "failed",
                    notes=f"objective loop execution failed: {exc}")

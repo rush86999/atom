@@ -534,6 +534,10 @@ async def sync_update(
     current_user: User = Depends(get_current_user),
 ):
     """Synchronize canvas co-editing operations back to the local filesystem file."""
+    # Contain the path before any canvas lookup: an out-of-scope path is a
+    # malformed request (400) regardless of whether the canvas exists, and it
+    # must never reach the filesystem or leak canvas existence.
+    _require_office_path(req.file_path)
     _require_canvas_owner(db, req.canvas_id, current_user)
     _require_file_binding(db, req.canvas_id, req.file_path)
     sync_service = OfficeSyncService(db)

@@ -1,84 +1,165 @@
-# Independent verifier review request — corrected resubmission
+# Independent verifier review request — integrated 99/123 candidate
 
-**Date:** 2026-10-31 (correction after verifier decision)
-**Prepared by:** Agent 2 (README breadth + common-data surface)
-**Status requested:** agreement on the corrected claim list and denominator, not
-a release approval.
+**Date:** 2026-10-31 (integrated campaign)
+**Prepared by:** Agent 2 (README breadth + acceptance)
+**Status requested:** review of the frozen claim matrix and evidence, not a
+release approval.
 
-## 1. What changed
+## 1. Result
 
-The prior submission claimed 100/123 (81.3%). I accept the four verifier
-findings:
-
-1. the acceptance world could be deleted unsafely;
-2. ORACLE-06 and GOAL-01 passed on source/predicate inspection rather than
-   executing their claimed behavior;
-3. SEC-06 was an unconditional pass;
-4. the evidence manifest had a hash mismatch for `frontend-results.json`.
-
-The corrections are recorded in
-[`COVERAGE_REPORT_2026-10-31.md`](COVERAGE_REPORT_2026-10-31.md) §2 and
-[`evidence/CLAIM_AUDIT_2026-10-31.json`](evidence/CLAIM_AUDIT_2026-10-31.json).
-The denominator is unchanged: **123 eligible functional claims**.
-
-## 2. Corrected result
-
-| Question | Proposed answer |
+| Question | Answer |
 |---|---|
-| Is the denominator still frozen? | Yes — 123 eligible functional claims; the README hash/commit are pinned and unchanged |
-| Corrected score | **83 / 123 = 67.5%** |
-| Are partial/failed/unverified excluded? | Yes — 40 functional claims are not counted |
-| Security | 8/8 separately |
-| Performance | 1/3 (test count; latency/throughput unmeasured) |
-| Compatibility / comparative | 0/4 and 0/5; tracked separately |
-| Is any category entirely untested? | No, but governance, agent teams, ask/trust, memory, orchestration and routing are thin |
+| Denominator | **123 eligible functional claims** (unchanged; README hash/commit pinned) |
+| Verified | **99 / 123 = 80.5%** |
+| Not verified | 24 functional claims |
+| Security | 8 / 8 separately |
+| Performance | 0 / 3 separately (test count reported; latency/throughput unmeasured) |
+| Compatibility | 0 / 4 separately |
+| Comparative marketing | 0 / 5 separately |
+| Broad run | 130 claims, 110 verified, **0 failed, 0 group errors** |
+| Install/restart | process-level task/workflow/Office canvas/goal-run checks pass |
+| Scripts | harness and install exit nonzero on a failed assertion |
 
-The drop from 81.3% is deliberate: 17 claims that passed on existence-only,
-status-only, synthetic-history or prerequisite checks were downgraded. The
-audit file gives the reason per claim.
+The 99 includes GOAL-01 after its objective status was integrated and its
+downstream success semantics were verified. It excludes ASK-03, ROUTE-03 and
+GRAPH-05, which are deliberately left partial rather than counted on weaker
+evidence. The final audit downgraded only five claims whose assertions were
+weaker than their frozen acceptance: ORACLE-01, GOV-05, TEAM-01, TEAM-05,
+CORE-06.
 
-## 3. Required corrections: evidence
+## 2. New executable evidence
 
-| Finding | Correction |
+| Claim | Evidence |
 |---|---|
-| Unsafe world deletion | `common.reset_world()` now refuses protected paths, symlinks, outside-root paths and unmarked directories; install uses the same helper. Tests: `tests/test_readme_harness_world_guard.py` (10 cases). |
-| ORACLE-06 | Executable conductor test: one REVIEW rejection → same step re-delegated with feedback → three branches rerun → accepted revised answer. `reviewer_calls=2`, `attempts=6`. Test: `tests/test_reviewer_redelegation_execution.py`. |
-| GOAL-01 | Running `GenericAgent.execute()`: satisfying predicate stops at 2/5 calls; impossible predicate burns 3/3. Test: `tests/test_objective_loop_termination.py`. |
-| SEC-06 | Transport/scheme/host policy before any network; permitted local server plus metadata/file/allowlist/transport refusals; `httpx.AsyncClient` sentinel proves no prohibited connection; failed registrations do not leak. Test: `tests/test_mcp_client_egress.py`. |
-| SEARCH-02 | Zero-lexical query retrieves the semantic document (`lexical_hits=0`, `vector_hits=1`). |
-| SEARCH-04 | Requires `citation_path` and resolves it via `documents.cat` to line-numbered content; an ID alone fails. |
-| Evidence hash | Pre-rename `frontend-results.json` preserved as `frontend-results.pre-rename.json` (sha256 `4b56ba3c…`, matching the old report); final hashes regenerated in `evidence/MANIFEST.json`. |
+| GOV-02 | goal checkpoint held before approval; approval resumed into one canvas; rejection created none |
+| GOV-03 | real `tasks.create` execution feed with actor/action/target/outcome and replay |
+| GOAL-01 | 2/5 `objective_satisfied`, 3/3 `max_steps_exceeded`; persisted execution completed; audit success |
+| GOAL-05 | same paused run identity/status/canvases after real backend restart; one resumed deliverable |
+| WF-07 | template import + execution completed with per-step results; unknown id 404 |
+| MEM-01 | real `sync_turn` hook persisted the controlled fact; transient chatter absent |
+| MEM-04 | 10 episodes → readiness → exam → recorded INTERN promotion; empty agent not promoted |
+| CORE-04 | taught rule changed a later answer; wrong-agent and wrong-goal controls; corrected lesson applied |
+| ASK-01 | 20 oracle-verified outcomes → capability supervised → gate propose→execute; reset control proposed |
+| ASK-05 | stats, cold-start refusal, gated certification queue, approval flips enforcement |
+| ROUTE-04 | 56 feedback rows changed selection `minimax-m3`→`gpt-4o`; readiness true |
+| IO-06 | gateway request span + local Langfuse collector batch, no secrets |
+| OFF-07 | agent write delivered to both the canvas subscriber and the `user:{uid}` subscriber with the same structured revision; unrelated canvas excluded |
+| TEAM-06 | incumbency/reviewer/COI report baselines; empty-window zero control |
+| INT-04 | registered HubSpot adapter read with bearer token/path assertions; missing token refused |
+| INT-05 | external send held at HITL; one effect after approval; sequential retry duplicate; approval replay 400; two simultaneous retries → one effect; restart-after-claim, changed-payload conflict, persistence-failure uncertainty and before-effect failure all leave the effect count at one/zero; a parameter changed after approval is refused before claim creation with zero transport; rejection still blocked |
+| INT-07 | original-bytes HMAC accepted once, replay duplicate, forged/missing 401 |
 
-## 4. Specific claims still open
+## 3. Product fixes in the integrated candidate
 
-See `COVERAGE_REPORT_2026-10-31.md` §4 for all 40. Notable:
+- stable/registered workflow-template instances and linear step chaining;
+- canvas WebSocket on a dependency-free router with its own token/ownership
+  check; Office broadcast mirrors to the canvas page manager;
+- single `/api/graphrag` mount (the double prefix is gone);
+- episode-create route handles the production dict record;
+- graduation-exam sandbox no longer treats SQLAlchemy `MetaData` as JSON;
+- `objective_satisfied` is success for audit, experience confidence, plan
+  adherence and persisted execution status;
+- fallback ladder includes async-only local providers;
+- install/restart evidence includes a paused goal checkpoint;
+- approved outbound effects atomically claim the existing
+  `task_operation_records` row before dispatch, bind it to the complete
+  payload hash, and persist success/failed-before-effect/uncertain-effect
+  distinctly; competing/restarted callers never resend. The complete
+  normalized request is compared with the immutable reviewed payload before
+  claiming; a changed parameter is refused before any claim or transport, and
+  the captured approved payload is dispatched.
 
-- **ORCH-08** is `inaccurate` (delegation `max_depth` is stored, not enforced).
-- **GOV-05** is `partial` (OIDC config only; login 503; no callback).
-- **ORACLE-01** is `partial` (only two postcondition verifiers; not every
-  mutating action).
-- **TEAM/ASK/MEM** are `partial` where the harness exercised a prerequisite or
-  synthetic history rather than the full claimed operation.
-- **MINI-03/04/05** are environment-limited/architecture-only (no KVM).
-- **INT-09** is blocked externally; 67 providers are registered/evidenced, not
-  live-qualified.
-- **INST-01** is unverified (full pristine `make setup` not run).
+## 3.1 Practical employee gate
 
-## 5. Shared defects handed to Agent 1
+The controlled connected-assignment gate passed: real catalog/Parquet retrieval,
+teaching standards, grounded calculation (`85.00` sum / `3` count), DOCX/PPTX
+artifacts, approval/outbox, and durable reopen. Evidence:
+`evidence/practical-assignment.json`.
 
-- Cached BYOK key: a key stored after `LLMService` construction is not seen by
-  chat until restart; gateway works.
-- Objective-loop status: the loop stops at the satisfying predicate but returns
-  `max_steps_exceeded`; GOAL-01 is counted for termination only. This is a
-  separate shared-loop reporting bug.
+The five remaining boundaries were then exercised through the real Assignments
+page on the sibling `codex/employee-execution-readiness` candidate (source
+`b24f67c29`): **5/5 checks passed** — wait→backend restart→resume, changed
+source revision invalidates stale mapping work while completed work survives,
+ambiguous mapping identity is refused without sheet/version and resolved with
+it, cancellation survives reload and refuses a late response, and duplicate
+concurrent resume dispatches once with no outbox effect. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/`.
+This is a product gate, not an addition to the README breadth denominator.
 
-## 6. Decision requested
+The bounded-autonomy follow-up also passed on the same candidate (code
+`814962078`): explicit recipient/count-bounded standing authority consumed
+under the assignment CAS before dispatch, `max_cost_usd` enforcement, a
+TEAM_LEAD uncertain-effect reconcile route with mandatory evidence, and a
+draft-vs-authorized assessment panel. The integrated sales (`85`) + grants
+(`4250`) browser journey restarted while both waited and completed with
+**2 effects and 0 assignment approvals** (5/5). Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-autonomy-boundaries/`
+and `.../two-domain-autonomous-journey/`. This remains separate from README
+breadth.
 
-- **Agree** — denominator and 83/123 corrected set accepted as reviewed.
-- **Disagree** — name the claim(s) and the boundary/evidence problem; I will
-  rerun or downgrade rather than argue a number.
+**Verifier acceptance (2026-10-31):** the practical scope is accepted at
+source `b7ee7ee22` within the local, single-worker, controlled-outbox boundary.
+Record: `atom-employee-execution/docs/acceptance/VERIFIER_ACCEPTANCE_2026-10-31.md`.
+The 99/123 breadth result remains separate; autonomous judgment, live sending,
+multi-worker and universal reliability remain excluded.
+
+The execution-boundary follow-up (code `b7ee7ee22`) makes post-effect runtime,
+parse, timeout and cancellation errors `uncertain` (never
+`failed_before_effect`) and replaces stop-after-overspend with a conservative
+pre-dispatch cost reservation, concurrent/retry accounting, an explicit
+soft-limit path and in-operation wall-time enforcement. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-execution-boundaries/`.
+The two-domain browser journey was rerun on that source: 5/5, 2 effects, 0
+assignment approvals.
+
+---
+
+## 4. Specific remaining work
+
+- **CORE-06 / ROUTE-06**: the credential-revision rebuild, dispatch-time
+  backstop and negative provider-cache reset are implemented, but the full
+  Settings → save key → Chat acceptance still selects an unsupported catalog
+  model. This is an engineering/catalog-selection issue, not a missing owner
+  decision. CORE-06 and ROUTE-06 remain partial and are not counted.
+- **ROUTE-03**: this world's provider policy admits one gateway route; a
+  failed upstream returns `all_providers_failed`. The async-provider fallback
+  fix is in place, but no cross-provider fallback world is configured yet.
+- **ORACLE-01**: only two postcondition verifiers; "every mutating action" is
+  not established.
+- **GOV-05**: OIDC config only; login 503 and no IdP callback.
+- **TEAM-01/05**: exactly-one accountability and nightly automation are not
+  enforced/exercised.
+- **Model-backed**: model access is now available locally. ORCH-01/02/07,
+  GOAL-02/04, GOV-04, WF-05, MEM-07 and ROUTE-07 remain engineering work.
+  The substantive assessment was executed on local `ollama`/`llama3.1:8b`;
+  it scored 17/18 on V1 and 18/19 on V3/post-restart, and produced a false APPROVE on
+  `Q-012`, so the qualification verdict is **failed**, not pending
+  infrastructure.
+- **Assessment safety repairs**: done on `codex/employee-execution-readiness`
+  (source `6363e3794`; typed outcomes `f8198c60e`). Unsupported approvals fail qualification; the default
+  review policy requires human approval before downstream action; approval is
+  bound to a canonical artifact digest recomputed from persisted content plus
+  execution/source/policy/canvas revisions and an atomic assessment revision.
+  A route-level test confirms unreviewed refusal, exact-execution approval,
+  and `content_drift` refusal when one reviewed field changes with the stored
+  hash untouched. **106 focused tests pass**. Evidence:
+  `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`. The clarification follow-up (`099c15e02`, evidence `2108a2839`) binds each answer to a stable requirement id, refuses ambiguous subject-only answers, and preserves answers as history when source/policy/manifest revisions move.
+- **Environment/external**: MINI-03/04/05 need KVM; INT-09 needs real provider
+  accounts; INST-01 needs a pristine `make setup`.
+- **GRAPH-05**: API query verified; the browser explorer check is not yet
+  counted (the standalone browser harness is not part of the authoritative
+  result).
+- **ASK-03**: automation ledger revocation is consent-gated and has no
+  runtime action consumer; left partial.
+
+## 5. Decision requested
+
+- **Agree** — denominator and 99/123 integrated set accepted as reviewed.
+- **Disagree** — name the claim and the boundary/evidence problem; it will be
+  rerun or downgraded, not argued.
 - **Conditional** — specify the additional worlds required (local IdP, live
-  provider, Firecracker host, model-backed orchestration/goal loop).
+  provider, KVM/Firecracker, authorized model, cross-provider policy).
 
 No deployment, real send, credential change or connected-system write was
-performed.
+performed. Controlled-provider evidence is separated from model-quality and
+live-delivery evidence.

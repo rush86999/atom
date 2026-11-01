@@ -1,0 +1,8 @@
+{
+  "satisfied_calls": 2,
+  "satisfied_status": "objective_satisfied",
+  "satisfied_steps": 2,
+  "impossible_calls": 3,
+  "impossible_status": "max_steps_exceeded",
+  "note": "frozen acceptance requires objective_satisfied on the early break and max_steps_exceeded on the control"
+}

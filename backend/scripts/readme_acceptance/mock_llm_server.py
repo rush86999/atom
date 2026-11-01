@@ -41,10 +41,41 @@ def _openai_completion(body: Dict[str, Any]) -> Dict[str, Any]:
     content = f"acceptance reply for: {prompt[-120:]}"
     message: Dict[str, Any] = {"role": "assistant", "content": content}
     finish = "stop"
+    low = prompt_full.lower()
+    goal_decision = None
+    if "decision rules:" in low:
+        goal_decision = {
+            "decision": "ADVANCE",
+            "rationale": "controlled acceptance router",
+            "parameter_updates": {},
+            "target_step": None,
+            "confidence": 0.9,
+        }
     # Deterministic tool call: if tools are offered and the caller has not
     # already used one, emit the first offered tool once.
     used_tool = any(m.get("role") == "tool" for m in messages if isinstance(m, dict))
-    if tools and not used_tool:
+    if goal_decision is not None and tools:
+        choice = body.get("tool_choice") or {}
+        fn_name = ((choice.get("function") or {}).get("name")
+                   if isinstance(choice, dict) else None) or "RouterDecisionModel"
+        message = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [{
+                "id": f"call_{uuid.uuid4().hex[:12]}",
+                "type": "function",
+                "function": {"name": fn_name,
+                             "arguments": json.dumps(goal_decision)},
+            }],
+        }
+        finish = "tool_calls"
+    elif goal_decision is not None:
+        # Ollama/local structured calls may not offer tools; give the
+        # JSON object as content instead.
+        message = {"role": "assistant",
+                   "content": json.dumps(goal_decision)}
+        finish = "stop"
+    elif tools and not used_tool:
         tool = tools[0]
         fn = tool.get("function") or tool
         name = fn.get("name") or "acceptance_tool"
@@ -58,7 +89,6 @@ def _openai_completion(body: Dict[str, Any]) -> Dict[str, Any]:
             }],
         }
         finish = "tool_calls"
-    low = prompt_full.lower()
     if "output only json" in low and "entities" in low:
         # KnowledgeExtractor contract: content must be a JSON object with
         # entities/relationships. Controlled extraction fixture.
@@ -156,6 +186,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, {"jsonrpc": "2.0", "id": req_id, "result": result})
 
     def do_GET(self):
+        if self.path.rstrip("/").endswith("/api/tags"):
+            self._send(200, {"models": [
+                {"name": "acceptance-model", "model": "acceptance-model"}]})
+            return
         if self.path.rstrip("/").endswith("/models"):
             self._send(200, {"object": "list", "data": [
                 {"id": "acceptance-model", "object": "model", "owned_by": "acceptance"},
@@ -169,12 +203,14 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0].rstrip("/")
         with _CALLS_LOCK:
             _CALLS.append({"path": self.path, "body": body,
-                           "authorization": self.headers.get("authorization")})
+                           "authorization": self.headers.get("authorization"),
+                           "port": getattr(self.server, "server_address", (None, None))[1]})
         if path.endswith("/mcp"):
             self._mcp(body)
             return
         if path.endswith("/chat/completions"):
-            if body.get("model") == "fail-model":
+            if (body.get("model") == "fail-model"
+                    and getattr(self.server, "fail_model", True)):
                 self._send(502, {"error": {"message": "acceptance upstream failure",
                                            "type": "upstream_error"}})
                 return
@@ -218,8 +254,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class Server:
-    def __init__(self, port: int = 59997):
+    def __init__(self, port: int = 59997, fail_model: bool = True):
         self.httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        self.httpd.fail_model = fail_model
         self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
 
     def start(self) -> "Server":

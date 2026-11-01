@@ -7,7 +7,7 @@ import json
 import uuid
 from pathlib import Path
 
-from .common import Ctx
+from .common import Ctx, make_agent
 
 
 def _fixtures() -> dict:
@@ -400,57 +400,253 @@ def memory_group(ctx: Ctx) -> None:
                    "vector_hit": vector_hit})],
                notes=f"vector_written={vector_written} semantic_hit={vector_hit}")
 
-    # MEM-04 episodes: served create/list/retrieve need a chat session. Verify
-    # the episode surface is served and the creation contract is present.
-    listing = ctx.get(f"/api/episodes/{ctx.admin_id}/list")
-    retrieval = ctx.get("/api/episodes/retrieve/semantic", params={"query": "quarterly"})
-    ctx.record("MEM-04", "partial" if listing.status_code in (200, 404) else "unverified",
-               [ctx.save("memory/episodes.json", {
-                   "list": {"status": listing.status_code, "body": listing.text[:800]},
-                   "retrieve": {"status": retrieval.status_code,
-                                "body": retrieval.text[:800]},
+    # MEM-04 episodes: create real session-backed episodes, then require
+    # readiness evidence and a recorded promotion (not merely a list route).
+    student_id = make_agent(ctx, f"episode-student-{uuid.uuid4().hex[:6]}",
+                            tier="student", capabilities=["*"])
+    episode_ids = []
+    episode_errors = []
+    for index in range(10):
+        chat = ctx.post("/api/chat/message", json={
+            "message": (f"Acceptance episode {index}: the total is 100 and "
+                        "the source row is 7."),
+            "user_id": ctx.admin_id,
+            "agent_id": student_id,
+        }, timeout=180)
+        cbody = (chat.json() if chat.headers.get("content-type", "")
+                 .startswith("application/json") else {})
+        session_id = cbody.get("session_id")
+        if not session_id:
+            episode_errors.append({"index": index, "chat": chat.status_code,
+                                   "body": chat.text[:300]})
+            continue
+        created = ctx.post("/api/episodes/create", json={
+            "session_id": session_id,
+            "agent_id": student_id,
+            "title": f"Acceptance episode {index}",
+        })
+        ebody = (created.json() if created.status_code == 200 else {})
+        episode_id = ((ebody.get("data") or {}).get("episode_id")
+                      or ebody.get("episode_id"))
+        if not episode_id:
+            episode_errors.append({"index": index,
+                                   "create": created.status_code,
+                                   "body": created.text[:300]})
+            continue
+        episode_ids.append(episode_id)
+
+    readiness = ctx.get(
+        f"/api/episodes/graduation/readiness/{student_id}",
+        params={"target_maturity": "INTERN"})
+    rbody = readiness.json() if readiness.status_code == 200 else {}
+    ready = rbody.get("ready") is True
+    gaps = rbody.get("gaps") or []
+    episodes_analyzed = rbody.get("episode_count") or rbody.get("episodes_analyzed")
+
+    exam = (ctx.post(
+        f"/api/episodes/graduation/exam?agent_id={student_id}",
+        json=episode_ids[:3]) if episode_ids else None)
+    exam_body = (exam.json() if exam is not None and exam.status_code == 200 else {})
+    promote = (ctx.post(
+        f"/api/episodes/graduation/promote?agent_id={student_id}"
+        "&new_maturity=INTERN") if episode_ids else None)
+    promote_body = (promote.json() if promote is not None
+                    and promote.status_code == 200 else {})
+    promoted = bool((promote_body.get("data") or {}).get("promoted")
+                    or promote_body.get("promoted"))
+    audit = ctx.get(f"/api/episodes/graduation/audit/{student_id}")
+    audit_body = audit.json() if audit.status_code == 200 else {}
+
+    # Negative control: an agent with no episodes is not ready and is not
+    # promoted by the same route.
+    empty_agent = make_agent(ctx, f"episode-empty-{uuid.uuid4().hex[:6]}",
+                             tier="student", capabilities=["*"])
+    empty_readiness = ctx.get(
+        f"/api/episodes/graduation/readiness/{empty_agent}",
+        params={"target_maturity": "INTERN"})
+    empty_body = (empty_readiness.json()
+                  if empty_readiness.status_code == 200 else {})
+    empty_promote = ctx.post(
+        f"/api/episodes/graduation/promote?agent_id={empty_agent}"
+        "&new_maturity=INTERN")
+    empty_promote_body = (empty_promote.json()
+                          if empty_promote.status_code == 200 else {})
+    empty_promoted = bool((empty_promote_body.get("data") or {}).get("promoted")
+                          or empty_promote_body.get("promoted"))
+    ok = (len(episode_ids) == 10 and ready
+          and int(episodes_analyzed or 0) >= 10 and not gaps
+          and exam is not None and exam.status_code == 200
+          and promote is not None and promote.status_code == 200 and promoted
+          and audit.status_code == 200
+          and not empty_promoted
+          and (empty_body.get("ready") is not True))
+    ctx.record("MEM-04", "verified" if ok else "failed",
+               [ctx.save("memory/graduation.json", {
+                   "agent": student_id,
+                   "episode_ids": episode_ids,
+                   "episode_errors": episode_errors,
+                   "readiness": {"status": readiness.status_code,
+                                 "body": rbody},
+                   "exam": None if exam is None else {
+                       "status": exam.status_code, "body": exam_body},
+                   "promote": None if promote is None else {
+                       "status": promote.status_code, "body": promote_body},
+                   "promoted": promoted,
+                   "audit": {"status": audit.status_code,
+                             "body": audit_body},
+                   "empty_agent": {"readiness": empty_body,
+                                   "promote": empty_promote_body,
+                                   "promoted": empty_promoted},
                })],
-               notes="Episode create/retrieve surface served; a session-backed "
-                     "episode needs the model-backed chat run")
+               notes=f"episodes={len(episode_ids)} analyzed={episodes_analyzed} "
+                     f"ready={ready} gaps={gaps[:2]} "
+                     f"exam={None if exam is None else exam.status_code} "
+                     f"promote={promoted} empty_promoted={empty_promoted}")
 
-    # MEM-01 per-turn extraction: run the real extraction pipeline with a
-    # controlled model response (the model call is the only external part).
+    # MEM-01 per-turn extraction through the real sync_turn hook. The model
+    # is a controlled local stub; this proves the hook/persistence path, not
+    # model quality.
+    mem01_error = None
+    mem01_result = None
+    mem01_persisted = None
+    transient_persisted = None
+    fact_text = "MEM-TOKEN-8801 is the approved renewal date source."
+    transient_text = "TRANSIENT-CHATTER-9900 should never become a memory."
     try:
-        from core.turn_fact_extractor import TurnFactExtractor
-        extractor = TurnFactExtractor(workspace_id=ctx.workspace_id,
-                                      tenant_id=ctx.tenant_id)
+        from core.generic_agent import GenericAgent, _pending_extraction_tasks
+        from core.models import AgentRegistry
+        from core.react_models import ReActStep
+        from core.turn_fact_extractor import (
+            TURN_FACT_EXTRACTION_ENABLED,
+            TURN_FACT_EXTRACTION_SAMPLE_RATE,
+            _circuit_breaker,
+            get_turn_fact_extractor)
+        _circuit_breaker.reset()
 
-        async def _controlled_generate(**kwargs):
-            return json.dumps([{
-                "fact": "MEM-TOKEN-7731 is the approved renewal date source.",
-                "category": "exact_value",
-                "epistemic": "stated",
-                "confidence": 0.95,
-            }])
+        extractor = get_turn_fact_extractor(
+            workspace_id=ctx.workspace_id, tenant_id=ctx.tenant_id)
 
-        extractor.llm.generate = _controlled_generate
-        extracted = asyncio.run(extractor.extract_from_turn(
-            user_request="Remember that MEM-TOKEN-7731 is the approved renewal date source.",
-            thought="Storing the durable fact.",
-            final_answer="Noted.",
-            maturity="intern",
-            user_id=ctx.admin_id,
-        ))
+        fake_calls = []
+
+        class _ControlledExtractionLLM:
+            async def generate(self, prompt=None, **kwargs):
+                fake_calls.append({
+                    "has_marker": "MEM-TOKEN-8801" in str(prompt or ""),
+                    "prompt_chars": len(str(prompt or "")),
+                })
+                if "MEM-TOKEN-8801" in str(prompt or ""):
+                    return json.dumps([{
+                        "fact": fact_text,
+                        "category": "exact_value",
+                        "epistemic": "stated",
+                        "confidence": 0.95,
+                    }])
+                return "[]"
+
+        extractor.llm = _ControlledExtractionLLM()
+        hook_calls = []
+        _original_extract = extractor.extract_from_turn
+
+        async def _recorded_extract(**kwargs):
+            entry = {
+                "user_request": str(kwargs.get("user_request"))[:200],
+                "final_answer": str(kwargs.get("final_answer"))[:200],
+            }
+            hook_calls.append(entry)
+            try:
+                rows = await _original_extract(**kwargs)
+                entry["persisted"] = [
+                    getattr(row, "fact_text", None) for row in (rows or [])
+                ]
+                return rows
+            except Exception as exc:
+                entry["error"] = f"{type(exc).__name__}: {exc}"
+                raise
+
+        extractor.extract_from_turn = _recorded_extract
+
+        def _make_agent(name):
+            agent_id = make_agent(ctx, name, tier="autonomous",
+                                  capabilities=["*"])
+            db = ctx.db()
+            try:
+                row = (db.query(AgentRegistry)
+                       .filter(AgentRegistry.id == agent_id).first())
+                agent = GenericAgent(row, workspace_id=ctx.workspace_id)
+                # The extractor cache key includes tenant; GenericAgent does
+                # not define tenant_id itself (getattr -> None).
+                agent.tenant_id = ctx.tenant_id
+                return agent_id, agent
+            finally:
+                db.close()
+
+        async def _run_turn(agent, task, answer):
+            async def fake_react_step(task_input, memory, history,
+                                      context=None, utility_delta=None):
+                return ReActStep(thought="controlled turn", final_answer=answer)
+
+            agent._react_step = fake_react_step
+            result = await agent.execute(task)
+            await asyncio.sleep(0.5)
+            pending = list(_pending_extraction_tasks)
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            return result
+
+        mem01_agent_id, mem01_agent = _make_agent(
+            f"mem01-{uuid.uuid4().hex[:6]}")
+        mem01_result = asyncio.run(_run_turn(
+            mem01_agent,
+            "Remember that MEM-TOKEN-8801 is the approved renewal date source.",
+            "Noted the durable fact."))
+        transient_agent_id, transient_agent = _make_agent(
+            f"mem01-transient-{uuid.uuid4().hex[:6]}")
+        asyncio.run(_run_turn(
+            transient_agent,
+            "TRANSIENT-CHATTER-9900 is just passing conversation.",
+            "No durable fact here."))
+
         db = ctx.db()
         try:
-            persisted = (db.query(TurnFact)
-                         .filter(TurnFact.fact_text.like("%MEM-TOKEN-7731%"))
-                         .first())
+            mem01_persisted = (db.query(TurnFact)
+                               .filter(TurnFact.fact_text == fact_text).first())
+            transient_persisted = (db.query(TurnFact)
+                                   .filter(TurnFact.fact_text == transient_text)
+                                   .first())
         finally:
             db.close()
-        ctx.record("MEM-01", "verified" if extracted and persisted else "partial",
-                   [ctx.save("memory/per_turn.json", {
-                       "extracted": [getattr(r, "fact_text", None) for r in extracted],
-                       "persisted": persisted is not None,
-                       "category": getattr(persisted, "category", None)})],
-                   notes="Controlled-model extraction pipeline persisted a categorized fact")
     except Exception as exc:
-        ctx.record("MEM-01", "unverified", notes=f"per-turn extraction failed: {exc}")
+        import traceback as _tb
+        mem01_error = f"{type(exc).__name__}: {exc}"
+        ctx.save("memory/per_turn_error.txt", _tb.format_exc())
+
+    ok = (mem01_error is None and mem01_result is not None
+          and mem01_persisted is not None
+          and getattr(mem01_persisted, "category", None) == "exact_value"
+          and transient_persisted is None)
+    ctx.record("MEM-01", "verified" if ok else "failed",
+               [ctx.save("memory/per_turn.json", {
+                   "controlled_provider": True,
+                   "extraction_enabled": TURN_FACT_EXTRACTION_ENABLED,
+                   "sample_rate": TURN_FACT_EXTRACTION_SAMPLE_RATE,
+                   "fake_calls": fake_calls,
+                   "hook_calls": hook_calls,
+                   "steps": len((mem01_result or {}).get("steps") or []),
+                   "execution_output": (mem01_result or {}).get("output"),
+                   "persisted": None if mem01_persisted is None else {
+                       "fact": getattr(mem01_persisted, "fact_text", None),
+                       "category": getattr(mem01_persisted, "category", None),
+                       "extraction_source": getattr(
+                           mem01_persisted, "extraction_source", None),
+                   },
+                   "transient_persisted": transient_persisted is not None,
+                   "error": mem01_error,
+               })],
+               notes=f"hook_persisted={mem01_persisted is not None} "
+                     f"category={getattr(mem01_persisted, 'category', None)} "
+                     f"transient_persisted={transient_persisted is not None} "
+                     f"controlled_provider=True error={mem01_error}")
+
     ctx.record("MEM-07", "unverified",
                notes="Evolution harness is disabled in this world "
                      "(ATOM_AGENT_EVOLUTION_ENABLED=false); enabling it is a "

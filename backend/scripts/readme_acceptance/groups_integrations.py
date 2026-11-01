@@ -1,6 +1,13 @@
 """Integration catalog, connection truth, disconnect and webhook scenarios."""
 from __future__ import annotations
 
+import asyncio
+import hashlib
+from concurrent.futures import ThreadPoolExecutor
+import hmac
+import json
+import os
+import time
 import uuid
 
 from .common import Ctx
@@ -154,22 +161,427 @@ def integrations(ctx: Ctx) -> None:
                notes=f"disconnect={disconnect.status_code} revoked={revoked} "
                      f"connected_after={connected_after}")
 
-    # ---- INT-07 webhook fail-closed -----------------------------------
-    forged = ctx.client.post("/api/webhooks/shopify/orders-create", json={
-        "id": 1, "email": "forged@example.com"})
-    ctx.record("INT-07", "verified" if forged.status_code in (401, 403, 503) else "failed",
+    # ---- INT-07 signed webhook accepted exactly once --------------------
+    # Slack signs the ORIGINAL request body: v0:{timestamp}:{body}. Use the
+    # exact bytes on the wire, then replay the same event and forge a
+    # signature. The processor's dedupe must accept one effect.
+    slack_secret = os.environ.get("SLACK_SIGNING_SECRET", "")
+    event_id = f"Ev-{uuid.uuid4().hex}"
+    body_obj = {
+        "type": "event_callback",
+        "event_id": event_id,
+        "event": {
+            "type": "message",
+            "text": "INT-07 controlled signed webhook",
+            "channel": "C-ACCEPTANCE",
+            "user": "U-ACCEPTANCE",
+            "ts": str(time.time()),
+            "client_msg_id": event_id,
+        },
+    }
+    body_bytes = json.dumps(body_obj, separators=(",", ":")).encode()
+    timestamp = str(int(time.time()))
+    signature = "v0=" + hmac.new(
+        slack_secret.encode(),
+        b"v0:" + timestamp.encode() + b":" + body_bytes,
+        hashlib.sha256,
+    ).hexdigest()
+    headers = {
+        "content-type": "application/json",
+        "X-Slack-Request-Timestamp": timestamp,
+        "X-Slack-Signature": signature,
+    }
+    accepted = ctx.client.post("/api/webhooks/slack", content=body_bytes,
+                               headers=headers)
+    accepted_body = (accepted.json() if accepted.status_code == 200 else {})
+    replay = ctx.client.post("/api/webhooks/slack", content=body_bytes,
+                             headers=headers)
+    replay_body = replay.json() if replay.status_code == 200 else {}
+    forged_headers = dict(headers)
+    forged_headers["X-Slack-Signature"] = "v0=" + ("0" * 64)
+    forged = ctx.client.post("/api/webhooks/slack", content=body_bytes,
+                             headers=forged_headers)
+    missing = ctx.client.post("/api/webhooks/slack", content=body_bytes)
+    int07_ok = (accepted.status_code == 200
+                and accepted_body.get("status") == "success"
+                and accepted_body.get("event_id") == f"slack_{event_id}"
+                and replay.status_code == 200
+                and replay_body.get("status") == "duplicate"
+                and forged.status_code == 401
+                and missing.status_code == 401)
+    ctx.record("INT-07", "verified" if int07_ok else "failed",
                [ctx.save("integrations/webhook.json", {
-                   "status": forged.status_code, "body": forged.text[:600]})],
-               notes=f"unsigned webhook rejected with {forged.status_code}")
+                   "secret_configured": bool(slack_secret),
+                   "event_id": event_id,
+                   "accepted": {"status": accepted.status_code,
+                                "body": accepted_body},
+                   "replay": {"status": replay.status_code,
+                              "body": replay_body},
+                   "forged": {"status": forged.status_code,
+                              "body": forged.text[:400]},
+                   "missing_signature": {"status": missing.status_code},
+               })],
+               notes=f"accepted={accepted.status_code} "
+                     f"replay={replay_body.get('status')} "
+                     f"forged={forged.status_code} missing={missing.status_code}")
 
-    # ---- INT-04 / INT-05 / INT-09 --------------------------------------
-    ctx.record("INT-04", "partial",
-               notes="Universal adapter execution requires a connected provider; "
-                     "the controlled-provider journey suite covers it, live data "
-                     "qualification is not claimed")
-    ctx.record("INT-05", "partial",
-               notes="Outbound send/create behind HITL needs a connected provider; "
-                     "governance approval itself is verified by GOV-02")
+    # ---- INT-05 outbound action behind HITL approval -------------------
+    # The provider transport is a controlled local stub; the governance gate,
+    # HITL row and approval decision are the real product path. No network
+    # send is made.
+    from core.agent_integration_gateway import (
+        ActionType, AgentIntegrationGateway)
+    gateway = AgentIntegrationGateway()
+    sent = []
+
+    async def _controlled_send(platform, params):
+        # Widen the race window so two concurrent retries actually reach the
+        # claim arbiter while the first dispatch is in flight.
+        await asyncio.sleep(0.2)
+        sent.append({"platform": platform,
+                     "recipient": params.get("recipient_id"),
+                     "content": params.get("content")})
+        return {"status": "success", "controlled_provider": True}
+
+    gateway._handle_send_message = _controlled_send
+    outbound_params = {
+        "workspace_id": ctx.workspace_id,
+        "recipient_id": "external-contact@example.com",
+        "content": "INT-05 controlled outbound acceptance",
+        "is_internal": False,
+    }
+    before = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    hitl_id = before.get("hitl_id")
+    sent_before = len(sent)
+    approve = (ctx.post(f"/api/agent-governance/approve/{hitl_id}")
+               if hitl_id else None)
+    after = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    sent_after = len(sent)
+    retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    sent_after_retry = len(sent)
+    replay_approval = (ctx.post(
+        f"/api/agent-governance/approve/{hitl_id}")
+        if hitl_id else None)
+    replay_body = (replay_approval.json()
+                   if replay_approval is not None
+                   and replay_approval.headers.get("content-type", "")
+                   .startswith("application/json") else {})
+    retry_after_replay = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    sent_after_replay = len(sent)
+
+    # Durable claim / replay controls. The claim is inserted and committed
+    # BEFORE dispatch; competing callers observe the winner and never send.
+    from core import outbound_operation_claim as operation_claim
+
+    def _start_approval(platform, recipient, content):
+        params = {
+            "workspace_id": ctx.workspace_id,
+            "recipient_id": recipient,
+            "content": content,
+            "is_internal": False,
+        }
+        pending = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, platform, params))
+        action_id = pending.get("hitl_id")
+        approved = (ctx.post(f"/api/agent-governance/approve/{action_id}")
+                    if action_id else None)
+        return params, action_id, approved
+
+    # Simultaneous retries of one approved operation.
+    race_params, race_id, race_approval = _start_approval(
+        "email", "race@example.com", "INT-05 concurrent retry")
+    def _race_call():
+        return asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "email", race_params))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        race_statuses = list(pool.map(lambda _: _race_call(), range(2)))
+    race_effects = [item for item in sent
+                    if item.get("recipient") == "race@example.com"]
+    race_ok = (race_approval is not None and race_approval.status_code == 200
+               and len(race_effects) == 1
+               and sum(1 for r in race_statuses if r.get("status") == "success") == 1
+               and all(r.get("status") in ("success", "duplicate",
+                                           "in_progress", "uncertain_effect")
+                       for r in race_statuses))
+
+    # Process restart after a claim: a dispatching row must not resend.
+    restart_params, restart_id, restart_approval = _start_approval(
+        "teams", "restart@example.com", "INT-05 restart after claim")
+    restart_hash = operation_claim.payload_sha256(
+        workspace_id=ctx.workspace_id, approval_id=restart_id,
+        action_type="send_message", platform="teams", params=restart_params)
+    restart_claim = operation_claim.claim_or_replay(
+        workspace_id=ctx.workspace_id, tenant_id=None,
+        approval_id=restart_id, payload_hash=restart_hash)
+    operation_claim.mark_status(restart_claim.get("record_id"),
+                                operation_claim.DISPATCHING)
+    restart_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "teams", restart_params))
+    restart_effects = [item for item in sent
+                       if item.get("recipient") == "restart@example.com"]
+    restart_ok = (restart_approval is not None and restart_approval.status_code == 200
+                  and restart_retry.get("status") == "uncertain_effect"
+                  and not restart_effects)
+
+    # Changed payload on the same claim key is a conflict, never a send.
+    changed = operation_claim.claim_or_replay(
+        workspace_id=ctx.workspace_id, tenant_id=None,
+        approval_id=restart_id, payload_hash="different-payload")
+    changed_effects = [item for item in sent
+                       if item.get("recipient") == "restart@example.com"]
+    changed_ok = changed.get("status") == "conflict" and not changed_effects
+
+    # Transport succeeds, then confirmation persistence fails: the claim
+    # remains dispatching and retries must not send again.
+    persist_params, persist_id, persist_approval = _start_approval(
+        "whatsapp", "persist@example.com", "INT-05 persistence failure")
+    original_mark = operation_claim.mark_status
+    def _fail_success(record_id, status):
+        if status == operation_claim.SUCCEEDED:
+            return False
+        return original_mark(record_id, status)
+    operation_claim.mark_status = _fail_success
+    try:
+        persist_first = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "whatsapp", persist_params))
+    finally:
+        operation_claim.mark_status = original_mark
+    persist_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "whatsapp", persist_params))
+    persist_effects = [item for item in sent
+                       if item.get("recipient") == "persist@example.com"]
+    persist_ok = (persist_approval is not None and persist_approval.status_code == 200
+                  and persist_first.get("status") == "uncertain_effect"
+                  and persist_retry.get("status") == "uncertain_effect"
+                  and len(persist_effects) == 1)
+
+    # A transport failure explicitly known to be before effect is recorded
+    # distinctly; it is still not auto-resent.
+    class _NoEffectError(Exception):
+        effect_possible = False
+    noeffect_params, noeffect_id, noeffect_approval = _start_approval(
+        "messenger", "noeffect@example.com", "INT-05 failed before effect")
+    original_send = gateway._handle_send_message
+    async def _raise_before_effect(platform, params):
+        raise _NoEffectError("transport rejected before effect")
+    gateway._handle_send_message = _raise_before_effect
+    try:
+        noeffect_first = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "messenger", noeffect_params))
+    finally:
+        gateway._handle_send_message = original_send
+    noeffect_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "messenger", noeffect_params))
+    noeffect_effects = [item for item in sent
+                        if item.get("recipient") == "noeffect@example.com"]
+    noeffect_ok = (noeffect_approval is not None and noeffect_approval.status_code == 200
+                   and noeffect_first.get("status") == "failed_before_effect"
+                   and noeffect_retry.get("status") == "failed_before_effect"
+                   and not noeffect_effects)
+
+    claim_ok = (race_ok and restart_ok and changed_ok
+                and persist_ok and noeffect_ok)
+
+    # Approval binding: a changed action-relevant parameter must be refused
+    # BEFORE a claim exists, not bound to the new value.
+    binding_params, binding_id, binding_approval = _start_approval(
+        "telegram", "binding@example.com", "INT-05 approved content")
+    changed_request = dict(binding_params)
+    changed_request["content"] = "INT-05 changed after review"
+    binding_first = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "telegram", changed_request))
+    binding_effects = [item for item in sent
+                       if item.get("recipient") == "binding@example.com"]
+    binding_claim = operation_claim.current(ctx.workspace_id, binding_id)
+    binding_ok = (binding_approval is not None and binding_approval.status_code == 200
+                  and binding_first.get("status") == "approval_binding_mismatch"
+                  and not binding_effects
+                  and binding_claim is None)
+    claim_ok = claim_ok and binding_ok
+
+    # Rejection control: a second external pattern is denied, and retrying it
+    # still pauses instead of sending.
+    reject_params = {**outbound_params, "recipient_id": "denied@example.com"}
+    denied = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "discord", reject_params))
+    denied_id = denied.get("hitl_id")
+    reject = (ctx.post(f"/api/agent-governance/reject/{denied_id}"
+                       "?reason=INT-05%20rejection%20control")
+              if denied_id else None)
+    denied_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "discord", reject_params))
+    denied_sent = [s for s in sent if s.get("recipient") == "denied@example.com"]
+    int05_ok = (before.get("status") == "waiting_approval" and hitl_id
+                and sent_before == 0
+                and approve is not None and approve.status_code == 200
+                and after.get("status") == "success"
+                and sent_after == 1
+                and retry.get("status") == "duplicate"
+                and sent_after_retry == 1
+                and replay_approval is not None
+                and replay_approval.status_code in (400, 409)
+                and sent_after_replay == 1
+                and claim_ok
+                and denied.get("status") == "waiting_approval" and denied_id
+                and reject is not None and reject.status_code == 200
+                and denied_retry.get("status") == "waiting_approval"
+                and not denied_sent)
+    ctx.record("INT-05", "verified" if int05_ok else "failed",
+               [ctx.save("integrations/outbound_hitl.json", {
+                   "controlled_provider": True,
+                   "before": before,
+                   "hitl_id": hitl_id,
+                   "sent_before": sent_before,
+                   "approve_status": None if approve is None else approve.status_code,
+                   "after": after,
+                   "sent_after": sent_after,
+                   "retry": retry,
+                   "sent_after_retry": sent_after_retry,
+                   "replay_approval": {"status": replay_approval.status_code
+                                       if replay_approval is not None else None,
+                                       "body": replay_body},
+                   "retry_after_replay": retry_after_replay,
+                   "sent_after_replay": sent_after_replay,
+                   "claim_controls": {
+                       "race_statuses": race_statuses,
+                       "race_effects": race_effects,
+                       "race_ok": race_ok,
+                       "restart_retry": restart_retry,
+                       "restart_effects": restart_effects,
+                       "restart_ok": restart_ok,
+                       "changed_payload": changed,
+                       "changed_ok": changed_ok,
+                       "persist_first": persist_first,
+                       "persist_retry": persist_retry,
+                       "persist_effects": persist_effects,
+                       "persist_ok": persist_ok,
+                       "noeffect_first": noeffect_first,
+                       "noeffect_retry": noeffect_retry,
+                       "noeffect_effects": noeffect_effects,
+                       "noeffect_ok": noeffect_ok,
+                       "binding_first": binding_first,
+                       "binding_effects": binding_effects,
+                       "binding_claim": binding_claim,
+                       "binding_ok": binding_ok,
+                   },
+                   "sent": sent,
+                   "denied": denied,
+                   "denied_id": denied_id,
+                   "reject_status": None if reject is None else reject.status_code,
+                   "denied_retry": denied_retry,
+                   "denied_sent": denied_sent,
+               })],
+               notes=f"before={before.get('status')} sent={sent_before} "
+                     f"approve={None if approve is None else approve.status_code} "
+                     f"after={after.get('status')} sent_after={sent_after} "
+                     f"retry={retry.get('status')} sent_after_retry={sent_after_retry} "
+                     f"replay_approval={None if replay_approval is None else replay_approval.status_code} "
+                     f"race_effects={len(race_effects)} restart={restart_retry.get('status')} "
+                     f"changed={changed.get('status')} persist={persist_retry.get('status')} "
+                     f"noeffect={noeffect_retry.get('status')} "
+                     f"binding={binding_first.get('status')} "
+                     f"reject={None if reject is None else reject.status_code} "
+                     f"denied_retry={denied_retry.get('status')}")
+
+    # ---- INT-04 connected-provider read through a registered adapter --
+    # HubSpot is a registered provider adapter. The upstream is a controlled
+    # local HTTP server; the adapter's real request shape and bearer-token
+    # boundary are exercised. This is not live-provider qualification.
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import threading
+    from core.integrations.adapters.hubspot import HubSpotAdapter
+
+    observed = {"authorization": None, "path": None, "query": None}
+
+    class _HubSpotStub(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            return
+
+        def do_GET(self):
+            observed["authorization"] = self.headers.get("Authorization")
+            observed["path"] = self.path.split("?")[0]
+            observed["query"] = self.path.split("?", 1)[1] if "?" in self.path else ""
+            if observed["authorization"] != "Bearer controlled-hubspot-token":
+                self.send_response(401)
+                self.end_headers()
+                self.wfile.write(b'{"message":"unauthorized"}')
+                return
+            payload = json.dumps({
+                "results": [
+                    {"id": "deal-1", "properties": {"dealname": "Atlas renewal",
+                                                    "amount": "1200"}},
+                    {"id": "deal-2", "properties": {"dealname": "Borealis expansion",
+                                                    "amount": "3400"}},
+                ]
+            }).encode()
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    stub = ThreadingHTTPServer(("127.0.0.1", 0), _HubSpotStub)
+    thread = threading.Thread(target=stub.serve_forever, daemon=True)
+    thread.start()
+    port = stub.server_address[1]
+    int04_error = None
+    deals = []
+    try:
+        db = ctx.db()
+        try:
+            adapter = HubSpotAdapter(db=db, workspace_id=ctx.workspace_id)
+            adapter.base_url = f"http://127.0.0.1:{port}"
+            adapter._access_token = "controlled-hubspot-token"
+            deals = asyncio.run(adapter.get_deals(limit=2))
+        finally:
+            db.close()
+        no_token_error = None
+        db = ctx.db()
+        try:
+            no_token = HubSpotAdapter(db=db, workspace_id=ctx.workspace_id)
+            no_token.base_url = f"http://127.0.0.1:{port}"
+            try:
+                asyncio.run(no_token.get_deals(limit=1))
+            except Exception as exc:
+                no_token_error = f"{type(exc).__name__}: {exc}"
+        finally:
+            db.close()
+    except Exception as exc:
+        int04_error = f"{type(exc).__name__}: {exc}"
+        no_token_error = None
+    finally:
+        stub.shutdown()
+        stub.server_close()
+
+    int04_ok = (int04_error is None
+                and len(deals) == 2
+                and observed.get("path") == "/crm/v3/objects/deals"
+                and observed.get("authorization") == "Bearer controlled-hubspot-token"
+                and no_token_error is not None
+                and "token" in no_token_error.lower())
+    ctx.record("INT-04", "verified" if int04_ok else "failed",
+               [ctx.save("integrations/controlled_read.json", {
+                   "controlled_provider": True,
+                   "provider": "hubspot",
+                   "observed": observed,
+                   "deal_count": len(deals),
+                   "deals": deals,
+                   "error": int04_error,
+                   "no_token_error": no_token_error,
+               })],
+               notes=f"deals={len(deals)} path={observed.get('path')} "
+                     f"bearer={observed.get('authorization') is not None} "
+                     f"no_token_error={bool(no_token_error)} "
+                     f"controlled_provider=True error={int04_error}")
+
+    # ---- INT-09 live qualification -------------------------------------
+    ctx.record("INT-09", "blocked_external",
+               notes="Live qualification of 46+ providers requires real accounts "
+                     "and permissions; not requested in this run")
     ctx.record("INT-09", "blocked_external",
                notes="Live qualification of 46+ providers requires real accounts "
                      "and permissions; not requested in this run")

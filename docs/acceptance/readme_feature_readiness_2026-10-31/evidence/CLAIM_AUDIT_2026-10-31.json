@@ -4,6 +4,12 @@
   "policy": "A claim is verified only when the harness executes the claimed operation and asserts its expected observable. Source-string checks, unconditional passes, existence-only checks, and assertions weaker than the stated acceptance are downgraded.",
   "downgrades": [
     {
+      "claim_id": "GOAL-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The verifier observed status=max_steps_exceeded after the early predicate break. A targeted rerun now records objective_satisfied on the 2/5 break and max_steps_exceeded on the 3/3 control, but the claim is held Partial until Agent 1's integrated repair and the verifier's recheck; not counted yet."
+    },
+    {
       "claim_id": "ORACLE-01",
       "from": "verified",
       "to": "partial",
