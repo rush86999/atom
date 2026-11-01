@@ -62,6 +62,7 @@ class ZohoBooksService(IntegrationService):
         "get_bills_page",
         "get_bill",
         "get_estimates",
+        "get_estimates_page",
         "get_estimate",
         "get_items",
     )
@@ -718,6 +719,17 @@ class ZohoBooksService(IntegrationService):
             "get_estimates", "/estimates", "estimates",
             access_token, organization_id, page=page, per_page=per_page,
             extra_params={"status": status} if status else None,
+        )
+
+    async def get_estimates_page(
+        self, access_token: str, organization_id: str,
+        *, page: int = 1, per_page: int = 200, status: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Strict paged estimate read for an exact duplicate sweep."""
+        return await self._list(
+            "get_estimates", "/estimates", "estimates",
+            access_token, organization_id, page=page, per_page=per_page,
+            extra_params={"status": status} if status else None, paged=True,
         )
 
     async def get_estimate(self, access_token: str, organization_id: str, estimate_id: str) -> Dict[str, Any]:

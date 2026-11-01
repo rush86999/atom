@@ -1427,6 +1427,12 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         return _error("zoho_books", "create_estimate", "invalid_request",
                       "estimate_data must be a non-empty object.",
                       action_result="proven_not_applied")
+    reference = str(estimate_data.get("reference_number") or "").strip()
+    if not reference:
+        return _error(
+            "zoho_books", "create_estimate", "invalid_request",
+            "estimate_data.reference_number is required for duplicate identity.",
+            action_result="proven_not_applied")
 
     payload_sha256 = _payload_digest(estimate_data)
     supplied_digest = str(args.get("payload_sha256") or "")
@@ -1455,6 +1461,58 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
                      action_result="proven_not_applied"),
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
+        }
+
+    existing = []
+    page = 1
+    try:
+        while True:
+            rows, info = await service.get_estimates_page(
+                token, org, page=page, per_page=200)
+            existing.extend(rows)
+            if not info.get("has_more"):
+                break
+            page += 1
+            if page > 50:
+                return {
+                    **_error(
+                        "zoho_books", "create_estimate", "unavailable",
+                        "The duplicate sweep exceeded its bounded page limit; "
+                        "creation was not attempted.",
+                        action_result="proven_not_applied"),
+                    "payload_sha256": payload_sha256,
+                    "provider_receipt": base_receipt,
+                }
+    except Exception as exc:  # noqa: BLE001 - typed failure below
+        result = _write_failure(
+            "zoho_books", "get_estimates", exc, may_have_landed=False,
+            payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
+    duplicate = next((
+        item for item in existing
+        if reference in {
+            str(item.get("reference_number") or ""),
+            str(item.get("estimate_number") or ""),
+        }), None)
+    if duplicate:
+        return {
+            "status": "duplicate",
+            "success": True,
+            "action_result": "proven_not_applied",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
+            "remote_id": str(duplicate.get("estimate_id") or ""),
+            "payload_sha256": payload_sha256,
+            "existing": duplicate,
+            "provider_receipt": base_receipt,
+            "read_receipt": _receipt(
+                "zoho_books", "get_estimates",
+                resource_id=str(duplicate.get("estimate_id") or ""),
+                coverage="complete", account_id=org, kind="estimate",
+                fields=duplicate),
         }
 
     try:

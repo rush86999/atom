@@ -60,7 +60,7 @@ The same surface is exposed to the UI as
 |---|---|---|
 | `brennan.books.propose_bill` | `proposal_input` | deterministic proposal with `status=proposed` or typed obligations; never posts |
 | `brennan.books.create_bill` | `proposal`, `authority_reference`, `operation_id`, optional `payload_sha256`, `proposal_version` | exact duplicate sweep, provider create, authoritative `get_bill` readback and field comparison |
-| `brennan.books.create_estimate` | `organization_id`, `estimate_data`, `authority_reference`, `operation_id`, optional `payload_sha256`, `artifact_version` | provider create + `get_estimate` readback and field comparison |
+| `brennan.books.create_estimate` | `organization_id`, `estimate_data` (must include `reference_number`), `authority_reference`, `operation_id`, optional `payload_sha256`, `artifact_version` | exact estimate duplicate sweep, provider create + `get_estimate` readback and field comparison |
 | `brennan.outlook.create_draft` | `to`, `cc`, `bcc`, `subject`, `body`, `operation_id`, optional `authority_reference`, `payload_sha256` | draft only; never sends |
 
 Each write action signs the exact effect payload with the same
