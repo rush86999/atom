@@ -13,9 +13,12 @@ This guide separates three things that are easy to blur together:
 
 ## First-use target — 15 minutes
 
-**This is a target, not a measured end-to-end result.** The verified **13
-seconds** measures only `make sample` after the backend is already running. It
-does **not** include dependency installation, the frontend build or login.
+**15 minutes is the cold-install target.** A fresh-worktree run on this host
+measured **~4 min 22 s** with warm package caches, including one failed
+default-Python attempt. The verified **13 seconds** measures only `make sample`
+after the backend is already running; it does not include dependency
+installation, the frontend build or login. See
+[`FIRST_USE_TEST_2026-11-01.md`](FIRST_USE_TEST_2026-11-01.md).
 
 Reproduce now from the branch that carries this guide:
 
