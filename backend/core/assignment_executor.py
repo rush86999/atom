@@ -58,6 +58,11 @@ AdapterPreparer = Callable[[Dict[str, Any], Dict[str, Any]], Any]
 
 logger = logging.getLogger(__name__)
 
+#: Budget clock schema. Schema 2 credits assignment-level IDLE intervals
+#: (periods where no branch can progress) instead of summing per-branch
+#: waits. Overlapping waits therefore cannot inflate credited pause time.
+IDLE_LEDGER_SCHEMA = 2
+
 
 class AssignmentError(TaskLifecycleError):
     """A plan/execution error that leaves the durable assignment intact."""
@@ -1640,25 +1645,46 @@ class AssignmentExecutor:
                     run_id, assignment, "assignment started")
                 record = self.lifecycle.get_task(run_id) or record
 
-            # An approved operation whose step still says awaiting_approval
-            # is ready to run. The sync above keeps them aligned.
-            waiting_step = self._first_waiting_step(assignment)
-            if waiting_step is not None:
+            assignment = self._ensure_idle_ledger(assignment)
+            assignment = self._checkpoint_idle(assignment)
+
+            # Try eligible waiting/approval steps. A wait that is NOT yet
+            # eligible must not return early: an independent branch whose
+            # dependencies are satisfied can still do useful work.
+            progress = False
+            for waiting_step in self._waiting_steps(assignment):
                 resumed = await self._resume_waiting_step(
                     run_id, record, assignment, waiting_step)
                 if resumed:
                     steps_run += 1
-                    continue
-                self._persist_assignment(
-                    run_id, assignment, "assignment waiting")
-                return self.status(run_id)
+                    progress = True
+                    break
+            if progress:
+                continue
 
+            # Re-read: a resumed step above may have changed the plan.
+            record = self.lifecycle.get_task(run_id) or record
+            assignment = self._sync_assignment(record, assignment)
+            assignment = self._ensure_idle_ledger(assignment)
+            assignment = self._checkpoint_idle(assignment)
             readiness = ready_steps(assignment)
             if not readiness:
-                self._persist_assignment(
-                    run_id, assignment, "assignment stopped: no ready step")
+                if self._waiting_steps(assignment):
+                    assignment = self._open_idle(
+                        assignment,
+                        reason="all runnable branches are waiting")
+                    self._persist_assignment(
+                        run_id, assignment, "assignment waiting")
+                else:
+                    self._persist_assignment(
+                        run_id, assignment,
+                        "assignment stopped: no ready step")
                 return self.status(run_id)
 
+            # Work can progress: any open idle interval ends now, before the
+            # next operation starts charging working time.
+            assignment = self._close_idle(
+                assignment, reason="ready work resumed")
             step = readiness[0]
             if not self._budget_allows(assignment, step):
                 assignment = self._block_step(
@@ -3448,6 +3474,140 @@ class AssignmentExecutor:
                 return step
         return None
 
+    def _waiting_steps(self, assignment: Dict[str, Any]) -> List[Dict[str, Any]]:
+        return [
+            step for step in assignment.get("steps") or []
+            if step.get("status") in ("waiting", "awaiting_approval")
+        ]
+
+    # ------------------------------------------------------ idle clock
+    # Assignment time is charged only while at least one branch can make
+    # progress. Waiting branches are not charged individually: the interval
+    # is credited once, at the assignment level, so two overlapping waits do
+    # not add up (and can never exceed wall time).
+
+    def _ensure_idle_ledger(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Upgrade a legacy per-wait budget to the idle-interval ledger.
+
+        The old ``paused_seconds`` value remains the starting total. An open
+        legacy wait is carried into an open idle interval so a restart does
+        not lose or double-count it.
+        """
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA:
+            return assignment
+        budget["idle_ledger_schema"] = IDLE_LEDGER_SCHEMA
+        budget["idle_intervals"] = dict(budget.get("idle_intervals") or {})
+        budget["paused_seconds"] = float(budget.get("paused_seconds") or 0.0)
+        legacy_wait = budget.get("waiting_since")
+        if legacy_wait and not budget.get("idle_open"):
+            budget["idle_open"] = {
+                "id": f"migrated:{legacy_wait}",
+                "started_at": str(legacy_wait),
+                "reason": "migrated open wait",
+            }
+        budget["waiting_since"] = None
+        budget["active_wait"] = None
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _checkpoint_idle(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Materialize elapsed open-idle time into ``paused_seconds``.
+
+        Keeping the live interval start at the checkpoint keeps persisted
+        ``paused_seconds`` meaningful to ordinary readers while
+        ``_effective_wall_elapsed`` still accounts for the short tail since
+        the last checkpoint.
+        """
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            return assignment
+        opened = dict(budget.get("idle_open") or {})
+        if not opened:
+            return assignment
+        started = self._parse_clock(opened.get("started_at"))
+        now = float(self.clock())
+        if started is None or now <= started:
+            return assignment
+        opened.setdefault("first_started_at", opened.get("started_at"))
+        budget["paused_seconds"] = (
+            float(budget.get("paused_seconds") or 0.0) + (now - started))
+        opened["started_at"] = self._clock_iso(now)
+        opened["checkpointed_at"] = _utc_now_iso()
+        budget["idle_open"] = opened
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _open_idle(
+        self, assignment: Dict[str, Any], *, reason: str,
+    ) -> Dict[str, Any]:
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            assignment = self._ensure_idle_ledger(assignment)
+            budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_open"):
+            return assignment
+        now = float(self.clock())
+        budget["idle_open"] = {
+            "id": f"{assignment.get('assignment_id')}:idle:{now}",
+            "started_at": self._clock_iso(now),
+            "reason": _bounded(reason, 300),
+        }
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _close_idle(
+        self, assignment: Dict[str, Any], *, reason: str,
+    ) -> Dict[str, Any]:
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            return assignment
+        opened = dict(budget.get("idle_open") or {})
+        if not opened:
+            return assignment
+        now = float(self.clock())
+        started = self._parse_clock(opened.get("started_at"))
+        if started is not None and now > started:
+            budget["paused_seconds"] = (
+                float(budget.get("paused_seconds") or 0.0) + (now - started))
+        first_started = opened.get("first_started_at") or opened.get("started_at")
+        intervals = dict(budget.get("idle_intervals") or {})
+        interval_id = str(opened.get("id") or "open")
+        intervals[interval_id] = {
+            "started_at": first_started,
+            "ended_at": self._clock_iso(now),
+            "reason": opened.get("reason"),
+            "closed_by": _bounded(reason, 300),
+        }
+        # Bound the audit ledger while keeping the latest intervals.
+        if len(intervals) > 200:
+            intervals = dict(list(intervals.items())[-200:])
+        budget["idle_intervals"] = intervals
+        budget["idle_open"] = None
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    @staticmethod
+    def _parse_clock(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        try:
+            return datetime.fromisoformat(str(value)).timestamp()
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _clock_iso(ts: float) -> str:
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
+
     def _sync_assignment(
         self, record: Dict[str, Any], assignment: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -3586,15 +3746,19 @@ class AssignmentExecutor:
             self._clear_active_wait(budget, wait_id)
             return False
         seconds = end_ts - start_ts
+        idle_authoritative = (
+            budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA)
         credits[wait_id] = {
-            "seconds": seconds,
+            "seconds": 0.0 if idle_authoritative else seconds,
             "started_at": str(started_at),
             "ended_at": str(ended_at),
+            "idle_ledger_authoritative": idle_authoritative,
         }
         budget["wait_credits"] = credits
         budget["wait_credits_schema"] = 1
-        budget["paused_seconds"] = (
-            float(budget.get("paused_seconds") or 0.0) + seconds)
+        if not idle_authoritative:
+            budget["paused_seconds"] = (
+                float(budget.get("paused_seconds") or 0.0) + seconds)
         self._clear_active_wait(budget, wait_id)
         return True
 
@@ -3614,6 +3778,13 @@ class AssignmentExecutor:
             started_at = datetime.fromisoformat(str(started)).timestamp()
         except (TypeError, ValueError):
             return 0.0
+        if budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA:
+            paused = float(budget.get("paused_seconds") or 0.0)
+            opened = budget.get("idle_open") or {}
+            started_idle = self._parse_clock(opened.get("started_at"))
+            if started_idle is not None:
+                paused += max(0.0, float(self.clock()) - started_idle)
+            return max(0.0, (self.clock() - started_at) - paused)
         paused = float(budget.get("paused_seconds") or 0.0)
         waiting_since = budget.get("waiting_since")
         if waiting_since:
@@ -3841,7 +4012,14 @@ class AssignmentExecutor:
                 run_id, compute,
                 rationale=(
                     f"settle cost for {step.get('step_id')} ({outcome})"))
-            return result.get("assignment") or assignment
+            settled = result.get("assignment") or {}
+            # Preserve the caller's plan state (another branch may have moved
+            # while the cost ledger was read). Only the budget is reconciled
+            # from the CAS write.
+            updated = copy.deepcopy(assignment)
+            if settled.get("budget") is not None:
+                updated["budget"] = copy.deepcopy(settled["budget"])
+            return updated
         except Exception as exc:  # noqa: BLE001 — accounting is observable
             logger.error(
                 "assignment %s: cost settlement failed for %s: %s",
@@ -4112,6 +4290,8 @@ class AssignmentExecutor:
             operation = _operation_by_id(record, operation_id) if operation_id else None
             if not operation or operation.get("status") != "approved":
                 return False
+            assignment = self._close_idle(
+                assignment, reason="approval arrived")
             # Approved: the executor re-prepares and verifies the payload
             # before running, so changed content cannot ride an old approval.
             updated = self._mark_step(assignment, step["step_id"], {
@@ -4124,6 +4304,8 @@ class AssignmentExecutor:
             return True
         if not self._resolve_waiting(record, step):
             return False
+        assignment = self._close_idle(
+            assignment, reason="external wait resolved")
         operation_id = (
             step.get("wait_operation_id")
             or _operation_id_for_step(record, step))
