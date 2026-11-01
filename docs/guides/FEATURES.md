@@ -1,5 +1,14 @@
 # Atom Features
 
+> **Feature catalog, not universal qualification.** The current public entry
+> point is [Quick Start](../getting_started/quick-start.md). Tested behavior,
+> excluded claims and configuration requirements are in the
+> [acceptance record](../acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md) and
+> [frozen inventory](../acceptance/readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json).
+> The sample and main campaigns use controlled/local providers. Firecracker/KVM,
+> multi-worker operation, model judgment and connector breadth must not be inferred
+> from an implemented feature or a status label in this architectural catalog.
+
 > **Last Updated**: August 2026  
 > **Status**: Production-ready, self-hosted AI agent workforce
 

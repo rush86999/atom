@@ -16,10 +16,11 @@ authority.
 
 ## Source identity
 
-- Runtime code: `a0fce85b0` (product tree unchanged from `8e999ab32` for the
-  teaching runs; backend changes since the 99-claim baseline are the runtime
-  enforcement, budget/wait accounting and first-use scoping commits).
-- Final evidence commit: `dce03d804` (docs/evidence only).
+- Runtime code: `bec60978b` (the 99-claim baseline plus runtime enforcement,
+  first-use scoping and the idempotent wait-credit repair; campaign captures at
+  `a0fce85b0`/`776c6644f` predate only the budget repair).
+- Evidence bundle commit: `76ac5528f` (docs/evidence only; the final
+  source-binding commit is its docs-only child).
 - Frontend production build: clean checkout at `a0fce85b0` (frontend files
   unchanged through the final commit), `BUILD_ID` `gVUTIhFCOe-IPrxsvBkAG`.
 - Clean install: fresh worktree, own `backend/venv` and `node_modules`,
@@ -28,16 +29,27 @@ authority.
 
 ## Measure the manifest
 
+Every manifest entry is tracked in Git (force-added where the repository's
+global `*.log`/`*.txt` ignore rules would otherwise hide evidence). Verify from
+the committed tree, not the working directory:
+
 ```bash
 python - <<'PY'
-import hashlib, json, os
+import hashlib, json, subprocess
 root = 'docs/acceptance/readme_feature_readiness_2026-11-01'
-m = json.load(open(os.path.join(root, 'MANIFEST.json')))
-bad = []
+manifest = subprocess.check_output(
+    ['git', 'show', f'HEAD:{root}/MANIFEST.json'], text=True)
+m = json.loads(manifest)
+missing, bad = [], []
 for name, meta in m['files'].items():
-    data = open(os.path.join(root, name), 'rb').read()
-    if hashlib.sha256(data).hexdigest() != meta['sha256'] or len(data) != meta['bytes']:
+    path = f'{root}/{name}'
+    if subprocess.run(['git', 'ls-files', '--error-unmatch', '--', path],
+                      capture_output=True).returncode != 0:
+        missing.append(name)
+        continue
+    blob = subprocess.check_output(['git', 'show', f'HEAD:{path}'])
+    if hashlib.sha256(blob).hexdigest() != meta['sha256'] or len(blob) != meta['bytes']:
         bad.append(name)
-print('entries', len(m['files']), 'mismatches', bad)
+print('entries', len(m['files']), 'untracked', missing, 'mismatches', bad)
 PY
 ```

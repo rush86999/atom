@@ -3,20 +3,32 @@
   "root": "docs/acceptance/readme_feature_readiness_2026-11-01",
   "files": {
     "CLAIM_INVENTORY.json": {
-      "sha256": "fa4ae4c472562c480dc7644417b4420a1aadb2782f2a23d9a14adc497f1dfe49",
+      "sha256": "eea7ca0724d305c632dc2d50794bcc2e58233d2769ba77b0cc5e8c215623bb0b",
       "bytes": 150905
     },
     "COVERAGE_REPORT_2026-11-01.md": {
-      "sha256": "2038798d53fd5030d2cf9a9d1e1af6568cae79877108846ac305c64569f989a0",
-      "bytes": 9357
+      "sha256": "0261582276bbaf88cc1b90565be3d4d147aeffd34e7f6c60dc550b4909928a14",
+      "bytes": 10181
     },
     "README.md": {
-      "sha256": "56b909f1004384ece51d70ed878ca4c55463fa6649f8ae97ece870d3c592b2a4",
-      "bytes": 2113
+      "sha256": "a875ae32ace63bb6fad4bfb7111f98eec3f067ce5f84f3901dd32eef3024997b",
+      "bytes": 2697
     },
     "VERIFIER_REVIEW_REQUEST.md": {
-      "sha256": "b6e4cd4e18cb5fb164d6e3e986a198461c26f84cf34bfde4593abb863e6080c8",
-      "bytes": 5097
+      "sha256": "7051637d404b41f209255a48a6cff4c453eb0579e476e613aabb632379228a4d",
+      "bytes": 5691
+    },
+    "evidence/campaigns/budget-repair/focused-executor-tests.log": {
+      "sha256": "efd92adfe712412f13cc1af34456c5cc964c7801091e00155d7821843e4e2d00",
+      "bytes": 10200
+    },
+    "evidence/campaigns/budget-repair/full-runtime-batch.log": {
+      "sha256": "12b56df5e0649ea84c72b69801f55745b37e3e9439d8e681c56437aa8b12cc9a",
+      "bytes": 73720
+    },
+    "evidence/campaigns/budget-repair/repair.json": {
+      "sha256": "0d28d190f6b25c8b63d60d9d1d386deb0f3cc81f4b440bbc73257e1a1bd04c11",
+      "bytes": 3106
     },
     "evidence/campaigns/long-run/budget-failure-preserved.json": {
       "sha256": "207d83f578a9a6a2ae3af2a958586357044ece199be0e2b71cdd4ad2389eb1ad",
@@ -263,7 +275,7 @@
       "bytes": 3811
     },
     "evidence/claims/INDEX.json": {
-      "sha256": "5bcde4b45866063c5f5553b734f182d8ace1b5a8f604315fbe4c39f8ce56ee0c",
+      "sha256": "5d6cdc1a3d7cdd01797e3ff5a86b86e13fbfce24d86f20a36506a6d789e6e721",
       "bytes": 10114
     },
     "evidence/claims/ask-runtime/pytest.log": {
@@ -307,8 +319,8 @@
       "bytes": 26110
     },
     "evidence/claims/install01/install-run.log": {
-      "sha256": "f6dd064dbef5f8eea96eebe525b55a686519db2b721e55c010c4a972fa46a929",
-      "bytes": 26110
+      "sha256": "2e5517158378fc05ef527d3ab21cf5677a218c7df17868afdcf63747503524d1",
+      "bytes": 26092
     },
     "evidence/claims/install01/setup.log": {
       "sha256": "53e24c93893b34d82cdd7a2d1c333e97b4fb4ab81aba33892045d0fac44aced8",
@@ -379,5 +391,5 @@
       "bytes": 289
     }
   },
-  "file_count": 94
+  "file_count": 97
 }

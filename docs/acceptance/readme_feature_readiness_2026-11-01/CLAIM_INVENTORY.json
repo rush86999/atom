@@ -5,7 +5,7 @@
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
-    "commit": "a0fce85b0 (runtime code); evidence commit dce03d804",
+    "commit": "bec60978b (runtime code); evidence bundle 76ac5528f",
     "tag": "integrated-local-2026-11-01-candidate",
     "lines": 264
   },

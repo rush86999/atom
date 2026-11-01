@@ -10,6 +10,8 @@ import asyncio
 import json
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import docx
@@ -2292,3 +2294,356 @@ def test_durable_wait_time_is_excluded_from_the_wall_budget(env):
     working = dict(base, waiting_since=None, paused_seconds=0.0)
     assert executor._budget_allows({"budget": working}, {"attempts": 0}) is False
     assert executor._remaining_wall_seconds({"budget": working}) == 0.0
+
+
+
+def _waiting_budget_run(env, correlation: str = "corr-budget") -> str:
+    adapter = f"test.budget_wait.{uuid.uuid4().hex[:8]}"
+
+    async def wait_reply(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "reply received"}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "supplier",
+            "correlation_id": correlation,
+            "resume_on": "response",
+            "detail": "authorized reply",
+        })
+
+    env["registry"].register(adapter, wait_reply)
+    default_adapter_registry.register(adapter, wait_reply)
+    steps = [new_step(
+        step_id="wait", title="Wait for the authorized reply",
+        operation_type="retrieve", adapter=adapter, effect="read_only")]
+    run_id, _ = _create(
+        env, objective="Wait budget control", steps=steps,
+        teaching=_teaching(),
+        budget={"max_steps": 10, "max_attempts_per_step": 3,
+                "max_wall_seconds": 900})
+    _run(env["executor"].execute(run_id))
+    return run_id
+
+
+def _force_budget_failure(
+    env, run_id: str, *, started_ago: float, wait_started_ago: float,
+    wait_ended_ago: float, paused: float | None = None,
+    schema: bool = False, attempts: int = 1,
+    keep_waiting: bool = False,
+) -> None:
+    now = datetime.now(timezone.utc)
+
+    def compute(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        budget["started_at"] = (
+            now - timedelta(seconds=started_ago)).isoformat()
+        budget["max_wall_seconds"] = 900.0
+        if paused is not None:
+            budget["paused_seconds"] = paused
+        budget.pop("active_wait", None)
+        budget.pop("waiting_since", None)
+        if schema:
+            budget["wait_credits_schema"] = 1
+            budget.setdefault("wait_credits", {})
+        else:
+            budget.pop("wait_credits_schema", None)
+            budget.pop("wait_credits", None)
+        assignment["budget"] = budget
+        step = step_by_id(assignment, "wait")
+        step["status"] = "failed"
+        step["attempts"] = attempts
+        step["failure"] = {
+            "reason": "assignment_budget_exhausted",
+            "message": "budget exhausted during a durable wait",
+        }
+        step["waiting"] = {
+            "state": "waiting_for_external",
+            "correlation_id": "corr-budget",
+            "since": (now - timedelta(seconds=wait_started_ago)).isoformat(),
+        }
+        step["external_response"] = {
+            "correlation_id": "corr-budget",
+            "response": "net 30",
+            "at": (now - timedelta(seconds=wait_ended_ago)).isoformat(),
+        }
+        if keep_waiting:
+            budget["waiting_since"] = step["waiting"]["since"]
+            budget["active_wait"] = {
+                "id": "legacy-open-wait",
+                "step_id": "wait",
+                "started_at": step["waiting"]["since"],
+            }
+            assignment["budget"] = budget
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, compute, rationale="test: budget failure after wait")
+
+
+def test_retry_credits_a_legacy_wait_once_and_keeps_working_time(env):
+    run_id = _waiting_budget_run(env)
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1000, paused=0.0, schema=False)
+    executor = env["executor"]
+    executor.retry_step(run_id, "wait", reason="repair")
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert 499.0 <= budget["paused_seconds"] <= 501.0
+    assert budget["wait_credits"]
+    assert len(budget["wait_credits"]) == 1
+    step = step_by_id(assignment, "wait")
+    assert step["attempts"] == 1
+    assert step["pre_dispatch_budget_refusal"] is True
+    # 2000s actual - 500s wait = 1500s working, still over 900s.
+    assert executor._budget_allows(assignment, step) is False
+
+    # Repeated and restart retries must not add the interval again.
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1000, paused=None, schema=True)
+    executor.retry_step(run_id, "wait", reason="repeat")
+    again = env["lifecycle"].get_assignment(run_id)["budget"]
+    assert 499.0 <= again["paused_seconds"] <= 501.0
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1000, paused=None, schema=True)
+    restarted.retry_step(run_id, "wait", reason="after restart")
+    after_restart = env["lifecycle"].get_assignment(run_id)["budget"]
+    assert 499.0 <= after_restart["paused_seconds"] <= 501.0
+
+
+def test_legacy_already_credited_pause_is_not_extended(env):
+    run_id = _waiting_budget_run(env)
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1400, paused=100.0, schema=False)
+    env["executor"].retry_step(run_id, "wait", reason="legacy repair")
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert budget["paused_seconds"] == 100.0
+    assert budget["wait_credits"]
+    assert all(item.get("already_credited")
+               for item in budget["wait_credits"].values())
+    assert env["executor"]._budget_allows(
+        assignment, step_by_id(assignment, "wait")) is False
+
+
+def test_each_new_wait_interval_is_credited_once(env):
+    run_id = _waiting_budget_run(env)
+    executor = env["executor"]
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = dict(assignment["budget"])
+    budget["wait_credits_schema"] = 1
+    budget["wait_credits"] = {}
+    budget["paused_seconds"] = 0.0
+    start = datetime.now(timezone.utc)
+    first_start = (start - timedelta(seconds=200)).isoformat()
+    first_end = (start - timedelta(seconds=100)).isoformat()
+    second_start = (start - timedelta(seconds=80)).isoformat()
+    second_end = (start - timedelta(seconds=30)).isoformat()
+    assert executor._credit_wait_once(
+        budget, wait_id="wait-a", started_at=first_start,
+        ended_at=first_end) is True
+    assert executor._credit_wait_once(
+        budget, wait_id="wait-a", started_at=first_start,
+        ended_at=first_end) is False
+    assert executor._credit_wait_once(
+        budget, wait_id="wait-b", started_at=second_start,
+        ended_at=second_end) is True
+    assert 149.0 <= budget["paused_seconds"] <= 151.0
+    assert set(budget["wait_credits"]) == {"wait-a", "wait-b"}
+
+
+def test_concurrent_retries_credit_a_legacy_wait_once(env):
+    run_id = _waiting_budget_run(env)
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1000, paused=0.0, schema=False)
+    executor = env["executor"]
+
+    def retry():
+        try:
+            executor.retry_step(run_id, "wait", reason="concurrent repair")
+        except Exception:
+            pass
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(lambda _: retry(), range(2)))
+    budget = env["lifecycle"].get_assignment(run_id)["budget"]
+    assert 499.0 <= budget["paused_seconds"] <= 501.0
+
+
+def test_genuine_active_work_exhaustion_is_refused(env):
+    run_id = _waiting_budget_run(env)
+    executor = env["executor"]
+    now = datetime.now(timezone.utc)
+
+    def compute(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        budget.update({
+            "started_at": (now - timedelta(seconds=2000)).isoformat(),
+            "max_wall_seconds": 900.0,
+            "paused_seconds": 0.0,
+            "waiting_since": None,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": None,
+        })
+        assignment["budget"] = budget
+        step = step_by_id(assignment, "wait")
+        step["status"] = "pending"
+        step["failure"] = None
+        step["attempts"] = 0
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(run_id, compute, rationale="test")
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert executor._budget_allows(
+        assignment, step_by_id(assignment, "wait")) is False
+
+
+def test_legacy_open_wait_is_not_subtracted_twice(env):
+    """paused_seconds already contains the interval; waiting_since must not
+    subtract the same interval again and make exhausted work look unexhausted."""
+    now = datetime.now(timezone.utc)
+    budget = {
+        "started_at": (now - timedelta(seconds=2000)).isoformat(),
+        "paused_seconds": 500.0,
+        "waiting_since": (now - timedelta(seconds=1500)).isoformat(),
+        "max_wall_seconds": 900.0,
+        "wait_credits_schema": 0,
+        "wait_credits": {},
+        "active_wait": None,
+    }
+    executor = env["executor"]
+    assert 1499.0 <= executor._effective_wall_elapsed(budget) <= 1501.0
+    assert executor._budget_allows(
+        {"budget": budget}, {"attempts": 0}) is False
+    assert executor._remaining_wall_seconds({"budget": budget}) == 0.0
+
+
+def test_legacy_credit_clears_matching_active_wait(env):
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(seconds=1500)).isoformat()
+    end = (now - timedelta(seconds=1000)).isoformat()
+    budget = {
+        "started_at": (now - timedelta(seconds=2000)).isoformat(),
+        "paused_seconds": 500.0,
+        "waiting_since": start,
+        "max_wall_seconds": 900.0,
+        "wait_credits_schema": 0,
+        "wait_credits": {},
+        "active_wait": {"id": "legacy-open-wait", "started_at": start},
+    }
+    assert env["executor"]._credit_wait_once(
+        budget, wait_id="legacy-open-wait", started_at=start,
+        ended_at=end, legacy=True) is False
+    assert budget["paused_seconds"] == 500.0
+    assert budget["active_wait"] is None
+    assert "waiting_since" not in budget
+    assert budget["wait_credits"]["legacy-open-wait"]["already_credited"] is True
+    assert 1499.0 <= env["executor"]._effective_wall_elapsed(budget) <= 1501.0
+
+
+def test_legacy_retry_keeps_genuine_active_exhaustion(env):
+    run_id = _waiting_budget_run(env)
+    _force_budget_failure(
+        env, run_id, started_ago=2000, wait_started_ago=1500,
+        wait_ended_ago=1000, paused=500.0, schema=False,
+        keep_waiting=True)
+    executor = env["executor"]
+    executor.retry_step(run_id, "wait", reason="legacy repair")
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert 499.0 <= budget["paused_seconds"] <= 501.0
+    assert budget["active_wait"] is None
+    assert budget.get("waiting_since") is None
+    assert 1499.0 <= executor._effective_wall_elapsed(budget) <= 1501.0
+    assert executor._budget_allows(
+        assignment, step_by_id(assignment, "wait")) is False
+
+
+def test_recorded_credit_with_stale_open_wait_is_not_double_subtracted(env):
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(seconds=1500)).isoformat()
+    end = (now - timedelta(seconds=1000)).isoformat()
+    budget = {
+        "started_at": (now - timedelta(seconds=2000)).isoformat(),
+        "paused_seconds": 500.0,
+        "waiting_since": start,
+        "max_wall_seconds": 900.0,
+        "wait_credits_schema": 1,
+        "wait_credits": {"wait-1": {
+            "seconds": 500.0, "started_at": start, "ended_at": end}},
+        "active_wait": {"id": "wait-1", "started_at": start},
+    }
+    executor = env["executor"]
+    assert 1499.0 <= executor._effective_wall_elapsed(budget) <= 1501.0
+    assert executor._credit_wait_once(
+        budget, wait_id="wait-1", started_at=start,
+        ended_at=end) is False
+    assert budget["active_wait"] is None
+    assert budget.get("waiting_since") is None
+    assert 1499.0 <= executor._effective_wall_elapsed(budget) <= 1501.0
+
+
+def test_concurrent_external_responses_credit_the_wait_once(env):
+    run_id = _waiting_budget_run(env, correlation="corr-concurrent")
+    executor = env["executor"]
+
+    def respond(_):
+        return executor.record_external_response(
+            run_id, "corr-concurrent", response="net 30")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(respond, range(2)))
+    assert all(item.get("status") in ("resumed", "unmatched")
+               for item in results), results
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert len(budget["wait_credits"]) == 1, budget["wait_credits"]
+    assert float(budget["paused_seconds"]) < 5.0
+    assert budget["active_wait"] is None
+    assert budget.get("waiting_since") is None
+    _run(executor.execute(run_id))
+    assert env["lifecycle"].get_assignment(run_id)["status"] == "completed"
+    assert len(env["lifecycle"].get_assignment(
+        run_id)["budget"]["wait_credits"]) == 1
+
+
+def test_restart_while_waiting_credits_the_interval_once(env):
+    run_id = _waiting_budget_run(env, correlation="corr-restart-budget")
+    now = datetime.now(timezone.utc)
+    wait_start = (now - timedelta(seconds=600)).isoformat()
+
+    def age_wait(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        budget["paused_seconds"] = 0.0
+        budget["waiting_since"] = wait_start
+        budget["wait_credits_schema"] = 1
+        budget["wait_credits"] = {}
+        budget["active_wait"] = {
+            "id": "restart-wait", "step_id": "wait",
+            "started_at": wait_start,
+        }
+        assignment["budget"] = budget
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, age_wait, rationale="test: age the open wait")
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    before = restarted._effective_wall_elapsed(
+        env["lifecycle"].get_assignment(run_id)["budget"])
+    assert before < 5.0  # the open 600s wait is excluded
+    result = restarted.record_external_response(
+        run_id, "corr-restart-budget", response="net 30")
+    assert result.get("status") == "resumed", result
+    budget = env["lifecycle"].get_assignment(run_id)["budget"]
+    assert len(budget["wait_credits"]) == 1
+    assert 599.0 <= float(budget["paused_seconds"]) <= 601.0
+    assert restarted._effective_wall_elapsed(budget) < 5.0
+    assert budget["active_wait"] is None
+    assert budget.get("waiting_since") is None

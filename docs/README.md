@@ -1,5 +1,18 @@
 # ⚛️ Atom Documentation Hub
 
+## Start with a working employee
+
+[Install and run the sample](getting_started/quick-start.md) →
+[teach, correct and resume work](demo/VERIFIED_WORKFLOWS.md) →
+[check tested scope](acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md).
+
+The recommended fixed snapshot is `successor-first-use-2026-11-01`.
+The accepted milestone covers **111/123 frozen functional claims** in documented
+local/controlled configurations. Historical evidence and later correctness fixes
+remain separately identified in the [successor notes](acceptance/SUCCESSOR_RELEASE_2026-11-01.md).
+Measured first use was about **5 min 15 s with warm package caches**; 15 minutes
+is a cold-install target. The sample needs no cloud key or connected account.
+
 Welcome to the Atom developer and user documentation center. Atom is a self-hosted **AI agent workforce** — a team of governed, sandboxed agents your employees can delegate work to with confidence.
 
 > [!NOTE]

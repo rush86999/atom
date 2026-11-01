@@ -1,229 +1,130 @@
-# Atom — Quick Start (Verified Working August 2026)
+# Run Atom locally and finish your first job
 
-> **Fastest path to a running local server.** Verified end-to-end (backend
-> boots, health endpoints respond, login returns a JWT). For the full
-> guide with troubleshooting, see [`docs/guides/QUICKSTART.md`](../guides/QUICKSTART.md).
+Start with the deterministic sample: no provider key, connected account or
+live send is required. For tested scope and known limits, see the
+[acceptance record](../acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md).
 
----
+## 1. Check prerequisites
 
-## Prerequisites
+| Tool | Supported setup |
+|---|---|
+| Python | 3.11–3.13; 3.11 recommended. Python 3.14 is not supported by this dependency set. |
+| Node.js | 20.9 or newer |
+| npm, Git, Make | Available on your command line |
 
-| Tool | Version | Why |
-|------|---------|-----|
-| Python | 3.11–3.13 (3.11 recommended) | Backend runtime — `torch<3` publishes no 3.14 wheels; CI/Docker pin 3.11 |
-| Node.js | 20.9+ | Frontend runtime (Next.js 16.2.2) |
-| npm | 9+ | Frontend deps |
-| git | any | Clone the repo |
+The measured fresh-worktree journey used macOS, Python 3.11, Node 20.19 and
+warm package caches. It took approximately **5 min 15 s**. A 15-minute cold
+installation is a target; download/build time on other machines is unmeasured.
 
-Verify:
-```bash
-python3.11 --version && node --version && npm --version
-```
+## 2. Clone and set up
 
----
-
-## 1. Clone & install (one-time, ~3 minutes)
-
-```bash
+~~~bash
 git clone https://github.com/rush86999/atom.git
 cd atom
+# Optional: pin the recommended tested snapshot instead of development main.
+git checkout successor-first-use-2026-11-01
+PYTHON=python3.11 make setup
+~~~
 
-# One-shot bootstrap (venv + deps + .env)
-make setup
-# — OR do it manually:
+Use `PYTHON=python3.12` or `PYTHON=python3.13` if that is your installed supported
+interpreter. Setup creates `backend/venv`, installs backend/frontend dependencies
+and generates local environment files when missing. Keep the generated secret
+and encryption keys across restarts. Do not copy someone else's environment,
+keys or database.
 
-# Backend deps in a venv
-cd backend
-python3.11 -m venv venv
-./venv/bin/pip install --prefer-binary -r requirements.txt
-# --prefer-binary: some in-range releases (e.g. cryptography 49.x on Intel
-# macOS) publish only an sdist; the flag picks the newest wheel instead of
-# running a Rust build. It does not lower the range's security floor.
+## 3. Start the app
 
-# Frontend deps
-cd ../frontend-nextjs
-npm install --legacy-peer-deps
-cd ..
-```
+From the repository root:
 
-## 2. Configure environment
+~~~bash
+make dev
+~~~
 
-Create `backend/.env` (the `backend/` directory, not the repo root):
+This starts the full FastAPI backend on port **8001** and Next.js frontend on
+**3001**. Keep this terminal open. Wait for both servers to finish starting.
+The API readiness endpoint is http://localhost:8001/health/ready.
 
-```bash
-# backend/.env — copy the template (every var has a working default)
-cp backend/.env.example backend/.env
-```
+Open **http://localhost:3001/login**. The local bootstrap account is
+`admin@example.com`; its generated password is written to
+`backend/logs/bootstrap_admin_password.txt` with owner-only permissions. Read
+that file locally. Do not paste it into a public issue.
 
-Then set the two things the template can't default for you:
-```bash
-# backend/.env
-DATABASE_URL=sqlite:///./atom_dev.db     # SQLite = zero external setup
-SECRET_KEY=<run: openssl rand -base64 48>  # MUST be set or JWTs reset on restart
-```
+If `ADMIN_PASSWORD` was supplied before first startup, use that value instead.
+The sample loader accepts an explicit password file through its CLI; run
+`backend/venv/bin/python scripts/load_sample_workspace.py --help` for options.
 
-**LLM providers are optional to boot.** The server starts without any API key.
-LLM features (chat, agents, workflows) are disabled until you configure at
-least one provider. You have three options:
+## 4. Load the sample
 
-| Option | What to set | Cost |
-|--------|-------------|------|
-| **OpenCode Go** (recommended) | `OPENCODE_API_KEY=<your-key>` | Low-cost subscription, covers all complexity tiers |
-| **Any BYOK key via UI** | Nothing in `.env` — add it at Settings > AI after launch | Varies by provider |
-| **Fully local (Ollama)** | `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` | Free |
+In a second terminal, from the same repository root:
 
-You can also set provider keys directly in `.env` (e.g. `OPENAI_API_KEY`,
-`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`) — the BYOK system auto-imports
-them on first access. See the
-[OpenCode Go guide](../guides/OPENCODE_GO_PROVIDER.md) for the
-lowest-cost cloud option, or [run with Ollama](run-with-ollama.md) for
-a fully local setup.
+~~~bash
+make sample
+~~~
 
-A complete template lives at `backend/.env.example`; the full reference
-(every var, its default, what it does) is at
-[`docs/reference/ENVIRONMENT_VARIABLES.md`](../reference/ENVIRONMENT_VARIABLES.md).
+The loader signs into your running local app, creates/reuses **Sample Quote
+Analyst**, records editable lessons, uploads the sample CSV and starts one
+read/calculation/document assignment through product routes.
 
-## 3. Launch the backend
+Expected result:
 
-Run the **FULL app** (`main_api_app:app`, 197 routers). **From the repo
-root** (not from `backend/`):
+- The command prints `status: passed` and **232990.00**.
+- **Assignments** shows *Sum Price for the sample quote sheet* completed.
+- Download the generated DOCX from the assignment.
+- Find the employee and editable lessons under **Agents → Sample Quote Analyst → Training**.
 
-```bash
-cd /path/to/atom
-PYTHONPATH=$PWD:$PWD/backend BYPASS_RATE_LIMIT=1 \
-  ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
-```
+This sample creates local data and artifacts. It performs no email send or
+connected-system write. It demonstrates deterministic calculation, not model
+judgment. For your next workflow, use the [verified demo guide](../demo/VERIFIED_WORKFLOWS.md).
 
-Or use the Makefile shortcut:
-```bash
-make backend   # runs on :8001 with auth rate limit disabled
-```
+## Busy ports
 
-You should see:
-```
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
-```
+Use matching ports for startup and the sample:
 
-`BYPASS_RATE_LIMIT=1` only lifts the registration rate-limit so you can
-create test users freely; remove it for any shared/production deployment.
+~~~bash
+BACKEND_PORT=8101 FRONTEND_PORT=3101 make dev
+# Second terminal:
+make sample PORT=8101 FE_PORT=3101
+~~~
 
-> **Minimal app (smoke only):** `minimal_app.py` boots a ~125-route subset for
-> fast checks (`uvicorn minimal_app:app --port 8000`). It lacks skills,
-> marketplace, workflows, canvas, integrations, etc. `scripts/dev.sh` and
-> `make backend` both launch the full app (`main_api_app:app`, v8.0.0).
+Open http://localhost:3101. The development launcher sets the browser API URL,
+allowed origins and hosts to match these ports. Do not stop an unrelated app
+just to free the default ports.
 
-### Where's my admin password?
+## Restart and keep your work
 
-On first boot the app auto-creates `admin@example.com` and writes a
-randomly-generated password to a **file** (not stdout — stdout is too
-easy to leak via log aggregators):
+Press **Ctrl+C** in the launch terminal, then run the same `make dev` command
+again from the same checkout. Preserve the database, artifacts, memory and
+generated keys. Completed assignments and durable questions should reopen;
+the acceptance evidence records the tested restart/recovery paths.
 
-```
-backend/logs/bootstrap_admin_password.txt   # mode 0600, owner-only readable
-```
+The isolated acceptance launcher uses world-owned SQLite, artifact and memory
+paths. Its storage configuration is separate from this ordinary development
+setup; do not use test-world reset commands against your working data.
 
-Read it:
-```bash
-cat backend/logs/bootstrap_admin_password.txt
-```
+## Add models and connections after the sample
 
-To control the password yourself, set `ADMIN_PASSWORD` in `backend/.env`
-before launching.
+Open **Settings** to configure your own provider. General chat and model-backed
+features need an available model; the sample does not. Local inference setup
+is described in [Run with Ollama](run-with-ollama.md). A provider being available
+does not establish its judgment quality.
 
-## 4. Verify it works
+Connectors need their own grants and source access. The accepted Microsoft
+read-only and one-use Outlook send qualifications are bounded historical
+records, not permission for new sends or proof that every connector works.
 
-```bash
-# Liveness (sub-10ms)
-curl http://localhost:8001/health/live
-# → {"status":"alive","timestamp":"..."}
+## If something fails
 
-# Readiness (database + disk checks)
-curl http://localhost:8001/health/ready
+- **Python rejected:** check `python3.11 --version`, then use the explicit
+  `PYTHON=python3.11 make setup` command.
+- **Cannot sign in:** wait for readiness; confirm you are using the frontend
+  port and generated password from this checkout.
+- **Empty first visit:** use a checkout containing the successor's first-login
+  fix. Confirm the sample ran against the same backend/port.
+- **No provider:** the sample should not need one; other model-backed features
+  require a configured, reachable provider.
+- **Existing data trouble:** preserve the data and keys. Do not delete or
+  reseed the database as a troubleshooting step.
 
-# Interactive API docs
-open http://localhost:8001/docs
-```
-
-## 5. Log in
-
-```bash
-PWD_VAL=$(cat backend/logs/bootstrap_admin_password.txt)
-
-TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"admin@example.com\",\"password\":\"$PWD_VAL\"}" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
-
-echo "Token: $TOKEN"
-
-# Authenticated request
-curl http://localhost:8001/api/users/me -H "Authorization: Bearer $TOKEN"
-```
-
-## 6. Launch the frontend (optional, for the UI)
-
-In a second terminal:
-
-```bash
-cd /path/to/atom/frontend-nextjs
-npm run dev -- -p 3001
-# → http://localhost:3001
-```
-
-Sign in at http://localhost:3001/auth/signin with
-`admin@example.com` + the password from step 3. The backend is
-CORS-enabled for `http://localhost:3001` by default.
-
----
-
-## Common errors
-
-| Error | Fix |
-|-------|-----|
-| `ModuleNotFoundError: No module named 'backend.api'` | Run from repo root with `PYTHONPATH=$PWD:$PWD/backend` (see step 3) |
-| `ModuleNotFoundError: No module named 'main'` / `Could not import module "main"` | You're using `main:app` — there is no `backend/main.py`. Use `main_api_app:app` (the full app, v8.0.0) or `minimal_app:app` (smoke). |
-| `Could not validate credentials` on every request | `SECRET_KEY` not set — tokens reset on restart. Set it in `backend/.env` |
-| Admin password lost | Delete the user and restart, or set `ADMIN_PASSWORD` in `backend/.env` |
-| Port 8001 in use | Use `--port 8002` (or any free port). Update `frontend-nextjs/.env.local`'s `NEXT_PUBLIC_API_URL` to match. |
-| `npm install` fails | Use `npm install --legacy-peer-deps` (peer-dep conflicts in the Next.js stack) |
-
-For the full troubleshooting guide see [`docs/getting_started/TROUBLESHOOTING.md`](./TROUBLESHOOTING.md).
-
----
-
-## What's next
-
-### 🎯 Immediate (5 min)
-- **Explore the API**: http://localhost:8001/docs (Swagger UI)
-- **Try the UI**: http://localhost:3001/auth/signin (admin@example.com + password from step 3)
-
-### 🤖 Configure LLM Providers (recommended)
-| Goal | Guide |
-|------|-------|
-| **Free local LLM** (no API keys) | [Run with Ollama](run-with-ollama.md) |
-| **Lowest cost cloud** (~90% savings) | [OpenCode Go Provider](../guides/OPENCODE_GO_PROVIDER.md) |
-| **All providers comparison & setup** | [LLM Providers Guide](../guides/LLM_PROVIDERS.md) |
-| **Best quality** (OpenAI/Anthropic) | Edit `backend/.env` with keys, restart |
-
-### 🧪 Develop & Test
-- **Run unit tests**: `pytest backend/tests/unit/ -v`
-- **Run E2E tests**: `cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh && pytest -v -n 4`
-- **Makefile shortcuts**: `make test-backend`, `make test-e2e`
-
-### 🚀 Deploy
-| Target | Guide |
-|--------|-------|
-| **Docker (Personal Edition)** | `cp .env.personal .env && docker compose -f docker-compose-personal.yml up -d --build` |
-| **Production (PostgreSQL)** | [Production Readiness](../operations/production-readiness.md) |
-| **DigitalOcean 1-click** | [Deploy to DO](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml) |
-
-### 📚 Learn the System
-- [Documentation Index](../INDEX.md) — Complete navigation
-- [Architecture Overview](../architecture/README.md) — How pieces fit
-- [Agent Systems](../agents/overview.md) — Governance, maturity, intent
-- [Canvas & Office](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Presentations, spreadsheets, co-editing
-
----
-
-**Last Updated**: August 2026 · **Status**: Verified working ✅
+See [troubleshooting](TROUBLESHOOTING.md), the
+[measured first-use record](../demo/FIRST_USE_TEST_2026-11-01.md), or
+[open a sanitized issue](https://github.com/rush86999/atom/issues).

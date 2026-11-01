@@ -1,5 +1,16 @@
 # First Steps After Install
 
+## Start with the sample employee
+
+With `make dev` running, use a second terminal in the repository root:
+`make sample`. Open http://localhost:3001 and sign in with `admin@example.com`
+and the generated password in `backend/logs/bootstrap_admin_password.txt`.
+Assignments should show a completed **232990.00** calculation and DOCX.
+Find editable lessons under Agents → Sample Quote Analyst → Training.
+For matching port overrides and prerequisites, follow [Quick Start](quick-start.md).
+The [demo guide](../demo/VERIFIED_WORKFLOWS.md) is the current next step;
+the broader feature instructions below depend on configuration and tested scope.
+
 > **You've launched the server — now what?** This walks through the first
 > 5 things to do after step 6 of the
 > [Quick Start](./quick-start.md).

@@ -46,13 +46,43 @@ only change is harness/test history. The pinned closure process serves
 (`15.10 + 20.20 + 30.30 + 44.40 = 110.00`). `wait` is `waiting` with
 operation `517f45fc-5f23-41f6-a2be-4c58bcac7ebd`.
 
-## Resume assertions (to fill after `20:04:53Z`)
+## Closure (after `20:04:53Z`)
 
-1. Snapshot the durable state, stop **only** pid 66715, restart against the same
-   stores, verify the same run is still `waiting` with the same revision and
-   correlation.
-2. Deliver the correlated reply; assert the same run/assignment, `source-1`
-   still `attempts=1` with the same operation id, expected artifact content,
-   SHA-256 and one controlled effect; no second send.
-3. Record elapsed after the wait, budget `paused_seconds`, and the serving
-   identity after restart.
+- gate check: **7,239.8 s** elapsed after the recorded wait (>= 7,200 s)
+- status: `waiting` → `completed`; same run `cac9cbd6-…`, same assignment
+  `asg-bc8171a465894137`, same teaching revision
+  `851207ec455336d3+cabba8f03b6894fa+map`
+- `source-1`: **110.00** USD (15.10 + 20.20 + 30.30 + 44.40), operation
+  `3e8eba43-a0b5-4443-9a75-6042d01db20c`, **attempts=1** before and after;
+  not recalculated or dispatched again
+- `wait`: applied with the correlated reply; `deliverable-1`: applied;
+  `send`: applied (operation `2a593acd-…`)
+- artifact: `sum-price-for-the-second-integrated-quote-sheet-20d32298.docx`,
+  **37,211 bytes**, SHA-256 `bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94`,
+  Normal **Arial 11.0**, body `sum of Gross Amount: 110.00 USD`
+- exactly **one** controlled outbox line, operation `2a593acd-…`
+- **explicit controlled approval**: `send` required approval, payload
+  `ca0ab0a5ed05688f28339e0f3d0e68f56aa9d7a863bb3ff528aacab7c6320cf6`,
+  purpose “Send the prepared response”. This is recovery with a human/controlled
+  approval step, **not** approval-free autonomous completion.
+- duplicate resume twice: 200 / `completed`, no extra effect; duplicate
+  correlated reply: 404 `No open gap carries this correlation id…`
+- final restart: pid 87659 from `c2-pin` at `414d8add3112`; run remains
+  `achieved`, artifact SHA matches, outbox remains one line (`state-final.json`)
+
+### Budget snapshots (pre-repair source `414d8add3`)
+
+| Stage | paused_seconds | waiting_since | active_wait |
+|---|---|---|---|
+| before response | 0.0 | `18:04:41Z` | null |
+| after response | **7251.69** | null | null |
+| after approval | 7251.69 | null | null |
+| after resume | 7251.69 | null | null |
+| after completion | 7251.69 | null | null |
+| after duplicate response | 7251.69 | null | null |
+
+The interval was credited **once**; approval/resume/duplicate did not add it
+again. This source predates the budget pause-credit repair, so it is historical
+execution evidence, **not** verification of the repaired budget code. The
+repair is verified separately by the 63 focused controls on backend tree
+`c2963fbcdc8e` (commit `f1ef414c3`).

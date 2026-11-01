@@ -1,5 +1,18 @@
 # Contributing to Atom
 
+## Start from the verified local path
+
+Follow [Quick Start](docs/getting_started/quick-start.md): Python 3.11–3.13,
+`PYTHON=python3.11 make setup`, `make dev`, then `make sample` in a second
+terminal. The expected result is **232990.00** and a DOCX. Run only against
+scratch stores when testing; preserve existing data and generated keys.
+
+Use the [acceptance record](docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md)
+and [successor notes](docs/acceptance/SUCCESSOR_RELEASE_2026-11-01.md) for tested
+scope. Keep historical tags and evidence immutable. A new feature needs its own
+positive boundary, refusal control and persistence/restart evidence where relevant.
+Do not infer release readiness from a test count alone.
+
 Thank you for your interest in contributing to Atom, the AI-powered business automation platform!
 
 ## Getting Started

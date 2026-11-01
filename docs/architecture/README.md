@@ -1,5 +1,10 @@
 # Architecture Documentation
 
+> **Looking to use Atom?** Start with [the sample](../getting_started/quick-start.md)
+> and [verified workflows](../demo/VERIFIED_WORKFLOWS.md). This is the architectural
+> reference; implemented components do not establish universal reliability.
+> See [acceptance and limits](../acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md).
+
 System architecture, design patterns, and technical specifications.
 
 ## 📚 Quick Navigation

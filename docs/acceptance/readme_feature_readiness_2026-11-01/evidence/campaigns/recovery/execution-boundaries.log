@@ -1,0 +1,101 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 09:41:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:41:10 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 09:41:10 [    INFO] EscalationManager initialized
+2026-11-01 09:41:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:41:10 [    INFO] EscalationManager initialized
+2026-11-01 09:41:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:41:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:41:10 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:10 [    INFO] runtime identity: source_id=09393e9b0be6-dirty.5eca609d7ef3 revision=09393e9b0be6 dirty=True (2 modified, 9 untracked)
+PASSED                                                                   [  5%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 11%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 16%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 22%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 27%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 33%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 38%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 44%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:11 [    INFO] Created HITL action 6855453a-7170-45a8-9ec7-bcfa86385e12 for agent None
+PASSED                                                                   [ 50%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:12 [    INFO] Created HITL action 2258a8ec-fe78-4f42-9b7d-1e1dfc5773f3 for agent None
+PASSED                                                                   [ 55%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:13 [    INFO] Created HITL action 33d3fe05-045d-4d85-90f5-afd2a66c6521 for agent None
+PASSED                                                                   [ 61%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:13 [    INFO] Created HITL action bd6e451f-a983-4ec1-8be4-02cd7fe0315e for agent None
+PASSED                                                                   [ 66%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:13 [    INFO] Created HITL action f8b3f930-f94b-448d-9ccf-c24b2476ed74 for agent None
+PASSED                                                                   [ 72%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/0fde5939-6cf8-4129-9f1e-20dd362e0859/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 77%]
+tests/test_assignment_routes.py::test_route_reconcile_applied_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/86006824-c67d-493e-ad95-308b0a72805e/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_assignment_routes.py::test_route_reconcile_insufficient_keeps_uncertain_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd6b09e1-423d-4070-b762-53f6ccd28733/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_assignment_routes.py::test_route_reconcile_not_applied_allows_one_new_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/363c1495-183c-497d-9bec-e738987bba05/reconcile/send "HTTP/1.1 200 OK"
+2026-11-01 09:41:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/363c1495-183c-497d-9bec-e738987bba05/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_assignment_routes.py::test_route_reconcile_requires_evidence_and_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:41:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/2c725370-38fc-425d-be63-6493608fb1c1/reconcile/send "HTTP/1.1 409 Conflict"
+2026-11-01 09:41:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/2c725370-38fc-425d-be63-6493608fb1c1/reconcile/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 36 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 18 passed, 42 warnings in 21.23s =======================

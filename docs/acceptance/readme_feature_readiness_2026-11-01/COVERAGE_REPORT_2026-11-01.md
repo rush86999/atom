@@ -3,7 +3,7 @@
 **Status: 111/123 = 90.2% self-assessed, awaiting independent verifier
 acceptance. This is not a release declaration.**
 
-- Candidate source: `a0fce85b0`
+- Candidate source: `bec60978b` (runtime); evidence bundle `76ac5528f`
 - Branch: `codex/employee-execution-readiness`
 - Frozen denominator: **123 eligible functional claims** (unchanged)
 - Prior accepted local milestone: 99/123 at `29d9075b6` / accepted execution
@@ -40,7 +40,8 @@ One reusable acceptance world now lives at
 explicit tenant/workspace/user/agent rows, replaceable session factory,
 observable effect ledger, deterministic fault points).
 
-Full runtime batch at `a0fce85b0`: **229 passed**.
+Earlier runtime batch at `a0fce85b0`: **229 passed**. Final repaired runtime
+batch at `bec60978b`: **235 passed**.
 
 The recovery controls cover crash before dispatch, after dispatch/before receipt
 persistence, cancellation, duplicate correlation, reconciliation `applied`,
@@ -59,7 +60,11 @@ Evidence: [`evidence/campaigns/recovery/execution-boundaries.log`](evidence/camp
 
 ### Budget repair found by the long-run
 
-The first resume exposed a real defect: the 15-minute wall budget counted the two-hour durable wait as working time and failed the wait step. The failure is preserved in `evidence/campaigns/long-run/budget-failure-preserved.json`. The fix excludes `paused_seconds`/`waiting_since` from wall time, charges the pause in both the direct-response and resume paths, and lets a pre-dispatch budget refusal be retried without consuming an execution attempt. The same run then completed without recreating the source result or repeating the effect.
+The first resume exposed a real defect: the 15-minute wall budget counted the two-hour durable wait as working time and failed the wait step. The failure is preserved in `evidence/campaigns/long-run/budget-failure-preserved.json`. The repair credits each actual wait interval **once**, keyed by the persisted wait operation id and bounded by the recorded wait start and external response time; no interval is inferred from unrelated steps or extended to a retry. Legacy assignments with an existing `paused_seconds` record the interval as already credited instead of adding it again. The `wait_credits` ledger is written under the existing assignment CAS, so repeated, concurrent and post-restart retries cannot double-credit. A pre-dispatch budget refusal keeps its real attempt count and is admitted for the repair retry; genuine active-work exhaustion still refuses.
+
+Evidence: `evidence/campaigns/budget-repair/repair.json`, `focused-executor-tests.log` (**55 passed**) and `full-runtime-batch.log` (**235 passed**).
+
+The earlier two-hour run remains historical elapsed/resume evidence. Its successful completion is **not** used as proof of correct budget enforcement; the focused repair controls are.
 
 Recovery browser evidence:
 [`evidence/campaigns/recovery/browser-final/browser-recovery.json`](evidence/campaigns/recovery/browser-final/browser-recovery.json)
@@ -101,7 +106,8 @@ No cloud credential, connector or outbound step was used.
 2. **Product batch** — CORE-06, ROUTE-06, ROUTE-03, GRAPH-05, INST-01, GOV-05.
    Evidence: `evidence/claims/{core06,routing,graph05,install01,oidc}`.
 3. **Final integrated candidate** — 111/123 plus the completed teaching and
-   long-running campaigns on `a0fce85b0`, with the final manifest and hash
+   long-running campaigns (captured on the product tree before the runtime-only
+   budget repair) with the final manifest and hash
    verification.
 
 The verifier remains the acceptance authority; this report does not

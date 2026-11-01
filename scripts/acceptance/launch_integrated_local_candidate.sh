@@ -155,6 +155,10 @@ PY
 export DATABASE_URL="sqlite:///$DB_PATH"
 export ATOM_DATA_DIR="$WORLD_REAL/data"
 export LANCEDB_URI="$WORLD_REAL/data/atom_memory"
+# Workspace handlers read LANCEDB_URI_BASE and join <workspace_id>; without
+# it they fall back to ./data/atom_memory and anchor to backend/, silently
+# reusing the repository-shared memory root. Both point at the world.
+export LANCEDB_URI_BASE="$WORLD_REAL/data/atom_memory"
 export ATOM_OFFICE_DIR="$WORLD_REAL/data/office"
 export ATOM_ASSIGNMENT_OUTPUT_DIR="$WORLD_REAL/data/assignments"
 export ATOM_TASK_LOCK_DIR="$WORLD_REAL/data/task_locks"

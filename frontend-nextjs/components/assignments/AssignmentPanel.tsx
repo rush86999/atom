@@ -197,6 +197,27 @@ export function AssignmentPanel({
     refreshList();
     refreshSources();
     refreshAgents();
+    // The NextAuth bridge writes auth_token in an effect. On a first visit
+    // immediately after login this page can mount before that write, fetch
+    // unauthenticated, and keep showing "No durable assignments yet" until a
+    // manual reload. Re-run the three reads once the token appears.
+    const tokenReady = () =>
+      typeof window !== "undefined" &&
+      !!(localStorage.getItem("auth_token") || localStorage.getItem("token"));
+    if (tokenReady()) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      if (tokenReady()) {
+        window.clearInterval(timer);
+        setError(null);
+        refreshList();
+        refreshSources();
+        refreshAgents();
+      } else if (++tries > 40) {
+        window.clearInterval(timer);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
   }, [refreshList, refreshSources, refreshAgents]);
 
   useEffect(() => {

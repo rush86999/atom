@@ -40,6 +40,17 @@ def login(base: str, password: str) -> str:
     return body["access_token"]
 
 
+def budget_snapshot(detail: dict) -> dict:
+    budget = (detail.get("assignment") or {}).get("budget") or {}
+    return {
+        key: budget.get(key) for key in (
+            "started_at", "paused_seconds", "waiting_since", "active_wait",
+            "wait_credits", "wait_credits_schema", "steps_started",
+            "attempts_started", "elapsed_seconds",
+        )
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--backend", default="http://127.0.0.1:8085")
@@ -72,10 +83,11 @@ def main() -> int:
     before = detail["assignment"]
     if before["status"] != "waiting":
         raise SystemExit(f"REFUSED: expected waiting, got {before['status']}")
-    before_steps = {step["step_id"]: step for step in detail.get("steps") or []}
+    before_steps = {step["step_id"]: step for step in before.get("steps") or []}
     source_before = before_steps["source-1"]
     teaching_before = before["teaching_revision"]
     assignment_id = before["assignment_id"]
+    budget_before = budget_snapshot(detail)
 
     status, delivered = api(
         args.backend, f"/api/assignments/{args.run_id}/responses/"
@@ -83,8 +95,12 @@ def main() -> int:
         token=token, method="POST", body={"response": args.response})
     if status not in (200, 202):
         raise SystemExit(f"response delivery failed: {status} {delivered}")
+    _, response_detail = api(
+        args.backend, f"/api/assignments/{args.run_id}", token=token)
+    budget_after_response = budget_snapshot(response_detail)
 
-    approvals = 0
+    approvals = []
+    resume_budgets = []
     resume_calls = 0
     deadline = time.time() + 240
     detail = {}
@@ -96,37 +112,58 @@ def main() -> int:
         assignment = detail.get("assignment") or {}
         if assignment.get("status") == "completed":
             break
-        steps_now = detail.get("steps") or []
+        steps_now = (detail.get("assignment") or {}).get("steps") or []
         awaiting = [step for step in steps_now
                     if step.get("status") == "awaiting_approval"]
         if awaiting:
             for step in awaiting:
+                request = step.get("approval_request") or {}
                 approve_status, _ = api(
                     args.backend,
                     f"/api/assignments/{args.run_id}/approve/"
                     f"{step['step_id']}",
                     token=token, method="POST",
                     body={"note": "C2 closure approval"})
-                approvals += 1
+                approvals.append({
+                    "step_id": step["step_id"],
+                    "http": approve_status,
+                    "payload_sha256": request.get("payload_sha256"),
+                    "artifact_revision": request.get("artifact_revision"),
+                    "purpose": request.get("purpose"),
+                })
                 if approve_status >= 400:
                     raise SystemExit(
                         f"approval failed for {step['step_id']}: "
                         f"{approve_status}")
+                _, approved_detail = api(
+                    args.backend, f"/api/assignments/{args.run_id}",
+                    token=token)
+                resume_budgets.append({
+                    "after_approval": budget_snapshot(approved_detail)})
             api(args.backend, f"/api/assignments/{args.run_id}/resume",
                 token=token, method="POST")
             resume_calls += 1
+            _, resumed_detail = api(
+                args.backend, f"/api/assignments/{args.run_id}", token=token)
+            resume_budgets.append({
+                "after_resume": budget_snapshot(resumed_detail)})
         elif (assignment.get("status") in ("waiting", "paused_hitl",
                                            "blocked")
               and resume_calls < 3):
             api(args.backend, f"/api/assignments/{args.run_id}/resume",
                 token=token, method="POST")
             resume_calls += 1
+            _, resumed_detail = api(
+                args.backend, f"/api/assignments/{args.run_id}", token=token)
+            resume_budgets.append({
+                "after_resume": budget_snapshot(resumed_detail)})
         time.sleep(1)
     else:
         raise SystemExit(
             f"REFUSED: assignment did not complete: {detail.get('assignment')}")
     after = detail["assignment"]
-    steps = {step["step_id"]: step for step in detail.get("steps") or []}
+    budget_after_completion = budget_snapshot(detail)
+    steps = {step["step_id"]: step for step in after.get("steps") or []}
     source_after = steps["source-1"]
     document = next(item for item in after.get("deliverables") or []
                     if item.get("kind") == "document")
@@ -158,6 +195,9 @@ def main() -> int:
         args.backend, f"/api/assignments/{args.run_id}/responses/"
                       f"{args.correlation}",
         token=token, method="POST", body={"response": args.response})
+    _, duplicate_detail = api(
+        args.backend, f"/api/assignments/{args.run_id}", token=token)
+    budget_after_duplicate = budget_snapshot(duplicate_detail)
 
     outbox_path = Path(args.outbox)
     lines = outbox_path.read_text().splitlines() if outbox_path.exists() else []
@@ -191,7 +231,15 @@ def main() -> int:
                 "value"),
             "waiting": steps.get("wait", {}).get("waiting"),
         },
-        "approvals_clicked": approvals,
+        "budget_before": budget_before,
+        "budget_after_response": budget_after_response,
+        "budget_after_completion": budget_after_completion,
+        "budget_after_duplicate_response": budget_after_duplicate,
+        "budget_resume_snapshots": resume_budgets,
+        "approvals": approvals,
+        "approval_required": bool(approvals),
+        "retry_events": [],
+        "resume_calls": resume_calls,
         "artifact": artifact,
         "duplicate_resume": resume_results,
         "duplicate_response": {

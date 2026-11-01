@@ -1,0 +1,107 @@
+
+tests/test_training_lifecycle_manual_start.py::test_start_creates_only_a_pending_proposal_with_guidance 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:38:31 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 09:38:31 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 09:38:31 [    INFO] EscalationManager initialized
+2026-11-01 09:38:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:31 [    INFO] EscalationManager initialized
+2026-11-01 09:38:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:31 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:32 [    INFO] Created training proposal 026f40de-2eb8-45c9-bf39-2803edf606df for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 09:38:32 [    INFO] Manual training proposal 026f40de-2eb8-45c9-bf39-2803edf606df opened for STUDENT student-1 by supervisor-1
+PASSED                                                                   [ 25%]
+tests/test_training_lifecycle_manual_start.py::test_start_route_is_supervisor_only_and_persists_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:32 [    INFO] Created training proposal 725d82cb-cf68-45f2-97db-65ddcbd1e5d6 for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 09:38:32 [    INFO] Manual training proposal 725d82cb-cf68-45f2-97db-65ddcbd1e5d6 opened for STUDENT student-1 by lead-1
+2026-11-01 09:38:32 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/start "HTTP/1.1 200 OK"
+2026-11-01 09:38:32 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/start "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 50%]
+tests/test_training_lifecycle_manual_start.py::test_approve_creates_session_with_guidance_then_completion_promotes 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:32 [    INFO] Created training proposal a58f4f77-8da8-494d-bc3e-bc455817442d for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 09:38:32 [    INFO] Manual training proposal a58f4f77-8da8-494d-bc3e-bc455817442d opened for STUDENT student-1 by supervisor-1
+2026-11-01 09:38:32 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-01 09:38:32 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-01 09:38:32 [    INFO] EscalationManager initialized
+2026-11-01 09:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:32 [    INFO] LanceDBHandler initialized. ID: 5773315472. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:32 [    INFO] EscalationManager initialized
+2026-11-01 09:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:32 [    INFO] EscalationManager initialized
+2026-11-01 09:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:32 [    INFO] EscalationManager initialized
+2026-11-01 09:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:32 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:32 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory/default with storage_options=None
+2026-11-01 09:38:32 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:32 [    INFO] Session mini-canvas created: 1df72ba3-3b2d-4984-82a3-8d89ed3a22f7 for training 1e45b48e-427d-4075-a2ff-ea067a4c6f59
+2026-11-01 09:38:32 [    INFO] spawned 2 role canvases for session 1e45b48e-427d-4075-a2ff-ea067a4c6f59 (template=operations)
+2026-11-01 09:38:32 [    INFO] Approved training proposal a58f4f77-8da8-494d-bc3e-bc455817442d, created session 1e45b48e-427d-4075-a2ff-ea067a4c6f59, duration: 25.0 hours, ends: 2026-11-04T12:38:32.568650
+2026-11-01 09:38:32 [    INFO] Agent student-1 promoted from STUDENT to INTERN (confidence: 0.700, evidence: {'ready': True, 'pathway': 'self_directed', 'reason': None, 'training_sessions': 1, 'required_training_sessions': 1, 'mentored_sessions': 0, 'episodes': 3, 'required_episodes': 3, 'success_ratio': 1.0, 'required_success_ratio': 0.7, 'policy_source': 'seeded'})
+2026-11-01 09:38:32 [    INFO] Initialized global governance cache
+2026-11-01 09:38:32 [    INFO] Completed training session 1e45b48e-427d-4075-a2ff-ea067a4c6f59 for agent student-1. Performance: 1.00 (claimed 1.0; evidence 3/3 successful runs), Confidence boost: 0.200 (0.500 → 0.700), Promoted: True
+2026-11-01 09:38:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-01 09:38:32 [    INFO] Training session 1e45b48e-427d-4075-a2ff-ea067a4c6f59 already completed; ignoring duplicate completion (idempotent)
+PASSED                                                                   [ 75%]
+tests/test_training_lifecycle_manual_start.py::test_unauthorized_transitions_and_insufficient_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:32 [    INFO] Created training proposal 3946e78f-29ff-44c9-8aa1-e8d7a806458e for agent student-1 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 09:38:32 [    INFO] Manual training proposal 3946e78f-29ff-44c9-8aa1-e8d7a806458e opened for STUDENT student-1 by supervisor-1
+2026-11-01 09:38:32 [    INFO] Session mini-canvas created: 6a0662b8-67ae-42d5-8e68-ade1b55a1d1a for training 561bb386-420d-4b7b-bd87-15f9b3a80004
+2026-11-01 09:38:32 [    INFO] spawned 2 role canvases for session 561bb386-420d-4b7b-bd87-15f9b3a80004 (template=operations)
+2026-11-01 09:38:32 [    INFO] Approved training proposal 3946e78f-29ff-44c9-8aa1-e8d7a806458e, created session 561bb386-420d-4b7b-bd87-15f9b3a80004, duration: 25.0 hours, ends: 2026-11-04T12:38:32.828361
+2026-11-01 09:38:32 [    INFO] Created training proposal 614b8716-726f-450a-acbc-52a475325cf9 for agent student-2 with 3 capability gaps, estimated 25.0 hours
+2026-11-01 09:38:32 [    INFO] Manual training proposal 614b8716-726f-450a-acbc-52a475325cf9 opened for STUDENT student-2 by supervisor-1
+2026-11-01 09:38:32 [    INFO] Session mini-canvas created: 515539b6-5224-4557-8a65-19b7c1325991 for training 0c6d9b8e-642b-42a6-b3d1-836b66b47a92
+2026-11-01 09:38:32 [    INFO] spawned 2 role canvases for session 0c6d9b8e-642b-42a6-b3d1-836b66b47a92 (template=operations)
+2026-11-01 09:38:32 [    INFO] Approved training proposal 614b8716-726f-450a-acbc-52a475325cf9, created session 0c6d9b8e-642b-42a6-b3d1-836b66b47a92, duration: 25.0 hours, ends: 2026-11-04T12:38:32.839746
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 4 passed, 14 warnings in 15.26s ========================

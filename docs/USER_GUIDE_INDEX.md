@@ -1,6 +1,14 @@
 # Atom User Guide Index
 
-**Last Updated:** August 2026
+## First useful result
+
+Follow [Quick Start](getting_started/quick-start.md) to run `make sample`:
+**232990.00** and a downloadable DOCX under Assignments, without a provider key.
+Then use [Verified Workflows](demo/VERIFIED_WORKFLOWS.md) for teaching, mapping,
+correction and restart/resume. Read the [tested limits](acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md)
+before relying on a particular automation or connector.
+
+**Navigation updated:** November 1, 2026
 
 Welcome to the Atom User Guide! This comprehensive guide helps you get started with Atom and master its features.
 
@@ -10,7 +18,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### New to Atom? Start Here
 
-1. **[Quick Start Guide](getting_started/quick-start.md)** - Get Atom running in 15 minutes
+1. **[Quick Start Guide](getting_started/quick-start.md)** - Run the sample locally (15-minute cold-install target)
    - One-time setup
    - Database configuration
    - Environment setup
@@ -310,6 +318,6 @@ This index is maintained and updated regularly. If you find outdated information
 
 ---
 
-**Last Updated:** August 2026
+**Navigation updated:** November 1, 2026
 **Version:** 1.0
 **Platform:** Atom Open Source

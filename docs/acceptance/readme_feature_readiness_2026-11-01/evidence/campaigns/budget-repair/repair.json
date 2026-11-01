@@ -1,0 +1,64 @@
+{
+  "schema": "atom-budget-wait-repair-2026-11-01",
+  "status": "passed",
+  "runtime_source": "bec60978b (runtime); evidence bundle 76ac5528f",
+  "finding": "The legacy retry path added a completed wait interval again on every retry, erasing consumed working time and allowing a genuinely over-budget assignment.",
+  "repair": {
+    "identity": "Each wait is keyed by the wait operation id (persisted on the step as wait_operation_id) and recorded once in budget.wait_credits.",
+    "boundaries": "start = active_wait.started_at / persisted waiting.since / wait operation claimed_at; end = the recorded external response at (or the actual resume time). Never a later retry timestamp or an unrelated step timestamp.",
+    "legacy": "A legacy assignment with paused_seconds > 0 records the interval as already credited and adds zero. A legacy assignment with paused_seconds == 0 credits the actual interval once.",
+    "cas": "Wait entry, response resolution, resume and retry all run inside the existing assignment mutate/CAS; the wait_credits ledger makes the credit idempotent under concurrent/restarted retries.",
+    "attempts": "A pre-dispatch budget refusal keeps its actual attempt count and uses pre_dispatch_budget_refusal so the gate admits the repair retry; a real adapter failure still consumes an attempt."
+  },
+  "focused_controls": {
+    "command": "pytest tests/test_assignment_executor.py -q",
+    "result": "55 passed",
+    "cases": [
+      "test_retry_credits_a_legacy_wait_once_and_keeps_working_time",
+      "test_legacy_already_credited_pause_is_not_extended",
+      "test_each_new_wait_interval_is_credited_once",
+      "test_concurrent_retries_credit_a_legacy_wait_once",
+      "test_genuine_active_work_exhaustion_is_refused",
+      "test_durable_wait_time_is_excluded_from_the_wall_budget"
+    ]
+  },
+  "reproduction_table": [
+    {
+      "state": "legacy paused=100, actual elapsed=2000s, wait interval=100s",
+      "before_paused": 100,
+      "after_paused": 100,
+      "working_time": 1900,
+      "budget": 900,
+      "decision": "refused"
+    },
+    {
+      "state": "legacy paused=0, actual elapsed=2000s, wait interval=500s",
+      "before_paused": 0,
+      "after_paused": 500,
+      "working_time": 1500,
+      "budget": 900,
+      "decision": "refused"
+    },
+    {
+      "state": "genuine active work, actual elapsed=2000s, no wait",
+      "before_paused": 0,
+      "after_paused": 0,
+      "working_time": 2000,
+      "budget": 900,
+      "decision": "refused"
+    },
+    {
+      "state": "new wait, two distinct intervals, repeated retry",
+      "before_paused": 0,
+      "after_paused": 150,
+      "working_time": "remaining budget unchanged",
+      "budget": 900,
+      "decision": "each interval credited once"
+    }
+  ],
+  "full_batch": {
+    "command": "focused runtime batch (19 suites)",
+    "result": "235 passed"
+  },
+  "historical_note": "The earlier two-hour run completed after a legitimate wait; that remains historical elapsed/resume evidence but is not used as proof of correct budget enforcement. The repair above is the budget-enforcement evidence."
+}

@@ -1,5 +1,11 @@
 # Atom Installation Guide
 
+> **Current recommended installation:** use the [local quick start](quick-start.md)
+> and `PYTHON=python3.11 make setup`. The recommended fixed snapshot is
+> `successor-first-use-2026-11-01`. The options below are reference material;
+> Docker/cloud/platform variants do not inherit the local first-use qualification.
+> See the [measured setup record](../demo/FIRST_USE_TEST_2026-11-01.md).
+
 This document describes all verified setup options for the Atom platform, including manual git clone, docker-compose, script automation, and platform-specific deployments.
 
 > [!NOTE]

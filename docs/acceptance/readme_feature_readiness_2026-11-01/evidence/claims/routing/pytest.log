@@ -1,0 +1,881 @@
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy 
+-------------------------------- live log setup --------------------------------
+2026-11-01 13:19:52 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 13:19:52 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:19:52 [    INFO] EscalationManager initialized
+2026-11-01 13:19:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:52 [    INFO] EscalationManager initialized
+2026-11-01 13:19:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:19:52 [    INFO] AgentTaskRegistry initialized
+2026-11-01 13:19:52 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+2026-11-01 13:19:52 [    INFO] ================================================================================
+2026-11-01 13:19:52 [    INFO] ATOM PLATFORM API STARTUP
+2026-11-01 13:19:52 [    INFO] ================================================================================
+2026-11-01 13:19:52 [    INFO] Python version: 3.11.16 (main, Aug 12 2026, 23:03:19) [Clang 21.0.0 (clang-2100.1.1.101)]
+2026-11-01 13:19:52 [    INFO] Working directory: /Users/rushiparikh/projects/atom-employee-execution/backend
+2026-11-01 13:19:52 [    INFO] Python path: ['/Users/rushiparikh/projects/atom-employee-execution', '/Users/rushiparikh/projects/atom-employee-execution/backend', '/Users/rushiparikh/projects/atom-employee-execution/backend']...
+2026-11-01 13:19:52 [    INFO] ✓ uvicorn imported
+2026-11-01 13:19:52 [    INFO] ✓ Standard library imports successful
+2026-11-01 13:19:52 [    INFO] ✓ dotenv imported
+2026-11-01 13:19:52 [    INFO] ✓ sqlalchemy.orm and exceptions imported
+2026-11-01 13:19:52 [    INFO] ✓ core.models imported
+2026-11-01 13:19:52 [    INFO] ✓ core.models_registration imported
+2026-11-01 13:19:52 [    INFO] ✓ core.cache.RedisCacheService imported
+2026-11-01 13:19:52 [    INFO] ✓ core.database imported
+2026-11-01 13:19:52 [ WARNING] Failed to import quota_manager: No module named 'core.quota_manager'
+2026-11-01 13:19:52 [    INFO] ✓ FastAPI imports successful
+2026-11-01 13:19:52 [    INFO] MCP Service initialized
+2026-11-01 13:19:52 [    INFO] EscalationManager initialized
+2026-11-01 13:19:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:52 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-01 13:19:52 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-01 13:19:52 [    INFO] EscalationManager initialized
+2026-11-01 13:19:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:52 [    INFO] Restored poll fetch state: 0 cursors, 1 known message ids across 1 app(s)
+2026-11-01 13:19:52 [    INFO] Webhook processor initialized and callback registered
+2026-11-01 13:19:52 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-01 13:19:52 [    INFO] No token storage file found, starting empty
+2026-11-01 13:19:52 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-01 13:19:52 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-01 13:19:52 [    INFO] ATOM Discord Integration initialized
+2026-11-01 13:19:52 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-01 13:19:52 [    INFO] EscalationManager initialized
+2026-11-01 13:19:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:19:52 [    INFO] LanceDBHandler initialized. ID: 5785852240. LANCEDB_AVAILABLE: True
+2026-11-01 13:19:52 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-01 13:19:52 [    INFO] Telegram Integration initialized
+2026-11-01 13:19:52 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-01 13:19:52 [    INFO] ATOM AI Integration initialized
+2026-11-01 13:19:52 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-01 13:19:52 [    INFO] Enterprise Security Service initialized
+2026-11-01 13:19:52 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-01 13:19:52 [    INFO] Enterprise Unified Service initialized
+2026-11-01 13:19:52 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-01 13:19:52 [    INFO] Google Chat Enhanced Service initialized
+2026-11-01 13:19:52 [    INFO] ATOM Google Chat Integration initialized
+2026-11-01 13:19:52 [    INFO] Teams Enhanced Service initialized
+2026-11-01 13:19:52 [    INFO] ATOM Teams Integration initialized
+2026-11-01 13:19:52 [    INFO] Workflow Automation Service initialized
+2026-11-01 13:19:52 [    INFO] WhatsApp Integration initialized
+2026-11-01 13:19:52 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-01 13:19:52 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-01 13:19:52 [    INFO] Google Chat Enhanced Service initialized
+2026-11-01 13:19:52 [ WARNING] Marketing service not available
+2026-11-01 13:19:52 [ WARNING] Meta Business service not available
+2026-11-01 13:19:52 [ WARNING] OpenClaw service not available
+2026-11-01 13:19:52 [    INFO] Slack Enhanced Service initialized
+2026-11-01 13:19:52 [    INFO] Teams Enhanced Service initialized
+2026-11-01 13:19:52 [ WARNING] Redis unavailable - webhook ingestion will process synchronously
+2026-11-01 13:19:52 [    INFO] OutlookEnhancedService initialized
+2026-11-01 13:19:53 [ WARNING] No .env file found in any expected location. Realizing on system env vars.
+2026-11-01 13:19:53 [    INFO] Startup API key check
+2026-11-01 13:19:53 [    INFO] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-11-01 13:19:53 [    INFO] Creating FastAPI application...
+2026-11-01 13:19:53 [    INFO] ✓ FastAPI app instance created
+2026-11-01 13:19:53 [ WARNING] Connection leak detector not available: No module named 'core.connection_leak_detector'
+2026-11-01 13:19:53 [    INFO] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+2026-11-01 13:19:53 [    INFO] ⊘ Test mode detected: Loading only critical integrations for security tests
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: auth
+2026-11-01 13:19:53 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded auth
+2026-11-01 13:19:53 [    INFO]   ✓ auth (critical for tests, prefix: root)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: oauth
+2026-11-01 13:19:53 [    INFO] Loading integration: oauth (api.oauth_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded oauth
+2026-11-01 13:19:53 [    INFO]   ✓ oauth (critical for tests, prefix: root)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: whatsapp
+2026-11-01 13:19:53 [    INFO] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded whatsapp
+2026-11-01 13:19:53 [    INFO]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: microsoft365
+2026-11-01 13:19:53 [    INFO] Loading integration: microsoft365 (integrations.microsoft365_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded microsoft365
+2026-11-01 13:19:53 [    INFO]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: outlook
+2026-11-01 13:19:53 [    INFO] Loading integration: outlook (integrations.outlook_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded outlook
+2026-11-01 13:19:53 [    INFO]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: twilio
+2026-11-01 13:19:53 [    INFO] Loading integration: twilio (integrations.twilio_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded twilio
+2026-11-01 13:19:53 [    INFO]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: notion
+2026-11-01 13:19:53 [    INFO] Loading integration: notion (integrations.notion_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded notion
+2026-11-01 13:19:53 [    INFO]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: mailchimp
+2026-11-01 13:19:53 [    INFO] Loading integration: mailchimp (integrations.mailchimp_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded mailchimp
+2026-11-01 13:19:53 [    INFO]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: zoho_crm
+2026-11-01 13:19:53 [ WARNING] Unknown integration: zoho_crm
+2026-11-01 13:19:53 [ WARNING]   ✗ zoho_crm could not be loaded
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: zoho_projects
+2026-11-01 13:19:53 [ WARNING] Unknown integration: zoho_projects
+2026-11-01 13:19:53 [ WARNING]   ✗ zoho_projects could not be loaded
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: zoho_workdrive
+2026-11-01 13:19:53 [    INFO] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded zoho_workdrive
+2026-11-01 13:19:53 [    INFO]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: salesforce
+2026-11-01 13:19:53 [    INFO] Loading integration: salesforce (integrations.salesforce_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded salesforce
+2026-11-01 13:19:53 [    INFO]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: pipedrive
+2026-11-01 13:19:53 [ WARNING] Unknown integration: pipedrive
+2026-11-01 13:19:53 [ WARNING]   ✗ pipedrive could not be loaded
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: freshsales
+2026-11-01 13:19:53 [ WARNING] Unknown integration: freshsales
+2026-11-01 13:19:53 [ WARNING]   ✗ freshsales could not be loaded
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: asana
+2026-11-01 13:19:53 [    INFO] Loading integration: asana (integrations.asana_routes)
+2026-11-01 13:19:53 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-01 13:19:53 [    INFO] ✓ Loaded asana
+2026-11-01 13:19:53 [    INFO]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: monday
+2026-11-01 13:19:53 [    INFO] Loading integration: monday (integrations.monday_routes)
+2026-11-01 13:19:53 [    INFO] ✓ Loaded monday
+2026-11-01 13:19:53 [    INFO]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+2026-11-01 13:19:53 [    INFO] DEBUG: Processing critical integration: bigcommerce
+2026-11-01 13:19:53 [ WARNING] Unknown integration: bigcommerce
+2026-11-01 13:19:53 [ WARNING]   ✗ bigcommerce could not be loaded
+2026-11-01 13:19:53 [    INFO]   Other integrations will load on-demand.
+2026-11-01 13:19:53 [    INFO] ✓ Agent audit trail mounted at /api/audit
+2026-11-01 13:19:53 [    INFO] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+2026-11-01 13:19:53 [    INFO] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+2026-11-01 13:19:53 [    INFO] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+2026-11-01 13:19:53 [    INFO] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+2026-11-01 13:19:53 [    INFO] ✓ Mini-apps router mounted at /api/mini-apps
+2026-11-01 13:19:53 [    INFO] ✓ Automation Settings mounted at /api/v1/settings/automations
+2026-11-01 13:19:53 [    INFO] ✓ Finance Live API mounted at /api/atom/finance/live
+2026-11-01 13:19:53 [    INFO] ✓ Projects Live API mounted at /api/atom/projects/live
+2026-11-01 13:19:53 [    INFO] ✓ Sales Live API mounted at /api/atom/sales/live
+2026-11-01 13:19:53 [    INFO] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+2026-11-01 13:19:53 [    INFO] Loading Core API Routes...
+2026-11-01 13:19:53 [    INFO] ✓ OAuth Status and Authorization Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Telegram Chat Routes Loaded
+2026-11-01 13:19:53 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-01 13:19:53 [    INFO] ✓ Slack Chat Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+2026-11-01 13:19:53 [    INFO] ✓ Operations Routes Loaded at /api/operations
+2026-11-01 13:19:53 [    INFO] ✓ Tools Routes Loaded at /api/tools
+2026-11-01 13:19:53 [ WARNING] LINE adapter not configured or httpx not available
+2026-11-01 13:19:53 [    INFO] ✓ LINE Routes Loaded at /api/line (auth-gated)
+2026-11-01 13:19:53 [    INFO] ✅ Desktop authentication routes enabled (secure API keys)
+2026-11-01 13:19:53 [    INFO] ✅ Deep linking system enabled
+2026-11-01 13:19:53 [    INFO] ✅ Debug tenant check system enabled
+2026-11-01 13:19:53 [    INFO] ✓ Analytics Engine Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Workflow Import/Export Routes Loaded
+2026-11-01 13:19:53 [ WARNING] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+2026-11-01 13:19:53 [    INFO] ✓ JIT Verification & Admin Governance Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Workspace Context Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Governance Manual Fact Entry Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Queue Monitoring Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Auto-Dev Review Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Canvas Skill Integration Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Business Facts Routes Loaded
+2026-11-01 13:19:53 [ WARNING] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+2026-11-01 13:19:53 [    INFO] ✓ Migration Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Embedding Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Tenant Management Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Federation Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Local Model Routes Loaded (/api/local-models)
+2026-11-01 13:19:53 [ WARNING] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+2026-11-01 13:19:53 [    INFO] ✓ Skill Management & Execution Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Learn Routes Loaded (workflow→skill distillation)
+2026-11-01 13:19:53 [    INFO] ✓ Admin Skill & Evolution Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Workflow UI Endpoints Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Time-Travel Endpoints Loaded
+2026-11-01 13:19:53 [ WARNING] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+2026-11-01 13:19:53 [    INFO] ✓ Messaging OAuth (BYOK) Routes Loaded
+2026-11-01 13:19:53 [    INFO] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+2026-11-01 13:19:53 [    INFO] ✓ Shopify REST routes loaded
+2026-11-01 13:19:53 [    INFO] Configured ingestion for whatsapp
+2026-11-01 13:19:53 [    INFO] Configured ingestion for slack
+2026-11-01 13:19:53 [    INFO] Configured ingestion for email
+2026-11-01 13:19:53 [    INFO] Configured ingestion for telegram
+2026-11-01 13:19:53 [    INFO] Configured ingestion for discord
+2026-11-01 13:19:53 [    INFO] Configured ingestion for sms
+2026-11-01 13:19:53 [    INFO] Configured ingestion for calls
+2026-11-01 13:19:53 [    INFO] Configured ingestion for microsoft_teams
+2026-11-01 13:19:53 [    INFO] Configured ingestion for zoom
+2026-11-01 13:19:53 [    INFO] Configured ingestion for notion
+2026-11-01 13:19:53 [    INFO] Configured ingestion for linear
+2026-11-01 13:19:53 [    INFO] Configured ingestion for outlook
+2026-11-01 13:19:53 [    INFO] Configured ingestion for gmail
+2026-11-01 13:19:53 [    INFO] Configured ingestion for salesforce
+2026-11-01 13:19:53 [    INFO] Configured ingestion for asana
+2026-11-01 13:19:53 [    INFO] Configured ingestion for dropbox
+2026-11-01 13:19:53 [    INFO] Configured ingestion for box
+2026-11-01 13:19:53 [    INFO] Configured ingestion for tableau
+2026-11-01 13:19:53 [    INFO] Configured ingestion for zoho
+2026-11-01 13:19:53 [    INFO] Configured ingestion for xero
+2026-11-01 13:19:53 [    INFO] Configured ingestion for quickbooks
+2026-11-01 13:19:53 [ WARNING] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-01 13:19:54 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-01 13:19:54 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'
+2026-11-01 13:19:54 [    INFO] HubSpot Integration Service initialized
+2026-11-01 13:19:54 [ WARNING] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-01 13:19:54 [    INFO] Loading Slack webhooks...
+2026-11-01 13:19:54 [    INFO] ✓ Slack webhooks loaded
+2026-11-01 13:19:54 [    INFO] Loading Shopify webhooks...
+2026-11-01 13:19:54 [    INFO] ✓ Shopify webhooks loaded
+2026-11-01 13:19:54 [    INFO] Loading Twilio webhooks...
+2026-11-01 13:19:54 [    INFO] ✓ Twilio webhooks loaded
+2026-11-01 13:19:54 [    INFO] ✓ Standardized Webhook Endpoints Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Admin Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ 2FA Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+2026-11-01 13:19:54 [    INFO] ✓ ACP bridge mounted at /acp/ws
+2026-11-01 13:19:54 [    INFO] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+2026-11-01 13:19:54 [    INFO] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+2026-11-01 13:19:54 [    INFO] ✓ SCIM v2 mounted at /api/scim/v2
+2026-11-01 13:19:54 [    INFO] ✓ Observability mounted at /api/observability
+2026-11-01 13:19:54 [    INFO] ✓ BambooHR integration mounted at /api/bamboohr
+2026-11-01 13:19:54 [    INFO] ✓ Twitter/X integration mounted at /api/twitter
+2026-11-01 13:19:54 [    INFO] ✓ MCP Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Availability Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Proposal Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Supervision-Learning Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Integrations Catalog Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Dynamic Options Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Webhook Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Universal Auth Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Meta Compliance Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Consolidated Hardened WhatsApp Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ External Integration Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Connection Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Integration Status Routes Loaded
+2026-11-01 13:19:54 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-01 13:19:54 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-01 13:19:54 [    INFO] EscalationManager initialized
+2026-11-01 13:19:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:54 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-01 13:19:54 [    INFO] EscalationManager initialized
+2026-11-01 13:19:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:54 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-01 13:19:54 [    INFO] Slack Enhanced Service initialized
+2026-11-01 13:19:54 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-01 13:19:54 [    INFO] EscalationManager initialized
+2026-11-01 13:19:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:54 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-01 13:19:54 [    INFO] EscalationManager initialized
+2026-11-01 13:19:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:54 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-01 13:19:54 [    INFO] Slack Enhanced Service initialized
+2026-11-01 13:19:54 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-01 13:19:54 [    INFO] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+2026-11-01 13:19:54 [    INFO] ✓ Agent Governance Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+2026-11-01 13:19:54 [    INFO] ✓ Durable Assignment Routes Loaded (/api/assignments)
+2026-11-01 13:19:54 [    INFO] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+2026-11-01 13:19:54 [    INFO] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+2026-11-01 13:19:54 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-01 13:19:54 [    INFO] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+2026-11-01 13:19:54 [    INFO] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+2026-11-01 13:19:54 [    INFO] ✓ Protection API Routes Loaded (Skill Scanner)
+2026-11-01 13:19:54 [    INFO] ✓ User Preference Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Canvas Terminal Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Browser Automation Routes Loaded
+2026-11-01 13:19:54 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-01 13:19:54 [    INFO] ✓ Device Capabilities Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Canvas Recording Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Autonomy Routes Loaded (action HITL policy)
+2026-11-01 13:19:54 [    INFO] ✓ Meeting Routes Loaded (attendance tracking)
+2026-11-01 13:19:54 [    INFO] ✓ Custom Components Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+2026-11-01 13:19:54 [    INFO] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+2026-11-01 13:19:54 [    INFO] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+2026-11-01 13:19:54 [    INFO] ✓ Installation Profile Routes Loaded (/api/installation)
+2026-11-01 13:19:54 [    INFO] ✓ Playbook Routes Loaded (/api/playbooks)
+2026-11-01 13:19:54 [    INFO] ✓ Goal Run Routes Loaded (/api/goal-runs)
+2026-11-01 13:19:54 [    INFO] ✓ Goal Routes Loaded (/api/goals)
+2026-11-01 13:19:54 [    INFO] ✓ Usage Analytics Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Health Monitoring Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ System Status aggregate mounted at /api/status
+2026-11-01 13:19:54 [    INFO] ✓ Product profile mounted at /api/product/profile
+2026-11-01 13:19:54 [    INFO] ✓ Service registry mounted at /api/services/registry
+2026-11-01 13:19:54 [    INFO] ✓ Ported Features (Canvas/Agent) Processing Complete
+2026-11-01 13:19:54 [    INFO] ✓ Governance Analytics & Remediation Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Memory Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+2026-11-01 13:19:54 [    INFO] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+2026-11-01 13:19:54 [    INFO] ✓ Document & Data Ingestion Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Experience Marketplace Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Test Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ AI Workflows Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Background Agent Routes Loaded
+2026-11-01 13:19:54 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-01 13:19:54 [    INFO] EscalationManager initialized
+2026-11-01 13:19:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:19:54 [    INFO] LanceDBHandler initialized. ID: 6279038096. LANCEDB_AVAILABLE: True
+2026-11-01 13:19:54 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-01 13:19:54 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 13:19:54 [ WARNING] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-01 13:19:54 [    INFO] ✓ Integration Data Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Integration & Service Health Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Historical Sync Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Worker Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Component Marketplace Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Agent Coordination Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ OpenClaw Skill Integration Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ OpenClaw Scan Integration Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ OpenClaw Governance Integration Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Skill Composition Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+2026-11-01 13:19:54 [    INFO] ✓ Scheduler Routes Loaded (QStash Ready)
+2026-11-01 13:19:54 [    INFO] ✓ Desktop Bridge Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Satellite Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Mobile Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Invitation Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Support Ticketing Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Bug Triage Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Communication Hub Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Universal Communication Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Admin Retention Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Billing Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Public Pricing Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Social Media Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Audit Log Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Shell Security Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+2026-11-01 13:19:54 [    INFO] ✓ BYOK API Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ LLM Gateway Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ MCP Server Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ SSO API Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Feature Flag Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Sandbox Execution Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ External API Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Entity Type Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Entity Query Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Entity Linking Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Ingestion CRUD Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Entity Skill Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Agent Integration Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Meta Agent Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Admin Integration Catalog Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Domain Marketplace Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Agent-Domain Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Domain-Aware Graduation Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Capability Matrix Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Learning & Adaptation Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Stage Router Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Learning Router Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Admin Runtime Settings Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ BPE Workspace Admin Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Fleet Router Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Decision Plane Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Decision Automation Loop Scheduled (mode=off)
+2026-11-01 13:19:54 [    INFO] ✓ Org-Politics Management Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+2026-11-01 13:19:54 [    INFO] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+2026-11-01 13:19:54 [    INFO] ✓ Ontology Draft Automation Routes Loaded
+2026-11-01 13:19:54 [    INFO] ✓ Core Routes Loaded Successfully
+2026-11-01 13:19:54 [    INFO] ✓ Microsoft 365 Routes Loaded (isolated)
+2026-11-01 13:19:54 [    INFO] ✅ Debug endpoints enabled
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:55 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:19:55 [    INFO] provider policy selected: allowed=['openai', 'opencode'] preferred=None revision=9e371be9f2bb
+2026-11-01 13:19:55 [    INFO] Initialized openai client using BYOK credential
+2026-11-01 13:19:55 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-01 13:19:55 [    INFO] Initialized opencode client using BYOK credential
+2026-11-01 13:19:55 [    INFO] EscalationManager initialized
+2026-11-01 13:19:55 [    INFO] CognitiveTierService initialized for workspace: ws-fallback
+2026-11-01 13:19:55 [    INFO] LocalOnlyGuard initialized
+2026-11-01 13:19:55 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-01 13:19:55 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-01 13:19:55 [    INFO] HTTP Request: POST http://localhost:57126/v1/chat/completions "HTTP/1.0 502 Bad Gateway"
+2026-11-01 13:19:55 [    INFO] Retrying request to /chat/completions in 0.458216 seconds
+2026-11-01 13:19:55 [    INFO] HTTP Request: POST http://localhost:57126/v1/chat/completions "HTTP/1.0 502 Bad Gateway"
+2026-11-01 13:19:55 [    INFO] Retrying request to /chat/completions in 0.939496 seconds
+2026-11-01 13:19:56 [    INFO] HTTP Request: POST http://localhost:57126/v1/chat/completions "HTTP/1.0 502 Bad Gateway"
+2026-11-01 13:19:56 [    INFO] [inflight] openai/gpt-4o-mini released by 'structured:chat' after 1.5s
+2026-11-01 13:19:56 [ WARNING] Completion failed for openai/gpt-4o-mini: Error code: 502 - {'error': {'message': 'primary upstream failure'}}
+2026-11-01 13:19:56 [ WARNING] attempt openai/gpt-4o-mini failed: cause=transport status=502 detail=Error code: 502 - {'error': {'message': 'primary upstream failure'}}
+2026-11-01 13:19:58 [    INFO] Initialized router with 30 models
+2026-11-01 13:19:58 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-01 13:19:58 [    INFO] Learning router singleton initialized
+2026-11-01 13:19:58 [    INFO] Attempting completion with provider: opencode (requested: openai)
+2026-11-01 13:19:58 [    INFO] HTTP Request: POST http://localhost:57127/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [    INFO] [inflight] opencode/gpt-4o-mini released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 33%]
+tests/test_local_provider_dispatch_scope.py::TestDispatchControls::test_absolute_fallback_serves_a_registered_local_route 
+-------------------------------- live log setup --------------------------------
+2026-11-01 13:19:59 [    INFO] ============================================================
+2026-11-01 13:19:59 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-01 13:19:59 [    INFO] ============================================================
+2026-11-01 13:19:59 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-01 13:19:59 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-01 13:19:59 [    INFO] Initializing database tables...
+2026-11-01 13:19:59 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-01 13:19:59 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-01 13:19:59 [    INFO] Loaded integrations so far: ['zoho_workdrive', 'monday', 'mailchimp', 'auth', 'outlook', 'asana', 'twilio', 'microsoft365', 'oauth', 'notion', 'salesforce', 'whatsapp']
+2026-11-01 13:19:59 [    INFO] Crash recovery: no orphaned executions found
+2026-11-01 13:19:59 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-01 13:19:59 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-01 13:19:59 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-01 13:19:59 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-01 13:19:59 [    INFO] ✓ AI Workflow Service initialized
+2026-11-01 13:19:59 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-01 13:19:59 [    INFO] ReflectionEngine registered on event bus
+2026-11-01 13:19:59 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-01 13:19:59 [    INFO] ============================================================
+2026-11-01 13:19:59 [    INFO] ✓ Server Ready
+2026-11-01 13:19:59 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-01 13:19:59 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-01 13:19:59 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:59 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 200 OK"
+2026-11-01 13:19:59 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-01 13:20:00 [    INFO] Registered local model provider 'local-12405d' at http://localhost:57226/v1
+2026-11-01 13:20:00 [ WARNING] Token referenced non-existent user_id=320a3248-a811-4f44-8ccf-ffbb8ac5fa6f
+2026-11-01 13:20:00 [    INFO] HTTP Request: POST http://testserver/api/local-models "HTTP/1.1 200 OK"
+2026-11-01 13:20:00 [ WARNING] Token referenced non-existent user_id=320a3248-a811-4f44-8ccf-ffbb8ac5fa6f
+2026-11-01 13:20:00 [    INFO] HTTP Request: POST http://testserver/api/local-models/34792140-85a6-4333-834b-7495e0caa6d6/capabilities "HTTP/1.1 200 OK"
+2026-11-01 13:20:00 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:20:00 [    INFO] Loaded local provider 'local-12405d' (ollama) at http://localhost:57226/v1
+2026-11-01 13:20:00 [    INFO] EscalationManager initialized
+2026-11-01 13:20:00 [    INFO] CognitiveTierService initialized for workspace: f47e87bd-6a42-4d78-8792-2a1cd68663e1
+2026-11-01 13:20:00 [    INFO] Auto-populating pricing cache synchronously...
+2026-11-01 13:20:00 [    INFO] Using cached pricing data
+2026-11-01 13:20:00 [    INFO] Pricing cache populated with 5022 models
+2026-11-01 13:20:00 [    INFO] Loaded local provider 'local-12405d' (ollama) at http://localhost:57226/v1
+2026-11-01 13:20:00 [ WARNING] BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+2026-11-01 13:20:00 [    INFO] Loaded local provider 'local-12405d' (ollama) at http://localhost:57226/v1
+2026-11-01 13:20:00 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-01 13:20:00 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 7225000.00)
+2026-11-01 13:20:00 [    INFO] Loaded local provider 'local-12405d' (ollama) at http://localhost:57226/v1
+2026-11-01 13:20:00 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 7225000.00)
+2026-11-01 13:20:00 [    INFO] HTTP Request: POST http://localhost:57226/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [    INFO] [inflight] local_34792140/shared-model released by 'completion:general' after 0.0s
+2026-11-01 13:20:00 [    INFO] BYOK Logic: complexity=simple, provider=local_34792140, model=shared-model
+PASSED                                                                   [ 66%]
+------------------------------ live log teardown -------------------------------
+2026-11-01 13:20:00 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-01 13:20:00 [    INFO] Shutting down ATOM Platform...
+2026-11-01 13:20:00 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-01 13:20:00 [    INFO] ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
+2026-11-01 13:20:00 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-01 13:20:00 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/test_local_provider_dispatch_scope.py::TestChatPublicRouteScope::test_first_chat_message_reaches_the_user_endpoint_isolation 
+-------------------------------- live log setup --------------------------------
+2026-11-01 13:20:01 [    INFO] ============================================================
+2026-11-01 13:20:01 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-01 13:20:01 [    INFO] ============================================================
+2026-11-01 13:20:01 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-01 13:20:01 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-01 13:20:01 [    INFO] Initializing database tables...
+2026-11-01 13:20:01 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-01 13:20:01 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-01 13:20:01 [    INFO] Loaded integrations so far: ['zoho_workdrive', 'monday', 'mailchimp', 'auth', 'outlook', 'asana', 'twilio', 'microsoft365', 'oauth', 'notion', 'salesforce', 'whatsapp']
+2026-11-01 13:20:01 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-01 13:20:01 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-01 13:20:01 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-01 13:20:01 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-01 13:20:01 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-01 13:20:01 [    INFO] ✓ AI Workflow Service initialized
+2026-11-01 13:20:01 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-01 13:20:01 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-01 13:20:01 [    INFO] ============================================================
+2026-11-01 13:20:01 [    INFO] ✓ Server Ready
+2026-11-01 13:20:01 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-01 13:20:01 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-01 13:20:01 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-01 13:20:01 [    INFO] Registered local model provider 'local-6bd8d7' at http://localhost:57264/v1
+2026-11-01 13:20:01 [ WARNING] Token referenced non-existent user_id=2f67e1ca-349c-4049-aa8d-0bb820c0e4bb
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://testserver/api/local-models "HTTP/1.1 200 OK"
+2026-11-01 13:20:01 [ WARNING] Token referenced non-existent user_id=2f67e1ca-349c-4049-aa8d-0bb820c0e4bb
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://testserver/api/local-models/5b853fa8-e12d-4d22-95ef-f78577e98896/capabilities "HTTP/1.1 200 OK"
+2026-11-01 13:20:01 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:20:01 [    INFO] EscalationManager initialized
+2026-11-01 13:20:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:20:01 [ WARNING] teaching-context resume skipped: AttributeError("'ChatOrchestrator' object has no attribute 'conversation_sessions'")
+2026-11-01 13:20:01 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-01 13:20:01 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:01 [    INFO] EscalationManager initialized
+2026-11-01 13:20:01 [    INFO] CognitiveTierService initialized for workspace: 4d219fa5-85ff-4876-9b6a-5cdb0c0d3432
+2026-11-01 13:20:01 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-01 13:20:01 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:01 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_5b853fa8/shared-model (eff.cost=0.000e+00, quality=90, default score would have picked shared-model)
+2026-11-01 13:20:01 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 8100000.00)
+2026-11-01 13:20:01 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:01 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_5b853fa8/shared-model (eff.cost=0.000e+00, quality=90, default score would have picked shared-model)
+2026-11-01 13:20:01 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 8100000.00)
+2026-11-01 13:20:01 [    INFO] Structured generation (free, Managed): local_5b853fa8/shared-model
+2026-11-01 13:20:01 [    INFO] [structured-dispatch] local_5b853fa8/shared-model route=turn_interpretation:sess-scope attempt=1 prompt_chars=2837 cap=5500 instructor_retries=2
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion2:planning' after 0.0s
+2026-11-01 13:20:01 [ WARNING] local_5b853fa8/shared-model requires reasoning and rejects the disable switch — retrying once without it and memoizing the pair
+2026-11-01 13:20:01 [    INFO] [structured-dispatch] local_5b853fa8/shared-model route=turn_interpretation:sess-scope attempt=2 prompt_chars=2837 cap=5500 instructor_retries=2
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion2:planning' after 0.0s
+2026-11-01 13:20:01 [ WARNING] soft-SC logprobs request failed for local_5b853fa8/shared-model (<failed_attempts>
+
+<generation number="1">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</last_exception>); retrying once without logprobs
+2026-11-01 13:20:01 [    INFO] [structured-dispatch] local_5b853fa8/shared-model route=turn_interpretation:sess-scope attempt=3 prompt_chars=2837 cap=5500 instructor_retries=2
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion2:planning' after 0.0s
+2026-11-01 13:20:01 [ WARNING] Structured attempt failed for local_5b853fa8/shared-model: <failed_attempts>
+
+<generation number="1">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</last_exception>
+2026-11-01 13:20:01 [ WARNING] [structured-pool] depth=0 candidates=[('local_5b853fa8', 'shared-model')] attempted=True credit_failed=[]
+2026-11-01 13:20:01 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-01 13:20:01 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": true, "pool": {"families": {"local_5b853fa8": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "turn_interpretation:sess-scope"}
+2026-11-01 13:20:01 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:01 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_5b853fa8/shared-model (eff.cost=0.000e+00, quality=90, default score would have picked shared-model)
+2026-11-01 13:20:01 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4050000.00)
+2026-11-01 13:20:01 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:01 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4050000.00)
+2026-11-01 13:20:01 [    INFO] Structured generation (free, Managed): local_5b853fa8/shared-model
+2026-11-01 13:20:01 [    INFO] [structured-dispatch] local_5b853fa8/shared-model route=turn_interpretation:sess-scope attempt=1 prompt_chars=2837 cap=5500 instructor_retries=2
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion2:planning' after 0.0s
+2026-11-01 13:20:01 [ WARNING] Structured attempt failed for local_5b853fa8/shared-model: <failed_attempts>
+
+<generation number="1">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</last_exception>
+2026-11-01 13:20:01 [ WARNING] [structured-pool] depth=1 candidates=[('local_5b853fa8', 'shared-model')] attempted=True credit_failed=[]
+2026-11-01 13:20:01 [   ERROR] All structured providers failed after 1 attempt(s). Last error: <failed_attempts>
+
+<generation number="1">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</last_exception>
+2026-11-01 13:20:01 [   ERROR] All structured providers failed after 3 attempt(s). Last error: <failed_attempts>
+
+<generation number="1">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-A', choices=[Choice(finish_reason='stop', index=0, logprobs=None, message=ChatCompletionMessage(content='pong-A', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=None, model='shared-model', object='chat.completion', service_tier=None, system_fingerprint=None, usage=CompletionUsage(completion_tokens=6, prompt_tokens=15, total_tokens=21, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    Instructor does not support multiple tool calls, use List[Model] instead
+</last_exception>
+2026-11-01 13:20:01 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-01 13:20:01 [    INFO] [stage-timing] canvas-edit leg skipped — the turn's own words do not authorize a canvas mutation (deterministic authorization: 'needs_grant')
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] EscalationManager initialized
+2026-11-01 13:20:02 [    INFO] CognitiveTierService initialized for workspace: 4d219fa5-85ff-4876-9b6a-5cdb0c0d3432
+2026-11-01 13:20:02 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+2026-11-01 13:20:02 [   ERROR] No access token available for user 2f67e1ca-349c-4049-aa8d-0bb820c0e4bb
+2026-11-01 13:20:02 [   ERROR] No access token available for user 2f67e1ca-349c-4049-aa8d-0bb820c0e4bb
+2026-11-01 13:20:02 [    INFO] [deadline] chat-request stage=reply-leg-START dur=0.0s turn_offset=0.2s elapsed=0.2s remaining=94.8s budget=95.0s
+2026-11-01 13:20:02 [    INFO] [timeline] planner awaited by the reply builder: 0.0s (already done when awaited: True)
+2026-11-01 13:20:02 [    INFO] [stage-timing] tool plan (overlapped=True): 0.0s
+2026-11-01 13:20:02 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-01 13:20:02 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=95s
+2026-11-01 13:20:02 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-01 13:20:02 [    INFO] EscalationManager initialized
+2026-11-01 13:20:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:20:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:20:02 [    INFO] LanceDBHandler initialized. ID: 6484085712. LANCEDB_AVAILABLE: True
+2026-11-01 13:20:02 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 13:20:02 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory/default with storage_options=None
+2026-11-01 13:20:02 [    INFO] LanceDB connected successfully
+2026-11-01 13:20:02 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-01 13:20:02 [ WARNING] sentence_transformers not available (error: dlopen(/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/_C.cpython-311-darwin.so, 0x0002): Library not loaded: @loader_path/libtorch_cpu.dylib
+  Referenced from: <93B052AD-B16C-3D0F-A6FC-DFFBB7CD9584> /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/lib/libtorch_python.dylib
+  Reason: tried: '/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/torch/lib/libtorch_cpu.dylib' (no such file), '/usr/local/lib/libtorch_cpu.dylib' (no such file), '/usr/lib/libtorch_cpu.dylib' (no such file, not in dyld cache)), embeddings will be disabled
+2026-11-01 13:20:02 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-01 13:20:02 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-01 13:20:02 [    INFO] Opened existing atom_communications table
+2026-11-01 13:20:02 [    INFO] FTS index enabled on 'content' column
+2026-11-01 13:20:02 [    INFO] Opened existing ingestion_metadata table
+2026-11-01 13:20:02 [    INFO] LanceDB memory manager initialized successfully
+2026-11-01 13:20:02 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-11-01 13:20:02 [    INFO] tool plan executed: None
+2026-11-01 13:20:02 [    INFO] [prompt-budget] routing-default model=auto: input=1171 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-01 13:20:02 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+2026-11-01 13:20:02 [ WARNING] [provider-policy] no allowed provider has a client (allowed=[] revision= error=None)
+2026-11-01 13:20:02 [ WARNING] chat streaming failed — non-streaming fallback: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] EscalationManager initialized
+2026-11-01 13:20:02 [    INFO] CognitiveTierService initialized for workspace: 4d219fa5-85ff-4876-9b6a-5cdb0c0d3432
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4050000.00)
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4050000.00)
+2026-11-01 13:20:02 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion:general' after 0.0s
+2026-11-01 13:20:02 [    INFO] BYOK Logic: complexity=simple, provider=local_5b853fa8, model=shared-model
+2026-11-01 13:20:02 [    INFO] [stage-timing] reply generation: 0.7s (incl. tool plan + exec above)
+2026-11-01 13:20:02 [    INFO] [deadline] chat-request stage=reply-leg dur=0.7s turn_offset=0.2s elapsed=1.0s remaining=94.0s budget=95.0s
+2026-11-01 13:20:02 [ WARNING] reply is a generic non-answer despite tool results — grounded regeneration
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4317300.00)
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 4317300.00)
+2026-11-01 13:20:02 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion:general' after 0.0s
+2026-11-01 13:20:02 [    INFO] BYOK Logic: complexity=simple, provider=local_5b853fa8, model=shared-model
+2026-11-01 13:20:02 [    INFO] tool-turn reply was protocol syntax; retrying firmly
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 5265000.00)
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] BPC Ranking Successful for simple: Top model shared-model (Value: 5265000.00)
+2026-11-01 13:20:02 [    INFO] HTTP Request: POST http://localhost:57264/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] [inflight] local_5b853fa8/shared-model released by 'completion:general' after 0.0s
+2026-11-01 13:20:02 [    INFO] BYOK Logic: complexity=simple, provider=local_5b853fa8, model=shared-model
+2026-11-01 13:20:02 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-11-01 13:20:02 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-11-01 13:20:02 [    INFO] [review-diag] generation_completed content_len=6 review_ask=False
+2026-11-01 13:20:02 [ WARNING] NLP analysis failed: 'ChatOrchestrator' object has no attribute 'ai_engines'
+2026-11-01 13:20:02 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=1.0s elapsed=1.0s remaining=94.0s budget=95.0s
+2026-11-01 13:20:02 [    INFO] Loaded local provider 'local-6bd8d7' (ollama) at http://localhost:57264/v1
+2026-11-01 13:20:02 [    INFO] EscalationManager initialized
+2026-11-01 13:20:02 [    INFO] CognitiveTierService initialized for workspace: 4d219fa5-85ff-4876-9b6a-5cdb0c0d3432
+2026-11-01 13:20:02 [    INFO] [stage-timing] turn finalization: elapsed_s=1.1 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [100%]
+------------------------------ live log teardown -------------------------------
+2026-11-01 13:20:03 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-01 13:20:03 [    INFO] Shutting down ATOM Platform...
+2026-11-01 13:20:03 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-01 13:20:03 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-01 13:20:03 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_local_provider_dispatch_scope.py::TestProviderPolicyFallback::test_primary_failure_falls_back_to_secondary_and_denies_policy
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 3 passed, 21 warnings in 26.29s ========================

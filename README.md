@@ -1,280 +1,165 @@
 <div align="center">
 
-# ATOM Platform
-### The governed agent platform — autonomy, earned.
+# Atom
 
-![Atom Platform](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
+### Teach an AI employee your business. Give it work. Come back to a result.
 
-**88% of AI agent pilots never reach production.***
-**Atom is built for the other path.**
+**Open-source AI employees for spreadsheets, documents and repeatable business work.**
 
-<small>*Industry figure (Turion 2026). Atom makes no claims about its own deployments.</small>
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE.md)
+[![Python](https://img.shields.io/badge/Python-3.11%E2%80%933.13-blue)](docs/getting_started/quick-start.md)
+[![Local workflows](https://img.shields.io/badge/local_workflows-verified-green)](docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md)
 
-[![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
-[![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-85k%2B%20%E2%80%A2%20CI--gated%20core%20suite-brightgreen)]()
-[![Governance](https://img.shields.io/badge/governance-0.027ms%20P99-brightgreen)]()
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
-[![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
+[Try locally](#try-atom-locally) · [See the workflows](docs/demo/VERIFIED_WORKFLOWS.md) · [What's verified](#what-you-can-rely-on) · [Report an issue](https://github.com/rush86999/atom/issues)
 
 </div>
 
----
+![Atom workspace](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
-## Current release: the core workspace
+## From instructions to finished work
 
-This build ships the **company-data + trained-agent workspace**:
-Chat, Data, Workspace, Agents, Activity and Settings. Bring records, teach an
-agent how they should be read, ask for a result, review or correct it, and
-reuse the work. Specialized dashboards, workflow automation, marketplace and
-admin tooling remain in the codebase but are deferred from this release; see
-[`docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`](docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md).
-`ATOM_PRODUCT_PROFILE=full` restores the wider surface.
+Atom is a locally run AI employee workspace. Teach an employee your business
+rules, supply company data, and ask it to calculate, assess or prepare a
+deliverable. When a field or instruction is ambiguous, it asks. When work must
+wait, it saves its state so you can leave and continue after a restart.
 
-## What is Atom?
+- **Teach and correct.** Save contextual lessons, field mappings, document
+  formats and email protocols. New work adopts corrections; active work keeps
+  its accepted teaching snapshot.
+- **Work with unfamiliar data.** Upload CSV/XLSX files, confirm ambiguous column
+  mappings, calculate against source records and produce cited DOCX/PPTX output.
+- **Turn policy into repeatable decisions.** Author ordered rules in the canvas
+  editor. Supported deterministic rules preserve unresolved requirements rather
+  than inventing an approval.
+- **Keep work moving.** Durable questions, approvals and waiting states survive
+  restarts. Completed operations are preserved and uncertain effects require
+  reconciliation before another attempt.
+- **Choose your model.** Configure your own provider in Settings or use a local
+  OpenAI-compatible endpoint. The sample below needs no model or cloud key.
 
-Atom is an open-source, self-hosted **AI agent workforce** — a team of specialty agents (sales, support, finance, engineering) that your people delegate to in plain language. Where other platforms sell agent *capability*, Atom sells agent *accountability*: autonomy that is earned through verified outcomes, executed inside a deterministic safety net, on your hardware.
+## Try Atom locally
 
-**Agents that earn trust, not assume it.** Atom's agents don't just respond to commands — they operate autonomously within governed boundaries, handling routine work end-to-end. Every agent starts as a supervised intern and graduates through a 4-tier maturity model (STUDENT → INTERN → SUPERVISED → AUTONOMOUS) only after **verified** successful runs — 10/25/50 episodes, outcome-checked, not self-reported.
+**Prerequisites:** Git, Make, Python **3.11–3.13** (3.11 recommended), Node.js
+**20.9+** and npm. Python 3.14 is not supported by this dependency set.
 
-**Verified outcomes, not self-report.** Every mutating action is re-derived against your system of record by an independent postcondition oracle (on by default), and confidence is split into *self-reported* vs *externally verified*. An agent that says "done" is checked, not believed. A prompt-injected agent at any tier acts at that tier's *scoped* blast radius — bounded by a default-on sandbox layer: filesystem scope, tool whitelist, tripwires, resource caps, kill-run, egress allowlist, full provenance audit. 0.027ms P99 per check.
+~~~bash
+git clone https://github.com/rush86999/atom.git
+cd atom
+PYTHON=python3.11 make setup
+make dev
+~~~
 
-**Your data stays yours.** Workflow data, agent state, and memory live on your infrastructure — embedded store, no cloud required. LLM inference uses your own API keys (BYOK, encrypted at rest) — or local models (Ollama first-class, or any local OpenAI-compatible server: LM Studio, vLLM, llama.cpp server) for fully private deployments. EU AI Act data-governance obligations (Aug 2026)? Designed for, not retrofitted.
+In a second terminal, from the same `atom` directory:
 
-**Free edition, full features (AGPL v3)**: everything in this repository — every agent, integration, and governance feature — is free and open source. Keys you configure in `.env` are treated as BYOK and are never gated by plans or tiers. Commercial/managed editions run this same code on the client's own infrastructure; there is no closed-source "pro" build.
+~~~bash
+make sample
+~~~
 
-**💰 Budget-friendly AI agents**: OpenCode Go subscription (~90% savings vs pay-per-token) — one $10/mo key unlocks **general-purpose models** (DeepSeek V4, Kimi K3, GLM 5.2, MiniMax M3, Qwen 3.7, Nemotron 3 Ultra, Grok 4.5) with **full tool-calling & structured output** — not just for coding, works for any agent workload. [Setup guide →](docs/guides/OPENCODE_GO_PROVIDER.md)
+Open **http://localhost:3001**. Sign in as `admin@example.com` using the
+generated password in `backend/logs/bootstrap_admin_password.txt`. Open
+**Assignments** to find the completed sample and download its Word document.
 
-**No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing — every run makes the next run cheaper (learning router + caching tiers).
+**Your first result:** *Sample Quote Analyst* reads
+[`sample-workspace/sample_quote.csv`](sample-workspace/sample_quote.csv),
+calculates **232990.00**, and creates a DOCX. Its lessons are editable under
+**Agents → Sample Quote Analyst → Training**. The sample uploads local data
+and creates local records/artifacts; it sends no email and needs no connected
+account or cloud credential.
 
-**The vision**: every employee gets a *personal agent team* that knows their workflows, remembers context across weeks, and autonomously handles the repetitive work — research, data entry, drafting, reconciliation — while governance keeps you in control. Not AI replacing humans: AI handling the work humans shouldn't be doing.
+![Completed sample assignment](docs/demo/evidence/first-use-assignments.png)
 
----
+If the default ports are busy, use the same pair for startup and the sample:
 
-*Receipts: 0.027ms P99 governance checks (repo benchmark) · 616k ops/s cached throughput · 69+ documented TDD hardening rounds (~1,100 fixes in the deep security sweep alone) · 85k+ test functions (84,737 across 2,759 files, verified Aug 2026). External stats sourced in [docs/marketing/RESEARCH_NOTES.md](docs/marketing/RESEARCH_NOTES.md); copy kit in [COPY_README.md](docs/marketing/COPY_README.md) + [POSITIONING.md](docs/marketing/POSITIONING.md).*
+~~~bash
+BACKEND_PORT=8101 FRONTEND_PORT=3101 make dev
+# Second terminal:
+make sample PORT=8101 FE_PORT=3101
+~~~
 
----
+Then open http://localhost:3101. Stop the development processes with **Ctrl+C**;
+restart with `make dev` against the same checkout to keep your local data.
+Do not delete the database or generated keys to troubleshoot an existing install.
 
-## 💻 Quick Start
+**Measured first use:** approximately **5 min 15 s** on one fresh-worktree run
+with warm package caches, including setup, startup, sample and browser access.
+**15 minutes is a cold-install target, not a measured guarantee.** See the
+[setup guide](docs/getting_started/quick-start.md) and
+[measured first-use record](docs/demo/FIRST_USE_TEST_2026-11-01.md).
 
-**Clone to first governed workflow in ~10 minutes.** Start small — one workflow, one integration, one approval gate.
+## See what an employee can do
 
-```bash
-git clone https://github.com/rush86999/atom.git && cd atom
-make setup                 # one-shot dev bootstrap (venv, deps, .env, frontend)
-make dev                   # start backend :8001 + UI :3001 together
-```
-
-In a second terminal, load the documented sample workspace:
-
-```bash
-make sample                # sample employee + editable lessons + one grounded job
-```
-
-**Expected result:** open http://localhost:3001 → sign in as `admin@example.com`
-(password in `backend/logs/bootstrap_admin_password.txt`) → **Assignments**
-shows *Sum Price for the sample quote sheet* completed from
-`sample-workspace/sample_quote.csv` with a downloadable DOCX. The sample
-employee is under **Agents**; its lessons are editable in the **Training**
-panel. This path uses no cloud credential, no live send and no connected
-account, and is designed to be the first successful job within 15 minutes on a
-supported Python 3.11–3.13 / Node 20.9+ machine.
-
-**To use model-backed chat/teaching proposals, set one key in `backend/.env`**
-(or add via Settings > AI):
-- `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or
-- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DEEPSEEK_API_KEY` / `GOOGLE_API_KEY` … or
-- `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` for fully local
-
-Deterministic assignments, uploads, calculations, document rendering and the
-sample job above work without a model key. Model-backed discretionary judgment
-is a separate, explicitly limited capability.
-
-[Full Quick Start →](docs/getting_started/quick-start.md) · [Docker →](docs/operations/personal-edition.md) · [DigitalOcean 1-Click →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
-
-**Solo operator?** Skip setup — import a pre-built personal starter (invoice chase, candidate pipeline, support triage), each with an approval gate so nothing sends without your OK: **[Personal → Team Playbook →](docs/getting_started/PERSONAL_TO_TEAM_PLAYBOOK.md)**
-
----
-
-## 🚀 AI-Generated Workflow Automation
-
-**Describe the outcome. Atom builds and runs the workflow.**
-
-| What you say | What Atom delivers |
+| Workflow | What the recorded acceptance demonstrates |
 |---|---|
-| *"When a lead comes in HubSpot, research the company, score it, create an Asana task for the rep, and ping Slack"* | A governed, replayable workflow with Human-in-the-Loop approval gates |
-| *"Extract invoice data from Gmail PDFs, match against QuickBooks, flag discrepancies"* | End-to-end pipeline: Gmail → PDF OCR → QuickBooks reconciliation → Slack alert |
-| *"Monitor Zendesk tickets for sentiment, auto-escalate urgent ones, draft replies"* | Real-time triage agent with approval before send |
-| *"Generate a weekly sales report from Salesforce, format in Excel, email the team"* | Scheduled workflow: SOQL query → formula-evaluated Excel → Office 365 send |
+| **Sales quote** | Unfamiliar columns → confirmed mapping → source-grounded total → formatted document; corrected teaching applies to new work. |
+| **Grant review** | A second business domain uses the same teaching, calculation, clarification and artifact mechanisms. |
+| **Workbook editing** | A tested 24-sheet workbook preserves identifiers and formulas through supported recalculation, export and restart/reopen. |
+| **Long-running assignment** | More than two hours waiting, real backend restarts, the same assignment resumes, completed source work is retained and one controlled effect is recorded. |
+| **Learn from conversations** | Review a persisted email thread, resolve referenced resources, confirm a lesson and apply it only in its accepted context. |
 
-**Why it's different from Zapier/Make/n8n:**
-- **Agents, not just steps** — Agents *reason* (not just execute): they research, decide, retry, and self-correct
-- **Governance built-in** — Maturity gates, HITL approval, audit trail, sandbox isolation
-- **Self-hosted & private** — Your data, your keys, your infrastructure
-- **Office-native** — Real Excel/Word/PPTX with formula evaluation, live Canvas co-editing
-- **Agent-authored** — You can *chat with an agent* to build/modify workflows (no drag-and-drop required)
+The [demo guide](docs/demo/VERIFIED_WORKFLOWS.md) distinguishes reproducible
+steps from historical runs and lists their exact sources. The two-hour run is
+elapsed/recovery evidence on its recorded source; later budget repairs have
+their own focused verification.
 
-[Workflow Automation Guide →](docs/guides/FEATURES.md#-agent-skills) · [Quick Start →](docs/getting_started/quick-start.md)
+## What you can rely on
 
----
+**111 of 123 frozen functional claims (90.2%) were accepted within the documented
+local and controlled-provider configurations.** This is a source-bound feature
+coverage milestone, not a promise of 90% accuracy or universal reliability.
 
-## ⚡ The AI Agent Landscape — Where Atom Fits
-
-| | 🧵 Consumer Assistants | 🧰 Developer Frameworks | 🏢 Enterprise Workforce |
-|---|---|---|---|
-| **Examples** | ChatGPT, Claude, Notion AI, Copilot, Perplexity | LangGraph, AutoGPT, CrewAI, AutoGen | ✅ **Atom** |
-| **Interaction** | Single chat, reactive only | Code-first, build-your-own | Delegate to agent teammates in plain language |
-| **Data & hosting** | Cloud-only | Self-hosted; bring your own integrations | Self-hosted + 46+ native business integrations |
-| **Governance** | None | DIY | Governed by design |
-
-**Atom is the only open-source platform that delivers:**
-- **Enterprise governance** (maturity tiers, HITL, audit) — without vendor lock-in
-- **Agents that know when to ask** — autonomy earned per action type from verified track records, auto-revoked on regression; governed agent orgs with delegation contracts & privilege leases
-- **Self-hosted privacy** — your data, your keys, your infrastructure
-- **Autonomous agent teammates** — agents that work *with* your people, not just *for* them
-- **Agent-authored workflows** — chat to build, no drag-and-drop
-- **Office/Canvas native** — real Excel formulas, live co-editing
-- **46+ business integrations** — Salesforce, HubSpot, Slack, Jira, Stripe, QuickBooks…
-
----
-
-## 📊 Comparisons
-
-| Alternative | Focus | Key Difference | Deep Dive |
-|---|---|---|---|
-| **Hermes Agent** (Nous Research) | Personal coding/productivity assistant | Single-agent, no governance, no integrations, no sandbox | [Atom vs Hermes →](docs/architecture/HERMES_COMPARISON.md) |
-| **OpenClaw** | Personal productivity, messaging-first | Single-agent, Markdown memory, smart home focus | [Atom vs OpenClaw →](docs/features/atom-vs-openclaw.md) |
-| **LangGraph / CrewAI / AutoGen** | Developer frameworks | Code-first, build-your-own governance & integrations | [Why Atom? ↓](#-why-teams-choose-atom) |
-| **Zapier / Make / n8n** | Workflow automation | Step-based (not agents), no reasoning, no governance | [AI-Generated Workflow Automation](#-ai-generated-workflow-automation) |
-
-**TL;DR**: If you're evaluating personal agents → Hermes/OpenClaw. If you need governed multi-agent business automation → Atom.
-
-**Full feature matrix:** [Why Teams Choose Atom ↓](#-why-teams-choose-atom)
-
----
-
-## ⚡ Key Capabilities
-
-| Category | Features |
+| Reference | Purpose |
 |---|---|
-| **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback; governed fleet routing with ranked specialist matching |
-| **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), policy-gated HITL approval, comprehensive audit trail, AI-powered training, OIDC SSO + SCIM v2 provisioning + 8-role RBAC |
-| **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record — on by default, a refuted self-report is stamped UNVERIFIED (`ATOM_ORACLE_ENFORCE` kill switch); two-tier confidence provenance (self-reported vs externally verified); opt-in reviewer re-delegation loop |
-| **🎚️ Agents That Know When To Ask** | Every action type earns interruption-free status from its verified track record, keeps asking when evidence is thin (*ask* fails safe), and loses the privilege automatically when results regress — autonomy only relaxes after passing a held-out certification gate (Brier ≤ 0.25, denial-coverage ≥ 0.7) |
-| **🏛️ Governed Agent Teams** | Multi-agent fleets fail like human orgs — ignored instructions, redone work, nobody accountable. Atom ships the countermeasures: delegation contracts with a single accountable agent, expiring privilege leases instead of titles, conflict-of-interest detection, contribution credit feeding graduation, opt-in nightly alignment sweeps |
-| **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver, self-evolving harness) |
-| **🔎 Hybrid Search** | `documents.search` fuses BM25 (FTS5/tsvector) + vector (LanceDB) via Reciprocal Rank Fusion (RRF) — semantic + precise retrieval with citations |
-| **🗂️ Knowledge VFS** | Agent-native document tree — `ls`/`cat`/`grep`/`search` with line-numbered citations instead of bespoke per-store queries |
-| **📻 Agent Radio** | Lateral peer-to-peer messaging between agents (mention-first, budget-governed) — agents coordinate without hardcoded teams |
-| **💼 Office Automation** | Agent-driven Excel/Word/PPTX editing on Canvas with live preview broadcast; formula-evaluating workbook runtime; agent↔document sync |
-| **🧩 Mini-Apps** | Agent-authored stateful canvas apps — Firecracker microVM isolation, per-instance chat |
-| **🔍 GraphRAG & Intelligence** | Multi-hop expansion, Leiden community detection, JIT fact verification, D3 visual explorer |
-| **🌐 46+ Business Integrations** | Salesforce, HubSpot, Slack, Teams, Gmail, Notion, Jira, Linear, Stripe, QuickBooks, Shopify, GitHub, GitLab, Zoom… |
-| **🛰️ LLM Gateway** | OpenAI/Anthropic-compatible API over your BYOK — point Claude Code, n8n, or any OpenAI-SDK app at Atom |
-| **💰 Cost-Aware Routing** | 5-tier cognitive classification, 16+ providers, opt-in learning router (feedback-based re-ranking), RTK token compression |
-| **🤝 Interoperability** | MCP client for external tool servers, ACP endpoint for standard agent clients, A2A Agent Card + `message/send` for agent-to-agent delegation, span tracing with optional Langfuse export |
-| **🎯 Goal-Driven Loops** | Agents terminate on a `definition_of_done` predicate instead of always burning to `max_steps`; utility targets, custom action surfaces, stuck-detection |
+| [`successor-first-use-2026-11-01`](https://github.com/rush86999/atom/tree/successor-first-use-2026-11-01) | Recommended reproducible snapshot with the correctness and first-use fixes. |
+| [`accepted-local-2026-11-01-90pct`](https://github.com/rush86999/atom/tree/accepted-local-2026-11-01-90pct) | Immutable historical acceptance reference; its later-discovered budget defect is documented. Prefer the repaired successor for use. |
+| [Acceptance and repairs](docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md) | Exact identities, independent checks and scope. |
+| [Frozen feature inventory](docs/acceptance/readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json) | Verified, partial and excluded claims; denominator unchanged. |
+| [Successor release notes](docs/acceptance/SUCCESSOR_RELEASE_2026-11-01.md) | Changes from the baseline and first-use measurements. |
 
----
+To use the fixed snapshot rather than development `main`, run
+`git checkout successor-first-use-2026-11-01` **before** `make setup`.
 
-## 🛡️ Production-Ready Security (Default-On)
+### Clear boundaries
 
-| Layer | What you get |
-|---|---|
-| **Execution Sandbox** | Filesystem scope, tool whitelist, tripwires, resource caps, KillRun — enforced at every tool-dispatch hub (in-process policy checks); mini-apps run in Firecracker microVMs |
-| **Encrypted Credentials** | OAuth integration tokens encrypted at rest (Fernet); production fails closed without key |
-| **Per-Agent Capability Bindings** | Zero-trust tool scoping — agent can never exceed its tier floor |
-| **Outbound Gatekeeper** | Rate limiting, response masking, HITL mutation approval on integration calls |
-| **Data-Taint Tracking** | Restricted data observed in a run blocks external outbound actions |
-| **External MCP Client** | Connect to arbitrary external MCP servers (Cloudflare portals) |
+- The demonstrated local topology is **single worker**. Multi-worker execution
+  and long soak behavior are not qualified.
+- The sample and main acceptance campaigns use local or controlled providers.
+  Deterministic taught policy is qualified separately from discretionary model
+  judgment; the tested small-model judgment configuration failed qualification.
+- **One specifically authorized Outlook send and Microsoft read-only ingestion
+  were separately qualified.** That does not qualify every connector, broader
+  live sending, autonomous live sending or independent recipient delivery.
+- Supported workbook formulas and taught schemas are bounded. Arbitrary Excel
+  compatibility, arbitrary schema understanding and UI-taught rounding are not
+  promised.
+- The broader platform includes workflow, routing, graph, governance and
+  integration surfaces. Some need `ATOM_PRODUCT_PROFILE=full`, a configured
+  provider or additional infrastructure. Consult the inventory before relying
+  on a particular feature.
 
-[Security Architecture →](docs/architecture/CLOUDFLARE_OS_SECURITY.md) · [Sandbox Deep-Dive →](docs/guides/EXECUTION_SANDBOX.md)
+## Connect your own data and models
 
----
+After the sample, open **Settings** to configure a provider and the connections
+you need. Provider usage and connector access depend on your account and
+permissions. Keep credentials out of issues, screenshots and commits.
 
-## 📚 Documentation & Discoverability
+For local inference, see [Run with Ollama](docs/getting_started/run-with-ollama.md).
+For connected Office work, see [Office automation](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md)
+and [OAuth setup](docs/guides/OAUTH_QUICK_SETUP_GUIDE.md). Local storage does not
+make cloud inference private: data sent to a configured provider follows that
+provider's terms.
 
-| Start Here | Deep Dives | Guides |
-|---|---|---|
-| [User Guide Index ⭐](docs/USER_GUIDE_INDEX.md) | [Agent System](docs/agents/overview.md) | [Quick Start](docs/getting_started/quick-start.md) |
-| [Docs Index](docs/INDEX.md) | [Governance](docs/agents/governance.md) | [User Guide](docs/guides/USER_GUIDE.md) |
-| [Env Variables](docs/reference/ENVIRONMENT_VARIABLES.md) | [Episodic Memory](docs/intelligence/episodic-memory.md) | [Workflow Automation](docs/guides/FEATURES.md) |
-| [Architecture](docs/architecture/README.md) | [GraphRAG](docs/intelligence/graphrag.md) | [Mini-Apps](docs/guides/MINI_APPS_GUIDE.md) |
-| | [Context Memory](docs/architecture/CONTEXT_MEMORY.md) | [Office Automation](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) |
-| | [Learning Router](docs/architecture/LEARNING_LLM_ROUTER.md) | [Third-Party Integrations](docs/integrations/THIRD_PARTY_INTEGRATIONS.md) |
-| | [LLM Gateway](docs/architecture/LLM_GATEWAY.md) | [OAuth Setup](docs/guides/OAUTH_QUICK_SETUP_GUIDE.md) |
-| | [Hybrid Search](docs/architecture/AGENT_HYBRID_SEARCH.md) · [Knowledge VFS](docs/architecture/KNOWLEDGE_VFS.md) | [Personal Edition](docs/operations/personal-edition.md) |
-| | [Agent Radio](docs/architecture/AGENT_RADIO.md) · [Fleet Orchestration](docs/architecture/FLEET_ORCHESTRATION.md) | [Cloud Deployment](docs/deployment/CLOUD_DEPLOYMENT.md) |
-| | [Oracle Verification](docs/architecture/ORACLE_VERIFICATION.md) · [Reviewer Loop](docs/architecture/REVIEWER_LOOP.md) | [Agent Environment](docs/architecture/AGENT_ENVIRONMENT.md) |
-| | [Mini-Apps Architecture](docs/architecture/MINI_APPS.md) | [Sandbox Layer](docs/architecture/SANDBOX_LAYER.md) |
+## Documentation and contributing
 
----
+- [Documentation hub](docs/README.md) · [Quick start](docs/getting_started/quick-start.md)
+- [Verified workflow walkthroughs](docs/demo/VERIFIED_WORKFLOWS.md)
+- [Troubleshooting](docs/getting_started/TROUBLESHOOTING.md)
+- [Architecture](docs/architecture/README.md) · [Security boundaries](docs/security/TRUST_VS_SANDBOX.md)
+- [Contributing](CONTRIBUTING.md) · [Open an issue](https://github.com/rush86999/atom/issues)
 
-## 🎯 Example Use Cases by Department
+For a useful bug report, include the commit/tag, operating system, launch
+command, expected result and a minimal sanitized example. Please do not include
+passwords, tokens, private documents or your database.
 
-| Department | Scenario | Key Integrations |
-|---|---|---|
-| **Sales** | New HubSpot lead → Research company → Score → Asana task → Slack notify | HubSpot, Asana, Slack, LinkedIn |
-| **Finance** | Gmail PDF invoice → OCR extract → QuickBooks match → Flag discrepancies | Gmail, QuickBooks, Excel, Slack |
-| **Support** | Zendesk ticket → Sentiment analysis → Auto-escalate urgent → Draft reply | Zendesk, Slack, Email |
-| **HR** | BambooHR new hire → Provision accounts → Invite to Slack → Schedule orientation | BambooHR, Google Workspace, Slack, Calendar |
-| **Engineering** | GitHub PR → Run tests → Security scan → Post summary → Auto-merge if green | GitHub, GitLab, Slack, Jira |
-| **Marketing** | Content calendar → Generate posts → Human review → Schedule multi-platform | Notion, Slack, LinkedIn, Twitter, Meta |
-
----
-
-## 🏗️ Repository Layout
-
-```
-atom/
-├── backend/            # FastAPI app — main_api_app:app (full) / minimal_app:app (smoke)
-├── frontend-nextjs/    # Next.js web UI
-├── mobile/             # React Native (Expo) companion app
-├── menubar/            # Tauri macOS menubar companion
-├── scripts/ · infra/ · installer/ · examples/
-├── docs/               # project documentation
-├── Dockerfile          # dual-app image (backend + frontend)
-└── Makefile            # common tasks (start here)
-```
-
----
-
-## 🌟 Why Teams Choose Atom
-
-*Per-competitor analysis: [📊 Comparisons ↑](#-comparisons)*
-
-| | Atom | Zapier/Make/n8n | LangGraph/CrewAI | OpenClaw | LangChain |
-|---|---|---|---|---|---|
-| **AI Agents (reason, not just execute)** | ✅ | ❌ | ✅ | ✅ | ✅ |
-| **Governance (maturity + HITL + audit)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Outcome verification (re-derived from system of record, not self-report)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Default-on Sandbox (all dispatch paths)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Self-Hosted / Private (your keys, your infra)** | ✅ | ❌ | ✅ | ✅ | ✅ |
-| **Office/Canvas Native (Excel formulas, co-edit)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Agent-Authored Workflows (chat to build)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **46+ Business Integrations (CRM, finance, support)** | ✅ | ✅ | — | 50+ personal | — |
-| **Cost-Aware LLM Routing (16+ providers)** | ✅ | ❌ | ◐ | ◐ | ◐ |
-| **Mini-Apps (agent-authored stateful apps)** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **GraphRAG / Episodic Memory** | ✅ | ❌ | ◐ | ◐ | ◐ |
-
----
-
-## 🤝 Contributing & Support
-
-We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md). Quality bar: CI-gated core suite green, typecheck clean on changed files, review required, docs updated. See [docs/compliance/COMPLIANCE_MAPPING.md](docs/compliance/COMPLIANCE_MAPPING.md) for the security/compliance control mapping.
-
-- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
-- **Blog**: [Substack](https://substack.com/@rish2atom/posts)
-- **License**: AGPL v3 — [LICENSE.md](LICENSE.md)
-
----
-
-<div align="center">
-
-**Built with** [FastAPI](https://fastapi.tiangolo.com/) **|** [SQLAlchemy](https://www.sqlalchemy.org/) **|** [LangChain](https://langchain.com/) **|** [Playwright](https://playwright.dev/) **|** [Next.js](https://nextjs.org/)
-
-**Experience the future of self-hosted AI automation — safe enough for your whole team.**
-
-⭐ Star us on GitHub — it helps!
-
-</div>
+Atom is already public on GitHub under [AGPL v3](LICENSE.md). Hosted deployment
+is separate from the verified local setup. If this project helps your work,
+**star the repository, try a real workflow and tell us where it gets stuck.**

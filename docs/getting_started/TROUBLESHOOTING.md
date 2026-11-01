@@ -1,5 +1,20 @@
 # Troubleshooting
 
+## Current local first-use checks
+
+- Use Python **3.11–3.13**, preferably `PYTHON=python3.11 make setup`.
+- With overridden ports, use `BACKEND_PORT=8101 FRONTEND_PORT=3101 make dev`
+  and `make sample PORT=8101 FE_PORT=3101` together; browse port 3101.
+- Wait for backend readiness before login/sample. The bootstrap password belongs
+  to this checkout and is in `backend/logs/bootstrap_admin_password.txt`.
+- The fixed successor includes first-login data refresh and one-line environment
+  file handling: `successor-first-use-2026-11-01`.
+- Preserve data and generated keys. Never delete/reseed a working database as
+  a troubleshooting shortcut.
+
+See [Quick Start](quick-start.md) and the
+[measured first-use record](../demo/FIRST_USE_TEST_2026-11-01.md).
+
 > Common errors and verified fixes. If your issue isn't here, check
 > [Quick Start](./quick-start.md) first, then read the logs:
 > ```bash

@@ -1,0 +1,28 @@
+Assignments
+Teaching cannot govern this assignment until the missing context is confirmed. (font_name: "Arial" vs "Georgia"; font_size: 11 vs 12; heading_order: ["Award", "Sources"] vs ["Summary", "Findings", "Sources"])
+
+Start durable work
+
+Refresh data
+No employee binding
+Demo Assistant · system
+Knowledge Analyst · Intelligence
+Knowledge Analyst · Intelligence
+campaign_grant_awards.csv / campaign_grant_awards · 25 rows
+Document
+Presentation
+Email draft
+No calculation / infer
+Count rows
+Sum Approved Amount
+Other business concept…
+Let Atom choose from a permitted scope instead of the selected data
+Advanced (optional)
+
+Optional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.
+
+Sending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.
+
+Start assignment
+
+No durable assignments yet.

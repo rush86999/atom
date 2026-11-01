@@ -1,7 +1,17 @@
 # Atom Documentation Index
 
-> **Last Updated**: August 2026  
-> **Version**: v8.0.0 (main_api_app, 197 routers)  
+## Current local release
+
+Start with [the sample job](getting_started/quick-start.md), then the
+[verified workflow guide](demo/VERIFIED_WORKFLOWS.md).
+Use `successor-first-use-2026-11-01` for the recommended fixed snapshot.
+The [acceptance record](acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md) and
+[feature inventory](acceptance/readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json)
+are the authority for tested scope; the architecture catalog below is not a
+blanket qualification of every feature or connector.
+
+> **Navigation updated**: November 1, 2026
+> **Version**: v8.0.0 (main_api_app, 197 routers)
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 **📚 [Documentation Hub](../README.md)** — Browse by category (Getting Started, Security, Intelligence, Orchestration, Integrations, Development)
@@ -12,10 +22,10 @@
 
 | Role | Start Here | Time |
 |------|------------|------|
-| **New User** | [Quick Start](getting_started/quick-start.md) | 15 min |
-| **Developer** | [Development Setup](development/setup.md) + [Makefile](../../Makefile) | 20 min |
+| **New User** | [Quick Start](getting_started/quick-start.md) | 15 min target |
+| **Developer** | [Development Setup](development/setup.md) + [Makefile](../Makefile) | 20 min |
 | **Admin** | [Production Readiness](operations/production-readiness.md) | 30 min |
-| **AI Engineer** | [LLM Providers Guide](guides/LLM_PROVIDERS.md) | 15 min |
+| **AI Engineer** | [LLM Providers Guide](guides/LLM_PROVIDERS.md) | 15 min target |
 
 ---
 
@@ -253,7 +263,7 @@
 4. **Agent not executing** → [Agent Overview](agents/overview.md) + [Governance](governance/GOVERNANCE_QUICK_REFERENCE.md)
 5. **Performance** → [Monitoring](operations/monitoring.md) + [Performance](operations/performance.md)
 
-**Found an issue?** Report on GitHub or contribute via PR.  
+**Found an issue?** Report on GitHub or contribute via PR.
 **Keep docs current** — update when you change behavior.
 
 ---

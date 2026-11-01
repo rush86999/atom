@@ -26,13 +26,24 @@ cd backend
 if [ -d "venv" ]; then
     source venv/bin/activate
 fi
+ADDITIONAL_ALLOWED_ORIGINS="${ADDITIONAL_ALLOWED_ORIGINS:-http://localhost:$FRONTEND_PORT,http://127.0.0.1:$FRONTEND_PORT}" \
+ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1,localhost:$BACKEND_PORT,127.0.0.1:$BACKEND_PORT,localhost:$FRONTEND_PORT,127.0.0.1:$FRONTEND_PORT,testserver}" \
 PYTHONPATH=..:. python -m uvicorn main_api_app:app --reload --port "$BACKEND_PORT" &
 BACKEND_PID=$!
 cd ..
 
-# Start frontend
-echo "Starting frontend on :$FRONTEND_PORT..."
+# Start frontend against the backend this invocation actually started. Without
+# this, `make dev BACKEND_PORT=8101` still baked the default :8001 from
+# .env.local into the browser, so login and data reads hit the wrong server.
+echo "Starting frontend on :$FRONTEND_PORT (API :$BACKEND_PORT)..."
 cd frontend-nextjs
+if [ -f .env.local ]; then
+  grep -v '^NEXT_PUBLIC_API_URL=' .env.local > .env.local.tmp || true
+  printf 'NEXT_PUBLIC_API_URL=http://localhost:%s\n' "$BACKEND_PORT" >> .env.local.tmp
+  mv .env.local.tmp .env.local
+fi
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:$BACKEND_PORT}" \
+NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
 npm run dev -- -p "$FRONTEND_PORT" &
 FRONTEND_PID=$!
 cd ..

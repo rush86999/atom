@@ -1,0 +1,146 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 09:38:51 [    INFO] MCP Service initialized
+
+tests/core/test_agent_environment_harness.py::test_register_action_dispatches_locally 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:38:51 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 09:38:51 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 09:38:51 [    INFO] EscalationManager initialized
+2026-11-01 09:38:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:51 [    INFO] EscalationManager initialized
+2026-11-01 09:38:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:51 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 10%]
+tests/core/test_agent_environment_harness.py::test_register_action_sync_handler_supported PASSED [ 20%]
+tests/core/test_agent_environment_harness.py::test_register_action_maturity_gated_discovery PASSED [ 30%]
+tests/core/test_agent_environment_harness.py::test_registered_actions_appear_in_available_tools 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:51 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:51 [    INFO] EscalationManager initialized
+2026-11-01 09:38:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:51 [    INFO] LanceDBHandler initialized. ID: 5701296656. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:51 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:51 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 40%]
+tests/core/test_agent_environment_harness.py::test_stuck_detector_halts_identical_repeats 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:53 [    INFO] LanceDBHandler initialized. ID: 5876766928. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:53 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:53 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [ WARNING] Stuck-detector halted agent Harness Agent at step 3 on search
+2026-11-01 09:38:53 [ WARNING] Failed to generate self-critique: object MagicMock can't be used in 'await' expression
+2026-11-01 09:38:53 [   ERROR] AUDIT GAP for execution 383b820a-8d38-4f66-b2ca-330f31dbbb0e: {'complete': False, 'execution_id': '383b820a-8d38-4f66-b2ca-330f31dbbb0e', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-01T14:38:53.452743+00:00'}
+PASSED                                                                   [ 50%]
+tests/core/test_agent_environment_harness.py::test_stuck_detector_flag_off_runs_identically 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:53 [    INFO] LanceDBHandler initialized. ID: 5882273232. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:53 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:53 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [   ERROR] AUDIT GAP for execution b69fe165-9a2b-468e-af1e-59d0eb40becf: {'complete': False, 'execution_id': 'b69fe165-9a2b-468e-af1e-59d0eb40becf', 'expected_events': 7, 'actual_events': 2, 'coverage_percentage': 28.6, 'checked_at': '2026-11-01T14:38:53.467348+00:00'}
+PASSED                                                                   [ 60%]
+tests/core/test_agent_environment_harness.py::test_stuck_detector_ignores_different_args 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:53 [    INFO] LanceDBHandler initialized. ID: 5890791184. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:53 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:53 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [   ERROR] AUDIT GAP for execution 1e6069b4-839d-4a0f-9e62-1e10be7fa13e: {'complete': False, 'execution_id': '1e6069b4-839d-4a0f-9e62-1e10be7fa13e', 'expected_events': 7, 'actual_events': 2, 'coverage_percentage': 28.6, 'checked_at': '2026-11-01T14:38:53.483250+00:00'}
+PASSED                                                                   [ 70%]
+tests/core/test_agent_environment_harness.py::test_repeated_identical_observations_force_a_strategy_change 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:53 [    INFO] LanceDBHandler initialized. ID: 5882487824. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:53 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:53 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [   ERROR] AUDIT GAP for execution b9435a67-2851-4b1c-954a-31e10ea55764: {'complete': False, 'execution_id': 'b9435a67-2851-4b1c-954a-31e10ea55764', 'expected_events': 5, 'actual_events': 2, 'coverage_percentage': 40.0, 'checked_at': '2026-11-01T14:38:53.497120+00:00'}
+PASSED                                                                   [ 80%]
+tests/core/test_agent_environment_harness.py::test_utility_delta_threaded_into_react_step 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] Agent Harness Agent (agent-harness) starting task: do it
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:53 [    INFO] LanceDBHandler initialized. ID: 5891133200. LANCEDB_AVAILABLE: True
+2026-11-01 09:38:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 09:38:53 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory with storage_options=None
+2026-11-01 09:38:53 [    INFO] LanceDB connected successfully
+2026-11-01 09:38:53 [   ERROR] AUDIT GAP for execution a070bee9-1088-4a55-ac88-97246ad97559: {'complete': False, 'execution_id': 'a070bee9-1088-4a55-ac88-97246ad97559', 'expected_events': 3, 'actual_events': 2, 'coverage_percentage': 66.7, 'checked_at': '2026-11-01T14:38:53.510885+00:00'}
+PASSED                                                                   [ 90%]
+tests/core/test_agent_environment_harness.py::test_react_step_surfaces_optimization_target 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] EscalationManager initialized
+2026-11-01 09:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:53 [    INFO] Listed 0 skills (status=Active, type=None)
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 20 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 passed, 26 warnings in 15.77s =======================

@@ -12,8 +12,9 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 | GOV-04 training lifecycle | Agent 1 | **Passed** start/approval/guidance/evidence/completion controls | none | none |
 | Reusable acceptance world | Agent 1 | In use by new tests; migrate remaining fixtures opportunistically | none | none |
 | Complex teaching campaign (A) | Agent 1 | **Passed** on isolated world: conflict refusal -> UI correction -> missing qualification -> mapping -> 506.00; restart; active run kept Arial 11 while revised run used Calibri 14; expedited exception Arial 10; wrong-context grants lesson excluded; conflict deletion is recovery, not correction history. Limitation: taught rounding has no UI field (no counted claim promises it). | — | rounding UI missing (not counted) |
-| Long-running ≥2h campaign (C) | Agent 1 | C resumed 1h49m after its wait (below the 17:37:56Z gate) and is kept as the restart/upgrade control. **C2** (`cac9cbd6…`) reached its wait at 18:04:53Z, survived two real restarts, and is pinned to `414d8add3`; resumes no earlier than **20:04:53Z**. | — | C2 elapsed time |
+| Long-running ≥2h campaign (C) | Agent 1 | C resumed 1h49m after its wait (below the gate) and is kept as the restart/upgrade control. **C2** (`cac9cbd6…`) closed at **7,239.8s** after its wait on the pinned historical source `414d8add3`: source-1 110.00 with one attempt/operation, explicit send approval, Arial 11 artifact SHA `bce1a2ad…`, one controlled effect, final restart preserved. | — | historical source; not budget-repair verification |
 | Cancellation consistency repair | Agent 1 | **Passed** at `f5d2e085a` (backend tree `d37da0be5943`): terminal transition clears the live wait, cancel projects/idempotent, late replies refused before matching (409), gap resolve refused, fresh-session/resume/scheduler consumers consistent, outbox empty. 129 focused tests + 2 public-API cancellation tests. | none | none |
+| Budget pause-credit repair | Agent 1 | **Accepted within tested scope** at `f1ef414c3` / backend tree `c2963fbcdc8e`: legacy stale-live-wait double subtraction fixed; 63 focused tests (61 executor + 2 public-route cancellation). Post-acceptance finding appended to the acceptance record; accepted tag preserved. | none | none |
 | CORE-06 credential lifecycle | Agent 2 | **Passed** save/replace/delete without restart | — | none |
 | ROUTE-06 local endpoint | Agent 2 | **Passed** registered local route/first chat | — | — |
 | ROUTE-03 fallback | Agent 2 | **Passed** primary failure -> secondary, policy denial zero calls | — | — |
@@ -54,3 +55,16 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 - First-use path: clean install -> `make setup` -> `make dev` -> `make sample`
   completed `232990.00` and a DOCX in **13 seconds** after backend start on the
   clean-install world at `776c6644f`.
+
+## Acceptance record
+
+**Accepted 2026-11-01 within the documented local and controlled-provider
+scope.** Runtime `bec60978b`; evidence/docs `88bf413e8431`; breadth
+**111/123 = 90.2%**. See
+[`VERIFIER_ACCEPTANCE_2026-11-01.md`](VERIFIER_ACCEPTANCE_2026-11-01.md).
+
+The two focused findings (wait-credit duplication and untracked evidence) are
+closed. No further repair campaign is indicated for them. Hosted deployment remains deferred. The repository is already published on GitHub. Broader live sending, autonomous live sending,
+connector breadth and model-quality exclusions remain; the previously accepted
+one-use Outlook send and Microsoft read-only qualification remain closed and
+unchanged.

@@ -1,0 +1,9 @@
+{
+  "schema": "atom-c2-harness-version-1",
+  "script": "scripts/acceptance/c2_close.py",
+  "sha256": "e89d2e8253fcfe6bc5e8167f30b2a57e4361318197e39f8506feea811f23b90b",
+  "committed_as": "6747c19576dda93564ffa6f50ed2cc15bc3c1b9b",
+  "committed_at_utc": "2026-11-01T20:19:58Z",
+  "closure_executed_at_utc": "2026-11-01T20:05:32Z",
+  "note": "The accepted C2 closure ran on the corrected working-tree content before the commit. The checkout was NOT clean at execution. The committed content hash equals the executed content; no later edit changed the runner."
+}

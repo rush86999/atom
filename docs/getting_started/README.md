@@ -1,5 +1,18 @@
 # Getting Started
 
+## Recommended path
+
+1. [Quick start](quick-start.md): Python 3.11–3.13, local setup, login and sample.
+2. [Verified workflows](../demo/VERIFIED_WORKFLOWS.md): teach, map, calculate,
+   create documents and resume durable work.
+3. [Measured first use](../demo/FIRST_USE_TEST_2026-11-01.md): about 5 min 15 s
+   with warm package caches; cold-install timing remains a target.
+4. [Acceptance and repaired successor](../acceptance/SUCCESSOR_RELEASE_2026-11-01.md):
+   use `successor-first-use-2026-11-01` for the fixed snapshot.
+
+Other installation variants below are reference material; they were not all
+requalified by the local first-use campaign.
+
 Quick start guides, installation options, and first steps with Atom.
 
 ## 📚 Quick Navigation

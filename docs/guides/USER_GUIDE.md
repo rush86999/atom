@@ -1,5 +1,11 @@
 # Atom User Guide
 
+> **Current user path:** [Quick Start](../getting_started/quick-start.md) →
+> [Verified Workflows](../demo/VERIFIED_WORKFLOWS.md). The broader feature
+> reference below is not a claim that every surface/provider is qualified.
+> Consult the [frozen inventory](../acceptance/readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json)
+> for the accepted 111/123 local/controlled milestone and remaining limits.
+
 > **Last Updated:** August 2026  
 > **Platform:** Atom Open Source — AI Agent Workforce
 

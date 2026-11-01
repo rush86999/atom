@@ -1,0 +1,1 @@
+conflicting supervisor lessons removed through the product teaching-point delete endpoint

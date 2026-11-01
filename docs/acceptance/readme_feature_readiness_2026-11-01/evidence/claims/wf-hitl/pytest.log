@@ -1,0 +1,93 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 09:38:07 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-01 09:38:07 [    INFO] No token storage file found, starting empty
+2026-11-01 09:38:07 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 09:38:07 [    INFO] EscalationManager initialized
+2026-11-01 09:38:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:07 [    INFO] EscalationManager initialized
+2026-11-01 09:38:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:38:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:38:07 [    INFO] MCP Service initialized
+2026-11-01 09:38:07 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_workflow_hitl_resume_once.py::test_denial_pauses_without_executing_and_files_exact_effect 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:38:07 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:08 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 09:38:08 [    INFO] Event bus started
+2026-11-01 09:38:08 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 14%]
+tests/test_workflow_hitl_resume_once.py::test_durable_approval_resumes_same_workflow_once 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:09 [    INFO] Workflow ex-1 step s1 authorized by durable HITL hitl-1
+2026-11-01 09:38:09 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-01 09:38:09 [    INFO] Initialized global governance cache
+2026-11-01 09:38:09 [    INFO] Observation event 'workflow_execution' learned by 2 student(s) in default
+2026-11-01 09:38:09 [    INFO] Observation event 'workflow_execution' learned by 2 student(s) in default
+PASSED                                                                   [ 28%]
+tests/test_workflow_hitl_resume_once.py::test_approval_for_a_different_step_or_execution_cannot_unlock 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:10 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 09:38:10 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 42%]
+tests/test_workflow_hitl_resume_once.py::test_rejected_or_missing_hitl_row_cannot_unlock 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:11 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 09:38:11 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 57%]
+tests/test_workflow_hitl_resume_once.py::test_crash_after_dispatch_does_not_resend_approved_step PASSED [ 71%]
+tests/test_workflow_hitl_resume_once.py::test_payload_drift_does_not_reuse_the_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:12 [ WARNING] workflow ex-1: durable approval hitl-1 does not bind the current step payload
+2026-11-01 09:38:12 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-01 09:38:12 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 85%]
+tests/test_workflow_hitl_resume_once.py::test_fresh_engine_resume_does_not_execute_twice 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:38:13 [    INFO] Workflow ex-1 step s1 authorized by durable HITL hitl-1
+2026-11-01 09:38:13 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-01 09:38:13 [    INFO] Observation event 'workflow_execution' learned by 2 student(s) in default
+2026-11-01 09:38:13 [    INFO] Observation event 'workflow_execution' learned by 2 student(s) in default
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 14 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 7 passed, 21 warnings in 20.06s ========================

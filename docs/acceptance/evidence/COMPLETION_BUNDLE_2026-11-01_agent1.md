@@ -15,7 +15,12 @@ and broad model campaigns were not performed.
 | Campaign C2 start | `d535aa7d36cf` (product `715969f01d23`) |
 | **C2 closure (pinned)** | **`414d8add3`** / backend tree `715969f01d23`, worktree `/private/…/c2-pin` |
 | **Cancellation repair** | **`f5d2e085a`** / backend tree `d37da0be5943` (frontend unchanged) |
-| Product diff repair vs campaigns | only the four cancellation files (`assignment_executor.py`, `assignment_routes.py`, `goal_run_service.py`, `test_assignment_routes.py`) |
+| **Budget pause-credit repair** | **`bec60978b` + `019aa1eeb`** / backend tree `c2963fbcdc8e` |
+| **Post-acceptance verified source** | **`f1ef414c3`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` (63 focused tests) |
+| Launcher memory-path fix | **`d8120737e`** (both `LANCEDB_URI` and `LANCEDB_URI_BASE` at the world root), frontend tree `756642ecb165` |
+| Verified launcher/first-use successor | `d8120737e`; documentation HEAD `14b1928e2` |
+| Accepted tag (immutable) | `accepted-local-2026-11-01-90pct` → commit `88bf413e8`; known budget defect linked to the repaired successor above |
+| Product diff repair vs campaigns | cancellation files plus the budget-credit files (`assignment_executor.py`, `assignment_plan.py`, `test_assignment_executor.py`) |
 
 The campaign sources and the repair source are deliberately distinct: the
 repair landed after C2 reached its wait, and C2's wait/resume path does not
@@ -122,29 +127,50 @@ work at revised scope used revision `0ceff61904cb889b+map`, produced
 Run `d74e637f-86c8-4643-91f3-c469e52ff33e`, assignment
 `asg-888cbd5d67cf4560`.
 
-## 2b. Campaign C2 — the elapsed gate (fresh identity)
+## 2b. Campaign C2 — the elapsed gate (fresh identity, historical source)
 
-C1 resumed 11 minutes before the gate and is kept as the upgrade control. C2
-is the separate run that carries the elapsed requirement; its clock was never
-reset.
+C2 is the separate run that carries the elapsed requirement; its clock was
+never reset.
 
 | Item | Value |
 |---|---|
 | World | `long_run_20261101_b`, backend 8085 / frontend 3145 |
 | Run | `cac9cbd6-f72b-4fbb-b106-f0990fc5b191` |
 | Assignment | `asg-bc8171a465894137` |
-| Objective | Sum Price for the second integrated quote sheet |
 | Teaching revision | `851207ec455336d3+cabba8f03b6894fa+map` |
-| Correlation | `quote-missing-currency-2` |
 | Wait reached | `18:04:53Z` |
-| Two-hour gate | **`20:04:53Z`** |
-| Pinned closure source | `414d8add3`, backend tree `715969f01d23`, pid 73022 |
-| Pre-wait work | `source-1` applied **110.00** (15.10 + 20.20 + 30.30 + 44.40), operation `3e8eba43-…`, **attempts=1** |
+| Elapsed at closure | **7,239.8 s** (>= 7,200 s) |
+| Historical source | `414d8add3112` / backend tree `715969f01d23`, clean pinned worktree `c2-pin` |
+| Completed work | `source-1` applied **110.00** (15.10 + 20.20 + 30.30 + 44.40), operation `3e8eba43-…`, **attempts=1** before and after |
+| Artifact | 37,211 bytes, SHA-256 `bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94`, **Arial 11** |
+| Effect | exactly **one** controlled outbox line, operation `2a593acd-…` |
+| Approval | **explicit**: `send`, payload `ca0ab0a5…`, purpose “Send the prepared response” |
 
-Restart evidence before the gate: pid 66715 → 68921 → 73022, all against the
-same SQLite stores; each time the run stayed `waiting` with the same
-assignment/revision and `source-1` still `attempts=1`. The closure sequence
-below is filled after `20:04:53Z`.
+Restarts: pid 66715 → 68921 → 73022 (pinned) → 87659 (final), all against the
+same SQLite stores. The run remained `waiting` through the first three; the
+final restart sees `achieved` / `completed`, the same artifact hash and one
+outbox line.
+
+### Budget snapshots (historical pre-repair source)
+
+| Stage | paused_seconds | waiting_since | active_wait |
+|---|---|---|---|
+| before response | 0.0 | `18:04:41Z` | null |
+| after response | **7251.69** | null | null |
+| after approval | 7251.69 | null | null |
+| after resume | 7251.69 | null | null |
+| after completion | 7251.69 | null | null |
+| after duplicate response | 7251.69 | null | null |
+
+The wait interval was credited **once**; approval, resume, duplicate response
+and final restart did not add it again. Duplicate resume returned 200 /
+`completed` twice with no extra effect; the duplicate correlated reply returned
+404 `No open gap carries this correlation id…`.
+
+**Scope separation:** this run proves elapsed waiting, restart/resume, preserved
+completed work, exact artifact and one controlled effect on **its historical
+source**. It is **not** verification of the repaired budget code; that is the 63
+focused controls on `c2963fbcdc8e`.
 
 ## 3. Campaign A — complex teaching through the ordinary UI
 
@@ -287,6 +313,60 @@ worktree. Full detail:
 - Results: **129 passed** across routes, executor, goal service/events/routes,
   watchdog sweep; the two new public-API cancellation tests pass.
 
+## 4c. Budget pause-credit repair (own source identity)
+
+Source `bec60978b` plus follow-up `019aa1eeb`, backend tree
+`c2963fbcdc8e`; full detail `budget_repair_20261101/README.md`.
+
+- Reproduced defect: a legacy budget with `paused_seconds=500` **and** the same
+  interval in `waiting_since` was subtracted twice. 1500s of genuine active
+  work against a 900s budget reported ~0s and was allowed. The legacy credit
+  path also left the live wait in place on retry.
+- Repair: clear the matching `active_wait`/`waiting_since` on every credit
+  outcome; ignore a `waiting_since` already in the credit ledger; for a legacy
+  paused ledger with no live active-wait identity, do not subtract the same
+  interval again. A new wait always records `active_wait`, so it is still
+  excluded. Genuine active-work exhaustion remains exhausted.
+- Controls: legacy double-subtraction, legacy credit clearing, legacy retry,
+  recorded credit with stale wait, concurrent external responses, restart while
+  waiting. **140 focused tests pass** on `c2963fbcdc8e`.
+
+This repair is recorded as a **post-acceptance correctness repair** in
+`docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md`; the accepted tag
+`accepted-local-2026-11-01-90pct` is preserved and the old baseline is not
+described as unaffected.
+
+C2 ran on `414d8add3` and does not load this repair; its budget snapshots are
+historical execution, not a relabelled verification of the repaired code.
+
+## 4d. Launcher memory-path correction and first-use focused smoke
+
+Source `d8120737e`, backend tree `c2963fbcdc8e`, frontend tree
+`756642ecb165`.
+
+- Finding: the launcher exported `LANCEDB_URI` but workspace handlers read
+  `LANCEDB_URI_BASE`, falling back to `./data/atom_memory` and anchoring to
+  `backend/` — the repository-shared memory root. Both variables now point at
+  `<world>/data/atom_memory`.
+- Verified on a fresh world: `Connecting to LanceDB at
+  <world>/data/atom_memory/default_shared`; **zero** repository-shared path
+  occurrences. No shared memory was copied, deleted or migrated.
+- Focused first-use smoke on current HEAD: assignments panel loads after login,
+  Demo Assistant selectable, agents page reachable, no page errors. Evidence:
+  `first_use_smoke_20261101/`.
+- The full first-use journey was measured at `8b1abd7e6`
+  (`docs/demo/FIRST_USE_TEST_2026-11-01.md`: sample job 232990.00, first
+  Assignments visit). This focused check at `d8120737e` adds the world-owned
+  memory path and first-visit panel load; the full install/sample job was not
+  repeated after the memory fix.
+
+**C2 harness version:** the accepted closure ran on corrected working-tree
+content before it was committed. Executed SHA-256
+`e89d2e8253fcfe6bc5e8167f30b2a57e4361318197e39f8506feea811f23b90b`,
+committed as `6747c1957`; the checkout was **not** clean at execution. The
+committed content matches the executed content
+(`long-run-20261101_b/harness-version.json`).
+
 ## 5. Tests run once on the integrated source
 
 | Suite | Source | Result |
@@ -299,6 +379,11 @@ worktree. Full detail:
 | Runtime claim batch re-run | `d37da0be5943` | **48 passed** |
 | Uncertain-effect controls re-run | `d37da0be5943` | **3 passed** |
 | Browser recovery (pre-repair path) | `715969f01d23` | **5/5 checks** |
+| Browser recovery (integrated) | `c2963fbcdc8e` | **5/5 checks** |
+| C2 elapsed closure (historical) | `715969f01d23` | completed, 7,239.8s, one effect |
+| Cancellation + budget + goal suites | `c2963fbcdc8e` | **140 passed** |
+| Verifier-focused subset (61 executor + 2 public-route cancellation) | `c2963fbcdc8e` | **63 passed** |
+| Runtime claim batch (integrated) | `c2963fbcdc8e` | **48 passed** |
 
 Evidence: `sibling_controls_20261101/`, `cancellation_repair_20261101/`,
 `assignment-recovery-browser-20261101/browser-recovery.json`.
@@ -382,8 +467,19 @@ proposal above and are not counted.
   Outlook send were performed; the accepted qualifications for those remain at
   their previous scope.
 - C2's closure is source-bound to `414d8add3`; the cancellation repair
-  `f5d2e085a` is a separate product source. C2 does not exercise cancellation,
-  so it was not repeated on the repair.
+  `f5d2e085a` and budget repair `019aa1eeb` are later product sources. C2 does
+  not exercise cancellation or the repaired budget ledger; it is historical
+  execution evidence, not verification of those repairs.
+- **First-use focused smoke is recorded** on `d8120737e` (panel loads, Demo
+  Assistant selectable, no page errors) together with the world-owned memory
+  path. The full journey remains the measured `8b1abd7e6` run; the install and
+  sample job were not repeated after the memory fix.
+- The C2 closure harness was executed from a non-clean working tree; the exact
+  executed content hash is recorded and matches its commit `6747c1957`.
+- The accepted tag `accepted-local-2026-11-01-90pct` is preserved. The
+  post-acceptance budget finding is appended to
+  `docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md`; the old baseline is not
+  described as unaffected.
 
 ## 8. Superseded / failed attempts
 
