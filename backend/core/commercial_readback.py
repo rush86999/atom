@@ -209,6 +209,8 @@ def _compare_discount(report: Dict[str, Any], field: str,
     exp_mode, exp_value = _discount_descriptor(expected_line)
     if exp_mode is None:
         return
+    if exp_mode in ("percent", "amount") and exp_value == 0:
+        return
     report["checked_fields"].append(field)
     obs_mode, obs_value = _discount_descriptor(observed_line)
     if obs_mode is None or obs_value is None:
@@ -241,6 +243,9 @@ def _compare_tax(report: Dict[str, Any], field: str,
                  observed_line: Dict[str, Any]) -> None:
     expected = _tax_descriptor(expected_line)
     if not any(value not in (None, "") for value in expected.values()):
+        return
+    if (not expected["tax_id"] and expected["percent"] == 0
+            and expected["amount"] in (None, Decimal("0"))):
         return
     observed = _tax_descriptor(observed_line)
     if expected["tax_id"]:
@@ -308,6 +313,20 @@ def _compare_lines(report: Dict[str, Any], expected_lines: Sequence[Dict[str, An
             if obs_kind == exp_kind and obs_key == exp_key:
                 candidates.append(observed)
         if not candidates:
+            # A provider line without the stable id but with the exact
+            # expected name is incomplete identity evidence, not a definite
+            # wrong item.
+            exp_name = _text(_get(expected, "name", "description")).casefold()
+            fallback = next((
+                observed for observed in remaining
+                if exp_name and _text(
+                    _get(observed, "name", "description")).casefold() == exp_name
+            ), None)
+            if fallback is not None:
+                remaining.remove(fallback)
+                _add_missing(report, f"line_items[{index}].identity")
+                _compare_line(report, index, expected, fallback)
+                continue
             _add_mismatch(report, f"line_items[{index}].identity",
                           f"{exp_kind}:{exp_key}", "no matching line")
             continue
@@ -432,7 +451,8 @@ def verify_bill_readback(
         "currency_code": _get(readback, "currency_code", "currency"),
         "date": _get(readback, "date", "bill_date"),
         "due_date": _get(readback, "due_date"),
-        "reference_number": _get(readback, "reference_number"),
+        "reference_number": _get(readback, "reference_number",
+                                  "bill_number"),
         "total": _get(readback, "total", "grand_total"),
         "sub_total": _get(readback, "sub_total", "subtotal"),
         "tax_total": _get(readback, "tax_total", "tax_amount"),

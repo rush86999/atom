@@ -1134,6 +1134,10 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
         return _error("zoho_books", "create_bill", "invalid_request",
                       "external_id is required for duplicate identity.",
                       action_result="proven_not_applied")
+    if not proposal.get("lines"):
+        return _error("zoho_books", "create_bill", "invalid_request",
+                      "A bill requires at least one authorized line item.",
+                      action_result="proven_not_applied")
 
     payload = _bill_payload(proposal)
     payload_sha256 = _payload_digest(payload)
