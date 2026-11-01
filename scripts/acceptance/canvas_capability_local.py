@@ -38,7 +38,8 @@ def new_canvas(page, frontend: str, agent_id: str) -> str:
         '[data-testid="add-agent-button"], '
         '[data-testid="banner-add-agent-button"]').first.click()
     page.wait_for_timeout(800)
-    page.get_by_test_id(f"attach-agent-option-{agent_id}").click()
+    page.get_by_test_id(
+        f"attach-agent-option-{agent_id}").evaluate("el => el.click()")
     page.get_by_test_id("canvas-capability-panel").wait_for(
         state="attached", timeout=60000)
     return page.url

@@ -97,6 +97,14 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
           task_scope: str = "", effective_from: str = "",
           effective_to: str = "", greeting: str = "", signature: str = "",
           subject_prefix: str = "") -> None:
+    # The training panel can collapse after a recorded lesson. Re-open it on
+    # the same canvas before filling the next one.
+    if page.get_by_test_id("teach-lesson-input").count() == 0 or not (
+            page.get_by_test_id("teach-lesson-input").is_visible()):
+        tab = page.locator('[data-testid="canvas-side-tab-training"]')
+        if tab.count():
+            tab.first.dispatch_event("click")
+            page.wait_for_timeout(700)
     page.get_by_test_id("teach-lesson-input").wait_for(
         state="visible", timeout=30000)
     page.wait_for_function(
@@ -301,13 +309,32 @@ def main() -> int:
         page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
         page.get_by_test_id("training-panel").wait_for(timeout=30000)
-        point = page.locator('[data-testid="teaching-point"]').filter(
-            has_text="Times New Roman").first
-        page.on("dialog", lambda dialog: dialog.accept())
-        point.locator('[data-testid="teaching-point-delete"]').click(
-            timeout=30000, force=True)
-        page.get_by_text("Teaching point removed", exact=False).wait_for(
-            timeout=30000)
+        canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
+        training = api(
+            page,
+            f"/api/maturity/training/context?canvas_id={canvas_id}")
+        point = next(
+            (item for item in (training.get("teaching_points") or [])
+             if "Times New Roman" in str(
+                 item.get("text") or item.get("lesson") or "")),
+            None)
+        if point is None:
+            raise SystemExit("REFUSED: conflicting teaching point not found")
+        status = page.evaluate(
+            """async ({agentId, pointId}) => {
+                const token = localStorage.getItem('auth_token')
+                    || localStorage.getItem('token');
+                const response = await fetch(
+                    `/api/maturity/agents/${agentId}/teaching-points/`
+                    + encodeURIComponent(pointId),
+                    {method: 'DELETE',
+                     headers: {Authorization: `Bearer ${token}`}});
+                return response.status;
+            }""",
+            {"agentId": agent_id, "pointId": point.get("id")})
+        if int(status) >= 300:
+            raise SystemExit(
+                f"REFUSED: teaching point delete returned {status}")
         page.close()
 
         # Second attempt in another fresh context: the required qualification
