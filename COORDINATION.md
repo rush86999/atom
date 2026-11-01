@@ -346,3 +346,11 @@ Zoho Books estimate; connected actions, typed receipt fields, tabular row
 evidence, outcome mapping and the controlled joint test are specified there.
 The joint branch now includes the latest Agent 2 tabular-evidence sync;
 combined suite **192 passed**.
+
+**Final joint integration (2026-11-01):** `/private/tmp/atom-brennan-joint`
+HEAD `4b2c61aa9` merges Agent 1 final `acd86a2aa` with Agent 2 `baeca20db`
+(plus the executor outcome mapping and joint campaign test). Combined
+assignment + connected suite: **197 passed**. Extended affected assignment
+suite + joint campaign: **289 passed**. Provider contract matrix: zero issues.
+This is the reviewable controlled candidate; live qualification still needs
+the account/token request in `AGENT_2_LIVE_QUALIFICATION_REQUEST.md`.
