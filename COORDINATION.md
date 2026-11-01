@@ -369,3 +369,11 @@ assignment + connected suite: **200 passed**. Full accounting comparison vs
 Agent 1 baseline: 25 pre-existing failures on both sides, no new Agent 2
 failures. Provider contract matrix: zero issues. No live provider call, send,
 tag move or acceptance-status change.
+
+**Final controlled candidate (2026-11-01, supersedes the previous joint head):**
+Agent 2 `codex/brennan-knowledge-accounting-20261101` HEAD `59c9f4df3`
+(clean). Joint `codex/brennan-joint-20261101` HEAD `ddcdb838a` (clean).
+Combined assignment + connected suite: **202 passed**; contract matrix zero
+issues on both. Estimate writes now require an exact `reference_number` and
+sweep the complete estimate list before create, matching the bill controls.
+No live provider call, send, tag move or acceptance-status change.
