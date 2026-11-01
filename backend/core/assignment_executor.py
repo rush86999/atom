@@ -5494,11 +5494,32 @@ async def _action_registry_adapter(
             "message": _bounded(str(exc), 500),
             "error_class": "action_dispatch_error",
         }
+    from core.brennan_connected_actions import action_executor_outcome
+
+    outcome = action_executor_outcome(result)
+    if outcome == "applied":
+        return {
+            "status": "applied",
+            "summary": f"registered action {name} completed",
+            "data": _json_safe(result),
+            "evidence": [{"kind": "action_registry", "action": name}],
+        }
+    if outcome == "uncertain":
+        return {
+            "status": "uncertain",
+            "reason": (
+                f"registered action {name} reported "
+                f"{result.get('action_result') or 'an unknown outcome'}"),
+            "evidence": _bounded(str(result), 500),
+            "data": _json_safe(result),
+        }
     return {
-        "status": "applied",
-        "summary": f"registered action {name} completed",
+        "status": "failed",
+        "message": (
+            f"registered action {name} did not apply: "
+            f"{result.get('error') or result.get('status') or 'refused'}"),
+        "error_class": str(result.get("error_kind") or "proven_not_applied"),
         "data": _json_safe(result),
-        "evidence": [{"kind": "action_registry", "action": name}],
     }
 
 
