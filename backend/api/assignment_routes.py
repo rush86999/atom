@@ -98,6 +98,10 @@ class AssignmentReassessment(BaseModel):
     task_context: Dict[str, Any] = {}
 
 
+class AssignmentInvalidation(BaseModel):
+    reason: str = "authorized evidence changed"
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -665,6 +669,8 @@ async def list_assignments(
         record = TaskLifecycle(svc).get_task(run.get("id"))
         if record is None or record.get("assignment") is None:
             continue
+        steps = record["assignment"].get("steps") or []
+        required = [step for step in steps if step.get("required", True)]
         results.append({
             "run_id": run.get("id"),
             "status": run.get("status"),
@@ -675,9 +681,19 @@ async def list_assignments(
                 "plan_revision": record["assignment"].get("plan_revision"),
                 "current_action": next((
                     step.get("title")
-                    for step in record["assignment"].get("steps") or []
+                    for step in steps
                     if step.get("status") in (
                         "running", "waiting", "awaiting_approval")), None),
+                "progress": {
+                    "completed_steps": sum(
+                        1 for step in required
+                        if step.get("status") in ("applied", "skipped")),
+                    "required_steps": len(required),
+                    "waiting_steps": sum(
+                        1 for step in steps
+                        if step.get("status") in (
+                            "waiting", "awaiting_approval")),
+                },
             },
         })
     return results
@@ -866,6 +882,30 @@ async def reassess_assignment(
             reason=body.reason or "explicit reassessment")
         status = await executor.execute(run_id, max_steps=12)
     except (AssignmentPlanError, TaskLifecycleError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
+
+
+@router.post("/{run_id}/invalidate/{step_id}")
+async def invalidate_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentInvalidation,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Explicitly reopen one branch after its evidence changed.
+
+    Prior results/artifacts remain in the audit history. The step and every
+    descendant run under a new plan revision, so old approvals/payloads do
+    not ride the changed evidence.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        result = executor.invalidate_step(
+            run_id, step_id, reason=body.reason or "evidence changed")
+        status = await executor.execute(run_id, max_steps=12)
+    except TaskLifecycleError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return {**result, "assignment": status}
 

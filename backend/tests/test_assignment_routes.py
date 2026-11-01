@@ -2145,6 +2145,35 @@ def test_quote_journey_uses_sources_and_taught_line_discount(
     assert "scotch-parts.xlsx" in text, text
     assert "brennan-customer-agreement.docx" in text, text
 
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "controlled-quote-journey",
+            "controlled": True,
+            "live_connected": False,
+            "objective": "Prepare the Acme quote using the governing agreement",
+            "run_id": body["run_id"],
+            "assignment_id": assignment["assignment_id"],
+            "plan_revision": assignment["plan_revision"],
+            "teaching_revision": body.get("teaching_revision"),
+            "teaching_fingerprint": assignment.get("teaching_fingerprint"),
+            "sources": internal.get("sources") or [],
+            "calculation_receipt": receipt,
+            "calculation_rows": calc["result"]["rows"],
+            "expected_total_independent": "362.50",
+            "artifact_path": deliverable["artifact_path"],
+            "stored_artifact": stored,
+            "artifact_sha256": deliverable.get("sha256"),
+            "artifact_text": text,
+            "status_after_build": assignment["status"],
+        }
+        with open(os.path.join(
+                evidence_dir, "quote_journey.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
 
 def test_service_proposal_route_uses_the_same_assignment_api(
         route_env, tmp_path, monkeypatch):
@@ -2341,6 +2370,31 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
     assert deliverable["artifact_path"].endswith(".docx")
     assert deliverable["status"] == "applied"
 
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote-corrected.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "teaching-correction-reassessment",
+            "controlled": True,
+            "before_teaching_revision": before_revision,
+            "after_teaching_revision": after["teaching_snapshot"]["revision"],
+            "old_plan_revision": retained["plan_revision"],
+            "new_plan_revision": after["plan_revision"],
+            "teaching_history": after.get("teaching_history") or [],
+            "affected_steps": body["affected_steps"],
+            "preserved_steps": body["preserved_steps"],
+            "before_total": calc["prior_results"][-1]["result"]["value"],
+            "after_total": calc["result"]["value"],
+            "new_work_total": second_calc["result"]["value"],
+            "stored_artifact": stored,
+            "artifact_revision": deliverable.get("artifact_revision"),
+        }
+        with open(os.path.join(
+                evidence_dir, "teaching_correction.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
 
 def test_quote_controlled_commercial_update_duplicate_and_uncertain(
         route_env, tmp_path, monkeypatch):
@@ -2525,3 +2579,108 @@ def test_quote_missing_tax_is_a_typed_clarification_not_zero(
                 if step["step_id"] == "calculate")
     assert calc["status"] == "waiting"
     assert calc["result_value"] is None
+
+
+def test_source_revision_change_invalidates_dependent_artifact(
+        route_env, tmp_path, monkeypatch):
+    import pandas as pd
+
+    agent_id = _teaching_agent(
+        route_env, "Source change employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    started = _start_quote(route_env, tmp_path, monkeypatch, agent_id)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    before = route_env["lifecycle"].get_assignment(run_id)
+    before_doc = next(item for item in before["deliverables"]
+                      if item["kind"] == "document")
+    assert before_doc["status"] == "applied"
+    before_revision = before_doc["artifact_revision"]
+
+    # The authorized source is revised while the job is retained.
+    parquet = tmp_path / "sheet_datasets" / "scotch-parts.parquet"
+    frame = pd.read_parquet(parquet)
+    frame.loc[0, "Description"] = "Changed Scotch A"
+    frame.to_parquet(parquet, index=False)
+
+    invalidated = route_env["client"].post(
+        f"/api/assignments/{run_id}/invalidate/source-1",
+        json={"reason": "authorized source revision changed"})
+    assert invalidated.status_code == 200, invalidated.text
+    result = invalidated.json()
+    assert "source-1" in result["affected_steps"]
+    status = result["assignment"]
+    assert status["assignment"]["status"] == "completed", status
+    after = route_env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == before["plan_revision"] + 1
+    source_step = next(step for step in after["steps"]
+                       if step["step_id"] == "source-1")
+    assert source_step["status"] == "applied"
+    before_rows = next(step for step in before["steps"]
+                       if step["step_id"] == "source-1")["result"]["rows"]
+    assert source_step["result"]["rows"] != before_rows
+    after_doc = next(item for item in after["deliverables"]
+                     if item["kind"] == "document")
+    assert after_doc["status"] == "applied"
+    assert after_doc["artifact_revision"] != before_revision
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["prior_results"], calc
+    deliverable_step = next(step for step in after["steps"]
+                            if step["step_id"] == "deliverable-1")
+    assert deliverable_step["prior_results"], deliverable_step
+    text = "\n".join(
+        paragraph.text for paragraph in __import__("docx").Document(
+            after_doc["artifact_path"]).paragraphs)
+    for table in __import__("docx").Document(
+            after_doc["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "Changed Scotch A" in text, text
+
+
+def test_quote_same_sku_different_pack_asks_before_arithmetic(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Ambiguity quote employee", "Arial", "quote-reviewer")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote the ambiguous SKU",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "each", "pack_size": "10", "unit_price": "10.00",
+                 "price_basis": "contract", "currency": "USD"},
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "case", "pack_size": "25", "unit_price": "20.00",
+                 "price_basis": "contract", "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement",
+        },
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "packaging_identity")
+    assert "SKU-1" in gap["question"]
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+    deliverable = next(step for step in assignment["steps"]
+                       if step["step_id"] == "deliverable-1")
+    assert deliverable["status"] == "pending"

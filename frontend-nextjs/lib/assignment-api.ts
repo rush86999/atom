@@ -105,6 +105,11 @@ export interface AssignmentSummary {
     state: string;
     plan_revision: number;
     current_action: string | null;
+    progress?: {
+      completed_steps: number;
+      required_steps: number;
+      waiting_steps: number;
+    };
   };
 }
 
@@ -168,6 +173,7 @@ export async function createAssignment(payload: {
   deliverables: Record<string, unknown>[];
   calculation?: Record<string, unknown>;
   outbound?: Record<string, unknown>;
+  actions?: Record<string, unknown>[];
   wait?: Record<string, unknown>;
   task_context?: Record<string, unknown>;
   transport?: string;

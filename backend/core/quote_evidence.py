@@ -111,6 +111,26 @@ def _access_ok(receipt: Dict[str, Any]) -> bool:
         "granted", "authorized", "ok", "readable")
 
 
+def _coverage_ok(receipt: Dict[str, Any]) -> bool:
+    """Top-k/partial materialization is not evidence sufficiency."""
+    coverage = receipt.get("coverage")
+    if not isinstance(coverage, dict) or not coverage:
+        return True
+    if coverage.get("truncated") is True:
+        return False
+    if coverage.get("known") is False:
+        return False
+    if coverage.get("complete") is False:
+        return False
+    if coverage.get("truncated_percent") not in (None, "", 0, 0.0, "0", "0.0"):
+        try:
+            if float(coverage["truncated_percent"]) > 0:
+                return False
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def _receipt_ref(receipt: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "provider": receipt.get("provider"),
@@ -171,6 +191,10 @@ def validate_quote_evidence(
             # An unrelated denied source does not block ready work when the
             # required evidence is satisfied by an authorized source. Missing
             # requirements below still produce a typed obligation.
+            continue
+        if not _coverage_ok(item):
+            excluded.append({
+                **_receipt_ref(item), "reason": "coverage_incomplete"})
             continue
         readable.append(item)
 

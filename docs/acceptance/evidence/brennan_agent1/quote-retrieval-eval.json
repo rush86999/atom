@@ -1,13 +1,13 @@
 {
   "schema": "quote-retrieval-eval-1",
-  "case_count": 8,
+  "case_count": 9,
   "passed": true,
   "correct_source_selection": 1.0,
   "sufficient_evidence": 1.0,
   "unsupported_answers": 0,
   "latency_ms": {
-    "max": 0.137,
-    "mean": 0.045
+    "max": 0.131,
+    "mean": 0.042
   },
   "cases": [
     {
@@ -21,7 +21,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.137,
+      "latency_ms": 0.131,
       "selected_count": 2,
       "excluded_count": 1
     },
@@ -36,7 +36,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.042,
+      "latency_ms": 0.043,
       "selected_count": 1,
       "excluded_count": 0
     },
@@ -66,7 +66,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.044,
+      "latency_ms": 0.043,
       "selected_count": 1,
       "excluded_count": 0
     },
@@ -81,7 +81,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.027,
+      "latency_ms": 0.028,
       "selected_count": 2,
       "excluded_count": 0
     },
@@ -111,8 +111,23 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.028,
+      "latency_ms": 0.029,
       "selected_count": 1,
+      "excluded_count": 1
+    },
+    {
+      "case": "partial_coverage_is_not_sufficiency",
+      "status": "needs_clarification",
+      "expected_status": "needs_clarification",
+      "selected_agreement": "agreement-current",
+      "status_ok": true,
+      "selection_ok": true,
+      "conflict_ok": true,
+      "obligation_ok": true,
+      "untrusted_ok": true,
+      "unsupported_ready_plan": false,
+      "latency_ms": 0.021,
+      "selected_count": 2,
       "excluded_count": 1
     },
     {
@@ -126,7 +141,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.03,
+      "latency_ms": 0.028,
       "selected_count": 2,
       "excluded_count": 2
     }

@@ -7,6 +7,7 @@ schemas and permissions differ. All storage is a scratch sqlite database.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import os
 import uuid
@@ -2665,6 +2666,99 @@ def test_idle_budget_unions_overlapping_waits_across_restart(env):
     assert 49.9 <= budget["paused_seconds"] <= 50.1
     assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
     assert budget.get("idle_intervals") is not None
+
+
+def test_legacy_open_wait_migration_does_not_invent_a_second_credit(env):
+    executor = env["executor"]
+    base = {
+        "assignment_id": "asg-legacy",
+        "steps": [],
+        "budget": {
+            "started_at": "2026-11-01T00:00:00+00:00",
+            "paused_seconds": 100.0,
+            "waiting_since": "2026-11-01T00:00:30+00:00",
+            "active_wait": None,
+        },
+    }
+    migrated = executor._ensure_idle_ledger(base)["budget"]
+    assert migrated["idle_ledger_schema"] == 2
+    assert migrated["paused_seconds"] == 100.0
+    assert migrated.get("idle_open") is None
+
+    live = copy.deepcopy(base)
+    live["budget"]["active_wait"] = {
+        "id": "wait-live", "started_at": "2026-11-01T00:00:30+00:00"}
+    migrated = executor._ensure_idle_ledger(live)["budget"]
+    assert migrated["idle_open"]["started_at"].startswith(
+        "2026-11-01T00:00:30")
+
+
+def test_absolute_deadline_expires_through_wait_and_restart(env):
+    base = 1_700_000_000.0
+    clock = [base]
+    suffix = uuid.uuid4().hex[:8]
+
+    async def work(inputs, context):
+        clock[0] = base + 40
+        return {"status": "applied", "summary": "prepared"}
+
+    async def wait(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "correlation_id": f"deadline-{suffix}",
+            "resume_on": "response", "party": "supplier"})
+
+    env["registry"].register(f"test.deadline.work.{suffix}", work)
+    env["registry"].register(f"test.deadline.wait.{suffix}", wait)
+    run_id, _ = _create(
+        env, objective="Deadline control",
+        steps=[
+            new_step(step_id="work", title="Work", operation_type="retrieve",
+                     adapter=f"test.deadline.work.{suffix}",
+                     effect="read_only"),
+            new_step(step_id="wait", title="Wait", operation_type="retrieve",
+                     adapter=f"test.deadline.wait.{suffix}",
+                     effect="read_only", depends_on=["work"]),
+        ],
+        teaching=_teaching(),
+        budget={"max_steps": 10, "max_attempts_per_step": 3,
+                "max_wall_seconds": 900,
+                "deadline": datetime.fromtimestamp(
+                    base + 50, tz=timezone.utc).isoformat()})
+
+    def set_start(record, assignment):
+        assignment["budget"]["started_at"] = datetime.fromtimestamp(
+            base, tz=timezone.utc).isoformat()
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, set_start, rationale="test: clock origin")
+    executor = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    _run(executor.execute(run_id))
+    assert step_by_id(env["lifecycle"].get_assignment(run_id),
+                      "wait")["status"] == "waiting"
+
+    clock[0] = base + 60
+    shadow = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    result = _run(shadow.execute(run_id))
+    assert result["assignment"]["status"] == "blocked"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "failed"
+    assert wait_step["failure"]["reason"] == "assignment_deadline_exceeded"
+    late = shadow.record_external_response(
+        run_id, f"deadline-{suffix}", response="late reply")
+    assert late["status"] == "unmatched"
+
+    clock[0] = base + 120
+    restarted = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "blocked"
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")["failure"]["reason"]         == "assignment_deadline_exceeded"
 
 
 def test_concurrent_retries_credit_a_legacy_wait_once(env):

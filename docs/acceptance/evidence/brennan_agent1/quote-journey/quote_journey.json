@@ -1,0 +1,202 @@
+{
+  "slice": "controlled-quote-journey",
+  "controlled": true,
+  "live_connected": false,
+  "objective": "Prepare the Acme quote using the governing agreement",
+  "run_id": "f151d2e6-e8ae-4661-8b2b-bb204aae5f07",
+  "assignment_id": "asg-bd4771fd9b794446",
+  "plan_revision": 1,
+  "teaching_revision": "cb1a3064575d76c8",
+  "teaching_fingerprint": "859a8a04bf2e9d51fb81693fe590acac",
+  "sources": [
+    {
+      "kind": "workbook",
+      "binding": {
+        "resource_id": "scotch-entry",
+        "dataset_name": "scotch_parts_price_list",
+        "source": "onedrive",
+        "source_kind": "file",
+        "external_id": "scotch-drive-1",
+        "original_file_name": "scotch-parts.xlsx",
+        "representation": "parquet_frame",
+        "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sheet": "US$ SCOTCH PARTS",
+        "columns": [
+          "Item Number",
+          "Description",
+          "Quantity",
+          "Unit Price",
+          "Total",
+          "Currency",
+          "__sheet_row"
+        ],
+        "numeric_columns": [
+          "Quantity",
+          "Unit Price",
+          "Total"
+        ],
+        "row_count": 3,
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false
+        },
+        "access_scope": {
+          "user_id": "lead-1",
+          "workspace_id": "ws-1",
+          "tenant_id": "tenant-1"
+        },
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "internal_fixture": false
+      }
+    },
+    {
+      "kind": "document",
+      "binding": {
+        "resource_id": "fixture:brennan-customer-agreement.docx",
+        "dataset_name": null,
+        "source": null,
+        "source_kind": null,
+        "external_id": null,
+        "original_file_name": "brennan-customer-agreement.docx",
+        "representation": "file",
+        "source_version": "28b754aa0f83bce76412a2624a5782676a66469432e99c0de82ae732fe31f143",
+        "sheet": null,
+        "columns": [],
+        "numeric_columns": [],
+        "row_count": null,
+        "coverage": {
+          "known": true,
+          "truncated": false,
+          "controlled_fixture": true
+        },
+        "access_scope": {
+          "user_id": "lead-1",
+          "workspace_id": "ws-1",
+          "tenant_id": "tenant-1"
+        },
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "internal_fixture": true
+      }
+    }
+  ],
+  "calculation_receipt": {
+    "currency": "USD",
+    "rounding": "half_up",
+    "rounding_authority": "customer agreement AF-2026",
+    "scale": 2,
+    "subtotal": "342.50",
+    "freight": "20.00",
+    "tax": {
+      "basis": "none",
+      "amount": "0"
+    },
+    "total": "362.50",
+    "line_evidence": [
+      {
+        "item_id": "A",
+        "source_ref": {},
+        "evidence": []
+      },
+      {
+        "item_id": "B",
+        "source_ref": {},
+        "evidence": []
+      }
+    ],
+    "source_evidence": [
+      {
+        "resource_id": "scotch-entry",
+        "dataset_name": "scotch_parts_price_list",
+        "source": "onedrive",
+        "external_id": "scotch-drive-1",
+        "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sheet": "US$ SCOTCH PARTS",
+        "coverage": {
+          "known": "\u2026",
+          "source_row_count": "\u2026",
+          "materialized_row_count": "\u2026",
+          "truncated": "\u2026"
+        }
+      },
+      {
+        "resource_id": "fixture:brennan-customer-agreement.docx",
+        "dataset_name": null,
+        "source": null,
+        "external_id": null,
+        "source_version": "28b754aa0f83bce76412a2624a5782676a66469432e99c0de82ae732fe31f143",
+        "sheet": null,
+        "coverage": {
+          "known": "\u2026",
+          "truncated": "\u2026",
+          "controlled_fixture": "\u2026"
+        }
+      }
+    ],
+    "discount_rules": [
+      {
+        "lesson_id": "quote-category-b",
+        "revision": 1,
+        "when": {
+          "category": "\u2026"
+        },
+        "rate": "0.05"
+      }
+    ]
+  },
+  "calculation_rows": [
+    {
+      "item_id": "A",
+      "description": "",
+      "quantity": "2",
+      "unit": "each",
+      "pack_size": "1",
+      "unit_price": "100.00",
+      "price_basis": "contract",
+      "currency": "USD",
+      "gross": "200.00",
+      "discount_rate": "0",
+      "discount_amount": "0.00",
+      "net": "200.00",
+      "discount_rule": {
+        "authority": "none"
+      },
+      "source_ref": {},
+      "evidence": []
+    },
+    {
+      "item_id": "B",
+      "description": "",
+      "quantity": "3",
+      "unit": "each",
+      "pack_size": "1",
+      "unit_price": "50.00",
+      "price_basis": "contract",
+      "currency": "USD",
+      "gross": "150.00",
+      "discount_rate": "0.05",
+      "discount_amount": "7.50",
+      "net": "142.50",
+      "discount_rule": {
+        "authority": "taught",
+        "lesson_id": "quote-category-b",
+        "name": "category B contract discount",
+        "revision": 1,
+        "when": {
+          "category": "\u2026"
+        }
+      },
+      "source_ref": {},
+      "evidence": []
+    }
+  ],
+  "expected_total_independent": "362.50",
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2480/test_quote_journey_uses_source0/ws-1/lead-1/draft-6de60f3a389b/acme-quote-6bce6512.docx",
+  "stored_artifact": "/private/tmp/atom-brennan-agent1/docs/acceptance/evidence/brennan_agent1/quote-journey/acme-quote.docx",
+  "artifact_sha256": "3600da5a6a98c95c4acab6cd47ad46e7d2161b73d774965644b26acea6fa8868",
+  "artifact_text": "Prepare the Acme quote using the governing agreement\nObjective\nPrepare the Acme quote using the governing agreement\nSummary\n2*100.00 + 3*50.00 + freight = 362.50 USD\nFindings\nscotch-parts.xlsx / US$ SCOTCH PARTS\nbrennan-customer-agreement.docx\ncalculate\nSources\nscotch_parts_price_list\nscotch-parts.xlsx\nUS$ SCOTCH PARTS\nscotch-entry\nbrennan-customer-agreement.docx\nfixture:brennan-customer-agreement.docx\nscotch-parts.xlsx / US$ SCOTCH PARTS\nRow | Item Number | Description | Quantity | Unit Price | Total | Currency\n2 | SC-1 | Scotch A | 2 | 10.0 | 20.0 | USD\n3 | SC-2 | Scotch B | 3 | 20.0 | 60.0 | USD\n4 | SC-3 | Scotch C | 1 | 5.0 | 5.0 | USD\nRow | excerpt\n | Customer: Acme Fabrication\n | Agreement: AF-2026\n | Taught exception: category B lines carry a 5% contract discount.\nRow | item_id | description | quantity | unit | pack_size | unit_price | price_basis | currency\n | A |  | 2 | each | 1 | 100.00 | contract | USD\n | B |  | 3 | each | 1 | 50.00 | contract | USD",
+  "status_after_build": "completed"
+}
