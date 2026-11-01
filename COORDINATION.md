@@ -317,3 +317,9 @@ actions, live progress, quote campaign), `a64a985c8` (retrieval evaluation),
 `257da4862` (service-domain portability through the public assignment route).
 Agent 2 still needs the branch handoff note/commit that says which executor
 revision to integrate and which action registrations it consumed.
+
+**Agent 2 latest HEAD (2026-11-01):** `a78ddeb7a` on
+`codex/brennan-knowledge-accounting-20261101`. Added Outlook invoice/receipt
+attachment reads (binary evidence, never send), generic `connected.*` action
+aliases, vendor/CoA resolution, period/account validation and the live
+qualification request. Focused suite **229 passed**; no live provider call.
