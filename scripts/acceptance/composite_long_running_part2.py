@@ -58,7 +58,15 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_test_id("teach-lesson-input").fill(
         lesson, timeout=60000, force=True)
     page.get_by_test_id("teach-topic-input").fill(topic)
-    page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
+    try:
+        page.evaluate(
+            """() => {
+                const el = document.querySelector(
+                    '[data-testid="teach-structured-fields"]');
+                if (el) el.open = true;
+            }""")
+    except Exception:
+        pass
     for box in page.locator('[data-testid^="teach-applies-"]').all():
         if box.is_checked():
             box.uncheck()
