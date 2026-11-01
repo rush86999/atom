@@ -228,6 +228,71 @@ def _estimate_readback_conflicts(
     return conflicts
 
 
+def _validate_accounting_period(
+    document_date: Any, *, period_start: Any = None,
+    period_end: Any = None, closed_through: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """Enforce caller-supplied accounting period bounds before posting."""
+    from datetime import date
+
+    try:
+        doc = date.fromisoformat(str(document_date))
+    except (TypeError, ValueError):
+        return _error("zoho_books", "create_bill", "invalid_request",
+                      "The proposal has no valid document date.",
+                      action_result="proven_not_applied")
+    for field, raw in (("period_start", period_start),
+                       ("period_end", period_end),
+                       ("closed_through", closed_through)):
+        if raw in (None, ""):
+            continue
+        try:
+            bound = date.fromisoformat(str(raw))
+        except ValueError:
+            return _error(
+                "zoho_books", "create_bill", "invalid_request",
+                f"{field} is not an ISO date: {raw!r}",
+                action_result="proven_not_applied")
+        if field == "period_start" and doc < bound:
+            return _error(
+                "zoho_books", "create_bill", "invalid_request",
+                f"document date {doc} is before the authorized period "
+                f"start {bound}", action_result="proven_not_applied")
+        if field == "period_end" and doc > bound:
+            return _error(
+                "zoho_books", "create_bill", "invalid_request",
+                f"document date {doc} is after the authorized period "
+                f"end {bound}", action_result="proven_not_applied")
+        if field == "closed_through" and doc <= bound:
+            return _error(
+                "zoho_books", "create_bill", "invalid_request",
+                f"document date {doc} falls in a period closed through "
+                f"{bound}", action_result="proven_not_applied")
+    return None
+
+
+async def _chart_of_account_ids(
+    service: Any, token: str, organization_id: str,
+) -> set:
+    """Read the complete CoA identity set; a partial read must not validate."""
+    ids = set()
+    page = 1
+    while True:
+        rows, info = await service.get_chart_of_accounts_page(
+            token, organization_id, page=page, per_page=200)
+        for row in rows:
+            account_id = str(
+                row.get("account_id") or row.get("id") or "").strip()
+            if account_id:
+                ids.add(account_id)
+        if not info.get("has_more"):
+            break
+        page += 1
+        if page > 50:
+            raise ValueError("chart of accounts exceeds the bounded sweep")
+    return ids
+
+
 def _bill_readback_conflicts(
     proposal: Dict[str, Any], payload: Dict[str, Any],
     readback: Dict[str, Any],
@@ -836,7 +901,10 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                       "authority_reference": {"type": "string"},
                                       "operation_id": {"type": "string"},
                                       "payload_sha256": {"type": "string"},
-                                      "proposal_version": {"type": "string"}},
+                                      "proposal_version": {"type": "string"},
+                                      "period_start": {"type": "string"},
+                                      "period_end": {"type": "string"},
+                                      "closed_through": {"type": "string"}},
                        "required": ["proposal", "authority_reference",
                                     "operation_id"]},
     effects=[{"effect": "create"}],
@@ -890,6 +958,16 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
             "provider_receipt": base_receipt,
         }
 
+    period_error = _validate_accounting_period(
+        proposal.get("document_date"),
+        period_start=args.get("period_start"),
+        period_end=args.get("period_end"),
+        closed_through=args.get("closed_through"))
+    if period_error:
+        period_error["payload_sha256"] = payload_sha256
+        period_error["provider_receipt"] = base_receipt
+        return period_error
+
     service = await _books_service(ids)
     token = await _zoho_token(service, ids)
     if not token:
@@ -899,6 +977,35 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
                      action_result="proven_not_applied"),
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
+        }
+
+    # Account references must exist in the organization's complete chart of
+    # accounts.  Posting an unmapped line is refused, not guessed.
+    try:
+        account_ids = await _chart_of_account_ids(service, token, org)
+    except Exception as exc:  # noqa: BLE001 - typed below
+        result = _write_failure(
+            "zoho_books", "get_chart_of_accounts", exc,
+            may_have_landed=False, payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
+    line_accounts = {
+        str(line.get("account_id") or "").strip()
+        for line in proposal.get("lines") or []
+        if str(line.get("account_id") or "").strip()
+    }
+    unknown = sorted(line_accounts - account_ids)
+    if unknown:
+        return {
+            **_error(
+                "zoho_books", "create_bill", "invalid_request",
+                "Unknown account reference(s): " + ", ".join(unknown),
+                action_result="proven_not_applied"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+            "unknown_account_ids": unknown,
         }
 
     # Exact duplicate identity check over the complete bounded sweep.  An

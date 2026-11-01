@@ -269,6 +269,12 @@ def test_books_create_bill_requires_authority_and_checks_exact_duplicate(monkeyp
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1"},
+                     {"account_id": "acct-service"}],
+                    {"has_more": False, "page": page})
+
         async def get_bills_page(self, token, org, page=1, per_page=200):
             return self.existing, {"has_more": False, "page": page}
 
@@ -304,6 +310,12 @@ def test_books_create_bill_reads_back_one_effect(monkeypatch):
 
         async def _get_active_token(self, *args, **kwargs):
             return "token"
+
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1"},
+                     {"account_id": "acct-service"}],
+                    {"has_more": False, "page": page})
 
         async def get_bills_page(self, token, org, page=1, per_page=200):
             return [], {"has_more": False, "page": page}
@@ -345,6 +357,12 @@ def test_books_create_bill_without_authority_does_not_dispatch(monkeypatch):
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1"},
+                     {"account_id": "acct-service"}],
+                    {"has_more": False, "page": page})
+
         async def get_bills_page(self, token, org, page=1, per_page=200):
             return [], {"has_more": False, "page": page}
 
@@ -377,7 +395,8 @@ def test_books_proposal_action_returns_proposed_not_posted():
             "entity_type": "bill", "external_id": "INV-2",
             "vendor_candidates": [{"id": "vendor-1", "name": "Acme"}],
             "currency": "USD", "document_date": "2026-10-01",
-            "lines": [{"description": "Service", "amount": "50.00"}],
+            "lines": [{"description": "Service", "amount": "50.00",
+                       "account_id": "acct-service"}],
             "document_total": "50.00",
         }},
         {"tenant_id": "t1", "user_id": "user-1"}))
@@ -435,6 +454,12 @@ def test_books_bill_http_end_to_end_proposal_create_readback(monkeypatch):
         if request.method == "POST":
             body = __import__("json").loads(request.content or b"{}")
         calls.append((request.method, request.url.path, body))
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0, "chartofaccounts": [{"account_id": "acct-1"}],
+                "page_context": {"has_more_page": False, "page": 1},
+            })
         if request.method == "GET" and request.url.path.endswith("/bills"):
             return httpx.Response(200, json={
                 "code": 0, "bills": [],
@@ -467,7 +492,8 @@ def test_books_bill_http_end_to_end_proposal_create_readback(monkeypatch):
     assert result["remote_id"] == "bill-http-1"
     assert result["provider_receipt"]["operation_id"] == "op-http-1"
     assert len(result["payload_sha256"]) == 64
-    assert [entry[0] for entry in calls] == ["GET", "POST", "GET"]
+    assert [entry[0] for entry in calls] == ["GET", "GET", "POST", "GET"]
+    assert calls[0][1].endswith("/chartofaccounts")
     post = next(entry for entry in calls if entry[0] == "POST")
     assert post[2]["line_items"][0]["rate"] == "120.00"
     assert post[2]["currency_code"] == "USD"
@@ -481,6 +507,11 @@ def test_books_bill_http_changed_remote_is_conflict_not_applied(monkeypatch):
     posts = []
 
     def handler(request):
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0, "chartofaccounts": [{"account_id": "acct-1"}],
+                "page_context": {"has_more_page": False}})
         if request.method == "GET" and request.url.path.endswith("/bills"):
             return httpx.Response(200, json={
                 "code": 0, "bills": [],
@@ -527,6 +558,11 @@ def test_books_bill_http_duplicate_exact_reference_is_never_posted(monkeypatch):
     posts = []
 
     def handler(request):
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0, "chartofaccounts": [{"account_id": "acct-1"}],
+                "page_context": {"has_more_page": False}})
         if request.method == "POST":
             posts.append(1)
             return httpx.Response(500, json={"message": "must not post"})
@@ -590,6 +626,11 @@ def test_books_bill_http_readback_unavailable_is_uncertain(monkeypatch):
     import httpx
 
     def handler(request):
+        if request.method == "GET" and request.url.path.endswith(
+                "/chartofaccounts"):
+            return httpx.Response(200, json={
+                "code": 0, "chartofaccounts": [{"account_id": "acct-1"}],
+                "page_context": {"has_more_page": False}})
         if request.method == "GET" and request.url.path.endswith("/bills"):
             return httpx.Response(200, json={
                 "code": 0, "bills": [],
@@ -703,6 +744,12 @@ def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1"},
+                     {"account_id": "acct-service"}],
+                    {"has_more": False, "page": page})
+
         async def get_bills_page(self, token, org, page=1, per_page=200):
             return list(self.bills), {"has_more": False, "page": page}
 
@@ -747,3 +794,55 @@ def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
     assert {first["status"], second["status"]} == {"success", "duplicate"}
     assert service.created == 1
     assert len(service.bills) == 1
+
+
+def test_bill_unknown_account_is_refused_before_post(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return [{"account_id": "acct-other"}], {"has_more": False}
+
+        async def create_bill(self, token, org, payload):
+            self.created += 1
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-acct-1"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+
+    assert result["status"] == "error"
+    assert result["action_result"] == "proven_not_applied"
+    assert result["error_kind"] == "invalid_request"
+    assert result["unknown_account_ids"] == ["acct-1"]
+    assert service.created == 0
+
+
+def test_bill_closed_period_is_refused_without_provider_call(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    async def fake_service(ids):  # pragma: no cover - must not be reached
+        raise AssertionError("closed period must not reach the provider")
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-period-1", "closed_through": "2026-10-31"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+
+    assert result["status"] == "error"
+    assert result["action_result"] == "proven_not_applied"
+    assert "closed" in result["error"]

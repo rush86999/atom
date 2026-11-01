@@ -53,6 +53,13 @@ Each write action signs the exact effect payload with the same
 payload_sha256, ...}`. If the caller supplies `payload_sha256`, a mismatch is
 returned as `action_result=conflict` before any provider call.
 
+Before posting a bill, `brennan.books.create_bill` reads the complete chart of
+accounts and refuses unknown `account_id` values. Callers may pass
+`period_start`, `period_end` and `closed_through` (ISO dates); a document
+outside the authorized period is refused before any provider effect. Zoho
+Books does not expose a universal closed-period read in this adapter, so the
+closed-period authority is caller/teaching data, not a hardcoded calendar.
+
 Same-target financial writes are serialized in-process by the registered
 action (the durable cross-process guarantee remains the executor's effect
 arbiter). A second concurrent call for the same provider/organization/external

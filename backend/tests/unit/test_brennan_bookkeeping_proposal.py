@@ -84,3 +84,59 @@ def test_unbalanced_journal_is_refused():
             {"side": "debit", "amount": "100.00"},
             {"side": "credit", "amount": "99.00"},
         ])
+
+
+def test_missing_account_reference_is_an_obligation_not_a_default():
+    result = build_proposal(**_invoice(lines=[
+        {"description": "Parts", "amount": "120.00"},
+    ]))
+    assert result["status"] == "needs_clarification"
+    assert result["obligations"][0]["code"] == "missing_account"
+    assert result["duplicate_key"] == "zoho_books|org-1|bill|INV-001"
+
+
+def test_credit_note_reduces_total_with_exact_decimal():
+    result = build_proposal(**_invoice(
+        lines=[{"description": "Parts", "amount": "100.00",
+                "account_id": "acct-1"}],
+        tax_total="5.00",
+        credit_total="20.00",
+        document_total="85.00",
+    ))
+    assert result["status"] == "proposed"
+    assert result["line_subtotal"] == "100.00"
+    assert result["tax_total"] == "5.00"
+    assert result["credit_total"] == "20.00"
+    assert result["document_total"] == "85.00"
+
+
+def test_partial_payment_is_evidence_not_a_posting_state():
+    result = build_proposal(**_invoice(payment={
+        "amount": "50.00", "currency": "usd", "reference": "EFT-1",
+        "date": "2026-10-15",
+    }))
+    assert result["status"] == "proposed"
+    assert result["posting"] is None
+    assert result["payment"]["amount"] == "50.00"
+    assert result["payment"]["currency"] == "USD"
+    assert result["payment"]["posted"] is False
+    assert result["payment"]["date"] == "2026-10-15"
+
+
+def test_payment_above_total_is_refused():
+    with pytest.raises(ProposalError):
+        build_proposal(**_invoice(payment={"amount": "120.01"}))
+
+
+def test_payment_currency_must_match_document():
+    with pytest.raises(ProposalError):
+        build_proposal(**_invoice(payment={
+            "amount": "10.00", "currency": "CAD"}))
+
+
+def test_balanced_supplier_bill_journal():
+    journal = balanced_journal([
+        {"side": "debit", "amount": "120.00", "account_id": "expense"},
+        {"side": "credit", "amount": "120.00", "account_id": "payable"},
+    ])
+    assert [entry["side"] for entry in journal] == ["debit", "credit"]

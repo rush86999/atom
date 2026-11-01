@@ -174,6 +174,60 @@ def build_proposal(
             f"document total {total} does not match line subtotal {line_sum} "
             f"+ tax {tax} - credit {credit} = {expected}")
 
+    # A payment is evidence accompanying the document, never a posting state.
+    # It must be a real amount within the document and the same currency; a
+    # supplier bill is still a bill, not a completed payment.
+    normalized_payment: Dict[str, Any] = {}
+    if payment:
+        if not isinstance(payment, dict):
+            raise ProposalError("payment must be an object")
+        paid = decimal_amount(payment.get("amount"), "payment.amount")
+        if paid <= 0:
+            raise ProposalError("payment amount must be positive")
+        if paid > total:
+            raise ProposalError(
+                f"payment {paid} exceeds document total {total}")
+        payment_currency = str(payment.get("currency") or "").strip().upper()
+        if payment_currency and payment_currency != currency_text:
+            raise ProposalError(
+                f"payment currency {payment_currency} does not match "
+                f"document currency {currency_text}")
+        normalized_payment = {
+            **payment,
+            "amount": str(paid.quantize(Decimal("0.01"))),
+            "currency": payment_currency or currency_text,
+            "posted": False,
+            "note": "payment evidence only; posting a payment is a separate action",
+        }
+        if payment.get("date"):
+            normalized_payment["date"] = parse_document_date(
+                payment["date"], "payment.date")
+
+    missing_accounts = [
+        index for index, line in enumerate(normalized_lines)
+        if not (str(line.get("account_id") or "").strip()
+                or str(line.get("item_id") or "").strip())
+    ]
+    if missing_accounts:
+        obligations.append({
+            "code": "missing_account",
+            "question": (
+                "Which account or item applies to line(s) "
+                + ", ".join(str(index + 1) for index in missing_accounts)
+                + "? The proposal cannot post an unmapped line."),
+        })
+        return {
+            "status": "needs_clarification",
+            "provider": provider,
+            "organization_id": organization_id,
+            "entity_type": entity_type,
+            "external_id": str(external_id).strip(),
+            "duplicate_key": duplicate_identity(
+                provider, organization_id, entity_type, external_id),
+            "obligations": obligations,
+            "lines": normalized_lines,
+        }
+
     duplicate_key = duplicate_identity(
         provider, organization_id, entity_type, external_id)
     # The proposal is deliberately not posted.  A separate authorized action
@@ -194,7 +248,7 @@ def build_proposal(
         "tax_total": str(tax.quantize(Decimal("0.01"))),
         "credit_total": str(credit.quantize(Decimal("0.01"))),
         "document_total": str(total.quantize(Decimal("0.01"))),
-        "payment": payment or {},
+        "payment": normalized_payment,
         "obligations": [],
         "requires_authority": True,
         "posting": None,
