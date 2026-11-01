@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "integrated-candidate-2026-10-31",
-  "source_checkpoint": "325c42253",
+  "source_checkpoint": "589389218",
   "files": {
     "README.md": {
       "sha256": "884ba7db73c1d2036c66cec9c461914019a6fe8300cca8d2a6e73e23966cc0a8",
@@ -20,5 +20,5 @@
       "bytes": 10460
     }
   },
-  "final_candidate": "9b5c998f8"
+  "final_candidate": "589389218"
 }

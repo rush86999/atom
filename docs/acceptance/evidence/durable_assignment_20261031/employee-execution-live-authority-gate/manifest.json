@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-live-authority-gate",
-  "source_checkpoint": "2ca5e7f03",
-  "final_candidate": "9b5c998f8",
+  "source_checkpoint": "589389218",
+  "final_candidate": "589389218",
   "files": {
     "README.md": {
       "sha256": "a47f341c054cae96fe80af8c1811ac4ca16913067c69db372d491404a60fe6ea",

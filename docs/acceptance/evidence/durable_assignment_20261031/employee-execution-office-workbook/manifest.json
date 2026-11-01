@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-office-workbook",
-  "source_checkpoint": "2ca5e7f03",
-  "final_candidate": "9b5c998f8",
+  "source_checkpoint": "589389218",
+  "final_candidate": "589389218",
   "files": {
     "README.md": {
       "sha256": "9a76184cb1ffcbd8860665362e4cc94d0edc943754e04adb19c1a0a0085c4596",

@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-deterministic-judgment",
-  "source_checkpoint": "a0e4dd7ed",
-  "final_candidate": "a0e4dd7ed",
+  "source_checkpoint": "589389218",
+  "final_candidate": "589389218",
   "files": {
     "README.md": {
       "sha256": "bc336f2232e4aa60fba72b04b6f523d02c410ec2bd887af44ec1c8177d8c0be7",
