@@ -99,7 +99,7 @@ before marking the operation complete. Do not treat a `conflict` allocation as
 applied. The module exports the drop-in mapping:
 
 ```python
-from core.brennan_connected_actions import action_executor_outcome
+from core.connected_actions import action_executor_outcome
 
 result = await action_registry.execute_action(name, arguments, execution_context)
 outcome = action_executor_outcome(result)   # applied | uncertain | failed

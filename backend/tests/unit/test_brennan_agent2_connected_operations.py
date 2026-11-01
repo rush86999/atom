@@ -152,7 +152,7 @@ def test_connected_actions_are_registered_with_safe_effects():
 
 
 def test_workdrive_read_action_returns_content_hash_and_receipt(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeWorkDrive:
         async def get_file_metadata(self, user_id, file_id, workspace_id=None):
@@ -183,7 +183,7 @@ def test_workdrive_read_action_returns_content_hash_and_receipt(monkeypatch):
 
 
 def test_onedrive_read_action_returns_binary_not_json(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeOneDrive:
         async def get_access_token_resolution(self, user_id):
@@ -208,7 +208,7 @@ def test_onedrive_read_action_returns_binary_not_json(monkeypatch):
 
 
 def test_outlook_draft_action_never_calls_send(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeOutlook:
         def __init__(self):
@@ -261,7 +261,7 @@ def _valid_proposal():
 
 
 def test_books_create_bill_requires_authority_and_checks_exact_duplicate(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         def __init__(self, existing=None):
@@ -305,7 +305,7 @@ def test_books_create_bill_requires_authority_and_checks_exact_duplicate(monkeyp
 
 
 def test_books_create_bill_reads_back_one_effect(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         def __init__(self):
@@ -351,7 +351,7 @@ def test_books_create_bill_reads_back_one_effect(monkeypatch):
 
 
 def test_books_create_bill_without_authority_does_not_dispatch(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         def __init__(self):
@@ -390,7 +390,7 @@ def test_books_create_bill_without_authority_does_not_dispatch(monkeypatch):
 
 
 def test_books_proposal_action_returns_proposed_not_posted():
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     result = asyncio.run(actions.books_propose_bill(
         {"proposal_input": {
@@ -446,7 +446,7 @@ def _bill_like(payload, *, bill_id="bill-http-1", total="120.00", **over):
 
 
 def test_books_bill_http_end_to_end_proposal_create_readback(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     calls = []
@@ -504,7 +504,7 @@ def test_books_bill_http_end_to_end_proposal_create_readback(monkeypatch):
 
 
 def test_books_bill_http_changed_remote_is_conflict_not_applied(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     posts = []
@@ -555,7 +555,7 @@ def test_books_bill_http_changed_remote_is_conflict_not_applied(monkeypatch):
 
 
 def test_books_bill_http_duplicate_exact_reference_is_never_posted(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     posts = []
@@ -595,7 +595,7 @@ def test_books_bill_http_duplicate_exact_reference_is_never_posted(monkeypatch):
 
 
 def test_books_bill_http_sweep_unavailable_refuses_to_create(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     posts = []
@@ -625,7 +625,7 @@ def test_books_bill_http_sweep_unavailable_refuses_to_create(monkeypatch):
 
 
 def test_books_bill_http_readback_unavailable_is_uncertain(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     def handler(request):
@@ -664,7 +664,7 @@ def test_books_bill_http_readback_unavailable_is_uncertain(monkeypatch):
 
 
 def test_books_bill_digest_mismatch_is_conflict_without_dispatch(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     async def fake_service(ids):  # pragma: no cover - must not be reached
         raise AssertionError("digest mismatch must not reach the provider")
@@ -681,7 +681,7 @@ def test_books_bill_digest_mismatch_is_conflict_without_dispatch(monkeypatch):
 
 
 def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     calls = []
@@ -737,7 +737,7 @@ def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
 
 
 def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         def __init__(self):
@@ -800,7 +800,7 @@ def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
 
 
 def test_bill_unknown_account_is_refused_before_post(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         def __init__(self):
@@ -835,7 +835,7 @@ def test_bill_unknown_account_is_refused_before_post(monkeypatch):
 
 
 def test_bill_closed_period_is_refused_without_provider_call(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     async def fake_service(ids):  # pragma: no cover - must not be reached
         raise AssertionError("closed period must not reach the provider")
@@ -852,7 +852,7 @@ def test_bill_closed_period_is_refused_without_provider_call(monkeypatch):
 
 
 def test_read_file_receipt_matches_agent1_evidence_shape(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeWorkDrive:
         async def get_file_metadata(self, user_id, file_id, workspace_id=None):
@@ -895,7 +895,7 @@ def test_read_file_receipt_matches_agent1_evidence_shape(monkeypatch):
 
 
 def test_corrupt_tabular_file_is_evidence_with_parse_error(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeWorkDrive:
         async def get_file_metadata(self, user_id, file_id, workspace_id=None):
@@ -926,7 +926,7 @@ def test_corrupt_tabular_file_is_evidence_with_parse_error(monkeypatch):
 
 
 def test_resolve_vendor_is_exact_and_does_not_substring_match(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         async def _get_active_token(self, *args, **kwargs):
@@ -953,7 +953,7 @@ def test_resolve_vendor_is_exact_and_does_not_substring_match(monkeypatch):
 
 
 def test_resolve_vendor_same_name_different_ids_is_ambiguous(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         async def _get_active_token(self, *args, **kwargs):
@@ -979,7 +979,7 @@ def test_resolve_vendor_same_name_different_ids_is_ambiguous(monkeypatch):
 
 
 def test_list_accounts_returns_exact_ids(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeBooks:
         async def _get_active_token(self, *args, **kwargs):
@@ -1009,7 +1009,7 @@ def test_list_accounts_returns_exact_ids(monkeypatch):
 
 def test_bookkeeping_campaign_resolves_vendor_accounts_and_posts(monkeypatch):
     """Controlled vertical slice: vendor -> CoA -> proposal -> duplicate -> post -> readback."""
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     calls = []
@@ -1131,7 +1131,7 @@ def test_bookkeeping_campaign_resolves_vendor_accounts_and_posts(monkeypatch):
 
 
 def test_bill_duplicate_on_second_page_is_found_before_post(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
     import httpx
 
     posts = []
@@ -1232,7 +1232,7 @@ def test_service_business_configuration_needs_no_source_edit():
 
 
 def test_executor_outcome_mapping_never_calls_conflict_applied():
-    from core.brennan_connected_actions import action_executor_outcome
+    from core.connected_actions import action_executor_outcome
 
     assert action_executor_outcome({"status": "success",
                                     "action_result": "applied"}) == "applied"
@@ -1252,7 +1252,7 @@ def test_executor_outcome_mapping_never_calls_conflict_applied():
 
 
 def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     class FakeOutlook:
         def __init__(self):
