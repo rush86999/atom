@@ -391,3 +391,53 @@ def test_same_external_id_in_different_site_or_provider_has_distinct_scope():
         "zoho_workdrive", folder_id="folder-1",
         provider_workspace_id="workspace-1")
     assert len({a, b, c}) == 3
+
+
+def test_revocation_withdraws_retrieval_for_known_rows(monkeypatch):
+    service = FakeStateService()
+    _patch_state(monkeypatch, service)
+    scope = checkpoints.checkpoint_scope(
+        "zoho_workdrive", folder_id="folder-1",
+        provider_workspace_id="provider-ws")
+    checkpoints.save_checkpoint(
+        "zoho_workdrive", scope,
+        {
+            "version": 1, "provider": "zoho_workdrive", "scope": scope,
+            "state": "complete", "pages_completed": 1, "rows_seen": 2,
+            "rows_written": 2, "run_seen_ids": [], "prior_known_ids": [],
+            "known_ids": ["a", "b"], "missing_external_ids": [],
+            "ids_truncated": False, "deletion_check": "complete",
+            "last_success_at": "2026-11-01T00:00:00+00:00",
+            "started_at": "2026-11-01T00:00:00+00:00",
+        },
+        workspace_id="ws-1", tenant_id="t1")
+
+    async def revoked(provider, **kwargs):
+        return {"status": "error", "success": False,
+                "provider": "zoho_workdrive",
+                "operation": "list_files_page",
+                "error_kind": "auth_revoked",
+                "error": "grant revoked", "retryable": False,
+                "requires_reconnect": True}
+
+    tombstoned = []
+
+    async def fake_tombstone(self, integration_id, external_ids,
+                             reason="removed_from_provider"):
+        tombstoned.extend(external_ids)
+        assert reason == "grant_auth_revoked"
+        return {"success": True, "tombstoned": len(external_ids)}
+
+    monkeypatch.setattr(checkpoints, "_read_page", revoked)
+    monkeypatch.setattr(
+        "core.drive_tree_ingestion.IntegrationMemoryIndexer.tombstone_rows",
+        fake_tombstone)
+    result = asyncio.run(checkpoints.sync_drive_page(
+        provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
+        tenant_id="t1", folder_id="folder-1",
+        provider_workspace_id="provider-ws"))
+
+    assert result["status"] == "error"
+    assert result["checkpoint"]["coverage"] == "revoked"
+    assert result["checkpoint"]["retrieval_authorization"] == "withdrawn"
+    assert tombstoned == ["a", "b"]
