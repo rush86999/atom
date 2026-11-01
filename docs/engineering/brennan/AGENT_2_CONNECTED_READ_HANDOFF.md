@@ -22,6 +22,21 @@ actions declare `{"effect":"read"}`; the planner classifies them as
 | `brennan.inventory.check_stock` | `item_id`, optional `organization_id` | observed stock, `read_receipt` |
 | `brennan.books.get_bill` | `organization_id`, `bill_id` | `data`, `read_receipt` |
 | `brennan.books.get_estimate` | `organization_id`, `estimate_id` | `data`, `read_receipt` |
+| `brennan.workdrive.sync_page` | `folder_id`, `provider_workspace_id`, `team_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
+| `brennan.onedrive.sync_page` | `folder_id`, `drive_id`, `site_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
+| `brennan.knowledge.sync_status` | `provider` (`zoho_workdrive`/`onedrive`), folder/drive/site identity | `coverage`, `stale`, `age_seconds`, `checkpoint`, `missing_external_ids`, `last_error` |
+
+`sync_page` persists the cursor and counters in the existing per-workspace
+`IngestionSettings.usage_stats_json.sync_cursors` row. A call without a cursor
+resumes an unfinished checkpoint; `fresh=true` starts a new complete
+enumeration and retains the previous ID set for deletion comparison. A
+complete re-listing returns disappeared items in `missing_external_ids` but
+never deletes memory rows automatically. A revoked grant is persisted as
+`coverage=revoked` and returned as a typed error.
+
+The same surface is exposed to the UI as
+`GET /api/document-ingestion/integrations/{integration_id}/sync-status` and
+`POST /api/document-ingestion/integrations/{integration_id}/sync-page`.
 
 ## Registered draft/proposal
 

@@ -395,6 +395,20 @@ class IntegrationMemoryIndexer:
             logger.warning(f"structure walk failed for {integration_id}: {walk_err}")
             return {"success": False, "error": f"Listing failed: {walk_err}"}
 
+        return await self.index_rows(integration_id, rows, max_rows=max_rows)
+
+    async def index_rows(
+        self,
+        integration_id: str,
+        rows: List[Dict[str, Any]],
+        max_rows: int = MAX_INDEX_ROWS,
+    ) -> Dict[str, Any]:
+        """Write normalized structure rows into the shared documents store.
+
+        Used by both the one-shot ``index_structure`` adapter path and the
+        durable paged drive sync, so a page written after a restart has the
+        same identity, provenance and idempotency as the first page.
+        """
         handler = self._handler()
         if handler is None:
             return {"success": False, "error": "Memory handler unavailable"}

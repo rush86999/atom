@@ -1111,3 +1111,103 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
             fields=["estimate_id", "estimate_number", "total",
                     "customer_id", "date", "currency_code"]),
     }
+
+
+@register_action(
+    "brennan.workdrive.sync_page",
+    description="Read, index and checkpoint one WorkDrive page. Restart resumes from the stored cursor; revocation is a typed error.",
+    parameters_schema={"type": "object",
+                       "properties": {"folder_id": {"type": "string"},
+                                      "provider_workspace_id": {"type": "string"},
+                                      "team_id": {"type": "string"},
+                                      "cursor": {"type": "string"},
+                                      "page_size": {"type": "integer"},
+                                      "fresh": {"type": "boolean"},
+                                      "max_rows": {"type": "integer"}}},
+    effects=[{"effect": "read"}],
+)
+async def workdrive_sync_page(args: Dict[str, Any], context: Dict[str, Any]):
+    from core.drive_sync_checkpoints import sync_drive_page
+
+    ids = _ids(args, context)
+    return await sync_drive_page(
+        provider="zoho_workdrive",
+        user_id=ids["user_id"],
+        workspace_id=ids["workspace_id"] or "default",
+        tenant_id=ids["tenant_id"],
+        folder_id=args.get("folder_id") or "root",
+        provider_workspace_id=args.get("provider_workspace_id")
+        or ids["workspace_id"] or None,
+        team_id=args.get("team_id"),
+        cursor=args.get("cursor"),
+        page_size=int(args.get("page_size") or 100),
+        fresh=bool(args.get("fresh")),
+        max_rows=int(args.get("max_rows") or 500),
+    )
+
+
+@register_action(
+    "brennan.onedrive.sync_page",
+    description="Read, index and checkpoint one OneDrive/SharePoint page with explicit drive/site identity.",
+    parameters_schema={"type": "object",
+                       "properties": {"folder_id": {"type": "string"},
+                                      "drive_id": {"type": "string"},
+                                      "site_id": {"type": "string"},
+                                      "cursor": {"type": "string"},
+                                      "page_size": {"type": "integer"},
+                                      "fresh": {"type": "boolean"},
+                                      "max_rows": {"type": "integer"}}},
+    effects=[{"effect": "read"}],
+)
+async def onedrive_sync_page(args: Dict[str, Any], context: Dict[str, Any]):
+    from core.drive_sync_checkpoints import sync_drive_page
+
+    ids = _ids(args, context)
+    return await sync_drive_page(
+        provider="onedrive",
+        user_id=ids["user_id"],
+        workspace_id=ids["workspace_id"] or "default",
+        tenant_id=ids["tenant_id"],
+        folder_id=args.get("folder_id"),
+        drive_id=args.get("drive_id"),
+        site_id=args.get("site_id"),
+        cursor=args.get("cursor"),
+        page_size=int(args.get("page_size") or 100),
+        fresh=bool(args.get("fresh")),
+        max_rows=int(args.get("max_rows") or 500),
+    )
+
+
+@register_action(
+    "brennan.knowledge.sync_status",
+    description="Report durable drive-sync coverage, cursor, last success, stale age, revocation and remote deletions.",
+    parameters_schema={"type": "object",
+                       "properties": {"provider": {"type": "string"},
+                                      "folder_id": {"type": "string"},
+                                      "provider_workspace_id": {"type": "string"},
+                                      "drive_id": {"type": "string"},
+                                      "site_id": {"type": "string"},
+                                      "max_age_seconds": {"type": "integer"}},
+                       "required": ["provider"]},
+    effects=[{"effect": "read"}],
+)
+async def knowledge_sync_status(args: Dict[str, Any], context: Dict[str, Any]):
+    from core.drive_sync_checkpoints import checkpoint_scope, coverage_status
+
+    ids = _ids(args, context)
+    provider = str(args.get("provider") or "").strip().lower()
+    if provider not in ("zoho_workdrive", "onedrive"):
+        return _error("knowledge", "sync_status", "invalid_request",
+                      "provider must be zoho_workdrive or onedrive.")
+    scope = checkpoint_scope(
+        provider, folder_id=args.get("folder_id"),
+        drive_id=args.get("drive_id"), site_id=args.get("site_id"),
+        provider_workspace_id=args.get("provider_workspace_id")
+        or ids["workspace_id"] or None)
+    result = coverage_status(
+        provider, scope, workspace_id=ids["workspace_id"] or "default",
+        tenant_id=ids["tenant_id"],
+        max_age_seconds=int(args.get("max_age_seconds") or
+                            24 * 60 * 60))
+    result["operation"] = "sync_status"
+    return result
