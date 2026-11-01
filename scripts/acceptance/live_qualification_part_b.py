@@ -79,6 +79,8 @@ def main() -> int:
     ap.add_argument("--body-file", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--db", required=True)
+    ap.add_argument("--source-file", default="release_update_workbook_c912375de.csv")
+    ap.add_argument("--source-sheet", default="release_update_workbook_c912375de")
     ap.add_argument("--run-id")
     ap.add_argument("--verify", action="store_true")
     args = ap.parse_args()
@@ -149,6 +151,18 @@ def main() -> int:
             print(json.dumps(result, indent=2))
             return 0 if result["passed"] else 1
 
+        sources = api_call(args.api_base, "/api/assignments/sources", token_api)
+        source_row = next((
+            item for item in sources
+            if item.get("file_name") == args.source_file
+            and item.get("sheet") == args.source_sheet
+            and item.get("source") == "upload"), None)
+        record("independent local source is available for the send assignment",
+               source_row is not None,
+               {"file": args.source_file, "sheet": args.source_sheet})
+        if not source_row:
+            return 1
+
         created = api_call(args.api_base, "/api/canvas", token_api,
                            {"title": "Authorized live qualification send",
                             "canvas_type": "document"}, "POST")
@@ -167,7 +181,14 @@ def main() -> int:
         assignment_body = {
             "objective": "Authorized live Outlook qualification send",
             "agent_id": args.agent_id,
-            "sources": [],
+            "sources": [{
+                "kind": "workbook",
+                "dataset_name": source_row["dataset_name"],
+                "source": source_row["source"],
+                "external_id": source_row["external_id"],
+                "source_version": source_row["source_version"],
+                "sheet": source_row["sheet"],
+            }],
             "deliverables": [{
                 "kind": "email_draft",
                 "description": "Authorized qualification email draft",
