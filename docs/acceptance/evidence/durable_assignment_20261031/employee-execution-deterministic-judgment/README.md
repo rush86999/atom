@@ -83,3 +83,27 @@ zero matched by a zero rule; `NaN` → explicit unresolved invalid input; V3
 blank Risk → APPROVE. The frozen set also runs through the canvas assessment
 boundary in `test_assessment_rules_semantics.py` (18/19 determinate, every gap
 REVIEW with a preserved requirement).
+
+## Multiple higher-priority unknowns (2026-10-31)
+
+The verifier reproduced the remaining precedence bypass:
+
+1. `Region = North → APPROVE`
+2. `Risk = High → DENY`
+3. `Amount >= 100 → APPROVE`
+
+With Region and Risk missing and Amount 120, the evaluator kept only the first
+unknown rule, saw its decision (APPROVE) match the later one, and returned
+APPROVE with no requirement. Valid completions disagree: South+High gives DENY,
+North+High gives APPROVE.
+
+Repair: every higher-priority unknown rule is retained until a definite match. A
+definite match decides only when no retained possibility has a different
+decision; otherwise the result is REVIEW with the decisive fields preserved.
+Repeated labels do not force clarification; a definitively false conjunction is
+false even with another unknown condition.
+
+Controls: the exact three-rule case, repeated labels, false conjunction, an
+irrelevant missing field, and a completion-based table test that enumerates
+fully specified completions — if they disagree, a confident partial result
+fails the control.

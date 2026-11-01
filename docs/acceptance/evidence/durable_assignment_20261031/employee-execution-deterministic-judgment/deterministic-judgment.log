@@ -1,14 +1,22 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.16, pytest-7.4.4, pluggy-1.6.0
+benchmark: 5.2.3 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/rushiparikh/projects/atom-employee-execution/backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-0.23.8, benchmark-5.2.3, respx-0.22.0, freezegun-0.4.2, repeat-0.9.4, json-report-1.5.0, timeout-2.4.0, schemathesis-3.39.16, metadata-3.1.1, cov-4.1.0, html-4.2.0, hypothesis-6.151.9, base-url-2.1.0, subtests-0.14.2, playwright-0.5.2, Faker-22.7.0, xdist-3.6.1, rerunfailures-16.1
+asyncio: mode=Mode.AUTO
+collected 19 items
 
 tests/test_assessment_rules_semantics.py::test_earlier_unknown_rule_blocks_a_later_conflicting_match 
 -------------------------------- live log setup --------------------------------
-2026-10-31 21:27:33 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-10-31 21:27:33 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-10-31 21:27:33 [    INFO] EscalationManager initialized
-2026-10-31 21:27:33 [    INFO] CognitiveTierService initialized for workspace: default
-2026-10-31 21:27:33 [    INFO] EscalationManager initialized
-2026-10-31 21:27:33 [    INFO] CognitiveTierService initialized for workspace: default
-2026-10-31 21:27:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-10-31 21:27:33 [    INFO] AgentTaskRegistry initialized
+2026-10-31 21:28:19 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-10-31 21:28:20 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 21:28:20 [    INFO] EscalationManager initialized
+2026-10-31 21:28:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 21:28:20 [    INFO] EscalationManager initialized
+2026-10-31 21:28:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 21:28:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 21:28:20 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [  5%]
 tests/test_assessment_rules_semantics.py::test_earlier_unknown_with_the_same_decision_still_decides PASSED [ 10%]
 tests/test_assessment_rules_semantics.py::test_zero_is_a_value_not_a_blank PASSED [ 15%]
@@ -30,16 +38,16 @@ tests/test_canvas_assessment_deterministic.py::test_deterministic_rule_change_in
 tests/test_deterministic_assessment_qualification.py::test_rule_expressible_policies_qualify_without_a_model PASSED [100%]
 
 =============================== warnings summary ===============================
-../../atom-phase-d/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
-  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
     self.import_plugin(import_spec)
 
-../../atom-phase-d/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
-  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
     ref_error: type[Exception] = jsonschema.RefResolutionError,
 
-../../atom-phase-d/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 38 warnings
-  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 38 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
@@ -63,4 +71,4 @@ tests/test_deterministic_assessment_qualification.py::test_rule_expressible_poli
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 19 passed, 44 warnings in 14.95s =======================
+======================= 19 passed, 44 warnings in 15.33s =======================

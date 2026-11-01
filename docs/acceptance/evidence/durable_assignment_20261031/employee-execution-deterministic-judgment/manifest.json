@@ -5,12 +5,12 @@
   "final_candidate": "a0e4dd7ed",
   "files": {
     "README.md": {
-      "sha256": "30c9f04b21763e70bee071238c590d06a6c229c64af07008b94fbc47d8867cd6",
-      "bytes": 3880
+      "sha256": "bc336f2232e4aa60fba72b04b6f523d02c410ec2bd887af44ec1c8177d8c0be7",
+      "bytes": 4944
     },
     "deterministic-judgment.log": {
-      "sha256": "11dbd109521956619614049a568d5ea67244fec3750ff31172cbc375aea62eef",
-      "bytes": 5266
+      "sha256": "3101fcc7234df1285949c60520e02d035179e97b07d51afa0c7eb1fafe0ec054",
+      "bytes": 5986
     },
     "deterministic-qualification.json": {
       "sha256": "5a45ce1fc08be7c3e0aa9b193adb4f65ac149fcfbd889b342c5ace3dbae11599",
