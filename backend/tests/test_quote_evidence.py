@@ -239,6 +239,13 @@ def test_fixed_retrieval_evaluation_set_measures_selection_and_latency():
                                    "currency": ""}]),
          _agreement(fields={"freight": "20.00"})],
         {"status": "needs_clarification"})
+    run("partial coverage is not sufficiency",
+        [_customer(),
+         _rows(coverage={"known": True, "truncated": True,
+                         "source_row_count": 100,
+                         "materialized_row_count": 10}),
+         _agreement()],
+        {"status": "needs_clarification"})
     run("unauthorized source",
         [_customer(access="revoked", resource_id="crm-denied"),
          _customer(), _rows(), _agreement()],
@@ -261,6 +268,27 @@ def test_fixed_retrieval_evaluation_set_measures_selection_and_latency():
     }
     assert "wd-agreement-current" in asserting_sources
     assert max(item["elapsed_ms"] for item in cases) < 250.0, cases
+
+
+def test_partial_coverage_is_not_treated_as_sufficient():
+    truncated = _rows(coverage={
+        "known": True, "truncated": True,
+        "source_row_count": 100, "materialized_row_count": 10})
+    result = _validation([_customer(), truncated, _agreement()])
+    assert result["status"] == "needs_clarification"
+    assert any(item["key"] == "line_items" for item in result["obligations"])
+    assert any(item["resource_id"] == "od-price-rows"
+               and item["reason"] == "coverage_incomplete"
+               for item in result["excluded"])
+    # A complete alternate satisfies the requirement; the partial copy stays
+    # excluded rather than being merged as if it were the whole corpus.
+    complete = _validation(
+        [_customer(), truncated,
+         _rows(resource_id="od-price-rows-complete", version="rev-9"),
+         _agreement()])
+    assert complete["status"] == "ready", complete
+    assert complete["evidence_packet"]["lines"][0]["resource_id"] == (
+        "od-price-rows-complete")
 
 
 def test_plan_refuses_before_arithmetic_when_clarification_is_open():
