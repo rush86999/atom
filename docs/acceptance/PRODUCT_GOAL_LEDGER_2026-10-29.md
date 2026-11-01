@@ -246,7 +246,7 @@ Verifier-accepted within its controlled, single-worker scope.
 - Hard-cost protection depends on trusted adapters declaring truthful bounds.
 - Hosted deployment remains deferred.
 
-**Identity:** code/evidence `caee1a057` (repaired source `b7ee7ee22`;
+**Identity:** code/evidence `0e21fd0f7` (repaired source `b7ee7ee22`;
 recorded head `803ef2666`); evidence
 `two-domain-autonomous-journey-repaired/`.
 
