@@ -354,3 +354,10 @@ assignment + connected suite: **197 passed**. Extended affected assignment
 suite + joint campaign: **289 passed**. Provider contract matrix: zero issues.
 This is the reviewable controlled candidate; live qualification still needs
 the account/token request in `AGENT_2_LIVE_QUALIFICATION_REQUEST.md`.
+
+**Joint candidate final sync (2026-11-01):** HEAD `$(cd /private/tmp/atom-brennan-joint && git rev-parse --short HEAD)`.
+Includes Agent 2 canonical `core/connected_actions.py` (reference shim kept),
+tabular row evidence, deletion/revocation tombstones and Agent 1 final
+`acd86a2aa`. Combined assignment + connected suite: **200 passed**. Extended
+assignment suite + joint campaign was **289 passed** before the final module
+rename; the rename suites are green. No live provider call.
