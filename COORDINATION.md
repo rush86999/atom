@@ -334,3 +334,8 @@ calculator, posts the estimate through `connected.books.create_estimate`,
 reads back 362.50, and creates an Outlook draft without sending. This is a
 controlled candidate, not live qualification. Agent 1 should adopt
 `8fc3460e9`'s executor mapping in its branch (or confirm an equivalent).
+
+**Joint candidate updated (2026-11-01):** `/private/tmp/atom-brennan-joint`
+HEAD `2db65a034` merges Agent 2 `00b1a95ec` (tombstones for provider-deleted
+rows, bare-read outcome mapping) with Agent 1 `bc56472b9`. Combined suite:
+**190 passed**. Agent 2 branch standalone focused suite: **230 passed**.
