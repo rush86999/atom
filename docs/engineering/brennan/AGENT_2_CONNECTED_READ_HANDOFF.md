@@ -3,6 +3,12 @@
 Base: `587fbc25148a6203f3785c46e56992ddcf54bd70`
 Agent 2 branch: `codex/brennan-knowledge-accounting-20261101`
 
+The tables below use the reference `brennan.*` names. Every action is also
+registered under the business-independent `connected.*` name (for example
+`connected.books.create_bill`). New plans should use `connected.*`; the
+`brennan.*` names remain aliases. See
+[AGENT_2_PORTABILITY_MATRIX.md](AGENT_2_PORTABILITY_MATRIX.md).
+
 Use these through the existing `action.registry` assignment adapter. Read
 actions declare `{"effect":"read"}`; the planner classifies them as
 `read_only` and does not require an outbound grant. The draft action declares

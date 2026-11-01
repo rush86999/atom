@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Optional
 
-from core.action_registry import register_action
+from core.action_registry import action_registry, register_action
 
 logger = logging.getLogger(__name__)
 
@@ -1587,3 +1587,41 @@ async def books_list_accounts(args: Dict[str, Any], context: Dict[str, Any]):
             fields={"count": len(accounts), "query": query},
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Business-independent action names.
+#
+# The implementations above are provider capabilities, not Brennan policy.
+# A deployment (industrial sales, services, procurement, non-sales) selects
+# these generic names through its plan/config; the ``brennan.*`` names remain
+# as aliases for plans created during the reference campaign.
+# ---------------------------------------------------------------------------
+_GENERIC_ALIASES = {
+    "connected.workdrive.list_page": "brennan.workdrive.list_page",
+    "connected.workdrive.read_file": "brennan.workdrive.read_file",
+    "connected.workdrive.sync_page": "brennan.workdrive.sync_page",
+    "connected.onedrive.list_page": "brennan.onedrive.list_page",
+    "connected.onedrive.read_file": "brennan.onedrive.read_file",
+    "connected.onedrive.sync_page": "brennan.onedrive.sync_page",
+    "connected.knowledge.sync_status": "brennan.knowledge.sync_status",
+    "connected.crm.get_record": "brennan.crm.get_record",
+    "connected.crm.search_records": "brennan.crm.search_records",
+    "connected.inventory.check_stock": "brennan.inventory.check_stock",
+    "connected.inventory.get_item": "brennan.inventory.get_item",
+    "connected.books.get_bill": "brennan.books.get_bill",
+    "connected.books.get_estimate": "brennan.books.get_estimate",
+    "connected.books.resolve_vendor": "brennan.books.resolve_vendor",
+    "connected.books.list_accounts": "brennan.books.list_accounts",
+    "connected.books.propose_bill": "brennan.books.propose_bill",
+    "connected.books.create_bill": "brennan.books.create_bill",
+    "connected.books.create_estimate": "brennan.books.create_estimate",
+    "connected.outlook.create_draft": "brennan.outlook.create_draft",
+}
+
+for _generic, _legacy in _GENERIC_ALIASES.items():
+    _action = action_registry.get_action(_legacy)
+    if _action is not None:
+        action_registry.register(
+            _generic, _action.handler, _action.description,
+            _action.parameters_schema, _action.preconditions, _action.effects)

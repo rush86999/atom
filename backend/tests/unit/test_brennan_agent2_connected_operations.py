@@ -1142,3 +1142,52 @@ def test_bill_duplicate_on_second_page_is_found_before_post(monkeypatch):
     assert posts == []
     assert result["status"] == "duplicate"
     assert result["existing"]["bill_id"] == "bill-old"
+
+
+def test_generic_connected_aliases_are_registered_and_executable():
+    from core.action_registry import action_registry
+
+    for name in (
+        "connected.workdrive.list_page",
+        "connected.onedrive.sync_page",
+        "connected.knowledge.sync_status",
+        "connected.crm.get_record",
+        "connected.inventory.check_stock",
+        "connected.books.propose_bill",
+        "connected.books.create_bill",
+        "connected.books.create_estimate",
+        "connected.outlook.create_draft",
+    ):
+        assert action_registry.get_action(name) is not None, name
+        assert action_registry.get_action(name).handler is action_registry.get_action(
+            name.replace("connected.", "brennan.", 1)).handler
+
+
+def test_service_business_configuration_needs_no_source_edit():
+    """A services deployment uses the same actions with different data only."""
+    from core.action_registry import action_registry
+
+    result = asyncio.run(action_registry.execute_action(
+        "connected.books.propose_bill",
+        {"proposal_input": {
+            "provider": "zoho_books", "organization_id": "services-org",
+            "entity_type": "bill", "external_id": "SOW-2026-14",
+            "vendor_candidates": [{"id": "vendor-legal",
+                                   "name": "Outside Counsel"}],
+            "currency": "CAD", "document_date": "2026-11-01",
+            "lines": [
+                {"description": "Contract review", "amount": "1500.00",
+                 "account_id": "acct-professional-fees"},
+                {"description": "Filing disbursement", "amount": "85.25",
+                 "account_id": "acct-disbursements"},
+            ],
+            "tax_total": "0.00", "document_total": "1585.25",
+        }},
+        {"tenant_id": "t1", "workspace_id": "services-ws",
+         "user_id": "u1"}))
+
+    assert result["status"] == "success"
+    assert result["data"]["status"] == "proposed"
+    assert result["data"]["currency"] == "CAD"
+    assert result["data"]["document_total"] == "1585.25"
+    assert result["data"]["posting"] is None
