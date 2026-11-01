@@ -91,7 +91,7 @@ and a real `AssignmentExecutor`/`TaskLifecycle`/`GoalRunService`:
 | Combined repair run | **129 passed** |
 | New public-API cancellation tests | **2 passed** |
 
-Logs: `focused-tests.log`, `public-api-cancel-tests.log`.
+Logs: `focused-tests.txt`, `public-api-cancel-tests.txt`.
 
 ## Note on the earlier recovery evidence
 
