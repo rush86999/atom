@@ -82,3 +82,44 @@ async def test_different_arguments_are_real_progress(agent):
 
     assert result["status"] != "stuck"
     assert agent._step_act.await_count == agent.config.get("max_steps", 6)
+
+
+@pytest.mark.asyncio
+async def test_stuck_critique_is_persisted_in_a_scratch_store(agent, tmp_path):
+    """The critique is written to a real scratch LanceDB and read back."""
+    pytest.importorskip("lancedb")
+    import lancedb
+
+    from core.reflection_service import ReflectionService
+    from core import reflection_service as reflection_module
+
+    db = lancedb.connect(str(tmp_path / "lance"))
+    table = db.create_table("reflection_pool", data=[{
+        "id": "seed", "agent_id": "seed", "tenant_id": "default",
+        "intent": "", "action_taken": "", "outcome_state": "",
+        "critique": "", "timestamp": "", "vector": [0.0] * 8,
+    }])
+
+    class _ScratchLance:
+        def get_or_create_reflection_pool_table(self):
+            return table
+
+    class _ScratchEmbedding:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def generate_embedding(self, _text):
+            return [0.1] * 8
+
+    with patch.object(reflection_module, "LanceDBService", _ScratchLance), \
+            patch.object(reflection_module, "EmbeddingService", _ScratchEmbedding):
+        agent.reflection_service = ReflectionService(tenant_id="default")
+        with patch.object(GenericAgent, "_react_step", new=_same_action):
+            result = await agent.execute("Keep retrying the same lookup.")
+
+    assert result["status"] == "stuck"
+    rows = table.search().limit(50).to_arrow().to_pylist()
+    critique = [row for row in rows if row["agent_id"] == "goal04-agent"]
+    assert critique, "the critique was not persisted to the scratch store"
+    assert critique[0]["outcome_state"] == "stuck"
+    assert "stuck" in critique[0]["critique"]

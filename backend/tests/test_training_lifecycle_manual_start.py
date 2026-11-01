@@ -244,3 +244,18 @@ def test_unauthorized_transitions_and_insufficient_evidence(db):
     agent = db.query(AgentRegistry).filter(
         AgentRegistry.id == "student-2").first()
     assert agent.status == "student"
+
+
+def test_repeated_start_reuses_the_proposal_without_a_duplicate_session(db):
+    _student(db)
+    service = StudentTrainingService(db)
+    first = asyncio.run(service.start_training(
+        "student-1", "supervisor-1", reason="onboarding"))
+    second = asyncio.run(service.start_training(
+        "student-1", "supervisor-1", reason="retry"))
+    assert second.id == first.id
+    assert db.query(AgentProposal).count() == 1
+    assert db.query(TrainingSession).count() == 0
+
+    asyncio.run(service.approve_training(first.id, "supervisor-1"))
+    assert db.query(TrainingSession).count() == 1

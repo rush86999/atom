@@ -245,3 +245,30 @@ def test_a_refused_recruitment_does_not_mutate_the_chain(fleet):
         ChainLink.chain_id == chain.id).count() == before_links
     assert service.db.query(DelegationChain).filter(
         DelegationChain.id == chain.id).first().total_links == before_total
+
+
+def test_descendant_push_over_the_limit_is_refused_without_mutation(fleet):
+    """Exact report: limit 3, root->a->d, root->b->c, then d->b pushes c to 4."""
+    service, chain = fleet
+    chain.max_depth = 3
+    service.db.commit()
+    service.recruit_member(chain.id, "root", "a", "1")
+    service.recruit_member(chain.id, "a", "d", "2")
+    service.recruit_member(chain.id, "root", "b", "3")
+    service.recruit_member(chain.id, "b", "c", "4")
+
+    before_links = service.db.query(ChainLink).filter(
+        ChainLink.chain_id == chain.id).count()
+    before_total = service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links
+
+    with pytest.raises(FleetDelegationError) as exc:
+        service.recruit_member(chain.id, "d", "b", "5")
+    assert exc.value.code == "depth_exceeded"
+    assert exc.value.extra["depth"] == 4
+    assert exc.value.extra["max_depth"] == 3
+
+    assert service.db.query(ChainLink).filter(
+        ChainLink.chain_id == chain.id).count() == before_links
+    assert service.db.query(DelegationChain).filter(
+        DelegationChain.id == chain.id).first().total_links == before_total
