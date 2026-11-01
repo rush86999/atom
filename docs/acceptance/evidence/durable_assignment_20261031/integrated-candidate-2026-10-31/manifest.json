@@ -1,0 +1,23 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "integrated-candidate-2026-10-31",
+  "source_checkpoint": "f2e809ba5",
+  "files": {
+    "README.md": {
+      "sha256": "884ba7db73c1d2036c66cec9c461914019a6fe8300cca8d2a6e73e23966cc0a8",
+      "bytes": 2252
+    },
+    "merged-affected.log": {
+      "sha256": "8c12a0ef9103c9074b198b683953d260281442a6d72c58555ddac156c328d5f1",
+      "bytes": 45667
+    },
+    "office-regression.log": {
+      "sha256": "70976105ed0d52a3c9c3f2842be503b978f360db8a26f3fb3ba42a1c5eec12da",
+      "bytes": 25337
+    },
+    "premerge-baseline.log": {
+      "sha256": "b73648d9179152d598e3e853913918beaae671d4e8156de802e336f6302b0504",
+      "bytes": 10460
+    }
+  }
+}

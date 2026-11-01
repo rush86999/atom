@@ -1,0 +1,277 @@
+
+----------------------------- live log collection ------------------------------
+2026-10-31 20:16:45 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/unit/test_sheet_dataset_service.py::test_materialize_roundtrip_and_sheet_row 
+-------------------------------- live log setup --------------------------------
+2026-10-31 20:16:45 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 20:16:45 [    INFO] EscalationManager initialized
+2026-10-31 20:16:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:45 [    INFO] EscalationManager initialized
+2026-10-31 20:16:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 20:16:45 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [  0%]
+tests/unit/test_sheet_dataset_service.py::test_hash_idempotency_no_reparse_no_duplicates 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [  1%]
+tests/unit/test_sheet_dataset_service.py::test_new_hash_supersedes_and_gc_keeps_two_versions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 97c7ac8d9d8d)
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 1eccc8665fd5)
+PASSED                                                                   [  2%]
+tests/unit/test_sheet_dataset_service.py::test_multi_sheet_supersede_links_same_sheet_successor 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash febe206b945c)
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash bcc0798c78cd)
+PASSED                                                                   [  3%]
+tests/unit/test_sheet_dataset_service.py::test_per_sheet_idempotency_after_partial_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash febe206b945c)
+PASSED                                                                   [  4%]
+tests/unit/test_sheet_dataset_service.py::test_csv_materialization 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of stock.csv (hash 040c052c0250)
+PASSED                                                                   [  5%]
+tests/unit/test_sheet_dataset_service.py::test_non_sheet_and_unparsable_files_skip_cleanly 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: pandas failed on broken.xlsx (BadZipFile); trying raw-XML grid
+2026-10-31 20:16:45 [    INFO] sheet datasets: pandas could not parse broken.xlsx (File is not a zip file); no dataset
+PASSED                                                                   [  6%]
+tests/unit/test_sheet_dataset_service.py::test_kill_switch_disables_materialization PASSED [  7%]
+tests/unit/test_sheet_dataset_service.py::test_secrets_never_reach_parquet_verbatim 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] Redacted 1 secrets/PII items from text
+2026-10-31 20:16:45 [    INFO] Redacted 1 secrets/PII items from text
+2026-10-31 20:16:45 [    INFO] sheet datasets: redacted cells in 'Settings' of Consolidated Price List 2019.xlsx
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash a462feb9becd)
+PASSED                                                                   [  8%]
+tests/unit/test_sheet_dataset_service.py::test_raw_xml_grid_fallback_when_pandas_rejects 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: pandas failed on Consolidated Price List 2019.xlsx (ValueError); trying raw-XML grid
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [  9%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_frames_direct_formula_and_sparse_cells PASSED [ 10%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_sectioned_sheet_repeated_header PASSED [ 11%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_header_skips_title_banner PASSED [ 12%]
+tests/unit/test_sheet_dataset_service.py::test_multi_row_headers_materialize_combined_schema 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of stock.xlsx (hash c59d66c6f0ff)
+PASSED                                                                   [ 13%]
+tests/unit/test_sheet_dataset_service.py::test_header_normalization_blank_and_duplicate_names PASSED [ 14%]
+tests/unit/test_sheet_dataset_service.py::test_freshness_hint_mismatch_is_not_fresh 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [ 15%]
+tests/unit/test_sheet_dataset_service.py::test_answer_from_datasets_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+2026-10-31 20:16:45 [    INFO] sheet datasets: content probe answered 'price of WG-350DSAV' from zoho_workdrive_consolidated_price_list_2019__machine_pricing (1 hits for '350dsav')
+PASSED                                                                   [ 16%]
+tests/unit/test_sheet_dataset_service.py::test_answer_stale_copy_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [ 17%]
+tests/unit/test_sheet_dataset_service.py::test_answer_rejects_non_select_sql 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [ 18%]
+tests/unit/test_sheet_dataset_service.py::test_answer_no_llm_or_no_datasets_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+PASSED                                                                   [ 19%]
+tests/unit/test_sheet_dataset_service.py::test_answer_bad_column_falls_back_to_none 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:45 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash eb331f636cbb)
+2026-10-31 20:16:45 [    INFO] sheet datasets: SQL execution failed after 0.0s (BinderException from zoho_workdrive_consolidated_price_list_2019__machine_pricing) — no sheets left
+PASSED                                                                   [ 20%]
+tests/unit/test_sheet_dataset_service.py::test_twenty_four_sheet_workbook_preserves_every_sheet_and_types 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:46 [    INFO] sheet datasets: materialized 24 sheet(s) of twenty_four_regions.xlsx (hash ad27374a3b4b)
+PASSED                                                                   [ 21%]
+tests/test_dataset_aggregation.py::test_explicit_sheet_binds_sole_entry_when_planner_omits_dataset PASSED [ 22%]
+tests/test_dataset_aggregation.py::test_po_register_approved_totals_and_provenance PASSED [ 23%]
+tests/test_dataset_aggregation.py::test_adjustments_missing_quantity_is_named_and_no_total PASSED [ 24%]
+tests/test_dataset_aggregation.py::test_explicit_sheet_binding_cannot_fall_back PASSED [ 25%]
+tests/test_dataset_aggregation.py::test_operation_classification_is_general PASSED [ 26%]
+tests/test_dataset_aggregation.py::test_natural_language_plan_uses_same_executor PASSED [ 27%]
+tests/test_dataset_aggregation.py::test_missing_quantity_through_nl_plan PASSED [ 28%]
+tests/test_dataset_aggregation.py::test_processing_limit_withholds_total PASSED [ 29%]
+tests/test_dataset_aggregation.py::test_missing_explicit_sheet_is_reported_not_substituted PASSED [ 30%]
+tests/test_dataset_aggregation.py::test_operation_classifier_does_not_divert_lookups_or_refresh PASSED [ 31%]
+tests/test_dataset_aggregation.py::test_sheet_names_are_whole_token_and_filename_is_not_a_sheet PASSED [ 32%]
+tests/test_dataset_aggregation.py::test_nested_sheet_names_resolve_to_longest PASSED [ 33%]
+tests/test_dataset_aggregation.py::test_explicit_missing_sheet_phrase_is_reported PASSED [ 34%]
+tests/test_dataset_aggregation.py::test_sql_requires_sheet_row_and_rejects_distinct_union_paths PASSED [ 35%]
+tests/test_dataset_aggregation.py::test_quoted_keyword_columns_are_not_rejected PASSED [ 36%]
+tests/test_dataset_aggregation.py::test_string_nan_inf_and_null_currency_are_gaps PASSED [ 37%]
+tests/test_dataset_aggregation.py::test_duplicate_sheet_rows_are_rejected PASSED [ 38%]
+tests/test_dataset_aggregation.py::test_truncated_materialization_withholds_total PASSED [ 39%]
+tests/test_dataset_aggregation.py::test_display_cap_keeps_completeness_and_totals PASSED [ 40%]
+tests/test_dataset_aggregation.py::test_formula_grammar_prefers_neutral_and_handles_row_qualification PASSED [ 41%]
+tests/test_dataset_aggregation.py::test_neutral_formula_rejects_priced_scope_before_lookup PASSED [ 42%]
+tests/test_dataset_aggregation.py::test_multiple_active_versions_are_rejected PASSED [ 43%]
+tests/test_dataset_aggregation.py::test_space_containing_filename_does_not_leave_sheet_words PASSED [ 44%]
+tests/test_dataset_aggregation.py::test_required_inputs_cannot_be_coalesced_or_filtered_out PASSED [ 45%]
+tests/test_dataset_aggregation.py::test_generic_sheet_words_do_not_bind_without_a_sheet_cue PASSED [ 46%]
+tests/test_dataset_aggregation.py::test_neutral_stored_value_adds_no_pricing_authorization PASSED [ 47%]
+tests/test_dataset_aggregation.py::test_refresh_reread_replaces_aggregate_receipt 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:46 [    INFO] MCP Service initialized
+2026-10-31 20:16:46 [    INFO] ComputerUseAgent initialized for tenant default
+2026-10-31 20:16:46 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-10-31 20:16:46 [    INFO] No token storage file found, starting empty
+2026-10-31 20:16:47 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-10-31 20:16:47 [    INFO] EscalationManager initialized
+2026-10-31 20:16:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:47 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-31 20:16:47 [    INFO] EscalationManager initialized
+2026-10-31 20:16:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-31 20:16:47 [    INFO] Slack Enhanced Service initialized
+2026-10-31 20:16:47 [    INFO] Loaded 0 persisted sessions from file.
+2026-10-31 20:16:47 [ WARNING] [source-freshness] refresh outcome: stage=download_ok detail=live copy downloaded; parse/identity next
+PASSED                                                                   [ 48%]
+tests/test_dataset_aggregation.py::test_sql_projections_cannot_supply_calculation_inputs PASSED [ 49%]
+tests/test_dataset_aggregation.py::test_row_identity_must_be_plain_integer_not_expression PASSED [ 50%]
+tests/test_dataset_aggregation.py::test_planner_sheet_row_identity_is_corrected_to_business_key PASSED [ 51%]
+tests/test_dataset_aggregation.py::test_nl_plan_projection_cannot_substitute_values PASSED [ 52%]
+tests/test_dataset_aggregation.py::test_case_variant_header_cannot_shadow_meta_row PASSED [ 53%]
+tests/test_dataset_aggregation.py::test_missing_planner_role_is_inferred_from_frame PASSED [ 54%]
+tests/test_dataset_aggregation.py::test_missing_role_inference_cannot_bypass_required_column_guard PASSED [ 55%]
+tests/test_dataset_aggregation.py::test_ambiguous_normalized_role_names_fail_closed PASSED [ 56%]
+tests/test_dataset_aggregation.py::test_required_column_guard_uses_ast_not_token_boundaries PASSED [ 57%]
+tests/test_dataset_aggregation.py::test_meta_row_cannot_be_a_calculation_role PASSED [ 58%]
+tests/test_dataset_aggregation.py::test_predicate_aliases_columns_and_positionals_are_rejected PASSED [ 59%]
+tests/test_dataset_aggregation.py::test_projection_cannot_expand_or_drop_rows PASSED [ 60%]
+tests/test_dataset_aggregation.py::test_role_substitution_is_rejected PASSED [ 61%]
+tests/test_dataset_aggregation.py::test_whole_row_relation_reference_is_rejected PASSED [ 62%]
+tests/test_dataset_aggregation.py::test_decorated_price_column_cannot_be_used_as_quantity PASSED [ 63%]
+tests/test_dataset_aggregation.py::test_unknown_headers_require_clarification_or_explicit_mapping PASSED [ 64%]
+tests/test_dataset_aggregation.py::test_nl_unknown_roles_require_clarification_then_explicit_mapping PASSED [ 65%]
+tests/test_office_expanded_core.py::test_value_edit_recalculates_dependent_formula_and_preserves_other_sheets 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:48 [    INFO] WorkbookRuntime initialized: engine=formulas
+2026-10-31 20:16:48 [    INFO] Recalculated workbook via formulas lib: book.xlsx
+PASSED                                                                   [ 66%]
+tests/test_office_expanded_core.py::test_formula_without_a_cached_value_is_reported_not_shown_as_blank PASSED [ 67%]
+tests/test_office_expanded_core.py::test_docx_snapshot_includes_real_tables PASSED [ 68%]
+tests/test_office_expanded_core.py::test_pptx_snapshot_includes_tables_and_speaker_notes PASSED [ 69%]
+tests/test_office_expanded_core.py::test_generated_docx_has_headings_and_real_tables PASSED [ 70%]
+tests/test_office_expanded_core.py::test_generated_pptx_has_slide_order_tables_and_notes PASSED [ 71%]
+tests/test_office_expanded_core.py::test_pptx_generation_refuses_outline_less_content PASSED [ 72%]
+tests/test_office_expanded_core.py::test_docx_soft_line_break_does_not_overwrite_next_paragraph PASSED [ 73%]
+tests/test_office_expanded_core.py::test_pptx_title_only_edit_preserves_body PASSED [ 74%]
+tests/test_office_expanded_core.py::test_office_canvas_owner_gate_rejects_foreign_canvas PASSED [ 75%]
+tests/test_office_expanded_core.py::test_docx_sync_update_reports_success_after_writing 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:49 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-10-31 20:16:49 [    INFO] EscalationManager initialized
+2026-10-31 20:16:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 20:16:49 [    INFO] LanceDBHandler initialized. ID: 6419288976. LANCEDB_AVAILABLE: True
+2026-10-31 20:16:49 [    INFO] Lazy loading LanceDB connection...
+2026-10-31 20:16:49 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory/default with storage_options=None
+2026-10-31 20:16:49 [    INFO] LanceDB connected successfully
+2026-10-31 20:16:50 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-10-31 20:16:50 [    INFO] Document added to 'documents': doc_7b68fe5510851da3d89100c5
+2026-10-31 20:16:50 [    INFO] Ingested sync.docx (5 chars) from office_canvas
+PASSED                                                                   [ 76%]
+tests/test_office_expanded_core.py::test_sync_update_carries_recalc_verdict 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:50 [    INFO] Recalculated workbook via formulas lib: recalc.xlsx
+2026-10-31 20:16:50 [    INFO] sheet datasets: materialized 1 sheet(s) of recalc.xlsx (hash 6551dc5472c8)
+2026-10-31 20:16:50 [    INFO] sheet datasets: materialized for recalc.xlsx [1 sheets]
+2026-10-31 20:16:50 [    INFO] Formula SQL saved: Column_3 (0692fba7-283d-42c0-8256-f3e8e6274bec)
+2026-10-31 20:16:50 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-10-31 20:16:50 [    INFO] Formula Card embedded in LanceDB: Column_3
+2026-10-31 20:16:50 [    INFO] Stored 1/1 formulas from tmp_6cf2ny5.xlsx
+2026-10-31 20:16:50 [    INFO] Extracted 1 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp_6cf2ny5.xlsx (raw-XML)
+2026-10-31 20:16:50 [    INFO] Extracted 1 formulas from Excel
+2026-10-31 20:16:50 [    INFO] Document added to 'documents': doc_fea8700bec9926d3da5087ca
+2026-10-31 20:16:50 [    INFO] Ingested recalc.xlsx (174 chars) from office_canvas
+PASSED                                                                   [ 77%]
+tests/test_office_expanded_core.py::test_present_reuse_never_adopts_another_users_canvas PASSED [ 78%]
+tests/test_office_expanded_core.py::test_single_user_audience_allows_only_declared_pilot PASSED [ 79%]
+tests/test_office_expanded_core.py::test_multi_user_audience_fails_closed PASSED [ 80%]
+tests/test_office_canvas_binding.py::test_office_path_key_matches_relative_and_absolute PASSED [ 81%]
+tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:50 [    INFO] EscalationManager initialized
+2026-10-31 20:16:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:50 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-10-31 20:16:50 [    INFO] EscalationManager initialized
+2026-10-31 20:16:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:16:50 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-10-31 20:16:50 [    INFO] Slack Enhanced Service initialized
+2026-10-31 20:16:50 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 82%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_matches_legacy_relative_binding PASSED [ 83%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_reuses_and_repairs_legacy_row PASSED [ 84%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_skips_deleted_canvas PASSED [ 85%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_still_reaches_the_live_canvas PASSED [ 86%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_ignores_tombstoned_binding PASSED [ 87%]
+tests/test_office_canvas_binding.py::test_broadcast_file_update_refuses_deleted_canvas PASSED [ 88%]
+tests/test_office_core_properties.py::test_word_artifact_survives_multi_source_provenance PASSED [ 89%]
+tests/test_pptx_parsing.py::test_pptx_preserves_slides_tables_and_notes PASSED [ 90%]
+tests/test_pptx_parsing.py::test_pptx_bad_bytes_fail_honestly 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:16:52 [   ERROR] PPTX parse error: File is not a zip file
+PASSED                                                                   [ 91%]
+tests/test_office_file_ownership_boundary.py::TestAuthenticatedSurface::test_every_office_endpoint_requires_a_user PASSED [ 92%]
+tests/test_office_file_ownership_boundary.py::TestAuthenticatedSurface::test_no_office_route_declares_its_own_anonymous_handler PASSED [ 93%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_path_inside_office_dir_is_accepted PASSED [ 94%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_traversal_outside_office_dir_is_rejected PASSED [ 95%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_sibling_prefix_is_not_treated_as_inside PASSED [ 96%]
+tests/test_office_file_ownership_boundary.py::TestOwnershipIsNotEnforcedByContainment::test_any_authenticated_users_file_is_reachable_by_path PASSED [ 97%]
+tests/test_office_file_ownership_boundary.py::TestOwnershipIsNotEnforcedByContainment::test_office_dir_is_a_single_flat_root PASSED [ 98%]
+tests/test_office_file_ownership_boundary.py::TestTeamVsPerUserOwnership::test_canvas_linked_file_is_team PASSED [ 99%]
+tests/test_office_file_ownership_boundary.py::TestTeamVsPerUserOwnership::test_default_is_team PASSED [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 202 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_dataset_aggregation.py::test_refresh_reread_replaces_aggregate_receipt
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+tests/test_dataset_aggregation.py::test_refresh_reread_replaces_aggregate_receipt
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 101 passed, 210 warnings in 21.62s ======================
