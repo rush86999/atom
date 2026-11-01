@@ -167,3 +167,10 @@ record/update, bookkeeping proposal/posting, authoritative readback and restart
 without duplication. Separate controlled, sandbox and live evidence; no registration
 count or mocked HTTP success upgrades a business claim. Independent verifier
 acceptance remains required.
+
+## User-created canvas extension
+
+Apply the [user-authored canvas contract](../USER_AUTHORED_CANVASES.md).
+New canvases must provide validated, revision-bound values for execution and
+explicit scoped learning through existing mechanisms. The current blocking
+pricing/outcome/readback repairs precede expansion of those runtime surfaces.
