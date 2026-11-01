@@ -1,0 +1,22 @@
+{
+  "note": "Exact body is stored in the tracked request files below, not duplicated in this evidence directory. The body includes the owner signature intentionally for the authorized review.",
+  "files": {
+    "LIVE_QUALIFICATION_B_BODY.txt": {
+      "path": "docs/acceptance/LIVE_QUALIFICATION_B_BODY.txt",
+      "sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
+      "bytes": 2954
+    },
+    "LIVE_QUALIFICATION_B_BODY.html": {
+      "path": "docs/acceptance/LIVE_QUALIFICATION_B_BODY.html",
+      "sha256": "ef3472ddc5401b8ab700b9545f75193042afc8958c9ec3f0994680cfd9783e67",
+      "bytes": 2966
+    },
+    "LIVE_QUALIFICATION_B_BODY.png": {
+      "path": "docs/acceptance/LIVE_QUALIFICATION_B_BODY.png",
+      "sha256": "4cc9b0a2e8555454c25ee00450bf3595381bba30fad51002f02233d07075a1ec",
+      "bytes": 60990
+    }
+  },
+  "exact_body_sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
+  "graph_wire_sha256": "ef3472ddc5401b8ab700b9545f75193042afc8958c9ec3f0994680cfd9783e67"
+}

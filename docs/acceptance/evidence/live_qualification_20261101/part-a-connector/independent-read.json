@@ -1,0 +1,28 @@
+{
+  "file_name": "HARSLE press brake stock price list.xlsx",
+  "message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=",
+  "attachment_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+  "bytes": 10249,
+  "sha1": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+  "sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+  "last_modified": "2026-09-01T03:17:14Z",
+  "workbook": {
+    "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+    "sheets": [
+      "\u5e93\u5b58\u4ea7\u54c1"
+    ],
+    "header_cell": "G1",
+    "price_values": [
+      "24000",
+      "27500",
+      "24000",
+      "27500",
+      "25000",
+      "31800",
+      "27900",
+      "29000"
+    ],
+    "rows_with_price": 8,
+    "sum": "216700"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "dataset": {
+    "id": "00399616-42f7-4f7d-8867-822752b15a46",
+    "source": "outlook",
+    "external_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=:AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+    "file_name": "HARSLE press brake stock price list.xlsx",
+    "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+    "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+    "entity_name": "\u5e93\u5b58\u4ea7\u54c1",
+    "row_count": 8,
+    "ingested_at": "2026-11-01 12:37:20.673857",
+    "status": "active",
+    "parquet_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/data/sheet_datasets/default/e0a7fb8a1b47/outlook_harsle_press_brake_stock_price_list.parquet"
+  },
+  "ingested_document": {
+    "id": "ext_4bc0b6a98c2ea32402e5c0f1",
+    "file_name": "HARSLE press brake stock price list.xlsx",
+    "source_content_hash": "ev4:3f67494e94caf20db8b6e54a405cad492ebc903c2a9ddb63679f1578b7a05006",
+    "last_verified_at": "2026-11-01 12:37:20.807742",
+    "ingested_at": "2026-11-01 12:37:20.807742"
+  }
+}

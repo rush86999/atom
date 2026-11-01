@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "run_id": "194b3474-3b96-4890-94f3-9986ad795283",
+  "status": "completed",
+  "value": "216700.00",
+  "summary": "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+  "artifact_sha256": "7dbdbffbc30b141f75ae4a222b8570479f861a4c75f021e1aaf9dbbc75ccf07c",
+  "source": {
+    "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+    "row_count": 8,
+    "source_version": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+  },
+  "serving_identity": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-01T12:37:40.794552+00:00",
+    "identity": {
+      "pid": 17620,
+      "started_at": "2026-11-01T12:36:20.270179+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+      "git_commit": "a49b854ce660",
+      "source_id": "a49b854ce660",
+      "instance_id": "a49b854ce660.17620.1793536583",
+      "revision": "a49b854ce66014bfa3bae45c850940baa4ccac96",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-01T12:36:23.075579+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/atom.db",
+      "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 1549.18
+  }
+}

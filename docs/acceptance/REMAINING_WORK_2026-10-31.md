@@ -21,6 +21,12 @@ four frontend tests across two suites passed; the unforced teaching and guided
 rule-authoring findings are closed within the tested scope. The guided smoke's
 coordinate-click fallback means keyboard/accessibility coverage is not claimed.
 
+**Executable-input boundary (2026-11-01):** step inputs now preserve exact
+strings up to 20,000 UTF-8 bytes and reject over-limit strings, collections,
+keys, nesting and total payload size with a 422 before run creation. Boundary
+tests cover exact-limit, 20,001-byte, multibyte, collection and nesting cases;
+the targeted assignment suites pass (40 tests).
+
 This list separates **completed mechanisms** from what a practically usable
 integrated product still needs. It is not a claim that the goals are met.
 
@@ -29,7 +35,7 @@ integrated product still needs. It is not a claim that the goals are met.
 | 1 | Employee + method + unfamiliar source, second domain | Two-domain deterministic acceptance; browser journey | — | — | Keep as regression | `two-domain-autonomous-journey*` | none |
 | 2 | Teaching method/exception/qualification/format/protocol/correction/transfer | Composite teaching journey, correction + restart tests, unforced stock-build teaching smoke 9/9 | — | — | Keep as regression | `employee-execution-06d80f834`, `employee-execution-unforced-teaching/` | none |
 | 3 | Unfamiliar columns/units; confirm/correct mapping; resume | Browser recovery 5/5 (ambiguous mapping, revision refusal) | — | — | Keep as regression | `assignment-recovery-browser` | none |
-| 4 | Upload/connect **authorized** data and retrieve for work | Live Microsoft read-only on the current candidate: normal resolver, `/me`, message/attachment reads, product materialization, source picker, assignment retrieval `216700.00`, restart/reopen | Declared Outlook workbook attachment only; no write/other-connector claim | — | No further local action; preserve `live_qualification_20261101/part-a/` | `live_qualification_20261101/part-a/` | None for the declared read-only scope |
+| 4 | Upload/connect **authorized** data and retrieve for work | Live Microsoft read-only on the current candidate: normal resolver, `/me`, message/attachment reads, product materialization, source picker, assignment retrieval `216700.00`, restart/reopen; normal product `email_ingest_message` API connector entry point refreshed the catalog and returned `216700.00` (`part-a-connector/`) | Declared Outlook workbook attachment only; no write/other-connector claim | — | No further local action; preserve `live_qualification_20261101/part-a/` | `live_qualification_20261101/part-a/`, `live_qualification_20261101/part-a-connector/` | None for the declared read-only scope |
 | 5 | Large/multi-sheet workbooks, supported formulas, calculate with citations | **Closed by executed evidence**: 24-sheet workbook (547 materialized rows, 500 data rows), leading-zero IDs, blanks, formula text, cross-sheet `SUM`, edit → recalculation → dependent cells, export and restart/reopen (`employee-execution-large-workbook/`) | General Excel compatibility beyond the published subset; genuine workbook through the live connector (blocked by 4) | — | No further local action for the fixture; connector run after Part A authorization | `employee-execution-large-workbook/` | Owner: Microsoft read-only access for the live workbook |
 | 6 | Canvas create/bind/calculate/edit/export/reload | Capability adapter + XLSX readback; atomic approval; clarification | — | — | Keep as regression | `canvas-capability/`, assessment evidence | none |
 | 7 | Grounded selection, calculation and **assessment** | **Deterministic taught-rule judgment qualified**: V1 **18/18**, V3 **19/19**, safe abstention passed (`employee-execution-deterministic-judgment/`). **Guided rule authoring** now builds, saves and assesses rules through the normal canvas panel without manifest JSON (`employee-execution-guided-rule-authoring/`) | Discretionary model judgment remains unqualified; guided rules cover the validator's supported vocabulary, not arbitrary prose | — | Keep as regression; optional funded model only for discretionary cases | `employee-execution-deterministic-judgment/`, `employee-execution-guided-rule-authoring/` | Optional funded model for discretionary cases only |

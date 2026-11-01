@@ -220,6 +220,8 @@ def _clean_step_inputs(value: Any, *, depth: int = 0) -> Any:
 
 
 def _validated_step_inputs(value: Any) -> Dict[str, Any]:
+    if value is None:
+        return {}
     cleaned = _clean_step_inputs(value)
     if not isinstance(cleaned, dict):
         raise StepInputError("step inputs must be an object")

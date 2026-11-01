@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "response": {
+    "success": true,
+    "data": {
+      "result": {
+        "success": true,
+        "status": "ingested",
+        "provider": "outlook",
+        "message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=",
+        "subject": "In-Stock Press Brakes Available for Fast Delivery From HARSLE",
+        "attachments": 2,
+        "message": "Email ingested into memory (body + attachments)"
+      }
+    },
+    "timestamp": "2026-11-01T12:37:20.922220+00:00",
+    "message": "Tool executed successfully"
+  }
+}

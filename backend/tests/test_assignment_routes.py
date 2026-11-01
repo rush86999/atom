@@ -1844,3 +1844,26 @@ def test_standing_authority_requires_a_real_bound():
     assert grant["recipients"] == ["a@example.invalid"]
     assert grant["used_effects"] == 0
     assert grant["status"] == "active"
+
+
+def test_over_limit_outbound_body_is_rejected_before_run_creation(
+        route_env, tmp_path, monkeypatch):
+    """A 20,001-byte executable body is a 422, not a truncated 20,000 body."""
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "1")
+    source = tmp_path / "records.csv"
+    source.write_text("Item,Price\nA-1,10\nA-2,20\n", encoding="utf-8")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Oversized outbound payload must be refused",
+        "sources": [{
+            "kind": "workbook", "path": str(source),
+            "sheet": "records", "columns": ["Item", "Price"],
+        }],
+        "outbound": {
+            "to": ["owner@example.invalid"],
+            "subject": "Oversized body",
+            "body": "x" * 20_001,
+            "canvas_id": "canvas-oversized",
+        },
+    })
+    assert response.status_code == 422
+    assert "20000 UTF-8 bytes" in response.text
