@@ -79,6 +79,7 @@ def main() -> int:
     ap.add_argument("--body-file", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--db", required=True)
+    ap.add_argument("--user-id", default="b83eb105-d9e7-41a5-83e3-a632b15b9ee3")
     ap.add_argument("--source-file", default="release_update_workbook_c912375de.csv")
     ap.add_argument("--source-sheet", default="release_update_workbook_c912375de")
     ap.add_argument("--run-id")
@@ -163,11 +164,15 @@ def main() -> int:
         if not source_row:
             return 1
 
-        created = api_call(args.api_base, "/api/canvas", token_api,
-                           {"title": "Authorized live qualification send",
-                            "canvas_type": "document"}, "POST")
+        created = api_call(args.api_base, "/api/canvas/email/create", token_api, {
+            "user_id": args.user_id,
+            "subject": SUBJECT,
+            "recipients": [ACCOUNT],
+            "layout": "compose",
+        }, "POST")
         canvas_id = created["canvas_id"]
-        record("owned canvas created for the prepared send", bool(canvas_id), canvas_id)
+        record("owned email canvas created for the prepared send",
+               bool(canvas_id) and created.get("success") is True, canvas_id)
 
         now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=24)

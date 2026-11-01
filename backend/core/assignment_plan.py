@@ -166,6 +166,31 @@ def _clean_dict(value: Any, *, limit: int = 60) -> Dict[str, Any]:
     return _json_safe(dict(list(value.items())[:limit]))
 
 
+STEP_INPUT_MAX_STRING = 20_000
+
+
+def _clean_step_inputs(value: Any, *, depth: int = 0) -> Any:
+    """Bound step inputs without truncating a real email body.
+
+    ``_json_safe`` keeps diagnostics compact (1,000 chars). Step inputs are
+    executable payloads: an outbound body plus a stored signature can exceed
+    that, and truncating it would make the durable operation binding differ
+    from the bytes the adapter sends. The 20 KiB bound still sits inside the
+    operation binding's 32 KiB limit.
+    """
+    if depth > 4:
+        return "…"
+    if isinstance(value, dict):
+        return {str(key)[:80]: _clean_step_inputs(item, depth=depth + 1)
+                for key, item in list(value.items())[:60]}
+    if isinstance(value, (list, tuple)):
+        return [_clean_step_inputs(item, depth=depth + 1)
+                for item in list(value)[:80]]
+    if value is None or isinstance(value, (int, float, bool)):
+        return value
+    return str(value)[:STEP_INPUT_MAX_STRING]
+
+
 def new_teaching_snapshot(
     *,
     revision: str = "",
@@ -265,7 +290,7 @@ def new_step(
         "operation_type": op_type,
         "adapter": adapter_name,
         "depends_on": _clean_list(depends_on, limit=40, text_limit=80),
-        "inputs": _clean_dict(inputs),
+        "inputs": _clean_step_inputs(inputs),
         "instruction": _bounded(instruction, 4000),
         "required": bool(required),
         "effect": effect,
