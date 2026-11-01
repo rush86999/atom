@@ -441,3 +441,85 @@ def test_revocation_withdraws_retrieval_for_known_rows(monkeypatch):
     assert result["checkpoint"]["coverage"] == "revoked"
     assert result["checkpoint"]["retrieval_authorization"] == "withdrawn"
     assert tombstoned == ["a", "b"]
+
+
+def test_duplicate_boundary_records_are_deduped_in_final_set(monkeypatch):
+    service = FakeStateService()
+    _patch_state(monkeypatch, service)
+    _patch_index(monkeypatch)
+    pages = {
+        None: _page("a", "b", cursor="cursor-1", has_more=True),
+        "cursor-1": _page("b", "c", cursor=None, has_more=False),
+    }
+
+    async def fake_read(provider, **kwargs):
+        return pages[kwargs.get("cursor")]
+
+    monkeypatch.setattr(checkpoints, "_read_page", fake_read)
+    common = dict(provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
+                  tenant_id="t1", folder_id="folder-1",
+                  provider_workspace_id="provider-ws")
+    asyncio.run(checkpoints.sync_drive_page(**common))
+    result = asyncio.run(checkpoints.sync_drive_page(**common))
+
+    assert result["checkpoint"]["coverage"] == "complete"
+    assert result["checkpoint"]["checkpoint"]["known_ids"] == ["a", "b", "c"]
+    assert result["checkpoint"]["checkpoint"]["pages_completed"] == 2
+
+
+def test_same_external_id_modified_name_updates_one_row(monkeypatch):
+    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+    handler = FakeIndexHandler()
+    monkeypatch.setattr(IntegrationMemoryIndexer, "_handler", lambda self: handler)
+    service = FakeStateService()
+    _patch_state(monkeypatch, service)
+    calls = {"n": 0}
+
+    async def fake_read(provider, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"status": "success", "provider": "zoho_workdrive",
+                    "items": [{"id": "file-1", "name": "old.pdf",
+                               "type": "file", "size": 1,
+                               "modified_at": "2026-11-01",
+                               "version": "1"}],
+                    "next_cursor": None, "has_more": False,
+                    "coverage": "page_complete"}
+        return {"status": "success", "provider": "zoho_workdrive",
+                "items": [{"id": "file-1", "name": "new.pdf",
+                           "type": "file", "size": 2,
+                           "modified_at": "2026-11-02",
+                           "version": "2"}],
+                "next_cursor": None, "has_more": False,
+                "coverage": "page_complete"}
+
+    monkeypatch.setattr(checkpoints, "_read_page", fake_read)
+    common = dict(provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
+                  tenant_id="t1", folder_id="folder-1",
+                  provider_workspace_id="provider-ws")
+    asyncio.run(checkpoints.sync_drive_page(**common, fresh=True))
+    asyncio.run(checkpoints.sync_drive_page(**common, fresh=True))
+
+    assert len(handler.rows) == 1
+    row = next(iter(handler.rows.values()))
+    assert row["metadata"]["file_name"] == "new.pdf"
+    assert "new.pdf" in row["text"]
+    assert row["extra_columns"]["freshness_status"] == "fresh"
+
+
+def test_same_filename_in_two_providers_keeps_distinct_identity(monkeypatch):
+    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+    handler = FakeIndexHandler()
+    monkeypatch.setattr(IntegrationMemoryIndexer, "_handler", lambda self: handler)
+    indexer = IntegrationMemoryIndexer("ws-1")
+    rows = [{"external_id": "shared-1", "kind": "file", "entity_type": "file",
+             "name": "price-list.csv", "path": "folder", "size": 1,
+             "modified": "2026-11-01"}]
+    asyncio.run(indexer.index_rows("zoho_workdrive", rows))
+    asyncio.run(indexer.index_rows("onedrive", rows))
+
+    assert len(handler.rows) == 2
+    assert "idx_zoho_workdrive_shared-1" in handler.rows
+    assert "idx_onedrive_shared-1" in handler.rows
