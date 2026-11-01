@@ -388,3 +388,13 @@ now refuses an unknown vendor by default (obligation, not a silent create).
 **Verified final joint HEAD:** `b9c8ba654` — combined assignment + connected
 suite **202 passed** after the receipt identity sync. Agent 2 branch
 `ddcf2a787`, Agent 1 branch `acd86a2aa`. All worktrees clean.
+
+**Repair batch addendum (2026-11-01):** Agent 2 readback repair is in
+`codex/brennan-knowledge-accounting-20261101` at `d5a30df26` (plus canvas task
+note `931acdadf`). It adds complete-object verification for estimates/bills,
+sparse-vs-mismatch semantics, one bounded readback retry without a second
+create, and unit/action controls in
+`backend/tests/unit/test_brennan_commercial_readback.py`. Joint worktree has
+temporary integration tests for the real connected handler and document-byte
+data flow; these are being finalized after Agent 1 commits the pricing
+obligation/executor repairs. No live provider call.
