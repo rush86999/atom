@@ -196,12 +196,15 @@ class AIDocumentProcessor:
             return None
 
     def _get_or_create_entity(self, workspace_id: str, name: str,
-                              entity_type: EntityType) -> Entity:
+                              entity_type: EntityType,
+                              *, allow_create: bool = False) -> Entity:
         """Resolve exactly one entity by exact normalized name.
 
         The old ``ilike('%name%')`` matched "Acme" to "Acme Holdings" and
         silently attached the document to the wrong vendor.  Two exact-name
-        rows are ambiguous and must be resolved by the owner.
+        rows are ambiguous and must be resolved by the owner.  Creating an
+        unknown vendor/customer is an explicit decision, not an extraction
+        side effect, so ``allow_create`` defaults to false.
         """
         normalized = str(name or "").strip()
         if not normalized:
@@ -218,6 +221,11 @@ class AIDocumentProcessor:
                 f"multiple {entity_type.value} identities match {normalized!r}")
         if matches:
             return matches[0]
+        if not allow_create:
+            raise DocumentFactError(
+                "entity_name",
+                f"no {entity_type.value} identity matches {normalized!r}; "
+                "confirm or create it explicitly")
 
         logger.info(f"Creating new {entity_type} entity: {normalized}")
         entity = Entity(

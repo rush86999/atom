@@ -658,9 +658,12 @@ class TestAIDocumentProcessor:
         assert db.added == [record]
         assert db.commits == 1
 
-    def test_invoice_success_with_entity_created(self):
+    def test_invoice_success_with_existing_entity(self):
         doc = _mk_doc(extracted_data={"raw_text": "data"})
-        db = _FakeDB({doc_mod.Document: [doc], doc_mod.Entity: []})
+        db = _FakeDB({
+            doc_mod.Document: [doc],
+            doc_mod.Entity: [SimpleNamespace(id="e-1")],
+        })
         extraction = {
             "entity_name": "New Customer Inc",
             "number": "INV-9",
@@ -675,12 +678,25 @@ class TestAIDocumentProcessor:
                 record = asyncio.run(svc.process_document("ws1", "doc-1", doc_type="invoice"))
         assert record.invoice_number == "INV-9"
         assert doc.invoice_id == record.id
-        assert len(db.added) == 2
-        assert db.flushes == 1
-        created = db.added[0]
-        assert created.name == "New Customer Inc"
-        assert created.workspace_id == "ws1"
-        assert record.customer_id == created.id
+        assert db.added == [record]
+        assert db.flushes == 0
+        assert record.customer_id == "e-1"
+
+    def test_unknown_entity_is_an_obligation_not_a_silent_create(self):
+        doc = _mk_doc(extracted_data={"raw_text": "data"})
+        db = _FakeDB({doc_mod.Document: [doc], doc_mod.Entity: []})
+        extraction = {
+            "entity_name": "Unknown Vendor",
+            "number": "B-9", "date": "2026-03-01",
+            "amount": "10.00", "currency": "USD",
+        }
+        with patch.object(doc_mod, "get_automation_settings", return_value=self._settings(True)):
+            with self._extract(extraction):
+                svc = self._processor(db)
+                record = asyncio.run(svc.process_document("ws1", "doc-1"))
+        assert record is None
+        assert svc.last_obligations[0]["field"] == "entity_name"
+        assert db.added == []
 
     def test_ai_extract_dict_output(self):
         db = _FakeDB()
