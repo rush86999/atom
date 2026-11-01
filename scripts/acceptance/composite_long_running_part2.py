@@ -33,6 +33,14 @@ def login(page, frontend: str, password: str) -> None:
 BACKEND = os.environ.get("ATOM_JOURNEY_BACKEND", "http://127.0.0.1:8071").rstrip("/")
 
 
+def dismiss_overlays(page) -> None:
+    for _ in range(4):
+        if page.locator('[role="dialog"]').count() == 0:
+            return
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(350)
+
+
 def api(page, path: str):
     token = page.evaluate(
         "localStorage.getItem('auth_token') || localStorage.getItem('token')")

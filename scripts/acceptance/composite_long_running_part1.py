@@ -28,6 +28,7 @@ def login(page, frontend: str, password: str) -> None:
     page.evaluate("sessionStorage.setItem('atom.onboarding.dismissed', '1')")
     page.reload(wait_until="domcontentloaded")
     page.wait_for_timeout(1000)
+    dismiss_overlays(page)
 
 
 BACKEND = os.environ.get("ATOM_JOURNEY_BACKEND", "http://127.0.0.1:8071").rstrip("/")
