@@ -190,6 +190,22 @@ def _bounded(value: Any, limit: int = 500) -> str:
     return str(value or "")[:limit]
 
 
+def _gap_binding_key(value: Any) -> str:
+    """Stable identity for a durable obligation.
+
+    Legacy gaps have no key and keep the original step/concept dedupe. A
+    line-scoped quote gap carries one so two lines or two missing fields in
+    the same step cannot collapse into a single question.
+    """
+    if not isinstance(value, dict):
+        return ""
+    inputs = value.get("inputs")
+    key = value.get("binding_key")
+    if not key and isinstance(inputs, dict):
+        key = inputs.get("binding_key")
+    return str(key or "").strip()
+
+
 async def _invoke(func: Callable[..., Any], *args: Any) -> Any:
     result = func(*args)
     if inspect.isawaitable(result):
@@ -3404,6 +3420,26 @@ class AssignmentExecutor:
     ) -> Dict[str, Any]:
         artifact = result.get("artifact") if isinstance(
             result.get("artifact"), dict) else {}
+        remote_id = str(
+            result.get("remote_id") or result.get("provider_ref") or "")
+        provider_ref = str(
+            result.get("provider_ref") or remote_id)
+        provider_receipt = result.get("provider_receipt")
+        verification = result.get("verification")
+        conflicts = result.get("conflicts")
+        remote_identity = {
+            "provider": result.get("provider"),
+            "operation": result.get("operation"),
+            "remote_id": remote_id,
+            "provider_ref": provider_ref,
+            "payload_sha256": result.get("payload_sha256"),
+            "provider_receipt": _json_safe(provider_receipt),
+            "verification": _json_safe(verification),
+            "conflicts": _json_safe(conflicts or []),
+        }
+        if not any(value not in (None, "", [], {}) for value in
+                   remote_identity.values()):
+            remote_identity = None
         return {
             "receipt_version": 1,
             "operation_id": operation.get("operation_id"),
@@ -3431,8 +3467,10 @@ class AssignmentExecutor:
             else None,
             "outbound": {
                 "provider_state": result.get("provider_state"),
-                "provider_ref": result.get("provider_ref"),
+                "provider_ref": provider_ref or None,
+                "remote_id": remote_id or None,
             } if step.get("effect") == "external" else None,
+            "remote_identity": remote_identity,
             "readback": {
                 "revision": artifact.get("revision"),
                 "sha256": artifact.get("sha256"),
@@ -5201,6 +5239,31 @@ class AssignmentExecutor:
             assignment = self._settle_step_cost(
                 assignment, run_id, step, operation_id, cost_bound,
                 "uncertain")
+            # Preserve everything the provider did report -- especially a
+            # readback-conflict remote identity -- so reconciliation settles
+            # the ORIGINAL operation rather than guessing or resending.
+            uncertain_execution = _json_safe({
+                "status": "uncertain",
+                "summary": _bounded(result.get("summary") or "", 500),
+                "evidence": result.get("evidence") or [],
+                "data": result.get("data"),
+                "provider_ref": result.get("provider_ref"),
+                "remote_id": result.get("remote_id"),
+                "provider": result.get("provider"),
+                "operation": result.get("operation"),
+                "provider_receipt": result.get("provider_receipt"),
+                "payload_sha256": result.get("payload_sha256"),
+                "verification": result.get("verification"),
+                "conflicts": result.get("conflicts") or [],
+                "at": _utc_now_iso(),
+            })
+            try:
+                self.lifecycle.attach_operation_field(
+                    run_id, operation_id, "execution", uncertain_execution)
+            except Exception as exc:  # noqa: BLE001 — receipt still records
+                logger.warning(
+                    "assignment %s: uncertain execution attach failed: %s",
+                    run_id, exc)
             self.lifecycle.record_uncertain_outcome(
                 run_id, operation_id,
                 reason=_bounded(result.get("reason") or "provider outcome "
@@ -5221,6 +5284,35 @@ class AssignmentExecutor:
                 "updated_at": _utc_now_iso()})
             self._persist_assignment(
                 run_id, assignment, "external outcome uncertain")
+            return
+        if outcome == "unavailable":
+            # A read that could not be performed is a failure, not an empty
+            # result: never complete the step or fabricate data for it.
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "failed_before_effect")
+            try:
+                self.lifecycle.transition_operation(
+                    run_id, operation_id, "failed")
+            except TaskLifecycleError:
+                pass
+            error_class = _bounded(
+                result.get("error_class") or "source_unavailable", 120)
+            self._attach_receipt(
+                run_id, operation, step, result,
+                observed_status="unavailable",
+                error_class=error_class)
+            assignment = self._mark_step(assignment, step["step_id"], {
+                "status": "failed",
+                "failure": {
+                    "reason": "source_unavailable",
+                    "message": _bounded(
+                        result.get("message")
+                        or "the requested source was unavailable", 500),
+                },
+                "updated_at": _utc_now_iso()})
+            self._persist_assignment(
+                run_id, assignment, "source unavailable")
             return
         if outcome == "skipped":
             assignment = self._settle_step_cost(
@@ -5346,6 +5438,7 @@ class AssignmentExecutor:
             "resume_on": "answer",
             "since": _utc_now_iso(),
         }
+        binding_key = _gap_binding_key(gap)
         existing = [
             question for question in
             (record.get("task_revision") or {}).get("unresolved") or []
@@ -5354,6 +5447,7 @@ class AssignmentExecutor:
             and question.get("step_id") == step.get("step_id")
             and str(question.get("concept") or "")
             == str(gap.get("concept") or "")
+            and _gap_binding_key(question) == binding_key
         ]
         if existing:
             question_id = existing[0]["question_id"]
@@ -5375,6 +5469,7 @@ class AssignmentExecutor:
                 "resolver": gap.get("resolver") or "",
                 "step_id": step.get("step_id"),
                 "waiting": waiting,
+                "binding_key": binding_key,
             }
             self.lifecycle.apply_transition(run_id, {
                 "kind": "record_unresolved",
@@ -5389,7 +5484,8 @@ class AssignmentExecutor:
                 if (item.get("status") == "open"
                         and item.get("step_id") == step.get("step_id")
                         and str(item.get("concept") or "")
-                        == str(gap.get("concept") or "")):
+                        == str(gap.get("concept") or "")
+                        and _gap_binding_key(item) == binding_key):
                     question_id = item["question_id"]
             question_id = question_id or str(gap.get("question_id") or "")
 
@@ -5487,6 +5583,132 @@ class AssignmentExecutor:
 # ---------------------------------------------------------------------------
 
 
+_MUTATING_ACTION_EFFECTS = {
+    "write", "create", "update", "delete", "send", "execute",
+    "graph_updated", "record_created",
+}
+
+
+def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
+    effects = [
+        str(item.get("effect") or "").strip().lower()
+        for item in (getattr(action, "effects", None) or [])
+        if isinstance(item, dict)
+    ]
+    step_effect = str((context.get("step") or {}).get("effect") or "")
+    if step_effect == "external":
+        return True
+    return any(effect in _MUTATING_ACTION_EFFECTS for effect in effects)
+
+
+def _action_result_outcome(result: Any, *, mutating: bool) -> str:
+    """Classify a returned action envelope without inventing an outcome.
+
+    Returns ``applied``, ``failed`` (trusted proof of no effect),
+    ``uncertain`` (effect may have landed) or ``unavailable`` (a read could
+    not be performed). A malformed or internally contradictory mutation is
+    uncertain: an absent remote id is not proof that nothing landed.
+    """
+    if not isinstance(result, dict):
+        return "uncertain" if mutating else "unavailable"
+
+    action_result = str(result.get("action_result") or "").strip().lower()
+    status = str(result.get("status") or "").strip().lower()
+    success = result.get("success")
+    verification = result.get("verification") if isinstance(
+        result.get("verification"), dict) else {}
+    verification_status = str(
+        verification.get("status") or "").strip().lower()
+    verified_flag = verification.get("verified")
+    has_error = bool(result.get("error") or result.get("error_kind"))
+
+    success_status = {"success", "applied", "completed", "ok", "settled"}
+    failure_status = {
+        "failed", "error", "refused", "rejected", "duplicate",
+        "not_applied", "proven_not_applied",
+    }
+    uncertain_status = {"uncertain", "conflict", "unknown", "pending"}
+    unavailable_status = {"unavailable"}
+    verified_status = {"verified", "complete", "applied", "success", "ok"}
+    failed_verification = {
+        "failed", "not_applied", "proven_not_applied", "mismatch",
+        "conflict", "incomplete", "unavailable", "unknown",
+    }
+
+    # Contradictions are never resolved in favour of "nothing happened".
+    contradictory = False
+    if action_result == "applied" and (
+            status in failure_status | uncertain_status | unavailable_status
+            or success is False
+            or verification_status in failed_verification
+            or verified_flag is False):
+        contradictory = True
+    if action_result in ("proven_not_applied", "not_applied") and (
+            status in success_status
+            or success is True
+            or verification_status in verified_status):
+        contradictory = True
+    if status in success_status and (
+            action_result in failure_status | uncertain_status
+            | unavailable_status
+            or success is False
+            or verification_status in {
+                "failed", "not_applied", "mismatch", "conflict",
+                "incomplete", "unavailable"}
+            or verified_flag is False):
+        contradictory = True
+    if status in failure_status and action_result == "applied":
+        contradictory = True
+    if success is True and has_error:
+        contradictory = True
+    if success is False and status in success_status:
+        contradictory = True
+    if contradictory:
+        if not mutating and "unavailable" in {
+                action_result, status, verification_status}:
+            return "unavailable"
+        return "uncertain" if mutating else "failed"
+
+    if action_result:
+        if action_result == "applied":
+            return "applied"
+        if action_result in ("proven_not_applied", "not_applied"):
+            return "failed"
+        if action_result in ("uncertain", "conflict", "unknown"):
+            return "uncertain"
+        if action_result in unavailable_status:
+            return "uncertain" if mutating else "unavailable"
+        return "uncertain" if mutating else "failed"
+
+    if verification_status:
+        if verification_status in ("conflict", "mismatch"):
+            return "uncertain"
+        if verification_status in ("failed", "not_applied",
+                                   "proven_not_applied"):
+            return "uncertain" if mutating else "failed"
+        if verification_status in ("incomplete", "unavailable", "unknown"):
+            return "uncertain" if mutating else "unavailable"
+        if verified_flag is False:
+            return "uncertain" if mutating else "failed"
+
+    if status in ("conflict", "uncertain", "unknown", "pending"):
+        return "uncertain"
+    if status in unavailable_status:
+        return "uncertain" if mutating else "unavailable"
+    if status in success_status:
+        return "applied"
+    if status in failure_status:
+        # A bare failure status is not proof that an outbound mutation did
+        # not land; only the explicit action_result proof can say that.
+        return "uncertain" if mutating else "failed"
+    if success is False or has_error:
+        return "uncertain" if mutating else "failed"
+    if not mutating:
+        # Legacy read actions return a bare payload with no status.
+        return "applied" if result else "unavailable"
+    return "uncertain"
+
+
 @register_assignment_adapter(
     "action.registry",
     description="Dispatch one registered action through the shared registry",
@@ -5536,6 +5758,7 @@ async def _action_registry_adapter(
             "error_class": "precondition_failed",
             "evidence": failures,
         }
+    mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
             name, arguments, execution_context)
@@ -5543,38 +5766,85 @@ async def _action_registry_adapter(
         # A provider action that may have applied must reconcile through the
         # shared operation record; it is never downgraded to a plain failure.
         raise
-    except Exception as exc:  # noqa: BLE001 — receipt keeps the failure
+    except ExternalOutcomeNotApplied as exc:
+        return {
+            "status": "failed",
+            "message": _bounded(str(exc), 500),
+            "error_class": "proven_not_applied",
+        }
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — classify by effect possibility
+        if mutating:
+            # The handler was invoked; an ordinary runtime/parse error does
+            # not prove the provider rejected the effect.
+            raise ExternalOutcomeUnknown(
+                f"registered action {name} raised {type(exc).__name__} "
+                f"after dispatch; effect may have landed",
+                evidence=_bounded(f"{type(exc).__name__}: {exc}", 500),
+            ) from exc
         return {
             "status": "failed",
             "message": _bounded(str(exc), 500),
             "error_class": "action_dispatch_error",
         }
-    from core.connected_actions import action_executor_outcome
 
-    outcome = action_executor_outcome(result)
+    outcome = _action_result_outcome(result, mutating=mutating)
+    payload = result if isinstance(result, dict) else {}
+    remote_id = str(
+        payload.get("remote_id") or payload.get("provider_ref")
+        or payload.get("id") or "")
+    provider_ref = str(
+        payload.get("provider_ref") or remote_id)
+    identity = {
+        "provider": payload.get("provider"),
+        "operation": payload.get("operation"),
+        "remote_id": remote_id,
+        "provider_ref": provider_ref,
+        "payload_sha256": payload.get("payload_sha256"),
+        "provider_receipt": _json_safe(payload.get("provider_receipt")),
+        "verification": _json_safe(payload.get("verification")),
+    }
     if outcome == "applied":
         return {
             "status": "applied",
             "summary": f"registered action {name} completed",
             "data": _json_safe(result),
             "evidence": [{"kind": "action_registry", "action": name}],
+            **identity,
         }
     if outcome == "uncertain":
         return {
             "status": "uncertain",
             "reason": (
                 f"registered action {name} reported "
-                f"{result.get('action_result') or 'an unknown outcome'}"),
+                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
             "evidence": _bounded(str(result), 500),
             "data": _json_safe(result),
+            "conflicts": _json_safe(payload.get("conflicts") or []),
+            **identity,
+        }
+    if outcome == "unavailable":
+        return {
+            "status": "unavailable",
+            "message": (
+                f"registered action {name} could not read the requested "
+                "source"),
+            "error_class": str(
+                payload.get("error_kind") or "source_unavailable"),
+            "evidence": _bounded(str(result), 500),
+            "data": _json_safe(result),
+            **identity,
         }
     return {
         "status": "failed",
         "message": (
             f"registered action {name} did not apply: "
-            f"{result.get('error') or result.get('status') or 'refused'}"),
-        "error_class": str(result.get("error_kind") or "proven_not_applied"),
+            f"{payload.get('error') or payload.get('status') or 'refused'}"),
+        "error_class": str(
+            payload.get("error_kind") or "proven_not_applied"),
         "data": _json_safe(result),
+        **identity,
     }
 
 

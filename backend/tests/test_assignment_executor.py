@@ -3168,3 +3168,578 @@ def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
     text = "\n".join(p.text for p in docx.Document(
         str(tmp / "expense-review.docx")).paragraphs)
     assert "50.00" in text
+
+
+def _discount_clarification_steps():
+    rules = [
+        {"name": "general", "rate": "0.05"},
+        {"lesson_id": "licensed", "revision": 1,
+         "name": "licensed customer",
+         "when": {"qualification": "licensed"}, "rate": "0.10"},
+    ]
+    return [
+        new_step(
+            step_id="calculate",
+            title="Calculate the line items",
+            operation_type="calculate",
+            adapter="quote.calculate",
+            inputs={
+                "line_items": [{
+                    "item_id": "B",
+                    "quantity": "1",
+                    "unit": "each",
+                    "pack_size": "1",
+                    "unit_price": "100.00",
+                    "price_basis": "contract",
+                    "currency": "USD",
+                    "category": "B",
+                    "source_ref": {
+                        "resource_id": "price-list",
+                        "source_version": "v1",
+                    },
+                }],
+                "currency": "USD",
+                "freight": "0",
+                "tax": {"basis": "none"},
+                "discount_rules": rules,
+                "as_of": "2026-11-01",
+                "rounding": "half_up",
+                "scale": 2,
+                "rounding_authority": "customer agreement",
+                "source_evidence": [{
+                    "resource_id": "price-list",
+                    "source_version": "v1",
+                }],
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="deliverable-1",
+            title="Render the quote",
+            operation_type="present",
+            adapter="artifact.document",
+            depends_on=["calculate"],
+            inputs={
+                "path": "",
+                "title": "Customer quote",
+                "content": (
+                    "## Summary\n\nTotal: ${calculate.value} "
+                    "${calculate.unit}"),
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="email-draft",
+            title="Prepare the quote email",
+            operation_type="outbound",
+            adapter="email.draft",
+            depends_on=["deliverable-1"],
+            inputs={
+                "to": ["customer@example.invalid"],
+                "subject": "Customer quote",
+                "body": "Total ${calculate.value} ${calculate.unit}",
+            },
+            effect="local",
+        ),
+    ]
+
+
+def test_discount_clarification_is_durable_and_resumes_the_same_work(
+        env, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = _discount_clarification_steps()
+    steps[1]["inputs"]["path"] = str(env["tmp"] / "quote.docx")
+    objective = "Prepare the Acme quote with the governing discount"
+    run_id, _plan = _create(
+        env, objective=objective, steps=steps, teaching=_teaching(),
+        authorized_actions=["calculate", "present", "edit"])
+    initial_question = {}
+
+    first = _run(env["executor"].execute(run_id))
+    assert first["assignment"]["status"] == "waiting", first
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert assignment["objective"] == objective
+    calc = step_by_id(assignment, "calculate")
+    assert calc["status"] == "waiting"
+    assert calc.get("result") is None
+    assert step_by_id(assignment, "deliverable-1")["status"] == "pending"
+    assert step_by_id(assignment, "email-draft")["status"] == "pending"
+    assert not (env["tmp"] / "quote.docx").exists()
+
+    record = env["lifecycle"].get_task(run_id)
+    gap = next(item for item in record["task_revision"]["unresolved"]
+               if item["status"] == "open")
+    initial_question = gap
+    binding = gap["inputs"]["quote_discount"]
+    assert gap["concept"] == "discount_scope"
+    assert binding["line_item_id"] == "B"
+    assert binding["missing_fields"] == ["qualification"]
+    assert binding["teaching_revision"] == "teach-r1"
+    assert [rule["lesson_id"] for rule in binding["candidate_rules"]] == [
+        None, "licensed"]
+    assert binding["candidate_rules"][1]["revision"] == 1
+    assert binding["accepted_context"]["category"] == "B"
+    assert binding["accepted_context"]["currency"] == "USD"
+    assert binding["assignment_id"] == assignment["assignment_id"]
+    assert any(item["source_version"] == "v1"
+               for item in binding["source_versions"])
+    assignment_id = assignment["assignment_id"]
+
+    # Restart while the obligation is open: same question, no calculation.
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "waiting", again
+    still_open = [
+        item for item in
+        (env["lifecycle"].get_task(run_id)["task_revision"]["unresolved"])
+        if item["status"] == "open"]
+    assert [item["question_id"] for item in still_open] == [
+        initial_question["question_id"]]
+    assert env["lifecycle"].get_assignment(run_id)["assignment_id"] == (
+        assignment_id)
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "calculate").get(
+            "result") is None
+
+    first_answer = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed",
+        resolved_by="pricing owner", evidence="accepted customer agreement")
+    duplicate = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed",
+        resolved_by="pricing owner", evidence="accepted customer agreement")
+    assert first_answer["status"] == "resolved"
+    assert duplicate["status"] == "already_resolved"
+
+    completed = _run(restarted.execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert assignment["objective"] == objective
+    assert assignment["assignment_id"] == assignment_id
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "90.00"
+    assert calc["result"]["rows"][0]["discount_rule"]["lesson_id"] == (
+        "licensed")
+    attempts_after_resolution = calc["attempts"]
+    assert step_by_id(assignment, "deliverable-1")["status"] == "applied"
+    assert step_by_id(assignment, "email-draft")["status"] == "applied"
+    assert (env["tmp"] / "quote.docx").exists()
+
+    # A repeated confirmation does not reopen or re-run the work.
+    operations = len(env["lifecycle"].get_task(run_id)["operations"])
+    duplicate_again = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed")
+    assert duplicate_again["status"] == "already_resolved"
+    settled = _run(restarted.execute(run_id))
+    assert settled["assignment"]["status"] == "completed"
+    assert len(env["lifecycle"].get_task(run_id)["operations"]) == operations
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "calculate")[
+            "attempts"] == attempts_after_resolution
+
+
+def test_uncertain_action_envelope_blocks_dependents_until_reconciled(
+        env, monkeypatch):
+    """A returned uncertain envelope is not an applied provider effect.
+
+    The controlled action stands in for the real connected estimate handler;
+    it returns the exact ``uncertain`` result envelope rather than raising.
+    """
+    from core.action_registry import action_registry
+
+    suffix = uuid.uuid4().hex[:8]
+    create_name = f"test.estimate.uncertain.{suffix}"
+    send_name = f"test.outlook.send.{suffix}"
+    create_calls = []
+    send_calls = []
+
+    async def create_estimate(args, context):
+        create_calls.append({
+            "args": copy.deepcopy(args),
+            "run_id": context.get("run_id"),
+            "assignment_id": context.get("assignment_id"),
+        })
+        return {
+            "status": "uncertain",
+            "action_result": "uncertain",
+            "verification": {"status": "incomplete"},
+            "remote_id": "est-77",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
+            "payload_sha256": "payload-sha-77",
+            "provider_receipt": {
+                "operation_id": "provider-op-77",
+                "remote_id": "est-77",
+            },
+            "data": {"estimate_id": "est-77", "total": "362.50"},
+            "conflicts": [],
+        }
+
+    async def send_draft(args, context):
+        send_calls.append(dict(args))
+        return {
+            "status": "applied",
+            "action_result": "applied",
+            "verification": {"status": "complete"},
+            "remote_id": "msg-1",
+            "provider_ref": "msg-1",
+            "provider_state": "sent",
+        }
+
+    action_registry.register(
+        create_name, create_estimate,
+        effects=[{"effect": "create", "object": "estimate"}])
+    action_registry.register(
+        send_name, send_draft, effects=[{"effect": "send"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = [
+        new_step(
+            step_id="create-estimate",
+            title="Create the estimate",
+            operation_type="outbound",
+            adapter="action.registry",
+            inputs={
+                "action": create_name,
+                "arguments": {"estimate_data": {"total": "362.50"}},
+            },
+            effect="external",
+            approval_required=True,
+            approval_purpose="Create the estimate in the accounting system",
+        ),
+        new_step(
+            step_id="email-draft",
+            title="Prepare the customer email",
+            operation_type="outbound",
+            adapter="email.draft",
+            depends_on=["create-estimate"],
+            inputs={
+                "to": ["customer@example.invalid"],
+                "subject": "Your estimate",
+                "body": "The estimate is attached.",
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="send-draft",
+            title="Send the customer email",
+            operation_type="outbound",
+            adapter="action.registry",
+            depends_on=["email-draft"],
+            inputs={
+                "action": send_name,
+                "arguments": {"to": ["customer@example.invalid"]},
+            },
+            effect="external",
+            approval_required=True,
+            approval_purpose="Send the prepared customer email",
+        ),
+    ]
+    run_id, _ = _create(
+        env, objective="Create and send the customer estimate", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound", "edit"])
+
+    started = _run(env["executor"].execute(run_id))
+    assert started["assignment"]["status"] == "waiting", started
+    assert create_calls == []
+    assert env["executor"].approve_step(
+        run_id, "create-estimate", approved_by="owner")["status"] == (
+            "approved")
+
+    uncertain = _run(env["executor"].execute(run_id))
+    assert uncertain["assignment"]["status"] == "blocked", uncertain
+    assert len(create_calls) == 1
+    assignment = env["lifecycle"].get_assignment(run_id)
+    create_step = step_by_id(assignment, "create-estimate")
+    assert create_step["status"] == "uncertain"
+    assert step_by_id(assignment, "email-draft")["status"] == "pending"
+    assert step_by_id(assignment, "send-draft")["status"] == "pending"
+    assert send_calls == []
+
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["needs_reconciliation"] is True
+    assert operation["receipt"]["observed_status"] == "uncertain"
+    assert operation["receipt"]["reconciliation_required"] is True
+    assert operation["receipt"]["remote_identity"]["remote_id"] == "est-77"
+    assert operation["receipt"]["outbound"]["remote_id"] == "est-77"
+    assert operation["execution"]["remote_id"] == "est-77"
+    assert operation["execution"]["data"]["remote_id"] == "est-77"
+
+    # Restart/resume while uncertain: no second provider effect.
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    resumed = _run(restarted.execute(run_id))
+    assert resumed["assignment"]["status"] == "blocked", resumed
+    assert len(create_calls) == 1
+    assert send_calls == []
+
+    reconciled = restarted.reconcile_step(
+        run_id, "create-estimate", "applied",
+        evidence="provider readback shows estimate est-77",
+        evidence_ref="provider-op-77")
+    assert reconciled["verdict"] == "applied"
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "applied"
+    assert operation["needs_reconciliation"] is False
+    assert operation["reconciliation"]["evidence_ref"] == "provider-op-77"
+
+    # The verified operation now permits the dependent draft. It is a NEW
+    # operation for the draft step, never a resend of the estimate.
+    after = _run(restarted.execute(run_id))
+    assert after["assignment"]["status"] == "waiting", after
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "email-draft")["status"] == "applied"
+    assert step_by_id(assignment, "send-draft")["status"] == (
+        "awaiting_approval")
+    assert len(create_calls) == 1
+    assert send_calls == []
+
+    assert restarted.approve_step(
+        run_id, "send-draft", approved_by="owner")["status"] == "approved"
+    completed = _run(restarted.execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(create_calls) == 1
+    assert len(send_calls) == 1
+
+
+@pytest.mark.parametrize("result,effects,step_effect,expected", [
+    (
+        {"status": "success", "action_result": "applied",
+         "verification": {"status": "complete"}, "remote_id": "rec-1"},
+        [{"effect": "create"}], "external", "applied",
+    ),
+    (
+        {"status": "error", "action_result": "proven_not_applied",
+         "error_kind": "invalid_request"},
+        [{"effect": "create"}], "external", "failed",
+    ),
+    (
+        {"status": "uncertain", "action_result": "uncertain",
+         "verification": {"status": "incomplete"}},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "conflict", "action_result": "conflict",
+         "remote_id": "est-9", "conflicts": ["total changed"]},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "error", "action_result": "unavailable",
+         "error_kind": "auth_expired"},
+        [{"effect": "read"}], "read_only", "unavailable",
+    ),
+    (
+        {"status": "success", "verification": {"status": "unavailable"}},
+        [{"effect": "read"}], "read_only", "unavailable",
+    ),
+    (
+        {"status": "success", "action_result": "proven_not_applied"},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "failed", "error": "handler failed"},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"value": 21, "source": "approved-read"},
+        [{"effect": "read"}], "read_only", "applied",
+    ),
+])
+def test_action_result_envelope_outcomes(
+        result, effects, step_effect, expected, env):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = f"test.envelope.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def handler(args, context):
+        calls.append(context.get("assignment_id"))
+        return result
+
+    action_registry.register(name, handler, effects=effects)
+    dispatched = _run(_action_registry_adapter(
+        {"action": name, "arguments": {}},
+        {"assignment_id": "assignment-1", "step": {"effect": step_effect}}))
+    assert dispatched["status"] == expected
+    assert len(calls) == 1
+    if expected in ("uncertain", "failed"):
+        assert dispatched.get("data") == result
+    if expected == "uncertain" and result.get("remote_id"):
+        assert dispatched["remote_id"] == result["remote_id"]
+
+
+def test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure(env):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = f"test.mutation.raises.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        raise RuntimeError("provider response could not be parsed")
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    with pytest.raises(ExternalOutcomeUnknown) as excinfo:
+        _run(_action_registry_adapter(
+            {"action": name, "arguments": {}},
+            {"assignment_id": "assignment-1",
+             "step": {"effect": "external"}}))
+    assert "effect may have landed" in str(excinfo.value)
+
+
+def test_trusted_proof_of_no_effect_is_before_effect_failure(env):
+    from core.action_registry import action_registry
+
+    name = f"test.no.effect.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        return {
+            "status": "error",
+            "action_result": "proven_not_applied",
+            "error_kind": "invalid_request",
+            "error": "the provider rejected the payload before creating it",
+        }
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    steps = [new_step(
+        step_id="action", title="Apply the action",
+        operation_type="outbound", adapter="action.registry",
+        inputs={"action": name, "arguments": {}},
+        effect="external", approval_required=True,
+        approval_purpose="Apply the controlled action")]
+    run_id, _ = _create(
+        env, objective="Trusted no effect", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "action", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "failed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    step = step_by_id(assignment, "action")
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "failed"
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == step["operation_id"])
+    assert operation["status"] == "failed"
+    assert operation["receipt"]["observed_status"] == "failed_before_effect"
+    assert operation["receipt"]["reconciliation_required"] is False
+
+
+def test_unavailable_read_is_reported_without_fabricated_data(env):
+    from core.action_registry import action_registry
+
+    name = f"test.unavailable.read.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        return {
+            "status": "error",
+            "action_result": "unavailable",
+            "error_kind": "auth_expired",
+            "error": "the source authorization expired",
+        }
+
+    action_registry.register(name, handler, effects=[{"effect": "read"}])
+    steps = [new_step(
+        step_id="read", title="Read the source",
+        operation_type="retrieve", adapter="action.registry",
+        inputs={"action": name, "arguments": {}},
+        effect="read_only")]
+    run_id, _ = _create(
+        env, objective="Unavailable source", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve"])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "failed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    step = step_by_id(assignment, "read")
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "source_unavailable"
+    assert step.get("result") is None
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == step["operation_id"])
+    assert operation["status"] == "failed"
+    assert operation["receipt"]["observed_status"] == "unavailable"
+    assert operation.get("execution") is None
+
+
+def test_readback_conflict_preserves_remote_identity_and_blocks_dependents(
+        env, monkeypatch):
+    from core.action_registry import action_registry
+
+    name = f"test.estimate.conflict.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def handler(args, context):
+        calls.append(dict(args))
+        return {
+            "status": "conflict",
+            "action_result": "conflict",
+            "verification": {"status": "conflict"},
+            "remote_id": "est-91",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
+            "data": {"estimate_id": "est-91", "total": "500.00"},
+            "conflicts": ["total changed: authorized 362.50, readback 500.00"],
+        }
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = [
+        new_step(
+            step_id="create", title="Create the estimate",
+            operation_type="outbound", adapter="action.registry",
+            inputs={"action": name, "arguments": {}},
+            effect="external", approval_required=True,
+            approval_purpose="Create the estimate"),
+        new_step(
+            step_id="draft", title="Prepare the email",
+            operation_type="outbound", adapter="email.draft",
+            depends_on=["create"],
+            inputs={"to": ["customer@example.invalid"],
+                    "subject": "Estimate", "body": "See attached."},
+            effect="local"),
+    ]
+    run_id, _ = _create(
+        env, objective="Conflict control", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound", "edit"])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "create", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "blocked", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    create_step = step_by_id(assignment, "create")
+    assert create_step["status"] == "uncertain"
+    assert step_by_id(assignment, "draft")["status"] == "pending"
+    assert len(calls) == 1
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["receipt"]["remote_identity"]["remote_id"] == "est-91"
+    assert operation["receipt"]["remote_identity"]["conflicts"] == [
+        "total changed: authorized 362.50, readback 500.00"]
+    assert operation["execution"]["remote_id"] == "est-91"
+    assert operation["execution"]["data"]["remote_id"] == "est-91"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "blocked", again
+    assert len(calls) == 1
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "draft")["status"] == (
+            "pending")
