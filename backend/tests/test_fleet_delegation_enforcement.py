@@ -156,3 +156,34 @@ def test_build_contract_requires_one_accountable_agent():
         build_contract(
             goal="goal", task_desc="task", domain="sales",
             accountable_agent_id="")
+
+
+def test_cycle_is_refused_with_multiple_parents_in_the_graph(fleet):
+    """Exact report: root->a, root->b, a->b, then b->a must be refused.
+
+    b already has two parents (root and a); a one-parent map sees only the
+    first edge and misses the a->b path that the new b->a edge would close.
+    """
+    service, chain = fleet
+    chain.max_depth = 10
+    service.db.commit()
+    service.recruit_member(chain.id, "root", "a", "1")
+    service.recruit_member(chain.id, "root", "b", "2")
+    service.recruit_member(chain.id, "a", "b", "3")
+    with pytest.raises(FleetDelegationError) as exc:
+        service.recruit_member(chain.id, "b", "a", "4")
+    assert exc.value.code == "delegation_cycle"
+
+
+def test_depth_uses_the_longest_dag_path_not_the_shortest(fleet):
+    """root->a, root->b, a->b: b is depth 2 even though root->b is depth 1."""
+    service, chain = fleet
+    chain.max_depth = 2
+    service.db.commit()
+    service.recruit_member(chain.id, "root", "a", "1")
+    service.recruit_member(chain.id, "root", "b", "2")
+    service.recruit_member(chain.id, "a", "b", "3")
+    with pytest.raises(FleetDelegationError) as exc:
+        service.recruit_member(chain.id, "b", "c", "4")
+    assert exc.value.code == "depth_exceeded"
+    assert exc.value.extra == {"depth": 3, "max_depth": 2}

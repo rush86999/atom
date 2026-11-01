@@ -551,8 +551,16 @@ def revocation_check(db: Any, agent_id: Optional[str], topic: str) -> Dict[str, 
             ) or "verified_regression",
             detail=detail if isinstance(detail, dict) else {"reason": detail},
         )
-    except Exception as e:  # noqa: BLE001 — a failed read must not silently grant
-        logger.debug(f"autonomy revocation check skipped: {e}")
+    except Exception as e:  # noqa: BLE001 — fail CLOSED, never grant
+        logger.warning("autonomy revocation check unavailable: %s", e)
+        out.update(
+            applicable=True,
+            revoked=False,
+            ok=False,
+            unavailable=True,
+            reason="authority_store_unavailable",
+            detail={"error": f"{type(e).__name__}: {e}"[:200]},
+        )
     return out
 
 
@@ -566,6 +574,12 @@ def _gate_reason(
     revocation: Optional[Dict[str, Any]] = None,
 ) -> str:
     if revocation is not None and not revocation["ok"]:
+        if revocation.get("unavailable"):
+            return (
+                f"Authority state could not be checked "
+                f"({revocation.get('reason')}) — the hire proposes instead of "
+                f"acting on {label.lower()}."
+            )
         return (
             f"{label} autonomy was revoked after a verified regression "
             f"({revocation.get('reason')}); the hire must re-earn it."

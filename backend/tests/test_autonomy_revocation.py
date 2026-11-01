@@ -123,3 +123,82 @@ def test_verified_work_can_reearn_the_capability(store, monkeypatch):
     assert gate_for_topic(
         db, "user-1", "canvas_edit", "agent-revocation-1"
     )["revocation"]["revoked"] is False
+
+
+def test_reentry_requires_new_successes_after_the_revocation(store, monkeypatch):
+    """25 historical successes must not clear a fresh revocation."""
+    _Session, db = store
+    _allow(monkeypatch)
+    service = CapabilityGraduationService(db)
+    service.record_usage(
+        "agent-revocation-1", "canvas_edit",
+        success=False, verified="failed_verification")
+    assert gate_for_topic(
+        db, "user-1", "canvas_edit", "agent-revocation-1"
+    )["revocation"]["revoked"] is True
+
+    for expected, count in ((1, 1), (19, 18)):
+        for _ in range(count):
+            service.record_usage(
+                "agent-revocation-1", "canvas_edit",
+                success=True, verified="verified")
+        gate = gate_for_topic(
+            db, "user-1", "canvas_edit", "agent-revocation-1")
+        assert gate["revocation"]["revoked"] is True, expected
+        assert gate["revocation"]["detail"]["reentry_successes"] == expected
+
+    service.record_usage(
+        "agent-revocation-1", "canvas_edit",
+        success=True, verified="verified")
+    gate = gate_for_topic(db, "user-1", "canvas_edit", "agent-revocation-1")
+    assert gate["revocation"]["revoked"] is False
+    assert gate["outcome"] == "execute"
+
+
+def test_second_regression_resets_the_reentry_baseline(store, monkeypatch):
+    _Session, db = store
+    _allow(monkeypatch)
+    service = CapabilityGraduationService(db)
+    service.record_usage(
+        "agent-revocation-1", "canvas_edit",
+        success=False, verified="failed_verification")
+    first = gate_for_topic(
+        db, "user-1", "canvas_edit", "agent-revocation-1")["revocation"]["detail"]
+    assert first["epoch"] == 1
+
+    for _ in range(5):
+        service.record_usage(
+            "agent-revocation-1", "canvas_edit",
+            success=True, verified="verified")
+    service.record_usage(
+        "agent-revocation-1", "canvas_edit",
+        success=False, verified="failed_verification")
+    second = gate_for_topic(
+        db, "user-1", "canvas_edit", "agent-revocation-1")["revocation"]["detail"]
+    assert second["epoch"] == 2
+    # The 5 new successes are historical now: the next success is not 20.
+    service.record_usage(
+        "agent-revocation-1", "canvas_edit",
+        success=True, verified="verified")
+    gate = gate_for_topic(db, "user-1", "canvas_edit", "agent-revocation-1")
+    assert gate["revocation"]["revoked"] is True
+    assert gate["revocation"]["detail"]["reentry_successes"] == 1
+
+
+def test_revocation_lookup_fails_closed(monkeypatch):
+    """An unreadable authority store must refuse, not grant."""
+    from core.autonomy_policy import revocation_check
+
+    class _BrokenDB:
+        def query(self, *args, **kwargs):
+            raise RuntimeError("authority store down")
+
+    state = revocation_check(_BrokenDB(), "agent-revocation-1", "canvas_edit")
+    assert state["ok"] is False
+    assert state["unavailable"] is True
+
+    _allow(monkeypatch)
+    gate = gate_for_topic(
+        _BrokenDB(), "user-1", "canvas_edit", "agent-revocation-1")
+    assert gate["outcome"] == "propose"
+    assert "could not be checked" in gate["reason"]

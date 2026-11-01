@@ -85,42 +85,57 @@ class AgentFleetService:
                 ChainLink.chain_id == chain_id).all())
 
         if real_chain:
-            # --- cycles -------------------------------------------------------
-            parent_of: Dict[str, str] = {}
+            # --- cycles + graph depth over EVERY edge ---------------------
+            adjacency: Dict[str, List[str]] = {}
             for existing in links:
-                parent_of.setdefault(existing.child_agent_id, existing.parent_agent_id)
-            ancestors = set()
-            cursor = parent_agent_id
-            while cursor in parent_of and cursor not in ancestors:
-                cursor = parent_of[cursor]
-                ancestors.add(cursor)
+                adjacency.setdefault(existing.parent_agent_id, []).append(
+                    existing.child_agent_id)
+
+            def _reachable(start_node: str, target: str) -> bool:
+                stack = [start_node]
+                seen = set()
+                while stack:
+                    node = stack.pop()
+                    if node == target:
+                        return True
+                    if node in seen:
+                        continue
+                    seen.add(node)
+                    stack.extend(adjacency.get(node, []))
+                return False
+
+            # Adding parent -> child closes a cycle when the child can already
+            # reach the parent through ANY edge. The old one-parent map missed
+            # the second parent of a DAG node (root->a, root->b, a->b, b->a).
             if (child_agent_id == parent_agent_id
                     or child_agent_id == chain.root_agent_id
-                    or child_agent_id in ancestors):
+                    or _reachable(child_agent_id, parent_agent_id)):
                 raise FleetDelegationError(
                     "delegation_cycle",
                     f"Recruiting {child_agent_id} under {parent_agent_id} would "
                     "create a delegation cycle.")
 
-            # --- nesting depth (not link count) -------------------------------
-            depth_by_node = {chain.root_agent_id: 0}
-            adjacency: Dict[str, List[str]] = {}
-            for existing in links:
-                adjacency.setdefault(existing.parent_agent_id, []).append(
-                    existing.child_agent_id)
-            queue = [chain.root_agent_id]
-            while queue:
-                node = queue.pop(0)
-                for child in adjacency.get(node, []):
-                    if child in depth_by_node:
-                        continue
-                    depth_by_node[child] = depth_by_node[node] + 1
-                    queue.append(child)
-            if parent_agent_id not in depth_by_node:
+            # Depth is the LONGEST root path to the parent, not the shortest:
+            # a DAG can reach a node at several depths and the deepest path is
+            # the one that breaches the recursion limit.
+            depths: Dict[str, int] = {chain.root_agent_id: 0}
+
+            def _walk(node: str, path: frozenset) -> None:
+                for nxt in adjacency.get(node, []):
+                    if nxt in path:
+                        continue  # legacy graph already cyclic; do not loop
+                    candidate = depths.get(node, 0) + 1
+                    if candidate > depths.get(nxt, -1):
+                        depths[nxt] = candidate
+                    _walk(nxt, path | {nxt})
+
+            _walk(chain.root_agent_id, frozenset({chain.root_agent_id}))
+            if parent_agent_id not in depths:
                 raise FleetDelegationError(
                     "unknown_parent",
-                    f"Parent agent {parent_agent_id} is not part of chain {chain_id}.")
-            new_depth = depth_by_node[parent_agent_id] + 1
+                    f"Parent agent {parent_agent_id} is not part of chain "
+                    f"{chain_id}.")
+            new_depth = depths[parent_agent_id] + 1
             max_depth = int(chain.max_depth or 5)
             if new_depth > max_depth:
                 raise FleetDelegationError(
@@ -129,17 +144,16 @@ class AgentFleetService:
                     f"{max_depth}; a wide but shallow fleet is allowed.",
                     depth=new_depth, max_depth=max_depth)
 
-            # --- cross-scope references --------------------------------------
+            # --- cross-scope references ---------------------------------
             root_agent = self.db.query(AgentRegistry).filter(
                 AgentRegistry.id == chain.root_agent_id).first()
             parent_agent = self.db.query(AgentRegistry).filter(
                 AgentRegistry.id == parent_agent_id).first()
             child_agent = self.db.query(AgentRegistry).filter(
                 AgentRegistry.id == child_agent_id).first()
-            # The parent must live in the chain's scope too: a cross-tenant
-            # parent could otherwise recruit a local child into a foreign
-            # fleet (the link would look tenant-local while the coordinator's
-            # authority came from somewhere else).
+            # A cross-tenant parent could recruit a local child into a foreign
+            # fleet (the link looks tenant-local while authority came from
+            # somewhere else).
             if parent_agent is not None:
                 if (chain.tenant_id and parent_agent.tenant_id
                         and parent_agent.tenant_id != chain.tenant_id):
@@ -168,10 +182,12 @@ class AgentFleetService:
                             "cross_scope",
                             f"Agent {child_agent_id} belongs to another tenant.")
                     if (root_agent.workspace_id and child_agent.workspace_id
-                            and child_agent.workspace_id != root_agent.workspace_id):
+                            and child_agent.workspace_id
+                            != root_agent.workspace_id):
                         raise FleetDelegationError(
                             "cross_scope",
-                            f"Agent {child_agent_id} belongs to another workspace.")
+                            f"Agent {child_agent_id} belongs to another "
+                            "workspace.")
 
         # --- contract accountability -------------------------------------
         merged_context = dict(context_json or {})
