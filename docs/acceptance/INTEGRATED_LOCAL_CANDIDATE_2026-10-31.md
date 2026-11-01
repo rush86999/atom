@@ -11,7 +11,7 @@ publication remain deferred by the owner.
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
 | Verifier acceptance | `VERIFIER_ACCEPTANCE_2026-10-31.md` — accepted source `b7ee7ee22` |
-| Final code/evidence | `2ca5e7f03` (code `8536f5128`) |
+| Final code/evidence | `9b5c998f8` (code `8536f5128`) |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Deterministic judgment | `assessment_mode=deterministic`; 18/18 V1 and 18/19 V3 under the V2 overlay, safe abstention passed (`employee-execution-deterministic-judgment/`) |
 | Normal-app employee journey | `8536f5128` / `2ca5e7f03`: teach/conflict/qualification, upload, mapping, wait, backend restart, resume, DOCX, revised work (`employee-execution-integrated-local-journey/`) |
