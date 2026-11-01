@@ -310,6 +310,7 @@ def test_books_create_bill_reads_back_one_effect(monkeypatch):
     class FakeBooks:
         def __init__(self):
             self.created = 0
+            self.payload = None
 
         async def _get_active_token(self, *args, **kwargs):
             return "token"
@@ -325,12 +326,26 @@ def test_books_create_bill_reads_back_one_effect(monkeypatch):
 
         async def create_bill(self, token, org, payload):
             self.created += 1
+            self.payload = payload
             assert payload["reference_number"] == "INV-001"
             return {"bill_id": "bill-new", "bill_number": "INV-001"}
 
         async def get_bill(self, token, org, bill_id):
-            return {"bill_id": bill_id, "reference_number": "INV-001",
-                    "total": 120.0}
+            payload = self.payload
+            return {
+                "bill_id": bill_id,
+                "bill_number": payload["bill_number"],
+                "reference_number": payload["reference_number"],
+                "vendor_id": payload["vendor_id"],
+                "date": payload["date"],
+                "due_date": payload.get("due_date"),
+                "currency_code": payload["currency_code"],
+                "total": "120.00",
+                "sub_total": "120.00",
+                "tax_total": "0.00",
+                "discount_total": "0.00",
+                "line_items": payload["line_items"],
+            }
 
     service = FakeBooks()
 
@@ -437,8 +452,12 @@ def _bill_like(payload, *, bill_id="bill-http-1", total="120.00", **over):
         "reference_number": payload.get("reference_number"),
         "vendor_id": payload.get("vendor_id"),
         "date": payload.get("date"),
+        "due_date": payload.get("due_date"),
         "currency_code": payload.get("currency_code"),
         "total": total,
+        "sub_total": payload.get("sub_total", total),
+        "tax_total": payload.get("tax_total", "0.00"),
+        "discount_total": payload.get("discount_total", "0.00"),
         "line_items": payload.get("line_items") or [],
     }
     bill.update(over)
@@ -691,6 +710,7 @@ def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
         "date": "2026-11-01",
         "currency_code": "USD",
         "total": "362.50",
+        "tax_total": "0.00",
         "line_items": [
             {"name": "A", "quantity": "2", "rate": "100.00"},
             {"name": "B", "quantity": "3", "rate": "50.00",
@@ -768,8 +788,13 @@ def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
                     "bill_number": payload["bill_number"],
                     "vendor_id": payload["vendor_id"],
                     "date": payload["date"],
+                    "due_date": payload.get("due_date"),
                     "currency_code": payload["currency_code"],
-                    "total": "120.00"}
+                    "total": "120.00",
+                    "sub_total": "120.00",
+                    "tax_total": "0.00",
+                    "discount_total": "0.00",
+                    "line_items": payload["line_items"]}
             self.bills.append(bill)
             return bill
 
@@ -1061,8 +1086,13 @@ def test_bookkeeping_campaign_resolves_vendor_accounts_and_posts(monkeypatch):
                     "reference_number": body["reference_number"],
                     "vendor_id": body["vendor_id"],
                     "date": body["date"],
+                    "due_date": body.get("due_date"),
                     "currency_code": body["currency_code"],
                     "total": "120.00",
+                    "sub_total": "120.00",
+                    "tax_total": "0.00",
+                    "discount_total": "0.00",
+                    "line_items": body["line_items"],
                 },
             })
         if request.method == "GET" and request.url.path.endswith(
@@ -1074,8 +1104,13 @@ def test_bookkeeping_campaign_resolves_vendor_accounts_and_posts(monkeypatch):
                     "reference_number": posted.get("reference_number"),
                     "vendor_id": posted.get("vendor_id"),
                     "date": posted.get("date"),
+                    "due_date": posted.get("due_date"),
                     "currency_code": posted.get("currency_code"),
                     "total": "120.00",
+                    "sub_total": "120.00",
+                    "tax_total": "0.00",
+                    "discount_total": "0.00",
+                    "line_items": posted.get("line_items") or [],
                 },
             })
         return httpx.Response(404, json={"message": "unexpected"})
@@ -1326,7 +1361,9 @@ def test_estimate_exact_reference_duplicate_is_never_posted(monkeypatch):
          "estimate_data": {"customer_id": "c1",
                            "reference_number": "RFQ-QUOTE-1",
                            "date": "2026-11-01", "currency_code": "USD",
-                           "total": "362.50", "line_items": []},
+                           "total": "362.50", "tax_total": "0.00",
+                           "line_items": [{"name": "A", "quantity": "2",
+                                           "rate": "100.00"}]},
          "authority_reference": "grant-1",
          "operation_id": "op-est-dup-1"},
         {"user_id": "u", "tenant_id": "t1"}))
@@ -1360,7 +1397,10 @@ def test_concurrent_same_estimate_creates_one_provider_effect(monkeypatch):
                         "customer_id": data["customer_id"],
                         "date": data["date"],
                         "currency_code": data["currency_code"],
-                        "total": data["total"]}
+                        "total": data["total"],
+                        "sub_total": data["total"],
+                        "tax_total": "0.00",
+                        "line_items": data["line_items"]}
             self.estimates.append(estimate)
             return estimate
 
@@ -1377,7 +1417,9 @@ def test_concurrent_same_estimate_creates_one_provider_effect(monkeypatch):
     estimate_data = {
         "customer_id": "c1", "reference_number": "RFQ-CONCURRENT-1",
         "date": "2026-11-01", "currency_code": "USD",
-        "total": "362.50", "line_items": [],
+        "total": "362.50", "tax_total": "0.00",
+        "line_items": [{"name": "A", "quantity": "2",
+                        "rate": "181.25"}],
     }
 
     async def attempt(operation_id):
@@ -1396,3 +1438,217 @@ def test_concurrent_same_estimate_creates_one_provider_effect(monkeypatch):
     assert outcomes == ["applied", "proven_not_applied"]
     assert {first["status"], second["status"]} == {"success", "duplicate"}
     assert service.created == 1
+
+
+def _full_estimate_data():
+    return {
+        "customer_id": "customer-1",
+        "reference_number": "RFQ-VERIFY-1",
+        "date": "2026-11-01",
+        "currency_code": "USD",
+        "total": "362.50",
+        "sub_total": "362.50",
+        "tax_total": "0.00",
+        "line_items": [
+            {"item_id": "A", "quantity": "2", "rate": "100.00",
+             "account_id": "acct-1"},
+            {"item_id": "B", "quantity": "3", "rate": "50.00",
+             "discount": "5%", "account_id": "acct-1"},
+            {"item_id": "FREIGHT", "quantity": "1", "rate": "20.00",
+             "account_id": "acct-2"},
+        ],
+    }
+
+
+def _full_estimate_readback(**over):
+    data = _full_estimate_data()
+    value = {
+        "estimate_id": "est-verify",
+        "estimate_number": "EST-0001",
+        "customer_id": data["customer_id"],
+        "reference_number": data["reference_number"],
+        "date": data["date"],
+        "currency_code": data["currency_code"],
+        "total": data["total"],
+        "sub_total": data["sub_total"],
+        "tax_total": data["tax_total"],
+        "line_items": [
+            {**line, "line_item_id": f"line-{index}",
+             "quantity": str(line["quantity"]),
+             "rate": str(line["rate"])}
+            for index, line in enumerate(data["line_items"])
+        ],
+    }
+    value.update(over)
+    return value
+
+
+def test_estimate_sparse_readback_is_uncertain_without_second_create(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            return {"estimate_id": "est-verify"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            self.readbacks += 1
+            return {"estimate_id": estimate_id, "total": "362.50"}
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": _full_estimate_data(),
+         "authority_reference": "grant-1", "operation_id": "op-sparse-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "est-verify"
+    assert result["verification"]["status"] == "incomplete"
+    assert "customer_id" in result["verification"]["missing_fields"]
+    assert service.created == 1
+    assert service.readbacks == 2
+    assert result["provider_receipt"]["readback_attempts"] == 2
+
+
+def test_estimate_wrong_line_is_conflict_and_keeps_remote_id(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            return {"estimate_id": "est-verify"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            self.readbacks += 1
+            return _full_estimate_readback(
+                total="362.50",
+                line_items=[{"item_id": "WRONG", "quantity": "1",
+                             "rate": "362.50", "account_id": "acct-1"}])
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": _full_estimate_data(),
+         "authority_reference": "grant-1", "operation_id": "op-wrong-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["status"] == "conflict"
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "est-verify"
+    assert result["verification"]["status"] == "mismatch"
+    assert service.created == 1
+    assert service.readbacks == 1
+
+
+def test_estimate_sparse_then_full_readback_applies_once(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            return {"estimate_id": "est-verify"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            self.readbacks += 1
+            if self.readbacks == 1:
+                return {"estimate_id": estimate_id, "total": "362.50"}
+            return _full_estimate_readback()
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": _full_estimate_data(),
+         "authority_reference": "grant-1", "operation_id": "op-retry-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["action_result"] == "applied"
+    assert result["verification"]["status"] == "verified"
+    assert service.created == 1
+    assert service.readbacks == 2
+
+
+def test_bill_sparse_readback_is_uncertain_without_second_create(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return [{"account_id": "acct-1"}], {"has_more": False}
+
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_bill(self, token, org, payload):
+            self.created += 1
+            return {"bill_id": "bill-verify"}
+
+        async def get_bill(self, token, org, bill_id):
+            self.readbacks += 1
+            return {"bill_id": bill_id, "total": "120.00"}
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-bill-sparse-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "bill-verify"
+    assert result["verification"]["status"] == "incomplete"
+    assert service.created == 1
+    assert service.readbacks == 2
