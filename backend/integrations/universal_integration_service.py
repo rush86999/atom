@@ -2199,13 +2199,34 @@ class UniversalIntegrationService:
 
         elif service == "onedrive":
             if action in ("list", "list_files"):
+                if params.get("folder_id") or params.get("cursor") or params.get("drive_id"):
+                    if hasattr(storage_service, "list_files_page"):
+                        result = await storage_service.list_files_page(
+                            token,
+                            params.get("folder_id"),
+                            cursor=params.get("cursor") or params.get("page_token"),
+                            page_size=int(params.get("page_size") or params.get("limit") or 100),
+                            drive_id=params.get("drive_id"),
+                            site_id=params.get("site_id"),
+                        )
+                        if result.get("status") == "error":
+                            return result
+                        return {"status": "success", "data": result}
                 return {"status": "success", "data": await storage_service.list_drive_items(token, params.get("path"))}
             elif action == "search":
                 # Real Graph root search — the service's search_files sat
                 # unused while this branch listed the drive root and
                 # filtered client-side, so only top-folder items ever
                 # matched a search.
+                if hasattr(storage_service, "search_files_envelope"):
+                    result = await storage_service.search_files_envelope(
+                        token, params.get("query"))
+                    if result.get("status") == "error":
+                        return result
+                    return {"status": "success", "data": result.get("items") or []}
                 res = await storage_service.search_files(token, params.get("query"))
+                if isinstance(res, dict) and res.get("status") == "error":
+                    return res
                 data = res.get("data") or {} if isinstance(res, dict) else {}
                 return {"status": "success", "data": data.get("value", [])}
 
@@ -2238,8 +2259,28 @@ class UniversalIntegrationService:
             # miss). Pass the acting user, as execute_operation does.
             wd_user = context.get("user_id") or token
             if action in ("list", "list_files"):
+                if params.get("cursor") or params.get("page_token") or params.get("page_size"):
+                    if hasattr(storage_service, "list_files_page"):
+                        result = await storage_service.list_files_page(
+                            wd_user,
+                            params.get("folder_id") or params.get("parent_id") or "root",
+                            team_id=params.get("team_id"),
+                            workspace_id=params.get("workspace_id"),
+                            cursor=params.get("cursor") or params.get("page_token"),
+                            page_size=int(params.get("page_size") or 100),
+                        )
+                        if result.get("status") == "error":
+                            return result
+                        return {"status": "success", "data": result}
                 return {"status": "success", "data": await storage_service.list_files(wd_user, params.get("folder_id"))}
             elif action == "search":
+                if hasattr(storage_service, "search_files_envelope"):
+                    result = await storage_service.search_files_envelope(
+                        wd_user, params.get("query"),
+                        limit=int(params.get("limit") or 20))
+                    if result.get("status") == "error":
+                        return result
+                    return {"status": "success", "data": result.get("items") or []}
                 return {"status": "success", "data": await storage_service.search_files(wd_user, params.get("query"), limit=params.get("limit") or 20)}
 
         return {"status": "success", "message": f"Routed to {service} handler (Registry Storage)"}
@@ -3027,12 +3068,17 @@ class UniversalIntegrationService:
             res = await storage_service.search(query, token=token)
             return res.get("results", [])
         elif service == "zoho_workdrive":
-            # Same per-user token resolution as _execute_storage — the
-            # storage branch previously fell through to `return []` here, so
-            # agent-facing search_files fan-outs never saw WorkDrive results.
+            # Same per-user token resolution as _execute_storage.  The
+            # strict envelope keeps an unavailable grant/search from looking
+            # like an empty corpus.
+            if hasattr(storage_service, "search_files_envelope"):
+                return await storage_service.search_files_envelope(
+                    context.get("user_id") or token, query)
             return await storage_service.search_files(
                 context.get("user_id") or token, query)
         elif service == "onedrive":
+            if hasattr(storage_service, "search_files_envelope"):
+                return await storage_service.search_files_envelope(token, query)
             res = await storage_service.search_files(token, query)
             return (res.get("data") or {}).get("value", []) if isinstance(res, dict) else []
         elif service == "box":
@@ -3237,8 +3283,49 @@ class UniversalIntegrationService:
             if action == "list_invoices":
                 return {"status": "success", "data": await fin_service.get_invoices(token=token)}
         elif service == "zoho_books":
-            if action == "list_invoices":
-                return {"status": "success", "data": await fin_service.get_invoices(token)}
+            org = params.get("organization_id") or context.get("organization_id")
+            if action in ("list_invoices", "get_invoices"):
+                data = await fin_service.get_invoices(token, org)
+                if getattr(fin_service, "last_error", None):
+                    return fin_service.last_error.to_dict()
+                return {"status": "success", "data": data}
+            if action in ("list_bills", "get_bills"):
+                if not org:
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "organization_id is required to list Zoho Books bills."}
+                data = await fin_service.get_bills(token, org)
+                if getattr(fin_service, "last_error", None):
+                    return fin_service.last_error.to_dict()
+                return {"status": "success", "data": data}
+            if action == "get_bill":
+                if not org or not params.get("bill_id"):
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "organization_id and bill_id are required."}
+                return {"status": "success", "data": await fin_service.get_bill(
+                    token, org, params["bill_id"])}
+            if action in ("create_bill", "update_bill", "create_estimate", "update_estimate"):
+                if not org:
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "organization_id is required for Zoho Books writes."}
+                data = params.get("data") or params.get("payload") or {}
+                if action == "create_bill":
+                    return {"status": "success", "data": await fin_service.create_bill(token, org, data)}
+                if action == "update_bill":
+                    return {"status": "success", "data": await fin_service.update_bill(
+                        token, org, params.get("bill_id"), data)}
+                if action == "create_estimate":
+                    return {"status": "success", "data": await fin_service.create_estimate(token, org, data)}
+                return {"status": "success", "data": await fin_service.update_estimate(
+                    token, org, params.get("estimate_id"), data)}
+            if action in ("get_contacts", "get_vendors", "get_customers", "get_estimates", "get_items"):
+                if not org:
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "organization_id is required for Zoho Books reads."}
+                fn = getattr(fin_service, action)
+                data = await fn(token, org)
+                if getattr(fin_service, "last_error", None):
+                    return fin_service.last_error.to_dict()
+                return {"status": "success", "data": data}
         elif service == "zoho_inventory":
             if action in ("search_items", "search"):
                 # The live search leg the chat tool planner plans when a user
@@ -3278,11 +3365,41 @@ class UniversalIntegrationService:
             # the token= kwargs here TypeError'd on every call (live
             # 2026-09-03), so zoho_crm list/deals/create always failed.
             if action in ("list", "get_leads"):
-                return {"status": "success", "data": await crm.get_leads()}
+                data = await crm.get_leads()
             elif action == "get_deals":
-                return {"status": "success", "data": await crm.get_deals()}
+                data = await crm.get_deals()
+            elif action == "get_contacts":
+                data = await crm.get_contacts()
+            elif action == "get_accounts":
+                data = await crm.get_accounts()
+            elif action == "search":
+                data = await crm.search_records(
+                    params.get("module") or "Leads",
+                    params.get("query") or "")
+            elif action == "get_record":
+                return {"status": "success", "data": await crm.get_record(
+                    params["module"], params["record_id"])}
             elif action == "create_lead":
-                return {"status": "success", "data": await crm.create_lead(params.get("data", params))}
+                return {"status": "success", "data": await crm.create_lead(
+                    params.get("data", params))}
+            elif action == "create_record":
+                module = params.get("module") or params.get("module_api_name")
+                if not module:
+                    return {"status": "error", "error_kind": "invalid_request",
+                            "error": "create_record requires a CRM module and data."}
+                return {"status": "success", "data": await crm.create_record(
+                    module, params.get("data") or params.get("record") or {})}
+            elif action == "update_record":
+                return {"status": "success", "data": await crm.update_record(
+                    params["module"], params["record_id"],
+                    params.get("data") or params.get("fields") or {})}
+            else:
+                return {"status": "error", "error_kind": "unsupported_operation",
+                        "error": f"Unsupported zoho_crm action: {action}",
+                        "supported": list(crm.get_capabilities().get("operations") or [])}
+            if getattr(crm, "last_error", None):
+                return crm.last_error.to_dict()
+            return {"status": "success", "data": data}
         elif service == "zoho_mail":
             from integrations.zoho_mail_service import ZohoMailService
             zoho_mail_service = ZohoMailService()

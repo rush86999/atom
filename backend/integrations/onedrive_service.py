@@ -21,6 +21,12 @@ from pydantic import BaseModel
 from core.connection_service import connection_service
 from core.integration_service import IntegrationService
 from core.integrations.token_store import TokenRefreshError, resolve_integration_token
+from integrations.provider_errors import (
+    ProviderRequestError,
+    classify_http_status,
+    parse_error,
+    unavailable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +95,8 @@ class OneDriveService(IntegrationService):
         self.base_url = GRAPH_BASE_URL
         # access_token may be injected via config (e.g. by universal_integration_service)
         self.access_token = config.get("access_token")
+        # Stable failure for the last strict read; legacy paths return [].
+        self.last_error: Optional[Dict[str, Any]] = None
 
     # -------------------------------------------------------------------------
     # OAuth / token resolution
@@ -276,10 +284,13 @@ class OneDriveService(IntegrationService):
         return {
             "operations": [
                 {"id": "list_files", "description": "List files from OneDrive"},
+                {"id": "list_files_page", "description": "Strict paged list (Graph nextLink cursor, explicit drive/site identity)"},
                 {"id": "walk_files", "description": "Walk all files recursively"},
                 {"id": "search_files", "description": "Search files in OneDrive"},
+                {"id": "search_files_envelope", "description": "Strict search (unavailable is an error, not an empty list)"},
                 {"id": "get_file_metadata", "description": "Get file metadata"},
                 {"id": "download_file", "description": "Get download URL for a file"},
+                {"id": "download_file_bytes", "description": "Download raw file bytes (file evidence, never JSON)"},
                 {"id": "ingest_file_to_memory", "description": "Ingest file to ATOM memory"},
                 {"id": "sync_to_postgres_cache", "description": "Sync metrics to PostgreSQL"},
                 {"id": "full_sync", "description": "Full sync operation"},
@@ -327,10 +338,134 @@ class OneDriveService(IntegrationService):
             result = await operations[operation](**parameters)
             if result.get("status") == "success":
                 return {"success": True, "result": result.get("data")}
-            return {"success": False, "error": result.get("message", "Unknown error")}
+            return {
+                "success": False,
+                "error_kind": result.get("error_kind") or "provider_error",
+                "error": result.get("message", "Unknown error"),
+                "details": {"operation": operation},
+            }
         except Exception as e:
             logger.error(f"OneDrive operation {operation} failed: {e}")
             return {"success": False, "error": str(e), "details": {"operation": operation}}
+
+    async def list_files_page(
+        self,
+        access_token: str,
+        folder_id: Optional[str] = None,
+        *,
+        cursor: Optional[str] = None,
+        page_size: int = 100,
+        drive_id: Optional[str] = None,
+        site_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Strict single-page Graph listing for bounded knowledge sources.
+
+        ``cursor`` is the opaque ``@odata.nextLink`` from the previous page
+        (or a raw ``$skiptoken``).  ``drive_id``/``site_id`` make SharePoint
+        identity explicit; ``/me/drive`` is only used when neither is given.
+        """
+        self.last_error = None
+        token = self._resolve_token(access_token)
+        if not token:
+            self.last_error = unavailable(
+                "onedrive", "list_files_page",
+                "No Microsoft Graph access token. Reconnect OneDrive.",
+            ).to_dict()
+            return self.last_error
+        try:
+            if drive_id and site_id:
+                base = f"{self.base_url}/sites/{site_id}/drives/{drive_id}"
+            elif drive_id:
+                base = f"{self.base_url}/drives/{drive_id}"
+            else:
+                base = f"{self.base_url}/me/drive"
+            if cursor:
+                text = str(cursor)
+                if text.startswith("http://") or text.startswith("https://"):
+                    url = text
+                elif text.startswith("$"):
+                    url = f"{base}/root/children?{text}"
+                else:
+                    url = f"{base}/root/children?$skiptoken={text}"
+            elif folder_id:
+                url = f"{base}/items/{folder_id}/children?$top={max(1, min(int(page_size), 200))}"
+            else:
+                url = f"{base}/root/children?$top={max(1, min(int(page_size), 200))}"
+            data = await self._graph_get(token, url)
+            items = data.get("value") or []
+            next_link = data.get("@odata.nextLink")
+            normalized = []
+            for item in items:
+                if not item.get("id"):
+                    continue
+                parent = item.get("parentReference") or {}
+                folder = item.get("folder") or {}
+                file_meta = item.get("file") or {}
+                normalized.append({
+                    "id": str(item.get("id")),
+                    "name": item.get("name") or "Untitled",
+                    "type": "folder" if folder else "file",
+                    "extension": (
+                        str(item.get("name") or "").rsplit(".", 1)[-1].lower()
+                        if "." in str(item.get("name") or "") else None
+                    ),
+                    "size": item.get("size") or 0,
+                    "modified_at": item.get("lastModifiedDateTime"),
+                    "version": item.get("eTag") or item.get("cTag") or item.get("lastModifiedDateTime"),
+                    "web_url": item.get("webUrl"),
+                    "mime_type": file_meta.get("mimeType"),
+                    "drive_id": parent.get("driveId") or drive_id,
+                    "parent_id": parent.get("id"),
+                    "site_id": parent.get("siteId") or site_id,
+                })
+            return {
+                "status": "success",
+                "provider": "onedrive",
+                "items": normalized,
+                "next_cursor": next_link,
+                "has_more": bool(next_link),
+                "coverage": "partial" if next_link else "page_complete",
+                "drive_identity": {
+                    "drive_id": drive_id,
+                    "site_id": site_id,
+                    "explicit_sharepoint_identity": bool(drive_id and site_id),
+                },
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except httpx.HTTPStatusError as exc:
+            self.last_error = classify_http_status(
+                "onedrive", "list_files_page", exc.response.status_code,
+                message="OneDrive listing failed.",
+            ).to_dict()
+            return self.last_error
+        except Exception as exc:  # noqa: BLE001
+            logger.error("OneDrive list_files_page failed: %s", exc)
+            self.last_error = parse_error(
+                "onedrive", "list_files_page",
+                "OneDrive listing failed before a usable page was received.").to_dict()
+            return self.last_error
+
+    async def search_files_envelope(
+        self, access_token: str, query: str, *, page_size: int = 100,
+    ) -> Dict[str, Any]:
+        self.last_error = None
+        result = await self.search_files(access_token, query, page_size=page_size)
+        if result.get("status") != "success":
+            self.last_error = unavailable(
+                "onedrive", "search_files",
+                result.get("message") or "OneDrive search failed.",
+                kind="transient" if "token" not in str(result.get("message", "")).lower() else "auth_unavailable",
+            ).to_dict()
+            return self.last_error
+        data = result.get("data") or {}
+        return {
+            "status": "success",
+            "provider": "onedrive",
+            "items": data.get("value") or [],
+            "next_cursor": data.get("nextLink"),
+            "has_more": bool(data.get("nextLink")),
+            "coverage": "partial" if data.get("nextLink") else "bounded",
+        }
 
     # -------------------------------------------------------------------------
     # File operations (real Graph API)

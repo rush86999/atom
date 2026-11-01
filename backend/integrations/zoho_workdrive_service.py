@@ -11,6 +11,12 @@ from core.database import SessionLocal
 from core.connection_service import connection_service
 from core.models import IntegrationMetric
 from core.integration_service import IntegrationService
+from integrations.provider_errors import (
+    ProviderRequestError,
+    classify_http_status,
+    parse_error,
+    unavailable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +70,7 @@ class ZohoWorkDriveService(IntegrationService):
             workdrive_base = "https://workdrive.zoho.jp"
 
         self.base_url = f"{workdrive_base}/api/v1"
+        self.accounts_base = accounts_base
         self.accounts_url = f"{accounts_base}/oauth/v2"
         self.client_id = config.get("client_id") or os.getenv("ZOHO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
@@ -76,6 +83,10 @@ class ZohoWorkDriveService(IntegrationService):
         # One-shot full-sync guard: a second concurrent walk just doubles the
         # API pressure (and 429s the first one).
         self._full_sync_running: set = set()
+        # Typed failure from the last strict read.  Legacy list methods still
+        # return [] for compatibility; business surfaces check this instead of
+        # treating "unavailable" as "empty directory".
+        self.last_error: Optional[Dict[str, Any]] = None
 
     async def _zoho_get(self, url: str, *, headers: Dict[str, str],
                         params: Optional[Dict[str, Any]] = None):
@@ -212,8 +223,19 @@ class ZohoWorkDriveService(IntegrationService):
                     # not connected.
                     return None
 
-                if not token_record:
-                    return None
+                # Refresh MUST use the data center that issued this grant.
+                # The unified callback stamps accounts_base/api_domain on the
+                # token row; a .com refresh for a .ca/.eu account yields a
+                # token that 401s against the regional WorkDrive API.
+                metadata = getattr(token_record, "credential_metadata", None) or {}
+                accounts_base = (
+                    metadata.get("accounts_base")
+                    or metadata.get("accounts_url")
+                    or metadata.get("api_domain")
+                )
+                if accounts_base:
+                    self.accounts_base = str(accounts_base).rstrip("/")
+                    self.accounts_url = f"{self.accounts_base}/oauth/v2"
 
                 from datetime import datetime, timezone, timedelta
 
@@ -508,6 +530,213 @@ class ZohoWorkDriveService(IntegrationService):
             logger.error(f"Failed to list Zoho WorkDrive team folders: {e}")
             return []
 
+    async def list_files_page(
+        self,
+        user_id: str,
+        parent_id: str = "root",
+        *,
+        team_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        cursor: Optional[str] = None,
+        page_size: int = 100,
+    ) -> Dict[str, Any]:
+        """Strict single-page listing for bounded knowledge-source sync.
+
+        A failed listing is an error envelope, never ``[]``.  The caller
+        receives the provider cursor and ``has_more`` so coverage is a fact,
+        not an assumption from "the first page looked complete".
+        """
+        self.last_error = None
+        token = await self.get_access_token(user_id)
+        if not token:
+            return unavailable(
+                "zoho_workdrive", "list_files_page",
+                "No Zoho WorkDrive access token. Reconnect the integration.",
+                kind="auth_unavailable",
+            ).to_dict()
+        try:
+            headers = {
+                "Authorization": f"Zoho-oauthtoken {token}",
+                "Accept": "application/vnd.api+json",
+            }
+            target_url = await self._resolve_listing_url(
+                parent_id, team_id=team_id, workspace_id=workspace_id,
+                headers=headers)
+            if not target_url:
+                return unavailable(
+                    "zoho_workdrive", "list_files_page",
+                    "The selected WorkDrive workspace/folder could not be resolved.",
+                ).to_dict()
+
+            offset = 0
+            next_token = None
+            if cursor:
+                text = str(cursor)
+                if text.startswith("next:"):
+                    next_token = text[5:]
+                else:
+                    try:
+                        offset = max(0, int(text))
+                    except ValueError:
+                        return unavailable(
+                            "zoho_workdrive", "list_files_page",
+                            "The pagination cursor is not valid for WorkDrive.",
+                            kind="invalid_request",
+                        ).to_dict()
+
+            params: Dict[str, Any] = {"sort": "-last_modified"}
+            if next_token is not None:
+                params["page[next]"] = next_token
+            else:
+                params["page[limit]"] = max(1, min(int(page_size), 1000))
+                params["page[offset]"] = offset
+
+            response = await self._zoho_get(target_url, headers=headers, params=params)
+            if response.status_code in (400, 404) and parent_id not in ("root", "", None):
+                # A folder id may also be addressed as a workspace id; retry
+                # that documented variant once before declaring unavailable.
+                response = await self._zoho_get(
+                    f"{self.base_url}/workspaces/{parent_id}/files",
+                    headers=headers, params=params)
+            if response.status_code >= 400:
+                payload: Dict[str, Any] = {}
+                try:
+                    payload = response.json() or {}
+                except Exception:  # noqa: BLE001
+                    payload = {}
+                code = str(payload.get("code") or payload.get("error") or "")
+                err = classify_http_status(
+                    "zoho_workdrive", "list_files_page", response.status_code,
+                    provider_error=code,
+                    message=str(payload.get("message") or "") or None,
+                )
+                self.last_error = err.to_dict()
+                return self.last_error
+
+            payload = response.json() or {}
+            items: List[Dict[str, Any]] = []
+            for item in payload.get("data") or []:
+                attrs = item.get("attributes") or {}
+                if not isinstance(attrs, dict):
+                    attrs = {}
+                item_type = attrs.get("type", "file")
+                name = attrs.get("name") or attrs.get("display_name") or "Untitled"
+                if name == "root" and item_type == "folder":
+                    continue
+                try:
+                    size = int(
+                        (attrs.get("storage_info") or {}).get("size_in_bytes")
+                        or attrs.get("size") or 0)
+                except (TypeError, ValueError):
+                    size = 0
+                items.append({
+                    "id": str(item.get("id") or ""),
+                    "name": name,
+                    "type": "folder" if item_type in ("folder", "folders") else "file",
+                    "extension": attrs.get("extn") or attrs.get("extension"),
+                    "size": size,
+                    "modified_at": (
+                        attrs.get("modified_time_in_iso8601")
+                        or attrs.get("modified_time")),
+                    "version": attrs.get("version") or attrs.get("resource_version"),
+                    "parent_id": attrs.get("parent_id"),
+                    "workspace_id": attrs.get("workspace_id") or workspace_id,
+                    "team_id": team_id,
+                })
+
+            links = payload.get("links") or {}
+            cursor_info = links.get("cursor") or {}
+            has_next = cursor_info.get("has_next")
+            next_cursor = None
+            if has_next:
+                next_value = cursor_info.get("next")
+                parsed = None
+                if next_value:
+                    from urllib.parse import urlparse, parse_qs
+                    qs = parse_qs(urlparse(str(next_value)).query)
+                    parsed = (qs.get("page[next]") or [None])[0]
+                next_cursor = f"next:{parsed}" if parsed else None
+            if has_next is None:
+                # No explicit provider statement: the only safe claim is that
+                # a full page MAY have a successor.  Coverage stays unverified.
+                has_next = len(items) >= int(page_size)
+                if has_next:
+                    next_cursor = f"next:" if next_token is None else None
+            if not has_next and next_token is None:
+                next_cursor = None
+            if next_cursor is None and has_next and next_token is None:
+                # Offset providers: advance by the requested page size.
+                next_cursor = str(offset + max(1, int(page_size)))
+
+            return {
+                "status": "success",
+                "provider": "zoho_workdrive",
+                "items": items,
+                "next_cursor": next_cursor,
+                "has_more": bool(has_next),
+                "coverage": "partial" if has_next else "page_complete",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except ProviderRequestError as exc:
+            self.last_error = exc.to_dict()
+            return self.last_error
+        except Exception as exc:  # noqa: BLE001 - never a silent empty page
+            logger.error("WorkDrive list_files_page failed: %s", exc)
+            err = parse_error(
+                "zoho_workdrive", "list_files_page",
+                "Zoho WorkDrive listing failed before a usable page was received.")
+            self.last_error = err.to_dict()
+            return self.last_error
+
+    async def _resolve_listing_url(
+        self, parent_id: str, *, team_id: Optional[str],
+        workspace_id: Optional[str], headers: Dict[str, str],
+    ) -> Optional[str]:
+        if team_id and parent_id and parent_id != "root":
+            return f"{self.base_url}/teamfolders/{parent_id}/files"
+        if workspace_id:
+            return f"{self.base_url}/workspaces/{workspace_id}/files"
+        if team_id:
+            team_res = await self._zoho_get(
+                f"{self.base_url}/teams/{team_id}", headers=headers)
+            if team_res.status_code == 200:
+                attrs = (team_res.json().get("data") or {}).get("attributes") or {}
+                root_ws = attrs.get("root_workspace") or {}
+                ws_id = root_ws.get("id") if isinstance(root_ws, dict) else None
+                if ws_id:
+                    return f"{self.base_url}/workspaces/{ws_id}/files"
+            return None
+        if parent_id and parent_id != "root":
+            return f"{self.base_url}/files/{parent_id}/files"
+        user_res = await self._zoho_get(f"{self.base_url}/users/me", headers=headers)
+        if user_res.status_code == 200:
+            zoho_uid = (user_res.json().get("data") or {}).get("id")
+            if zoho_uid:
+                ps_res = await self._zoho_get(
+                    f"{self.base_url}/users/{zoho_uid}/privatespace", headers=headers)
+                if ps_res.status_code == 200:
+                    spaces = ps_res.json().get("data") or []
+                    if spaces:
+                        return f"{self.base_url}/workspaces/{spaces[0].get('id')}/files"
+        return None
+
+    async def search_files_envelope(
+        self, user_or_token: Optional[str], query: Optional[str],
+        limit: int = 20,
+    ) -> Dict[str, Any]:
+        """Strict search wrapper: unavailable is not an empty result set."""
+        self.last_error = None
+        results = await self.search_files(user_or_token, query, limit=limit)
+        if self.last_error:
+            return self.last_error
+        return {
+            "status": "success",
+            "provider": "zoho_workdrive",
+            "items": results,
+            "coverage": "partial",
+            "note": "Provider search is team-scoped and bounded; it is not proof the corpus has no other matches.",
+        }
+
     async def list_files(self, user_id: str, parent_id: str = "root",
                          team_id: Optional[str] = None,
                          workspace_id: Optional[str] = None,
@@ -730,6 +959,11 @@ class ZohoWorkDriveService(IntegrationService):
         else:
             token = await self.get_access_token(raw)
         if not token:
+            self.last_error = unavailable(
+                "zoho_workdrive", "search_files",
+                "No Zoho WorkDrive access token. Reconnect the integration.",
+                kind="auth_unavailable",
+            ).to_dict()
             return []
 
         try:
@@ -797,10 +1031,16 @@ class ZohoWorkDriveService(IntegrationService):
             return files
         except Exception as e:
             logger.error(f"Failed to search Zoho WorkDrive: {e}")
+            self.last_error = unavailable(
+                "zoho_workdrive", "search_files",
+                "Zoho WorkDrive search failed; the corpus was not searched.",
+                kind="transient",
+            ).to_dict()
             return []
 
     async def get_file_metadata(
-        self, user_id: str, file_id: str
+        self, user_id: str, file_id: str,
+        workspace_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Return the provider record for one WorkDrive resource."""
         if not file_id:
@@ -1391,13 +1631,18 @@ class ZohoWorkDriveService(IntegrationService):
         """Return the capabilities of the Zoho WorkDrive service."""
         return {
             "operations": [
-                {"id": "list_files", "name": "List Files"},
-                {"id": "search_files", "name": "Search Files"},
-                {"id": "walk_files", "name": "Walk All Files (Recursive)"},
-                {"id": "download_file", "name": "Download File"},
-                {"id": "ingest_file_to_memory", "name": "Ingest File to Memory"},
-                {"id": "get_teams", "name": "Get Teams"},
-                {"id": "full_sync", "name": "Full Sync"},
+                {"id": "list_files", "name": "List Files", "coverage": "paged"},
+                {"id": "list_files_page", "name": "List Files (strict page)", "coverage": "paged"},
+                {"id": "search_files", "name": "Search Files", "coverage": "bounded"},
+                {"id": "search_files_envelope", "name": "Search Files (strict)", "coverage": "bounded"},
+                {"id": "walk_files", "name": "Walk All Files (Recursive)", "coverage": "full_tree"},
+                {"id": "download_file", "name": "Download File", "coverage": "single"},
+                {"id": "get_file_metadata", "name": "File Metadata", "coverage": "single"},
+                {"id": "ingest_file_to_memory", "name": "Ingest File to Memory", "coverage": "single"},
+                {"id": "get_teams", "name": "Get Teams", "coverage": "full"},
+                {"id": "get_team_folders", "name": "Get Team Folders", "coverage": "full"},
+                {"id": "get_folder_tree", "name": "Get Folder Tree", "coverage": "bounded"},
+                {"id": "full_sync", "name": "Full Sync", "coverage": "full_tree"},
             ],
             "required_params": ["access_token"],
             "rate_limits": {"requests_per_minute": 100},
@@ -1423,23 +1668,49 @@ class ZohoWorkDriveService(IntegrationService):
         """Execute a Zoho WorkDrive operation."""
         operations = {
             "list_files": self.list_files,
+            "list_files_page": self.list_files_page,
             "search_files": self.search_files,
+            "search_files_envelope": self.search_files_envelope,
             "walk_files": self.walk_files,
             "download_file": self.download_file,
+            "get_file_metadata": self.get_file_metadata,
             "ingest_file_to_memory": self.ingest_file_to_memory,
             "get_teams": self.get_teams,
+            "get_team_folders": self.get_team_folders,
+            "get_folder_tree": self.get_folder_tree,
             "full_sync": self.full_sync,
         }
         if operation not in operations:
-            return {"success": False, "error": f"Unknown operation: {operation}"}
+            return {
+                "success": False,
+                "error_kind": "unsupported_operation",
+                "error": f"Unknown operation: {operation}",
+                "supported": sorted(operations),
+            }
         try:
             user_id = (context or {}).get("user_id") or parameters.get("user_id") or self.tenant_id
-            fn = operations[operation]
-            result = await fn(user_id, **{k: v for k, v in parameters.items() if k != "user_id"})
+            if operation == "list_files_page":
+                result = await self.list_files_page(
+                    user_id,
+                    parameters.get("parent_id") or parameters.get("folder_id") or "root",
+                    team_id=parameters.get("team_id"),
+                    workspace_id=parameters.get("workspace_id"),
+                    cursor=parameters.get("cursor") or parameters.get("page_token"),
+                    page_size=int(parameters.get("page_size") or 100),
+                )
+            elif operation == "search_files_envelope":
+                result = await self.search_files_envelope(
+                    user_id, parameters.get("query"), limit=int(parameters.get("limit") or 20))
+            else:
+                fn = operations[operation]
+                result = await fn(
+                    user_id, **{k: v for k, v in parameters.items() if k != "user_id"})
+            if isinstance(result, dict) and result.get("status") == "error":
+                return {**result, "success": False}
             return {"success": True, "result": result}
         except Exception as e:
             logger.error(f"Zoho WorkDrive operation {operation} failed: {e}")
-            return {"success": False, "error": "Operation failed"}
+            return {"success": False, "error_kind": "provider_error", "error": "Operation failed"}
 
 
 # Create a default instance for hub_sync_service compatibility
