@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from core.auth import User, get_current_user
 from core.assignment_planner import (
     AssignmentPlanError,
+    _registered_action_effect,
     plan_assignment,
     validate_proposed_plan,
 )
@@ -115,6 +116,7 @@ class AssignmentStart(BaseModel):
     deliverables: List[Dict[str, Any]] = []
     calculation: Optional[Dict[str, Any]] = None
     outbound: Optional[Dict[str, Any]] = None
+    actions: List[Dict[str, Any]] = []
     wait: Optional[Dict[str, Any]] = None
     task_context: Dict[str, Any] = {}
     transport: Optional[str] = None
@@ -541,6 +543,20 @@ async def start_assignment(
             current_user, kind=kind, title=title,
             assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
         deliverables.append(deliverable)
+    if body.actions:
+        from core.action_registry import action_registry
+
+        for spec in body.actions:
+            name = str((spec or {}).get("action") or "").strip()
+            action = action_registry.get_action(name)
+            if action is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"registered action '{name}' is not available")
+            required = ("outbound" if _registered_action_effect(action)
+                        == "external" else "retrieve")
+            if required not in accepted_actions:
+                accepted_actions.append(required)
     if body.outbound:
         accepted_actions.append("outbound")
         if not str((body.outbound or {}).get("body") or "").strip(
@@ -585,6 +601,7 @@ async def start_assignment(
             deliverables=deliverables,
             calculation=body.calculation,
             outbound=body.outbound,
+            actions=body.actions,
             wait=body.wait,
             standing_authority=standing_authority,
             budget=body.budget,

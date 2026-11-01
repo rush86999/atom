@@ -1560,9 +1560,37 @@ class AssignmentExecutor:
             raise AssignmentError(f"run {run_id} has no assignment plan")
         from core.task_lifecycle import open_unresolved_questions
 
+        projected = assignment_projection(assignment)
+        budget_view = dict(projected.get("budget") or {})
+        started = self._parse_clock(budget_view.get("started_at"))
+        if started is not None:
+            wall = max(0.0, float(self.clock()) - started)
+            working = min(wall, max(
+                0.0, self._effective_wall_elapsed(budget_view)))
+            budget_view["working_seconds"] = round(working, 3)
+            budget_view["paused_seconds"] = round(max(0.0, wall - working), 3)
+            budget_view["wall_seconds"] = round(wall, 3)
+        projected["budget"] = budget_view
+        steps = assignment.get("steps") or []
+        required = [step for step in steps if step.get("required", True)]
+        projected["progress"] = {
+            "total_steps": len(steps),
+            "required_steps": len(required),
+            "completed_steps": sum(
+                1 for step in required
+                if step.get("status") in ("applied", "skipped")),
+            "waiting_steps": sum(
+                1 for step in steps
+                if step.get("status") in ("waiting", "awaiting_approval")),
+            "failed_steps": sum(
+                1 for step in steps if step.get("status") == "failed"),
+            "uncertain_steps": sum(
+                1 for step in steps if step.get("status") == "uncertain"),
+            "open_gap_count": len(open_unresolved_questions(record)),
+        }
         return {
             "run_id": run_id,
-            "assignment": assignment_projection(assignment),
+            "assignment": projected,
             "open_gaps": open_unresolved_questions(record),
             "operations": [
                 {
@@ -4312,12 +4340,22 @@ class AssignmentExecutor:
             prepared = {
                 "payload": {
                     "adapter": step.get("adapter"),
-                    "inputs": _json_safe(inputs),
-                    "depends_on_results": {
-                        dep: _json_safe(
-                            (step_by_id(assignment, dep) or {}).get("result"))
-                        for dep in (step.get("depends_on") or [])
-                    },
+                    "inputs": _json_safe(inputs, depth=0),
+                    "dependency_results": [{
+                        "step_id": dep,
+                        "artifact_revision": (
+                            (step_by_id(assignment, dep) or {}).get(
+                                "artifact_revision")),
+                        "value": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("value")),
+                        "unit": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("unit")),
+                        "summary": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("summary")),
+                    } for dep in (step.get("depends_on") or [])],
                 },
                 "artifact_revision": step.get("artifact_revision"),
             }
@@ -5446,6 +5484,10 @@ async def _action_registry_adapter(
     try:
         result = await action_registry.execute_action(
             name, arguments, execution_context)
+    except ExternalOutcomeUnknown:
+        # A provider action that may have applied must reconcile through the
+        # shared operation record; it is never downgraded to a plain failure.
+        raise
     except Exception as exc:  # noqa: BLE001 — receipt keeps the failure
         return {
             "status": "failed",
