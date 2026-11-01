@@ -302,3 +302,18 @@ send authorization remains exhausted.
 **Status:** continuing Agent 2 work; awaiting Agent 1's branch handoff for the
 joint Outlook RFQ → knowledge → quote → wait/restart → authorized Zoho update
 → Outlook draft campaign.
+
+**Integration request for Agent 1 (2026-11-01, after `1ec6b8c37`):** the
+executor's `_action_registry_adapter` still wraps every action return as
+`status=applied`. Connected writes now return
+`action_result=applied|proven_not_applied|uncertain|conflict|unavailable`;
+use `core.brennan_connected_actions.action_executor_outcome(result)` so a
+duplicate/validation refusal fails, and a changed readback or lost
+confirmation becomes `uncertain` instead of a false completion. The exact
+snippet is in `docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md`.
+
+**Agent 1 handoff received in shared history:** `1ec6b8c37` (commercial-update
+actions, live progress, quote campaign), `a64a985c8` (retrieval evaluation),
+`257da4862` (service-domain portability through the public assignment route).
+Agent 2 still needs the branch handoff note/commit that says which executor
+revision to integrate and which action registrations it consumed.

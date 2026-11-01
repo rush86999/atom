@@ -3,6 +3,12 @@
 Base: `587fbc25148a6203f3785c46e56992ddcf54bd70`
 Agent 2 branch: `codex/brennan-knowledge-accounting-20261101`
 
+The tables below use the reference `brennan.*` names. Every action is also
+registered under the business-independent `connected.*` name (for example
+`connected.books.create_bill`). New plans should use `connected.*`; the
+`brennan.*` names remain aliases. See
+[AGENT_2_PORTABILITY_MATRIX.md](AGENT_2_PORTABILITY_MATRIX.md).
+
 Use these through the existing `action.registry` assignment adapter. Read
 actions declare `{"effect":"read"}`; the planner classifies them as
 `read_only` and does not require an outbound grant. The draft action declares
@@ -82,7 +88,19 @@ The current `_action_registry_adapter` in `assignment_executor.py` wraps every
 action result as `status=applied`. Agent 1 must map the action's
 `action_result` into the executor outcome (`applied`, `uncertain`, or failed)
 before marking the operation complete. Do not treat a `conflict` allocation as
-applied.
+applied. The module exports the drop-in mapping:
+
+```python
+from core.brennan_connected_actions import action_executor_outcome
+
+result = await action_registry.execute_action(name, arguments, execution_context)
+outcome = action_executor_outcome(result)   # applied | uncertain | failed
+return {"status": outcome, "data": _json_safe(result), ...}
+```
+
+A suggested adapter patch is to replace the unconditional
+`{"status": "applied", ...}` return with the mapped `outcome`; keep the
+existing `ExternalOutcomeUnknown` exception path for adapters that raise it.
 
 ## Receipt shape
 
