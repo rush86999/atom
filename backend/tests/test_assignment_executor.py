@@ -30,6 +30,7 @@ from core.assignment_executor import (
     WaitingForExternal,
     default_adapter_registry,
 )
+import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
 from core.assignment_plan import (
     new_assignment,
     new_deliverable,
@@ -2855,3 +2856,198 @@ def test_restart_while_waiting_credits_the_interval_once(env):
     assert restarted._effective_wall_elapsed(budget) < 5.0
     assert budget["active_wait"] is None
     assert budget.get("waiting_since") is None
+
+
+def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
+    from core.quote_evidence import (
+        derive_quote_requirements,
+        plan_quote_assignment,
+        validate_quote_evidence,
+    )
+    import openpyxl
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    workbook_path = tmp / "quote_inputs.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Items"
+    sheet.append(["SKU", "Qty", "Unit Price", "Discount Percent", "Category",
+                  "Unit", "Pack"])
+    sheet.append(["A", 2, 100.00, 0, "A", "each", "1"])
+    sheet.append(["B", 3, 50.00, 5, "B", "each", "1"])
+    workbook.save(workbook_path)
+
+    customer = {
+        "provider": "crm", "resource_id": "cust-1", "version": "v1",
+        "kind": "customer", "record_type": "customer",
+        "customer_id": "cust-1", "customer_name": "Example Customer",
+        "access": "granted"}
+    agreement = {
+        "provider": "workdrive", "resource_id": "agreement-1", "version": "v3",
+        "kind": "pricing_agreement", "customer_id": "cust-1",
+        "price_basis": "customer_contract", "effective_date": "2026-10-01",
+        "access": "granted",
+        "fields": {
+            "currency": "USD", "effective_date": "2026-10-01",
+            "discount_policy": "5% on category B", "freight": "20.00",
+            "tax_treatment": "none", "delivery_terms": "FOB destination",
+            "validity": "30 days",
+        },
+        "citations": [{"sheet": "Terms", "row": 2}],
+    }
+    rows = {
+        "provider": "onedrive", "resource_id": "rows-1", "version": "rev-7",
+        "kind": "price_rows", "access": "granted",
+        "citations": [{"sheet": "Items", "row": 2},
+                      {"sheet": "Items", "row": 3}],
+        "rows": [
+            {"sku": "A", "quantity": "2", "unit": "each", "pack": "1",
+             "unit_price": "100.00", "currency": "USD",
+             "discount_percent": "0", "category": "A",
+             "citation": {"sheet": "Items", "row": 2}},
+            {"sku": "B", "quantity": "3", "unit": "each", "pack": "1",
+             "unit_price": "50.00", "currency": "USD",
+             "discount_percent": "5", "category": "B",
+             "citation": {"sheet": "Items", "row": 3}},
+        ],
+    }
+    requirements = derive_quote_requirements(
+        "Prepare a customer quote", requested={"customer_id": "cust-1"})
+    validation = validate_quote_evidence(
+        requirements, [customer, rows, agreement],
+        requested={"customer_id": "cust-1"})
+    assert validation["status"] == "ready", validation
+    planned = plan_quote_assignment(
+        objective="Prepare a customer quote", validation=validation,
+        source={
+            "kind": "workbook", "representation": "xlsx",
+            "resource_id": "quote-workbook", "internal_fixture": True,
+            "path": str(workbook_path), "sheet": "Items",
+            "columns": ["SKU", "Qty", "Unit Price", "Discount Percent",
+                        "Category", "Unit", "Pack"],
+        },
+        teaching=_teaching(), workspace_id="ws_assign",
+        tenant_id="tenant_assign", employee_id="user-1",
+        document_path=str(tmp / "quote.docx"),
+        email_draft_path=str(tmp / "quote-draft.eml"),
+        email_to=["customer@example.invalid"], subject="Customer quote")
+    assert planned["status"] == "ready", planned
+    plan = planned["plan"]
+    run_id = env["executor"].create_assignment(
+        "conv-quote", "Prepare a customer quote", assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    document = docx.Document(str(tmp / "quote.docx"))
+    text = "\n".join(p.text for p in document.paragraphs)
+    assert "362.50" in text, text
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["result"]["calculation_receipt"]["total"] == "362.50"
+    assert proof["quote_evidence"]["status"] == "ready" if (
+        proof := assignment.get("provenance")) else False
+    draft = step_by_id(assignment, "email-draft")
+    assert draft["status"] == "applied"
+    assert "362.50" in str(draft["result"].get("body") or
+                           draft["result"].get("draft") or "")
+
+
+def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: hours/rates, different vocabulary and currency.
+
+    The shared executor and line-item calculator carry no Brennan or quote
+    vocabulary; only the typed line items and teaching differ.
+    """
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    scope = tmp / "service-scope.txt"
+    scope.write_text("Service scope: four consulting hours and two trips.\n")
+    plan = plan_assignment(
+        objective="Prepare a service proposal",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "service-scope", "internal_fixture": True,
+            "path": str(scope),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "service-proposal.docx"),
+            "title": "Service proposal",
+        }],
+        calculation={
+            "line_items": [
+                {"item_id": "consulting-hours", "quantity": "4",
+                 "unit": "hour", "pack_size": "1", "unit_price": "120.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+                {"item_id": "travel", "quantity": "2", "unit": "trip",
+                 "pack_size": "1", "unit_price": "75.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+            ],
+            "currency": "CAD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "service"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-service", "Prepare a service proposal",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "630.00"
+    text = "\n".join(
+        p.text for p in docx.Document(
+            str(tmp / "service-proposal.docx")).paragraphs)
+    assert "630.00" in text
+
+
+def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: an expense-policy assessment, not a quote."""
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    policy = tmp / "expense-policy.txt"
+    policy.write_text("Expense limit: 200.00. Claimed: 250.00.\n")
+    plan = plan_assignment(
+        objective="Assess the expense claim against policy",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "expense-policy", "internal_fixture": True,
+            "path": str(policy),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "expense-review.docx"),
+            "title": "Expense review",
+        }],
+        calculation={
+            "expression": "claimed - limit",
+            "bindings": {"claimed": "250.00", "limit": "200.00"},
+            "output_unit": "CAD",
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "expense-policy"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-expense", "Assess the expense claim against policy",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "50.00"
+    text = "\n".join(p.text for p in docx.Document(
+        str(tmp / "expense-review.docx")).paragraphs)
+    assert "50.00" in text

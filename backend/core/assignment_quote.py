@@ -247,7 +247,8 @@ def calculate_line_items(
                     "kind": "missing_evidence",
                 })
             price_basis = str(line.get("price_basis") or "").strip().lower()
-            if price_basis not in ("list", "contract", "selling", "quoted"):
+            if price_basis not in (
+                    "list", "contract", "selling", "quoted", "rate"):
                 raise NeedsContext({
                     "concept": "price_basis",
                     "reason": "the line does not name a selling price basis",
@@ -424,7 +425,7 @@ def calculate_line_items(
             "matched_count": len(computed),
             "truncated": False,
             "substantive": True,
-            "receipt": receipt,
+            "calculation_receipt": receipt,
             "evidence": [{
                 "kind": "calculation_receipt",
                 "currency": currency,

@@ -65,7 +65,7 @@ def test_exact_362_50_fixture_with_discount_only_on_b():
     result = _calculate()
     assert result["value"] == "362.50"
     assert result["currency"] == "USD"
-    receipt = result["receipt"]
+    receipt = result["calculation_receipt"]
     assert receipt["subtotal"] == "342.50"
     assert receipt["freight"] == "20.00"
     assert receipt["tax"]["amount"] == "0"
