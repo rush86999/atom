@@ -88,6 +88,17 @@ class ApproveTrainingRequest(BaseModel):
     )
 
 
+class StartTrainingRequest(BaseModel):
+    """Open a supervised training round for a STUDENT hire."""
+
+    agent_id: str
+    reason: str = Field(
+        "supervisor-initiated training",
+        description="Why this training round is being opened",
+    )
+    capability_gaps: List[str] = Field(default_factory=list)
+
+
 class CompleteTrainingRequest(BaseModel):
     """Request to complete a training session.
 
@@ -137,6 +148,37 @@ class TeachingPointUpdate(BaseModel):
 # ============================================================================
 # Training Proposals (STUDENT journey)
 # ============================================================================
+
+
+@router.post("/training/start")
+async def start_training_round(
+    request: StartTrainingRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Open a supervised training PROPOSAL for a STUDENT agent.
+
+    Product path for "start training": the proposal is persisted and then
+    follows the normal supervisor approval → session → completion flow. No
+    maturity is assigned here.
+    """
+    _require_supervisor(db, current_user)
+    try:
+        proposal = await StudentTrainingService(db).start_training(
+            request.agent_id,
+            str(current_user.id),
+            reason=request.reason,
+            capability_gaps=request.capability_gaps,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {
+        "message": "Training proposal created and awaiting approval",
+        "proposal_id": proposal.id,
+        "agent_id": proposal.agent_id,
+        "status": proposal.status,
+        "approval_required": True,
+    }
 
 
 @router.get("/training/proposals")

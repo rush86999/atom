@@ -3924,6 +3924,74 @@ class AssignmentExecutor:
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
 
+    def _autonomy_topic_for_step(
+        self, step: Dict[str, Any],
+    ) -> Optional[str]:
+        """The autonomy topic an unapproved step exercises, if any.
+
+        Explicit ``autonomy_topic`` wins. Otherwise only mutating operation
+        classes are mapped, and outbound adapters must name their surface —
+        an unknown external adapter is governed by the approval/standing
+        rules above, not guessed into a topic.
+        """
+        explicit = str(step.get("autonomy_topic") or "").strip()
+        if explicit:
+            return explicit
+        operation_type = str(step.get("operation_type") or "").lower()
+        adapter = str(step.get("adapter") or "").lower()
+        if operation_type == "edit":
+            return "canvas_edit"
+        if (operation_type == "outbound"
+                and str(step.get("effect") or "") == "external"):
+            if "email" in adapter or "send" in adapter:
+                return "send_email"
+            if "crm" in adapter:
+                return "crm_write"
+        return None
+
+    def _autonomy_gate(
+        self,
+        assignment: Dict[str, Any],
+        step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Re-evaluate runtime autonomy immediately before the effect claim.
+
+        A durable wait/restart can outlive the decision that a hire was
+        allowed to act. This consults the SAME gate a chat/canvas turn
+        consults, using a fresh session so a revoked trust-calibration
+        grant is observed without process state.
+        """
+        topic = self._autonomy_topic_for_step(step)
+        if not topic:
+            return None
+        provenance = assignment.get("provenance") or {}
+        agent_id = str(provenance.get("agent_id") or "").strip() or None
+        user_id = (
+            str(provenance.get("user_id") or "").strip()
+            or str(assignment.get("employee_id") or "").strip()
+            or None)
+        try:
+            from core.autonomy_policy import (
+                OUTCOME_EXECUTE, gate_for_topic,
+            )
+
+            with self.lifecycle.runs._sessions()() as db:
+                gate = gate_for_topic(db, user_id, topic, agent_id)
+            if gate.get("outcome") == OUTCOME_EXECUTE:
+                return None
+            return gate
+        except Exception as exc:  # noqa: BLE001 — fail closed for mutating work
+            logger.warning(
+                "assignment %s: autonomy gate unavailable for %s: %s",
+                assignment.get("assignment_id"), step.get("step_id"), exc)
+            return {
+                "topic": topic,
+                "outcome": "propose",
+                "reason": (
+                    "Runtime autonomy could not be re-verified before this "
+                    "mutating step; human approval is required."),
+            }
+
     def _adapter_allows_standing(self, adapter: Any) -> bool:
         metadata = getattr(adapter, "metadata", None) or {}
         if metadata.get("allow_standing_authorization"):
@@ -4099,6 +4167,33 @@ class AssignmentExecutor:
             self._persist_assignment(
                 run_id, assignment, "step blocked: action not authorized")
             return
+
+        # Re-verify runtime autonomy AFTER any durable wait and immediately
+        # before the effect claim. A grant that was valid when the assignment
+        # was prepared (or before a restart) is not assumed to still hold.
+        if not approval.get("required") and not authorized_by_grant:
+            autonomy_gate = self._autonomy_gate(assignment, step)
+            if autonomy_gate is not None:
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "autonomy": {
+                        "topic": autonomy_gate.get("topic"),
+                        "outcome": autonomy_gate.get("outcome"),
+                        "reason": autonomy_gate.get("reason"),
+                    },
+                    "updated_at": _utc_now_iso(),
+                })
+                self._persist_assignment(
+                    run_id, assignment,
+                    f"step {step['step_id']} re-gated by autonomy policy")
+                step = step_by_id(assignment, step["step_id"]) or step
+                approval = {
+                    **approval,
+                    "required": True,
+                    "purpose": (
+                        autonomy_gate.get("reason")
+                        or "Runtime autonomy must be re-approved."),
+                    "source": "autonomy_recheck",
+                }
 
         if approval.get("required") and not authorized_by_grant:
             operation = _operation_by_id(

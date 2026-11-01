@@ -533,6 +533,64 @@ After completing this training, the agent will be able to handle similar tasks a
 
         return session
 
+    async def start_training(
+        self,
+        agent_id: str,
+        requested_by: str,
+        *,
+        reason: str = "",
+        capability_gaps: Optional[List[str]] = None,
+    ) -> AgentProposal:
+        """Open a supervised training round for a STUDENT hire.
+
+        This is the explicit "start training" entry point the acceptance
+        journey needs. It does NOT assign maturity, create a session, or
+        bypass approval: it persists a normal training PROPOSAL through the
+        same generator the blocked-trigger path uses. A supervisor must
+        still approve it (which creates the persisted session + guidance),
+        and completion still has to cite recorded work.
+        """
+        from types import SimpleNamespace
+
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
+        if agent is None:
+            raise ValueError(f"Agent {agent_id} not found")
+        if (agent.status or "").lower() != AgentStatus.STUDENT.value:
+            raise ValueError(
+                "training can only be started for a STUDENT agent "
+                f"(current: {agent.status})")
+
+        trigger = SimpleNamespace(
+            agent_id=agent.id,
+            trigger_type="manual_training",
+            trigger_context={
+                "action_type": "manual_training",
+                "requested_by": str(requested_by),
+                "reason": str(reason or "supervisor-initiated training"),
+                "capability_gaps": [
+                    str(gap) for gap in (capability_gaps or [])
+                    if str(gap).strip()
+                ],
+            },
+            proposal_id=None,
+        )
+        proposal = await self.create_training_proposal(trigger)
+        if capability_gaps:
+            data = dict(proposal.proposal_data or {})
+            gaps = list(data.get("capability_gaps") or [])
+            for gap in capability_gaps:
+                text = str(gap).strip()
+                if text and text not in gaps:
+                    gaps.append(text)
+            data["capability_gaps"] = gaps
+            proposal.proposal_data = data
+            self.db.commit()
+        logger.info(
+            "Manual training proposal %s opened for STUDENT %s by %s",
+            proposal.id, agent.id, requested_by)
+        return proposal
+
     def _spawn_role_canvases(
         self, session: TrainingSession, user_id: str
     ) -> List[Dict[str, Any]]:

@@ -145,6 +145,77 @@ class WorkflowEngine:
         except Exception as e:
             logger.debug(f"In-app pause notification dispatch skipped (non-fatal): {e}")
 
+    async def _durable_step_approval(
+        self,
+        execution_id: str,
+        step_id: str,
+        action_type: str,
+        input_data: Dict[str, Any],
+        *,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve a DURABLE approval for exactly this workflow step.
+
+        ``resume_workflow`` only passes the approval reference through the
+        execution inputs; the authority itself is the persisted HITL row.
+        This re-reads it (so a restarted worker sees the same decision) and
+        refuses mismatched execution/step/action/scope references. A boolean
+        in ``input_data`` alone can never authorize an effect.
+        """
+        hitl_id = str(
+            input_data.get("hitl_action_id")
+            or input_data.get("approval_hitl_id")
+            or "").strip()
+        if not input_data.get("approved") or not hitl_id:
+            return None
+        consumed = {
+            str(item) for item in (
+                input_data.get("consumed_hitl_action_ids") or [])
+        }
+        if hitl_id in consumed:
+            return None
+        try:
+            from core.models import HITLAction
+
+            with get_db_session() as db:
+                action = db.query(HITLAction).filter(
+                    HITLAction.id == hitl_id).first()
+                if action is None:
+                    return None
+                if str(action.status or "").lower() not in (
+                        "approved", "executed"):
+                    return None
+                params = action.params if isinstance(action.params, dict) else {}
+                if str(params.get("execution_id") or "") != str(execution_id):
+                    return None
+                if str(params.get("step_id") or "") != str(step_id):
+                    return None
+                if str(action.action_type or "") != str(action_type or ""):
+                    return None
+                if (tenant_id
+                        and action.tenant_id
+                        and str(action.tenant_id) != str(tenant_id)):
+                    return None
+                if (workspace_id
+                        and getattr(action, "workspace_id", None)
+                        and str(action.workspace_id) != str(workspace_id)):
+                    return None
+                return {
+                    "hitl_action_id": hitl_id,
+                    "approved_by": (
+                        action.reviewed_by
+                        or getattr(action, "resolver_id", None)),
+                    "resolved_at": (
+                        action.reviewed_at.isoformat()
+                        if getattr(action, "reviewed_at", None) else None),
+                }
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "workflow %s: durable approval lookup failed: %s",
+                execution_id, exc)
+            return None
+
     async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
         """Start a new workflow execution"""
         # Convert graph to steps if needed
@@ -786,42 +857,100 @@ class WorkflowEngine:
                                 else ""
                             )
                             if not can_perform:
-                                # Trust policy / maturity gate: the agent is not
-                                # autonomous enough for this action, so pause the
-                                # workflow for human-in-the-loop review instead of
-                                # failing it. A HITLAction record is created so the
-                                # standard approval flow (approve/reject + resume)
-                                # applies.
-                                logger.warning(f"🚫 Governance pause for execution {execution_id} at step {step_id}: {message}")
-                                hitl_action_id = None
-                                try:
-                                    hitl_action_id = governance.request_approval(
-                                        agent_id=agent_id,
-                                        action_type=step.get("action", "default"),
-                                        params={
-                                            "execution_id": execution_id,
-                                            "workflow_id": workflow.get("id", "unknown"),
-                                            "step_id": step_id,
-                                            "parameters": resolved_params,
-                                            "tenant_id": tenant_id,
-                                        },
-                                        reason=message,
+                                # Trust policy / maturity gate: the agent is
+                                # not autonomous enough for this action. A
+                                # resume carrying the approval for THIS exact
+                                # step is the one authorized way through —
+                                # the durable HITL row is re-read, never a
+                                # boolean or stale in-process grant.
+                                execution_inputs = (
+                                    state.get("input_data")
+                                    if isinstance(state, dict) else {}) or {}
+                                previous_step_status = str(
+                                    (step_state or {}).get("status") or "")
+                                approved_binding = await self._durable_step_approval(
+                                    execution_id, step_id,
+                                    step.get("action", "default"),
+                                    execution_inputs,
+                                    workspace_id=workspace_id,
+                                    tenant_id=tenant_id,
+                                )
+                                if approved_binding is not None:
+                                    if previous_step_status == "RUNNING":
+                                        # The approved step was already
+                                        # dispatched by an earlier worker and
+                                        # never recorded a terminal state.
+                                        # Re-running it could duplicate the
+                                        # effect; stop for reconciliation.
+                                        reason = (
+                                            "Approved step was already "
+                                            "dispatched before this resume; "
+                                            "its outcome is uncertain. "
+                                            "Reconcile it before retrying.")
+                                        await self.state_manager.update_step_status(
+                                            execution_id, step_id, "PAUSED",
+                                            error=reason)
+                                        await self.state_manager.update_execution_status(
+                                            execution_id, "PAUSED", error=reason)
+                                        await ws_manager.notify_workflow_status(
+                                            user_id, execution_id, "PAUSED",
+                                            {"reason": "approval_already_consumed",
+                                             "step_id": step_id,
+                                             "hitl_action_id": approved_binding[
+                                                 "hitl_action_id"],
+                                             "error": reason})
+                                        return
+                                    # Consume the approval durably BEFORE
+                                    # dispatch: a crash can leave the step
+                                    # ambiguous, never executable twice.
+                                    consumed = list(
+                                        execution_inputs.get(
+                                            "consumed_hitl_action_ids") or [])
+                                    consumed.append(
+                                        approved_binding["hitl_action_id"])
+                                    await self.state_manager.update_execution_inputs(
+                                        execution_id,
+                                        {"consumed_hitl_action_ids":
+                                         consumed[-50:]})
+                                    logger.info(
+                                        "Workflow %s step %s authorized by "
+                                        "durable HITL %s", execution_id,
+                                        step_id,
+                                        approved_binding["hitl_action_id"])
+                                else:
+                                    # No matching durable approval yet: pause
+                                    # durably and file the exact effect for a
+                                    # human decision.
+                                    logger.warning(f"🚫 Governance pause for execution {execution_id} at step {step_id}: {message}")
+                                    hitl_action_id = None
+                                    try:
+                                        hitl_action_id = governance.request_approval(
+                                            agent_id=agent_id,
+                                            action_type=step.get("action", "default"),
+                                            params={
+                                                "execution_id": execution_id,
+                                                "workflow_id": workflow.get("id", "unknown"),
+                                                "step_id": step_id,
+                                                "parameters": resolved_params,
+                                                "tenant_id": tenant_id,
+                                            },
+                                            reason=message,
+                                        )
+                                    except Exception as hitl_error:
+                                        logger.error(f"Failed to create HITL action for paused execution {execution_id}: {hitl_error}")
+                                    await self.state_manager.update_step_status(execution_id, step_id, "PAUSED", error=f"Governance approval required: {message}")
+                                    await self.state_manager.update_execution_status(execution_id, "PAUSED", error=f"Governance approval required: {message}")
+                                    await ws_manager.notify_workflow_status(
+                                        user_id, execution_id, "PAUSED",
+                                        {"reason": "hitl_required", "hitl_action_id": hitl_action_id,
+                                         "step_id": step_id, "error": message}
                                     )
-                                except Exception as hitl_error:
-                                    logger.error(f"Failed to create HITL action for paused execution {execution_id}: {hitl_error}")
-                                await self.state_manager.update_step_status(execution_id, step_id, "PAUSED", error=f"Governance approval required: {message}")
-                                await self.state_manager.update_execution_status(execution_id, "PAUSED", error=f"Governance approval required: {message}")
-                                await ws_manager.notify_workflow_status(
-                                    user_id, execution_id, "PAUSED",
-                                    {"reason": "hitl_required", "hitl_action_id": hitl_action_id,
-                                     "step_id": step_id, "error": message}
-                                )
-                                self._notify_workflow_paused(
-                                    workflow, execution_id, step_id, user_id,
-                                    reason=f"Governance approval required: {message}",
-                                    hitl_action_id=hitl_action_id,
-                                )
-                                return
+                                    self._notify_workflow_paused(
+                                        workflow, execution_id, step_id, user_id,
+                                        reason=f"Governance approval required: {message}",
+                                        hitl_action_id=hitl_action_id,
+                                    )
+                                    return
                 except Exception as gov_error:
                     logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
                 # --- END SAAS GOVERNANCE INTERLOCK ---
