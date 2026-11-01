@@ -1,0 +1,210 @@
+{
+  "schema": "atom-long-run-state-3",
+  "run_id": "790dc6cd-0804-422c-b7f4-b44d27672da2",
+  "run_status": "achieved",
+  "assignment_id": "asg-247f745f83484fc3",
+  "assignment_status": "completed",
+  "teaching_revision": "8735dd7b3648a7d8+a52a495bf104849f+map",
+  "teaching_snapshot_fingerprint": "9135f2014a376f884450ef45d6bfdf85",
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "operation_id": "6fff72ff-1332-4e13-82e7-b34714bdfad9",
+      "attempts": 1,
+      "value": "400.00"
+    },
+    {
+      "step_id": "wait",
+      "status": "applied",
+      "operation_id": "611d3ac6-6206-4314-817c-c65c61182ded",
+      "attempts": 1,
+      "value": "Delivery term: net 45 days from the invoice date."
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "applied",
+      "operation_id": "1d273a88-e659-450c-a0f9-729d2b5e9eef",
+      "attempts": 0,
+      "value": null
+    },
+    {
+      "step_id": "send",
+      "status": "applied",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "attempts": 0,
+      "value": null
+    }
+  ],
+  "deliverable": [
+    {
+      "deliverable_id": "del-deliverable-1",
+      "kind": "document",
+      "description": "Sum Price for the integrated quote sheet",
+      "required": true,
+      "step_id": "deliverable-1",
+      "status": "applied",
+      "artifact_revision": "9c44aeeb503d8611",
+      "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_20261101/data/assignments/default/b8dd3a17-6cbf-4ff9-8f31-70e7dd36fcc8/draft-b004a841e274/sum-price-for-the-integrated-quote-sheet-7ae420b6.docx",
+      "sha256": "9c44aeeb503d861180608dd26e393c9366715b86802a94ac167db98a4466d806"
+    }
+  ],
+  "budget": {
+    "started_at": "2026-11-01T15:37:48.544663+00:00",
+    "paused_seconds": 6525.689203977585,
+    "waiting_since": null,
+    "max_wall_seconds": 900.0,
+    "steps_started": 6,
+    "cost_usd": 0.0
+  },
+  "operations": [
+    {
+      "id": "6fff72ff-1332-4e13-82e7-b34714bdfad9",
+      "step": "source-1"
+    },
+    {
+      "id": "611d3ac6-6206-4314-817c-c65c61182ded",
+      "step": "wait"
+    },
+    {
+      "id": "1d273a88-e659-450c-a0f9-729d2b5e9eef",
+      "step": "deliverable-1"
+    },
+    {
+      "id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "step": "send"
+    }
+  ],
+  "decision_log_tail": [
+    {
+      "ts": "2026-11-01T17:26:38.214448+00:00",
+      "kind": "assignment",
+      "rationale": "step send operation bound",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "running",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:38.218907+00:00",
+      "kind": "approval_request",
+      "rationale": "Send the prepared response",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound",
+      "payload_sha256": "61004c1241c62982d0113de50969e3f822aad5fa9ef83df211e2a0734cb5f71a"
+    },
+    {
+      "ts": "2026-11-01T17:26:38.228106+00:00",
+      "kind": "assignment",
+      "rationale": "step awaiting approval",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "running",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:38.233857+00:00",
+      "kind": "assignment",
+      "rationale": "assignment waiting",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "waiting",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:45.820053+00:00",
+      "kind": "approval",
+      "rationale": "Send the prepared response",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound",
+      "approved_by": "b8dd3a17-6cbf-4ff9-8f31-70e7dd36fcc8",
+      "payload_sha256": "61004c1241c62982d0113de50969e3f822aad5fa9ef83df211e2a0734cb5f71a"
+    },
+    {
+      "ts": "2026-11-01T17:26:45.827705+00:00",
+      "kind": "assignment",
+      "rationale": "step send approved",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "waiting",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:45.833117+00:00",
+      "kind": "assignment",
+      "rationale": "step send operation bound",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "waiting",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:45.837177+00:00",
+      "kind": "operation",
+      "rationale": "execution claimed",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound"
+    },
+    {
+      "ts": "2026-11-01T17:26:45.842307+00:00",
+      "kind": "operation",
+      "rationale": "running -> applied",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound"
+    },
+    {
+      "ts": "2026-11-01T17:26:45.845275+00:00",
+      "kind": "operation",
+      "rationale": "attached receipt",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound"
+    },
+    {
+      "ts": "2026-11-01T17:26:45.848037+00:00",
+      "kind": "operation",
+      "rationale": "attached execution",
+      "operation_id": "7243572b-25c1-448f-91f0-99de543cbba7",
+      "operation_type": "outbound"
+    },
+    {
+      "ts": "2026-11-01T17:26:45.851038+00:00",
+      "kind": "assignment",
+      "rationale": "settle cost for send (applied)",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "waiting",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:45.855631+00:00",
+      "kind": "assignment",
+      "rationale": "step send applied",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "waiting",
+      "plan_revision": 1
+    },
+    {
+      "ts": "2026-11-01T17:26:45.863520+00:00",
+      "kind": "assignment",
+      "rationale": "assignment terminal",
+      "assignment_id": "asg-247f745f83484fc3",
+      "state": "completed",
+      "plan_revision": 1
+    }
+  ],
+  "serving_identity": {
+    "pid": 57564,
+    "started_at": "2026-11-01T16:42:40.727324+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "cf102eeac1ce",
+    "source_id": "cf102eeac1ce-dirty.b0c55aa8fb39",
+    "instance_id": "cf102eeac1ce-dirty.b0c55aa8fb39.57564.1793551363",
+    "revision": "cf102eeac1ceeb1fb637674cfbb1db2ae83e9709",
+    "dirty": true,
+    "dirty_digest": "b0c55aa8fb39",
+    "dirty_paths": [
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T16:42:43.692143+00:00",
+    "port": 8081,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T17:27:39.331805+00:00"
+}

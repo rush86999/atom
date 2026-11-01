@@ -1,0 +1,133 @@
+{
+  "schema": "atom-long-run-state-2",
+  "run_id": "790dc6cd-0804-422c-b7f4-b44d27672da2",
+  "status": "waiting",
+  "assignment_id": "asg-247f745f83484fc3",
+  "assignment_status": "waiting",
+  "teaching_revision": "8735dd7b3648a7d8+a52a495bf104849f+map",
+  "assignment_created_at": "2026-11-01T15:37:48.532529+00:00",
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "operation_id": "6fff72ff-1332-4e13-82e7-b34714bdfad9",
+      "attempts": 1
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "operation_id": "625e7afe-99af-4f8d-9227-18d4262f09d2",
+      "attempts": 0
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0
+    }
+  ],
+  "source_1_value": "400.00",
+  "source_1_receipt": {
+    "receipt_version": 1,
+    "operation_id": "6fff72ff-1332-4e13-82e7-b34714bdfad9",
+    "execution_id": null,
+    "action": "dataset.aggregate",
+    "binding_sha256": "e2f8652364f2da4ce576264a89da8e6a244415999352197a2ce46a362d40595e",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-11-01T15:37:52.357193+00:00",
+    "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "coverage": null
+    },
+    "calculation": {
+      "expression": null,
+      "value": "400.00",
+      "unit": "USD",
+      "steps": null
+    },
+    "outbound": null,
+    "readback": null,
+    "summary": "sum of Gross Amount = 400.00 USD across 3 row(s) from integrated_quote.csv / integrated_quote",
+    "evidence": [
+      {
+        "kind": "connected_aggregate",
+        "resource_id": "430b927c-d865-41a5-9eed-3221bef78713",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "representation": "parquet_frame",
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false,
+          "row_cap": 500000
+        },
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_20261101/data/sheet_datasets/default/abf5444c3881/upload_integrated_quote__integrated_quote.parquet",
+        "operation": "sum",
+        "measure": "Gross Amount",
+        "subtotals": {
+          "USD": {
+            "rows": 3,
+            "value": "400.00"
+          }
+        },
+        "sheet_rows": [
+          2,
+          3,
+          4
+        ],
+        "selected_count": 3
+      }
+    ]
+  },
+  "waiting_on": {
+    "event": "email",
+    "summary": "authorized external reply",
+    "assignment_wait": {
+      "correlation_id": "quote-missing-currency-1",
+      "question_id": null,
+      "state": "waiting_for_external"
+    },
+    "match_exact": {
+      "correlation_id": "quote-missing-currency-1"
+    },
+    "created_at": "2026-11-01T15:37:52.388556+00:00"
+  },
+  "serving_identity": {
+    "pid": 57564,
+    "started_at": "2026-11-01T16:42:40.727324+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "cf102eeac1ce",
+    "source_id": "cf102eeac1ce-dirty.b0c55aa8fb39",
+    "instance_id": "cf102eeac1ce-dirty.b0c55aa8fb39.57564.1793551363",
+    "revision": "cf102eeac1ceeb1fb637674cfbb1db2ae83e9709",
+    "dirty": true,
+    "dirty_digest": "b0c55aa8fb39",
+    "dirty_paths": [
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T16:42:43.692143+00:00",
+    "port": 8081,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T16:43:06.331796+00:00"
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "atom-revised-scope-run-1",
+  "label": "campaign-a-expedited",
+  "objective": "Sum Price for the expedited campaign A quote sheet",
+  "run_id": "51baf7c2-ea5f-4eef-85b0-9cb1da26e80d",
+  "assignment_id": "asg-25b2f306b2d4404c",
+  "assignment_status": "completed",
+  "teaching_revision": "5bb5ae1fa2056534+map",
+  "effective_lesson_ids": [
+    {
+      "id": "463616863fc943e29641c2caf48670ba",
+      "revision": 1
+    },
+    {
+      "id": "49caa9ade0e44db3a6a9b379e3e2eab0",
+      "revision": 1
+    }
+  ],
+  "step_values": {},
+  "artifact": {
+    "path": "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-expedited-assignment-artifact.docx",
+    "bytes": 37158,
+    "sha256": "97b8cdfa85043b4f85c5b60dedd27ca10ff86dd8f0a0df2d6afe8fa884a6ff74",
+    "normal_font": "Arial",
+    "normal_size": 10.0,
+    "text": "Sum Price for the expedited campaign A quote sheet\nSummary\nsum of Gross Amount: 506.00 USD\nSources\nupload_campaign_a_quote__campaign_a_quote\ncampaign_a_quote.csv\ncampaign_a_quote\nd80e5c46-82e4-4cd6-b4b7-29338e83fd57\ncampaign_a_quote.csv / campaign_a_quote\nObjective\nSum Price for the expedited campaign A quote sheet\nFindings\ncampaign_a_quote.csv / campaign_a_quote"
+  },
+  "source_file": "campaign_a_quote.csv",
+  "mapping_candidate": "Gross Amount",
+  "task_scope": "expedited"
+}

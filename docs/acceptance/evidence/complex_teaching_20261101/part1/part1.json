@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Quote Specialist",
+  "agent_id": "d956a428-d7c1-4399-afa1-95eee5f920ce",
+  "canvas_url": "http://127.0.0.1:3143/canvas/22956fe3-28ca-49b2-9e79-8a5fa4e96d45?agent_id=d956a428-d7c1-4399-afa1-95eee5f920ce&side=training",
+  "objective": "Sum Price for the campaign A quote sheet",
+  "correlation_id": "campaign-a-missing-term-1",
+  "run_id": "bb3d4339-d263-4e5c-830d-5f9a5f9eb681",
+  "assignment_id": "asg-093a9c2e68764474",
+  "teaching_revision": "9780f6026a41e803+a5a0483fc5ee4030+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "campaign_a_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "7dc91fd1556502f61abe5e3e6db33617bf45ca13",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "9780f6026a41e803+a5a0483fc5ee4030+map",
+      "source": "upload",
+      "dataset_name": "upload_campaign_a_quote__campaign_a_quote",
+      "external_id": "sha1:7dc91fd1556502f61abe5e3e6db33617bf45ca13",
+      "available_columns": [
+        "Item Code",
+        "Units",
+        "Gross Amount",
+        "Currency"
+      ],
+      "numeric_columns": [
+        "Units",
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "506.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "campaign-a-missing-term-1",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nKnowledge Analyst \u00b7 Intelligence\nKnowledge Analyst \u00b7 Intelligence\nKnowledge Analyst \u00b7 Intelligence\nKnowledge Analyst \u00b7 Intelligence\nKnowledge Analyst \u00b7 Intelligence\ncampaign_a_quote.csv / campaign_a_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Units\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nOptional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\n\nNo durable assignments yet.",
+  "teaching_points_visible": 0
+}

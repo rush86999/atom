@@ -11,8 +11,8 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 | WF-05 policy pause → approval → resume once | Agent 1 | **Passed** payload-bound approval, duplicate and fresh-engine controls | none (7 controls) | none |
 | GOV-04 training lifecycle | Agent 1 | **Passed** start/approval/guidance/evidence/completion controls | none | none |
 | Reusable acceptance world | Agent 1 | In use by new tests; migrate remaining fixtures opportunistically | none | none |
-| Complex teaching campaign (A) | Agent 1 | Next: run sales + grants browser flow on the restarted final candidate | — | none |
-| Long-running ≥2h campaign (C) | Agent 1 | Waiting assignment started 13:40 UTC; resume after 15:40 UTC with a real restart | — | elapsed time |
+| Complex teaching campaign (A) | Agent 1 | **Passed** on isolated world: conflict refusal -> UI correction -> missing qualification -> mapping -> 506.00; restart; active run kept Arial 11 while revised run used Calibri 14; expedited exception Arial 10; wrong-context grants lesson excluded; cancellation refused a late reply. Limitation: taught rounding has no UI field. | — | rounding UI missing (not counted) |
+| Long-running ≥2h campaign (C) | Agent 1 | C resumed 1h49m after its wait (below the 17:37:56Z gate) and is kept as the restart/upgrade control. **C2** (`cac9cbd6…`) reached its wait at 18:04:53Z and resumes no earlier than **20:04:53Z**. | — | C2 elapsed time |
 | CORE-06 credential lifecycle | Agent 2 | **Passed** save/replace/delete without restart | — | none |
 | ROUTE-06 local endpoint | Agent 2 | **Passed** registered local route/first chat | — | — |
 | ROUTE-03 fallback | Agent 2 | **Passed** primary failure -> secondary, policy denial zero calls | — | — |
@@ -41,8 +41,8 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 - README breadth: **111/123 (90.2%)** in `readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json`.
 - Runtime batch: **229 passed** at `aba2754ec`.
 - Product batch: CORE-06 passed; ROUTE-03/06 3 passed; GOV-05 20 passed; GRAPH-05 verified; INST-01 clean bootstrap passed.
-- Recovery browser: **5/5** at `aba2754ec` (wait/restart/resume, changed source, ambiguity, cancellation, duplicate resume).
-- Remaining: elapsed long-run resume (15:40 UTC), sales + grants teaching campaign, final coverage report/manifests.
+- Recovery browser: **5/5** on the integrated candidate (wait/restart/resume, changed source, ambiguity, cancellation, duplicate resume).
+- Remaining: C2's 2h resume (earliest 20:04:53Z), then the final coverage report/manifests. A and the sibling controls are done.
 
 ## Hard release target
 

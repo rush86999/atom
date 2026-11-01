@@ -5,6 +5,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# A dedicated production build must bake the isolated API origin. The default
+# remains the repo build; ATOM_FRONTEND_DIR lets an acceptance world serve a
+# copy built for its own backend port without touching another world's build.
+FRONTEND_DIR="${ATOM_FRONTEND_DIR:-$ROOT/frontend-nextjs}"
 WORLD="${WORLD:?set WORLD to an isolated data root}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:?set ADMIN_PASSWORD for the isolated admin}"
 BACKEND_PORT="${BACKEND_PORT:-8071}"
@@ -50,7 +54,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ ! -f "$ROOT/frontend-nextjs/.next/BUILD_ID" ]]; then
+if [[ ! -f "$FRONTEND_DIR/.next/BUILD_ID" ]]; then
   echo "frontend is not built: run the build command in docs/acceptance/INTEGRATED_LOCAL_CANDIDATE_2026-10-31.md" >&2
   exit 2
 fi
@@ -217,7 +221,7 @@ if [ "$HEALTH_OK" -ne 1 ]; then
   exit 1
 fi
 
-cd "$ROOT/frontend-nextjs"
+cd "$FRONTEND_DIR"
 NEXT_PUBLIC_API_URL="http://127.0.0.1:${BACKEND_PORT}" \
 NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
 NEXT_PUBLIC_ASSIGNMENT_TRANSPORT=controlled \

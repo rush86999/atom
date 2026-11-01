@@ -1,0 +1,30 @@
+{
+  "schema": "atom-revised-scope-run-1",
+  "label": "long-run",
+  "objective": "Sum Price for the revised clean quote sheet",
+  "run_id": "d74e637f-86c8-4643-91f3-c469e52ff33e",
+  "assignment_id": "asg-888cbd5d67cf4560",
+  "assignment_status": "completed",
+  "teaching_revision": "0ceff61904cb889b+map",
+  "effective_lesson_ids": [
+    {
+      "id": "965105a5ad8345509a7ab67b3ade3d02",
+      "revision": 1
+    },
+    {
+      "id": "3d402ce4ebc6449d9f1ae22cabc66171",
+      "revision": 1
+    }
+  ],
+  "step_values": {},
+  "artifact": {
+    "path": "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/long-run-revised-assignment-artifact.docx",
+    "bytes": 37146,
+    "sha256": "f875e98b65b27cee63edd174f69968b7c064aaa138ac282184e676985496acb6",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "text": "Sum Price for the revised clean quote sheet\nSummary\nsum of Net Amount: 2225.75 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\nd7268915-cb8b-4826-8887-5608fbb278a8\nclean_quote.csv / clean_quote\nObjective\nSum Price for the revised clean quote sheet\nclean_quote.csv / clean_quote"
+  },
+  "source_file": "clean_quote.csv",
+  "mapping_candidate": "Net Amount"
+}

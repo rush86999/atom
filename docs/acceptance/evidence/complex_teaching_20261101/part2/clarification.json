@@ -1,0 +1,176 @@
+{
+  "schema": "atom-teaching-clarification-1",
+  "request": "Apply the campaign A quote document protocol to this quote and prepare the document.",
+  "required_context": [
+    "business_category",
+    "qualification",
+    "task_scope"
+  ],
+  "clarification_state": "pending",
+  "clarification_authority": "user_confirmation",
+  "asked_qualification_in_visible_text": true,
+  "invented_qualification": false,
+  "first_outcome": "partial",
+  "answer": "licensed",
+  "second_outcome": "partial",
+  "second_visible_contains_licensed": true,
+  "clarification_meta": {
+    "schema": "teaching-clarification-1",
+    "clarification_id": "17c9f1b353b741f6b5d90621be043f59",
+    "state": "pending",
+    "required_context": [
+      {
+        "key": "business_category",
+        "allowed_values": [
+          "sales",
+          "grants"
+        ],
+        "lesson_ids": [
+          "14f8dde22b9a41baa64e8d76bf412e50",
+          "d3aae58f60bb4153a22d2b5ad0deb510",
+          "49caa9ade0e44db3a6a9b379e3e2eab0",
+          "5ca6d682ca57415ea5ad86f655cc47b8",
+          "a51bb9f810914004bb3d9678ab4f277f",
+          "cbe27f2b88ca4e5d87ad15fc9b3bc57d",
+          "cd60862a7cb440ca909b82faaa0c3aa8",
+          "4259a22222984cdfa238cca105612c4e",
+          "1731df059a7f44a8a18ac45d9c13c90f",
+          "5b47e10c764d48dcbea3592da7df2d74",
+          "fdc487b342a54fa696d31ad19276ff68",
+          "463616863fc943e29641c2caf48670ba",
+          "845e223c811f4370a0e742a2d2fc0a3f",
+          "b8e7445f230b43bf97c7aff2210957c2",
+          "23aa9d9be4e44c7cb285949560794ba3"
+        ],
+        "authority": "user_confirmation"
+      },
+      {
+        "key": "qualification",
+        "allowed_values": [
+          "licensed",
+          "authorized"
+        ],
+        "lesson_ids": [
+          "14f8dde22b9a41baa64e8d76bf412e50",
+          "d3aae58f60bb4153a22d2b5ad0deb510",
+          "49caa9ade0e44db3a6a9b379e3e2eab0",
+          "5ca6d682ca57415ea5ad86f655cc47b8",
+          "a51bb9f810914004bb3d9678ab4f277f",
+          "cbe27f2b88ca4e5d87ad15fc9b3bc57d",
+          "cd60862a7cb440ca909b82faaa0c3aa8",
+          "4259a22222984cdfa238cca105612c4e",
+          "1731df059a7f44a8a18ac45d9c13c90f",
+          "5b47e10c764d48dcbea3592da7df2d74",
+          "fdc487b342a54fa696d31ad19276ff68",
+          "463616863fc943e29641c2caf48670ba",
+          "845e223c811f4370a0e742a2d2fc0a3f",
+          "b8e7445f230b43bf97c7aff2210957c2",
+          "23aa9d9be4e44c7cb285949560794ba3"
+        ],
+        "authority": "user_confirmation"
+      },
+      {
+        "key": "task_scope",
+        "allowed_values": [
+          "expedited",
+          "revised"
+        ],
+        "lesson_ids": [
+          "cbe27f2b88ca4e5d87ad15fc9b3bc57d",
+          "1731df059a7f44a8a18ac45d9c13c90f",
+          "5b47e10c764d48dcbea3592da7df2d74",
+          "463616863fc943e29641c2caf48670ba"
+        ],
+        "authority": "user_confirmation"
+      }
+    ],
+    "lesson_refs": [
+      {
+        "id": "57b1666434a4493795cafbb1b0af6330",
+        "revision": 1
+      },
+      {
+        "id": "afc422e0e84443568c08bb77066497d7",
+        "revision": 1
+      },
+      {
+        "id": "3da8215c04ac40bd89b35252022d43f3",
+        "revision": 1
+      },
+      {
+        "id": "a8c393b1cb96411fb6e8f8c4188748bb",
+        "revision": 1
+      },
+      {
+        "id": "a2694a219017442f8de2aed851e19f93",
+        "revision": 1
+      },
+      {
+        "id": "848f218e1d3046a1b8f97c07902b61d2",
+        "revision": 1
+      },
+      {
+        "id": "14f8dde22b9a41baa64e8d76bf412e50",
+        "revision": 1
+      },
+      {
+        "id": "d3aae58f60bb4153a22d2b5ad0deb510",
+        "revision": 1
+      },
+      {
+        "id": "49caa9ade0e44db3a6a9b379e3e2eab0",
+        "revision": 1
+      },
+      {
+        "id": "5ca6d682ca57415ea5ad86f655cc47b8",
+        "revision": 1
+      },
+      {
+        "id": "a51bb9f810914004bb3d9678ab4f277f",
+        "revision": 1
+      },
+      {
+        "id": "cbe27f2b88ca4e5d87ad15fc9b3bc57d",
+        "revision": 1
+      },
+      {
+        "id": "cd60862a7cb440ca909b82faaa0c3aa8",
+        "revision": 1
+      },
+      {
+        "id": "4259a22222984cdfa238cca105612c4e",
+        "revision": 1
+      },
+      {
+        "id": "1731df059a7f44a8a18ac45d9c13c90f",
+        "revision": 1
+      },
+      {
+        "id": "5b47e10c764d48dcbea3592da7df2d74",
+        "revision": 1
+      },
+      {
+        "id": "fdc487b342a54fa696d31ad19276ff68",
+        "revision": 1
+      },
+      {
+        "id": "463616863fc943e29641c2caf48670ba",
+        "revision": 1
+      },
+      {
+        "id": "845e223c811f4370a0e742a2d2fc0a3f",
+        "revision": 1
+      },
+      {
+        "id": "b8e7445f230b43bf97c7aff2210957c2",
+        "revision": 1
+      },
+      {
+        "id": "23aa9d9be4e44c7cb285949560794ba3",
+        "revision": 1
+      }
+    ],
+    "authority": "user_confirmation"
+  },
+  "sampled_at": "2026-11-01T17:50:13Z"
+}
