@@ -1,7 +1,7 @@
 # 12-goal reconciliation — merged candidate 2026-10-31
 
-**Candidate:** merged README + employee-execution fixes, current product source
-`74464af69f98` (product code `0aa6105e4872`; guided rule authoring in
+**Candidate:** merged README + employee-execution fixes, accepted product
+source `a49b854ce660` (evidence head `d3e8ba961`; guided rule authoring in
 `bc164fb96632`; accepted product source `b7ee7ee22`). The post-repair journey
 and 24-sheet evidence executed on `31ba9725e02a`; the unforced teaching and
 guided-rule smokes on `bc164fb96632`; both authorized live qualifications
@@ -57,14 +57,16 @@ Evidence classes:
 
 ## Live qualifications
 
-- **Part A — executed** on `0aa6105e4872`: read-only Microsoft account
+- **Part A — accepted** on `0aa6105e4872` (connector entry point
+  `a49b854ce660`): read-only Microsoft account
   `rish@brennan.ca`, genuine Outlook workbook attachment, 8/8 rows, independent
   sum `216700`, product materialization and assignment retrieval; restart
   reopened the result. Evidence: `live_qualification_20261101/part-a/`.
-- **Part B — executed once** on `0aa6105e4872`: one-use grant exhausted 1/1,
+- **Part B — accepted once** on `0aa6105e4872`: one-use grant exhausted 1/1,
   exact body binding, provider accepted, exactly one Sent Items row, restart
   terminal/no second effect. Recipient inbox delivery is **not claimed**.
   Evidence: `live_qualification_20261101/part-b/`.
 
-Submitted for independent review; no self-acceptance. The default runtime
-remains controlled-transport and does not send without an explicit new grant.
+Independently accepted within the documented scope on 2026-11-01
+(`FINAL_ACCEPTANCE_2026-11-01.md`). The default runtime remains
+controlled-transport and does not send without an explicit new grant.

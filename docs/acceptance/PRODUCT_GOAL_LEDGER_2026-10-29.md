@@ -5,14 +5,14 @@ contract. The prior ledger and its appended history are preserved separately
 at `docs/acceptance/PRODUCT_GOAL_LEDGER_HISTORY_2026-10-29.md`; historical
 statuses there do not override this table.
 
-**Candidate source:** `74464af69f98` on branch
-`codex/employee-execution-readiness` (product code `0aa6105e4872`; guided rule
+**Accepted candidate:** `a49b854ce660` on branch
+`codex/employee-execution-readiness` (evidence head `d3e8ba961`; guided rule
 authoring in `bc164fb96632`; accepted product source `b7ee7ee22`)
 (evidence source `06d80f834`; product teaching `3e344f5b1`; Agent 2
 README-readiness merge `931892be0`). The post-repair journey and 24-sheet
 evidence executed on `31ba9725e02a`; the unforced teaching and guided-rule
-smokes on `bc164fb96632`; both authorized live qualifications executed on
-`0aa6105e4872` and verified after restart at `74464af69f98`. **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
+smokes on `bc164fb96632`; the one-use send on `0aa6105e4872`; the connector
+entry point and oversized-input rejection on `a49b854ce660`. **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
 `ATOM_LOCAL_ONLY=true`, `ATOM_TURN_DECISION_ROUTING=0`,
 `ATOM_TASK_LIFECYCLE_ENABLED=1`, scheduler and ingestion sync off, controlled
 assignment transport with a local outbox. Backend `127.0.0.1:8071`, frontend
@@ -57,11 +57,12 @@ reliability.
   ledger; they are explicitly deferred by the owner and are not completion
   gates.
 - Both current-candidate live qualifications in
-  `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` have been executed and submitted
-  for independent review: Microsoft read-only
+  `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` have been executed and
+  **independently accepted within the documented scope** (final record:
+  `FINAL_ACCEPTANCE_2026-11-01.md`): Microsoft read-only
   connection/ingestion/retrieval, and the specifically authorized Outlook send.
   Accepted local evidence is closed and should not be rerun without a relevant
-  change. This ledger does not self-grant overall acceptance.
+  change.
 
 ## Settings BYOK refresh
 
