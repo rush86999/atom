@@ -710,6 +710,18 @@ export function AssignmentPanel({
                   Current: {item.assignment.current_action}
                 </p>
               ) : null}
+              {item.assignment.progress ? (
+                <p
+                  className="mt-0.5 text-[10px] text-muted-foreground"
+                  data-testid="assignment-list-progress"
+                >
+                  {item.assignment.progress.completed_steps}/
+                  {item.assignment.progress.required_steps} steps
+                  {item.assignment.progress.waiting_steps
+                    ? ` · ${item.assignment.progress.waiting_steps} waiting`
+                    : ""}
+                </p>
+              ) : null}
             </button>
           ))}
         </div>

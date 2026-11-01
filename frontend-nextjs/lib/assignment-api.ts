@@ -105,6 +105,11 @@ export interface AssignmentSummary {
     state: string;
     plan_revision: number;
     current_action: string | null;
+    progress?: {
+      completed_steps: number;
+      required_steps: number;
+      waiting_steps: number;
+    };
   };
 }
 

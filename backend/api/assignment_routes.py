@@ -669,6 +669,8 @@ async def list_assignments(
         record = TaskLifecycle(svc).get_task(run.get("id"))
         if record is None or record.get("assignment") is None:
             continue
+        steps = record["assignment"].get("steps") or []
+        required = [step for step in steps if step.get("required", True)]
         results.append({
             "run_id": run.get("id"),
             "status": run.get("status"),
@@ -679,9 +681,19 @@ async def list_assignments(
                 "plan_revision": record["assignment"].get("plan_revision"),
                 "current_action": next((
                     step.get("title")
-                    for step in record["assignment"].get("steps") or []
+                    for step in steps
                     if step.get("status") in (
                         "running", "waiting", "awaiting_approval")), None),
+                "progress": {
+                    "completed_steps": sum(
+                        1 for step in required
+                        if step.get("status") in ("applied", "skipped")),
+                    "required_steps": len(required),
+                    "waiting_steps": sum(
+                        1 for step in steps
+                        if step.get("status") in (
+                            "waiting", "awaiting_approval")),
+                },
             },
         })
     return results
