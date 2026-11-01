@@ -21,6 +21,22 @@ claim.**
 | Configuration | local, single worker, SQLite scratch worlds, controlled outbox, controlled local providers |
 | Transport | controlled effects for this campaign; the separately accepted one-use Outlook send and Microsoft read-only qualification remain closed |
 
+### Release reference and repaired successor
+
+| Ref | Value |
+|---|---|
+| Accepted tag (**immutable, preserved**) | `accepted-local-2026-11-01-90pct` (annotated object `da19a2204`) → commit `88bf413e8` |
+| Known defect in the accepted runtime | legacy stale-live-wait double subtraction in budget pause accounting (1,500 s real work reported ~0 s against 900 s) |
+| Budget-repaired successor | `f1ef414c3` / backend tree `c2963fbcdc8e`; 63 focused tests (61 executor + 2 public-route cancellation) |
+| Verified launcher/first-use successor | `d8120737e` (backend `c2963fbcdc8e`, frontend `756642ecb165`) |
+| Successor documentation | `14b1928e2` |
+| Breadth | **111/123 = 90.2%** accepted within the documented local/controlled scope |
+| Hosted deployment / publication | deferred |
+
+The accepted tag is not moved, re-created or rewritten. Its known budget defect
+is linked to the repaired successor above; the successor does not retroactively
+change the accepted identity.
+
 ## Independently confirmed
 
 - Frozen inventory still contains **123 functional claims**, with **111 marked

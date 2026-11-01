@@ -18,7 +18,8 @@ and broad model campaigns were not performed.
 | **Budget pause-credit repair** | **`bec60978b` + `019aa1eeb`** / backend tree `c2963fbcdc8e` |
 | **Post-acceptance verified source** | **`f1ef414c3`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` (63 focused tests) |
 | Launcher memory-path fix | **`d8120737e`** (both `LANCEDB_URI` and `LANCEDB_URI_BASE` at the world root), frontend tree `756642ecb165` |
-| Bundle/docs HEAD | `d8120737e`; first-use focused smoke included, full clean-install/sample not re-run |
+| Verified launcher/first-use successor | `d8120737e`; documentation HEAD `14b1928e2` |
+| Accepted tag (immutable) | `accepted-local-2026-11-01-90pct` → commit `88bf413e8`; known budget defect linked to the repaired successor above |
 | Product diff repair vs campaigns | cancellation files plus the budget-credit files (`assignment_executor.py`, `assignment_plan.py`, `test_assignment_executor.py`) |
 
 The campaign sources and the repair source are deliberately distinct: the
