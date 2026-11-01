@@ -1,7 +1,7 @@
 # Independent verifier review request — 2026-11-01
 
 **Candidate:** `a0fce85b0` (runtime code); final docs/evidence commit
-`6d969d0b5`.
+`95614234f`.
 **Branch:** `codex/employee-execution-readiness`
 **Claimed breadth:** **111/123 = 90.2%** functional claims, frozen denominator.
 **Practical scope:** local, single-worker, SQLite scratch world, controlled

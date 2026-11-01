@@ -3,7 +3,7 @@
 **Status: 111/123 = 90.2% self-assessed, awaiting independent verifier
 acceptance. This is not a release declaration.**
 
-- Candidate source: `776c6644f0b122082de2a2188c90a174877c1fc3`
+- Candidate source: `a0fce85b0`
 - Branch: `codex/employee-execution-readiness`
 - Frozen denominator: **123 eligible functional claims** (unchanged)
 - Prior accepted local milestone: 99/123 at `29d9075b6` / accepted execution
@@ -40,7 +40,7 @@ One reusable acceptance world now lives at
 explicit tenant/workspace/user/agent rows, replaceable session factory,
 observable effect ledger, deterministic fault points).
 
-Full runtime batch at `776c6644f`: **229 passed**.
+Full runtime batch at `a0fce85b0`: **229 passed**.
 
 The recovery controls cover crash before dispatch, after dispatch/before receipt
 persistence, cancellation, duplicate correlation, reconciliation `applied`,
@@ -69,7 +69,7 @@ candidate source.
 
 ### First-use path
 
-On the clean-install world at `776c6644f`, after `make setup` and the documented
+On the clean-install world at `a0fce85b0`, after `make setup` and the documented
 backend start, `make sample` created/reused *Sample Quote Analyst*, uploaded
 `sample-workspace/sample_quote.csv`, recorded two editable lessons, started one
 assignment, resolved the single compatible mapping and completed in **13
@@ -101,7 +101,7 @@ No cloud credential, connector or outbound step was used.
 2. **Product batch** — CORE-06, ROUTE-06, ROUTE-03, GRAPH-05, INST-01, GOV-05.
    Evidence: `evidence/claims/{core06,routing,graph05,install01,oidc}`.
 3. **Final integrated candidate** — 111/123 plus the completed teaching and
-   long-running campaigns on `776c6644f`, with the final manifest and hash
+   long-running campaigns on `a0fce85b0`, with the final manifest and hash
    verification.
 
 The verifier remains the acceptance authority; this report does not

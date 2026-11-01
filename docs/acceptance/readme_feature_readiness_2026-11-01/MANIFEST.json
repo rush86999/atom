@@ -3,19 +3,19 @@
   "root": "docs/acceptance/readme_feature_readiness_2026-11-01",
   "files": {
     "CLAIM_INVENTORY.json": {
-      "sha256": "b06d055127cab4dca5e858986b6ad852c8735a2ef17ff7f0f5372b44d788ff8a",
+      "sha256": "21a0c092a34eede87b9d2dea415acbf13d39a049af3da71cffdf0dd0d2fafa30",
       "bytes": 150905
     },
     "COVERAGE_REPORT_2026-11-01.md": {
-      "sha256": "97cbb322fe22053f317c604800c4eedbe2ab75564b85e4ff0c7e5e1b1b8298ed",
-      "bytes": 9388
+      "sha256": "2038798d53fd5030d2cf9a9d1e1af6568cae79877108846ac305c64569f989a0",
+      "bytes": 9357
     },
     "README.md": {
-      "sha256": "3c52bec911f559146366d0bf24010b4db05ece8997932c9932a8f6db30939f40",
+      "sha256": "4666b96464b2f136308976ef487a2b5ab5ed854f70a088f6fa3980f52b862424",
       "bytes": 2113
     },
     "VERIFIER_REVIEW_REQUEST.md": {
-      "sha256": "a9b950f746501d6282c3d1e46f4140a85227728e48ac5c5655c2704ff111f26d",
+      "sha256": "68ccda071282575472719fb072610eb10e68328325f7a7057abe32338b253f33",
       "bytes": 5097
     },
     "evidence/campaigns/long-run/budget-failure-preserved.json": {
