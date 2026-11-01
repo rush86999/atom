@@ -34,9 +34,14 @@ cd ..
 
 # Start frontend against the backend this invocation actually started. Without
 # this, `make dev BACKEND_PORT=8101` still baked the default :8001 from
-# .env.local into the browser, so login hit the wrong server.
+# .env.local into the browser, so login and data reads hit the wrong server.
 echo "Starting frontend on :$FRONTEND_PORT (API :$BACKEND_PORT)..."
 cd frontend-nextjs
+if [ -f .env.local ]; then
+  grep -v '^NEXT_PUBLIC_API_URL=' .env.local > .env.local.tmp
+  printf 'NEXT_PUBLIC_API_URL=http://localhost:%s\n' "$BACKEND_PORT" >> .env.local.tmp
+  mv .env.local.tmp .env.local
+fi
 NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:$BACKEND_PORT}" \
 NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
 npm run dev -- -p "$FRONTEND_PORT" &
