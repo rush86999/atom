@@ -1,0 +1,198 @@
+{
+  "schema": "atom-live-qualification-a-1",
+  "checks": [
+    {
+      "name": "normal token resolver returned a usable grant",
+      "ok": true,
+      "detail": {
+        "state": "valid",
+        "token_available": true,
+        "refresh_attempted": false,
+        "refresh_succeeded": false,
+        "refresh_token_replaced": false,
+        "requires_reconnect": false,
+        "retryable": false,
+        "detail": ""
+      }
+    },
+    {
+      "name": "catalog source resolved without seeding",
+      "ok": true,
+      "detail": {
+        "entry": "00399616-42f7-4f7d-8867-822752b15a46",
+        "dataset": "outlook_harsle_press_brake_stock_price_list"
+      }
+    },
+    {
+      "name": "mailbox identity is the authorized account",
+      "ok": true,
+      "detail": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(id,userPrincipalName,mail,displayName)/$entity",
+        "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+        "userPrincipalName": "rish@brennan.ca",
+        "mail": "rish@brennan.ca",
+        "displayName": "Rish Maniar"
+      }
+    },
+    {
+      "name": "declared attachment is present",
+      "ok": true,
+      "detail": {
+        "message": "In-Stock Press Brakes Available for Fast Delivery From HARSLE",
+        "attachments": [
+          {
+            "name": "image.png",
+            "size": 8683
+          },
+          {
+            "name": "HARSLE press brake stock price list.xlsx",
+            "size": 10765
+          }
+        ]
+      }
+    },
+    {
+      "name": "source bytes match the frozen version",
+      "ok": true,
+      "detail": {
+        "sha1": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+        "sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+        "bytes": 10249
+      }
+    },
+    {
+      "name": "independent workbook read matches the declared population",
+      "ok": true,
+      "detail": {
+        "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+        "sheets": [
+          "\u5e93\u5b58\u4ea7\u54c1"
+        ],
+        "header_cell": "G1",
+        "price_values": [
+          "24000",
+          "27500",
+          "24000",
+          "27500",
+          "25000",
+          "31800",
+          "27900",
+          "29000"
+        ],
+        "rows_with_price": 8,
+        "sum": "216700"
+      }
+    },
+    {
+      "name": "product materialization covers the declared sheet",
+      "ok": true,
+      "detail": {
+        "status": "current",
+        "datasets": [
+          {
+            "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+            "rows": 8,
+            "coverage": {
+              "known": true,
+              "source_row_count": 8,
+              "materialized_row_count": 8,
+              "truncated": false,
+              "row_cap": 500000,
+              "backfilled_from_catalog": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "product source picker exposes the materialized sheet",
+      "ok": true,
+      "detail": {
+        "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+        "row_count": 8
+      }
+    },
+    {
+      "name": "assignment created from the product source",
+      "ok": true,
+      "detail": "0cb8885f-1d30-4080-978a-4fbc5170ef82"
+    },
+    {
+      "name": "assignment completed the read/calculate",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "assignment result equals the independent sum",
+      "ok": true,
+      "detail": "216700.00"
+    },
+    {
+      "name": "source receipt binds file, sheet, rows and version",
+      "ok": true,
+      "detail": "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1"
+    }
+  ],
+  "passed": true,
+  "run_id": "0cb8885f-1d30-4080-978a-4fbc5170ef82",
+  "agent_id": "bcdf6905-da1a-412d-8511-fae9ba098852",
+  "source": {
+    "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+    "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+    "row_count": 8,
+    "source_version": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+  },
+  "independent": {
+    "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+    "sheets": [
+      "\u5e93\u5b58\u4ea7\u54c1"
+    ],
+    "header_cell": "G1",
+    "price_values": [
+      "24000",
+      "27500",
+      "24000",
+      "27500",
+      "25000",
+      "31800",
+      "27900",
+      "29000"
+    ],
+    "rows_with_price": 8,
+    "sum": "216700"
+  },
+  "materialization_status": "current",
+  "serving_identity": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-01T12:10:38.644844+00:00",
+    "identity": {
+      "pid": 14696,
+      "started_at": "2026-11-01T12:10:24.335393+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+      "git_commit": "0aa6105e4872",
+      "source_id": "0aa6105e4872",
+      "instance_id": "0aa6105e4872.14696.1793535027",
+      "revision": "0aa6105e48728a60fceca94212a31797e85c8f84",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-01T12:10:27.082901+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/atom.db",
+      "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 675.1
+  }
+}

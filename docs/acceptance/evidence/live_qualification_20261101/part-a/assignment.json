@@ -1,0 +1,180 @@
+{
+  "run_id": "0cb8885f-1d30-4080-978a-4fbc5170ef82",
+  "assignment": {
+    "assignment_id": "asg-5ba6a13379a2412d",
+    "objective": "Read the current HARSLE attachment and sum Price for the complete sheet",
+    "employee_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "workspace_id": "default",
+    "plan_revision": 1,
+    "status": "completed",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "8188c85af402812a7b5ed40eb95489b4",
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "deliverables": [
+      {
+        "deliverable_id": "del-deliverable-1",
+        "kind": "document",
+        "description": "HARSLE read-only qualification",
+        "required": true,
+        "step_id": "deliverable-1",
+        "status": "applied",
+        "artifact_revision": "34e7420d9364d04e",
+        "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/data/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-59460b510ea6/harsle-read-only-qualification-8e42e638.docx",
+        "sha256": "34e7420d9364d04ed76e4de3f5f4be4f19d1a1ea11b5fa92d549ceaffd707d09"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "workbook",
+        "binding": {
+          "resource_id": "00399616-42f7-4f7d-8867-822752b15a46",
+          "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+          "source": "outlook",
+          "source_kind": "file",
+          "external_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=:AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+          "original_file_name": "HARSLE press brake stock price list.xlsx",
+          "representation": "parquet_frame",
+          "source_version": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+          "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+          "columns": [
+            "Series",
+            "Model",
+            "Serial Number",
+            "Status",
+            "QTY",
+            "Date",
+            "Price",
+            "Controller",
+            "Backgauge axis",
+            "__sheet_row"
+          ],
+          "numeric_columns": [
+            "Serial Number",
+            "QTY",
+            "Price"
+          ],
+          "row_count": 8,
+          "coverage": {
+            "known": true,
+            "source_row_count": 8,
+            "materialized_row_count": 8,
+            "truncated": false,
+            "row_cap": 500000,
+            "backfilled_from_catalog": true
+          },
+          "access_scope": {
+            "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+            "workspace_id": "default",
+            "tenant_id": "default"
+          },
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "internal_fixture": false
+        }
+      }
+    ],
+    "authorized_actions": [
+      "calculate",
+      "present",
+      "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+      "max_steps": 10,
+      "max_attempts_per_step": 3,
+      "max_wall_seconds": 900.0,
+      "max_cost_usd": 0.0,
+      "cost_mode": "hard",
+      "soft_limit_authorized_by": null,
+      "reserved_cost_usd": 0.0,
+      "cost_reservations": [],
+      "cost_overrun_usd": 0.0,
+      "cost_violation": null,
+      "soft_limit_exceeded": false,
+      "steps_started": 2,
+      "started_at": "2026-11-01T12:10:38.446175+00:00",
+      "elapsed_seconds": 0.0,
+      "cost_usd": 0.0
+    },
+    "steps": [
+      {
+        "step_id": "source-1",
+        "title": "Aggregate workbook source",
+        "operation_type": "calculate",
+        "adapter": "dataset.aggregate",
+        "depends_on": [],
+        "required": true,
+        "effect": "local",
+        "status": "applied",
+        "recovery_class": "terminal",
+        "operation_id": "338b41dd-33c9-403c-818e-82ca948a769e",
+        "attempts": 0,
+        "result_summary": "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+        "result_value": "216700.00",
+        "result_unit": "",
+        "result_measure": "Price",
+        "prior_result_count": 0,
+        "artifact_revision": null,
+        "gap_ids": [],
+        "waiting": {},
+        "external_response": {},
+        "approval_request": {},
+        "standing_authority_receipt": {},
+        "failure": {}
+      },
+      {
+        "step_id": "deliverable-1",
+        "title": "Render HARSLE read-only qualification",
+        "operation_type": "present",
+        "adapter": "artifact.document",
+        "depends_on": [
+          "source-1"
+        ],
+        "required": true,
+        "effect": "local",
+        "status": "applied",
+        "recovery_class": "terminal",
+        "operation_id": "ebf2dc1c-d0bf-4176-ab0a-5b3afa167108",
+        "attempts": 0,
+        "result_summary": "rendered harsle-read-only-qualification-8e42e638.docx",
+        "result_value": null,
+        "result_unit": null,
+        "result_measure": null,
+        "prior_result_count": 0,
+        "artifact_revision": "34e7420d9364d04e",
+        "gap_ids": [],
+        "waiting": {},
+        "external_response": {},
+        "approval_request": {},
+        "standing_authority_receipt": {},
+        "failure": {}
+      }
+    ],
+    "created_at": "2026-11-01T12:10:38.435755+00:00",
+    "updated_at": "2026-11-01T12:10:38.626532+00:00",
+    "completed_at": "2026-11-01T12:10:38.626535+00:00"
+  },
+  "open_gaps": [],
+  "operations": [
+    {
+      "operation_id": "338b41dd-33c9-403c-818e-82ca948a769e",
+      "step_id": "source-1",
+      "type": "calculate",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null
+    },
+    {
+      "operation_id": "ebf2dc1c-d0bf-4176-ab0a-5b3afa167108",
+      "step_id": "deliverable-1",
+      "type": "present",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null
+    }
+  ]
+}

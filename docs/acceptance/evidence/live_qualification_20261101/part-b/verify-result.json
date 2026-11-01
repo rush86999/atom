@@ -1,0 +1,71 @@
+{
+  "schema": "atom-live-qualification-b-verify-1",
+  "checks": [
+    {
+      "name": "exact body file matches the frozen hash",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "normal token resolver returned a usable grant",
+      "ok": true,
+      "detail": {
+        "state": "valid",
+        "token_available": true,
+        "refresh_attempted": false,
+        "refresh_succeeded": false,
+        "refresh_token_replaced": false,
+        "requires_reconnect": false,
+        "retryable": false,
+        "detail": ""
+      }
+    },
+    {
+      "name": "mailbox identity is the authorized account",
+      "ok": true,
+      "detail": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(id,userPrincipalName,mail,displayName)/$entity",
+        "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+        "userPrincipalName": "rish@brennan.ca",
+        "mail": "rish@brennan.ca",
+        "displayName": "Rish Maniar"
+      }
+    },
+    {
+      "name": "restart left the operation terminal",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "restart did not add a second Sent Items row",
+      "ok": true,
+      "detail": {
+        "matches": 1
+      }
+    },
+    {
+      "name": "one-use grant is exhausted after one effect",
+      "ok": true,
+      "detail": {
+        "used": 1,
+        "max": 1,
+        "status": "exhausted"
+      }
+    },
+    {
+      "name": "durable binding still carries the exact body",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "Sent Items body matches the frozen body after Graph wrapping",
+      "ok": true,
+      "detail": {
+        "graph_raw_sha256": "9049028366bc9edad808241bac312d2578f6845f7e4b1f7130924972a6fabe4b",
+        "normalized_sha256": "00e97cf19e0a2944a1e73ec2e4bb48c3e7c024cb39dffe46bfc77fc5cc312ecd"
+      }
+    }
+  ],
+  "passed": true,
+  "run_id": "9ac79044-0d44-446e-8da8-2482709aa350"
+}

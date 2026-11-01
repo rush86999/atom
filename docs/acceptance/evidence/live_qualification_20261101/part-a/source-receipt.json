@@ -1,0 +1,73 @@
+{
+  "operation_id": "338b41dd-33c9-403c-818e-82ca948a769e",
+  "binding_sha256": "3bd76a86172b8a73a089bf5712b84f8c6d31feb8519dd5fb9c49168d7958d8b0",
+  "receipt": {
+    "receipt_version": 1,
+    "operation_id": "338b41dd-33c9-403c-818e-82ca948a769e",
+    "execution_id": null,
+    "action": "dataset.aggregate",
+    "binding_sha256": "3bd76a86172b8a73a089bf5712b84f8c6d31feb8519dd5fb9c49168d7958d8b0",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-11-01T12:10:38.571674+00:00",
+    "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+      "coverage": null
+    },
+    "calculation": {
+      "expression": null,
+      "value": "216700.00",
+      "unit": "",
+      "steps": null
+    },
+    "outbound": null,
+    "readback": null,
+    "summary": "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+    "evidence": [
+      {
+        "kind": "connected_aggregate",
+        "resource_id": "00399616-42f7-4f7d-8867-822752b15a46",
+        "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+        "file_name": "HARSLE press brake stock price list.xlsx",
+        "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+        "source_version": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+        "representation": "parquet_frame",
+        "coverage": {
+          "known": true,
+          "source_row_count": 8,
+          "materialized_row_count": 8,
+          "truncated": false,
+          "row_cap": 500000,
+          "backfilled_from_catalog": true
+        },
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/data/sheet_datasets/default/e0a7fb8a1b47/outlook_harsle_press_brake_stock_price_list.parquet",
+        "operation": "sum",
+        "measure": "Price",
+        "subtotals": {
+          "(unstated)": {
+            "rows": 8,
+            "value": "216700.00"
+          }
+        },
+        "sheet_rows": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "selected_count": 8
+      }
+    ]
+  }
+}

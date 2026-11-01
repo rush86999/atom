@@ -1,0 +1,86 @@
+{
+  "status": "current",
+  "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+  "datasets": [
+    {
+      "id": "00399616-42f7-4f7d-8867-822752b15a46",
+      "workspace_id": "default",
+      "tenant_id": null,
+      "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+      "entity_name": "\u5e93\u5b58\u4ea7\u54c1",
+      "file_name": "HARSLE press brake stock price list.xlsx",
+      "source": "outlook",
+      "source_kind": "file",
+      "external_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=:AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+      "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+      "content_hash_algorithm": "sha1",
+      "source_metadata": {},
+      "row_count": 8,
+      "column_count": 10,
+      "columns": [
+        "Series",
+        "Model",
+        "Serial Number",
+        "Status",
+        "QTY",
+        "Date",
+        "Price",
+        "Controller",
+        "Backgauge axis",
+        "__sheet_row"
+      ],
+      "column_samples": {
+        "Series": [
+          "FlexBend"
+        ],
+        "Model": [
+          "110T3200",
+          "170T3200",
+          "130T3200"
+        ],
+        "Serial Number": [
+          "26143",
+          "26123",
+          "26111"
+        ],
+        "Status": [
+          "Ready Stock"
+        ],
+        "QTY": [
+          "1"
+        ],
+        "Date": [
+          "2026-08-09",
+          "2026-08-06",
+          "2026-06-22"
+        ],
+        "Price": [
+          "24000",
+          "27500",
+          "25000"
+        ],
+        "Controller": [
+          "DA-53Tx",
+          "DA-53T",
+          "S640"
+        ],
+        "Backgauge axis": [
+          "X+R"
+        ],
+        "__sheet_row": []
+      },
+      "coverage": {
+        "known": true,
+        "source_row_count": 8,
+        "materialized_row_count": 8,
+        "truncated": false,
+        "row_cap": 500000,
+        "backfilled_from_catalog": true
+      },
+      "source_modified_at": null,
+      "ingested_at": "2026-11-01T12:10:37.398327+00:00",
+      "parquet_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/data/sheet_datasets/default/e0a7fb8a1b47/outlook_harsle_press_brake_stock_price_list.parquet"
+    }
+  ]
+}

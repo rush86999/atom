@@ -1,0 +1,419 @@
+{
+  "schema": "atom-live-qualification-b-1",
+  "checks": [
+    {
+      "name": "exact body file matches the frozen hash",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "normal token resolver returned a usable grant",
+      "ok": true,
+      "detail": {
+        "state": "valid",
+        "token_available": true,
+        "refresh_attempted": false,
+        "refresh_succeeded": false,
+        "refresh_token_replaced": false,
+        "requires_reconnect": false,
+        "retryable": false,
+        "detail": ""
+      }
+    },
+    {
+      "name": "mailbox identity is the authorized account",
+      "ok": true,
+      "detail": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(id,userPrincipalName,mail,displayName)/$entity",
+        "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+        "userPrincipalName": "rish@brennan.ca",
+        "mail": "rish@brennan.ca",
+        "displayName": "Rish Maniar"
+      }
+    },
+    {
+      "name": "independent local source is available for the send assignment",
+      "ok": true,
+      "detail": {
+        "file": "live-b-source.csv",
+        "sheet": "live-b-source"
+      }
+    },
+    {
+      "name": "owned email canvas created for the prepared send",
+      "ok": true,
+      "detail": "682aa54c-4f3c-4e85-b9f0-9fb99ec3922a"
+    },
+    {
+      "name": "assignment created with the one-use grant",
+      "ok": true,
+      "detail": {
+        "run_id": "9ac79044-0d44-446e-8da8-2482709aa350",
+        "grant_id": "sga-live-qual-1793535072"
+      }
+    },
+    {
+      "name": "send step applied",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "receipt": {
+          "grant_id": "sga-live-qual-1793535072",
+          "use": 1,
+          "max_effects": 1,
+          "recipients": [
+            "rish@brennan.ca"
+          ],
+          "payload_sha256": "89f0111fa1d8928d5c7872875f600bdc1812bd533e742b4377d31e2ab98682a0",
+          "authorized_at": "2026-11-01T12:11:12.842915+00:00"
+        }
+      }
+    },
+    {
+      "name": "assignment completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "durable send binding carries the exact body",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "durable send binding carries the exact recipient and subject",
+      "ok": true,
+      "detail": {
+        "to": [
+          "rish@brennan.ca"
+        ],
+        "subject": "[Atom qualification] One authorized send 2026-11-01"
+      }
+    },
+    {
+      "name": "exactly one Sent Items message matches the authorized send",
+      "ok": true,
+      "detail": {
+        "matches": 1
+      }
+    },
+    {
+      "name": "Sent Items recipient and no attachment are exact",
+      "ok": true,
+      "detail": {
+        "to": [
+          {
+            "emailAddress": {
+              "name": "Rish Maniar",
+              "address": "rish@brennan.ca"
+            }
+          }
+        ],
+        "hasAttachments": false
+      }
+    },
+    {
+      "name": "Sent Items body matches the frozen wire body",
+      "ok": false,
+      "detail": {
+        "sha256": "9049028366bc9edad808241bac312d2578f6845f7e4b1f7130924972a6fabe4b"
+      }
+    }
+  ],
+  "passed": false,
+  "run_id": "9ac79044-0d44-446e-8da8-2482709aa350",
+  "canvas_id": "682aa54c-4f3c-4e85-b9f0-9fb99ec3922a",
+  "grant": {
+    "grant_id": "sga-live-qual-1793535072",
+    "actions": [
+      "outbound"
+    ],
+    "max_effects": 1,
+    "recipients": [
+      "rish@brennan.ca"
+    ],
+    "expires_at": "2026-11-02T12:11:12.740114Z"
+  },
+  "assignment": {
+    "assignment_id": "asg-0444fb79e4f745f4",
+    "objective": "Authorized live Outlook qualification send",
+    "employee_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "workspace_id": "default",
+    "plan_revision": 1,
+    "status": "completed",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "bf16aca23b7a85a0282c07bf67efad47",
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "deliverables": [
+      {
+        "deliverable_id": "del-deliverable-1",
+        "kind": "email_draft",
+        "description": "Authorized qualification email draft",
+        "required": true,
+        "step_id": "deliverable-1",
+        "status": "applied",
+        "artifact_revision": "f86f2167a836622b",
+        "artifact_path": null,
+        "sha256": "d043e4541758767a1ebdd906b4cb376606bd35b079eb45d91f5ce19ba589ca0d"
+      },
+      {
+        "deliverable_id": "del-send",
+        "kind": "email",
+        "description": "Provider-accepted response",
+        "required": true,
+        "step_id": "send",
+        "status": "applied",
+        "artifact_revision": null,
+        "artifact_path": null,
+        "sha256": null
+      }
+    ],
+    "sources": [
+      {
+        "kind": "workbook",
+        "binding": {
+          "resource_id": "01a4789c-58f2-4537-8de7-c374ebd447c3",
+          "dataset_name": "upload_live_b_source__live_b_source",
+          "source": "upload",
+          "source_kind": "file",
+          "external_id": "sha1:8e3fd7bd8b9115664a0e36b25a49b7cf26e91afa",
+          "original_file_name": "live-b-source.csv",
+          "representation": "parquet_frame",
+          "source_version": "8e3fd7bd8b9115664a0e36b25a49b7cf26e91afa",
+          "sheet": "live-b-source",
+          "columns": [
+            "Item",
+            "Amount",
+            "Note",
+            "__sheet_row"
+          ],
+          "numeric_columns": [
+            "Amount"
+          ],
+          "row_count": 3,
+          "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+          },
+          "access_scope": {
+            "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+            "workspace_id": "default",
+            "tenant_id": "default"
+          },
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "internal_fixture": false
+        }
+      }
+    ],
+    "authorized_actions": [
+      "edit",
+      "outbound",
+      "present",
+      "retrieve"
+    ],
+    "standing_authority": {
+      "grant_id": "sga-live-qual-1793535072",
+      "actions": [
+        "outbound"
+      ],
+      "max_effects": 1,
+      "used_effects": 1,
+      "recipients": [
+        "rish@brennan.ca"
+      ],
+      "expires_at": "2026-11-02T12:11:12.740114Z",
+      "granted_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "granted_at": "2026-11-01T12:11:12.758675+00:00",
+      "status": "exhausted",
+      "usage": [
+        {
+          "use": 1,
+          "step_id": "send",
+          "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+          "at": "2026-11-01T12:11:12.841650+00:00"
+        }
+      ]
+    },
+    "budget": {
+      "max_steps": 11,
+      "max_attempts_per_step": 3,
+      "max_wall_seconds": 900.0,
+      "max_cost_usd": 0.0,
+      "cost_mode": "hard",
+      "soft_limit_authorized_by": null,
+      "reserved_cost_usd": 0.0,
+      "cost_reservations": [],
+      "cost_overrun_usd": 0.0,
+      "cost_violation": null,
+      "soft_limit_exceeded": false,
+      "steps_started": 3,
+      "started_at": "2026-11-01T12:11:12.768559+00:00",
+      "elapsed_seconds": 0.0,
+      "cost_usd": 0.0
+    },
+    "steps": [
+      {
+        "step_id": "source-1",
+        "title": "Read workbook source",
+        "operation_type": "retrieve",
+        "adapter": "dataset.read",
+        "depends_on": [],
+        "required": true,
+        "effect": "read_only",
+        "status": "applied",
+        "recovery_class": "terminal",
+        "operation_id": "4d3a0ac5-ec8a-4210-b93e-da4bf9f48b2e",
+        "attempts": 0,
+        "result_summary": "read 3 of 3 matching row(s) from live-b-source.csv / live-b-source",
+        "result_value": null,
+        "result_unit": null,
+        "result_measure": null,
+        "prior_result_count": 0,
+        "artifact_revision": null,
+        "gap_ids": [],
+        "waiting": {},
+        "external_response": {},
+        "approval_request": {},
+        "standing_authority_receipt": {},
+        "failure": {}
+      },
+      {
+        "step_id": "deliverable-1",
+        "title": "Prepare Authorized qualification email draft",
+        "operation_type": "outbound",
+        "adapter": "email.draft",
+        "depends_on": [
+          "source-1"
+        ],
+        "required": true,
+        "effect": "local",
+        "status": "applied",
+        "recovery_class": "terminal",
+        "operation_id": "1cb7696b-a617-4928-aa60-473436b1d5ca",
+        "attempts": 0,
+        "result_summary": "prepared draft f86f2167a836622b",
+        "result_value": null,
+        "result_unit": null,
+        "result_measure": null,
+        "prior_result_count": 0,
+        "artifact_revision": "f86f2167a836622b",
+        "gap_ids": [],
+        "waiting": {},
+        "external_response": {},
+        "approval_request": {},
+        "standing_authority_receipt": {},
+        "failure": {}
+      },
+      {
+        "step_id": "send",
+        "title": "Send the approved response",
+        "operation_type": "outbound",
+        "adapter": "email.send_outlook",
+        "depends_on": [
+          "source-1",
+          "deliverable-1"
+        ],
+        "required": true,
+        "effect": "external",
+        "status": "applied",
+        "recovery_class": "terminal",
+        "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+        "attempts": 0,
+        "result_summary": "provider accepted message (sent)",
+        "result_value": null,
+        "result_unit": null,
+        "result_measure": null,
+        "prior_result_count": 0,
+        "artifact_revision": null,
+        "gap_ids": [],
+        "waiting": {},
+        "external_response": {},
+        "approval_request": {},
+        "standing_authority_receipt": {
+          "grant_id": "sga-live-qual-1793535072",
+          "use": 1,
+          "max_effects": 1,
+          "recipients": [
+            "rish@brennan.ca"
+          ],
+          "payload_sha256": "89f0111fa1d8928d5c7872875f600bdc1812bd533e742b4377d31e2ab98682a0",
+          "authorized_at": "2026-11-01T12:11:12.842915+00:00"
+        },
+        "failure": {}
+      }
+    ],
+    "created_at": "2026-11-01T12:11:12.758971+00:00",
+    "updated_at": "2026-11-01T12:11:13.438806+00:00",
+    "completed_at": "2026-11-01T12:11:13.438809+00:00"
+  },
+  "sent_items_matches": [
+    {
+      "@odata.etag": "W/\"CQAAABYAAADEtbYrrPLwTae3iXb78LoOAAHtXe1H\"",
+      "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAHvYQP3AAA=",
+      "sentDateTime": "2026-11-01T12:11:13Z",
+      "hasAttachments": false,
+      "internetMessageId": "<YQBPR0101MB474880A00C3F4D8766081B98AC6B2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>",
+      "subject": "[Atom qualification] One authorized send 2026-11-01",
+      "body": {
+        "contentType": "html",
+        "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head><body>This is the single authorized Outlook qualification message from Atom.<br><br>It verifies the real send path, one-use authorization, and Sent Items reconciliation. No action is required.<br><br><div></div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Regards,</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Rish M.</i></b></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\"><span style=\"color:black\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\"color:blue\"><a href=\"http://www.brennan.ca/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:blue; margin:0px\"><u>www.brennan.ca</u></a></span></div><div style=\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\"><span class=\"spanWithBackgroundColor\" style=\"color:red; background-color:rgb(255,255,255)\"><b><i>How am I doing?</i></b></span><span class=\"spanWithBackgroundColor\" style=\"color:rgb(68,84,106); background-color:rgb(255,255,255)\"><b><i>&nbsp;</i></b><a href=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\" title=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\"><br></span></div><div></div><div id=\"appendonsend\"></div></body></html>"
+      },
+      "from": {
+        "emailAddress": {
+          "name": "Rish Maniar",
+          "address": "rish@brennan.ca"
+        }
+      },
+      "toRecipients": [
+        {
+          "emailAddress": {
+            "name": "Rish Maniar",
+            "address": "rish@brennan.ca"
+          }
+        }
+      ]
+    }
+  ],
+  "window_start": "2026-11-01T12:06:12.740114+00:00",
+  "window_end": "2026-11-01T12:41:12.740114+00:00",
+  "body_sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
+  "wire_sha256": "ef3472ddc5401b8ab700b9545f75193042afc8958c9ec3f0994680cfd9783e67",
+  "serving_identity": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-01T12:11:20.042109+00:00",
+    "identity": {
+      "pid": 14763,
+      "started_at": "2026-11-01T12:10:52.626039+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+      "git_commit": "0aa6105e4872",
+      "source_id": "0aa6105e4872",
+      "instance_id": "0aa6105e4872.14763.1793535055",
+      "revision": "0aa6105e48728a60fceca94212a31797e85c8f84",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-01T12:10:55.387135+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/atom.db",
+      "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 648.75
+  }
+}

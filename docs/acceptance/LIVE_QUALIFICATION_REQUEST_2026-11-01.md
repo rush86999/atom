@@ -1,8 +1,10 @@
 # Concrete live qualification request — 2026-11-01
 
-**Status: prepared, not executed. No live Graph read and no live send have been
-performed.** This document does not authorize either operation by itself. Reply
-with an explicit selection and statement for A and/or B.
+**Status: executed 2026-11-01.** The owner authorized both operations; Part A
+read-only and Part B one-use send ran on `0aa6105e4872` and were verified after
+restart at `74464af69f98`. Evidence:
+`docs/acceptance/evidence/live_qualification_20261101/`. This document remains
+the frozen scope; it is not a self-acceptance.
 
 Candidate: product source `bc164fb96632` (docs head `f00c2ea7d`), frontend build
 `qEeLBEVZSyQjyn3v-Wnjh`. Configuration: local single-worker app,

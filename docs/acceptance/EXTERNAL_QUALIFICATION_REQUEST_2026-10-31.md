@@ -1,25 +1,28 @@
 # Consolidated external qualification request — 2026-10-31
 
-**Status: prepared, not executed.** Nothing in this document authorizes a
-connection, a token renewal, a source write or a send. It is the single request
-for the two inputs that cannot be produced by local engineering alone.
+**Status: executed 2026-11-01.** The owner authorized both parts; the concrete
+scope in `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` ran and the evidence is in
+`docs/acceptance/evidence/live_qualification_20261101/`. This document remains
+the request/scope record; it is not a self-acceptance.
 
 **Concrete current proposal (2026-11-01):**
 `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` identifies the current account,
 tenant, genuine workbook/attachment, expected values, exact read-only Graph
 operations, mailbox identity, frozen payload hashes and reconciliation scope.
 
-Fill in the bracketed fields and reply with the statement for each part. Until
-then, both remain unexecuted and the local engineering continues against
-controlled fixtures.
+The owner authorized both parts; both executed on 2026-11-01. The local
+engineering remains on controlled fixtures by default.
 
 ## Overall completion
 
-Two current-candidate live qualifications remain:
+The two current-candidate live qualifications executed:
 
 1. **Part A** — Microsoft read-only connection, ingestion and agent retrieval.
 2. **Part B** — one Outlook send with the exact authorized account, recipient,
    payload/attachment and reconciliation scope.
+
+They are submitted for independent review; this request does not self-grant
+overall acceptance.
 
 Hosted deployment and publication are **deferred, not completion gates**.
 The accepted local UI, workbook, deterministic-rule and durable-execution

@@ -11,14 +11,16 @@ publication remain deferred by the owner.
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
 | Verifier acceptance | `VERIFIER_ACCEPTANCE_2026-10-31.md` — accepted source `b7ee7ee22` |
-| Final code/evidence | `bc164fb96632` (product code through `589389218`; guided rule authoring added in `bc164fb96632`) |
+| Final code/evidence | `74464af69f98` (product code `0aa6105e4872`; guided rule authoring in `bc164fb96632`) |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Deterministic judgment | `assessment_mode=deterministic`; 18/18 V1 and 19/19 V3 under the V2 overlay, safe abstention passed (`employee-execution-deterministic-judgment/`); rules authored through the ordinary capability panel (`employee-execution-deterministic-rule-authoring/`) and the guided editor (`employee-execution-guided-rule-authoring/`, 13/13) |
 | Normal-app employee journey | `31ba9725e02a`, clean (`dirty=false`): teach/conflict/qualification, upload, mapping, wait, real backend restart, resume, DOCX (550.00 Arial 11), revised work (500.00 Calibri 14) (`employee-execution-integrated-local-journey-repaired/`) |
 | Unforced teaching | `bc164fb96632`, clean (`dirty=false`): welcome wizard completed with visible clicks, Teaching optional fields opened by click, form filled without `force=True`, lesson recorded and survived reload (`employee-execution-unforced-teaching/`, 9/9) |
 | Office workbook | 24 sheets / 500 data rows / 547 catalog rows; 25-row retrieval 1725.00; edit `B2 2→5` recalculates 55 / 1758 / 34533; byte-identical export; restart/reopen with 24 tabs (`employee-execution-large-workbook/`). Two-sheet edit/sync/download/reload 6/6 remains in `employee-execution-office-workbook/` |
 | Canvas capability | 290 → edit → 325, XLSX export, revision 2 reload (`employee-execution-canvas-capability/`) |
-| Real-transport gate | both live flags + one-use recipient-bound grant; no send (`employee-execution-live-authority-gate/`) |
+| Microsoft read-only live | `0aa6105e4872`, clean: account `rish@brennan.ca`, genuine Outlook workbook attachment, 8/8 rows, independent **216700**, product materialization, assignment retrieval, restart/reopen (`live_qualification_20261101/part-a/`) |
+| Live Outlook send | one-use grant `sga-live-qual-…` exhausted 1/1; exact body binding; provider accepted; exactly one Sent Items row; restart terminal/no second effect; **recipient inbox delivery not claimed** (`live_qualification_20261101/part-b/`) |
+| Real-transport gate | both live flags + one-use recipient-bound grant; one authorized send executed; default remains controlled (`employee-execution-live-authority-gate/`) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |
 | Execution boundaries | `b7ee7ee22` / `84da4cbfd` (81 assignment executor/route controls) |
@@ -32,7 +34,7 @@ publication remain deferred by the owner.
 | Node | 20.19.6 |
 | Product profile | `core` |
 | Backend / frontend | `127.0.0.1:8071` / `127.0.0.1:3130` |
-| Effect boundary | controlled local outbox; no real send |
+| Effect boundary | controlled local outbox by default; one authorized live send executed; recipient inbox delivery not claimed |
 
 The accepted tags are not moved. This candidate is a successor branch.
 
@@ -439,8 +441,10 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   and browser close. No multi-day soak, multi-worker campaign or real
   credential expiry.
 - **Approval/send**: atomic payload binding is accepted; controlled
-  continuation executed once; duplicate approval replayed; no real send and no
-  recipient-delivery claim.
+  continuation executed once; duplicate approval replayed. One authorized live
+  send ran under a one-use grant: exact body binding, provider acceptance,
+  exactly one Sent Items row, restart terminal and no second effect. Recipient
+  inbox delivery is not claimed.
 - **Agent 2 integration**: the feature/Office/README worktree was observed at
   `da9cc8b12` with no published checkpoint. This candidate does not overwrite
   or merge Agent 2's work; integration remains at the shared teaching,

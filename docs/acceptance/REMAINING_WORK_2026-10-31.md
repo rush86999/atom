@@ -1,18 +1,20 @@
 # Remaining work — tied to the original 12 goals
 
-Identity: integrated candidate `bc164fb96632` (guided deterministic-rule
-authoring; the post-repair journey and 24-sheet evidence executed on
-`31ba9725e02a`). Configuration: local, single worker,
+Identity: integrated candidate `74464af69f98` (product code `0aa6105e4872`;
+live qualification evidence in `live_qualification_20261101/`; the
+post-repair journey and 24-sheet evidence executed on `31ba9725e02a`).
+Configuration: local, single worker,
 `ATOM_PRODUCT_PROFILE=core`, controlled transport. Hosted deployment and
 publication remain owner-deferred and are not completion gates.
 
-Overall completion awaits only the two current-candidate live qualifications:
-Microsoft read-only connection/ingestion/agent retrieval, and the specifically
-authorized Outlook send with exact account, recipient, payload/attachment and
-reconciliation scope. Hosted deployment is deferred, not a completion gate.
-Accepted local UI, workbook, deterministic-rule and durable-execution evidence
-is closed; do not repeat those campaigns without a relevant source or product
-change.
+Both current-candidate live qualifications have now been executed: Microsoft
+read-only connection/ingestion/retrieval, and the specifically authorized
+Outlook send with the exact account, recipient, payload and reconciliation
+scope. They are submitted for the owner/verifier's independent review; this
+document does not self-grant overall acceptance. Hosted deployment is deferred,
+not a completion gate. Accepted local UI, workbook, deterministic-rule and
+durable-execution evidence is closed; do not repeat those campaigns without a
+relevant source or product change.
 
 **Verifier closure (2026-11-01):** 248 entries across 27 manifests matched;
 four frontend tests across two suites passed; the unforced teaching and guided
@@ -27,14 +29,14 @@ integrated product still needs. It is not a claim that the goals are met.
 | 1 | Employee + method + unfamiliar source, second domain | Two-domain deterministic acceptance; browser journey | — | — | Keep as regression | `two-domain-autonomous-journey*` | none |
 | 2 | Teaching method/exception/qualification/format/protocol/correction/transfer | Composite teaching journey, correction + restart tests, unforced stock-build teaching smoke 9/9 | — | — | Keep as regression | `employee-execution-06d80f834`, `employee-execution-unforced-teaching/` | none |
 | 3 | Unfamiliar columns/units; confirm/correct mapping; resume | Browser recovery 5/5 (ambiguous mapping, revision refusal) | — | — | Keep as regression | `assignment-recovery-browser` | none |
-| 4 | Upload/connect **authorized** data and retrieve for work | Controlled local uploads; resource-boundary controls; connected catalog binding | **Live Microsoft connection/ingest through normal Settings/Data UI** never demonstrated on this candidate | Agent 1 | Run the connector qualification script against one existing authorized connection; ingest one workbook + one email attachment | `employee-execution-connector-*` (new) | Owner: confirm which Microsoft account/tenant may be used read-only; token must be currently valid |
+| 4 | Upload/connect **authorized** data and retrieve for work | Live Microsoft read-only on the current candidate: normal resolver, `/me`, message/attachment reads, product materialization, source picker, assignment retrieval `216700.00`, restart/reopen | Declared Outlook workbook attachment only; no write/other-connector claim | — | No further local action; preserve `live_qualification_20261101/part-a/` | `live_qualification_20261101/part-a/` | None for the declared read-only scope |
 | 5 | Large/multi-sheet workbooks, supported formulas, calculate with citations | **Closed by executed evidence**: 24-sheet workbook (547 materialized rows, 500 data rows), leading-zero IDs, blanks, formula text, cross-sheet `SUM`, edit → recalculation → dependent cells, export and restart/reopen (`employee-execution-large-workbook/`) | General Excel compatibility beyond the published subset; genuine workbook through the live connector (blocked by 4) | — | No further local action for the fixture; connector run after Part A authorization | `employee-execution-large-workbook/` | Owner: Microsoft read-only access for the live workbook |
 | 6 | Canvas create/bind/calculate/edit/export/reload | Capability adapter + XLSX readback; atomic approval; clarification | — | — | Keep as regression | `canvas-capability/`, assessment evidence | none |
 | 7 | Grounded selection, calculation and **assessment** | **Deterministic taught-rule judgment qualified**: V1 **18/18**, V3 **19/19**, safe abstention passed (`employee-execution-deterministic-judgment/`). **Guided rule authoring** now builds, saves and assesses rules through the normal canvas panel without manifest JSON (`employee-execution-guided-rule-authoring/`) | Discretionary model judgment remains unqualified; guided rules cover the validator's supported vocabulary, not arbitrary prose | — | Keep as regression; optional funded model only for discretionary cases | `employee-execution-deterministic-judgment/`, `employee-execution-guided-rule-authoring/` | Optional funded model for discretionary cases only |
-| 8 | Editable DOCX/PPTX + email draft | Renderers, taught formatting, controlled draft/send path | Real provider send (see 11) | Agent 1 | Reuse the prepared payload and request live qualification | `employee-execution-autonomy-boundaries/` | Owner: send authorization for named account/recipient |
+| 8 | Editable DOCX/PPTX + email draft | Renderers, taught formatting; real send exercised once under Goal 11 | Recipient inbox delivery remains unclaimed; no second/other payload | — | No further local action; keep delivery distinct from provider acceptance | `live_qualification_20261101/part-b/` | None for the authorized one-effect scope |
 | 9 | User-created canvases inherit supported capabilities | Two differently shaped canvases share operations | — | — | Keep as regression | `employee-execution-06d80f834` | none |
 | 10 | Long-running multi-source assignment; restart; changed teaching; cancellation; uncertain effect | Browser 5/5 + two-domain restart/resume + reconciliation verdicts | Multi-worker/soak explicitly outside the declared single-worker topology | — | Enforce one-worker operationally (documented), no multi-worker claim | `assignment-recovery-browser`, `employee-execution-autonomy-boundaries` | none |
-| 11 | Approval binds exact payload; duplicate approval idempotent; changed payload needs fresh review | Payload-bound approval, atomic claim, duplicate prevention, reconciliation | **Real transport** not exercised; only the controlled outbox opts into standing authority | Agent 1 | Wire the real transport adapter behind the same grant/claim/reconcile contract, then request one authorized live test | `employee-execution-execution-boundaries/` + live run | Owner: account/recipient/artifact scope authorization; provider acceptance and recipient delivery are separate claims |
+| 11 | Approval binds exact payload; duplicate approval idempotent; changed payload needs fresh review | Real Outlook send once under a one-use grant; exact durable body binding; provider accepted; exactly one Sent Items row; restart terminal and no second effect | Recipient delivery unclaimed; only the declared subject/body/recipient tested | — | No further local action; preserve `live_qualification_20261101/part-b/` | `live_qualification_20261101/part-b/` | None for the authorized one-effect scope |
 | 12 | Install/start/login, restart/recover | Clean-install and restart evidence; local launch script | **Local functionality is complete for this goal.** Hosted deployment and publication are a separate, deferred decision | — | — | `install-final.json`, `INTEGRATED_LOCAL_CANDIDATE` | Owner-deferred (not a local gap) |
 
 ## Additional open items from the latest verification
@@ -57,24 +59,20 @@ integrated product still needs. It is not a claim that the goals are met.
   execution evidence. Teaching usability is separately confirmed on the stock
   build (`employee-execution-unforced-teaching/`).
 
-## Genuine external dependencies (one consolidated request)
+## Live qualifications and remaining external dependencies
 
-See `EXTERNAL_QUALIFICATION_REQUEST_2026-10-31.md` for Parts A (Microsoft
-read-only) and B (one live send). The concrete current proposal is
-`LIVE_QUALIFICATION_REQUEST_2026-11-01.md` (account, tenant, workbook/attachment,
-expected values, Graph operations, mailbox identity, payload hashes and
-reconciliation scope).
+The two authorized live qualifications have executed:
+`live_qualification_20261101/part-a/` (Microsoft read-only) and
+`live_qualification_20261101/part-b/` (one Outlook send). They are submitted for
+independent review, not self-accepted.
 
+Remaining non-authorization items:
 
-
-1. **Microsoft read-only access** for goal 4/5: which tenant/account, and
-   confirmation that its token is current.
-2. **Optional model access** for discretionary judgment only. The deterministic
+1. **Optional model access** for discretionary judgment only. The deterministic
    path is qualified without it; the frozen set must never be edited to fit a
    model.
-3. **One authorized live send** for goals 8/11: account, recipient, payload
-   class, attachment hash, reconciliation window.
-4. **Hosted deployment** (goal 12) — explicitly deferred.
+2. **Hosted deployment** (goal 12) — explicitly deferred, not a completion
+   gate.
 
 ## What this list does not do
 

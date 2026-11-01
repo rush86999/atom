@@ -1,6 +1,9 @@
 # Real-transport bounded-authority qualification request — 2026-10-31
 
-**Status: prepared, not executed. No live send has been performed.**
+**Status: executed 2026-11-01.** One live send was performed under the stated
+one-use grant; see
+`docs/acceptance/evidence/live_qualification_20261101/part-b/`. Recipient inbox
+delivery remains unclaimed.
 
 This request asks the owner to authorize exactly one bounded Outlook send so the
 real transport can be qualified under the same standing-authority contract
