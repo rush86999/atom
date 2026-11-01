@@ -44,6 +44,14 @@ def api(page, path: str):
         return json.loads(response.read().decode() or "{}")
 
 
+def dismiss_overlays(page) -> None:
+    for _ in range(4):
+        if page.locator('[role="dialog"]').count() == 0:
+            return
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(350)
+
+
 def agent_rows(page) -> list[dict]:
     rows = api(page, "/api/agents/")
     return rows if isinstance(rows, list) else rows.get("data", [])
@@ -79,6 +87,7 @@ def create_agent(page, frontend: str, goal: str,
         new_rows = [row for row in agent_rows(page) if row["id"] not in before]
         if not new_rows:
             page.wait_for_timeout(1000)
+    dismiss_overlays(page)
     if not new_rows:
         raise SystemExit("REFUSED: guided creation did not produce an agent")
     return str(new_rows[-1]["id"])
@@ -87,6 +96,7 @@ def create_agent(page, frontend: str, goal: str,
 def open_teaching(page, frontend: str, agent_id: str) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2000)
+    dismiss_overlays(page)
     button = page.get_by_test_id(f"agent-teach-button-{agent_id}")
     button.wait_for(timeout=30000)
     button.click()
