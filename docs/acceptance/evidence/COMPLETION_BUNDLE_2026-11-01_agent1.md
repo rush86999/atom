@@ -295,7 +295,10 @@ worktree. Full detail:
 | `tests/test_assignment_executor.py` | `715969f01d23` | **50 passed** |
 | Uncertain-effect controls | `715969f01d23` | **3 passed** |
 | Browser recovery | `715969f01d23` | **5/5 checks** |
-| Cancellation routes/executor/goal suites | `d37da0be5943` | **129 passed** |
+| Cancellation routes/executor/goal suites | `d37da0be5943` | **129 passed** (includes the 50 executor controls) |
+| Runtime claim batch re-run | `d37da0be5943` | **48 passed** |
+| Uncertain-effect controls re-run | `d37da0be5943` | **3 passed** |
+| Browser recovery (pre-repair path) | `715969f01d23` | **5/5 checks** |
 
 Evidence: `sibling_controls_20261101/`, `cancellation_repair_20261101/`,
 `assignment-recovery-browser-20261101/browser-recovery.json`.
