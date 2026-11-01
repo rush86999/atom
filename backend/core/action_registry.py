@@ -2339,11 +2339,11 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     }
 
 
-# Brennan connected business actions (Zoho/Microsoft reads + Outlook draft).
+# Connected business actions (provider reads + draft/write actions).
 # Imported after the decorator/registry are defined; provider imports inside
 # the module are lazy so this does not load every integration at startup.
 try:  # pragma: no cover - import wiring
-    from core import brennan_connected_actions as _brennan_connected_actions  # noqa: F401
-except Exception as _brennan_import_error:  # noqa: BLE001
-    logger.warning("Brennan connected actions not registered: %s",
-                   _brennan_import_error)
+    from core import connected_actions as _connected_actions  # noqa: F401
+except Exception as _connected_import_error:  # noqa: BLE001
+    logger.warning("Connected actions not registered: %s",
+                   _connected_import_error)

@@ -9,7 +9,9 @@ embedded in the engine.
 ## Canonical action names
 
 Use the `connected.*` names below in new plans. `brennan.*` remains as an alias
-for plans created during the reference campaign.
+for plans created during the reference campaign. The implementation module is
+`core/connected_actions.py`; `core/brennan_connected_actions.py` is a
+compatibility shim for the reference campaign.
 
 | Capability | Canonical action | Optional provider |
 |---|---|---|
