@@ -3027,6 +3027,39 @@ class AssignmentExecutor:
                     step.get("max_attempts") or 3):
                 raise AssignmentError(
                     f"step {step_id} exhausted its attempt budget")
+            # Migration/recovery: assignments created before wait time was
+            # excluded could fail a completed durable wait with
+            # ``assignment_budget_exhausted``. Credit the actual interval from
+            # the last completed step to the recorded response, so the retry
+            # can run without a manual budget edit. This is bounded to that
+            # exact failure and an already-recorded external response.
+            failure = step.get("failure") or {}
+            if (failure.get("reason") == "assignment_budget_exhausted"
+                    and step.get("external_response")):
+                budget = dict(assignment.get("budget") or {})
+                prior_times = []
+                for other in assignment.get("steps") or []:
+                    if other.get("step_id") == step_id:
+                        continue
+                    if other.get("updated_at"):
+                        try:
+                            prior_times.append(datetime.fromisoformat(
+                                str(other["updated_at"])).timestamp())
+                        except (TypeError, ValueError):
+                            pass
+                started = budget.get("started_at")
+                try:
+                    started_ts = datetime.fromisoformat(
+                        str(started)).timestamp() if started else None
+                except (TypeError, ValueError):
+                    started_ts = None
+                wait_start = max(prior_times) if prior_times else started_ts
+                if wait_start is not None:
+                    paused = max(0.0, self.clock() - wait_start)
+                    budget["paused_seconds"] = (
+                        float(budget.get("paused_seconds") or 0.0) + paused)
+                    budget.pop("waiting_since", None)
+                    assignment["budget"] = budget
             step["status"] = "pending"
             step["attempts"] = int(step.get("attempts") or 0) + 1
             step["operation_id"] = None
