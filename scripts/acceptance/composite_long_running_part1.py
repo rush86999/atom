@@ -211,10 +211,29 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
         page.get_by_test_id("teach-format-signature").fill(signature, force=True)
     if subject_prefix:
         page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix, force=True)
-    page.get_by_test_id("teach-submit").click()
-    # The toast is cosmetic and can be replaced by the next panel render.
-    # The POST above is the durable signal; give the UI a short confirmation
-    # window, then continue and let the caller read the journal.
+    try:
+        page.get_by_test_id("teach-submit").click(timeout=8000)
+    except Exception:
+        # The journal polls every few seconds; a detached button is a UI
+        # re-render, not a refusal. Invoke the same product button's handler.
+        page.evaluate(
+            """() => {
+                const button = document.querySelector(
+                    '[data-testid=teach-submit]');
+                if (!button) throw new Error('teach button missing');
+                button.click();
+            }""")
+    # The form clears only after the durable POST succeeds. A toast is
+    # cosmetic and can be replaced by the next panel render.
+    try:
+        page.wait_for_function(
+            """() => {
+                const el = document.querySelector(
+                    '[data-testid=teach-lesson-input]');
+                return !!el && !String(el.value || '').trim();
+            }""", timeout=20000)
+    except Exception:
+        pass
     try:
         page.get_by_text("Lesson recorded", exact=False).first.wait_for(
             state="visible", timeout=8000)
@@ -414,6 +433,9 @@ def main() -> int:
             timeout=30000)
         conflict_card = page.get_by_test_id("teaching-point").filter(
             has_text="Times New Roman").first
+        # The visible delete button asks window.confirm; accept it as a user
+        # would. Without a handler Playwright dismisses the confirmation.
+        page.on("dialog", lambda dialog: dialog.accept())
         try:
             conflict_card.get_by_test_id(
                 "teaching-point-delete").click(timeout=15000)
