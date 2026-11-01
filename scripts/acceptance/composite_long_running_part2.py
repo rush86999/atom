@@ -102,11 +102,10 @@ def open_assignment(page, frontend: str, objective: str,
                 row.first.click()
     detail.wait_for(timeout=30000)
     page.wait_for_function(
-        """expected => {
-            const el = document.querySelector(
-                '[data-testid="assignment-detail-objective"]');
-            return el && el.textContent.trim() === expected;
-        }""", arg=objective, timeout=60000)
+        """expected => Array.from(document.querySelectorAll(
+            '[data-testid="assignment-detail-objective"]')).some(
+            el => el && el.textContent.trim() === expected)""",
+        arg=objective, timeout=60000)
 
 
 def download(page, out: Path, stem: str) -> dict:
