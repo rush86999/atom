@@ -12,7 +12,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import html
 import json
+import re
 import sqlite3
 import time
 import urllib.error
@@ -59,6 +61,13 @@ def graph_get(client: httpx.Client, token: str, path: str) -> dict:
                           headers={"Authorization": f"Bearer {token}"})
     response.raise_for_status()
     return response.json()
+
+
+def normalized_text(value: str) -> str:
+    """Graph wraps the sent HTML in <html><body> and empty divs; compare text."""
+    text = re.sub(r"<br\s*/?>", "\n", str(value or ""), flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    return html.unescape(text).strip()
 
 
 def sent_messages(client: httpx.Client, token: str) -> list[dict]:
@@ -133,16 +142,47 @@ def main() -> int:
                        and window_start <= datetime.fromisoformat(
                            str(m.get("sentDateTime")).replace("Z", "+00:00"))
                        <= window_end]
+            assignment = detail.get("assignment") or {}
             record("restart left the operation terminal",
-                   (detail.get("assignment") or {}).get("status") in
-                   ("completed", "achieved"), (detail.get("assignment") or {}).get("status"))
+                   assignment.get("status") in ("completed", "achieved"),
+                   assignment.get("status"))
             record("restart did not add a second Sent Items row", len(matches) == 1,
                    {"matches": len(matches)})
+            send_step = next((s for s in assignment.get("steps") or []
+                              if s.get("step_id") == "send"), {})
+            grant = assignment.get("standing_authority") or {}
+            record("one-use grant is exhausted after one effect",
+                   int(grant.get("used_effects") or 0) == 1
+                   and int(grant.get("max_effects") or 0) == 1
+                   and grant.get("status") == "exhausted",
+                   {"used": grant.get("used_effects"),
+                    "max": grant.get("max_effects"),
+                    "status": grant.get("status")})
+            operation = json.loads((out / "operation.json").read_text())
+            record("durable binding still carries the exact body",
+                   hashlib.sha256(str(
+                       ((operation.get("operation") or {}).get("operation_binding")
+                        or {}).get("arguments", {}).get("body") or ""
+                   ).encode()).hexdigest() == EXPECTED_BODY_SHA256,
+                   hashlib.sha256(str(
+                       ((operation.get("operation") or {}).get("operation_binding")
+                        or {}).get("arguments", {}).get("body") or ""
+                   ).encode()).hexdigest())
+            if matches:
+                graph_body = str((matches[0].get("body") or {}).get("content") or "")
+                record("Sent Items body matches the frozen body after Graph wrapping",
+                       normalized_text(graph_body) == normalized_text(body),
+                       {"graph_raw_sha256": hashlib.sha256(
+                           graph_body.encode()).hexdigest(),
+                        "normalized_sha256": hashlib.sha256(
+                            normalized_text(graph_body).encode()).hexdigest()})
             (out / "reopen.json").write_text(json.dumps({
                 "assignment": detail,
                 "sent_items_matches": matches,
                 "window_start": saved["window_start"],
                 "window_end": saved["window_end"],
+                "grant": grant,
+                "send_step": send_step,
             }, indent=2) + "\n")
             result = {"schema": "atom-live-qualification-b-verify-1",
                       "checks": checks,
@@ -283,9 +323,12 @@ def main() -> int:
                    {"to": message.get("toRecipients"),
                     "hasAttachments": message.get("hasAttachments")})
             graph_body = str((message.get("body") or {}).get("content") or "")
-            record("Sent Items body matches the frozen wire body",
-                   hashlib.sha256(graph_body.encode()).hexdigest() == EXPECTED_WIRE_SHA256,
-                   {"sha256": hashlib.sha256(graph_body.encode()).hexdigest()})
+            record("Sent Items body matches the frozen body after Graph wrapping",
+                   normalized_text(graph_body) == normalized_text(body),
+                   {"graph_raw_sha256": hashlib.sha256(
+                       graph_body.encode()).hexdigest(),
+                    "normalized_sha256": hashlib.sha256(
+                        normalized_text(graph_body).encode()).hexdigest()})
             (out / "sent-item.json").write_text(json.dumps(message, indent=2) + "\n")
 
         (out / "send.json").write_text(json.dumps({
