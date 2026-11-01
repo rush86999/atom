@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Quote Specialist",
+  "agent_id": "20c6261a-eea4-46b1-9ad9-d8ecdcadf046",
+  "canvas_url": "http://127.0.0.1:3130/canvas/4c1464cd-f894-41cb-9373-995fe3644ca2?agent_id=20c6261a-eea4-46b1-9ad9-d8ecdcadf046&side=training",
+  "objective": "Sum Award Amount for the grants campaign",
+  "correlation_id": "grants-campaign-20261101",
+  "run_id": "707047b5-8cf7-4216-b3a8-a4897f157d1c",
+  "assignment_id": "asg-7bc1c2e8cd1c4eef",
+  "teaching_revision": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+  "mapping": [
+    {
+      "concept": "Award Amount",
+      "sheet": "campaign_grant_awards",
+      "column": "Approved Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "c77cd7ec206003f539a1a9184c0b9c1b327fd0f6",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+      "source": "upload",
+      "dataset_name": "upload_campaign_grant_awards__campaign_grant_awards",
+      "external_id": "sha1:c77cd7ec206003f539a1a9184c0b9c1b327fd0f6",
+      "available_columns": [
+        "Award",
+        "Approved Amount",
+        "Currency",
+        "Status",
+        "Qualification"
+      ],
+      "numeric_columns": [
+        "Approved Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "14687.50",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "grants-campaign-20261101",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Georgia\"; font_size: 11 vs 12; heading_order: [\"Award\", \"Sources\"] vs [\"Summary\", \"Findings\", \"Sources\"])\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nKnowledge Analyst \u00b7 Intelligence\nKnowledge Analyst \u00b7 Intelligence\ncampaign_grant_awards.csv / campaign_grant_awards \u00b7 25 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Approved Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nOptional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\n\nNo durable assignments yet.",
+  "teaching_points_visible": 0
+}

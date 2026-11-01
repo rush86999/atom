@@ -53,9 +53,9 @@ Evidence: [`evidence/campaigns/recovery/execution-boundaries.log`](evidence/camp
 
 | Campaign | State |
 |---|---|
-| A — complex teaching, transfer and correction | **Next:** sales and grants browser flows on the restarted final candidate; revised teaching while an accepted run waits; corrected new work; active snapshot retained. |
+| A — complex teaching, transfer and correction | **Passed** in two domains. Sales: taught method/document/expedited/email/expired/conflict through Training; conflict and missing qualification refused; mapping confirmed; active run completed `550.00` Arial 11; revised teaching while waiting left the active snapshot unchanged and new revised work produced `610.00` Calibri 14. Grants: 25-row unfamiliar sheet, `14687.50` Arial 11 active; revised `18650.00` Calibri 14. Wrong-context (grants lesson in a sales run) and expired Courier New were excluded. Agent 1’s browser bundle also covers the expedited exception, clarification, cancellation and a 506.00/676.50 twin. Evidence: `evidence/campaigns/teaching-two-domain/` and `docs/acceptance/evidence/complex_teaching_20261101/`. |
 | B — long-running ≥2h | **Passed.** Part 1 waited from `2026-11-01T13:40:04Z`; a real backend restart resumed the same run after the genuine two-hour mark; source `550.00` stayed applied; the correlated reply arrived at `15:43:27Z`; the DOCX rendered (`4a91281abe91d303...`); the controlled send was approved and applied **once**; duplicate resume and a late reply left the outbox at **1 line**. Evidence: `evidence/campaigns/long-run/`. |
-| C — ordinary usability | Clean install/startup, production login and browser surfaces passed; artifact download/reopen and clarification are exercised by the teaching campaign and recovery controls. |
+| C — ordinary usability | **Passed within scope.** Clean install, production login, upload/discovery, clarification, calculation, DOCX download/reopen, restart/recovery and first-use sample job (`232990.00` in 13s) all exercised through ordinary interfaces. Large-workbook navigation is the 25-row grants run; a multi-hundred-row soak is not claimed. |
 
 ### Budget repair found by the long-run
 

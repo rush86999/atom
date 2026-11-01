@@ -1,0 +1,91 @@
+{
+  "schema": "atom-cancellation-proof-1",
+  "campaign_a_orphan": {
+    "run_id": "73ac5c86-16c2-4e39-ad57-eca361c2f369",
+    "goal_run_status": "waiting",
+    "waiting_on": {
+      "event": "human_input",
+      "summary": "Which column should be summed?",
+      "assignment_wait": {
+        "correlation_id": null,
+        "question_id": "898060d7-9716-427a-b45d-81077a6c1dce",
+        "state": "waiting_for_person"
+      },
+      "created_at": "2026-11-01T17:22:04.900093+00:00"
+    },
+    "assignment_id": "asg-eadb3a4a89eb408c",
+    "assignment_status": "cancelled",
+    "steps": [
+      {
+        "step_id": "source-1",
+        "status": "cancelled",
+        "operation_id": "e74397e9-3b7d-4a68-8047-ce95bbd471b2",
+        "waiting": {
+          "state": "waiting_for_person",
+          "party": "owner",
+          "resume_on": "answer",
+          "since": "2026-11-01T17:22:04.895980+00:00"
+        }
+      },
+      {
+        "step_id": "deliverable-1",
+        "status": "cancelled",
+        "operation_id": null,
+        "waiting": null
+      }
+    ],
+    "cancellation_log": [
+      {
+        "ts": "2026-11-01T17:34:02.040346+00:00",
+        "kind": "assignment",
+        "rationale": "assignment cancelled: sibling control: abandoned mapping run",
+        "assignment_id": "asg-eadb3a4a89eb408c",
+        "state": "cancelled",
+        "plan_revision": 1
+      }
+    ],
+    "late_response": {
+      "http": 404,
+      "detail": "No open gap carries this correlation id. The response was not used to resume work."
+    },
+    "why": "This run was waiting for a MAPPING question (question_id 898060d7...), never for the email correlation campaign-a-missing-term-1. The 404 is the correlation check."
+  },
+  "recovery_wait_run": {
+    "run_id": "afe9748b-b813-47f8-bc9a-3b8bb618874c",
+    "goal_run_status": "cancelled",
+    "waiting_on": "null",
+    "assignment_id": "asg-599671050b0f4cc2",
+    "assignment_status": "cancelled",
+    "steps": [
+      {
+        "step_id": "source-1",
+        "status": "applied"
+      },
+      {
+        "step_id": "wait",
+        "status": "pending"
+      },
+      {
+        "step_id": "calculate",
+        "status": "cancelled"
+      },
+      {
+        "step_id": "deliverable-1",
+        "status": "cancelled"
+      }
+    ],
+    "wait_before_cancel": {
+      "correlation_id": "corr-cancel-1793554719682"
+    },
+    "late_response": {
+      "http": 200,
+      "assignment_status": "cancelled",
+      "effects_before": 0,
+      "effects_after": 0
+    },
+    "persisted_across_reload": true,
+    "why": "The run had an open wait with this exact correlation. After cancellation the same endpoint returned the cancelled assignment and did not resume or dispatch."
+  },
+  "defect_observed": "After the public API cancel of a mapping-gap wait, the assignment is cancelled and no effect occurs, but goal_runs.status/waiting_on still read waiting/human_input (stale run-level projection). No data loss or effect risk; report as a state-projection defect.",
+  "sampled_at": "2026-11-01T18:12:00Z"
+}

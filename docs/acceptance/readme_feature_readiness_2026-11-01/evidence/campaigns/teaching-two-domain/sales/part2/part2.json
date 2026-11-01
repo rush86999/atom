@@ -1,0 +1,142 @@
+{
+  "schema": "atom-composite-long-running-part2-1",
+  "status": "passed",
+  "run_id": "edfd411a-eece-4b92-8854-f060cbff2842",
+  "teaching_revision_before": "4607b3f20984341a+7b3561f602e34975+map",
+  "teaching_revision_after_teach": "4607b3f20984341a+7b3561f602e34975+map",
+  "status_after_restart": "waiting",
+  "status_after_completion": "completed",
+  "artifact": {
+    "path": "/private/tmp/teaching-campaign-final/sales/part2/active-assignment-artifact.docx",
+    "bytes": 37188,
+    "sha256": "87cefa027c9146806787cf11ddb711b59a05127a3867b6d132c5ad964200d7e1",
+    "normal_font": "Arial",
+    "normal_size": 11.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the sales campaign quote\nSummary\nsum of Gross Amount: 550.00 USD\ncontrolled reply received: Delivery term: net 45 days from the invoice date.\nFindings\nSources\nupload_campaign_sales_quote__campaign_sales_quote\ncampaign_sales_quote.csv\ncampaign_sales_quote\n63c4e0a9-8469-4bea-b042-403fc9c99c66\ncampaign_sales_quote.csv / campaign_sales_quote\nObjective\nSum Price for the sales campaign quote\ncampaign_sales_quote.csv / campaign_sales_quote"
+  },
+  "second_objective": "Sum Price for the revised sales campaign sheet",
+  "second_run_id": "74105a94-c88e-4447-82c5-471a48d2eeee",
+  "second_teaching_revision": "908f22f12f597016+map",
+  "second_artifact": {
+    "path": "/private/tmp/teaching-campaign-final/sales/part2/revised-assignment-artifact.docx",
+    "bytes": 37143,
+    "sha256": "fd6ef57453f94f72858fb5859e80b861e3129bb650cac7a9ddd394bbbb683edb",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Price for the revised sales campaign sheet\nSummary\nsum of Net Amount: 610.00 USD\nFindings\nSources\nupload_campaign_sales_revised__campaign_sales_revised\ncampaign_sales_revised.csv\ncampaign_sales_revised\nbf2b5941-1d47-405d-8360-a1cac76a48e3\ncampaign_sales_revised.csv / campaign_sales_revised\nObjective\nSum Price for the revised sales campaign sheet\ncampaign_sales_revised.csv / campaign_sales_revised"
+  },
+  "outbox_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_2h_20261101/controlled-outbox.jsonl",
+  "outbox_lines": 2
+}
