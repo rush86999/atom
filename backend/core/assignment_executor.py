@@ -1674,6 +1674,7 @@ class AssignmentExecutor:
 
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "running",
+                "pre_dispatch_budget_refusal": False,
                 "updated_at": _utc_now_iso(),
             })
             assignment = self._bump_steps_started(assignment)
@@ -2979,6 +2980,22 @@ class AssignmentExecutor:
                 item = step_by_id(new_plan, step["step_id"])
                 if item is None:
                     return new_plan, {}
+                waiting_before = dict(item.get("waiting") or {})
+                budget = dict(new_plan.get("budget") or {})
+                active = dict(budget.get("active_wait") or {})
+                current_operation_id = (
+                    item.get("wait_operation_id")
+                    or _operation_id_for_step(record, item)
+                    or operation_id)
+                current_operation = (
+                    _operation_by_id(record, current_operation_id)
+                    if current_operation_id else {}) or {}
+                wait_id = active.get("id") or self._wait_credit_id(
+                    item, waiting_before, current_operation_id)
+                wait_started = (
+                    active.get("started_at")
+                    or waiting_before.get("since")
+                    or current_operation.get("claimed_at"))
                 item["status"] = "pending"
                 item["attempts"] = int(item.get("attempts") or 0) + 1
                 item["operation_id"] = None
@@ -2995,27 +3012,15 @@ class AssignmentExecutor:
                 if fact_confirmation:
                     item["external_response"]["fact_confirmation"] = (
                         fact_confirmation)
-                # The wait is durable work, not wall-budget consumption.
-                # Accumulate the paused interval here because this path
-                # clears ``waiting`` before the executor's resume loop runs.
-                budget = dict(new_plan.get("budget") or {})
-                waiting_since = (
-                    budget.get("waiting_since")
-                    or step.get("updated_at")
-                    or (step.get("waiting") or {}).get("since"))
-                if waiting_since:
-                    try:
-                        paused = max(
-                            0.0,
-                            self.clock() - datetime.fromisoformat(
-                                str(waiting_since)).timestamp())
-                        budget["paused_seconds"] = (
-                            float(budget.get("paused_seconds") or 0.0)
-                            + paused)
-                    except (TypeError, ValueError):
-                        pass
-                    budget.pop("waiting_since", None)
-                    new_plan["budget"] = budget
+                # Credit the actual wait interval once, keyed by the durable
+                # wait identity. This path clears ``waiting`` before the
+                # executor's resume loop runs, so it must record the interval
+                # here; it never extends to a later retry.
+                self._credit_wait_once(
+                    budget, wait_id=wait_id or "",
+                    started_at=wait_started,
+                    ended_at=item["external_response"]["at"])
+                new_plan["budget"] = budget
                 item["updated_at"] = _utc_now_iso()
                 new_plan["status"] = "planned"
                 new_plan["updated_at"] = _utc_now_iso()
@@ -3058,40 +3063,43 @@ class AssignmentExecutor:
                     f"step {step_id} exhausted its attempt budget")
             # Migration/recovery: assignments created before wait time was
             # excluded could fail a completed durable wait with
-            # ``assignment_budget_exhausted``. Credit the actual interval from
-            # the last completed step to the recorded response, so the retry
-            # can run without a manual budget edit. This is bounded to that
-            # exact failure and an already-recorded external response.
-            if (failure.get("reason") == "assignment_budget_exhausted"
+            # ``assignment_budget_exhausted``. Credit only the actual interval
+            # recorded by the wait operation and the external response; never
+            # infer it from unrelated steps or extend it to this retry.
+            if (budget_blocked
                     and step.get("external_response")):
                 budget = dict(assignment.get("budget") or {})
-                prior_times = []
-                for other in assignment.get("steps") or []:
-                    if other.get("step_id") == step_id:
-                        continue
-                    if other.get("updated_at"):
-                        try:
-                            prior_times.append(datetime.fromisoformat(
-                                str(other["updated_at"])).timestamp())
-                        except (TypeError, ValueError):
-                            pass
-                started = budget.get("started_at")
-                try:
-                    started_ts = datetime.fromisoformat(
-                        str(started)).timestamp() if started else None
-                except (TypeError, ValueError):
-                    started_ts = None
-                wait_start = max(prior_times) if prior_times else started_ts
-                if wait_start is not None:
-                    paused = max(0.0, self.clock() - wait_start)
-                    budget["paused_seconds"] = (
-                        float(budget.get("paused_seconds") or 0.0) + paused)
-                    budget.pop("waiting_since", None)
-                    assignment["budget"] = budget
+                operation_id = (
+                    step.get("wait_operation_id")
+                    or _operation_id_for_step(record, step))
+                operation = (
+                    _operation_by_id(record, operation_id)
+                    if operation_id else {}) or {}
+                active = dict(budget.get("active_wait") or {})
+                waiting_before = dict(step.get("waiting") or {})
+                wait_id = active.get("id") or self._wait_credit_id(
+                    step, waiting_before, operation_id)
+                wait_started = (
+                    active.get("started_at")
+                    or waiting_before.get("since")
+                    or operation.get("claimed_at"))
+                response = step.get("external_response") or {}
+                wait_ended = response.get("at")
+                self._credit_wait_once(
+                    budget, wait_id=wait_id or "",
+                    started_at=wait_started, ended_at=wait_ended,
+                    legacy=True)
+                if operation_id and not step.get("wait_operation_id"):
+                    step["wait_operation_id"] = operation_id
+                assignment["budget"] = budget
             step["status"] = "pending"
-            step["attempts"] = (
-                1 if budget_blocked
-                else int(step.get("attempts") or 0) + 1)
+            if budget_blocked:
+                # A pre-dispatch refusal did not execute; keep the real
+                # attempt count and let the gate admit the repair retry.
+                step["pre_dispatch_budget_refusal"] = True
+            else:
+                step["attempts"] = int(step.get("attempts") or 0) + 1
+                step["pre_dispatch_budget_refusal"] = False
             step["operation_id"] = None
             step["failure"] = None
             step["waiting"] = None
@@ -3507,6 +3515,78 @@ class AssignmentExecutor:
             "updated_at": _utc_now_iso(),
         })
 
+    @staticmethod
+    def _wait_credit_id(
+        step: Dict[str, Any], waiting: Dict[str, Any],
+        operation_id: Optional[str] = None,
+    ) -> str:
+        """Stable identity for one actual wait interval.
+
+        The operation id is the durable execution identity. Legacy rows without
+        one fall back to the step plus the persisted wait start, never to a
+        later retry timestamp.
+        """
+        return str(
+            operation_id
+            or step.get("operation_id")
+            or step.get("wait_operation_id")
+            or waiting.get("wait_id")
+            or f"{step.get('step_id')}:"
+               f"{waiting.get('correlation_id') or waiting.get('since') or ''}")
+
+    def _credit_wait_once(
+        self, budget: Dict[str, Any], *,
+        wait_id: str,
+        started_at: Any,
+        ended_at: Any,
+        legacy: bool = False,
+    ) -> bool:
+        """Credit one persisted wait interval exactly once under the CAS.
+
+        New assignments carry ``wait_credits_schema=1`` and credit every real
+        interval. Legacy assignments have no interval ledger; if they already
+        carry ``paused_seconds`` we record the interval as already credited
+        instead of adding it again. No interval is ever extended to "now".
+        """
+        if not wait_id or not started_at or not ended_at:
+            return False
+        credits = dict(budget.get("wait_credits") or {})
+        if wait_id in credits:
+            return False
+        try:
+            start_ts = datetime.fromisoformat(str(started_at)).timestamp()
+            end_ts = datetime.fromisoformat(str(ended_at)).timestamp()
+        except (TypeError, ValueError):
+            return False
+        if end_ts < start_ts:
+            return False
+        if (legacy
+                and budget.get("wait_credits_schema") != 1
+                and float(budget.get("paused_seconds") or 0.0) > 0):
+            credits[wait_id] = {
+                "seconds": 0.0,
+                "started_at": str(started_at),
+                "ended_at": str(ended_at),
+                "already_credited": True,
+            }
+            budget["wait_credits"] = credits
+            return False
+        seconds = end_ts - start_ts
+        credits[wait_id] = {
+            "seconds": seconds,
+            "started_at": str(started_at),
+            "ended_at": str(ended_at),
+        }
+        budget["wait_credits"] = credits
+        budget["wait_credits_schema"] = 1
+        budget["paused_seconds"] = (
+            float(budget.get("paused_seconds") or 0.0) + seconds)
+        active = budget.get("active_wait") or {}
+        if not active or str(active.get("id")) == str(wait_id):
+            budget["active_wait"] = None
+            budget.pop("waiting_since", None)
+        return True
+
     def _effective_wall_elapsed(self, budget: Dict[str, Any]) -> float:
         """Wall time spent working, excluding durable external waits.
 
@@ -3542,9 +3622,10 @@ class AssignmentExecutor:
         if int(budget.get("steps_started") or 0) >= int(
                 budget.get("max_steps") or 40):
             return False
-        if int(step.get("attempts") or 0) >= int(
-                step.get("max_attempts") or budget.get(
-                    "max_attempts_per_step") or 3):
+        if (not step.get("pre_dispatch_budget_refusal")
+                and int(step.get("attempts") or 0) >= int(
+                    step.get("max_attempts") or budget.get(
+                        "max_attempts_per_step") or 3)):
             return False
         if self._effective_wall_elapsed(budget) > float(
                 budget.get("max_wall_seconds") or 3600.0):
@@ -4013,35 +4094,32 @@ class AssignmentExecutor:
             return True
         if not self._resolve_waiting(record, step):
             return False
-        # Charge only working time. Old rows have no waiting_since; the
-        # step's updated_at is the durable moment it entered the wait.
+        operation_id = (
+            step.get("wait_operation_id")
+            or _operation_id_for_step(record, step))
+        operation = (
+            _operation_by_id(record, operation_id)
+            if operation_id else {}) or {}
         budget = dict(assignment.get("budget") or {})
-        waiting_since = (
-            budget.get("waiting_since")
-            or step.get("updated_at")
-            or (step.get("waiting") or {}).get("since"))
-        if waiting_since:
+        active = dict(budget.get("active_wait") or {})
+        waiting_before = dict(step.get("waiting") or {})
+        wait_id = active.get("id") or self._wait_credit_id(
+            step, waiting_before, operation_id)
+        wait_started = (
+            active.get("started_at")
+            or waiting_before.get("since")
+            or operation.get("claimed_at"))
+        self._credit_wait_once(
+            budget, wait_id=wait_id or "", started_at=wait_started,
+            ended_at=_utc_now_iso())
+        if operation_id and operation.get("status") == "waiting":
+            # A timer expiry is a bounded re-entry. The old attempt's
+            # operation is closed honestly and a new attempt is opened.
             try:
-                paused = max(
-                    0.0,
-                    self.clock() - datetime.fromisoformat(
-                        str(waiting_since)).timestamp())
-                budget["paused_seconds"] = (
-                    float(budget.get("paused_seconds") or 0.0) + paused)
-            except (TypeError, ValueError):
+                self.lifecycle.transition_operation(
+                    run_id, operation_id, "superseded")
+            except TaskLifecycleError:
                 pass
-            budget.pop("waiting_since", None)
-        operation_id = _operation_id_for_step(record, step)
-        if operation_id:
-            operation = _operation_by_id(record, operation_id) or {}
-            if operation.get("status") == "waiting":
-                # A timer expiry is a bounded re-entry. The old attempt's
-                # operation is closed honestly and a new attempt is opened.
-                try:
-                    self.lifecycle.transition_operation(
-                        run_id, operation_id, "superseded")
-                except TaskLifecycleError:
-                    pass
         updated = self._mark_step(assignment, step["step_id"], {
             "status": "pending",
             "operation_id": None,
@@ -4532,19 +4610,32 @@ class AssignmentExecutor:
             assignment = self._settle_step_cost(
                 assignment, run_id, step, operation_id, cost_bound,
                 "released")
+            now = _utc_now_iso()
+            waiting = _json_safe(exc.waiting)
+            waiting["since"] = waiting.get("since") or now
             self.lifecycle.set_operation_waiting(
-                run_id, operation_id, waiting=exc.waiting)
+                run_id, operation_id, waiting=waiting)
             self._enter_wait(
-                run_id, waiting=exc.waiting,
-                summary=(exc.waiting or {}).get("detail", ""))
+                run_id, waiting=waiting,
+                summary=(waiting or {}).get("detail", ""))
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "waiting",
-                "waiting": _json_safe(exc.waiting),
-                "updated_at": _utc_now_iso()})
+                "waiting": waiting,
+                "wait_operation_id": operation_id,
+                "updated_at": now})
             budget = dict(assignment.get("budget") or {})
+            budget["wait_credits_schema"] = 1
+            wait_id = self._wait_credit_id(step, waiting, operation_id)
+            if not budget.get("active_wait"):
+                budget["active_wait"] = {
+                    "id": wait_id,
+                    "step_id": step.get("step_id"),
+                    "correlation_id": waiting.get("correlation_id"),
+                    "started_at": waiting["since"],
+                }
             if not budget.get("waiting_since"):
-                budget["waiting_since"] = _utc_now_iso()
-                assignment["budget"] = budget
+                budget["waiting_since"] = waiting["since"]
+            assignment["budget"] = budget
             self._persist_assignment(
                 run_id, assignment, "step waiting for external")
             return

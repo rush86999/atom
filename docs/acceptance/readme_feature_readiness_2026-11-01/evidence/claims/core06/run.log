@@ -1,0 +1,273 @@
+[1793557189.448628] Starting imports in main_api_app.py...
+[1793557189.4486458] FastAPI imported
+{"level": "WARNING", "message": "Redis unavailable - webhook ingestion will process synchronously", "timestamp": "2026-11-01T18:19:52.107915+00:00", "logger": "core.webhook_ingestion_triggers", "module": "structured_logger", "function": "_log", "line": 118}
+/Users/rushiparikh/projects/atom-employee-execution/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+  canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+{"level": "INFO", "message": "Device WebSocket module loaded - real device communication enabled", "timestamp": "2026-11-01T18:19:53.656281+00:00", "logger": "tools.device_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-01T18:19:56.477164+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+{"level": "INFO", "message": "Media control tools registered with tool registry", "timestamp": "2026-11-01T18:20:02.492136+00:00", "logger": "tools.media_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "FFmpeg Python library loaded successfully", "timestamp": "2026-11-01T18:20:02.504087+00:00", "logger": "core.creative.ffmpeg_service", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "FFmpegService initialized", "timestamp": "2026-11-01T18:20:02.506106+00:00", "logger": "core.creative.ffmpeg_service", "module": "structured_logger", "function": "_log", "line": 118, "allowed_dirs": ["./data/media", "./data/exports", "/app/data/media", "/app/data/exports"], "job_timeout": 300}
+{"level": "INFO", "message": "FFmpegTool initialized", "timestamp": "2026-11-01T18:20:02.506174+00:00", "logger": "tools.creative_tool", "module": "structured_logger", "function": "_log", "line": 118, "service_available": true}
+{"level": "INFO", "message": "FFmpeg creative tool registered", "timestamp": "2026-11-01T18:20:02.506254+00:00", "logger": "tools.creative_tool", "module": "structured_logger", "function": "_log", "line": 118, "category": "creative"}
+{"level": "INFO", "message": "python-hue-v2 library loaded - Hue integration enabled", "timestamp": "2026-11-01T18:20:02.823473+00:00", "logger": "core.smarthome.hue_service", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Smart home tools registered with ToolRegistry", "timestamp": "2026-11-01T18:20:02.824710+00:00", "logger": "tools.smarthome_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "CalendarTool initialized", "timestamp": "2026-11-01T18:20:02.828113+00:00", "logger": "tools.calendar_tool", "module": "structured_logger", "function": "_log", "line": 118, "tool_available": true, "authenticated": false}
+{"level": "INFO", "message": "CalendarTool registered with ToolRegistry", "timestamp": "2026-11-01T18:20:02.828168+00:00", "logger": "tools.calendar_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "NotionTool initialized", "timestamp": "2026-11-01T18:20:02.828212+00:00", "logger": "tools.productivity_tool", "module": "structured_logger", "function": "_log", "line": 118, "tool_available": true}
+{"level": "INFO", "message": "NotionTool registered with ToolRegistry", "timestamp": "2026-11-01T18:20:02.828271+00:00", "logger": "tools.productivity_tool", "module": "structured_logger", "function": "_log", "line": 118}
+/Users/rushiparikh/projects/atom-employee-execution/backend/venv/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.8.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/rushiparikh/projects/atom-employee-execution/backend/venv/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator RandomForestClassifier from version 1.8.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/rushiparikh/projects/atom-employee-execution/backend/venv/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.8.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/rushiparikh/projects/atom-employee-execution/backend/venv/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator RandomForestClassifier from version 1.8.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.82it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.24it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.23it/s]
+{
+  "schema": "atom-byok-settings-chat-no-restart-1",
+  "status": "passed",
+  "first_chat_http": 200,
+  "second_chat_http": 200,
+  "third_chat_http": 200,
+  "delete_http": 200,
+  "provider_calls_after_first": 175,
+  "provider_calls_after_replacement": 350,
+  "provider_calls_after_removal": 350,
+  "first_key_seen": true,
+  "replacement_key_seen": true,
+  "removed_key_not_resent": true,
+  "third_failed_closed": true,
+  "keys_absent_from_logs": true,
+  "log_chars": 2414601,
+  "handler_before": {
+    "handler_id": 6227283920,
+    "has_openai": false,
+    "key_is_first": false,
+    "key_is_second": false
+  },
+  "handler_after_first_save": {
+    "handler_id": 6235391888,
+    "has_openai": true,
+    "key_is_first": true,
+    "key_is_second": false
+  },
+  "handler_after_second_save": {
+    "handler_id": 6237171024,
+    "has_openai": true,
+    "key_is_first": false,
+    "key_is_second": true
+  },
+  "handler_after_removal": {
+    "handler_id": 6675606544,
+    "has_openai": false,
+    "key_is_first": false,
+    "key_is_second": false
+  },
+  "route_handler_after_first_save": {
+    "handler_id": 6222272592,
+    "has_openai": true,
+    "key_is_first": true,
+    "key_is_second": false
+  },
+  "route_handler_after_second_save": {
+    "handler_id": 6253282832,
+    "has_openai": true,
+    "key_is_first": false,
+    "key_is_second": true
+  },
+  "first_payload_keys": [
+    "confidence",
+    "error_code",
+    "execution_id",
+    "failure_reason",
+    "intent",
+    "memory_context",
+    "message",
+    "metadata",
+    "model",
+    "next_steps",
+    "outcome",
+    "provider",
+    "reasoning",
+    "recovery_url",
+    "requires_confirmation",
+    "session_id",
+    "success",
+    "suggested_actions",
+    "timestamp"
+  ],
+  "first_message": "BYOK refresh OK",
+  "second_message": "BYOK refresh OK",
+  "third_message": "I couldn't generate a response \u2014 every configured provider failed. Last error: no provider attempted. Check provider status or credentials in Settings and try again.",
+  "first_meta": {
+    "outcome": null,
+    "error_code": null,
+    "failure_reason": "",
+    "model": "o4-mini",
+    "provider": "openai",
+    "metadata_keys": []
+  },
+  "second_meta": {
+    "outcome": null,
+    "error_code": null,
+    "failure_reason": "",
+    "model": "o4-mini",
+    "provider": "openai"
+  },
+  "request_models": [
+    "gpt-4o-mini",
+    "gpt-5.6-luna",
+    "o4-mini",
+    "o4-mini",
+    "o4-mini",
+    "o4-mini",
+    "o4-mini",
+    "o4-mini"
+  ],
+  "request_streams": [
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "request_tools": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    true,
+    true
+  ],
+  "request_tool_names": [
+    [
+      "_Interpretation"
+    ],
+    [
+      "ToolPlan"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [
+      "CommandIntentResult"
+    ],
+    [
+      "CommandIntentResult"
+    ]
+  ],
+  "first_tool_schema": {
+    "$defs": {
+      "_ProposedAction": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "research",
+              "learning",
+              "canvas_edit",
+              "calculation",
+              "presentation",
+              "conversation"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "subjects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "_ProposedAction",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "actions": {
+        "items": {
+          "$ref": "#/$defs/_ProposedAction"
+        },
+        "title": "Actions",
+        "type": "array"
+      },
+      "subjects": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Subjects",
+        "type": "array"
+      },
+      "sources": {
+        "description": "External evidence sources requiring consultation. If the request names a specific source, copy that source's complete filename/name exactly; for a prior observed source, copy the observed filename exactly. Only when the request asks for a source kind without naming a specific source, use a supported canonical source kind \u2014 prefer the kind shown on the matching observed entry. If several observed sources could match the request's wording, do not choose one \u2014 preserve the wording. Do not append explanations, parentheses, or uncertainty notes. Do not include the attached draft/canvas as an external source.",
+        "items": {
+          "type": "string"
+        },
+        "title": "Sources",
+        "type": "array"
+      },
+      "requested_fields": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Requested Fields",
+        "type": "array"
+      },
+      "output_format": {
+        "default": "",
+        "title": "Output Format",
+        "type": "string"
+      },
+      "constraints": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Constraints",
+        "type": "array"
+      },
+      "scope_change": {
+        "enum": [
+          "replace",
+          "extend",
+          "subset",
+          "continue",
+          "unresolved"
+        ],
+        "title": "Scope Change",
+        "type": "string"
+      },
+      "confidence": {
+        "default": 0.0,
+        "title": "Confidence",
+        "type": "number"
+      }
+    },
+    "required": [
+      "actions",
+      "scope_change"
+    ],
+    "type": "object"
+  }
+}

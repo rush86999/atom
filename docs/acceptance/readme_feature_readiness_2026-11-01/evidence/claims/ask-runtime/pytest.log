@@ -1,0 +1,91 @@
+
+tests/test_autonomy_revocation.py::test_verified_regression_blocks_the_runtime_gate 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:39:11 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 09:39:11 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 09:39:11 [    INFO] EscalationManager initialized
+2026-11-01 09:39:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:39:11 [    INFO] EscalationManager initialized
+2026-11-01 09:39:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:39:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:39:11 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:12 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+PASSED                                                                   [  8%]
+tests/test_autonomy_revocation.py::test_revocation_survives_a_new_session 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:13 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+PASSED                                                                   [ 16%]
+tests/test_autonomy_revocation.py::test_first_failure_without_prior_success_is_not_a_regression PASSED [ 25%]
+tests/test_autonomy_revocation.py::test_verified_work_can_reearn_the_capability 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:14 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 09:39:14 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 09:39:14 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 33%]
+tests/test_autonomy_revocation.py::test_reentry_requires_new_successes_after_the_revocation 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:15 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 09:39:15 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 09:39:15 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 41%]
+tests/test_autonomy_revocation.py::test_second_regression_resets_the_reentry_baseline 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:16 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 09:39:16 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-01 09:39:16 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to intern
+2026-11-01 09:39:16 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 50%]
+tests/test_autonomy_revocation.py::test_revocation_lookup_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:16 [ WARNING] autonomy revocation check unavailable: authority store down
+2026-11-01 09:39:16 [ WARNING] autonomy revocation check unavailable: authority store down
+PASSED                                                                   [ 58%]
+tests/test_trust_calibration_runtime_authorization.py::test_flag_off_keeps_legacy_gate_neutral 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:17 [    INFO] MCP Service initialized
+PASSED                                                                   [ 66%]
+tests/test_trust_calibration_runtime_authorization.py::test_enabled_without_certification_does_not_relax PASSED [ 75%]
+tests/test_trust_calibration_runtime_authorization.py::test_certified_enable_executes_then_regression_revokes_across_restart PASSED [ 83%]
+tests/test_trust_calibration_runtime_authorization.py::test_assignment_dispatch_rechecks_revoked_calibration PASSED [ 91%]
+tests/test_trust_calibration_runtime_authorization.py::test_assignment_wait_resume_after_revocation_requires_new_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:39:20 [    INFO] runtime identity: source_id=09393e9b0be6-dirty.0fa6ed4c0396 revision=09393e9b0be6 dirty=True (2 modified, 5 untracked)
+2026-11-01 09:39:21 [    INFO] Created HITL action cff8c680-5ab4-462a-957a-fec0e97c98f9 for agent None
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 24 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 12 passed, 30 warnings in 23.41s =======================

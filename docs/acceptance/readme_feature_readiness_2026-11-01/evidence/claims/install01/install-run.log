@@ -1,0 +1,702 @@
+{
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-install-776c-world",
+  "base": "http://127.0.0.1:8137",
+  "checks": {
+    "password_file": {
+      "exists": true,
+      "mode": "0o600",
+      "length": 22
+    },
+    "login": {
+      "status": 200,
+      "token": true
+    },
+    "profile": {
+      "status": 200,
+      "profile": "full"
+    },
+    "task_create": {
+      "status": 200,
+      "id": "931aade3-5ada-4920-b245-e4bf4f37ef5a",
+      "body": {
+        "success": true,
+        "task": {
+          "id": "931aade3-5ada-4920-b245-e4bf4f37ef5a",
+          "title": "install acceptance durable task",
+          "description": null,
+          "dueDate": null,
+          "priority": "medium",
+          "status": "todo",
+          "project": null,
+          "tags": [],
+          "estimatedHours": 0,
+          "actualHours": 0,
+          "color": "#3182CE",
+          "metadata": {},
+          "createdAt": "2026-11-01T15:17:25",
+          "updatedAt": "2026-11-01T15:17:25"
+        }
+      }
+    },
+    "workflow": {
+      "workflow_id": "fbae9c28-1ef0-4d42-aa76-bae46e17870c",
+      "execution_id": "30566d2b-d7c1-4418-939d-a584810760a0",
+      "create_status": 200,
+      "survives_restart": true,
+      "history_after_restart": [
+        {
+          "execution_id": "30566d2b-d7c1-4418-939d-a584810760a0",
+          "workflow_id": "fbae9c28-1ef0-4d42-aa76-bae46e17870c",
+          "trigger_data": {},
+          "start_time": "2026-11-01T15:17:25.909483",
+          "end_time": null,
+          "status": "completed",
+          "actions_executed": [],
+          "errors": [],
+          "results": {
+            "node-1": {
+              "status": "success",
+              "service": "database",
+              "action": "query",
+              "result": {
+                "action": "query",
+                "result": "Database query executed",
+                "status": "success"
+              },
+              "timestamp": "2026-11-01T10:17:26.058731",
+              "execution_method": "service_registry"
+            }
+          },
+          "duration_ms": 0.0
+        }
+      ]
+    },
+    "office_canvas": {
+      "canvas_id": "canvas_bfb16e5c8888",
+      "present_status": 200,
+      "restart_status": 200,
+      "canvas_read": true,
+      "download_ok": true
+    },
+    "goal_run": {
+      "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+      "run_id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+      "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b",
+      "advance": {
+        "advanced": true,
+        "decision": "ADVANCE",
+        "result": {
+          "checkpoint": "39601cfa-2e3c-4c34-b11c-a817b4639d9b",
+          "step_id": "install-checkpoint"
+        },
+        "run": {
+          "id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+          "tenant_id": "default",
+          "workspace_id": "default",
+          "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+          "agent_id": null,
+          "role": "acceptance",
+          "status": "waiting",
+          "supervision_mode": "shadow",
+          "plan": [
+            {
+              "id": "install-checkpoint",
+              "kind": "human_checkpoint",
+              "title": "Install restart checkpoint"
+            },
+            {
+              "id": "install-deliverable",
+              "kind": "canvas_work",
+              "title": "Install restart deliverable",
+              "canvas_type": "document"
+            }
+          ],
+          "cursor": "install-checkpoint",
+          "parameters": {},
+          "waiting_on": {
+            "event": "human_checkpoint",
+            "match": {
+              "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+            },
+            "created_at": "2026-11-01T15:17:31.314959+00:00"
+          },
+          "pending_decision": null,
+          "decision_log": [
+            {
+              "ts": "2026-11-01T15:17:31.309691+00:00",
+              "kind": "decision",
+              "decision": "ADVANCE",
+              "rationale": "controlled acceptance router",
+              "parameter_diff": {},
+              "step_id": "install-checkpoint",
+              "canvas_id": null,
+              "event": null,
+              "model": null,
+              "confidence": 0.9
+            },
+            {
+              "ts": "2026-11-01T15:17:31.316256+00:00",
+              "kind": "checkpoint_created",
+              "step_id": "install-checkpoint",
+              "rationale": "Install restart checkpoint",
+              "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+            }
+          ],
+          "replan_count": 0,
+          "steps_executed": 1,
+          "human_interventions": 0,
+          "created_by": "04713ee8-499d-4533-8ee0-ae870208e96a",
+          "created_at": "2026-11-01T15:17:27",
+          "updated_at": "2026-11-01T15:17:31"
+        }
+      },
+      "before_restart": {
+        "id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+        "tenant_id": "default",
+        "workspace_id": "default",
+        "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+        "agent_id": null,
+        "role": "acceptance",
+        "status": "waiting",
+        "supervision_mode": "shadow",
+        "plan": [
+          {
+            "id": "install-checkpoint",
+            "kind": "human_checkpoint",
+            "title": "Install restart checkpoint"
+          },
+          {
+            "id": "install-deliverable",
+            "kind": "canvas_work",
+            "title": "Install restart deliverable",
+            "canvas_type": "document"
+          }
+        ],
+        "cursor": "install-checkpoint",
+        "parameters": {},
+        "waiting_on": {
+          "event": "human_checkpoint",
+          "match": {
+            "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+          },
+          "created_at": "2026-11-01T15:17:31.314959+00:00"
+        },
+        "pending_decision": null,
+        "decision_log": [
+          {
+            "ts": "2026-11-01T15:17:31.309691+00:00",
+            "kind": "decision",
+            "decision": "ADVANCE",
+            "rationale": "controlled acceptance router",
+            "parameter_diff": {},
+            "step_id": "install-checkpoint",
+            "canvas_id": null,
+            "event": null,
+            "model": null,
+            "confidence": 0.9
+          },
+          {
+            "ts": "2026-11-01T15:17:31.316256+00:00",
+            "kind": "checkpoint_created",
+            "step_id": "install-checkpoint",
+            "rationale": "Install restart checkpoint",
+            "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+          }
+        ],
+        "replan_count": 0,
+        "steps_executed": 1,
+        "human_interventions": 0,
+        "created_by": "04713ee8-499d-4533-8ee0-ae870208e96a",
+        "created_at": "2026-11-01T15:17:27",
+        "updated_at": "2026-11-01T15:17:31"
+      },
+      "canvases_before": {
+        "canvases": []
+      },
+      "restart_status": 200,
+      "run_after_restart": {
+        "id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+        "tenant_id": "default",
+        "workspace_id": "default",
+        "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+        "agent_id": null,
+        "role": "acceptance",
+        "status": "waiting",
+        "supervision_mode": "shadow",
+        "plan": [
+          {
+            "id": "install-checkpoint",
+            "kind": "human_checkpoint",
+            "title": "Install restart checkpoint"
+          },
+          {
+            "id": "install-deliverable",
+            "kind": "canvas_work",
+            "title": "Install restart deliverable",
+            "canvas_type": "document"
+          }
+        ],
+        "cursor": "install-checkpoint",
+        "parameters": {},
+        "waiting_on": {
+          "event": "human_checkpoint",
+          "match": {
+            "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+          },
+          "created_at": "2026-11-01T15:17:31.314959+00:00"
+        },
+        "pending_decision": null,
+        "decision_log": [
+          {
+            "ts": "2026-11-01T15:17:31.309691+00:00",
+            "kind": "decision",
+            "decision": "ADVANCE",
+            "rationale": "controlled acceptance router",
+            "parameter_diff": {},
+            "step_id": "install-checkpoint",
+            "canvas_id": null,
+            "event": null,
+            "model": null,
+            "confidence": 0.9
+          },
+          {
+            "ts": "2026-11-01T15:17:31.316256+00:00",
+            "kind": "checkpoint_created",
+            "step_id": "install-checkpoint",
+            "rationale": "Install restart checkpoint",
+            "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+          }
+        ],
+        "replan_count": 0,
+        "steps_executed": 1,
+        "human_interventions": 0,
+        "created_by": "04713ee8-499d-4533-8ee0-ae870208e96a",
+        "created_at": "2026-11-01T15:17:27",
+        "updated_at": "2026-11-01T15:17:31"
+      },
+      "canvases_after_restart": {
+        "canvases": []
+      },
+      "same_identity": true,
+      "status_kept": true,
+      "same_canvas_count_before_approval": true,
+      "approve": {
+        "success": true,
+        "data": {
+          "decision": "approved",
+          "action_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b",
+          "resume": {
+            "handled": true,
+            "resumed": true,
+            "kind": "checkpoint",
+            "loop": {
+              "advanced": true,
+              "decision": "ADVANCE",
+              "result": {
+                "canvas_id": "canvas-184505bc85fa",
+                "step_id": "install-deliverable",
+                "revised": false,
+                "agent_delegated": false
+              },
+              "run": {
+                "id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+                "tenant_id": "default",
+                "workspace_id": "default",
+                "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+                "agent_id": null,
+                "role": "acceptance",
+                "status": "active",
+                "supervision_mode": "shadow",
+                "plan": [
+                  {
+                    "id": "install-checkpoint",
+                    "kind": "human_checkpoint",
+                    "title": "Install restart checkpoint",
+                    "done": true
+                  },
+                  {
+                    "id": "install-deliverable",
+                    "kind": "canvas_work",
+                    "title": "Install restart deliverable",
+                    "canvas_type": "document"
+                  }
+                ],
+                "cursor": "install-deliverable",
+                "parameters": {},
+                "waiting_on": null,
+                "pending_decision": null,
+                "decision_log": [
+                  {
+                    "ts": "2026-11-01T15:17:31.309691+00:00",
+                    "kind": "decision",
+                    "decision": "ADVANCE",
+                    "rationale": "controlled acceptance router",
+                    "parameter_diff": {},
+                    "step_id": "install-checkpoint",
+                    "canvas_id": null,
+                    "event": null,
+                    "model": null,
+                    "confidence": 0.9
+                  },
+                  {
+                    "ts": "2026-11-01T15:17:31.316256+00:00",
+                    "kind": "checkpoint_created",
+                    "step_id": "install-checkpoint",
+                    "rationale": "Install restart checkpoint",
+                    "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+                  },
+                  {
+                    "ts": "2026-11-01T15:17:39.553094+00:00",
+                    "kind": "wake",
+                    "event_id": "",
+                    "event": {
+                      "event": "human_checkpoint"
+                    },
+                    "matched_by": "match:hitl_id"
+                  },
+                  {
+                    "ts": "2026-11-01T15:17:42.083453+00:00",
+                    "kind": "decision",
+                    "decision": "ADVANCE",
+                    "rationale": "controlled acceptance router",
+                    "parameter_diff": {},
+                    "step_id": "install-deliverable",
+                    "canvas_id": null,
+                    "event": "human_checkpoint",
+                    "model": null,
+                    "confidence": 0.9
+                  }
+                ],
+                "replan_count": 0,
+                "steps_executed": 3,
+                "human_interventions": 0,
+                "created_by": "04713ee8-499d-4533-8ee0-ae870208e96a",
+                "created_at": "2026-11-01T15:17:27",
+                "updated_at": "2026-11-01T15:17:42"
+              }
+            }
+          }
+        },
+        "timestamp": "2026-11-01T15:17:42.089291+00:00",
+        "message": "Action 39601cfa-2e3c-4c34-b11c-a817b4639d9b approved successfully"
+      },
+      "run_resumed": {
+        "id": "42f9cb42-3429-4cb9-a976-27d48179c9cc",
+        "tenant_id": "default",
+        "workspace_id": "default",
+        "goal_id": "551f7f08-11c5-483d-ad00-551a141d606c",
+        "agent_id": null,
+        "role": "acceptance",
+        "status": "active",
+        "supervision_mode": "shadow",
+        "plan": [
+          {
+            "id": "install-checkpoint",
+            "kind": "human_checkpoint",
+            "title": "Install restart checkpoint",
+            "done": true
+          },
+          {
+            "id": "install-deliverable",
+            "kind": "canvas_work",
+            "title": "Install restart deliverable",
+            "canvas_type": "document"
+          }
+        ],
+        "cursor": "install-deliverable",
+        "parameters": {},
+        "waiting_on": null,
+        "pending_decision": null,
+        "decision_log": [
+          {
+            "ts": "2026-11-01T15:17:31.309691+00:00",
+            "kind": "decision",
+            "decision": "ADVANCE",
+            "rationale": "controlled acceptance router",
+            "parameter_diff": {},
+            "step_id": "install-checkpoint",
+            "canvas_id": null,
+            "event": null,
+            "model": null,
+            "confidence": 0.9
+          },
+          {
+            "ts": "2026-11-01T15:17:31.316256+00:00",
+            "kind": "checkpoint_created",
+            "step_id": "install-checkpoint",
+            "rationale": "Install restart checkpoint",
+            "hitl_id": "39601cfa-2e3c-4c34-b11c-a817b4639d9b"
+          },
+          {
+            "ts": "2026-11-01T15:17:39.553094+00:00",
+            "kind": "wake",
+            "event_id": "",
+            "event": {
+              "event": "human_checkpoint"
+            },
+            "matched_by": "match:hitl_id"
+          },
+          {
+            "ts": "2026-11-01T15:17:42.083453+00:00",
+            "kind": "decision",
+            "decision": "ADVANCE",
+            "rationale": "controlled acceptance router",
+            "parameter_diff": {},
+            "step_id": "install-deliverable",
+            "canvas_id": null,
+            "event": "human_checkpoint",
+            "model": null,
+            "confidence": 0.9
+          }
+        ],
+        "replan_count": 0,
+        "steps_executed": 3,
+        "human_interventions": 0,
+        "created_by": "04713ee8-499d-4533-8ee0-ae870208e96a",
+        "created_at": "2026-11-01T15:17:27",
+        "updated_at": "2026-11-01T15:17:42"
+      },
+      "canvases_resumed": {
+        "canvases": [
+          {
+            "id": "canvas-184505bc85fa",
+            "name": "Install restart deliverable",
+            "canvas_type": "document",
+            "step_id": "install-deliverable",
+            "created_at": "2026-11-01T15:17:42"
+          }
+        ]
+      },
+      "resumed_canvas_count": 1,
+      "no_duplicate_effect": true
+    },
+    "restart": {
+      "login_status": 200,
+      "task_survives": true,
+      "task_id": "931aade3-5ada-4920-b245-e4bf4f37ef5a"
+    }
+  },
+  "status": "verified",
+  "mock_llm_calls": [
+    {
+      "path": "/v1/chat/completions",
+      "body": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You return only the requested JSON object."
+          },
+          {
+            "role": "user",
+            "content": "You are the judgment of a role agent working this process \u2014 an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.\n\nROLE: acceptance\n\nMATURITY TIER: unknown \u2014 operational \u2014 act within the process; ask when the evidence is thin\n\nGOAL: active (0/1 criteria satisfied) \u2014 551f7f08-11c5-483d-ad00-551a141d606c\n\nEVOLVING PARAMETERS (the deal/project state as known so far):\n{}\n\nCURRENT STEP: {\"id\": \"install-checkpoint\", \"kind\": \"human_checkpoint\", \"title\": \"Install restart checkpoint\"}\n\nREMAINING PLAN (advisory):\n[{\"id\": \"install-deliverable\", \"kind\": \"canvas_work\", \"title\": \"Install restart deliverable\", \"canvas_type\": \"document\"}]\n\nDECISION RULES:\n- DONE only when the evidence shows the goal is met.\n- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) \u2014 e.g. email_reply from the lead, or a follow-up timer.\n- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).\n- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).\n- ASK_HUMAN when judgment, authority, or missing information warrants it.\n- ALWAYS explain the rationale in terms of the canvas data and the goal.\nReturn the JSON object."
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "logprobs": true,
+        "max_tokens": 6000,
+        "temperature": 0.0,
+        "tool_choice": {
+          "type": "function",
+          "function": {
+            "name": "RouterDecisionModel"
+          }
+        },
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "RouterDecisionModel",
+              "description": "Structured output contract for the router LLM call.",
+              "parameters": {
+                "properties": {
+                  "decision": {
+                    "description": "One of: ADVANCE, REVISE_CURRENT, BRANCH_NEW_CANVAS, SKIP, REPLAN, WAIT, ASK_HUMAN, DONE",
+                    "title": "Decision",
+                    "type": "string"
+                  },
+                  "rationale": {
+                    "description": "Why this direction, given the canvas data and goal \u2014 shown to the supervisor",
+                    "title": "Rationale",
+                    "type": "string"
+                  },
+                  "parameter_updates": {
+                    "additionalProperties": true,
+                    "title": "Parameter Updates",
+                    "type": "object"
+                  },
+                  "target_step": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Target Step"
+                  },
+                  "new_plan": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "New Plan"
+                  },
+                  "wait_spec": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Wait Spec"
+                  },
+                  "confidence": {
+                    "default": 0.5,
+                    "title": "Confidence",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "decision",
+                  "rationale"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        ],
+        "reasoning": {
+          "enabled": false,
+          "exclude": true
+        }
+      },
+      "authorization": "Bearer <controlled-local-test-key>",
+      "port": 59996
+    },
+    {
+      "path": "/v1/chat/completions",
+      "body": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You return only the requested JSON object."
+          },
+          {
+            "role": "user",
+            "content": "You are the judgment of a role agent working this process \u2014 an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.\n\nROLE: acceptance\n\nMATURITY TIER: unknown \u2014 operational \u2014 act within the process; ask when the evidence is thin\n\nGOAL: active (0/1 criteria satisfied) \u2014 551f7f08-11c5-483d-ad00-551a141d606c\n\nEVOLVING PARAMETERS (the deal/project state as known so far):\n{}\n\nNEW EVENT THAT WOKE THIS RUN:\n{\"event\": \"human_checkpoint\", \"approved\": true, \"guidance\": \"install restart approval\", \"summary\": \"install restart approval\"}\n\nCURRENT STEP: {\"id\": \"install-deliverable\", \"kind\": \"canvas_work\", \"title\": \"Install restart deliverable\", \"canvas_type\": \"document\"}\n\nREMAINING PLAN (advisory):\n[{\"id\": \"install-checkpoint\", \"kind\": \"human_checkpoint\", \"title\": \"Install restart checkpoint\", \"done\": true}]\n\nRECENT DECISIONS (oldest first):\n[{\"decision\": \"ADVANCE\", \"rationale\": \"controlled acceptance router\"}, {\"event\": {\"event\": \"human_checkpoint\"}}]\n\nDECISION RULES:\n- DONE only when the evidence shows the goal is met.\n- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) \u2014 e.g. email_reply from the lead, or a follow-up timer.\n- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).\n- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).\n- ASK_HUMAN when judgment, authority, or missing information warrants it.\n- ALWAYS explain the rationale in terms of the canvas data and the goal.\nReturn the JSON object."
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "logprobs": true,
+        "max_tokens": 6000,
+        "temperature": 0.0,
+        "tool_choice": {
+          "type": "function",
+          "function": {
+            "name": "RouterDecisionModel"
+          }
+        },
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "RouterDecisionModel",
+              "description": "Structured output contract for the router LLM call.",
+              "parameters": {
+                "properties": {
+                  "decision": {
+                    "description": "One of: ADVANCE, REVISE_CURRENT, BRANCH_NEW_CANVAS, SKIP, REPLAN, WAIT, ASK_HUMAN, DONE",
+                    "title": "Decision",
+                    "type": "string"
+                  },
+                  "rationale": {
+                    "description": "Why this direction, given the canvas data and goal \u2014 shown to the supervisor",
+                    "title": "Rationale",
+                    "type": "string"
+                  },
+                  "parameter_updates": {
+                    "additionalProperties": true,
+                    "title": "Parameter Updates",
+                    "type": "object"
+                  },
+                  "target_step": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Target Step"
+                  },
+                  "new_plan": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "New Plan"
+                  },
+                  "wait_spec": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Wait Spec"
+                  },
+                  "confidence": {
+                    "default": 0.5,
+                    "title": "Confidence",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "decision",
+                  "rationale"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        ],
+        "reasoning": {
+          "enabled": false,
+          "exclude": true
+        }
+      },
+      "authorization": "Bearer <controlled-local-test-key>",
+      "port": 59996
+    }
+  ]
+}

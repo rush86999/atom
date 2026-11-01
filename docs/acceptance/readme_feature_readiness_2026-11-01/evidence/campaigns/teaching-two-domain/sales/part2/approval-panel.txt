@@ -1,0 +1,48 @@
+Sum Price for the sales campaign quote
+
+waiting
+
+Plan revision 1 · teaching 4607b3f20984341a+7b3561f602e34975+map
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Awaiting approval: Send the approved response
+
+Completed work
+
+Aggregate workbook source
+Wait for the missing external fact
+Render Sum Price for the sales campaign quote
+Result: 550.00 USD · Gross Amount
+Result: Delivery term: net 45 days from the invoice date.
+
+Artifacts
+
+Sum Price for the sales campaign quote
+applied
+Download
+Provider-accepted response
+pending
+
+Mappings
+
+Price → Gross Amount
+
+Source: upload · Sheet: campaign_sales_quote · Version: db4d1dfdb5a6
+
+Required unit: not specified · Established: source-established (USD)
+
+Mapping revision: 2 · Teaching revision: 4607b3f20984341a+7b3561f602e34975+map
+
+Correct mapping
+
+Approval required
+
+Purpose: Send the prepared response
+
+Payload 1214247ce926f034
+
+Approve this payload
+Resume
+Cancel
+Durable state persisted

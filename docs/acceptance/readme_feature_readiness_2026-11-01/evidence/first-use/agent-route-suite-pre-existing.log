@@ -1,0 +1,1056 @@
+
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_success_returns_response 
+-------------------------------- live log setup --------------------------------
+2026-11-01 10:15:23 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:23 [    INFO] 🔄 Auto-loading integration on-demand: atom_agent
+2026-11-01 10:15:23 [    INFO] Loading integration: atom_agent (core.atom_agent_endpoints)
+2026-11-01 10:15:23 [    INFO] Asana service loaded successfully
+2026-11-01 10:15:23 [ WARNING] ASANA_ACCESS_TOKEN env var not set — Asana operations will fall back to local mock data
+2026-11-01 10:15:24 [    INFO] PyTorch not available, will use CPU for reranking
+2026-11-01 10:15:24 [    INFO] ✓ Loaded atom_agent
+2026-11-01 10:15:24 [    INFO] ✓ Auto-loaded: atom_agent
+2026-11-01 10:15:25 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-01 10:15:25 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 10:15:25 [    INFO] EscalationManager initialized
+2026-11-01 10:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:25 [    INFO] LanceDBHandler initialized. ID: 6315668624. LANCEDB_AVAILABLE: True
+2026-11-01 10:15:25 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-01 10:15:25 [    INFO] Created DB session: dce0fa18-a2c8-47b4-9360-08bab947007e
+2026-11-01 10:15:25 [    INFO] EscalationManager initialized
+2026-11-01 10:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:25 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:25 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:25 [    INFO] EscalationManager initialized
+2026-11-01 10:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:25 [    INFO] EscalationManager initialized
+2026-11-01 10:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:25 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-01 10:15:25 [    INFO] Lazy loading LanceDB connection...
+2026-11-01 10:15:25 [    INFO] Connecting to LanceDB at /Users/rushiparikh/projects/atom-employee-execution/backend/data/atom_memory/default with storage_options=None
+2026-11-01 10:15:25 [    INFO] LanceDB connected successfully
+2026-11-01 10:15:25 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:25 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:25 [    INFO] EscalationManager initialized
+2026-11-01 10:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:25 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:25 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:25 [    INFO] save_chat_interaction called: session_id=dce0fa18-a2c8-47b4-9360-08bab947007e, intent=UNKNOWN
+2026-11-01 10:15:25 [    INFO] save_message: Saving user message for session dce0fa18-a2c8-47b4-9360-08bab947007e
+2026-11-01 10:15:25 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:25 [    INFO] save_message: Saving assistant message for session dce0fa18-a2c8-47b4-9360-08bab947007e
+2026-11-01 10:15:25 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:25 [    INFO] Workflow Analytics Engine initialized with database: /Users/rushiparikh/projects/atom-employee-execution/backend/analytics.db
+2026-11-01 10:15:25 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_creates_new_session_when_not_provided 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:26 [    INFO] Table 'chat_messages' created successfully
+2026-11-01 10:15:26 [    INFO] Created chat_messages table
+2026-11-01 10:15:26 [    INFO] Created DB session: 64bdc890-ebad-45c3-b63b-0e319e42e3bd
+2026-11-01 10:15:26 [    INFO] EscalationManager initialized
+2026-11-01 10:15:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:26 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:26 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:26 [    INFO] EscalationManager initialized
+2026-11-01 10:15:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:26 [    INFO] EscalationManager initialized
+2026-11-01 10:15:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:26 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:26 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:26 [    INFO] EscalationManager initialized
+2026-11-01 10:15:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:26 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:26 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:26 [    INFO] save_chat_interaction called: session_id=64bdc890-ebad-45c3-b63b-0e319e42e3bd, intent=UNKNOWN
+2026-11-01 10:15:26 [    INFO] save_message: Saving user message for session 64bdc890-ebad-45c3-b63b-0e319e42e3bd
+2026-11-01 10:15:26 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:26 [    INFO] save_message: Saving assistant message for session 64bdc890-ebad-45c3-b63b-0e319e42e3bd
+2026-11-01 10:15:26 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:26 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_conversation_history 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:27 [    INFO] Created DB session: caefe0a3-cf03-4257-93da-30dd6bd839df
+2026-11-01 10:15:27 [    INFO] EscalationManager initialized
+2026-11-01 10:15:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:27 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:27 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:27 [    INFO] EscalationManager initialized
+2026-11-01 10:15:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:27 [    INFO] EscalationManager initialized
+2026-11-01 10:15:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:27 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:27 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:27 [    INFO] EscalationManager initialized
+2026-11-01 10:15:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:27 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:27 [    INFO] Classified intent: KNOWLEDGE_QUERY, entities: {'query': 'What did I just ask?'}
+2026-11-01 10:15:27 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:27 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:27 [    INFO] save_chat_interaction called: session_id=caefe0a3-cf03-4257-93da-30dd6bd839df, intent=KNOWLEDGE_QUERY
+2026-11-01 10:15:27 [    INFO] save_message: Saving user message for session caefe0a3-cf03-4257-93da-30dd6bd839df
+2026-11-01 10:15:27 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:27 [    INFO] save_message: Saving assistant message for session caefe0a3-cf03-4257-93da-30dd6bd839df
+2026-11-01 10:15:27 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:27 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_empty_message 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:28 [    INFO] Created DB session: c13c17e9-7a10-4365-a36c-a7f03ca6993f
+2026-11-01 10:15:28 [    INFO] EscalationManager initialized
+2026-11-01 10:15:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:28 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:28 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:28 [    INFO] EscalationManager initialized
+2026-11-01 10:15:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:28 [    INFO] EscalationManager initialized
+2026-11-01 10:15:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:28 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:28 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:28 [    INFO] EscalationManager initialized
+2026-11-01 10:15:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:28 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:28 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:28 [    INFO] save_chat_interaction called: session_id=c13c17e9-7a10-4365-a36c-a7f03ca6993f, intent=UNKNOWN
+2026-11-01 10:15:28 [    INFO] save_message: Saving user message for session c13c17e9-7a10-4365-a36c-a7f03ca6993f
+2026-11-01 10:15:28 [ WARNING] Skipping embedding for empty/redacted-to-empty text
+2026-11-01 10:15:28 [    INFO] save_message: Saving assistant message for session c13c17e9-7a10-4365-a36c-a7f03ca6993f
+2026-11-01 10:15:28 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:28 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_missing_user_id_returns_422 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:29 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  4%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_invalid_session_id_format 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:30 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  5%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_agent_id_for_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:31 [    INFO] Created DB session: 9ceff4aa-460f-47e8-9ee4-861100abe675
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:31 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:31 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:31 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:31 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:31 [    INFO] save_chat_interaction called: session_id=9ceff4aa-460f-47e8-9ee4-861100abe675, intent=UNKNOWN
+2026-11-01 10:15:31 [    INFO] save_message: Saving user message for session 9ceff4aa-460f-47e8-9ee4-861100abe675
+2026-11-01 10:15:31 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:31 [    INFO] save_message: Saving assistant message for session 9ceff4aa-460f-47e8-9ee4-861100abe675
+2026-11-01 10:15:31 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [ WARNING] No data for session 9ceff4aa-460f-47e8-9ee4-861100abe675
+2026-11-01 10:15:31 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_current_page_context 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:31 [    INFO] Created DB session: 648a8a86-4b59-4d80-9ebb-f940b3e75d86
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:31 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:31 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:31 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:31 [    INFO] EscalationManager initialized
+2026-11-01 10:15:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:31 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:31 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:31 [    INFO] save_chat_interaction called: session_id=648a8a86-4b59-4d80-9ebb-f940b3e75d86, intent=UNKNOWN
+2026-11-01 10:15:31 [    INFO] save_message: Saving user message for session 648a8a86-4b59-4d80-9ebb-f940b3e75d86
+2026-11-01 10:15:31 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:31 [    INFO] save_message: Saving assistant message for session 648a8a86-4b59-4d80-9ebb-f940b3e75d86
+2026-11-01 10:15:31 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:31 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_with_context_dict 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:32 [    INFO] Created DB session: 02645bef-94b3-4fc5-9a52-c7f7da632e3f
+2026-11-01 10:15:32 [    INFO] EscalationManager initialized
+2026-11-01 10:15:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:32 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:32 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:32 [    INFO] EscalationManager initialized
+2026-11-01 10:15:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:32 [    INFO] EscalationManager initialized
+2026-11-01 10:15:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:32 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:32 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:32 [    INFO] EscalationManager initialized
+2026-11-01 10:15:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:32 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:32 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:32 [    INFO] save_chat_interaction called: session_id=02645bef-94b3-4fc5-9a52-c7f7da632e3f, intent=UNKNOWN
+2026-11-01 10:15:32 [    INFO] save_message: Saving user message for session 02645bef-94b3-4fc5-9a52-c7f7da632e3f
+2026-11-01 10:15:32 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:32 [    INFO] save_message: Saving assistant message for session 02645bef-94b3-4fc5-9a52-c7f7da632e3f
+2026-11-01 10:15:32 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:32 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/integration/api/test_agent_endpoints.py::TestChatEndpoint::test_chat_database_error_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:33 [    INFO] Created DB session: 8e26f40d-6757-47c9-bd9b-8ccc50245a19
+2026-11-01 10:15:33 [    INFO] EscalationManager initialized
+2026-11-01 10:15:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:33 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:33 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:33 [    INFO] EscalationManager initialized
+2026-11-01 10:15:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:33 [    INFO] EscalationManager initialized
+2026-11-01 10:15:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 10:15:33 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-01 10:15:33 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-01 10:15:33 [    INFO] EscalationManager initialized
+2026-11-01 10:15:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:33 [ WARNING] Failed to parse LLM response as JSON: LLM Client not initialized (No API Keys configured).
+2026-11-01 10:15:33 [    INFO] Classified intent: UNKNOWN, entities: {}
+2026-11-01 10:15:33 [    INFO] save_chat_interaction called: session_id=8e26f40d-6757-47c9-bd9b-8ccc50245a19, intent=UNKNOWN
+2026-11-01 10:15:33 [    INFO] save_message: Saving user message for session 8e26f40d-6757-47c9-bd9b-8ccc50245a19
+2026-11-01 10:15:33 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:33 [    INFO] save_message: Saving assistant message for session 8e26f40d-6757-47c9-bd9b-8ccc50245a19
+2026-11-01 10:15:33 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-01 10:15:33 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/integration/api/test_agent_endpoints.py::TestStreamingEndpoint::test_streaming_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:34 [    INFO] Creating system default Chat Assistant agent
+2026-11-01 10:15:34 [    INFO] Created system default agent: 9a34233e-eb5a-4b8b-b2e3-b0e720dc192c
+2026-11-01 10:15:34 [    INFO] Resolved agent via system default: Chat Assistant
+2026-11-01 10:15:34 [ WARNING] can_perform_action() called from a running event loop (agent=9a34233e-eb5a-4b8b-b2e3-b0e720dc192c action=stream_chat); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-01 10:15:34 [    INFO] Agent execution 5839c239-a50c-4c73-b650-3a9ae74c74ec started for agent Chat Assistant
+2026-11-01 10:15:34 [    INFO] EscalationManager initialized
+2026-11-01 10:15:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:34 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:34 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:34 [    INFO] Auto-populating pricing cache synchronously...
+2026-11-01 10:15:34 [    INFO] Using cached pricing data
+2026-11-01 10:15:34 [    INFO] Pricing cache populated with 5021 models
+2026-11-01 10:15:34 [    INFO] LocalOnlyGuard initialized
+2026-11-01 10:15:34 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+2026-11-01 10:15:34 [ WARNING] [provider-policy] no allowed provider has a client (allowed=[] revision= error=None)
+2026-11-01 10:15:34 [ WARNING] Chat blocked: no LLM providers configured (user_id=df13b6d2-633f-4404-b45c-0a4f56b9ac1a)
+2026-11-01 10:15:34 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat/stream "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/integration/api/test_agent_endpoints.py::TestStreamingEndpoint::test_streaming_with_empty_message 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:35 [    INFO] Creating system default Chat Assistant agent
+2026-11-01 10:15:35 [    INFO] Created system default agent: eab5e0d6-3a6b-4707-823c-2f08b43b64fc
+2026-11-01 10:15:35 [    INFO] Resolved agent via system default: Chat Assistant
+2026-11-01 10:15:35 [ WARNING] can_perform_action() called from a running event loop (agent=eab5e0d6-3a6b-4707-823c-2f08b43b64fc action=stream_chat); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-01 10:15:35 [    INFO] Agent execution 894c01c3-b5e6-4f57-ae21-0fc2b19c4c16 started for agent Chat Assistant
+2026-11-01 10:15:35 [    INFO] EscalationManager initialized
+2026-11-01 10:15:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:35 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:35 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:35 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+2026-11-01 10:15:35 [ WARNING] [provider-policy] no allowed provider has a client (allowed=[] revision= error=None)
+2026-11-01 10:15:35 [ WARNING] Chat blocked: no LLM providers configured (user_id=748b9f9e-21f6-4c48-ac50-4b7ad3a84a79)
+2026-11-01 10:15:35 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat/stream "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/integration/api/test_agent_endpoints.py::TestStreamingEndpoint::test_streaming_creates_session_if_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:36 [    INFO] Creating system default Chat Assistant agent
+2026-11-01 10:15:36 [    INFO] Created system default agent: aae1fce2-8ad9-4bd7-973b-e7bd06369d04
+2026-11-01 10:15:36 [    INFO] Resolved agent via system default: Chat Assistant
+2026-11-01 10:15:36 [ WARNING] can_perform_action() called from a running event loop (agent=aae1fce2-8ad9-4bd7-973b-e7bd06369d04 action=stream_chat); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-01 10:15:36 [    INFO] Agent execution 2c6f0da7-0ea8-4854-bbb9-cbff44b6afee started for agent Chat Assistant
+2026-11-01 10:15:36 [    INFO] EscalationManager initialized
+2026-11-01 10:15:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:36 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:36 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:36 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+2026-11-01 10:15:36 [ WARNING] [provider-policy] no allowed provider has a client (allowed=[] revision= error=None)
+2026-11-01 10:15:36 [ WARNING] Chat blocked: no LLM providers configured (user_id=bf105f05-aa59-4148-ad6c-928a1907035e)
+2026-11-01 10:15:36 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat/stream "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/integration/api/test_agent_endpoints.py::TestStreamingEndpoint::test_streaming_with_agent_id 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:37 [    INFO] Resolved agent via explicit agent_id: StreamAgent
+2026-11-01 10:15:37 [ WARNING] can_perform_action() called from a running event loop (agent=c96fd585-d257-43e5-a116-25f93bf0d5d0 action=stream_chat); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-01 10:15:37 [    INFO] Agent execution 3daad297-26db-4c2b-b20a-c39720a8d103 started for agent StreamAgent
+2026-11-01 10:15:37 [    INFO] EscalationManager initialized
+2026-11-01 10:15:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 10:15:37 [   ERROR] Error fetching health context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:37 [   ERROR] Error fetching priority context: type object 'EcommerceOrder' has no attribute 'workspace_id'
+2026-11-01 10:15:37 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+2026-11-01 10:15:37 [ WARNING] [provider-policy] no allowed provider has a client (allowed=[] revision= error=None)
+2026-11-01 10:15:37 [ WARNING] Chat blocked: no LLM providers configured (user_id=e28d1f85-9384-41bf-8c09-27a3d282d958)
+2026-11-01 10:15:37 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat/stream "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/integration/api/test_agent_endpoints.py::TestStreamingEndpoint::test_streaming_missing_user_id_returns_422 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:38 [    INFO] HTTP Request: POST http://testserver/api/atom-agent/chat/stream "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 14%]
+tests/integration/api/test_agent_endpoints.py::TestAgentListEndpoint::test_list_agents_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:39 [    INFO] HTTP Request: GET http://testserver/api/agents "HTTP/1.1 307 Temporary Redirect"
+2026-11-01 10:15:39 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/integration/api/test_agent_endpoints.py::TestAgentListEndpoint::test_list_agents_with_category_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:40 [    INFO] HTTP Request: GET http://testserver/api/agents?category=sales "HTTP/1.1 307 Temporary Redirect"
+2026-11-01 10:15:40 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=sales "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/integration/api/test_agent_endpoints.py::TestAgentListEndpoint::test_list_agents_with_status_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:41 [    INFO] HTTP Request: GET http://testserver/api/agents?status=autonomous "HTTP/1.1 307 Temporary Redirect"
+2026-11-01 10:15:41 [    INFO] HTTP Request: GET http://testserver/api/agents/?status=autonomous "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/integration/api/test_agent_endpoints.py::TestAgentListEndpoint::test_list_agents_empty_database 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:41 [    INFO] HTTP Request: GET http://testserver/api/agents "HTTP/1.1 307 Temporary Redirect"
+2026-11-01 10:15:41 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDetailEndpoint::test_get_agent_by_id_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:42 [    INFO] HTTP Request: GET http://testserver/api/agents/7756c30a-c2be-4ac1-85ba-18c300a25ba5 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDetailEndpoint::test_get_agent_by_id_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:43 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent_agent_id
+2026-11-01 10:15:43 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent_agent_id "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDetailEndpoint::test_get_agent_by_id_invalid_format 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:44 [ WARNING] API Error: NOT_FOUND - Agent not found: invalid-format-123!
+2026-11-01 10:15:44 [    INFO] HTTP Request: GET http://testserver/api/agents/invalid-format-123! "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 21%]
+tests/integration/api/test_agent_endpoints.py::TestAgentCreationEndpoint::test_create_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:45 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 22%]
+tests/integration/api/test_agent_endpoints.py::TestAgentCreationEndpoint::test_create_agent_without_configuration 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:46 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-01 10:15:46 [    INFO] HTTP Request: GET http://testserver/api/agents/afcc1275-436f-4c52-94f9-ae2bd334f9b7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/integration/api/test_agent_endpoints.py::TestAgentCreationEndpoint::test_create_agent_with_invalid_status 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:46 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-01 10:15:46 [    INFO] HTTP Request: GET http://testserver/api/agents/0bc093c6-6fab-4ddc-a095-9b24563b4e11 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/integration/api/test_agent_endpoints.py::TestAgentCreationEndpoint::test_create_agent_missing_required_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:47 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 25%]
+tests/integration/api/test_agent_endpoints.py::TestAgentCreationEndpoint::test_create_agent_without_configuration_is_student 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:48 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-01 10:15:48 [    INFO] HTTP Request: GET http://testserver/api/agents/5d4d02aa-2fd4-4735-84b8-5cf2cda588e9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/integration/api/test_agent_endpoints.py::TestAgentUpdateEndpoint::test_update_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:49 [    INFO] HTTP Request: PATCH http://testserver/api/agents/96fdcff9-5e0f-4c0b-89ac-b26f5c8788e3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/integration/api/test_agent_endpoints.py::TestAgentUpdateEndpoint::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:50 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent_id
+2026-11-01 10:15:50 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent_id "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 28%]
+tests/integration/api/test_agent_endpoints.py::TestAgentUpdateEndpoint::test_update_agent_invalid_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:51 [    INFO] HTTP Request: PATCH http://testserver/api/agents/367572e7-13bc-42fa-aa48-5dc525d079fa "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 29%]
+tests/integration/api/test_agent_endpoints.py::TestAgentUpdateEndpoint::test_update_agent_status_mismatch 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:52 [    INFO] HTTP Request: PATCH http://testserver/api/agents/4ea12294-e51e-41ba-8ff8-6a68ffb9942b "HTTP/1.1 200 OK"
+2026-11-01 10:15:52 [    INFO] HTTP Request: GET http://testserver/api/agents/4ea12294-e51e-41ba-8ff8-6a68ffb9942b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDeletionEndpoint::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:53 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a0029172-b674-40a6-9205-65fcaba4d420 "HTTP/1.1 200 OK"
+2026-11-01 10:15:53 [ WARNING] API Error: NOT_FOUND - Agent not found: a0029172-b674-40a6-9205-65fcaba4d420
+2026-11-01 10:15:53 [    INFO] HTTP Request: GET http://testserver/api/agents/a0029172-b674-40a6-9205-65fcaba4d420 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 31%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDeletionEndpoint::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:54 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent_id
+2026-11-01 10:15:54 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent_id "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDeletionEndpoint::test_delete_agent_with_dependencies 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:55 [    INFO] HTTP Request: DELETE http://testserver/api/agents/3b89080a-d6ec-4409-91b5-0832ed169a11 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/integration/api/test_agent_endpoints.py::TestAgentDeletionEndpoint::test_delete_autonomous_agent_permission 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:56 [    INFO] HTTP Request: DELETE http://testserver/api/agents/70f310eb-7fa5-4fce-ab45-4596db288a38 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/integration/api/test_agent_endpoints.py::TestAgentGovernanceEndpoints::test_get_maturity_rules 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:56 [    INFO] HTTP Request: GET http://testserver/api/agent-governance/rules "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/integration/api/test_agent_endpoints.py::TestAgentGovernanceEndpoints::test_get_agent_maturity_status 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:57 [ WARNING] API Error: NOT_FOUND - Agent not found: sales-agent
+2026-11-01 10:15:57 [    INFO] HTTP Request: GET http://testserver/api/agent-governance/agents/sales-agent "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 36%]
+tests/integration/api/test_agent_endpoints.py::TestAgentGovernanceEndpoints::test_submit_workflow_for_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:58 [ WARNING] API Error: NOT_FOUND - Agent not found: sales-agent
+2026-11-01 10:15:58 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/submit-for-approval "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 37%]
+tests/api/test_agent_routes.py::test_list_agents_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_list_agents_with_category_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=testing "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/api/test_agent_routes.py::test_run_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [CRITICAL] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('9aa5ba26-4135-43c7-bc86-009eb9623c94', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: agent_registry
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/api/agent_routes.py", line 736, in execute_agent_task
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2766, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2864, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2373, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2271, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+           ^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('9aa5ba26-4135-43c7-bc86-009eb9623c94', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+2026-11-01 10:15:59 [   ERROR] Agent 9aa5ba26-4135-43c7-bc86-009eb9623c94 execution wrapper failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('9aa5ba26-4135-43c7-bc86-009eb9623c94', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-01 10:15:59 [    INFO] URGENT NOTIFICATION [SLACK]: Agent execution FAILED: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('9aa5ba26-4135-43c7-bc86-009eb9623c94', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8) (Workspace: default_workspace)
+2026-11-01 10:15:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/9aa5ba26-4135-43c7-bc86-009eb9623c94/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_routes.py::test_run_agent_sync_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a4f67961-d25a-4f75-bbb2-c6561973bf5a/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_routes.py::test_submit_agent_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/0b0c7ca5-53fb-4afa-9291-d846bbe59b36/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/api/test_agent_routes.py::test_promote_agent_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/56159a21-9542-48c8-b966-437c85f61857/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_list_pending_approvals 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_routes.py::test_approve_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [   ERROR] HITL a3778471-9015-46f7-950d-19e935dfa7d7 decided but resume bridge failed: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('a3778471-9015-46f7-950d-19e935dfa7d7', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: hitl_actions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/api/agent_routes.py", line 707, in decide_hitl_action
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 323, in resume_after_hitl_decision
+    action = _load_action(action_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 33, in _load_action
+    action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2766, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2864, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2373, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2271, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+           ^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('a3778471-9015-46f7-950d-19e935dfa7d7', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a3778471-9015-46f7-950d-19e935dfa7d7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_routes.py::test_reject_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [   ERROR] HITL 96cd7ab6-db03-44f3-a4ed-037f40b16942 decided but resume bridge failed: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('96cd7ab6-db03-44f3-a4ed-037f40b16942', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: hitl_actions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/api/agent_routes.py", line 707, in decide_hitl_action
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 323, in resume_after_hitl_decision
+    action = _load_action(action_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 33, in _load_action
+    action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2766, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2864, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2373, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2271, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+           ^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('96cd7ab6-db03-44f3-a4ed-037f40b16942', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/96cd7ab6-db03-44f3-a4ed-037f40b16942 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/api/test_agent_routes.py::test_execute_atom_meta_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/api/test_agent_routes.py::test_spawn_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_data 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_agent_routes.py::test_create_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 51%]
+tests/api/test_agent_routes.py::test_update_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: PUT http://testserver/api/agents/d4e84e15-5c32-4ab1-8317-9b66066de9b2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/api/test_agent_routes.py::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:15:59 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_routes.py::test_stop_running_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] Stop request received for agent 7bab6cc8-9c7f-41af-b306-fd6ad12ddaa2 by user ccc5be0d-c48d-4592-b6f2-c92e5ba964e7
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/7bab6cc8-9c7f-41af-b306-fd6ad12ddaa2/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/api/test_agent_routes.py::test_stop_agent_no_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] Stop request received for agent 13270bea-e588-4a46-8d17-7c52a3472656 by user e65a8334-88bc-4e14-864a-500c43c96e1f
+2026-11-01 10:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/13270bea-e588-4a46-8d17-7c52a3472656/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/api/test_agent_routes.py::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/f4d9929a-1879-49b7-8265-633fc839988d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/api/test_agent_routes.py::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/api/test_agent_routes.py::test_get_agent_with_last_run 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/e0b05550-f17e-45e9-8816-01a01541b867 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_agent_routes.py::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/8fe748fa-7789-4c83-b226-7ca09ec0bbfb/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/api/test_agent_routes.py::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:15:59 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:15:59 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 60%]
+tests/api/test_agent_routes.py::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: DELETE http://testserver/api/agents/0fc29b5c-7f16-4cad-8272-8466ee9b223b "HTTP/1.1 200 OK"
+FAILED                                                                   [ 61%]
+tests/api/test_agent_routes.py::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:16:00 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 62%]
+tests/api/test_agent_routes.py::test_delete_agent_with_running_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: AGENT_HAS_RUNNING_TASKS - Cannot delete agent with 0 running task(s)
+2026-11-01 10:16:00 [    INFO] HTTP Request: DELETE http://testserver/api/agents/d952ed79-6e3f-4ad5-be6c-3e5fac63cb56 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 63%]
+tests/api/test_agent_routes.py::test_patch_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: PATCH http://testserver/api/agents/f5bc6561-18da-43a4-b139-3ad8ced80d7c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/api/test_agent_routes.py::test_patch_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a59a2a0e-f034-46b2-a1b7-852875cea833 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_agent_routes.py::test_patch_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:16:00 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 66%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 67%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_whitespace 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 68%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_category 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 69%]
+tests/api/test_agent_routes.py::test_create_custom_agent_with_schedule 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 70%]
+tests/api/test_agent_routes.py::test_replace_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: PUT http://testserver/api/agents/15870ee6-1736-4956-90b8-6236cb0fd922 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_agent_routes.py::test_replace_agent_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: PUT http://testserver/api/agents/78c41714-3c17-43cf-8a92-b7c4c274d363 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 72%]
+tests/api/test_agent_routes.py::test_replace_agent_invalid_name 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [    INFO] HTTP Request: PUT http://testserver/api/agents/a730102f-2ca4-44cd-8f66-061f22810b65 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 73%]
+tests/api/test_agent_routes.py::test_replace_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:16:00 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/api/test_agent_routes.py::test_run_agent_deprecated_state 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: AGENT_INVALID_STATE - Agent is deprecated
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/a94c06a4-8dd6-47be-ab7b-eff148ee7474/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 75%]
+tests/api/test_agent_routes.py::test_run_agent_paused_state 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:00 [ WARNING] API Error: AGENT_INVALID_STATE - Agent is paused
+2026-11-01 10:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/bd3c69ef-c8b1-4434-9558-d9339078789d/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 76%]
+tests/api/test_agent_routes.py::test_run_agent_already_running 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [ WARNING] API Error: CONFLICT - Agent is already running
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/165f314a-caa7-4627-8e73-8cf73a81ce5f/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 77%]
+tests/api/test_agent_routes.py::test_submit_feedback_minimal_data 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/28f9b9e3-d81f-4558-8d37-d7fd4eb72065/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/api/test_agent_routes.py::test_approve_action_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [ WARNING] API Error: NOT_FOUND - HITLAction not found: nonexistent-action
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/nonexistent-action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 79%]
+tests/api/test_agent_routes.py::test_reject_action_with_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [   ERROR] HITL 869828e5-3db7-44d2-b9bc-560e4a80f50f decided but resume bridge failed: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('869828e5-3db7-44d2-b9bc-560e4a80f50f', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: hitl_actions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/api/agent_routes.py", line 707, in decide_hitl_action
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 323, in resume_after_hitl_decision
+    action = _load_action(action_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/core/hitl_resume.py", line 33, in _load_action
+    action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2766, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2864, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2373, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2271, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+           ^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: SELECT hitl_actions.id AS hitl_actions_id, hitl_actions.workspace_id AS hitl_actions_workspace_id, hitl_actions.tenant_id AS hitl_actions_tenant_id, hitl_actions.agent_id AS hitl_actions_agent_id, hitl_actions.action_type AS hitl_actions_action_type, hitl_actions.platform AS hitl_actions_platform, hitl_actions.params AS hitl_actions_params, hitl_actions.chain_id AS hitl_actions_chain_id, hitl_actions.context_snapshot AS hitl_actions_context_snapshot, hitl_actions.status AS hitl_actions_status, hitl_actions.reason AS hitl_actions_reason, hitl_actions.priority AS hitl_actions_priority, hitl_actions.notified_channel_id AS hitl_actions_notified_channel_id, hitl_actions.user_id AS hitl_actions_user_id, hitl_actions.confidence_score AS hitl_actions_confidence_score, hitl_actions.user_feedback AS hitl_actions_user_feedback, hitl_actions.created_at AS hitl_actions_created_at, hitl_actions.reviewed_at AS hitl_actions_reviewed_at, hitl_actions.reviewed_by AS hitl_actions_reviewed_by, hitl_actions.required_role AS hitl_actions_required_role, hitl_actions.required_confidence AS hitl_actions_required_confidence, hitl_actions.meta_guidance AS hitl_actions_meta_guidance 
+FROM hitl_actions 
+WHERE hitl_actions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('869828e5-3db7-44d2-b9bc-560e4a80f50f', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/869828e5-3db7-44d2-b9bc-560e4a80f50f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_agent_routes.py::test_execute_atom_with_context 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/api/test_agent_routes.py::test_execute_atom_empty_request 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/api/test_agent_routes.py::test_spawn_agent_persist_true 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_agent_routes.py::test_spawn_agent_unknown_template 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 84%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_complex_data 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/api/test_agent_routes.py::test_trigger_atom_empty_data 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_agent_routes.py::test_stop_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] Stop request received for agent nonexistent-agent by user 21cb2c43-a756-4b48-81b4-e4509aa24882
+2026-11-01 10:16:01 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/api/test_agent_routes.py::test_stop_agent_multiple_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] Stop request received for agent d2a6cc47-73d4-4d4d-bf63-979b3523c2fe by user 1508feaf-8ac8-4508-a896-70345014a206
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/d2a6cc47-73d4-4d4d-bf63-979b3523c2fe/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/api/test_agent_routes.py::test_list_agents_unauthorized 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 89%]
+tests/api/test_agent_routes.py::test_create_custom_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 90%]
+tests/api/test_agent_routes.py::test_delete_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/ff47ea24-18cd-4249-9285-dc3be84b5ac8 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 91%]
+tests/api/test_agent_routes.py::test_promote_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/b020c24b-21d7-4e1c-844d-c61a2a9bfda1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 92%]
+tests/api/test_agent_routes.py::test_agent_crud_end_to_end 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/66e81080-cb1e-493d-b212-aa9baf4c2a27 "HTTP/1.1 200 OK"
+2026-11-01 10:16:01 [    INFO] HTTP Request: PATCH http://testserver/api/agents/66e81080-cb1e-493d-b212-aa9baf4c2a27 "HTTP/1.1 200 OK"
+2026-11-01 10:16:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/66e81080-cb1e-493d-b212-aa9baf4c2a27 "HTTP/1.1 200 OK"
+2026-11-01 10:16:01 [ WARNING] API Error: NOT_FOUND - Agent not found: 66e81080-cb1e-493d-b212-aa9baf4c2a27
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/66e81080-cb1e-493d-b212-aa9baf4c2a27 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 93%]
+tests/api/test_agent_routes.py::test_list_agents_with_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/api/test_agent_routes.py::test_run_agent_with_large_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/46d7460e-3755-431d-9db5-7b7f89abb9ff/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/api/test_agent_routes.py::test_list_agents_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/api/test_agent_routes.py::test_get_agent_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: GET http://testserver/api/agents/7ab64093-70f8-40cf-8102-52e3ecc5cd4e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/api/test_agent_routes.py::test_agent_with_unicode_name 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 98%]
+tests/api/test_agent_routes.py::test_agent_with_special_characters 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 99%]
+tests/api/test_agent_routes.py::test_agent_with_very_long_description 
+-------------------------------- live log call ---------------------------------
+2026-11-01 10:16:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/Users/rushiparikh/projects/atom-employee-execution/backend/tests/integration/api/test_agent_endpoints.py:606: assert 404 == 200
+/Users/rushiparikh/projects/atom-employee-execution/backend/tests/integration/api/test_agent_endpoints.py:624: assert 404 == 200
+/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:1686: sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x181655890>' has been deleted, or its row is otherwise not present.
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+../../atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+integrations/whatsapp_fastapi_routes.py:49
+  /Users/rushiparikh/projects/atom-employee-execution/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /Users/rushiparikh/projects/atom-employee-execution/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 202 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/api/test_agent_routes.py: 63 warnings
+  /Users/rushiparikh/projects/atom-employee-execution/backend/tests/conftest.py:489: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/integration/api/test_agent_endpoints.py::TestAgentGovernanceEndpoints::test_get_agent_maturity_status
+FAILED tests/integration/api/test_agent_endpoints.py::TestAgentGovernanceEndpoints::test_submit_workflow_for_approval
+FAILED tests/api/test_agent_routes.py::test_delete_agent_success - sqlalchemy...
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 3 failed, 98 passed, 280 warnings in 54.28s ==================

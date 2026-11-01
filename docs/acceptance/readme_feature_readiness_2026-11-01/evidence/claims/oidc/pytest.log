@@ -1,0 +1,235 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 13:19:51 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/api/test_sso_oidc_routes.py::test_config_upsert_and_sanitized_get 
+-------------------------------- live log setup --------------------------------
+2026-11-01 13:19:53 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:19:53 [    INFO] EscalationManager initialized
+2026-11-01 13:19:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:53 [    INFO] EscalationManager initialized
+2026-11-01 13:19:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:19:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:19:53 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:53 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:53 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/api/test_sso_oidc_routes.py::test_config_requires_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:53 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/config "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 10%]
+tests/api/test_sso_oidc_routes.py::test_login_redirect_carries_state_and_nonce 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:53 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:53 [    INFO] HTTP Request: GET http://127.0.0.1:57114/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:53 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+PASSED                                                                   [ 15%]
+tests/api/test_sso_oidc_routes.py::test_login_disabled_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:54 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:54 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 20%]
+tests/api/test_sso_oidc_routes.py::test_login_unconfigured_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/api/test_sso_oidc_routes.py::test_login_discovery_failure_is_502 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:55 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:55 [   ERROR] OIDC discovery failed for issuer (issuer='http://127.0.0.1:1', error=All connection attempts failed)
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 502 Bad Gateway"
+PASSED                                                                   [ 30%]
+tests/api/test_sso_oidc_routes.py::test_callback_happy_path_existing_user 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:55 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://127.0.0.1:57140/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://127.0.0.1:57140/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=fu5dSFQr0sut7qDfxj6F_vIyMAXju2T6iKb5a68KiaQ&nonce=-ivctyROakMn1Bfma_YuHGnIbwkPdRcziZpa8jR9_pI "HTTP/1.0 302 Found"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://127.0.0.1:57140/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:55 [    INFO] HTTP Request: POST http://127.0.0.1:57140/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://127.0.0.1:57140/userinfo "HTTP/1.0 200 OK"
+2026-11-01 13:19:55 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=8ny6wKDwRv3RhUok8HbX10xcr4anMLQn&state=fu5dSFQr0sut7qDfxj6F_vIyMAXju2T6iKb5a68KiaQ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/api/test_sso_oidc_routes.py::test_callback_auto_provisions_new_user 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:56 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://127.0.0.1:57160/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://127.0.0.1:57160/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=KN00R1yHZDL-8q_pUxPtgp1dnTj-YQA3QKkADl1SRxU&nonce=sorRD4fcWU39x-SuhcIg4WkfvznRdUiszbV9MSVIDzs "HTTP/1.0 302 Found"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://127.0.0.1:57160/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: POST http://127.0.0.1:57160/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://127.0.0.1:57160/userinfo "HTTP/1.0 200 OK"
+2026-11-01 13:19:56 [    INFO] OIDC auto-provisioned user (email='sso.user@example.com', role=member)
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=wZCYc56GzBvMjd9z8erTGUc2HXsqJTOc&state=KN00R1yHZDL-8q_pUxPtgp1dnTj-YQA3QKkADl1SRxU "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_sso_oidc_routes.py::test_callback_bad_state_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:56 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://127.0.0.1:57177/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:56 [ WARNING] OIDC callback rejected: invalid, expired or replayed state
+2026-11-01 13:19:56 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=authz-code-3&state=bogus-state "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 45%]
+tests/api/test_sso_oidc_routes.py::test_callback_state_single_use 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:57 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://127.0.0.1:57187/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://127.0.0.1:57187/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=7TLIjS1V7z4OrqSynbHv5csL0fN2vA1h2rCuONjaJKU&nonce=GvFTz9-ahLShJRzi6aoGXVVF51uysbRp5X3dByvRXRQ "HTTP/1.0 302 Found"
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://127.0.0.1:57187/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:57 [    INFO] HTTP Request: POST http://127.0.0.1:57187/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://127.0.0.1:57187/userinfo "HTTP/1.0 200 OK"
+2026-11-01 13:19:57 [    INFO] OIDC auto-provisioned user (email='sso.user@example.com', role=member)
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=9J5wdR2J77U-9gVvfNGi5u-PRcfFSPiZ&state=7TLIjS1V7z4OrqSynbHv5csL0fN2vA1h2rCuONjaJKU "HTTP/1.1 200 OK"
+2026-11-01 13:19:57 [ WARNING] OIDC callback rejected: invalid, expired or replayed state
+2026-11-01 13:19:57 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=9J5wdR2J77U-9gVvfNGi5u-PRcfFSPiZ&state=7TLIjS1V7z4OrqSynbHv5csL0fN2vA1h2rCuONjaJKU "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 50%]
+tests/api/test_sso_oidc_routes.py::test_callback_rejects_bad_id_tokens[invalid_signature] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:58 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57201/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57201/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=SBvcjCq2ZGEQwFl_bNyVqfvkWchJFv_7zDoc14RRjh4&nonce=xrmfEGDAVjzPSd9mDeCVYtJgaMDJVjXWByWdJd0T9JU "HTTP/1.0 302 Found"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57201/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: POST http://127.0.0.1:57201/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [ WARNING] OIDC ID token rejected: ID token verification failed: Signature verification failed.
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=ZZM2ucQp6CzuATdw0F46WYRhbintVjkA&state=SBvcjCq2ZGEQwFl_bNyVqfvkWchJFv_7zDoc14RRjh4 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 55%]
+tests/api/test_sso_oidc_routes.py::test_callback_rejects_bad_id_tokens[invalid_issuer] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:58 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57212/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57212/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=PeuYGZR-5fnh7Pz7srbCv5izEH2V10J1OHeANw_fAcc&nonce=EJDs6I38C6rpG7WHv9ZtJlvA25IWjd_KjRo6Yrp-U_Q "HTTP/1.0 302 Found"
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://127.0.0.1:57212/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [    INFO] HTTP Request: POST http://127.0.0.1:57212/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:58 [ WARNING] OIDC ID token rejected: ID token verification failed: Invalid issuer
+2026-11-01 13:19:58 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=A5oqt4RujDWScpnv4369Qqpmg9UwHzpQ&state=PeuYGZR-5fnh7Pz7srbCv5izEH2V10J1OHeANw_fAcc "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 60%]
+tests/api/test_sso_oidc_routes.py::test_callback_rejects_bad_id_tokens[invalid_audience] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:19:59 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:19:59 [    INFO] HTTP Request: GET http://127.0.0.1:57227/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:19:59 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:19:59 [    INFO] HTTP Request: GET http://127.0.0.1:57227/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=OD5dZ5nH9YDUMOCbM10Kt4TqHVAey0DBeTiH6jcRMH0&nonce=VIyPMe5niVOA-hzHf0en1_g6erUuEWYHp2YRowJFPpI "HTTP/1.0 302 Found"
+2026-11-01 13:19:59 [    INFO] HTTP Request: GET http://127.0.0.1:57227/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:19:59 [    INFO] HTTP Request: POST http://127.0.0.1:57227/token "HTTP/1.0 200 OK"
+2026-11-01 13:19:59 [ WARNING] OIDC ID token rejected: ID token verification failed: Invalid audience
+2026-11-01 13:19:59 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=LsAdjx95TXVQ_2moFIdIdvBR91l38Gr0&state=OD5dZ5nH9YDUMOCbM10Kt4TqHVAey0DBeTiH6jcRMH0 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 65%]
+tests/api/test_sso_oidc_routes.py::test_callback_rejects_bad_id_tokens[invalid_nonce] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:00 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57240/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57240/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=X33VPKIKMqb6hgp2TndX9YI7Clwb4OV5o6bePwDpjcI&nonce=jJ7eyQppvMWgOxi3uRTGbvL-SABN1joji8JsLfLwzMc "HTTP/1.0 302 Found"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57240/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: POST http://127.0.0.1:57240/token "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [ WARNING] OIDC ID token rejected: ID token nonce does not match the login state
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=kmKo5N0xOcR5X-fzw3iHwUKfR_c1dmhL&state=X33VPKIKMqb6hgp2TndX9YI7Clwb4OV5o6bePwDpjcI "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 70%]
+tests/api/test_sso_oidc_routes.py::test_callback_rejects_bad_id_tokens[missing_id_token] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:00 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57251/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57251/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=i2-EL5R7PtXJcZ3q3jV5cEy3vVrkjLU1J4kMc4FafQE&nonce=XQbxYtXL1-xITKDjjRv6lIysOqam24l6sfY0-59uXZw "HTTP/1.0 302 Found"
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://127.0.0.1:57251/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [    INFO] HTTP Request: POST http://127.0.0.1:57251/token "HTTP/1.0 200 OK"
+2026-11-01 13:20:00 [ WARNING] OIDC ID token rejected: token endpoint response missing id_token
+2026-11-01 13:20:00 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=EbWc3EoiQKtlgcep6u95Myi3edMX01Qq&state=i2-EL5R7PtXJcZ3q3jV5cEy3vVrkjLU1J4kMc4FafQE "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 75%]
+tests/api/test_sso_oidc_routes.py::test_callback_failure_paths[token_error-502] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:01 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: GET http://127.0.0.1:57267/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:01 [    INFO] HTTP Request: GET http://127.0.0.1:57267/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=XrLJWqaktJkYDJVJ6RR86i3hgSmfNMSjmRwKYKEM3RU&nonce=hH0YBpG5yPtCjQQ9rEuvZY_USJ5nniq5gbQLf23jrt8 "HTTP/1.0 302 Found"
+2026-11-01 13:20:01 [    INFO] HTTP Request: GET http://127.0.0.1:57267/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:20:01 [    INFO] HTTP Request: POST http://127.0.0.1:57267/token "HTTP/1.0 500 Internal Server Error"
+2026-11-01 13:20:01 [   ERROR] OIDC token exchange failed (error=Server error '500 Internal Server Error' for url 'http://127.0.0.1:57267/token'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500)
+2026-11-01 13:20:01 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=5cNf2rDhRRa-GLXd_-A45m5wp7ha9Zq6&state=XrLJWqaktJkYDJVJ6RR86i3hgSmfNMSjmRwKYKEM3RU "HTTP/1.1 502 Bad Gateway"
+PASSED                                                                   [ 80%]
+tests/api/test_sso_oidc_routes.py::test_callback_failure_paths[callback_error-400] 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:02 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://127.0.0.1:57359/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://127.0.0.1:57359/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=d3dxYnpme1LG4foKdLTqjwKASvOWwGEBFu73NbeS4rE&nonce=0-_lCmUeDOBJr2cnTVtOojkCb2DNZviMezBjRmrQIqY "HTTP/1.0 302 Found"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?error=access_denied&state=d3dxYnpme1LG4foKdLTqjwKASvOWwGEBFu73NbeS4rE "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 85%]
+tests/api/test_sso_oidc_routes.py::test_callback_userinfo_failure_uses_verified_claims 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:02 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://127.0.0.1:57376/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://127.0.0.1:57376/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=FnVRhrQ-1Q6KvETHx9xkBtBXYnjliVmc5SDbFfUTAgw&nonce=knqyIp6GO7ncOBefw7z2H_3kaF8_r5-S1JiFOwC0QKY "HTTP/1.0 302 Found"
+2026-11-01 13:20:02 [    INFO] HTTP Request: GET http://127.0.0.1:57376/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:20:02 [    INFO] HTTP Request: POST http://127.0.0.1:57376/token "HTTP/1.0 200 OK"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://127.0.0.1:57376/userinfo "HTTP/1.0 500 Internal Server Error"
+2026-11-01 13:20:03 [ WARNING] OIDC userinfo unavailable; using verified ID-token claims: Server error '500 Internal Server Error' for url 'http://127.0.0.1:57376/userinfo'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2026-11-01 13:20:03 [    INFO] OIDC auto-provisioned user (email='sso.user@example.com', role=member)
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=As4kSOanpv-6fZc4b_b8jzLvkRRodONe&state=FnVRhrQ-1Q6KvETHx9xkBtBXYnjliVmc5SDbFfUTAgw "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/api/test_sso_oidc_routes.py::test_callback_disallowed_domain_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:03 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://127.0.0.1:57450/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 302 Found"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://127.0.0.1:57450/authorize?response_type=code&client_id=atom-acceptance-client&redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fsso%2Foidc%2Fcallback&scope=openid+email+profile&state=NBufI0glcefs5e73iIEijf7s1SXTW4Gf5jShTtLmo30&nonce=FWrBJe7ZsVhSvIIiJLz7DpxPS_g82fRNcnYNp7jAk7c "HTTP/1.0 302 Found"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://127.0.0.1:57450/jwks "HTTP/1.0 200 OK"
+2026-11-01 13:20:03 [    INFO] HTTP Request: POST http://127.0.0.1:57450/token "HTTP/1.0 200 OK"
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://127.0.0.1:57450/userinfo "HTTP/1.0 200 OK"
+2026-11-01 13:20:03 [ WARNING] OIDC login rejected: email domain not allowed (domain='example.com')
+2026-11-01 13:20:03 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/callback?code=S2fw-TKCYS1dA3IGxsyXY2BeA7bAGY5Y&state=NBufI0glcefs5e73iIEijf7s1SXTW4Gf5jShTtLmo30 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 95%]
+tests/api/test_sso_oidc_routes.py::test_discovery_issuer_mismatch_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:20:04 [    INFO] HTTP Request: PUT http://testserver/api/auth/sso/oidc/config "HTTP/1.1 200 OK"
+2026-11-01 13:20:04 [    INFO] HTTP Request: GET http://127.0.0.1:57523/.well-known/openid-configuration "HTTP/1.0 200 OK"
+2026-11-01 13:20:04 [   ERROR] OIDC discovery failed for issuer (issuer='http://127.0.0.1:57523', error=OIDC discovery issuer mismatch: configured 'http://127.0.0.1:57523', provider announced 'http://127.0.0.1:57523/other')
+2026-11-01 13:20:04 [    INFO] HTTP Request: GET http://testserver/api/auth/sso/oidc/login "HTTP/1.1 502 Bad Gateway"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 40 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/api/test_sso_oidc_routes.py: 20 warnings
+  /Users/rushiparikh/projects/atom-employee-execution/backend/tests/api/test_sso_oidc_routes.py:55: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(Base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 20 passed, 66 warnings in 27.33s =======================

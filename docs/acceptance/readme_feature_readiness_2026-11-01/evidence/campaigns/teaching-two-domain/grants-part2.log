@@ -1,0 +1,142 @@
+{
+  "schema": "atom-composite-long-running-part2-1",
+  "status": "passed",
+  "run_id": "707047b5-8cf7-4216-b3a8-a4897f157d1c",
+  "teaching_revision_before": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+  "teaching_revision_after_teach": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+  "status_after_restart": "waiting",
+  "status_after_completion": "completed",
+  "artifact": {
+    "path": "/private/tmp/teaching-campaign-final/grants/part2/active-assignment-artifact.docx",
+    "bytes": 37317,
+    "sha256": "ffdfdff1a853677bfa954aa65f4c938d10b32299e6f4faa7ea8c4abd493aaf51",
+    "normal_font": "Arial",
+    "normal_size": 11.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Award Amount for the grants campaign\nSummary\nsum of Approved Amount: 14687.50 USD\ncontrolled reply received: Delivery term: within 30 days of award acceptance.\nFindings\nSources\nupload_campaign_grant_awards__campaign_grant_awards\ncampaign_grant_awards.csv\ncampaign_grant_awards\nf1499be7-eff4-4250-8bb7-0cd81312d672\ncampaign_grant_awards.csv / campaign_grant_awards\nObjective\nSum Award Amount for the grants campaign\ncampaign_grant_awards.csv / campaign_grant_awards"
+  },
+  "second_objective": "Sum Award Amount for the revised grants campaign",
+  "second_run_id": "f1a834b1-3ff9-49a5-8c7d-cb0b8832e54e",
+  "second_teaching_revision": "e4131c5c6187055f+map",
+  "second_artifact": {
+    "path": "/private/tmp/teaching-campaign-final/grants/part2/revised-assignment-artifact.docx",
+    "bytes": 37273,
+    "sha256": "b42d85eb873ca32d67e67e08a262d98cde051203c13f749784be26ae926ecc21",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "runs": [
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      },
+      {
+        "name": null,
+        "size": null
+      }
+    ],
+    "text": "Sum Award Amount for the revised grants campaign\nSummary\nsum of Awarded Value: 18650.00 USD\nFindings\nSources\nupload_campaign_grant_revised__campaign_grant_revised\ncampaign_grant_revised.csv\ncampaign_grant_revised\nf98834f4-f1b1-4a6d-9618-4091abd95dd4\ncampaign_grant_revised.csv / campaign_grant_revised\nObjective\nSum Award Amount for the revised grants campaign\ncampaign_grant_revised.csv / campaign_grant_revised"
+  },
+  "outbox_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/grants_campaign_20261101/controlled-outbox.jsonl",
+  "outbox_lines": 1
+}

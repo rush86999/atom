@@ -1,0 +1,162 @@
+
+tests/test_fleet_delegation_enforcement.py::test_nesting_beyond_max_depth_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:44 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 09:37:44 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 09:37:44 [    INFO] EscalationManager initialized
+2026-11-01 09:37:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:37:44 [    INFO] EscalationManager initialized
+2026-11-01 09:37:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 09:37:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 09:37:44 [    INFO] AgentTaskRegistry initialized
+2026-11-01 09:37:45 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member a for chain 2530eb29-e1eb-4869-bc48-e82a4c7f246c
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member b for chain 2530eb29-e1eb-4869-bc48-e82a4c7f246c
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member c for chain 2530eb29-e1eb-4869-bc48-e82a4c7f246c
+PASSED                                                                   [  6%]
+tests/test_fleet_delegation_enforcement.py::test_wide_shallow_chain_is_allowed 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:45 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member a for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member b for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member c for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member d for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member e for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member f for chain 2d880746-1b4c-46eb-bf31-86381586eb4a
+PASSED                                                                   [ 12%]
+tests/test_fleet_delegation_enforcement.py::test_cycles_are_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:45 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member root for chain 7418a35c-f6c6-4a87-a081-11e9ceb22e80
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member a for chain 7418a35c-f6c6-4a87-a081-11e9ceb22e80
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member b for chain 7418a35c-f6c6-4a87-a081-11e9ceb22e80
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member a for chain 7418a35c-f6c6-4a87-a081-11e9ceb22e80
+PASSED                                                                   [ 18%]
+tests/test_fleet_delegation_enforcement.py::test_cross_scope_child_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:45 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:45 [    INFO] Recruiting fleet member other for chain 531ffb80-bf3c-4e3d-841e-031c78b149b6
+PASSED                                                                   [ 25%]
+tests/test_fleet_delegation_enforcement.py::test_unknown_parent_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:46 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:46 [    INFO] Recruiting fleet member a for chain 25b3135f-f048-4e8f-b097-fa99e4d8a6ec
+PASSED                                                                   [ 31%]
+tests/test_fleet_delegation_enforcement.py::test_contract_with_exactly_one_accountable_agent_is_accepted 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:46 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:46 [    INFO] Recruiting fleet member a for chain b0289f99-799f-48ac-a2e6-6fb497ab2b86
+PASSED                                                                   [ 37%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload0-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:46 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:46 [    INFO] Recruiting fleet member a for chain 3afa71fd-71f4-4b29-81b9-7d11e86219e5
+PASSED                                                                   [ 43%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload1-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:46 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:46 [    INFO] Recruiting fleet member a for chain 6c9df3d0-29e4-4502-ae06-947eeba91543
+PASSED                                                                   [ 50%]
+tests/test_fleet_delegation_enforcement.py::test_invalid_contracts_fail_before_the_link_exists[payload2-invalid_contract] 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:46 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:46 [    INFO] Recruiting fleet member a for chain b172166b-fc38-4ef4-ba68-6a0acdf91dcb
+PASSED                                                                   [ 56%]
+tests/test_fleet_delegation_enforcement.py::test_contract_validator_reports_the_reason PASSED [ 62%]
+tests/test_fleet_delegation_enforcement.py::test_build_contract_requires_one_accountable_agent PASSED [ 68%]
+tests/test_fleet_delegation_enforcement.py::test_cycle_is_refused_with_multiple_parents_in_the_graph 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:47 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain 728fff0d-68c7-44db-aabc-508a77317d66
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain 728fff0d-68c7-44db-aabc-508a77317d66
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain 728fff0d-68c7-44db-aabc-508a77317d66
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain 728fff0d-68c7-44db-aabc-508a77317d66
+PASSED                                                                   [ 75%]
+tests/test_fleet_delegation_enforcement.py::test_depth_uses_the_longest_dag_path_not_the_shortest 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:47 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain 67590b79-f6dc-494f-bb9c-e34e076b433c
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain 67590b79-f6dc-494f-bb9c-e34e076b433c
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain 67590b79-f6dc-494f-bb9c-e34e076b433c
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member c for chain 67590b79-f6dc-494f-bb9c-e34e076b433c
+PASSED                                                                   [ 81%]
+tests/test_fleet_delegation_enforcement.py::test_new_edge_that_deepens_an_existing_descendant_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:47 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain f09bec62-0de5-4780-9d4c-b4289c42c304
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain f09bec62-0de5-4780-9d4c-b4289c42c304
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member c for chain f09bec62-0de5-4780-9d4c-b4289c42c304
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain f09bec62-0de5-4780-9d4c-b4289c42c304
+PASSED                                                                   [ 87%]
+tests/test_fleet_delegation_enforcement.py::test_existing_descendants_over_a_lowered_limit_block_new_recruitment 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:47 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member a for chain b7f7fbfc-c180-4d34-aa6d-ea2edbd71fb1
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member b for chain b7f7fbfc-c180-4d34-aa6d-ea2edbd71fb1
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member c for chain b7f7fbfc-c180-4d34-aa6d-ea2edbd71fb1
+2026-11-01 09:37:47 [    INFO] Recruiting fleet member d for chain b7f7fbfc-c180-4d34-aa6d-ea2edbd71fb1
+PASSED                                                                   [ 93%]
+tests/test_fleet_delegation_enforcement.py::test_a_refused_recruitment_does_not_mutate_the_chain 
+-------------------------------- live log setup --------------------------------
+2026-11-01 09:37:48 [    INFO] Initializing fleet for root agent root, task: test chain...
+-------------------------------- live log call ---------------------------------
+2026-11-01 09:37:48 [    INFO] Recruiting fleet member a for chain 6dae18c6-e7dd-4dad-a025-34304295268b
+2026-11-01 09:37:48 [    INFO] Recruiting fleet member a for chain 6dae18c6-e7dd-4dad-a025-34304295268b
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 32 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 16 passed, 40 warnings in 18.68s =======================

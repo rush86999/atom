@@ -1,0 +1,48 @@
+Sum Award Amount for the grants campaign
+
+waiting
+
+Plan revision 1 · teaching a3248d9407de84d3+e3cef4711fb1b8e8+map
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Awaiting approval: Send the approved response
+
+Completed work
+
+Aggregate workbook source
+Wait for the missing external fact
+Render Sum Award Amount for the grants campaign
+Result: 14687.50 USD · Approved Amount
+Result: Delivery term: within 30 days of award acceptance.
+
+Artifacts
+
+Sum Award Amount for the grants campaign
+applied
+Download
+Provider-accepted response
+pending
+
+Mappings
+
+Award Amount → Approved Amount
+
+Source: upload · Sheet: campaign_grant_awards · Version: c77cd7ec2060
+
+Required unit: not specified · Established: source-established (USD)
+
+Mapping revision: 2 · Teaching revision: a3248d9407de84d3+e3cef4711fb1b8e8+map
+
+Correct mapping
+
+Approval required
+
+Purpose: Send the prepared response
+
+Payload e22e4f44df1e9ea6
+
+Approve this payload
+Resume
+Cancel
+Durable state persisted

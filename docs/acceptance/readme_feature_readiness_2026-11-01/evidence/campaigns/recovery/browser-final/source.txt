@@ -1,0 +1,9 @@
+commit=aba2754ec18519e9138515f684c42e7f92bf93e7
+branch=codex/employee-execution-readiness
+dirty_files_at_capture=2
+captured_at=2026-11-01T14:48:59Z
+--- file hashes (also in browser-recovery.json) ---
+867ae38df24050dc74b23ed07d8a3bddf8de36debd01657f5308648fbc0455ac  backend/scripts/assignment_browser_acceptance_server.py
+496c72319a7ef2e1955c147346af84ae8d06be2c5fc7f970db9e453ac5a5d03a  backend/core/assignment_executor.py
+35ce4a8d7f4fcb7da54ecf78ec4708324ecb770147435355bc31db80bf7656f1  backend/api/assignment_routes.py
+8da558483bed4ec215846a6d3257417db059c360daff94cd332306671720c4f7  frontend-nextjs/components/assignments/AssignmentPanel.tsx
