@@ -3534,6 +3534,14 @@ class AssignmentExecutor:
             or f"{step.get('step_id')}:"
                f"{waiting.get('correlation_id') or waiting.get('since') or ''}")
 
+    @staticmethod
+    def _clear_active_wait(budget: Dict[str, Any], wait_id: str) -> None:
+        """Clear the live wait projection only for the interval just closed."""
+        active = dict(budget.get("active_wait") or {})
+        if not active or str(active.get("id")) == str(wait_id):
+            budget["active_wait"] = None
+            budget.pop("waiting_since", None)
+
     def _credit_wait_once(
         self, budget: Dict[str, Any], *,
         wait_id: str,
@@ -3552,6 +3560,7 @@ class AssignmentExecutor:
             return False
         credits = dict(budget.get("wait_credits") or {})
         if wait_id in credits:
+            self._clear_active_wait(budget, wait_id)
             return False
         try:
             start_ts = datetime.fromisoformat(str(started_at)).timestamp()
@@ -3570,6 +3579,11 @@ class AssignmentExecutor:
                 "already_credited": True,
             }
             budget["wait_credits"] = credits
+            # The old ledger already counted this interval in paused_seconds.
+            # Leaving the same interval as an open wait would subtract it a
+            # second time in _effective_wall_elapsed, making genuinely
+            # exhausted active work look unexhausted. Clear only this wait.
+            self._clear_active_wait(budget, wait_id)
             return False
         seconds = end_ts - start_ts
         credits[wait_id] = {
@@ -3581,10 +3595,7 @@ class AssignmentExecutor:
         budget["wait_credits_schema"] = 1
         budget["paused_seconds"] = (
             float(budget.get("paused_seconds") or 0.0) + seconds)
-        active = budget.get("active_wait") or {}
-        if not active or str(active.get("id")) == str(wait_id):
-            budget["active_wait"] = None
-            budget.pop("waiting_since", None)
+        self._clear_active_wait(budget, wait_id)
         return True
 
     def _effective_wall_elapsed(self, budget: Dict[str, Any]) -> float:
@@ -3605,6 +3616,25 @@ class AssignmentExecutor:
             return 0.0
         paused = float(budget.get("paused_seconds") or 0.0)
         waiting_since = budget.get("waiting_since")
+        if waiting_since:
+            # A legacy/restarted row can still carry the open-wait timestamp
+            # for an interval already counted in paused_seconds. Do not
+            # subtract that interval twice; a genuinely exhausted run must
+            # stay exhausted.
+            credits = budget.get("wait_credits") or {}
+            already_credited = any(
+                isinstance(item, dict)
+                and str(item.get("started_at") or "") == str(waiting_since)
+                for item in credits.values())
+            if (already_credited
+                    or (budget.get("wait_credits_schema") != 1
+                        and float(budget.get("paused_seconds") or 0.0) > 0
+                        and not budget.get("active_wait"))):
+                # Either the interval is in the credit ledger, or this is a
+                # legacy ledger whose paused time already includes it and
+                # which has no live active-wait identity. A new wait always
+                # records active_wait in _enter_wait, so it is not skipped.
+                waiting_since = None
         if waiting_since:
             try:
                 paused += max(
