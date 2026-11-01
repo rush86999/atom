@@ -1,0 +1,73 @@
+{
+  "run_id": "0b7a8bd5-4762-45aa-a3de-81f2d287aed7",
+  "status": "completed",
+  "objective": "Full-population total of Data01 (all 25 rows, no supplied rows)",
+  "assignment_id": "asg-0dc1ed76d940419b",
+  "source": {
+    "dataset_name": "upload_twenty_four_sheet_workbook__data01",
+    "file_name": "twenty_four_sheet_workbook.xlsx",
+    "sheet": "Data01",
+    "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+    "representation": "parquet_frame",
+    "coverage": {
+      "known": true,
+      "source_row_count": 25,
+      "materialized_row_count": 25,
+      "truncated": false,
+      "row_cap": 500000
+    },
+    "operation": "sum",
+    "measure": "Total",
+    "selected_count": 25,
+    "subtotals": {
+      "(unstated)": {
+        "rows": 25,
+        "value": "1725.00"
+      }
+    },
+    "sheet_rows": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26
+    ]
+  },
+  "source_receipt": {
+    "observed_status": "confirmed",
+    "summary": "sum of Total = 1725.00  across 25 row(s) from twenty_four_sheet_workbook.xlsx / Data01",
+    "calculation": {
+      "expression": null,
+      "value": "1725.00",
+      "unit": "",
+      "steps": null
+    }
+  },
+  "deliverable": {
+    "content": "## Summary\n\nTotal 1725.00\n\n## Sources\n\n- twenty_four_sheet_workbook.xlsx / Data01",
+    "path_name": "full-population-total-2f2bfceb.docx",
+    "sha256": "12b28775e3e3fd76f2ca565e526807cb90f3237531a982b55f038fe6dbf99f12",
+    "summary": "rendered full-population-total-2f2bfceb.docx"
+  },
+  "claimed_by_source": "instance_id:31ba9725e02a.64859.1793499492"
+}

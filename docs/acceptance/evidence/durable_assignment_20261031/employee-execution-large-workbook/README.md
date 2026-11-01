@@ -27,9 +27,12 @@ compatibility claim.
    product path.
 2. **Retrieval without supplied rows** — an assignment was created from
    `upload_twenty_four_sheet_workbook__data01` with a sum over `Total`. The
-   source step loaded **25 rows** and returned **1725.00**
-   (`assignment-full-population.json`). No row values were supplied in the
-   request.
+   source receipt loaded **25 rows** (`sheet_rows 2–26`, `selected_count=25`)
+   and returned **1725.00**; the completed DOCX says `Total 1725.00` and cites
+   the workbook/sheet (`assignment-full-population.json`,
+   `assignment-detail.json`, `artifacts/full-population-total.docx`). No row
+   values were supplied in the request. The operation record's `claimed_by`
+   is `instance_id:31ba9725e02a.64859…`, the clean serving instance.
 3. **Recalculation after an edit** — the canvas cell `Data01!B2` was changed
    from `2` to `5` through the ordinary grid (commit on blur). The
    `/api/v1/office/sync-update` response reported `recalc_status=complete`,
