@@ -192,6 +192,9 @@ def test_onedrive_read_action_returns_binary_not_json(monkeypatch):
         async def download_file_bytes(self, token, file_id):
             return b"\x89PNG\r\n\x1a\nfake"
 
+        async def get_file_metadata(self, token, file_id):
+            return {"status": "success", "data": {"name": "image.png"}}
+
     async def fake_service(ids):
         return FakeOneDrive()
 
@@ -882,9 +885,44 @@ def test_read_file_receipt_matches_agent1_evidence_shape(monkeypatch):
     assert isinstance(receipt["fields"], dict)
     assert receipt["fields"]["currency"] == "USD"
     assert receipt["resource_id"] == "file-1"
+    assert receipt["workspace_id"] == "ws-1"
     assert receipt["version"] == "v3"
     assert receipt["retrieved_at"]
     assert receipt["evidence"][0]["sha256"]
+    assert result["rows"] == [{"sku": "A", "qty": "2", "__row": 2}]
+    assert receipt["rows"] == result["rows"]
+    assert receipt["citations"][0]["row"] == 2
+
+
+def test_corrupt_tabular_file_is_evidence_with_parse_error(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "prices.xlsx", "version": "v1"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return b"this is not a zip workbook"
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    result = asyncio.run(actions.workdrive_read_file(
+        {"file_id": "file-bad"}, {"user_id": "u", "tenant_id": "t1",
+                                  "workspace_id": "ws-1"}))
+
+    # The bytes remain evidence; the parse failure is explicit, never an
+    # empty successful row set.
+    assert result["status"] == "success"
+    assert result["bytes"] == len(b"this is not a zip workbook")
+    assert result["parse_error"]
+    assert result["rows"] == []
+    assert result["read_receipt"]["fields"]["parse_error"]
+    assert result["read_receipt"]["workspace_id"] == "ws-1"
 
 
 def test_resolve_vendor_is_exact_and_does_not_substring_match(monkeypatch):
