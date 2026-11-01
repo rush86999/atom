@@ -86,11 +86,22 @@ Write results use the shared vocabulary:
 
 | `action_result` | Meaning |
 |---|---|
-| `applied` | provider create returned an id and the authoritative readback matches the authorized payload |
+| `applied` | provider create returned an id and the **complete** authoritative readback is verified |
 | `proven_not_applied` | validation, authority, duplicate, digest or pre-dispatch failure; no effect was attempted |
-| `uncertain` | the create may have landed (5xx, transport failure, unreadable create response, or readback unavailable) |
-| `conflict` | the readback exists but differs from the authorized payload (total, vendor, reference, currency or date) |
+| `uncertain` | the create may have landed (5xx, transport failure, unreadable create response) **or the readback is incomplete** |
+| `conflict` | the remote object exists but a material field differs from the authorized payload |
 | `unavailable` | no trustworthy provider result and the effect state cannot be proven |
+
+The verification contract, material fields, provider-managed fields,
+normalization rules and recovery behavior are in
+[AGENT_2_READBACK_VERIFICATION.md](AGENT_2_READBACK_VERIFICATION.md).
+
+A remote id plus a matching total is incomplete verification, not success.
+Estimate/bill writes return a `verification` block with
+`status=verified|incomplete|mismatch`, `missing_fields`, `mismatches`, checked
+fields, observed remote id and readback attempts. A sparse first readback is
+re-read once from the same remote object; the create is never repeated. The
+durable operation identity/payload binding remains the executor's record.
 
 The current `_action_registry_adapter` in `assignment_executor.py` wraps every
 action result as `status=applied`. Agent 1 must map the action's
