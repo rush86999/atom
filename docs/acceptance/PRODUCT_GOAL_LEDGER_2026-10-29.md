@@ -98,6 +98,21 @@ Evidence:
 Historical failed-closed attempts remain in
 `employee-execution-assessment-blocker/`.
 
+### Deterministic taught-rule judgment (qualified)
+
+A second, model-free path is qualified for rule-expressible policies:
+`assessment_mode=deterministic` with ordered `decision_rules` on the versioned
+capability manifest. Rules validate against bound columns/decisions, require a
+REVIEW fallback, evaluate first-match-wins, cannot match blank/unparseable
+values, and return REVIEW plus a durable unresolved requirement when nothing
+matches. On the frozen 24-record set it scores **18/18 determinate under both
+V1 and V3 with safe abstention passed**, and no gap is approved. Evidence:
+`employee-execution-deterministic-judgment/`.
+
+This does **not** qualify discretionary judgment: the model-dependent
+configuration remains failed, and model funding is optional rather than a
+blanket blocker while the deterministic path covers rule-expressible work.
+
 ### Qualification on a fixed unseen set
 
 The intended local launch configuration was then qualified against a frozen
