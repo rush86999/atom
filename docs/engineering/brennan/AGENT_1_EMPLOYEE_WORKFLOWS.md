@@ -2,6 +2,13 @@
 
 Read the [shared work order](README.md) first. Base: public integration `587fbc251`.
 
+## Mandatory product constraint
+
+Implement the [domain-independent contract](../DOMAIN_INDEPENDENCE.md).
+Brennan supplies initial data and acceptance workflows, not hardcoded engine
+behavior. Your submission must include your assigned cross-business portability
+controls and identify configuration-only changes between businesses.
+
 ## Product mission
 
 An employee should receive an RFQ in Outlook, find the right business knowledge

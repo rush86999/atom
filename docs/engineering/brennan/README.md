@@ -6,6 +6,14 @@ These are implementation orders, not claims that the workflows already pass.
 The accepted 111/123 feature milestone remains source-bound. These orders add
 business-process acceptance without changing its denominator or historical evidence.
 
+## Mandatory domain independence
+
+Read the [domain-independent product contract](../DOMAIN_INDEPENDENCE.md).
+Brennan is the initial reference deployment. Business knowledge, rules, identities
+and workflow configuration must remain data/teaching; provider-specific behavior
+stays in adapters. Both agents must prove portability across other businesses
+without changing core code or requiring Brennan's providers.
+
 ## Assignments
 
 - [Agent 1: employee knowledge, quotes and durable execution](AGENT_1_EMPLOYEE_WORKFLOWS.md)

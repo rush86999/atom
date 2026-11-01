@@ -17,6 +17,7 @@ import os
 from typing import Any, Dict, List, Optional, Sequence
 
 from core.assignment_executor import default_adapter_registry
+import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
 from core.assignment_resources import resource_binding
 from core.assignment_plan import (
     ASSIGNMENT_SCHEMA_VERSION,
@@ -305,10 +306,17 @@ def plan_assignment(
     aggregate: Optional[Dict[str, Any]] = None
     if calculation and isinstance(calculation.get("aggregate"), dict):
         aggregate = dict(calculation["aggregate"])
-        if calculation.get("expression"):
+        if calculation.get("expression") or calculation.get("line_items"):
             raise AssignmentPlanError(
-                "a calculation cannot be both an expression and a connected "
-                "aggregate")
+                "a calculation cannot be both an expression/line-item "
+                "calculation and a connected aggregate")
+    line_items = (
+        list(calculation.get("line_items") or [])
+        if calculation and isinstance(calculation.get("line_items"), list)
+        else [])
+    if line_items and calculation.get("expression"):
+        raise AssignmentPlanError(
+            "a calculation cannot be both an expression and line items")
     aggregate_index = 0
     if aggregate is not None:
         aggregate_index = max(0, int(calculation.get("source_index") or 0))
@@ -355,6 +363,42 @@ def plan_assignment(
     calc_steps: List[Dict[str, Any]] = []
     if aggregate is not None:
         calc_step = source_ids[aggregate_index]
+    elif line_items:
+        calc_step = "calculate"
+        source_evidence = [{
+            "resource_id": source.get("resource_id"),
+            "dataset_name": source.get("dataset_name"),
+            "source": source.get("source"),
+            "external_id": source.get("external_id"),
+            "source_version": source.get("source_version"),
+            "sheet": source.get("sheet"),
+            "coverage": dict(source.get("coverage") or {}),
+        } for source in (sources or []) if isinstance(source, dict)]
+        calc_steps = [new_step(
+            step_id=calc_step,
+            title="Calculate the requested line items",
+            operation_type="calculate",
+            adapter="quote.calculate",
+            depends_on=source_ids + ([wait_step] if wait_step else []),
+            inputs={
+                "line_items": line_items,
+                "currency": calculation.get("currency"),
+                "freight": calculation.get("freight"),
+                "tax": calculation.get("tax"),
+                "discount_rules": (
+                    calculation.get("discount_rules")
+                    or (teaching.get("output_requirements") or {}).get(
+                        "line_discount_rules")
+                    or []),
+                "as_of": calculation.get("as_of") or "",
+                "rounding": calculation.get("rounding") or "half_up",
+                "scale": int(calculation.get("scale") or 2),
+                "rounding_authority": calculation.get(
+                    "rounding_authority") or "currency_minor_unit",
+                "source_evidence": source_evidence,
+            },
+            effect="local",
+        )]
     elif calculation and calculation.get("expression"):
         calc_step = "calculate"
         calc_steps = [new_step(
@@ -372,10 +416,11 @@ def plan_assignment(
             },
             effect="local",
         )]
-    if calculation and not calculation.get("expression") and aggregate is None:
+    if (calculation and not calculation.get("expression")
+            and not line_items and aggregate is None):
         raise AssignmentPlanError(
-            "a calculation requires an explicit expression or a validated "
-            "aggregate; a method gap cannot be invented")
+            "a calculation requires an explicit expression, line items or a "
+            "validated aggregate; a method gap cannot be invented")
 
     deliverable_steps: List[Dict[str, Any]] = []
     deliverable_records: List[Dict[str, Any]] = []

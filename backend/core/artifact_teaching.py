@@ -32,6 +32,7 @@ _FORMAT_SCHEMA: Dict[str, Dict[str, Any]] = {
         "heading_order": "list",
         "table_columns": "list",
         "prohibited_terms": "list",
+        "line_discount_rules": "rules",
     },
     "email": {
         "greeting": "str",
@@ -126,6 +127,13 @@ def normalize_artifact_teaching(
                 clean[key] = bool(value)
             elif spec == "list":
                 clean[key] = _clean_list(value)
+            elif spec == "rules":
+                rows = value if isinstance(value, list) else [value]
+                if not isinstance(rows, list) or not all(
+                        isinstance(item, dict) for item in rows):
+                    errors.append(f"{key} must be a list of rule objects")
+                else:
+                    clean[key] = [dict(item) for item in rows][:40]
             elif spec.startswith("int:") or spec.startswith("float:"):
                 kind, low, high = spec.split(":")
                 number = int(value) if kind == "int" else float(value)
