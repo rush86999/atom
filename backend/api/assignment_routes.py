@@ -92,6 +92,11 @@ class AssignmentMappingCorrection(BaseModel):
     source_version: str = ""
 
 
+class AssignmentReassessment(BaseModel):
+    reason: str = ""
+    task_context: Dict[str, Any] = {}
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -789,6 +794,63 @@ async def resume_assignment(
         return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/{run_id}/reassess")
+async def reassess_assignment(
+    run_id: str,
+    body: AssignmentReassessment,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Explicitly adopt corrected teaching for active work.
+
+    Historical results/artifacts stay in the assignment's prior_results.
+    Only teaching-dependent steps and their descendants are reopened under a
+    new plan revision; current access/authority is rechecked on execution.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    assignment = executor.lifecycle.get_assignment(run_id) or {}
+    provenance = assignment.get("provenance") or {}
+    agent_id = str(provenance.get("agent_id") or "") or None
+    task_context = dict(
+        (assignment.get("teaching_snapshot") or {}).get(
+            "matched_context") or {})
+    task_context.update(dict(body.task_context or {}))
+    output_types: List[str] = []
+    for item in assignment.get("deliverables") or []:
+        mapped = {
+            "document": "document", "spreadsheet": "spreadsheet",
+            "presentation": "presentation", "email_draft": "email",
+            "email": "email",
+        }.get(str(item.get("kind") or ""))
+        if mapped and mapped not in output_types:
+            output_types.append(mapped)
+    if not output_types:
+        output_types = ["document"]
+    recipients = [
+        str(item) for item in (
+            (assignment.get("provenance") or {}).get("email_to") or [])
+        if str(item).strip()]
+    try:
+        teaching = _teaching_snapshot_for_start(
+            db,
+            agent_id=agent_id,
+            workspace_id=current_user.workspace_id or "default",
+            output_types=output_types,
+            task_context=task_context,
+            recipient=recipients[0] if recipients else None,
+            task_scope=str(task_context.get("task_scope") or "") or None,
+            now=datetime.now(timezone.utc).isoformat(),
+        )
+        result = executor.reassess_teaching(
+            run_id, teaching,
+            reason=body.reason or "explicit reassessment")
+        status = await executor.execute(run_id, max_steps=12)
+    except (AssignmentPlanError, TaskLifecycleError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
 
 
 @router.post("/{run_id}/cancel")

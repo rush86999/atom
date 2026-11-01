@@ -2200,7 +2200,9 @@ def test_service_proposal_route_uses_the_same_assignment_api(
 def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme"):
     import docx
 
-    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    if route_env["db"].query(DatasetEntry).filter(
+            DatasetEntry.id == "scotch-entry").first() is None:
+        _scotch_catalog(route_env, tmp_path, monkeypatch)
     agreement = tmp_path / f"{customer.lower()}-agreement.docx"
     document = docx.Document()
     document.add_paragraph(f"Customer: {customer}")
@@ -2257,7 +2259,7 @@ def _quote_lesson(route_env, agent_id, rate, name):
 def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
         route_env, tmp_path, monkeypatch):
     from core.student_learning_service import (
-        get_agent_lessons, update_teaching_point,
+        list_agent_lessons, update_teaching_point,
     )
 
     agent_id = _teaching_agent(
@@ -2275,7 +2277,7 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
     before_revision = before["teaching_snapshot"]["revision"]
 
     point = next(
-        item for item in get_agent_lessons(route_env["db"], agent_id)
+        item for item in list_agent_lessons(route_env["db"], agent_id)
         if item.get("topic") == "quote discount")
     corrected = update_teaching_point(
         route_env["db"], agent_id, point["id"],
@@ -2285,6 +2287,10 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
             "name": "10% category B", "when": {"category": "B"},
             "rate": "0.10"}]})
     assert corrected["status"] == "ok", corrected
+    print("CORRECTED_ENTRY", corrected["entry"].get("revision"),
+          corrected["entry"].get("format_spec"))
+    print("LESSONS", [(x.get("topic"), x.get("revision"), x.get("format_spec"))
+                      for x in list_agent_lessons(route_env["db"], agent_id)])
 
     # Active/completed work keeps its accepted snapshot.
     retained = route_env["lifecycle"].get_assignment(run_id)
@@ -2304,6 +2310,12 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
         step for step in route_env["lifecycle"].get_assignment(
             second_body["run_id"])["steps"]
         if step["step_id"] == "calculate")
+    print("SECOND_CALC_INPUTS", second_calc["inputs"].get("discount_rules"))
+    print("SECOND_ROWS", [(r.get("item_id"), r.get("discount_rate"),
+                           r.get("net")) for r in second_calc["result"].get("rows") or []])
+    print("SECOND_RECEIPT", second_calc["result"].get("calculation_receipt"))
+    print("SECOND_SNAPSHOT", route_env["lifecycle"].get_assignment(
+        second_body["run_id"])["teaching_snapshot"].get("output_requirements"))
     assert second_calc["result"]["value"] == "355.00", second_calc["result"]
 
     # Explicit reassessment adopts the correction for the old job and
@@ -2311,6 +2323,7 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
     reassessed = route_env["client"].post(
         f"/api/assignments/{run_id}/reassess",
         json={"reason": "pricing owner corrected the exception"})
+    print("REASSESS_RESPONSE", reassessed.status_code, reassessed.text[:1000])
     assert reassessed.status_code == 200, reassessed.text
     body = reassessed.json()
     assert body["status"] == "reassessed"

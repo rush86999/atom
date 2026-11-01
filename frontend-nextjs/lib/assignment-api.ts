@@ -188,6 +188,17 @@ export async function resumeAssignment(runId: string): Promise<AssignmentDetail>
   return data;
 }
 
+export async function reassessAssignment(
+  runId: string,
+  reason = "explicit reassessment"
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/reassess`,
+    { reason }
+  );
+  return data;
+}
+
 export async function cancelAssignment(
   runId: string,
   reason: string

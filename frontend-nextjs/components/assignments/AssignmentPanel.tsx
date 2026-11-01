@@ -30,6 +30,7 @@ import {
   listAssignmentAgents,
   listAssignments,
   listAssignmentSources,
+  reassessAssignment,
   reconcileAssignmentStep,
   recordAssignmentResponse,
   resolveAssignmentGap,
@@ -1386,6 +1387,25 @@ export function AssignmentPanel({
               onClick={() => act(() => resumeAssignment(detail.run_id), detail.run_id)}
             >
               <Play className="h-3 w-3" /> Resume
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="assignment-reassess"
+              disabled={busy || ["completed", "cancelled"].includes(
+                detail.assignment.status
+              )}
+              onClick={() =>
+                act(
+                  () => reassessAssignment(
+                    detail.run_id,
+                    "explicit reassessment from panel"
+                  ),
+                  detail.run_id
+                )
+              }
+            >
+              <RefreshCw className="h-3 w-3" /> Reassess teaching
             </Button>
             <Button
               size="sm"
