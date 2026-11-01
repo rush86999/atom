@@ -82,6 +82,8 @@ provider that records acceptance then loses the response:
 9. approved `connected.outlook.create_draft` uses the verified total;
 10. no send occurs.
 
+`tests/unit/test_quote_rows.py` covers percentage/amount discount mapping, missing identity/currency gaps, empty rows and provider-line flattening.
+
 A second control changes the returned file price from 50.00 to 55.00 and
 asserts the quote changes to **376.75**, proving the calculation consumed the
 returned bytes rather than pre-seeded lines. An unexpected customer in a
@@ -92,7 +94,7 @@ when line items are supplied.
 
 | Suite | Result |
 |---|---|
-| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected) | **236 passed** |
+| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **241 passed** |
 | Agent 2 focused provider/accounting/readback | **273 passed** |
 | Agent 1 required assignment suite | **164 passed** |
 | Public route quote/source-change/teaching-reassessment journey | **4 passed** |
