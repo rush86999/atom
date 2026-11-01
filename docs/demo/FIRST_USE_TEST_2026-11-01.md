@@ -53,6 +53,28 @@ measured guarantee.
   Assignments on the first visit.
 - `/tmp/fresh-final-sample.log` (local run) — `status: passed`, `232990.00`.
 
+## Post-journey focused check — launcher memory path
+
+The measured journey above ran at `8b1abd7e6`. A later focused check at
+`d8120737e` (current successor HEAD at the time) covers the launcher memory
+path that the journey did not exercise:
+
+- Finding: the launcher exported `LANCEDB_URI` but workspace handlers read
+  `LANCEDB_URI_BASE`, falling back to `./data/atom_memory` and anchoring to
+  `backend/` — the repository-shared memory root.
+- Fix: both variables point at `<world>/data/atom_memory`. No shared memory was
+  copied, deleted or migrated.
+- Verification on fresh world `first_use_smoke_20261101`, backend 8086 /
+  frontend 3146: the log resolves to
+  `<world>/data/atom_memory/default_shared`; zero repository-shared path
+  occurrences.
+- Same check: login → Assignments on the first visit loads without a reload
+  (Demo Assistant selectable, agents page reachable, no page errors).
+
+Evidence: `docs/acceptance/evidence/first_use_smoke_20261101/`. This is a
+focused launcher/first-use check after the measured journey; the full install
+and sample job were not repeated after the memory-path fix.
+
 ## Remaining honest limitations
 
 - Cold-cache install time is not measured; 15 minutes remains a target.

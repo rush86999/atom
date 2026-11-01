@@ -91,11 +91,12 @@ launch path. They are not counted as accepted by this record.
 | Repaired successor | `d8120737e` (launcher + evidence), backend tree `c2963fbcdc8e`, frontend tree `756642ecb165` |
 | Fix | Both `LANCEDB_URI` and `LANCEDB_URI_BASE` point at `<world>/data/atom_memory`; no shared memory was copied, deleted or migrated. |
 | Path verification | Fresh world log: `Connecting to LanceDB at <world>/data/atom_memory/default_shared`; zero occurrences of the repository-shared path. |
-| First-use focused smoke | Current HEAD + repaired launcher on world `first_use_smoke_20261101`: assignments panel loads after login, Demo Assistant selectable, agents page reachable, no page errors, world-owned memory path. Evidence: `docs/acceptance/evidence/first_use_smoke_20261101/`. |
+| First-use focused smoke | Full journey measured at `8b1abd7e6` (`docs/demo/FIRST_USE_TEST_2026-11-01.md`: sample job 232990.00, first Assignments visit). Post-journey focused check at `d8120737e` on world `first_use_smoke_20261101`: panel loads, Demo Assistant selectable, agents page reachable, no page errors, world-owned memory path. Evidence: `docs/acceptance/evidence/first_use_smoke_20261101/`. |
 
-This is a focused smoke of the changed first-use surfaces and the launcher
-memory path, not a re-run of the full clean-install/sample job. The previously
-accepted clean-install path remains at its recorded source.
+The full first-use journey was measured at `8b1abd7e6`; the launcher
+memory-path and first-visit panel check was run at `d8120737e`. The full
+install/sample job was not repeated after the memory-path fix, which does not
+change the install or sample-job path.
 
 ## Accepted practical scope
 

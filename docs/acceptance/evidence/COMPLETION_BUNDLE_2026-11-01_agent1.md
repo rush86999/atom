@@ -353,8 +353,11 @@ Source `d8120737e`, backend tree `c2963fbcdc8e`, frontend tree
 - Focused first-use smoke on current HEAD: assignments panel loads after login,
   Demo Assistant selectable, agents page reachable, no page errors. Evidence:
   `first_use_smoke_20261101/`.
-- This is a focused smoke of the changed first-use surfaces and launcher memory
-  path, not a re-run of the full clean-install/sample job.
+- The full first-use journey was measured at `8b1abd7e6`
+  (`docs/demo/FIRST_USE_TEST_2026-11-01.md`: sample job 232990.00, first
+  Assignments visit). This focused check at `d8120737e` adds the world-owned
+  memory path and first-visit panel load; the full install/sample job was not
+  repeated after the memory fix.
 
 **C2 harness version:** the accepted closure ran on corrected working-tree
 content before it was committed. Executed SHA-256
@@ -468,8 +471,8 @@ proposal above and are not counted.
   execution evidence, not verification of those repairs.
 - **First-use focused smoke is recorded** on `d8120737e` (panel loads, Demo
   Assistant selectable, no page errors) together with the world-owned memory
-  path. The full clean-install/sample job was not re-run; the prior accepted
-  path remains at its recorded source.
+  path. The full journey remains the measured `8b1abd7e6` run; the install and
+  sample job were not repeated after the memory fix.
 - The C2 closure harness was executed from a non-clean working tree; the exact
   executed content hash is recorded and matches its commit `6747c1957`.
 - The accepted tag `accepted-local-2026-11-01-90pct` is preserved. The
