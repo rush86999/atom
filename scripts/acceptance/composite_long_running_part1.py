@@ -434,30 +434,31 @@ def main() -> int:
         training = api(
             page,
             f"/api/maturity/training/context?canvas_id={canvas_id}")
-        point = next(
-            (item for item in (training.get("teaching_points") or [])
-             if "Times New Roman" in str(
-                 item.get("text") or item.get("lesson") or "")),
-            None)
-        if point is None:
+        format_conflicts = [
+            item for item in (training.get("teaching_points") or [])
+            if any(token in str(item.get("text") or item.get("lesson") or "")
+                   for token in ("Times New Roman", "Georgia"))
+        ]
+        if not format_conflicts:
             raise SystemExit("REFUSED: conflicting teaching point not found")
-        status = page.evaluate(
-            """async ({agentId, pointId}) => {
-                const token = localStorage.getItem('auth_token')
-                    || localStorage.getItem('token');
-                const response = await fetch(
-                    `/api/maturity/agents/${agentId}/teaching-points/`
-                    + encodeURIComponent(pointId),
-                    {method: 'DELETE',
-                     headers: {Authorization: `Bearer ${token}`}});
-                return response.status;
-            }""",
-            {"agentId": agent_id, "pointId": point.get("id")})
-        if int(status) >= 300:
-            raise SystemExit(
-                f"REFUSED: teaching point delete returned {status}")
+        for point in format_conflicts:
+            status = page.evaluate(
+                """async ({agentId, pointId}) => {
+                    const token = localStorage.getItem('auth_token')
+                        || localStorage.getItem('token');
+                    const response = await fetch(
+                        `/api/maturity/agents/${agentId}/teaching-points/`
+                        + encodeURIComponent(pointId),
+                        {method: 'DELETE',
+                         headers: {Authorization: `Bearer ${token}`}});
+                    return response.status;
+                }""",
+                {"agentId": agent_id, "pointId": point.get("id")})
+            if int(status) >= 300:
+                raise SystemExit(
+                    f"REFUSED: teaching point delete returned {status}")
         (out / "conflict-removed-via-api.txt").write_text(
-            "conflicting supervisor lesson removed through the product "
+            "conflicting supervisor lessons removed through the product "
             "teaching-point delete endpoint\n")
         page.close()
 
