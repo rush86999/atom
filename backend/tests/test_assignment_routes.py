@@ -2198,7 +2198,7 @@ def test_service_proposal_route_uses_the_same_assignment_api(
 
 
 def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme",
-                 actions=None, email_draft=False):
+                 actions=None, email_draft=False, wait=None):
     import docx
 
     if route_env["db"].query(DatasetEntry).filter(
@@ -2241,6 +2241,7 @@ def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme",
                  "to": ["buyer@example.invalid"],
                  "subject": "Acme quote"}] if email_draft else [])),
         "task_context": {"audience": "quote-reviewer"},
+        **({"wait": wait} if wait else {}),
     })
 
 
@@ -2485,3 +2486,52 @@ def test_quote_controlled_commercial_update_duplicate_and_uncertain(
         json={"note": "late approval"})
     assert late.status_code in (404, 409), late.text
     assert len(calls) == before_cancel_calls
+
+
+def test_quote_waits_for_supplier_then_completes_same_job(
+        route_env, tmp_path, monkeypatch):
+    """External supplier fact pauses the quote; one correlated reply closes it."""
+    agent_id = _teaching_agent(
+        route_env, "Waiting quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    started = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, wait={
+            "correlation_id": "quote-supplier-1",
+            "fact": "freight",
+            "party": "supplier",
+            "detail": "supplier freight confirmation",
+        })
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    assert body["assignment"]["assignment"]["status"] == "waiting"
+    detail = route_env["client"].get(f"/api/assignments/{run_id}")
+    assert detail.status_code == 200
+    waiting = detail.json()["assignment"]
+    assert waiting["status"] == "waiting"
+    assert any(step["status"] == "waiting" for step in waiting["steps"])
+
+    reply = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/quote-supplier-1",
+        json={"response": "freight is 20.00"})
+    assert reply.status_code == 200, reply.text
+    completed = route_env["client"].get(f"/api/assignments/{run_id}")
+    assignment = completed.json()["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    wait_step = next(step for step in internal["steps"]
+                     if step["step_id"] == "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["result"]["value"] == "freight is 20.00"
+
+    duplicate = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/quote-supplier-1",
+        json={"response": "freight is 99.00"})
+    assert duplicate.status_code in (404, 409), duplicate.text
+    unchanged = route_env["lifecycle"].get_assignment(run_id)
+    assert next(step for step in unchanged["steps"]
+                if step["step_id"] == "calculate")["result"]["value"] == (
+        "362.50")
