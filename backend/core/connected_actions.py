@@ -23,6 +23,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Optional
 
 from core.action_registry import action_registry, register_action
+from core.commercial_readback import (
+    verify_bill_readback,
+    verify_estimate_readback,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,14 +164,6 @@ def _payload_digest(payload: Dict[str, Any]) -> str:
     return _approval_payload_hash(payload)
 
 
-def _decimal_equal(left: Any, right: Any) -> bool:
-    try:
-        return (Decimal(str(left)).quantize(Decimal("0.01"))
-                == Decimal(str(right)).quantize(Decimal("0.01")))
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-
-
 def _write_failure(
     provider: str,
     operation: str,
@@ -224,48 +220,6 @@ def _write_failure(
     }
 
 
-def _estimate_readback_conflicts(
-    estimate_data: Dict[str, Any], readback: Dict[str, Any],
-) -> list:
-    """Compare the authorized estimate fields with the provider readback."""
-    conflicts = []
-    if not readback.get("estimate_id") and not readback.get("id"):
-        conflicts.append("provider readback has no estimate id")
-    if estimate_data.get("reference_number") not in (None, ""):
-        observed = str(readback.get("reference_number") or "")
-        if observed != str(estimate_data["reference_number"]):
-            conflicts.append(
-                "reference_number changed: authorized "
-                f"{estimate_data['reference_number']!r}, provider readback "
-                f"{observed!r}")
-    if estimate_data.get("customer_id") and readback.get("customer_id") and str(
-            readback["customer_id"]) != str(estimate_data["customer_id"]):
-        conflicts.append(
-            f"customer_id changed: authorized {estimate_data['customer_id']!r}, "
-            f"provider readback {readback['customer_id']!r}")
-    expected_total = estimate_data.get("total", estimate_data.get("grand_total"))
-    observed_total = readback.get("total", readback.get("grand_total"))
-    if expected_total not in (None, ""):
-        if observed_total in (None, "") or not _decimal_equal(
-                observed_total, expected_total):
-            conflicts.append(
-                "total changed: authorized "
-                f"{expected_total!r}, provider readback {observed_total!r}")
-    if readback.get("currency_code") and estimate_data.get("currency_code") and str(
-            readback["currency_code"]).upper() != str(
-                estimate_data["currency_code"]).upper():
-        conflicts.append(
-            "currency changed: authorized "
-            f"{estimate_data['currency_code']!r}, provider readback "
-            f"{readback['currency_code']!r}")
-    if readback.get("date") and estimate_data.get("date") and str(
-            readback["date"]) != str(estimate_data["date"]):
-        conflicts.append(
-            f"date changed: authorized {estimate_data['date']!r}, provider "
-            f"readback {readback['date']!r}")
-    return conflicts
-
-
 def _validate_accounting_period(
     document_date: Any, *, period_start: Any = None,
     period_end: Any = None, closed_through: Any = None,
@@ -307,6 +261,33 @@ def _validate_accounting_period(
                 f"document date {doc} falls in a period closed through "
                 f"{bound}", action_result="proven_not_applied")
     return None
+
+
+async def _readback_with_retry(getter, verifier) -> tuple:
+    """Read the same remote object at most twice; never repeat the create.
+
+    A sparse first readback is a provider-consistency possibility, so one
+    bounded retry is allowed.  A definite mismatch is returned immediately.
+    """
+    readback: Dict[str, Any] = {}
+    report: Optional[Dict[str, Any]] = None
+    last_error: Optional[Exception] = None
+    attempts = 0
+    for _ in range(2):
+        attempts += 1
+        try:
+            readback = await getter()
+        except Exception as exc:  # noqa: BLE001 - classified by the caller
+            last_error = exc
+            continue
+        if not isinstance(readback, dict) or not readback:
+            last_error = ValueError("provider returned an empty readback")
+            continue
+        report = verifier(readback)
+        last_error = None
+        if report.get("status") != "incomplete":
+            return readback, report, None, attempts
+    return readback, report, last_error, attempts
 
 
 async def _chart_of_account_ids(
@@ -405,48 +386,6 @@ def _tabular_rows(content: bytes, file_name: Optional[str],
     except Exception as exc:  # noqa: BLE001 - corrupt/encrypted/unsupported
         return {"error": f"{type(exc).__name__}: {exc}"[:300]}
     return None
-
-
-def _bill_readback_conflicts(
-    proposal: Dict[str, Any], payload: Dict[str, Any],
-    readback: Dict[str, Any],
-) -> list:
-    """Compare the authoritative readback with the exact authorized payload."""
-    conflicts = []
-    external_id = str(payload.get("reference_number") or "")
-    observed_reference = str(
-        readback.get("reference_number") or readback.get("bill_number") or "")
-    if observed_reference != external_id:
-        conflicts.append(
-            "reference_number changed: authorized "
-            f"{external_id!r}, provider readback {observed_reference!r}")
-    if payload.get("vendor_id") and readback.get("vendor_id") and str(
-            readback["vendor_id"]) != str(payload["vendor_id"]):
-        conflicts.append(
-            f"vendor_id changed: authorized {payload['vendor_id']!r}, "
-            f"provider readback {readback['vendor_id']!r}")
-    if readback.get("total") not in (None, ""):
-        if not _decimal_equal(readback["total"],
-                              proposal.get("document_total")):
-            conflicts.append(
-                "total changed: authorized "
-                f"{proposal.get('document_total')!r}, provider readback "
-                f"{readback.get('total')!r}")
-    else:
-        conflicts.append("provider readback has no total")
-    if readback.get("currency_code") and payload.get("currency_code") and str(
-            readback["currency_code"]).upper() != str(
-                payload["currency_code"]).upper():
-        conflicts.append(
-            "currency changed: authorized "
-            f"{payload['currency_code']!r}, provider readback "
-            f"{readback['currency_code']!r}")
-    if readback.get("date") and payload.get("date") and str(
-            readback["date"]) != str(payload["date"]):
-        conflicts.append(
-            f"date changed: authorized {payload['date']!r}, provider "
-            f"readback {readback['date']!r}")
-    return conflicts
 
 
 def _receipt(provider: str, operation: str, *, resource_id: str = "",
@@ -1342,18 +1281,26 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
         }
-    try:
-        readback = await service.get_bill(token, org, remote_id)
-    except Exception as exc:  # noqa: BLE001 - effect may have landed
+    readback, verification, readback_error, attempts = await _readback_with_retry(
+        lambda: service.get_bill(token, org, remote_id),
+        lambda data: verify_bill_readback(
+            proposal, payload, data, organization_id=org))
+    receipt = {**base_receipt, "readback_attempts": attempts,
+               "observed_remote_id": remote_id}
+    if readback_error is not None and not verification:
         result = _write_failure(
-            "zoho_books", "get_bill", exc, may_have_landed=True,
+            "zoho_books", "get_bill", readback_error, may_have_landed=True,
             remote_id=remote_id, payload_sha256=payload_sha256,
             authority_reference=authority, operation_id=operation_id)
         result["provider_receipt"] = {
-            **base_receipt, **result.get("provider_receipt", {})}
+            **receipt, **result.get("provider_receipt", {})}
+        result["verification"] = {
+            "status": "incomplete", "effect": "observed",
+            "missing_fields": ["readback"], "mismatches": [],
+            "attempts": attempts,
+        }
         return result
-    conflicts = _bill_readback_conflicts(proposal, payload, readback)
-    if conflicts:
+    if verification["status"] == "mismatch":
         return {
             "status": "conflict",
             "success": False,
@@ -1362,13 +1309,28 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
             "operation": "create_bill",
             "remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "conflicts": conflicts,
+            "conflicts": verification["conflicts"],
+            "verification": verification,
             "data": readback,
-            "provider_receipt": base_receipt,
+            "provider_receipt": receipt,
             "read_receipt": _receipt(
                 "zoho_books", "get_bill", resource_id=remote_id,
                 coverage="single", account_id=org, kind="bill",
                 fields=readback if isinstance(readback, dict) else []),
+        }
+    if verification["status"] == "incomplete":
+        return {
+            **_error(
+                "zoho_books", "create_bill", "provider_error",
+                "The bill was created but the readback is incomplete; "
+                "reconcile the same remote object without a second create.",
+                action_result="uncertain"),
+            "success": False,
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "verification": verification,
+            "data": readback,
+            "provider_receipt": receipt,
         }
     return {
         "status": "success",
@@ -1378,7 +1340,8 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
         "operation": "create_bill",
         "remote_id": remote_id,
         "payload_sha256": payload_sha256,
-        "provider_receipt": base_receipt,
+        "verification": verification,
+        "provider_receipt": receipt,
         "data": readback,
         "read_receipt": _receipt(
             "zoho_books", "get_bill", resource_id=remote_id,
@@ -1432,6 +1395,31 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         return _error(
             "zoho_books", "create_estimate", "invalid_request",
             "estimate_data.reference_number is required for duplicate identity.",
+            action_result="proven_not_applied")
+    required_material = {
+        "customer_id": estimate_data.get("customer_id"),
+        "currency_code": (estimate_data.get("currency_code")
+                          or estimate_data.get("currency")),
+        "date": estimate_data.get("date"),
+        "total": (estimate_data.get("total")
+                  or estimate_data.get("grand_total")),
+        "line_items": (estimate_data.get("line_items")
+                       or estimate_data.get("lines")),
+    }
+    missing = [field for field, value in required_material.items()
+               if value in (None, "", [], {})]
+    if missing:
+        return _error(
+            "zoho_books", "create_estimate", "invalid_request",
+            "estimate_data is missing material field(s): "
+            + ", ".join(missing),
+            action_result="proven_not_applied")
+    if (estimate_data.get("tax_total") in (None, "")
+            and estimate_data.get("tax_treatment") in (None, "")
+            and estimate_data.get("tax") in (None, "", {})):
+        return _error(
+            "zoho_books", "create_estimate", "invalid_request",
+            "estimate_data must state tax_total or tax_treatment explicitly.",
             action_result="proven_not_applied")
 
     payload_sha256 = _payload_digest(estimate_data)
@@ -1535,18 +1523,26 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
         }
-    try:
-        readback = await service.get_estimate(token, org, remote_id)
-    except Exception as exc:  # noqa: BLE001 - effect may have landed
+    readback, verification, readback_error, attempts = await _readback_with_retry(
+        lambda: service.get_estimate(token, org, remote_id),
+        lambda data: verify_estimate_readback(
+            estimate_data, data, organization_id=org))
+    receipt = {**base_receipt, "readback_attempts": attempts,
+               "observed_remote_id": remote_id}
+    if readback_error is not None and not verification:
         result = _write_failure(
-            "zoho_books", "get_estimate", exc, may_have_landed=True,
+            "zoho_books", "get_estimate", readback_error, may_have_landed=True,
             remote_id=remote_id, payload_sha256=payload_sha256,
             authority_reference=authority, operation_id=operation_id)
         result["provider_receipt"] = {
-            **base_receipt, **result.get("provider_receipt", {})}
+            **receipt, **result.get("provider_receipt", {})}
+        result["verification"] = {
+            "status": "incomplete", "effect": "observed",
+            "missing_fields": ["readback"], "mismatches": [],
+            "attempts": attempts,
+        }
         return result
-    conflicts = _estimate_readback_conflicts(estimate_data, readback)
-    if conflicts:
+    if verification["status"] == "mismatch":
         return {
             "status": "conflict",
             "success": False,
@@ -1555,13 +1551,28 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
             "operation": "create_estimate",
             "remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "conflicts": conflicts,
+            "conflicts": verification["conflicts"],
+            "verification": verification,
             "data": readback,
-            "provider_receipt": base_receipt,
+            "provider_receipt": receipt,
             "read_receipt": _receipt(
                 "zoho_books", "get_estimate", resource_id=remote_id,
                 coverage="single", account_id=org, kind="estimate",
                 fields=readback if isinstance(readback, dict) else []),
+        }
+    if verification["status"] == "incomplete":
+        return {
+            **_error(
+                "zoho_books", "create_estimate", "provider_error",
+                "The estimate was created but the readback is incomplete; "
+                "reconcile the same remote object without a second create.",
+                action_result="uncertain"),
+            "success": False,
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "verification": verification,
+            "data": readback,
+            "provider_receipt": receipt,
         }
     return {
         "status": "success",
@@ -1571,7 +1582,8 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         "operation": "create_estimate",
         "remote_id": remote_id,
         "payload_sha256": payload_sha256,
-        "provider_receipt": base_receipt,
+        "verification": verification,
+        "provider_receipt": receipt,
         "data": readback,
         "read_receipt": _receipt(
             "zoho_books", "get_estimate", resource_id=remote_id,
