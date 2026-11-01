@@ -96,6 +96,7 @@ def create_agent(page, frontend: str, goal: str,
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
     before = {row["id"] for row in agent_rows(page)}
+    dismiss_overlays(page)
     page.get_by_test_id("describe-job-button").click()
     page.get_by_test_id("guided-goal-input").fill(goal)
     page.get_by_test_id("guided-context-input").fill(context_text)
