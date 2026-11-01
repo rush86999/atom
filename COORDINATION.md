@@ -377,3 +377,7 @@ Combined assignment + connected suite: **202 passed**; contract matrix zero
 issues on both. Estimate writes now require an exact `reference_number` and
 sweep the complete estimate list before create, matching the bill controls.
 No live provider call, send, tag move or acceptance-status change.
+
+**Correction / final heads:** Agent 2 `9600f783e`; joint `6165693db`.
+Both clean. Joint combined suite remains **202 passed**. Accounting extraction
+now refuses an unknown vendor by default (obligation, not a silent create).
