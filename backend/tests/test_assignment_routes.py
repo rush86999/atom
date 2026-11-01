@@ -2639,3 +2639,48 @@ def test_source_revision_change_invalidates_dependent_artifact(
         for row in table.rows:
             text += "\n" + " | ".join(cell.text for cell in row.cells)
     assert "Changed Scotch A" in text, text
+
+
+def test_quote_same_sku_different_pack_asks_before_arithmetic(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Ambiguity quote employee", "Arial", "quote-reviewer")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote the ambiguous SKU",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "each", "pack_size": "10", "unit_price": "10.00",
+                 "price_basis": "contract", "currency": "USD"},
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "case", "pack_size": "25", "unit_price": "20.00",
+                 "price_basis": "contract", "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement",
+        },
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "packaging_identity")
+    assert "SKU-1" in gap["question"]
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+    deliverable = next(step for step in assignment["steps"]
+                       if step["step_id"] == "deliverable-1")
+    assert deliverable["status"] == "pending"
