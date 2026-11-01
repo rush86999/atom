@@ -823,6 +823,8 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             (assignment.get("teaching_snapshot") or {}).get("revision")),
         "teaching_fingerprint": (
             (assignment.get("teaching_snapshot") or {}).get("fingerprint")),
+        "teaching_history": copy.deepcopy(
+            assignment.get("teaching_history") or []),
         "effective_lesson_ids": [
             {
                 "id": str(item.get("id") or ""),

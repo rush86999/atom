@@ -30,6 +30,7 @@ from core.assignment_executor import (
     WaitingForExternal,
     default_adapter_registry,
 )
+import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
 from core.assignment_plan import (
     new_assignment,
     new_deliverable,
@@ -2343,6 +2344,10 @@ def _force_budget_failure(
             budget["paused_seconds"] = paused
         budget.pop("active_wait", None)
         budget.pop("waiting_since", None)
+        # These tests construct pre-idle-ledger budgets on purpose.
+        budget.pop("idle_ledger_schema", None)
+        budget.pop("idle_open", None)
+        budget.pop("idle_intervals", None)
         if schema:
             budget["wait_credits_schema"] = 1
             budget.setdefault("wait_credits", {})
@@ -2439,6 +2444,11 @@ def test_each_new_wait_interval_is_credited_once(env):
     budget["wait_credits_schema"] = 1
     budget["wait_credits"] = {}
     budget["paused_seconds"] = 0.0
+    # Direct legacy credit semantics; executor-owned budgets use the idle
+    # interval ledger instead.
+    budget.pop("idle_ledger_schema", None)
+    budget.pop("idle_open", None)
+    budget.pop("idle_intervals", None)
     start = datetime.now(timezone.utc)
     first_start = (start - timedelta(seconds=200)).isoformat()
     first_end = (start - timedelta(seconds=100)).isoformat()
@@ -2455,6 +2465,206 @@ def test_each_new_wait_interval_is_credited_once(env):
         ended_at=second_end) is True
     assert 149.0 <= budget["paused_seconds"] <= 151.0
     assert set(budget["wait_credits"]) == {"wait-a", "wait-b"}
+
+
+def test_independent_ready_branch_runs_while_first_branch_waits(env):
+    """A waiting supplier branch must not stop an independent ready branch.
+
+    The executor used to return as soon as it saw ANY waiting step, even
+    when a different branch had all dependencies satisfied. Supplier B's
+    work is independent of Supplier A's external reply and must run in the
+    same pass.
+    """
+    suffix = uuid.uuid4().hex[:8]
+    waiting_adapter = f"test.waiting_supplier.{suffix}"
+    ready_adapter = f"test.ready_supplier.{suffix}"
+    calls = {"ready": 0}
+
+    async def supplier_a(inputs, context):
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "supplier A",
+            "correlation_id": f"corr-a-{suffix}",
+            "resume_on": "response",
+            "detail": "supplier A has not replied",
+        })
+
+    async def supplier_b(inputs, context):
+        calls["ready"] += 1
+        return {"status": "applied", "summary": "supplier B priced"}
+
+    env["registry"].register(waiting_adapter, supplier_a)
+    env["registry"].register(ready_adapter, supplier_b)
+    steps = [
+        new_step(
+            step_id="supplier_a", title="Wait for supplier A",
+            operation_type="retrieve", adapter=waiting_adapter,
+            effect="read_only"),
+        new_step(
+            step_id="supplier_b", title="Read supplier B",
+            operation_type="retrieve", adapter=ready_adapter,
+            effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Independent supplier branches", steps=steps,
+        teaching=_teaching())
+    _run(env["executor"].execute(run_id))
+
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls["ready"] == 1
+    assert step_by_id(assignment, "supplier_b")["status"] == "applied"
+    assert step_by_id(assignment, "supplier_a")["status"] == "waiting"
+    assert assignment["status"] == "waiting"
+
+    # The completed independent branch is durable: another execute pass does
+    # not repeat its work and still reports the remaining wait.
+    _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls["ready"] == 1
+    assert step_by_id(assignment, "supplier_a")["status"] == "waiting"
+
+
+def test_idle_budget_unions_overlapping_waits_across_restart(env):
+    """The 40/40/10/10 timeline credits 50s working and 50s paused.
+
+    Work 0-40, all branches blocked 40-80, work 80-90, all branches blocked
+    90-100. Two overlapping supplier waits at 90 must not be summed. The
+    budget is read after a real executor replacement (restart) and after
+    concurrent responses.
+    """
+    base = 1_700_000_000.0
+    clock = [base]
+    suffix = uuid.uuid4().hex[:8]
+    calls = {"work0": 0, "resume": 0}
+
+    async def work_zero_to_forty(inputs, context):
+        calls["work0"] += 1
+        clock[0] = base + 40
+        return {"status": "applied", "summary": "prepared"}
+
+    async def wait_supplier_a(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier A reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier A", "correlation_id": f"corr-a-{suffix}",
+            "resume_on": "response", "detail": "supplier A reply"})
+
+    async def work_eighty_to_ninety(inputs, context):
+        calls["resume"] += 1
+        clock[0] = base + 90
+        return {"status": "applied", "summary": "continued"}
+
+    async def wait_supplier_b(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier B reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier B", "correlation_id": f"corr-b-{suffix}",
+            "resume_on": "response", "detail": "supplier B reply"})
+
+    async def wait_supplier_c(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier C reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier C", "correlation_id": f"corr-c-{suffix}",
+            "resume_on": "response", "detail": "supplier C reply"})
+
+    for name, handler in (
+            (f"test.clock.work0.{suffix}", work_zero_to_forty),
+            (f"test.clock.wait_a.{suffix}", wait_supplier_a),
+            (f"test.clock.resume.{suffix}", work_eighty_to_ninety),
+            (f"test.clock.wait_b.{suffix}", wait_supplier_b),
+            (f"test.clock.wait_c.{suffix}", wait_supplier_c)):
+        env["registry"].register(name, handler)
+
+    def step(step_id, adapter, depends_on=None):
+        return new_step(
+            step_id=step_id, title=step_id, operation_type="retrieve",
+            adapter=adapter, effect="read_only",
+            depends_on=depends_on or [])
+
+    steps = [
+        step("work0", f"test.clock.work0.{suffix}"),
+        step("wait_a", f"test.clock.wait_a.{suffix}", ["work0"]),
+        step("resume", f"test.clock.resume.{suffix}", ["wait_a"]),
+        step("wait_b", f"test.clock.wait_b.{suffix}", ["resume"]),
+        step("wait_c", f"test.clock.wait_c.{suffix}", ["resume"]),
+    ]
+    run_id, _ = _create(
+        env, objective="Idle budget timeline", steps=steps,
+        teaching=_teaching(),
+        budget={"max_steps": 40, "max_attempts_per_step": 3,
+                "max_wall_seconds": 900})
+
+    def set_started_at(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        budget["started_at"] = datetime.fromtimestamp(
+            base, tz=timezone.utc).isoformat()
+        assignment["budget"] = budget
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, set_started_at, rationale="test: fixed clock origin")
+
+    executor = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    _run(executor.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == {"work0": 1, "resume": 0}
+    assert assignment["budget"]["paused_seconds"] == 0.0
+    assert step_by_id(assignment, "wait_a")["status"] == "waiting"
+    assert assignment["budget"].get("idle_open")
+
+    # 40-80: nobody can progress; the reply arrives at 80.
+    clock[0] = base + 80
+    assert executor.record_external_response(
+        run_id, f"corr-a-{suffix}", response="supplier A replied",
+        source="email")["status"] == "resumed"
+    _run(executor.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == {"work0": 1, "resume": 1}
+    assert 39.9 <= assignment["budget"]["paused_seconds"] <= 40.1
+    assert step_by_id(assignment, "resume")["status"] == "applied"
+
+    # 90-100: both branch waits overlap. Restart the executor first so the
+    # open interval is recovered from durable state rather than memory.
+    assert step_by_id(assignment, "wait_b")["status"] == "waiting"
+    assert step_by_id(assignment, "wait_c")["status"] == "waiting"
+    restarted = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    clock[0] = base + 100
+    _run(restarted.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert 49.9 <= budget["paused_seconds"] <= 50.1
+    assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
+    status = restarted.status(run_id)
+    assert 49.9 <= status["assignment"]["budget"]["working_seconds"] <= 50.1
+    assert 49.9 <= status["assignment"]["budget"]["paused_seconds"] <= 50.1
+    assert status["assignment"]["progress"]["waiting_steps"] == 2
+
+    # Concurrent replies for the two outstanding waits must resolve once
+    # each without adding another idle interval.
+    def reply(correlation):
+        return restarted.record_external_response(
+            run_id, correlation, response=f"{correlation} replied",
+            source="email")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(
+            reply, [f"corr-b-{suffix}", f"corr-c-{suffix}"]))
+    assert sorted(item["status"] for item in results) == ["resumed", "resumed"]
+    _run(restarted.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert step_by_id(assignment, "wait_b")["status"] == "applied"
+    assert step_by_id(assignment, "wait_c")["status"] == "applied"
+    assert 49.9 <= budget["paused_seconds"] <= 50.1
+    assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
+    assert budget.get("idle_intervals") is not None
 
 
 def test_concurrent_retries_credit_a_legacy_wait_once(env):
@@ -2625,6 +2835,9 @@ def test_restart_while_waiting_credits_the_interval_once(env):
         budget["waiting_since"] = wait_start
         budget["wait_credits_schema"] = 1
         budget["wait_credits"] = {}
+        budget.pop("idle_ledger_schema", None)
+        budget.pop("idle_open", None)
+        budget.pop("idle_intervals", None)
         budget["active_wait"] = {
             "id": "restart-wait", "step_id": "wait",
             "started_at": wait_start,
@@ -2647,3 +2860,217 @@ def test_restart_while_waiting_credits_the_interval_once(env):
     assert restarted._effective_wall_elapsed(budget) < 5.0
     assert budget["active_wait"] is None
     assert budget.get("waiting_since") is None
+
+
+def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
+    from core.quote_evidence import (
+        derive_quote_requirements,
+        plan_quote_assignment,
+        validate_quote_evidence,
+    )
+    import openpyxl
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    workbook_path = tmp / "quote_inputs.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Items"
+    sheet.append(["SKU", "Qty", "Unit Price", "Discount Percent", "Category",
+                  "Unit", "Pack"])
+    sheet.append(["A", 2, 100.00, 0, "A", "each", "1"])
+    sheet.append(["B", 3, 50.00, 5, "B", "each", "1"])
+    workbook.save(workbook_path)
+
+    customer = {
+        "provider": "crm", "resource_id": "cust-1", "version": "v1",
+        "kind": "customer", "record_type": "customer",
+        "customer_id": "cust-1", "customer_name": "Example Customer",
+        "access": "granted"}
+    agreement = {
+        "provider": "workdrive", "resource_id": "agreement-1", "version": "v3",
+        "kind": "pricing_agreement", "customer_id": "cust-1",
+        "price_basis": "customer_contract", "effective_date": "2026-10-01",
+        "access": "granted",
+        "fields": {
+            "currency": "USD", "effective_date": "2026-10-01",
+            "discount_policy": "5% on category B", "freight": "20.00",
+            "tax_treatment": "none", "delivery_terms": "FOB destination",
+            "validity": "30 days",
+        },
+        "citations": [{"sheet": "Terms", "row": 2}],
+    }
+    rows = {
+        "provider": "onedrive", "resource_id": "rows-1", "version": "rev-7",
+        "kind": "price_rows", "access": "granted",
+        "citations": [{"sheet": "Items", "row": 2},
+                      {"sheet": "Items", "row": 3}],
+        "rows": [
+            {"sku": "A", "quantity": "2", "unit": "each", "pack": "1",
+             "unit_price": "100.00", "currency": "USD",
+             "discount_percent": "0", "category": "A",
+             "citation": {"sheet": "Items", "row": 2}},
+            {"sku": "B", "quantity": "3", "unit": "each", "pack": "1",
+             "unit_price": "50.00", "currency": "USD",
+             "discount_percent": "5", "category": "B",
+             "citation": {"sheet": "Items", "row": 3}},
+        ],
+    }
+    from core.action_registry import action_registry
+
+    async def read_customer(args, context):
+        return {"data": {"customer_id": "cust-1", "name": "Example Customer"},
+                "read_receipt": {"provider": "zoho_crm",
+                                 "resource_id": "crm-cust-1",
+                                 "coverage": "complete"}}
+
+    action_registry.register(
+        "test.quote.customer", read_customer, effects=[{"effect": "read"}])
+    requirements = derive_quote_requirements(
+        "Prepare a customer quote", requested={"customer_id": "cust-1"})
+    validation = validate_quote_evidence(
+        requirements, [customer, rows, agreement],
+        requested={"customer_id": "cust-1"})
+    assert validation["status"] == "ready", validation
+    planned = plan_quote_assignment(
+        objective="Prepare a customer quote", validation=validation,
+        source={
+            "kind": "workbook", "representation": "xlsx",
+            "resource_id": "quote-workbook", "internal_fixture": True,
+            "path": str(workbook_path), "sheet": "Items",
+            "columns": ["SKU", "Qty", "Unit Price", "Discount Percent",
+                        "Category", "Unit", "Pack"],
+        },
+        teaching=_teaching(), workspace_id="ws_assign",
+        tenant_id="tenant_assign", employee_id="user-1",
+        evidence_reads=[{
+            "step_id": "read-customer",
+            "action": "test.quote.customer",
+            "arguments": {"record_id": "cust-1"},
+        }],
+        document_path=str(tmp / "quote.docx"),
+        email_draft_path=str(tmp / "quote-draft.eml"),
+        email_to=["customer@example.invalid"], subject="Customer quote")
+    assert planned["status"] == "ready", planned
+    plan = planned["plan"]
+    run_id = env["executor"].create_assignment(
+        "conv-quote", "Prepare a customer quote", assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    document = docx.Document(str(tmp / "quote.docx"))
+    text = "\n".join(p.text for p in document.paragraphs)
+    assert "362.50" in text, text
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["result"]["calculation_receipt"]["total"] == "362.50"
+    read_customer_step = step_by_id(assignment, "read-customer")
+    assert read_customer_step["status"] == "applied"
+    assert read_customer_step["result"]["data"]["read_receipt"][
+        "provider"] == "zoho_crm"
+    assert proof["quote_evidence"]["status"] == "ready" if (
+        proof := assignment.get("provenance")) else False
+    draft = step_by_id(assignment, "email-draft")
+    assert draft["status"] == "applied"
+    assert "362.50" in str(draft["result"].get("body") or
+                           draft["result"].get("draft") or "")
+
+
+def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: hours/rates, different vocabulary and currency.
+
+    The shared executor and line-item calculator carry no Brennan or quote
+    vocabulary; only the typed line items and teaching differ.
+    """
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    scope = tmp / "service-scope.txt"
+    scope.write_text("Service scope: four consulting hours and two trips.\n")
+    plan = plan_assignment(
+        objective="Prepare a service proposal",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "service-scope", "internal_fixture": True,
+            "path": str(scope),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "service-proposal.docx"),
+            "title": "Service proposal",
+        }],
+        calculation={
+            "line_items": [
+                {"item_id": "consulting-hours", "quantity": "4",
+                 "unit": "hour", "pack_size": "1", "unit_price": "120.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+                {"item_id": "travel", "quantity": "2", "unit": "trip",
+                 "pack_size": "1", "unit_price": "75.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+            ],
+            "currency": "CAD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "service"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-service", "Prepare a service proposal",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "630.00"
+    text = "\n".join(
+        p.text for p in docx.Document(
+            str(tmp / "service-proposal.docx")).paragraphs)
+    assert "630.00" in text
+
+
+def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: an expense-policy assessment, not a quote."""
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    policy = tmp / "expense-policy.txt"
+    policy.write_text("Expense limit: 200.00. Claimed: 250.00.\n")
+    plan = plan_assignment(
+        objective="Assess the expense claim against policy",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "expense-policy", "internal_fixture": True,
+            "path": str(policy),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "expense-review.docx"),
+            "title": "Expense review",
+        }],
+        calculation={
+            "expression": "claimed - limit",
+            "bindings": {"claimed": "250.00", "limit": "200.00"},
+            "output_unit": "CAD",
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "expense-policy"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-expense", "Assess the expense claim against policy",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "50.00"
+    text = "\n".join(p.text for p in docx.Document(
+        str(tmp / "expense-review.docx")).paragraphs)
+    assert "50.00" in text

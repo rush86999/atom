@@ -117,17 +117,27 @@ def action_executor_outcome(result: Dict[str, Any]) -> str:
     readback is ``conflict`` and a lost confirmation is ``uncertain``.  Agent
     1 owns the adapter; this helper is the drop-in mapping for it.
     """
-    action_result = str((result or {}).get("action_result") or "")
+    payload = result or {}
+    action_result = str(payload.get("action_result") or "")
     if action_result == "applied":
         return "applied"
     if action_result == "proven_not_applied":
         return "failed"
     if action_result in ("uncertain", "conflict", "unavailable"):
         return "uncertain"
-    # Legacy read actions return status=success without an action_result.
-    if (result or {}).get("status") == "success":
+    status = str(payload.get("status") or "").lower()
+    if status in ("success", "applied", "completed"):
         return "applied"
-    return "failed"
+    if status in ("conflict", "uncertain"):
+        return "uncertain"
+    if status in ("duplicate", "error", "failed", "unavailable"):
+        return "failed" if status != "unavailable" else "uncertain"
+    if payload.get("success") is False:
+        return "failed"
+    if payload.get("error") or payload.get("error_kind"):
+        return "failed"
+    # Legacy read actions return a bare value dict with no status.
+    return "applied"
 
 
 def _payload_digest(payload: Dict[str, Any]) -> str:

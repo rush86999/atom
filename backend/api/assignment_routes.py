@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from core.auth import User, get_current_user
 from core.assignment_planner import (
     AssignmentPlanError,
+    _registered_action_effect,
     plan_assignment,
     validate_proposed_plan,
 )
@@ -92,6 +93,11 @@ class AssignmentMappingCorrection(BaseModel):
     source_version: str = ""
 
 
+class AssignmentReassessment(BaseModel):
+    reason: str = ""
+    task_context: Dict[str, Any] = {}
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -110,6 +116,7 @@ class AssignmentStart(BaseModel):
     deliverables: List[Dict[str, Any]] = []
     calculation: Optional[Dict[str, Any]] = None
     outbound: Optional[Dict[str, Any]] = None
+    actions: List[Dict[str, Any]] = []
     wait: Optional[Dict[str, Any]] = None
     task_context: Dict[str, Any] = {}
     transport: Optional[str] = None
@@ -536,6 +543,20 @@ async def start_assignment(
             current_user, kind=kind, title=title,
             assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
         deliverables.append(deliverable)
+    if body.actions:
+        from core.action_registry import action_registry
+
+        for spec in body.actions:
+            name = str((spec or {}).get("action") or "").strip()
+            action = action_registry.get_action(name)
+            if action is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"registered action '{name}' is not available")
+            required = ("outbound" if _registered_action_effect(action)
+                        == "external" else "retrieve")
+            if required not in accepted_actions:
+                accepted_actions.append(required)
     if body.outbound:
         accepted_actions.append("outbound")
         if not str((body.outbound or {}).get("body") or "").strip(
@@ -580,6 +601,7 @@ async def start_assignment(
             deliverables=deliverables,
             calculation=body.calculation,
             outbound=body.outbound,
+            actions=body.actions,
             wait=body.wait,
             standing_authority=standing_authority,
             budget=body.budget,
@@ -789,6 +811,63 @@ async def resume_assignment(
         return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/{run_id}/reassess")
+async def reassess_assignment(
+    run_id: str,
+    body: AssignmentReassessment,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Explicitly adopt corrected teaching for active work.
+
+    Historical results/artifacts stay in the assignment's prior_results.
+    Only teaching-dependent steps and their descendants are reopened under a
+    new plan revision; current access/authority is rechecked on execution.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    assignment = executor.lifecycle.get_assignment(run_id) or {}
+    provenance = assignment.get("provenance") or {}
+    agent_id = str(provenance.get("agent_id") or "") or None
+    task_context = dict(
+        (assignment.get("teaching_snapshot") or {}).get(
+            "matched_context") or {})
+    task_context.update(dict(body.task_context or {}))
+    output_types: List[str] = []
+    for item in assignment.get("deliverables") or []:
+        mapped = {
+            "document": "document", "spreadsheet": "spreadsheet",
+            "presentation": "presentation", "email_draft": "email",
+            "email": "email",
+        }.get(str(item.get("kind") or ""))
+        if mapped and mapped not in output_types:
+            output_types.append(mapped)
+    if not output_types:
+        output_types = ["document"]
+    recipients = [
+        str(item) for item in (
+            (assignment.get("provenance") or {}).get("email_to") or [])
+        if str(item).strip()]
+    try:
+        teaching = _teaching_snapshot_for_start(
+            db,
+            agent_id=agent_id,
+            workspace_id=current_user.workspace_id or "default",
+            output_types=output_types,
+            task_context=task_context,
+            recipient=recipients[0] if recipients else None,
+            task_scope=str(task_context.get("task_scope") or "") or None,
+            now=datetime.now(timezone.utc).isoformat(),
+        )
+        result = executor.reassess_teaching(
+            run_id, teaching,
+            reason=body.reason or "explicit reassessment")
+        status = await executor.execute(run_id, max_steps=12)
+    except (AssignmentPlanError, TaskLifecycleError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
 
 
 @router.post("/{run_id}/cancel")

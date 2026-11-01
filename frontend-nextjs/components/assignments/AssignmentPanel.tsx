@@ -30,6 +30,7 @@ import {
   listAssignmentAgents,
   listAssignments,
   listAssignmentSources,
+  reassessAssignment,
   reconcileAssignmentStep,
   recordAssignmentResponse,
   resolveAssignmentGap,
@@ -735,6 +736,49 @@ export function AssignmentPanel({
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
             </p>
+            {detail.assignment.progress ? (
+              <div
+                className="mt-1 space-y-1"
+                data-testid="assignment-progress"
+              >
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>
+                    {detail.assignment.progress.completed_steps}/
+                    {detail.assignment.progress.required_steps} required steps
+                  </span>
+                  <span>
+                    {Number(detail.assignment.budget?.working_seconds || 0).toFixed(0)}s
+                    work ·{" "}
+                    {Number(detail.assignment.budget?.paused_seconds || 0).toFixed(0)}s
+                    paused
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded bg-slate-200">
+                  <div
+                    className="h-full bg-emerald-500"
+                    style={{
+                      width: `${
+                        detail.assignment.progress.required_steps
+                          ? Math.min(
+                              100,
+                              (detail.assignment.progress.completed_steps /
+                                detail.assignment.progress.required_steps) *
+                                100,
+                            )
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+                {detail.assignment.progress.waiting_steps ||
+                detail.assignment.progress.open_gap_count ? (
+                  <p className="text-[10px] text-amber-700">
+                    {detail.assignment.progress.waiting_steps} waiting ·{" "}
+                    {detail.assignment.progress.open_gap_count} open question(s)
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {Number(detail.assignment.budget?.max_cost_usd || 0) > 0 ? (
               <p
                 className="text-[10px] text-muted-foreground"
@@ -1386,6 +1430,25 @@ export function AssignmentPanel({
               onClick={() => act(() => resumeAssignment(detail.run_id), detail.run_id)}
             >
               <Play className="h-3 w-3" /> Resume
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="assignment-reassess"
+              disabled={busy || ["completed", "cancelled"].includes(
+                detail.assignment.status
+              )}
+              onClick={() =>
+                act(
+                  () => reassessAssignment(
+                    detail.run_id,
+                    "explicit reassessment from panel"
+                  ),
+                  detail.run_id
+                )
+              }
+            >
+              <RefreshCw className="h-3 w-3" /> Reassess teaching
             </Button>
             <Button
               size="sm"
