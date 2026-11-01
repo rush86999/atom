@@ -140,6 +140,7 @@ export function AssignmentPanel({
     content: "",
     recipient: "",
     expression: "",
+    lineItems: "",
     correlation: "",
     discover: false,
     scopeQuery: "",
@@ -283,7 +284,25 @@ export function AssignmentPanel({
       const measureValue = measure === "__custom__"
         ? customMeasure.trim()
         : measure;
-      if (measureValue) {
+      if (startDraft.lineItems.trim()) {
+        try {
+          const parsed = JSON.parse(startDraft.lineItems);
+          if (!parsed || typeof parsed !== "object" || !Array.isArray(
+            parsed.line_items
+          )) {
+            throw new Error("quote calculation needs a line_items array");
+          }
+          payload.calculation = parsed;
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? `Quote calculation JSON is invalid: ${err.message}`
+              : "Quote calculation JSON is invalid"
+          );
+          setBusy(false);
+          return;
+        }
+      } else if (measureValue) {
         payload.calculation = {
           aggregate: measureValue === "__count__"
             ? { operation: "count" }
@@ -331,6 +350,7 @@ export function AssignmentPanel({
         content: "",
         recipient: "",
         expression: "",
+        lineItems: "",
         correlation: "",
         discover: false,
         scopeQuery: "",
@@ -605,6 +625,23 @@ export function AssignmentPanel({
               placeholder="Formula expression (advanced; ignored when a measure is selected)"
               className="w-full rounded border px-1.5 py-1"
               aria-label="Calculation expression"
+            />
+            <textarea
+              value={startDraft.lineItems}
+              onChange={(e) =>
+                setStartDraft((d) => ({ ...d, lineItems: e.target.value }))
+              }
+              placeholder={
+                'Quote calculation JSON, e.g. {"line_items":[{"item_id":"A",'
+                + '"quantity":"2","unit":"each","pack_size":"1",'
+                + '"unit_price":"100.00","price_basis":"contract",'
+                + '"currency":"USD","category":"A"}],"currency":"USD",'
+                + '"freight":"20.00","tax":{"basis":"none"}}'
+              }
+              rows={3}
+              className="w-full rounded border px-1.5 py-1 font-mono text-[10px]"
+              aria-label="Quote calculation JSON"
+              data-testid="assignment-line-items-input"
             />
             <input
               value={startDraft.recipient}
