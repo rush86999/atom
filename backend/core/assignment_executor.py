@@ -1675,6 +1675,12 @@ class AssignmentExecutor:
 
             assignment = self._ensure_idle_ledger(assignment)
             assignment = self._checkpoint_idle(assignment)
+            if self._deadline_exceeded(assignment):
+                assignment = self._expire_assignment_deadline(assignment)
+                self._persist_assignment(
+                    run_id, assignment, "assignment business deadline passed")
+                self._set_run_status(run_id, "blocked")
+                return self.status(run_id)
 
             # Try eligible waiting/approval steps. A wait that is NOT yet
             # eligible must not return early: an independent branch whose
@@ -3645,11 +3651,23 @@ class AssignmentExecutor:
         budget["paused_seconds"] = float(budget.get("paused_seconds") or 0.0)
         legacy_wait = budget.get("waiting_since")
         if legacy_wait and not budget.get("idle_open"):
-            budget["idle_open"] = {
-                "id": f"migrated:{legacy_wait}",
-                "started_at": str(legacy_wait),
-                "reason": "migrated open wait",
-            }
+            credits = budget.get("wait_credits") or {}
+            already_credited = any(
+                isinstance(item, dict)
+                and str(item.get("started_at") or "") == str(legacy_wait)
+                for item in credits.values())
+            # Legacy rows can still carry the open-wait timestamp after the
+            # interval was added to paused_seconds. Do not invent a second
+            # credit for it.
+            ambiguous_legacy = (
+                float(budget.get("paused_seconds") or 0.0) > 0
+                and not budget.get("active_wait"))
+            if not already_credited and not ambiguous_legacy:
+                budget["idle_open"] = {
+                    "id": f"migrated:{legacy_wait}",
+                    "started_at": str(legacy_wait),
+                    "reason": "migrated open wait",
+                }
         budget["waiting_since"] = None
         budget["active_wait"] = None
         updated = copy.deepcopy(assignment)
@@ -3957,6 +3975,43 @@ class AssignmentExecutor:
             except (TypeError, ValueError):
                 pass
         return max(0.0, (self.clock() - started_at) - paused)
+
+    def _deadline_exceeded(self, assignment: Dict[str, Any]) -> bool:
+        deadline = (assignment.get("budget") or {}).get("deadline")
+        if not deadline:
+            return False
+        try:
+            return float(self.clock()) >= datetime.fromisoformat(
+                str(deadline)).timestamp()
+        except (TypeError, ValueError):
+            return False
+
+    def _expire_assignment_deadline(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """A business deadline is absolute: waits/restarts never extend it."""
+        updated = copy.deepcopy(assignment)
+        for step in updated.get("steps") or []:
+            if step.get("status") in (
+                    "applied", "skipped", "cancelled", "superseded"):
+                continue
+            step["status"] = "failed"
+            step["failure"] = {
+                "reason": "assignment_deadline_exceeded",
+                "message": "The absolute business deadline for this "
+                           "assignment has passed.",
+            }
+            step["waiting"] = None
+            step["updated_at"] = _utc_now_iso()
+        updated["status"] = "blocked"
+        updated["completed_at"] = None
+        updated["updated_at"] = _utc_now_iso()
+        updated["last_transition"] = {
+            "kind": "deadline_exceeded",
+            "deadline": (updated.get("budget") or {}).get("deadline"),
+            "at": _utc_now_iso(),
+        }
+        return updated
 
     def _budget_allows(
         self, assignment: Dict[str, Any], step: Dict[str, Any],
