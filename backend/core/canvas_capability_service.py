@@ -306,6 +306,46 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     required = manifest.get("required_approvals") or []
     if not isinstance(required, list):
         raise CapabilityError("invalid_manifest", "required_approvals must be a list.")
+    mode = str(manifest.get("assessment_mode") or "model").strip().lower()
+    if mode not in ("model", "deterministic"):
+        raise CapabilityError(
+            "invalid_manifest",
+            "assessment_mode must be 'model' or 'deterministic'.")
+    rules = manifest.get("decision_rules") or []
+    if mode == "deterministic":
+        if not isinstance(rules, list) or not rules:
+            raise CapabilityError(
+                "invalid_manifest",
+                "deterministic assessment requires decision_rules.")
+        from core.assessment_rules import OPS
+
+        if "REVIEW" not in {
+                str(item).strip().upper() for item in decisions}:
+            raise CapabilityError(
+                "invalid_manifest",
+                "deterministic assessment requires a REVIEW fallback "
+                "decision.")
+        for index, rule in enumerate(rules):
+            if not isinstance(rule, dict):
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] must be an object.")
+            if str(rule.get("decision") or "").strip().upper() not in {
+                    str(item).strip().upper() for item in decisions}:
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] decision is not allowed.")
+            conditions = rule.get("when")
+            if not isinstance(conditions, list) or not conditions:
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] requires conditions.")
+            for condition in conditions:
+                if (not isinstance(condition, dict)
+                        or str(condition.get("op") or "").lower() not in OPS):
+                    raise CapabilityError(
+                        "invalid_manifest",
+                        f"decision_rules[{index}] has an invalid condition.")
     clean = dict(manifest)
     clean.pop("manifest_revision", None)
     clean["base_component"] = base
@@ -316,6 +356,8 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     clean["task_policy"] = str(manifest.get("task_policy") or "").strip()
     clean["outputs"] = [str(x).lower() for x in outputs]
     clean["required_approvals"] = list(required)
+    clean["assessment_mode"] = mode
+    clean["decision_rules"] = list(rules)
     clean["manifest_revision"] = manifest_revision(clean)
     return clean
 
@@ -1585,50 +1627,90 @@ async def assess_operation(
         {"role": "system", "content": system},
         {"role": "user", "content": str(ask or "Assess every selected row.")},
     ]
-    review_model = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
-    if not review_model:
-        raise CapabilityError(
-            "review_model_unconfigured",
-            "ATOM_REVIEW_MODEL is not configured; refusing an unpinned review dispatch.",
-        )
-    if llm_service is None:
-        from core.llm_service import get_llm_service
+    assessment_mode = str(
+        manifest.get("assessment_mode") or "model").strip().lower()
+    if assessment_mode == "deterministic":
+        from core.assessment_rules import evaluate_row, validate_decision_rules
 
-        llm_service = get_llm_service(
-            workspace_id=canvas.workspace_id,
-            tenant_id=canvas.tenant_id,
-        )
-    answer = await generate_structured_review(
-        llm_service,
-        messages=messages,
-        model=review_model,
-        llm_scope={
-            "workspace_id": canvas.workspace_id,
-            "tenant_id": canvas.tenant_id,
-            "agent_id": (manifest.get("teaching_binding") or {}).get("agent_id"),
-        },
-    )
-    route = dict(LAST_STRUCTURED_REVIEW)
-    if not answer:
-        return {
-            "success": False,
-            "operation": "assess",
-            "canvas_id": canvas.id,
-            "status": "failed_closed",
-            "certified": False,
-            "errors": [{
-                "code": route.get("failure_kind") or "structured_review_failed",
-                "stage": route.get("failure_stage"),
-                "detail": route.get("failure_detail"),
-            }],
-            "route": route,
-            "source": source,
-            "coverage": coverage,
-            "subjects": subjects,
-            "unassessed_subjects": unassessed_subjects,
-            "manifest_revision": manifest.get("manifest_revision"),
-            "policy_revision": policy_revision(manifest),
+        try:
+            rules = validate_decision_rules(
+                manifest.get("decision_rules") or [],
+                columns=columns, decisions=decisions)
+        except ValueError as exc:
+            raise CapabilityError(
+                "invalid_manifest", f"decision_rules: {exc}", 409)
+        deterministic = []
+        for row, entry in zip(assessed_rows, evidence):
+            outcome = evaluate_row(
+                dict(row.get("cells") or {}), rules, fallback="REVIEW")
+            deterministic.append({
+                "subject_id": entry["subject_id"],
+                "decision": outcome["decision"],
+                "basis": list(outcome["basis"]),
+                "evidence_ids": [entry["evidence_id"]],
+                "policy_ids": [policy_id],
+                "unresolved_requirements": list(outcome["unresolved"]),
+            })
+        answer = (
+            "```review_result\n"
+            + json.dumps({"assessments": deterministic}, default=str)
+            + "\n```")
+        route = {
+            "ok": True,
+            "served_provider": "deterministic",
+            "served_model": "taught_rules",
+            "failure_kind": None,
+            "failure_stage": None,
+            "output_mode": "deterministic",
         }
+    else:
+        review_model = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
+        if not review_model:
+            raise CapabilityError(
+                "review_model_unconfigured",
+                "ATOM_REVIEW_MODEL is not configured; refusing an unpinned "
+                "review dispatch.",
+            )
+        if llm_service is None:
+            from core.llm_service import get_llm_service
+
+            llm_service = get_llm_service(
+                workspace_id=canvas.workspace_id,
+                tenant_id=canvas.tenant_id,
+            )
+        answer = await generate_structured_review(
+            llm_service,
+            messages=messages,
+            model=review_model,
+            llm_scope={
+                "workspace_id": canvas.workspace_id,
+                "tenant_id": canvas.tenant_id,
+                "agent_id": (
+                    manifest.get("teaching_binding") or {}).get("agent_id"),
+            },
+        )
+        route = dict(LAST_STRUCTURED_REVIEW)
+        if not answer:
+            return {
+                "success": False,
+                "operation": "assess",
+                "canvas_id": canvas.id,
+                "status": "failed_closed",
+                "certified": False,
+                "errors": [{
+                    "code": route.get("failure_kind")
+                    or "structured_review_failed",
+                    "stage": route.get("failure_stage"),
+                    "detail": route.get("failure_detail"),
+                }],
+                "route": route,
+                "source": source,
+                "coverage": coverage,
+                "subjects": subjects,
+                "unassessed_subjects": unassessed_subjects,
+                "manifest_revision": manifest.get("manifest_revision"),
+                "policy_revision": policy_revision(manifest),
+            }
     review = build_review_result(
         execution_id=execution_id,
         requested_records=subjects,
@@ -1650,14 +1732,28 @@ async def assess_operation(
     if unresolved_subjects:
         review_reasons.append("unresolved_requirements")
     serving = assessment_serving_configuration(route.get("served_provider"))
-    qualification = assessment_qualification(
-        route.get("served_provider"), route.get("served_model"),
-        policy_text=manifest.get("task_policy") or "",
-        decision_options=manifest.get("decision_options") or [],
-        subject_field=(manifest.get("data_binding") or {}).get("subject_field"),
-        contract_version=review.get("schema_version"),
-        serving=serving,
-    )
+    if route.get("served_provider") == "deterministic":
+        qualification = {
+            "qualified": True,
+            "status": "deterministic_rules",
+            "configuration_id": "deterministic:taught_rules",
+            "contract_version": review.get("schema_version"),
+            "scope_reasons": [],
+            "checked_at": _now().isoformat(),
+            "note": (
+                "The decisions were produced by the manifest's versioned "
+                "taught rules, not by a model."),
+        }
+    else:
+        qualification = assessment_qualification(
+            route.get("served_provider"), route.get("served_model"),
+            policy_text=manifest.get("task_policy") or "",
+            decision_options=manifest.get("decision_options") or [],
+            subject_field=(
+                manifest.get("data_binding") or {}).get("subject_field"),
+            contract_version=review.get("schema_version"),
+            serving=serving,
+        )
     if review_policy == _REVIEW_POLICY_ALWAYS:
         review_reasons.append("review_policy_always")
     else:

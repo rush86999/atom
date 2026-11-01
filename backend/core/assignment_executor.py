@@ -3924,6 +3924,20 @@ class AssignmentExecutor:
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
 
+    def _adapter_allows_standing(self, adapter: Any) -> bool:
+        metadata = getattr(adapter, "metadata", None) or {}
+        if metadata.get("allow_standing_authorization"):
+            return True
+        # The real Outlook transport opts in only when BOTH the live send and
+        # bounded live standing authority are explicitly enabled. The shipped
+        # default remains approval-only.
+        return bool(
+            getattr(adapter, "name", "") == "email.send_outlook"
+            and os.getenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") == "1"
+            and os.getenv(
+                "ATOM_ASSIGNMENT_ALLOW_STANDING_LIVE_SEND", "0") == "1"
+        )
+
     def _standing_grant_covers(
         self, assignment: Dict[str, Any], step: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
@@ -3942,8 +3956,7 @@ class AssignmentExecutor:
                 step.get("operation_type") or "") != "outbound":
             return None
         adapter = self.adapters.get(step.get("adapter") or "")
-        if adapter is None or not (adapter.metadata or {}).get(
-                "allow_standing_authorization"):
+        if adapter is None or not self._adapter_allows_standing(adapter):
             return None
         if int(grant.get("used_effects") or 0) >= int(
                 grant.get("max_effects") or 0):

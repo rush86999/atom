@@ -536,8 +536,13 @@ def validate_proposed_plan(
                 f"step {step['step_id']} requires actions "
                 f"{sorted(required_actions)} outside the accepted authority "
                 f"{sorted(accepted_actions)}")
-        if step.get("standing_authorization") and not metadata.get(
-                "allow_standing_authorization"):
+        standing_allowed = bool(metadata.get(
+            "allow_standing_authorization")) or (
+            step.get("adapter") == "email.send_outlook"
+            and os.getenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") == "1"
+            and os.getenv(
+                "ATOM_ASSIGNMENT_ALLOW_STANDING_LIVE_SEND", "0") == "1")
+        if step.get("standing_authorization") and not standing_allowed:
             raise AssignmentPlanError(
                 f"step {step['step_id']} invents standing authorization; "
                 f"the adapter does not accept it")

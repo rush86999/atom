@@ -1,0 +1,20 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-deterministic-judgment",
+  "source_checkpoint": "merged-candidate",
+  "final_candidate": "merged-candidate",
+  "files": {
+    "README.md": {
+      "sha256": "4aed5979a775de76d95b97da37dd8630bfb7f5ff6b067f4f59d8bb55485f11c1",
+      "bytes": 1999
+    },
+    "deterministic-judgment.log": {
+      "sha256": "020cd6ba9777e5a61683caa13e70ad0fd0edcedca59e14e714990d14d99af105",
+      "bytes": 4206
+    },
+    "deterministic-qualification.json": {
+      "sha256": "4f3bc110f1c7ddadee30eb320485beb1e726f4404752ad8ee91379e0f3b61993",
+      "bytes": 15083
+    }
+  }
+}
