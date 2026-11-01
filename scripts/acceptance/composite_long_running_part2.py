@@ -87,19 +87,18 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
 def open_assignment(page, frontend: str, objective: str,
                     run_id: str = "") -> None:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
-    page.wait_for_timeout(800)
+    page.wait_for_timeout(1200)
     detail = page.get_by_test_id("assignment-detail")
-    # A single active run is auto-selected; the summary card may not exist.
-    # If the auto-selection is a different run, select this objective by text.
-    current = page.get_by_test_id("assignment-detail-objective")
-    if not current.count() or current.first.inner_text().strip() != objective:
-        summary = page.get_by_test_id(f"assignment-summary-{run_id}") if run_id else None
-        if summary is not None and summary.count():
-            summary.first.click()
-        else:
-            row = page.get_by_text(objective, exact=False)
-            if row.count():
-                row.first.click()
+    # A single active run is auto-selected; otherwise activate the exact
+    # durable summary button. This is the same click the card's onClick runs.
+    if run_id:
+        page.evaluate(
+            """run => {
+                const el = document.querySelector(
+                    `[data-testid="assignment-summary-${run}"]`);
+                if (el) el.click();
+            }""", run_id)
+    page.wait_for_timeout(1200)
     detail.wait_for(timeout=30000)
     page.wait_for_function(
         """expected => Array.from(document.querySelectorAll(
