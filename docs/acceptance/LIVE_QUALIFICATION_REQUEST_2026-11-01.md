@@ -119,35 +119,40 @@ Subject:
 [Atom qualification] One authorized send 2026-11-01
 ```
 
-Body (fixed qualification text):
+### Verbatim final body — exact bytes
 
-```text
+This is the full body that will be placed in the assignment and therefore bound
+in the approved operation. It already contains the account's stored signature;
+the product will not append a second signature. The authoritative bytes are in
+`LIVE_QUALIFICATION_B_BODY.txt` (UTF-8, no trailing newline); the block below is
+the same string for review.
+
+~~~text
 This is the single authorized Outlook qualification message from Atom.
 
 It verifies the real send path, one-use authorization, and Sent Items reconciliation. No action is required.
-```
 
-The qualification assignment uses a fresh employee with no email-format
-teaching, so the only body transformation is the account's existing stored
-signature, which the product appends to agent-initiated sends. The exact final
-body, including that signature, has SHA-256:
+</div><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)">Regards,</div><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)"><br></div><div style="font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)"><b><i>Rish M.</i></b></div><div style="font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)"><b><i>Brennan Machinery Inc.</i></b></div><div style="font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)"><span style="color:black"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style="color:blue"><a href="http://www.brennan.ca/" target="_blank" rel="noopener noreferrer" style="color:blue; margin:0px"><u>www.brennan.ca</u></a></span></div><div style="font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt"><span class="spanWithBackgroundColor" style="color:red; background-color:rgb(255,255,255)"><b><i>How am I doing?</i></b></span><span class="spanWithBackgroundColor" style="color:rgb(68,84,106); background-color:rgb(255,255,255)"><b><i>&nbsp;</i></b><a href="https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0" title="https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style="border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%"><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style="border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%"><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)"><span class="spanWithBackgroundColor" style="background-color:rgb(255,255,255)">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style="font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)"><span class="spanWithBackgroundColor" style="background-color:rgb(255,255,255)"><br></span></div></div><div id="appendonsend">
+~~~
 
-```text
-e9c70d6f532d31d22455a2ecd7ba5cd45ec537a921686b6466f2ce2a3e8bf58d
-```
+The exact Graph wire body is `_body_to_html(final_body)`; it is saved byte-for-byte
+in `LIVE_QUALIFICATION_B_BODY.html`. A rendered preview is
+`LIVE_QUALIFICATION_B_BODY.png`.
 
-The canonical content hash over
-`{to, cc, subject, body, attachments}` (with `to=["rish@brennan.ca"]`,
-`cc=[]`, `attachments=[]`) is:
+### Frozen hashes
 
-```text
-1b0ce7903a14361502bdc9d18d90b7e6d1bb1b93341c8f330a7f4c73326bb183
-```
+| Object | SHA-256 |
+|---|---|
+| Final body (`LIVE_QUALIFICATION_B_BODY.txt`) | `0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696` |
+| Graph wire HTML (`LIVE_QUALIFICATION_B_BODY.html`) | `ef3472ddc5401b8ab700b9545f75193042afc8958c9ec3f0994680cfd9783e67` |
+| Canonical content `{to, cc, subject, body, attachments}` | `0610425628b13cb08f7b38309a27a33720dd6b7c675afd626c95482e6323a74e` |
+| Subject | `7434a12f5d2e84dfc6d302909ade326198207fd0f4ba8c9a85042cf890dc3f4f` |
 
-Immediately before transport the product payload is re-hashed; any mismatch
-aborts the send. If you require a body without the stored signature, say so;
-signature suppression is not currently exposed as a product option and would
-need a separate decision.
+Canonical content uses `to=["rish@brennan.ca"]`, `cc=[]`,
+`attachments=[]`, and the final body above. If the recipient, signature or body
+changes, the payload binding must be regenerated and re-authorized before
+sending. The pre-dispatch check recomputes all four hashes; any mismatch aborts
+the send.
 
 ## Approval window and reconciliation
 
@@ -168,8 +173,10 @@ need a separate decision.
 
 1. enable both live-send flags only for this run;
 2. recheck `GET /me` mailbox identity, recipient, grant window and revocation;
-3. prepare the exact draft, re-hash subject/body/payload, atomically claim the
-   durable operation;
+3. prepare the draft from `LIVE_QUALIFICATION_B_BODY.txt` exactly (the body
+   already contains the signature, so no second append), re-hash subject, final
+   body, wire HTML and canonical payload, then atomically claim the durable
+   operation; any mismatch aborts;
 4. send through `email.send_outlook` under the one-use grant;
 5. record provider acceptance separately, reconcile the exact Sent Items row,
    verify recipient/subject/body, and confirm no second effect after resume;
