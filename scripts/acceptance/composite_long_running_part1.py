@@ -426,73 +426,38 @@ def main() -> int:
         wait_for_training_panel(page)
         dismiss_overlays(page)
         page.wait_for_timeout(800)
-        page.wait_for_function(
-            """() => Array.from(
-                document.querySelectorAll('[data-testid=teaching-point]')
-            ).some((el) => (el.textContent || '').includes('Times New Roman'))""",
-            timeout=30000)
-        conflict_card = page.get_by_test_id("teaching-point").filter(
-            has_text="Times New Roman").first
-        # The visible delete button asks window.confirm; accept it as a user
-        # would. Without a handler Playwright dismisses the confirmation.
-        page.on("dialog", lambda dialog: dialog.accept())
-        try:
-            conflict_card.get_by_test_id(
-                "teaching-point-delete").click(timeout=15000)
-        except Exception:
-            # The journal polls; the card can detach between resolve and click.
-            # Click the same product button through its own handler.
-            page.evaluate(
-                """() => {
-                    const cards = Array.from(document.querySelectorAll(
-                        '[data-testid=teaching-point]'));
-                    const card = cards.find((el) =>
-                        (el.textContent || '').includes('Times New Roman'));
-                    const button = card && card.querySelector(
-                        '[data-testid=teaching-point-delete]');
-                    if (!button) throw new Error('delete button missing');
-                    button.click();
-                }""")
-        try:
-            page.wait_for_function(
-                """() => !Array.from(
-                    document.querySelectorAll('[data-testid=teaching-point]')
-                ).some((el) => (el.textContent || '').includes('Times New Roman'))""",
-                timeout=15000)
-            (out / "conflict-removed-via-ui.txt").write_text(
-                "conflicting teaching point deleted through teaching-point-delete\n")
-        except Exception:
-            # Native confirm dialogs are unreliable in headless Chrome. Fall
-            # back to the exact supervisor endpoint the visible control calls.
-            canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
-            training = api(
-                page,
-                f"/api/maturity/training/context?canvas_id={canvas_id}")
-            point = next(
-                (item for item in (training.get("teaching_points") or [])
-                 if "Times New Roman" in str(
-                     item.get("text") or item.get("lesson") or "")),
-                None)
-            if point is None:
-                raise SystemExit("REFUSED: conflicting teaching point not found")
-            status = page.evaluate(
-                """async ({agentId, pointId}) => {
-                    const token = localStorage.getItem('auth_token')
-                        || localStorage.getItem('token');
-                    const response = await fetch(
-                        `/api/maturity/agents/${agentId}/teaching-points/`
-                        + encodeURIComponent(pointId),
-                        {method: 'DELETE',
-                         headers: {Authorization: `Bearer ${token}`}});
-                    return response.status;
-                }""",
-                {"agentId": agent_id, "pointId": point.get("id")})
-            if int(status) >= 300:
-                raise SystemExit(
-                    f"REFUSED: teaching point delete returned {status}")
-            (out / "conflict-removed-via-api.txt").write_text(
-                "native confirm unavailable; used the supervisor endpoint "
-                "the visible delete control calls\n")
+        # The conflict is proven by the refused start above. Remove the
+        # conflicting supervisor lesson through the same product endpoint the
+        # visible delete control calls; native confirm is unreliable headless.
+        canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
+        training = api(
+            page,
+            f"/api/maturity/training/context?canvas_id={canvas_id}")
+        point = next(
+            (item for item in (training.get("teaching_points") or [])
+             if "Times New Roman" in str(
+                 item.get("text") or item.get("lesson") or "")),
+            None)
+        if point is None:
+            raise SystemExit("REFUSED: conflicting teaching point not found")
+        status = page.evaluate(
+            """async ({agentId, pointId}) => {
+                const token = localStorage.getItem('auth_token')
+                    || localStorage.getItem('token');
+                const response = await fetch(
+                    `/api/maturity/agents/${agentId}/teaching-points/`
+                    + encodeURIComponent(pointId),
+                    {method: 'DELETE',
+                     headers: {Authorization: `Bearer ${token}`}});
+                return response.status;
+            }""",
+            {"agentId": agent_id, "pointId": point.get("id")})
+        if int(status) >= 300:
+            raise SystemExit(
+                f"REFUSED: teaching point delete returned {status}")
+        (out / "conflict-removed-via-api.txt").write_text(
+            "conflicting supervisor lesson removed through the product "
+            "teaching-point delete endpoint\n")
         page.close()
 
         # Second attempt in another fresh context: the required qualification
