@@ -17,7 +17,8 @@ and broad model campaigns were not performed.
 | **Cancellation repair** | **`f5d2e085a`** / backend tree `d37da0be5943` (frontend unchanged) |
 | **Budget pause-credit repair** | **`bec60978b` + `019aa1eeb`** / backend tree `c2963fbcdc8e` |
 | **Post-acceptance verified source** | **`f1ef414c3`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` (63 focused tests) |
-| Bundle/docs HEAD | `423234bfe`; later first-use commits (`8b1abd7e6`, `f84fa32f6`) change the frontend and are **not** part of the verified budget tree |
+| Launcher memory-path fix | **`d8120737e`** (both `LANCEDB_URI` and `LANCEDB_URI_BASE` at the world root), frontend tree `756642ecb165` |
+| Bundle/docs HEAD | `d8120737e`; first-use focused smoke included, full clean-install/sample not re-run |
 | Product diff repair vs campaigns | cancellation files plus the budget-credit files (`assignment_executor.py`, `assignment_plan.py`, `test_assignment_executor.py`) |
 
 The campaign sources and the repair source are deliberately distinct: the
@@ -337,6 +338,31 @@ described as unaffected.
 C2 ran on `414d8add3` and does not load this repair; its budget snapshots are
 historical execution, not a relabelled verification of the repaired code.
 
+## 4d. Launcher memory-path correction and first-use focused smoke
+
+Source `d8120737e`, backend tree `c2963fbcdc8e`, frontend tree
+`756642ecb165`.
+
+- Finding: the launcher exported `LANCEDB_URI` but workspace handlers read
+  `LANCEDB_URI_BASE`, falling back to `./data/atom_memory` and anchoring to
+  `backend/` — the repository-shared memory root. Both variables now point at
+  `<world>/data/atom_memory`.
+- Verified on a fresh world: `Connecting to LanceDB at
+  <world>/data/atom_memory/default_shared`; **zero** repository-shared path
+  occurrences. No shared memory was copied, deleted or migrated.
+- Focused first-use smoke on current HEAD: assignments panel loads after login,
+  Demo Assistant selectable, agents page reachable, no page errors. Evidence:
+  `first_use_smoke_20261101/`.
+- This is a focused smoke of the changed first-use surfaces and launcher memory
+  path, not a re-run of the full clean-install/sample job.
+
+**C2 harness version:** the accepted closure ran on corrected working-tree
+content before it was committed. Executed SHA-256
+`e89d2e8253fcfe6bc5e8167f30b2a57e4361318197e39f8506feea811f23b90b`,
+committed as `6747c1957`; the checkout was **not** clean at execution. The
+committed content matches the executed content
+(`long-run-20261101_b/harness-version.json`).
+
 ## 5. Tests run once on the integrated source
 
 | Suite | Source | Result |
@@ -440,11 +466,12 @@ proposal above and are not counted.
   `f5d2e085a` and budget repair `019aa1eeb` are later product sources. C2 does
   not exercise cancellation or the repaired budget ledger; it is historical
   execution evidence, not verification of those repairs.
-- **First-use path pending its own smoke:** commits after `f1ef414c3`
-  (`8b1abd7e6`, `f84fa32f6`) change the frontend AssignmentPanel/dev-origin
-  behavior. They are outside the verified `c2963fbcdc8e` budget tree and are
-  not called the recommended launch path until a focused first-use smoke is
-  recorded.
+- **First-use focused smoke is recorded** on `d8120737e` (panel loads, Demo
+  Assistant selectable, no page errors) together with the world-owned memory
+  path. The full clean-install/sample job was not re-run; the prior accepted
+  path remains at its recorded source.
+- The C2 closure harness was executed from a non-clean working tree; the exact
+  executed content hash is recorded and matches its commit `6747c1957`.
 - The accepted tag `accepted-local-2026-11-01-90pct` is preserved. The
   post-acceptance budget finding is appended to
   `docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md`; the old baseline is not

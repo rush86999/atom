@@ -83,6 +83,20 @@ example `8b1abd7e6`, frontend `AssignmentPanel.tsx`) are outside the accepted
 budget tree and need their own focused smoke before they become the recommended
 launch path. They are not counted as accepted by this record.
 
+## Launcher memory-path handoff (focused repair)
+
+| Item | Value |
+|---|---|
+| Finding | The acceptance launcher exported `LANCEDB_URI` only. Workspace handlers read `LANCEDB_URI_BASE` and fell back to `./data/atom_memory`, which `_resolve_local_db_path` anchors to `backend/`, silently reusing the repository-shared memory root. |
+| Repaired successor | `d8120737e` (launcher + evidence), backend tree `c2963fbcdc8e`, frontend tree `756642ecb165` |
+| Fix | Both `LANCEDB_URI` and `LANCEDB_URI_BASE` point at `<world>/data/atom_memory`; no shared memory was copied, deleted or migrated. |
+| Path verification | Fresh world log: `Connecting to LanceDB at <world>/data/atom_memory/default_shared`; zero occurrences of the repository-shared path. |
+| First-use focused smoke | Current HEAD + repaired launcher on world `first_use_smoke_20261101`: assignments panel loads after login, Demo Assistant selectable, agents page reachable, no page errors, world-owned memory path. Evidence: `docs/acceptance/evidence/first_use_smoke_20261101/`. |
+
+This is a focused smoke of the changed first-use surfaces and the launcher
+memory path, not a re-run of the full clean-install/sample job. The previously
+accepted clean-install path remains at its recorded source.
+
 ## Accepted practical scope
 
 - Complex teaching, conflict/qualification refusals, unfamiliar-data mappings,
