@@ -1,0 +1,124 @@
+
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor 
+-------------------------------- live log setup --------------------------------
+2026-11-01 14:38:00 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-01 14:38:00 [    INFO] EscalationManager initialized
+2026-11-01 14:38:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:38:00 [    INFO] EscalationManager initialized
+2026-11-01 14:38:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 14:38:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 14:38:00 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:00 [    INFO] runtime identity: source_id=88bf413e8431-dirty.5290730bdfa1 revision=88bf413e8431 dirty=True (2 modified, 0 untracked)
+PASSED                                                                   [  1%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [  3%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [  4%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [  6%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [  8%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [  9%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 11%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 13%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 14%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 16%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 18%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 19%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 21%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 22%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 24%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 26%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 27%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 29%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 31%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 32%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 34%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 36%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 37%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 39%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 40%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 42%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 44%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 45%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 47%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 49%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 50%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 52%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 54%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 55%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 57%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 59%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 60%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 62%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 63%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 65%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:05 [    INFO] Created HITL action d84b9f96-25ff-4671-90f2-58bb4a395310 for agent None
+PASSED                                                                   [ 67%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:05 [    INFO] Created HITL action 59ea8a7b-6309-4119-9eeb-a60d40b8db37 for agent None
+PASSED                                                                   [ 68%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:06 [    INFO] Created HITL action acb69a47-e036-4612-ad3a-eaf868ae22bd for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:06 [    INFO] Created HITL action 62f85452-3af8-4939-ba14-db7abfd8f618 for agent None
+PASSED                                                                   [ 72%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-01 14:38:06 [    INFO] Created HITL action 2c2227f1-6852-47de-b638-a5448e024bb9 for agent None
+PASSED                                                                   [ 73%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 75%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 77%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 78%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 80%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 81%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 83%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 85%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 86%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 88%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 90%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 91%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 93%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 95%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 96%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 98%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 122 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 61 passed, 128 warnings in 21.20s =======================
