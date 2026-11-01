@@ -5,14 +5,14 @@ contract. The prior ledger and its appended history are preserved separately
 at `docs/acceptance/PRODUCT_GOAL_LEDGER_HISTORY_2026-10-29.md`; historical
 statuses there do not override this table.
 
-**Candidate source:** `74464af69f98` on branch
-`codex/employee-execution-readiness` (product code `0aa6105e4872`; guided rule
+**Accepted candidate:** `a49b854ce660` on branch
+`codex/employee-execution-readiness` (evidence head `d3e8ba961`; guided rule
 authoring in `bc164fb96632`; accepted product source `b7ee7ee22`)
 (evidence source `06d80f834`; product teaching `3e344f5b1`; Agent 2
 README-readiness merge `931892be0`). The post-repair journey and 24-sheet
 evidence executed on `31ba9725e02a`; the unforced teaching and guided-rule
-smokes on `bc164fb96632`; both authorized live qualifications executed on
-`0aa6105e4872` and verified after restart at `74464af69f98`. **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
+smokes on `bc164fb96632`; the one-use send on `0aa6105e4872`; the connector
+entry point and oversized-input rejection on `a49b854ce660`. **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
 `ATOM_LOCAL_ONLY=true`, `ATOM_TURN_DECISION_ROUTING=0`,
 `ATOM_TASK_LIFECYCLE_ENABLED=1`, scheduler and ingestion sync off, controlled
 assignment transport with a local outbox. Backend `127.0.0.1:8071`, frontend
@@ -32,7 +32,7 @@ reliability.
 | 1 | Create/select an employee, teach it a method, start work on an uploaded source, and complete the same job in a different business domain | `core/assignment_planner.py`, `core/assignment_executor.py`, `core/table_selection.py`, `core/dataset_aggregation.py`, `core/student_learning_service.py` | `06d80f834`; controlled local world; two domains through the same UI/API mechanisms | Sales quote and grant-review composite runs: `sales-composite-2/verify.json`, `grants-composite-2/verify.json` (400.00 USD and 4250.00 USD, mapped columns, DOCX, email draft, approval, restart) | Arbitrary domains, schemas and business policies are not claimed. Two domains are demonstrated, not universal competence. |
 | 2 | Teach general method, contextual exception, qualification, effective period, conflict, formatting, email protocol, correction, and transfer to new work; review a conversation-derived guidance lesson without inventing a calculation | `core/conversation_learning.py`, `core/student_learning_service.py`, `core/artifact_teaching.py`, `core/chat_orchestrator.py`, `core/chat_teaching_runtime.py`, `core/method_operands.py` | `06d80f834` (guidance-only + format/protocol promotion in `3e344f5b1`); local candidate | Composite: conflict `font_name`, missing `qualification`, expired lesson exclusion, `[Quote]`/`[Grant]` protocol, revised teaching, second source. Conversation review: guidance-only candidate promoted with `method_status=not_applicable`, `format_spec` persisted, `lesson_id dffc99c4…` (`conversation-guidance/`). 284 targeted backend tests passed. Unforced Teaching smoke on the stock build: optional fields opened by click, form filled without `force=True`, lesson recorded and survived reload (`employee-execution-unforced-teaching/`, 9/9). | Arbitrary prose cannot be made deterministic; every renderer field and every possible instruction are not claimed. Discretionary assessment quality remains bounded by the configured review model. |
 | 3 | Resolve unfamiliar columns and units; confirm or correct a mapping; resume the same assignment | Mapping resolver in `core/artifact_teaching.py`; gap/correction and resume in `core/assignment_executor.py` and `backend/api/assignment_routes.py`; `AssignmentPanel` UI | `06d80f834`; sales `Price → Gross Amount`, grants `Approved Amount → Award Amount` and `Approved Amount → Approved Award` | `sales-composite-2/verify.json`, `grants-composite-2/verify.json`; mapping/unit/stale tests in the 284-pass suite | Arbitrary Excel schemas and every authority surface are not claimed. |
-| 4 | Upload/connect authorized data and retrieve it for work | `core/assignment_resources.py`, `core/sheet_dataset_service.py`, document/data ingestion, shared OAuth resolver | Current candidate; **live Microsoft read-only executed** on `rish@brennan.ca` / tenant `8899c7a5…`; no write or credential change | `live_qualification_20261101/part-a/`: normal resolver, `/me`, message/attachment reads, product materialization 8/8 rows, source picker, assignment **216700.00**, restart/reopen; local upload and 24-sheet evidence remain in `employee-execution-*` | Declared Outlook workbook attachment only; no other connector, write or send claim. |
+| 4 | Upload/connect authorized data and retrieve it for work | `core/assignment_resources.py`, `core/sheet_dataset_service.py`, document/data ingestion, shared OAuth resolver | Current candidate; **live Microsoft read-only executed** on `rish@brennan.ca` / tenant `8899c7a5…`; no write or credential change | `live_qualification_20261101/part-a/`: normal resolver, `/me`, message/attachment reads, product materialization 8/8 rows, source picker, assignment **216700.00**, restart/reopen; `part-a-connector/`: normal product `email_ingest_message` API refreshed the catalog and a new assignment returned 216700.00; local upload and 24-sheet evidence remain in `employee-execution-*` | Declared Outlook workbook attachment only; no other connector, write or send claim. |
 | 5 | Ingest large/multi-sheet workbooks and supported formulas; retrieve and calculate with citations | Workbook ingestion, `sheet_dataset_service`, formula sidecar/evaluator, `dataset_aggregation` | Current merged candidate; 24-sheet XLSX with arithmetic and cross-sheet `SUM` formulas | `employee-execution-large-workbook/`: 24 sheets, 500 data rows / 547 catalog rows, leading-zero IDs and blanks; 25-row assignment retrieval **1725.00** without supplied rows; `B2 2→5` sync update `recalc_status=complete`, `D2=55`, `Summary!B2=1758`, `B22=34533`; UI export byte-identical; restart/reopen shows 24 sheets and persisted values. Two-sheet edit/export/reload 6/6 remains in `employee-execution-office-workbook/` | Arbitrary Excel functions, macros, charts, external links and full compatibility not claimed. |
 | 6 | Create a user canvas, bind data, calculate, edit with readback, export XLSX, reload | Canvas capability manifest/adapter, authoritative frame, revision-checked edits, office export | Current merged candidate; table adapter | `employee-execution-canvas-capability/`: 290 → edit 110 → 325; XLSX export; reload `revision 2 · 4 rows`; no page errors | Arbitrary spreadsheet controls/formulas/future components not claimed. |
 | 7 | Grounded selection, calculation and assessment with citations | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, `core/assessment_rules.py`, review contract, deterministic receipts | Current merged candidate; deterministic rules for rule-expressible policies | `employee-execution-deterministic-judgment/`: V1 18/18, V3 19/19, safe abstention passed; `employee-execution-deterministic-rule-authoring/`: rules authored in the ordinary capability panel, `served_provider=deterministic`, `D-1 APPROVE / D-2 REVIEW / D-3 DENY`; `employee-execution-guided-rule-authoring/`: rules built with selects/inputs (no JSON), server-validated, assessed and approved, 13/13; model `ollama`/`llama3.1:8b` remains **failed** (17/18 V1, 18/19 V3) | Model-dependent judgment is unqualified; deterministic path does not interpret arbitrary prose. |
@@ -57,11 +57,12 @@ reliability.
   ledger; they are explicitly deferred by the owner and are not completion
   gates.
 - Both current-candidate live qualifications in
-  `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` have been executed and submitted
-  for independent review: Microsoft read-only
+  `LIVE_QUALIFICATION_REQUEST_2026-11-01.md` have been executed and
+  **independently accepted within the documented scope** (final record:
+  `FINAL_ACCEPTANCE_2026-11-01.md`): Microsoft read-only
   connection/ingestion/retrieval, and the specifically authorized Outlook send.
   Accepted local evidence is closed and should not be rerun without a relevant
-  change. This ledger does not self-grant overall acceptance.
+  change.
 
 ## Settings BYOK refresh
 

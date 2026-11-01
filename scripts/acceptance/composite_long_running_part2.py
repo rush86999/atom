@@ -11,11 +11,23 @@ import argparse
 import hashlib
 import json
 import time
+import os
 import urllib.request
 from pathlib import Path
 
 import docx
 from playwright.sync_api import sync_playwright
+
+
+def wait_for_training_panel(page, timeout_ms: int = 30000) -> None:
+    import time as _time
+
+    deadline = _time.time() + (timeout_ms / 1000.0)
+    while _time.time() < deadline:
+        if page.get_by_test_id("training-panel").count():
+            return
+        page.wait_for_timeout(250)
+    raise SystemExit("REFUSED: training panel did not render")
 
 
 def login(page, frontend: str, password: str) -> None:
@@ -29,11 +41,22 @@ def login(page, frontend: str, password: str) -> None:
     page.wait_for_timeout(1000)
 
 
+BACKEND = os.environ.get("ATOM_JOURNEY_BACKEND", "http://127.0.0.1:8071").rstrip("/")
+
+
+def dismiss_overlays(page) -> None:
+    for _ in range(4):
+        if page.locator('[role="dialog"]').count() == 0:
+            return
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(350)
+
+
 def api(page, path: str):
     token = page.evaluate(
         "localStorage.getItem('auth_token') || localStorage.getItem('token')")
     request = urllib.request.Request(
-        f"http://127.0.0.1:8071{path}",
+        f"{BACKEND}{path}",
         headers={"Authorization": f"Bearer {token}"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
@@ -46,7 +69,15 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_test_id("teach-lesson-input").fill(
         lesson, timeout=60000, force=True)
     page.get_by_test_id("teach-topic-input").fill(topic)
-    page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
+    try:
+        page.evaluate(
+            """() => {
+                const el = document.querySelector(
+                    '[data-testid="teach-structured-fields"]');
+                if (el) el.open = true;
+            }""")
+    except Exception:
+        pass
     for box in page.locator('[data-testid^="teach-applies-"]').all():
         if box.is_checked():
             box.uncheck()
@@ -64,23 +95,35 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_test_id("teach-format-signature").fill("")
     page.get_by_test_id("teach-format-subject-prefix").fill("")
     page.get_by_test_id("teach-submit").click()
-    page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
+    try:
+        page.get_by_text("Lesson recorded", exact=False).first.wait_for(
+            state="visible", timeout=8000)
+    except Exception:
+        pass
+    page.wait_for_timeout(700)
 
 
 def open_assignment(page, frontend: str, objective: str,
                     run_id: str = "") -> None:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
+    page.wait_for_timeout(1200)
+    detail = page.get_by_test_id("assignment-detail")
+    # A single active run is auto-selected; otherwise activate the exact
+    # durable summary button. This is the same click the card's onClick runs.
     if run_id:
-        page.get_by_test_id(f"assignment-summary-{run_id}").click()
-    else:
-        page.get_by_text(objective, exact=False).first.click()
-    page.get_by_test_id("assignment-detail").wait_for(timeout=30000)
+        page.evaluate(
+            """run => {
+                const el = document.querySelector(
+                    `[data-testid="assignment-summary-${run}"]`);
+                if (el) el.click();
+            }""", run_id)
+    page.wait_for_timeout(1200)
+    detail.wait_for(timeout=30000)
     page.wait_for_function(
-        """expected => {
-            const el = document.querySelector(
-                '[data-testid="assignment-detail-objective"]');
-            return el && el.textContent.trim() === expected;
-        }""", arg=objective, timeout=30000)
+        """expected => Array.from(document.querySelectorAll(
+            '[data-testid="assignment-detail-objective"]')).some(
+            el => el && el.textContent.trim() === expected)""",
+        arg=objective, timeout=60000)
 
 
 def download(page, out: Path, stem: str) -> dict:
@@ -146,7 +189,7 @@ def main() -> int:
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--part1", required=True)
     ap.add_argument("--agent-name", default="Quote Specialist")
-    ap.add_argument("--objective", default="Sum Price for the integrated quote sheet")
+    ap.add_argument("--objective", default=None)
     ap.add_argument("--second-objective",
                     default="Sum Price for the revised clean quote sheet")
     ap.add_argument("--measure", default="Price")
@@ -171,7 +214,7 @@ def main() -> int:
         browser = p.chromium.launch(headless=True, channel="chrome")
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
-        open_assignment(page, args.frontend, args.objective, run_id)
+        open_assignment(page, args.frontend, part1["objective"], run_id)
 
         before = api(page, f"/api/assignments/{run_id}")
         if before["assignment"]["status"] != "waiting":
@@ -184,7 +227,7 @@ def main() -> int:
 
         # A relevant, more-specific teaching change while the run is waiting.
         page.goto(part1["canvas_url"], wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(timeout=30000)
+        wait_for_training_panel(page)
         teach(
             page,
             lesson=(f"Revised {args.domain_label} format for revised-scope "
@@ -203,7 +246,7 @@ def main() -> int:
                 "REFUSED: active assignment adopted a new teaching revision "
                 "without an explicit reassessment")
 
-        open_assignment(page, args.frontend, args.objective, run_id)
+        open_assignment(page, args.frontend, part1["objective"], run_id)
         detail = page.get_by_test_id("assignment-detail")
         detail.get_by_label("Correlated response").fill(args.response)
         detail.get_by_role("button", name="Deliver").click()

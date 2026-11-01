@@ -177,7 +177,7 @@ def main() -> int:
     ):
         os.environ.pop(name, None)
     os.environ.update({
-        "TESTING": "1",
+        "TESTING": "0",
         "ADMIN_PASSWORD": "byok-settings-chat-pass",
         "SECRET_KEY": "byok-settings-chat-secret",
         "DATABASE_URL": f"sqlite:///{TMP}/atom.db",
@@ -280,6 +280,10 @@ def main() -> int:
             after_removal = handler_state()
             third = chat("byok-settings-chat-3", "Goodbye")
             third_calls = len(Recorder.calls)
+            try:
+                third_json = third.json()
+            except Exception:
+                third_json = {}
 
         first_auth = Recorder.calls[0] if Recorder.calls else ""
         second_auth = (
@@ -299,6 +303,9 @@ def main() -> int:
             "first_key_seen": first_auth.endswith(KEY_ONE),
             "replacement_key_seen": second_auth.endswith(KEY_TWO),
             "removed_key_not_resent": third_calls == second_calls,
+            "third_failed_closed": (
+                third.status_code != 200
+                or third_json.get("success") is not True),
             "keys_absent_from_logs": (
                 KEY_ONE not in log_text and KEY_TWO not in log_text),
             "log_chars": len(log_text),
@@ -354,6 +361,7 @@ def main() -> int:
             and result["first_key_seen"]
             and result["replacement_key_seen"]
             and result["removed_key_not_resent"]
+            and result["third_failed_closed"]
             and result["keys_absent_from_logs"]
         )
         result["status"] = "passed" if passed else "failed"

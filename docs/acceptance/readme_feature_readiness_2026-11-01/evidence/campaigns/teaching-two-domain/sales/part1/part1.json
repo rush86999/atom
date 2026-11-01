@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Quote Specialist",
+  "agent_id": "a657dc18-a2ee-4d08-9d56-9700d25bd7bf",
+  "canvas_url": "http://127.0.0.1:3130/canvas/95c849ed-46a8-4df1-a41f-74984848503b?agent_id=a657dc18-a2ee-4d08-9d56-9700d25bd7bf&side=training",
+  "objective": "Sum Price for the sales campaign quote",
+  "correlation_id": "sales-campaign-20261101",
+  "run_id": "edfd411a-eece-4b92-8854-f060cbff2842",
+  "assignment_id": "asg-2c2b1624689b4151",
+  "teaching_revision": "4607b3f20984341a+7b3561f602e34975+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "campaign_sales_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "db4d1dfdb5a6ccada6c0e60eb2696bcb21b3f5b3",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "4607b3f20984341a+7b3561f602e34975+map",
+      "source": "upload",
+      "dataset_name": "upload_campaign_sales_quote__campaign_sales_quote",
+      "external_id": "sha1:db4d1dfdb5a6ccada6c0e60eb2696bcb21b3f5b3",
+      "available_columns": [
+        "Item",
+        "Gross Amount",
+        "Currency",
+        "Status",
+        "Qualification"
+      ],
+      "numeric_columns": [
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "550.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "sales-campaign-20261101",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nSample Quote Analyst \u00b7 Sales\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nDebug Overlay Agent Assistant \u00b7 General\nDebug Done Click Agent Assistant \u00b7 General\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\ncampaign_sales_quote.csv / campaign_sales_quote \u00b7 3 rows\ndryrun_sales_quote.csv / dryrun_sales_quote \u00b7 3 rows\nsample_quote.csv / sample_quote \u00b7 5 rows\nlongrun_quote.csv / longrun_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nOptional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\nDry run final sales quote\ncancelled\nSum Price for the two-hour durable quote\ncompleted\n\nDry run final sales quote\n\ncancelled\n\nPlan revision 1 \u00b7 teaching 8db1818aba2caa04+be3e6930d78f6551+map\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nCompleted work\n\nAggregate workbook source\nResult: 550.00 USD \u00b7 Gross Amount\n\nArtifacts\n\nDry run final sales quote\npending\nProvider-accepted response\npending\n\nMappings\n\nPrice \u2192 Gross Amount\n\nSource: upload \u00b7 Sheet: dryrun_sales_quote \u00b7 Version: d1f946382ff4\n\nRequired unit: not specified \u00b7 Established: source-established (USD)\n\nMapping revision: 2 \u00b7 Teaching revision: 8db1818aba2caa04+be3e6930d78f6551+map\n\nCorrect mapping\nResume\nCancel",
+  "teaching_points_visible": 0
+}

@@ -151,8 +151,14 @@ async def test_stuck_detector_halts_identical_repeats():
     result = await agent.execute("do it")
     assert result["status"] == "stuck"
     assert "3+ times" in str(result["output"])
-    # Steps 1-2 executed; step 3 halted before execution.
+    assert "search" in (result.get("stuck_reason") or "")
+    # Steps 1-2 executed; step 3 halted before execution (no duplicate effect).
     assert agent._step_act.await_count == 2
+    # The second identical call records an explicit strategy change instead
+    # of silently repeating until the budget runs out.
+    assert any(
+        step.get("strategy_change") for step in result["steps"])
+
 
 
 async def test_stuck_detector_flag_off_runs_identically(monkeypatch):
@@ -179,6 +185,25 @@ async def test_stuck_detector_ignores_different_args():
     ])
     result = await agent.execute("do it")
     assert result["status"] == "success"
+
+
+async def test_repeated_identical_observations_force_a_strategy_change():
+    """Different calls returning the same observation are no-progress: the
+    loop records an explicit strategy change (no duplicate-effect halt is
+    needed because the calls themselves differ)."""
+    agent = _base_agent([
+        ReActStep(thought="s1", action=ToolCall(tool="search", params={"q": "a"})),
+        ReActStep(thought="s2", action=ToolCall(tool="read", params={"q": "b"})),
+        ReActStep(thought="s3", final_answer="blocked: same empty result"),
+    ])
+    agent._step_act = AsyncMock(return_value="no matching records")
+    result = await agent.execute("do it")
+    assert result["status"] == "success"
+    assert any(
+        "STRATEGY CHANGE" in (step.get("strategy_change") or "")
+        and "identical" in (step.get("strategy_change") or "").lower()
+        for step in result["steps"])
+
 
 
 # ---------------------------------------------------------------------------

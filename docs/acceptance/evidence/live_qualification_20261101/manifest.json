@@ -3,12 +3,12 @@
   "directory": "live_qualification_20261101",
   "source_checkpoint": "0aa6105e4872",
   "verification_source": "74464af69f98",
-  "final_candidate": "74464af69f98",
-  "note": "Live Part A read-only and Part B one-use Outlook send; provider acceptance and Sent Items reconciliation, not recipient delivery. Submitted for independent review.",
+  "connector_source": "a49b854ce660",
+  "note": "Live Part A read-only and Part B one-use Outlook send; provider acceptance and Sent Items reconciliation, not recipient delivery. Part A connector entry-point proof added through the product API. Exact body referenced from tracked files; no untracked body copy. Submitted for independent review.",
   "files": {
     "README.md": {
-      "sha256": "6791473577e2cead5b314c8a45947f8d8463566e8ffd1c3290cf9cdbb7417e06",
-      "bytes": 5653
+      "sha256": "ba15ff79058da5636a397e77c8df00fd06ed835824ead894d2828e6da4b1bc28",
+      "bytes": 6795
     },
     "part-a/artifact.docx": {
       "sha256": "34e7420d9364d04ed76e4de3f5f4be4f19d1a1ea11b5fa92d549ceaffd707d09",
@@ -46,17 +46,41 @@
       "sha256": "0a45651ba26794dfd82cd3c509e8455fafe15cbbd8de2d19044bee94895da825",
       "bytes": 2336
     },
-    "part-b/body-preview.png": {
-      "sha256": "4cc9b0a2e8555454c25ee00450bf3595381bba30fad51002f02233d07075a1ec",
-      "bytes": 60990
+    "part-a-connector/README.md": {
+      "sha256": "2f4d26aa65de8c058702850a51363bc043e1c1b49a11d05ee1be4ba6d569fdef",
+      "bytes": 1939
     },
-    "part-b/body.html": {
-      "sha256": "ef3472ddc5401b8ab700b9545f75193042afc8958c9ec3f0994680cfd9783e67",
-      "bytes": 2966
+    "part-a-connector/artifact.docx": {
+      "sha256": "7dbdbffbc30b141f75ae4a222b8570479f861a4c75f021e1aaf9dbbc75ccf07c",
+      "bytes": 36803
     },
-    "part-b/body.txt": {
-      "sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
-      "bytes": 2954
+    "part-a-connector/assignment.json": {
+      "sha256": "536baf1975220f7b20a3892e7cb15de3134f3fbaa13852aaba2469d64f809372",
+      "bytes": 6163
+    },
+    "part-a-connector/connector-response.json": {
+      "sha256": "a4257d7d1c08f5d28c1591736c76a3f457e20d44f530943bba8a0e3803d7019e",
+      "bytes": 648
+    },
+    "part-a-connector/dataset-entry.json": {
+      "sha256": "8d183ada864949e48d909b75cfb71b361aa30a2f80ce4d2436bb599db4ae6d80",
+      "bytes": 1327
+    },
+    "part-a-connector/independent-read.json": {
+      "sha256": "5aef6fb2af543c87c2f0ff9e1f0ceb8f4307476fae0f806ee54449876b1a26bb",
+      "bytes": 969
+    },
+    "part-a-connector/reopen.json": {
+      "sha256": "ab94a24481116855e4ee71e7b2e9d9fea2e768c0ba458bd93ca89904fbd08a57",
+      "bytes": 2518
+    },
+    "part-a-connector/result.json": {
+      "sha256": "e42b75592635f9eb6e3cb4686ba2b0b3fd27d1a0acde8f910705d486c0c7ccd5",
+      "bytes": 1721
+    },
+    "part-b/body-reference.json": {
+      "sha256": "23dfccf70b1fc04f1cfeb8b8cf2bd7ce031d41b6a0f660dd02bbc2797b0bd7f9",
+      "bytes": 1036
     },
     "part-b/hitl-check.json": {
       "sha256": "2a1f806d2f5deb2e85c520d3d31ab4db723223993f0c6b03a8f1cb958b0c9c84",

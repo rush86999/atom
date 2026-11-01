@@ -35,7 +35,8 @@ const WORLD = process.env.ASSIGNMENT_RECOVERY_WORLD
 const OUT = process.env.ASSIGNMENT_RECOVERY_OUT
   || path.join(ROOT, 'docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser');
 const PYTHON = process.env.ASSIGNMENT_PYTHON
-  || '/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python';
+  || path.join(ROOT, 'backend/venv/bin/python');
+const PYTHON_OVERLAY = process.env.ASSIGNMENT_PYTHON_OVERLAY || '';
 const SERVER = path.join(ROOT, 'backend/scripts/assignment_browser_acceptance_server.py');
 const PORT = Number(new URL(API).port || 8090);
 const SCREENSHOTS = path.join(OUT, 'screenshots');
@@ -91,8 +92,7 @@ async function startServer(reset) {
     PYTHONPATH: [
       ROOT,
       path.join(ROOT, 'backend'),
-      process.env.ASSIGNMENT_PYTHON_OVERLAY
-        || '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-pyoverlay',
+      PYTHON_OVERLAY,
       process.env.PYTHONPATH || '',
     ].filter(Boolean).join(':'),
   };

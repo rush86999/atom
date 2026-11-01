@@ -14,6 +14,7 @@ import hashlib
 import json
 import sys
 import time
+import os
 import urllib.request
 from pathlib import Path
 
@@ -32,11 +33,14 @@ def login(page, frontend: str, password: str) -> None:
     page.wait_for_timeout(1000)
 
 
+BACKEND = os.environ.get("ATOM_JOURNEY_BACKEND", "http://127.0.0.1:8071").rstrip("/")
+
+
 def api(page, path: str):
     token = page.evaluate(
         "localStorage.getItem('auth_token') || localStorage.getItem('token')")
     request = urllib.request.Request(
-        f"http://127.0.0.1:8071{path}",
+        f"{BACKEND}{path}",
         headers={"Authorization": f"Bearer {token}"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:

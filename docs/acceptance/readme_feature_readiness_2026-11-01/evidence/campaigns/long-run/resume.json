@@ -1,0 +1,388 @@
+{
+  "schema": "atom-long-run-resume-2",
+  "status": "passed",
+  "run_id": "3986261f-cdee-4abc-8f0c-35b76ea9fd7a",
+  "assignment_id": "asg-04993277770f4f2c",
+  "objective": "Sum Price for the two-hour durable quote",
+  "teaching_revision": "8cf265c90286f0dc+a2629f3c25a57acb+map",
+  "status_after": "completed",
+  "source_result": "550.00",
+  "wait_status": "applied",
+  "deliverable_status": "applied",
+  "send_status": "applied",
+  "artifact": {
+    "path": "/tmp/longrun/part2-final/longrun-completed.docx",
+    "bytes": 37188,
+    "sha256": "4a91281abe91d303e1cd440247974825d4ca2ec4dcca3eb241d15d915ee5bfe1"
+  },
+  "outbox": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_2h_20261101/controlled-outbox.jsonl",
+  "outbox_lines_before_duplicates": 1,
+  "outbox_lines_after_duplicate_resume": 1,
+  "outbox_lines_after_late_response": 1,
+  "duplicate_resume_status": {
+    "run_id": "3986261f-cdee-4abc-8f0c-35b76ea9fd7a",
+    "assignment": {
+      "assignment_id": "asg-04993277770f4f2c",
+      "objective": "Sum Price for the two-hour durable quote",
+      "employee_id": "3317556a-a16b-4326-a102-ae80e1b1ae9a",
+      "workspace_id": "default",
+      "plan_revision": 1,
+      "status": "completed",
+      "teaching_revision": "8cf265c90286f0dc+a2629f3c25a57acb+map",
+      "teaching_fingerprint": "57bdb4ec379f5fa4e762fe7d70a3a4c3",
+      "effective_lesson_ids": [
+        {
+          "id": "e10ff550ab504d86a5121dbe7749e7a5",
+          "revision": 1
+        },
+        {
+          "id": "e741201197714bf7bddb35be83bdadd5",
+          "revision": 1
+        }
+      ],
+      "mappings": [
+        {
+          "concept": "Price",
+          "sheet": "longrun_quote",
+          "column": "Gross Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+          "revision": 2,
+          "lesson_id": null,
+          "lesson_revision": null,
+          "teaching_revision": "8cf265c90286f0dc+a2629f3c25a57acb+map",
+          "source": "upload",
+          "dataset_name": "upload_longrun_quote__longrun_quote",
+          "external_id": "sha1:c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+          "available_columns": [
+            "Item",
+            "Gross Amount",
+            "Currency",
+            "Status",
+            "Qualification"
+          ],
+          "numeric_columns": [
+            "Gross Amount"
+          ],
+          "correctable": true
+        }
+      ],
+      "mapping_history": [],
+      "deliverables": [
+        {
+          "deliverable_id": "del-deliverable-1",
+          "kind": "document",
+          "description": "Sum Price for the two-hour durable quote",
+          "required": true,
+          "step_id": "deliverable-1",
+          "status": "applied",
+          "artifact_revision": "4a91281abe91d303",
+          "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_2h_20261101/data/assignments/default/3317556a-a16b-4326-a102-ae80e1b1ae9a/draft-b34735c6ba60/sum-price-for-the-two-hour-durable-quote-36e0bcd9.docx",
+          "sha256": "4a91281abe91d303e1cd440247974825d4ca2ec4dcca3eb241d15d915ee5bfe1"
+        },
+        {
+          "deliverable_id": "del-send",
+          "kind": "email",
+          "description": "Provider-accepted response",
+          "required": true,
+          "step_id": "send",
+          "status": "applied",
+          "artifact_revision": null,
+          "artifact_path": null,
+          "sha256": null
+        }
+      ],
+      "sources": [
+        {
+          "kind": "workbook",
+          "binding": {
+            "resource_id": "a6b4bde0-599a-4cdd-8ee1-90390a9bf9e8",
+            "dataset_name": "upload_longrun_quote__longrun_quote",
+            "source": "upload",
+            "source_kind": "file",
+            "external_id": "sha1:c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+            "original_file_name": "longrun_quote.csv",
+            "representation": "parquet_frame",
+            "source_version": "c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+            "sheet": "longrun_quote",
+            "columns": [
+              "Item",
+              "Gross Amount",
+              "Currency",
+              "Status",
+              "Qualification",
+              "__sheet_row"
+            ],
+            "numeric_columns": [
+              "Gross Amount"
+            ],
+            "row_count": 3,
+            "coverage": {
+              "known": true,
+              "source_row_count": 3,
+              "materialized_row_count": 3,
+              "truncated": false,
+              "row_cap": 500000
+            },
+            "access_scope": {
+              "user_id": "3317556a-a16b-4326-a102-ae80e1b1ae9a",
+              "workspace_id": "default",
+              "tenant_id": "default"
+            },
+            "workspace_id": "default",
+            "tenant_id": "default",
+            "internal_fixture": false
+          }
+        }
+      ],
+      "authorized_actions": [
+        "calculate",
+        "outbound",
+        "present",
+        "retrieve"
+      ],
+      "standing_authority": null,
+      "budget": {
+        "max_steps": 12,
+        "max_attempts_per_step": 3,
+        "max_wall_seconds": 900.0,
+        "max_cost_usd": 0.0,
+        "cost_mode": "hard",
+        "soft_limit_authorized_by": null,
+        "reserved_cost_usd": 0.0,
+        "cost_reservations": [],
+        "cost_overrun_usd": 0.0,
+        "cost_violation": null,
+        "soft_limit_exceeded": false,
+        "steps_started": 6,
+        "started_at": "2026-11-01T13:40:04.913579+00:00",
+        "elapsed_seconds": 0.0,
+        "cost_usd": 0.0,
+        "paused_seconds": 15516.163001298904
+      },
+      "steps": [
+        {
+          "step_id": "source-1",
+          "title": "Aggregate workbook source",
+          "operation_type": "calculate",
+          "adapter": "dataset.aggregate",
+          "depends_on": [],
+          "required": true,
+          "effect": "local",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "65cd8a15-3783-4915-ba0c-7cc179591433",
+          "attempts": 1,
+          "result_summary": "sum of Gross Amount = 550.00 USD across 3 row(s) from longrun_quote.csv / longrun_quote",
+          "result_value": "550.00",
+          "result_unit": "USD",
+          "result_measure": "Gross Amount",
+          "prior_result_count": 0,
+          "artifact_revision": null,
+          "gap_ids": [
+            "c4db4839-ef32-4247-83d9-9cb13e36f0d7"
+          ],
+          "waiting": {},
+          "external_response": {},
+          "approval_request": {},
+          "standing_authority_receipt": {},
+          "failure": {}
+        },
+        {
+          "step_id": "wait",
+          "title": "Wait for the missing external fact",
+          "operation_type": "retrieve",
+          "adapter": "assignment.controlled_wait",
+          "depends_on": [
+            "source-1"
+          ],
+          "required": true,
+          "effect": "read_only",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "8a8e1287-5c38-453a-9f04-6c15128f9d02",
+          "attempts": 1,
+          "result_summary": "controlled reply received",
+          "result_value": "Delivery term: net 30 days from the invoice date.",
+          "result_unit": null,
+          "result_measure": null,
+          "prior_result_count": 0,
+          "artifact_revision": null,
+          "gap_ids": [],
+          "waiting": {},
+          "external_response": {
+            "correlation_id": "longrun-2h-20261101",
+            "fact": "delivery_term",
+            "response": "Delivery term: net 30 days from the invoice date.",
+            "source": "3317556a-a16b-4326-a102-ae80e1b1ae9a",
+            "evidence": "",
+            "fact_resolution": {
+              "status": "missing",
+              "fact": "delivery_term",
+              "reason": "no_bound_column"
+            },
+            "at": "2026-11-01T15:43:27.757474+00:00"
+          },
+          "approval_request": {},
+          "standing_authority_receipt": {},
+          "failure": {}
+        },
+        {
+          "step_id": "deliverable-1",
+          "title": "Render Sum Price for the two-hour durable quote",
+          "operation_type": "present",
+          "adapter": "artifact.document",
+          "depends_on": [
+            "source-1",
+            "wait"
+          ],
+          "required": true,
+          "effect": "local",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "62f4e7ee-5569-4caf-80ac-76ee4b3312d4",
+          "attempts": 0,
+          "result_summary": "rendered sum-price-for-the-two-hour-durable-quote-36e0bcd9.docx",
+          "result_value": null,
+          "result_unit": null,
+          "result_measure": null,
+          "prior_result_count": 0,
+          "artifact_revision": "4a91281abe91d303",
+          "gap_ids": [],
+          "waiting": {},
+          "external_response": {},
+          "approval_request": {},
+          "standing_authority_receipt": {},
+          "failure": {}
+        },
+        {
+          "step_id": "send",
+          "title": "Send the approved response",
+          "operation_type": "outbound",
+          "adapter": "assignment.controlled_outbox",
+          "depends_on": [
+            "source-1",
+            "wait",
+            "deliverable-1"
+          ],
+          "required": true,
+          "effect": "external",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "f9f8db15-5d99-471d-8a1d-4bd784ff2a52",
+          "attempts": 0,
+          "result_summary": "controlled provider accepted",
+          "result_value": null,
+          "result_unit": null,
+          "result_measure": null,
+          "prior_result_count": 0,
+          "artifact_revision": null,
+          "gap_ids": [],
+          "waiting": {},
+          "external_response": {},
+          "approval_request": {
+            "payload_sha256": "4a6e04e237951bab11d4670c3e1b2abb1f69cbfb502b9b4224c2df2afe385ef9",
+            "artifact_revision": null,
+            "authorization_revision": "8c7df496b1186264852e57871436cff7",
+            "hitl_action_id": "95e57248-ff57-4ebd-97e0-89e48d799abd",
+            "purpose": "Send the prepared response"
+          },
+          "standing_authority_receipt": {},
+          "failure": {}
+        }
+      ],
+      "created_at": "2026-11-01T13:40:04.898456+00:00",
+      "updated_at": "2026-11-01T15:50:05.464127+00:00",
+      "completed_at": "2026-11-01T15:50:05.464130+00:00"
+    },
+    "open_gaps": [],
+    "operations": [
+      {
+        "operation_id": "712b800a-8be0-4821-9f31-6308684de5f2",
+        "step_id": "source-1",
+        "type": "calculate",
+        "status": "superseded",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null
+      },
+      {
+        "operation_id": "65cd8a15-3783-4915-ba0c-7cc179591433",
+        "step_id": "source-1",
+        "type": "calculate",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null
+      },
+      {
+        "operation_id": "9bf01fb7-2e8c-4bce-845a-b2224211a125",
+        "step_id": "wait",
+        "type": "retrieve",
+        "status": "superseded",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null
+      },
+      {
+        "operation_id": "8a8e1287-5c38-453a-9f04-6c15128f9d02",
+        "step_id": "wait",
+        "type": "retrieve",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null
+      },
+      {
+        "operation_id": "62f4e7ee-5569-4caf-80ac-76ee4b3312d4",
+        "step_id": "deliverable-1",
+        "type": "present",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null
+      },
+      {
+        "operation_id": "f9f8db15-5d99-471d-8a1d-4bd784ff2a52",
+        "step_id": "send",
+        "type": "outbound",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {
+          "payload_sha256": "4a6e04e237951bab11d4670c3e1b2abb1f69cbfb502b9b4224c2df2afe385ef9",
+          "artifact_revision": null,
+          "authorization_revision": "8c7df496b1186264852e57871436cff7",
+          "requested_by": "3317556a-a16b-4326-a102-ae80e1b1ae9a",
+          "purpose": "Send the prepared response",
+          "requested_at": "2026-11-01T15:49:55.786345+00:00"
+        },
+        "uncertainty_reason": null
+      }
+    ]
+  },
+  "late_response_status": {
+    "detail": "No open gap carries this correlation id. The response was not used to resume work."
+  },
+  "budget": {
+    "max_steps": 12,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 900.0,
+    "max_cost_usd": 0.0,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 6,
+    "started_at": "2026-11-01T13:40:04.913579+00:00",
+    "elapsed_seconds": 0.0,
+    "cost_usd": 0.0,
+    "paused_seconds": 15516.163001298904
+  }
+}

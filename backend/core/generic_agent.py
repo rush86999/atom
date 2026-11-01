@@ -312,6 +312,7 @@ class GenericAgent:
         steps = []
         final_answer = None
         status = "success"
+        stuck_reason: Optional[str] = None
 
         # BPE workspace (plan Phase 2): fresh per-episode consult counters so
         # the consult policy sees per-run rates, not lifetime totals.
@@ -327,7 +328,7 @@ class GenericAgent:
 
         try:
             async def run_loop():
-                nonlocal final_answer, status
+                nonlocal final_answer, status, stuck_reason
                 current_step = 0
                 execution_history = ""
 
@@ -368,6 +369,7 @@ class GenericAgent:
                 # calls → halt instead of burning the step budget in a loop.
                 from collections import deque as _deque
                 _stuck_keys: Any = _deque(maxlen=8)
+                _observed_keys: Any = _deque(maxlen=8)
                 _stuck_halts = 0
 
                 while current_step < max_steps:
@@ -465,10 +467,12 @@ class GenericAgent:
                             _stuck_keys.append(_pk)
                         if _objective_loop and _stuck_batch:
                             _stuck_halts += 1
+                            stuck_reason = (
+                                f"the same tool+arguments were repeated "
+                                f"3+ times without progress "
+                                f"({', '.join(_stuck_batch[:2])})")
                             final_answer = (
-                                f"Execution halted: the same tool+arguments were "
-                                f"repeated 3+ times without progress "
-                                f"({', '.join(_stuck_batch[:2])})."
+                                f"Execution halted: {stuck_reason}."
                             )
                             status = "stuck"
                             logger.warning(
@@ -535,13 +539,14 @@ class GenericAgent:
                         # W5 (P5c) stuck-detector: 3 consecutive identical
                         # tool+args calls → halt (flag-gated, default on).
                         _stuck_key = json.dumps([tool_name, tool_args], sort_keys=True)
-                        if _objective_loop and _stuck_keys.count(_stuck_key) >= 2:
+                        _repeat_before = _stuck_keys.count(_stuck_key)
+                        if _objective_loop and _repeat_before >= 2:
                             _stuck_halts += 1
-                            final_answer = (
-                                f"Execution halted: tool '{tool_name}' was called "
-                                f"with identical arguments 3+ times without "
-                                f"progress ({tool_args})."
-                            )
+                            stuck_reason = (
+                                f"tool '{tool_name}' was called with identical "
+                                f"arguments 3+ times without progress "
+                                f"({tool_args})")
+                            final_answer = f"Execution halted: {stuck_reason}."
                             status = "stuck"
                             logger.warning(
                                 f"Stuck-detector halted agent {getattr(self, 'name', '?')} "
@@ -579,6 +584,21 @@ class GenericAgent:
                                     logger.warning(f"Failed to capture screenshot for vision: {se}")
                         
                         step_record["output"] = observation
+                        # A second identical action is the cheap warning
+                        # before the hard stop: tell the model (and the
+                        # durable execution history) that this path is not
+                        # producing progress, so it deliberately changes
+                        # strategy on the next step.
+                        if _objective_loop and _repeat_before >= 1:
+                            _strategy_note = (
+                                f"[STRATEGY CHANGE] '{tool_name}' with these "
+                                f"exact arguments already ran and the repeated "
+                                f"call made no progress. Do not repeat it; "
+                                f"choose a different tool, arguments, or finish "
+                                f"with an explicit blocker."
+                            )
+                            execution_history += _strategy_note + "\n"
+                            step_record["strategy_change"] = _strategy_note
                         # RTK compression: compress verbose tool/terminal output
                         # before it enters the execution history. Lossless for
                         # structured data (JSON/SQL/API responses skipped).
@@ -601,6 +621,23 @@ class GenericAgent:
                         except Exception:
                             pass  # marking must never break the agent loop
                         execution_history += f"Observation: {str(observation)}\n"
+
+                        # Repeated NO-PROGRESS observation (different tool or
+                        # arguments, same result): nudge a deliberate strategy
+                        # change before the model spends the rest of the
+                        # budget re-reading the same state.
+                        _obs_key = json.dumps(
+                            str(observation)[:1000], sort_keys=True)
+                        if _objective_loop and _observed_keys.count(_obs_key) >= 1:
+                            _obs_note = (
+                                "[STRATEGY CHANGE] The last two observations "
+                                "are identical — the current approach is not "
+                                "making progress. Change strategy or state the "
+                                "blocker instead of repeating it."
+                            )
+                            execution_history += _obs_note + "\n"
+                            step_record["strategy_change"] = _obs_note
+                        _observed_keys.append(_obs_key)
 
                         # ── In-loop self-correction (Workstream A) ────────────
                         # Mirror of the atom_meta_agent hook: when the observation
@@ -764,6 +801,7 @@ class GenericAgent:
             "output": final_answer,
             "steps": steps,
             "status": status,
+            "stuck_reason": stuck_reason,
             "complexity": complexity.value,
             "step_efficiency": step_efficiency,
             "plan_adherence": plan_adherence,

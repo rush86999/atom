@@ -49,8 +49,24 @@ Run `0cb8885f-1d30-4080-978a-4fbc5170ef82` (status `completed`).
   (`Total 216700.00`, 8-row citation); artifact SHA-256
   `34e7420d9364d04e…`.
 
+### Connector entry-point addendum
+
+The verifier correctly noted that the first Part A run fetched Graph bytes in
+the harness and called the materializer directly. The connector entry point was
+then exercised through the product API:
+`POST /api/intelligence/execute` with `action_type="tool"` and
+`email_ingest_message`. The tool fetched the message and both attachments
+through the connector pipeline (`status="ingested"`, 2 attachments), refreshed
+the catalog row at `2026-11-01T12:37:20.673857` and
+`ingested_documents.last_verified_at=2026-11-01T12:37:20.807742`. A new
+assignment (`194b3474-3b96-4890-94f3-9986ad795283`) retrieved the
+connector-refreshed sheet and returned **216700.00** across 8 rows; restart at
+`a49b854ce660` reopened it. Independent source/hash checks are reused. Evidence:
+`part-a-connector/`.
+
 Evidence: `part-a/` (identity, independent read, materialization, assignment,
-source receipt, restart, artifact).
+source receipt, restart, artifact) and `part-a-connector/` (product API
+ingestion, refreshed catalog row, retrieval and restart).
 
 ## B — One authorized Outlook send
 
@@ -59,9 +75,13 @@ Run `9ac79044-0d44-446e-8da8-2482709aa350` (status `completed`).
 - Mailbox identity rechecked immediately before send: `rish@brennan.ca`.
 - Recipient: `rish@brennan.ca` (owner-controlled self-send).
 - Exact subject: `[Atom qualification] One authorized send 2026-11-01`.
-- Exact body: `part-b/body.txt` (already includes the stored signature), SHA-256
+- Exact body: the tracked `docs/acceptance/LIVE_QUALIFICATION_B_BODY.txt`
+  (already includes the stored signature), SHA-256
   `0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696`.
-  The durable operation binding carries the same body hash.
+  `part-b/body-reference.json` points to the tracked text, wire HTML and
+  preview files and carries their hashes; the evidence directory does not
+  duplicate the private signature. The durable operation binding carries the
+  same body hash.
 - Attachment: **none**.
 - Grant `sga-live-qual-1793535072`: one effect, one recipient, 24h window,
   ended `status=exhausted`, `used_effects=1/1`.

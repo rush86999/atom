@@ -1,0 +1,30 @@
+{
+  "schema": "atom-revised-scope-run-1",
+  "label": "campaign-a",
+  "objective": "Sum Net Amount for the revised campaign A quote sheet",
+  "run_id": "4bbc6800-ad2d-4f2e-87e9-e694bc40293a",
+  "assignment_id": "asg-640ad7cb0ce248b3",
+  "assignment_status": "completed",
+  "teaching_revision": "94bf025c6c5dfd2e+map",
+  "effective_lesson_ids": [
+    {
+      "id": "5b47e10c764d48dcbea3592da7df2d74",
+      "revision": 1
+    },
+    {
+      "id": "49caa9ade0e44db3a6a9b379e3e2eab0",
+      "revision": 1
+    }
+  ],
+  "step_values": {},
+  "artifact": {
+    "path": "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-revised-assignment-artifact.docx",
+    "bytes": 37159,
+    "sha256": "1c6e8b05ad8eeca130422114ea176b61b32a404f7ae17a4a14c9cd46ade42a8e",
+    "normal_font": "Calibri",
+    "normal_size": 14.0,
+    "text": "Sum Net Amount for the revised campaign A quote sheet\nSummary\nsum of Net Amount: 676.50 USD\nFindings\nSources\nupload_campaign_a_quote_revised__campaign_a_quote_revised\ncampaign_a_quote_revised.csv\ncampaign_a_quote_revised\n5a17e5a4-dfbf-47bb-b92c-25d82cdeb358\ncampaign_a_quote_revised.csv / campaign_a_quote_revised\nObjective\nSum Net Amount for the revised campaign A quote sheet\ncampaign_a_quote_revised.csv / campaign_a_quote_revised"
+  },
+  "source_file": "campaign_a_quote_revised.csv",
+  "mapping_candidate": "Net Amount"
+}

@@ -40,9 +40,10 @@ class _CountingEndpoint:
     every /chat/completions call; identifies itself in the reply body so
     the test can tell WHICH endpoint answered."""
 
-    def __init__(self, tag: str, model: str = MODEL_NAME):
+    def __init__(self, tag: str, model: str = MODEL_NAME, fail: bool = False):
         self.tag = tag
         self.model = model
+        self.fail = fail
         self.calls = []          # [{'model':…, 'messages':…, 'auth': bool}]
         self._lock = threading.Lock()
         outer = self
@@ -69,6 +70,16 @@ class _CountingEndpoint:
                     self.end_headers()
 
             def do_POST(self):
+                if outer.fail:
+                    with outer._lock:
+                        outer.calls.append({"path": self.path, "fail": True})
+                    body = json.dumps({"error": {"message": f"{outer.tag} upstream failure"}}).encode()
+                    self.send_response(502)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 length = int(self.headers.get("Content-Length") or 0)
                 payload = {}
                 if length:
@@ -2165,3 +2176,50 @@ class TestRetrievalSourceObservations:
         assert '"_retrieval_source_observations"' not in builder_src
         orchestrator_src = inspect.getsource(chat)
         assert "get_retrieval_sources" not in orchestrator_src
+
+
+class TestProviderPolicyFallback:
+    """ROUTE-03: a failed primary falls back to the second allowed provider,
+    the response names the provider that actually served, and a configured
+    but policy-denied provider receives nothing."""
+
+    def test_primary_failure_falls_back_to_secondary_and_denies_policy(
+            self, scoped_world, monkeypatch):
+        from core.llm_service import LLMService
+
+        with _CountingEndpoint("primary", fail=True) as primary, \
+                _CountingEndpoint("secondary") as secondary, \
+                _CountingEndpoint("denied") as denied:
+            monkeypatch.setenv("OPENAI_BASE_URL", primary.base_url)
+            monkeypatch.setenv("OPENAI_API_KEY", "sk-primary-fallback-1234567890")
+            monkeypatch.setenv("OPENCODE_BASE_URL", secondary.base_url)
+            monkeypatch.setenv("OPENCODE_API_KEY", "sk-secondary-fallback-1234567890")
+            monkeypatch.setenv("OLLAMA_BASE_URL", denied.base_url)
+            monkeypatch.setenv(
+                "ATOM_LLM_PROVIDER_POLICY",
+                json.dumps({
+                    "mode": "selected",
+                    "allowed_providers": ["openai", "opencode"],
+                }),
+            )
+            service = LLMService(workspace_id="ws-fallback",
+                                 tenant_id="tenant-fallback")
+            handler = service._get_handler()
+            assert handler is not None
+            # The isolated endpoints below are the authoritative served-set
+            # for this test; the global pricing catalog is empty in the
+            # scratch world, so do not let an unrelated catalog lookup veto
+            # the two providers under test.
+            handler._provider_serves_model = lambda provider, model: True
+            result = asyncio.run(handler.chat_completion(
+                messages=[{"role": "user", "content": "fallback please"}],
+                model="gpt-4o-mini",
+                provider_id="openai",
+                max_tokens=64,
+            ))
+            assert result.get("provider") == "opencode", result
+            message = (result.get("choices") or [{}])[0].get("message") or {}
+            assert message.get("content") == "pong-secondary", result
+            assert primary.hit_count >= 1, "primary was not attempted"
+            assert secondary.hit_count >= 1, "secondary was not used"
+            assert denied.hit_count == 0, "policy-denied provider was dispatched"

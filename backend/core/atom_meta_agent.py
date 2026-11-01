@@ -2338,7 +2338,8 @@ What is your next step?"""
                         )
 
                         _contract = maybe_contract_for_link(
-                            goal=goal, sub_task=st
+                            goal=goal, sub_task=st,
+                            accountable_agent_id="atom_main",
                         )
                     except Exception as ce:
                         logger.debug(f"delegation contract skipped: {ce}")

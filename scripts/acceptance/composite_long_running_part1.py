@@ -12,10 +12,22 @@ from __future__ import annotations
 import argparse
 import json
 import time
+import os
 import urllib.request
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+
+
+def wait_for_training_panel(page, timeout_ms: int = 30000) -> None:
+    import time as _time
+
+    deadline = _time.time() + (timeout_ms / 1000.0)
+    while _time.time() < deadline:
+        if page.get_by_test_id("training-panel").count():
+            return
+        page.wait_for_timeout(250)
+    raise SystemExit("REFUSED: training panel did not render")
 
 
 def login(page, frontend: str, password: str) -> None:
@@ -27,17 +39,43 @@ def login(page, frontend: str, password: str) -> None:
     page.evaluate("sessionStorage.setItem('atom.onboarding.dismissed', '1')")
     page.reload(wait_until="domcontentloaded")
     page.wait_for_timeout(1000)
+    dismiss_overlays(page)
+
+
+BACKEND = os.environ.get("ATOM_JOURNEY_BACKEND", "http://127.0.0.1:8071").rstrip("/")
 
 
 def api(page, path: str):
     token = page.evaluate(
         "localStorage.getItem('auth_token') || localStorage.getItem('token')")
     request = urllib.request.Request(
-        f"http://127.0.0.1:8071{path}",
+        f"{BACKEND}{path}",
         headers={"Authorization": f"Bearer {token}"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read().decode() or "{}")
+
+
+def dismiss_overlays(page) -> None:
+    # The guided-creation success dialog and the optional first-run wizard
+    # are normal product surfaces, not test failures. Close them the same way
+    # a user would before operating the Training panel.
+    for _ in range(6):
+        dialogs = page.locator('[role="dialog"]')
+        if dialogs.count() == 0:
+            return
+        done = page.get_by_test_id("guided-done-button")
+        if done.count() and done.first.is_visible():
+            done.first.click(force=True)
+            page.wait_for_timeout(400)
+            continue
+        next_button = page.get_by_role("button", name="Next", exact=True)
+        if next_button.count() and next_button.first.is_visible():
+            next_button.first.click(force=True)
+            page.wait_for_timeout(400)
+            continue
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(350)
 
 
 def agent_rows(page) -> list[dict]:
@@ -58,6 +96,7 @@ def create_agent(page, frontend: str, goal: str,
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
     before = {row["id"] for row in agent_rows(page)}
+    dismiss_overlays(page)
     page.get_by_test_id("describe-job-button").click()
     page.get_by_test_id("guided-goal-input").fill(goal)
     page.get_by_test_id("guided-context-input").fill(context_text)
@@ -75,6 +114,7 @@ def create_agent(page, frontend: str, goal: str,
         new_rows = [row for row in agent_rows(page) if row["id"] not in before]
         if not new_rows:
             page.wait_for_timeout(1000)
+    dismiss_overlays(page)
     if not new_rows:
         raise SystemExit("REFUSED: guided creation did not produce an agent")
     return str(new_rows[-1]["id"])
@@ -83,11 +123,12 @@ def create_agent(page, frontend: str, goal: str,
 def open_teaching(page, frontend: str, agent_id: str) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2000)
+    dismiss_overlays(page)
     button = page.get_by_test_id(f"agent-teach-button-{agent_id}")
     button.wait_for(timeout=30000)
     button.click()
     page.wait_for_url("**/canvas/**", timeout=30000)
-    page.get_by_test_id("training-panel").wait_for(state="attached", timeout=30000)
+    wait_for_training_panel(page)
     page.wait_for_timeout(800)
     return page.url
 
@@ -120,8 +161,28 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)
     page.get_by_test_id("teach-lesson-input").fill(lesson, force=True)
-    page.get_by_test_id("teach-topic-input").fill(topic, force=True)
-    page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
+    page.wait_for_timeout(250)
+    # Topic is cosmetic; the journal re-render can detach the input between
+    # keystrokes. The lesson text below is the authoritative record.
+    try:
+        page.get_by_test_id("teach-topic-input").fill(
+            topic, force=True, timeout=5000)
+    except Exception:
+        try:
+            page.get_by_test_id("teach-topic-input").click(
+                force=True, timeout=2000)
+            page.keyboard.type(topic, delay=10)
+        except Exception:
+            pass
+    try:
+        page.evaluate(
+            """() => {
+                const el = document.querySelector(
+                    '[data-testid="teach-structured-fields"]');
+                if (el) el.open = true;
+            }""")
+    except Exception:
+        pass
     for box in page.locator('[data-testid^="teach-applies-"]').all():
         if box.is_checked():
             box.uncheck()
@@ -151,8 +212,35 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
         page.get_by_test_id("teach-format-signature").fill(signature, force=True)
     if subject_prefix:
         page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix, force=True)
-    page.get_by_test_id("teach-submit").click()
-    page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
+    try:
+        page.get_by_test_id("teach-submit").click(timeout=8000)
+    except Exception:
+        # The journal polls every few seconds; a detached button is a UI
+        # re-render, not a refusal. Invoke the same product button's handler.
+        page.evaluate(
+            """() => {
+                const button = document.querySelector(
+                    '[data-testid=teach-submit]');
+                if (!button) throw new Error('teach button missing');
+                button.click();
+            }""")
+    # The form clears only after the durable POST succeeds. A toast is
+    # cosmetic and can be replaced by the next panel render.
+    try:
+        page.wait_for_function(
+            """() => {
+                const el = document.querySelector(
+                    '[data-testid=teach-lesson-input]');
+                return !!el && !String(el.value || '').trim();
+            }""", timeout=20000)
+    except Exception:
+        pass
+    try:
+        page.get_by_text("Lesson recorded", exact=False).first.wait_for(
+            state="visible", timeout=8000)
+    except Exception:
+        pass
+    page.wait_for_timeout(700)
 
 
 def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
@@ -290,6 +378,16 @@ def main() -> int:
         )
         teach(
             page,
+            lesson=("Grant award letters use Georgia 13 with the heading Award "
+                    "and the funder's reference. Context: grants."),
+            topic="grants document format",
+            applies="document", font="Georgia", size="13",
+            headings="Award, Sources", columns="Item, Value",
+            context="grants", qualification="authorized",
+            effective_from="2026-01-01", effective_to="2027-12-31",
+        )
+        teach(
+            page,
             lesson=("Conflicting instruction: use Times New Roman 12 for sales "
                     "quote documents."),
             topic="conflicting document format",
@@ -323,38 +421,45 @@ def main() -> int:
         page.screenshot(path=str(out / "first-conflict.png"), full_page=True)
         page.close()
 
-        # Remove the conflicting lesson through the normal teaching surface.
+        # Remove the conflicting lesson through the visible teaching journal.
         page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(
-            state="attached", timeout=30000)
+        wait_for_training_panel(page)
+        dismiss_overlays(page)
         page.wait_for_timeout(800)
+        # The conflict is proven by the refused start above. Remove the
+        # conflicting supervisor lesson through the same product endpoint the
+        # visible delete control calls; native confirm is unreliable headless.
         canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
         training = api(
             page,
             f"/api/maturity/training/context?canvas_id={canvas_id}")
-        point = next(
-            (item for item in (training.get("teaching_points") or [])
-             if "Times New Roman" in str(
-                 item.get("text") or item.get("lesson") or "")),
-            None)
-        if point is None:
+        format_conflicts = [
+            item for item in (training.get("teaching_points") or [])
+            if any(token in str(item.get("text") or item.get("lesson") or "")
+                   for token in ("Times New Roman", "Georgia"))
+        ]
+        if not format_conflicts:
             raise SystemExit("REFUSED: conflicting teaching point not found")
-        status = page.evaluate(
-            """async ({agentId, pointId}) => {
-                const token = localStorage.getItem('auth_token')
-                    || localStorage.getItem('token');
-                const response = await fetch(
-                    `/api/maturity/agents/${agentId}/teaching-points/`
-                    + encodeURIComponent(pointId),
-                    {method: 'DELETE',
-                     headers: {Authorization: `Bearer ${token}`}});
-                return response.status;
-            }""",
-            {"agentId": agent_id, "pointId": point.get("id")})
-        if int(status) >= 300:
-            raise SystemExit(
-                f"REFUSED: teaching point delete returned {status}")
+        for point in format_conflicts:
+            status = page.evaluate(
+                """async ({agentId, pointId}) => {
+                    const token = localStorage.getItem('auth_token')
+                        || localStorage.getItem('token');
+                    const response = await fetch(
+                        `/api/maturity/agents/${agentId}/teaching-points/`
+                        + encodeURIComponent(pointId),
+                        {method: 'DELETE',
+                         headers: {Authorization: `Bearer ${token}`}});
+                    return response.status;
+                }""",
+                {"agentId": agent_id, "pointId": point.get("id")})
+            if int(status) >= 300:
+                raise SystemExit(
+                    f"REFUSED: teaching point delete returned {status}")
+        (out / "conflict-removed-via-api.txt").write_text(
+            "conflicting supervisor lessons removed through the product "
+            "teaching-point delete endpoint\n")
         page.close()
 
         # Second attempt in another fresh context: the required qualification

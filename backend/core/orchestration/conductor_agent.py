@@ -916,6 +916,8 @@ class ConductorAgent:
                     getattr(step, "description", "") or getattr(step, "name", "")
                 ),
                 domain=str(getattr(step, "capability", "") or "general"),
+                accountable_agent_id=str(
+                    getattr(step, "agent_id", None) or "workflow_coordinator"),
             )
             step.parameters = dict(step.parameters or {})
             # The workflow's own prompt stays authoritative for phrasing; the

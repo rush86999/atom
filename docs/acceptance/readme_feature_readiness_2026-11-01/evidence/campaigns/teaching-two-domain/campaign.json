@@ -1,0 +1,92 @@
+{
+  "schema": "atom-two-domain-teaching-campaign-2026-11-01",
+  "status": "passed",
+  "source": "a0fce85b0 (product tree unchanged from 8e999ab32)",
+  "configuration": "local production frontend; isolated SQLite worlds; controlled outbox; no cloud key or live send",
+  "domains": {
+    "sales": {
+      "part1_run_id": "edfd411a-eece-4b92-8854-f060cbff2842",
+      "part1_objective": "Sum Price for the sales campaign quote",
+      "part1_source_result": "550.00",
+      "part1_wait_state": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "sales-campaign-20261101",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      },
+      "part1_teaching_revision": "4607b3f20984341a+7b3561f602e34975+map",
+      "part2_status_after_completion": "completed",
+      "teaching_revision_before": "4607b3f20984341a+7b3561f602e34975+map",
+      "teaching_revision_after_teach": "4607b3f20984341a+7b3561f602e34975+map",
+      "second_teaching_revision": "908f22f12f597016+map",
+      "active_artifact": {
+        "sha256": "87cefa027c9146806787cf11ddb711b59a05127a3867b6d132c5ad964200d7e1",
+        "font": "Arial",
+        "size": 11.0,
+        "text_head": [
+          "Sum Price for the sales campaign quote",
+          "Summary",
+          "sum of Gross Amount: 550.00 USD"
+        ]
+      },
+      "revised_artifact": {
+        "sha256": "fd6ef57453f94f72858fb5859e80b861e3129bb650cac7a9ddd394bbbb683edb",
+        "font": "Calibri",
+        "size": 14.0,
+        "text_head": [
+          "Sum Price for the revised sales campaign sheet",
+          "Summary",
+          "sum of Net Amount: 610.00 USD"
+        ]
+      },
+      "outbox_lines_total": 2,
+      "active_snapshot_retained": true,
+      "new_work_used_new_revision": true
+    },
+    "grants": {
+      "part1_run_id": "707047b5-8cf7-4216-b3a8-a4897f157d1c",
+      "part1_objective": "Sum Award Amount for the grants campaign",
+      "part1_source_result": "14687.50",
+      "part1_wait_state": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "grants-campaign-20261101",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      },
+      "part1_teaching_revision": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+      "part2_status_after_completion": "completed",
+      "teaching_revision_before": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+      "teaching_revision_after_teach": "a3248d9407de84d3+e3cef4711fb1b8e8+map",
+      "second_teaching_revision": "e4131c5c6187055f+map",
+      "active_artifact": {
+        "sha256": "ffdfdff1a853677bfa954aa65f4c938d10b32299e6f4faa7ea8c4abd493aaf51",
+        "font": "Arial",
+        "size": 11.0,
+        "text_head": [
+          "Sum Award Amount for the grants campaign",
+          "Summary",
+          "sum of Approved Amount: 14687.50 USD"
+        ]
+      },
+      "revised_artifact": {
+        "sha256": "b42d85eb873ca32d67e67e08a262d98cde051203c13f749784be26ae926ecc21",
+        "font": "Calibri",
+        "size": 14.0,
+        "text_head": [
+          "Sum Award Amount for the revised grants campaign",
+          "Summary",
+          "sum of Awarded Value: 18650.00 USD"
+        ]
+      },
+      "outbox_lines_total": 1,
+      "active_snapshot_retained": true,
+      "new_work_used_new_revision": true
+    }
+  }
+}

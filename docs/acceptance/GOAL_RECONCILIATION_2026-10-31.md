@@ -1,7 +1,7 @@
 # 12-goal reconciliation — merged candidate 2026-10-31
 
-**Candidate:** merged README + employee-execution fixes, current product source
-`74464af69f98` (product code `0aa6105e4872`; guided rule authoring in
+**Candidate:** merged README + employee-execution fixes, accepted product
+source `a49b854ce660` (evidence head `d3e8ba961`; guided rule authoring in
 `bc164fb96632`; accepted product source `b7ee7ee22`). The post-repair journey
 and 24-sheet evidence executed on `31ba9725e02a`; the unforced teaching and
 guided-rule smokes on `bc164fb96632`; both authorized live qualifications
@@ -22,7 +22,7 @@ Evidence classes:
 | 1 | Create/select employee, teach, work in a different domain | passed: post-repair normal-app journey on clean `31ba9725e02a` (teach, conflict, qualification, upload, mapping, wait, real backend restart, resume, DOCX 550.00 Arial 11; revised dataset 500.00 Calibri 14) | current-browser | arbitrary domains/schemas not claimed |
 | 2 | Teach method/context/qualification/effective period/conflict/format/protocol/correction | passed: all taught through Training; conflict and missing qualification refused, expired lesson excluded, revised lesson applied only to new work; unforced teaching smoke on the stock build 9/9 (no force/DOM shortcut, lesson survived reload) | current-browser + current-tests | arbitrary prose not deterministic |
 | 3 | Resolve unfamiliar columns/units; correct mapping; resume | passed: `Price → Gross Amount`, `Price → Net Amount`; mapping gap resolved; same run resumed after restart | current-browser + current-tests | arbitrary schemas not claimed |
-| 4 | Upload/connect authorized data and retrieve | **live Microsoft read-only passed**: normal resolver, `/me` identity `rish@brennan.ca`, genuine Outlook workbook attachment, 8/8 rows/216700, product materialization, assignment retrieval, restart/reopen; local upload and 24-sheet evidence remain | current-browser (live + local) | declared attachment only; no write/other-connector claim |
+| 4 | Upload/connect authorized data and retrieve | **live Microsoft read-only passed**: normal resolver, `/me` identity `rish@brennan.ca`, genuine Outlook workbook attachment, 8/8 rows/216700, product materialization, assignment retrieval, restart/reopen; normal product `email_ingest_message` API also refreshed the connector catalog and returned 216700.00 (`part-a-connector/`); local upload and 24-sheet evidence remain | current-browser (live + local) | declared attachment only; no write/other-connector claim |
 | 5 | Large/multi-sheet workbooks and formulas | passed: 24-sheet workbook (500 data rows, 547 catalog rows, leading-zero IDs, blanks); 25-row assignment retrieval 1725.00 without supplied rows; `B2 2→5` recalculated `D2=55`, `Summary!B2=1758`, `B22=34533`; export byte-identical; restart/reopen shows 24 sheets and persisted values (`employee-execution-large-workbook/`) | current-browser | arbitrary Excel functions/macros/charts not claimed |
 | 6 | Create canvas, bind data, calculate, edit, export, reload | passed: normal-app canvas 290 → edit 110 → 325, XLSX export, `revision 2 · 4 rows` | current-browser | arbitrary controls/formulas not claimed |
 | 7 | Grounded selection/calculation and substantive assessment | calculations current; **deterministic rules qualified** (18/18 V1, 19/19 V3, safe abstention); deterministic rule authoring exercised through the normal canvas capability panel (`employee-execution-deterministic-rule-authoring/`) and the **guided editor** (selects/inputs, no JSON, server-validated, 13/13; `employee-execution-guided-rule-authoring/`); model-dependent judgment **failed** | current-tests + current-browser | model judgment unqualified; deterministic only for rule-expressible policies |
@@ -57,14 +57,16 @@ Evidence classes:
 
 ## Live qualifications
 
-- **Part A — executed** on `0aa6105e4872`: read-only Microsoft account
+- **Part A — accepted** on `0aa6105e4872` (connector entry point
+  `a49b854ce660`): read-only Microsoft account
   `rish@brennan.ca`, genuine Outlook workbook attachment, 8/8 rows, independent
   sum `216700`, product materialization and assignment retrieval; restart
   reopened the result. Evidence: `live_qualification_20261101/part-a/`.
-- **Part B — executed once** on `0aa6105e4872`: one-use grant exhausted 1/1,
+- **Part B — accepted once** on `0aa6105e4872`: one-use grant exhausted 1/1,
   exact body binding, provider accepted, exactly one Sent Items row, restart
   terminal/no second effect. Recipient inbox delivery is **not claimed**.
   Evidence: `live_qualification_20261101/part-b/`.
 
-Submitted for independent review; no self-acceptance. The default runtime
-remains controlled-transport and does not send without an explicit new grant.
+Independently accepted within the documented scope on 2026-11-01
+(`FINAL_ACCEPTANCE_2026-11-01.md`). The default runtime remains
+controlled-transport and does not send without an explicit new grant.

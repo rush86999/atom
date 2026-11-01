@@ -1,0 +1,63 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-01 13:38:31 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_assignment_routes.py::test_cancel_clears_correlated_wait_and_refuses_late_reply 
+-------------------------------- live log setup --------------------------------
+2026-11-01 13:38:32 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-01 13:38:32 [    INFO] EscalationManager initialized
+2026-11-01 13:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:38:32 [    INFO] EscalationManager initialized
+2026-11-01 13:38:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-01 13:38:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-01 13:38:32 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:38:33 [    INFO] runtime identity: source_id=f5d2e085a24e-dirty.a78a507e6aa0 revision=f5d2e085a24e dirty=True (0 modified, 1 untracked)
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/646ad5ba-6e73-486d-816a-ee9352f5ad79/cancel "HTTP/1.1 200 OK"
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/646ad5ba-6e73-486d-816a-ee9352f5ad79/responses/corr-cancel-route "HTTP/1.1 409 Conflict"
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/646ad5ba-6e73-486d-816a-ee9352f5ad79/cancel "HTTP/1.1 200 OK"
+2026-11-01 13:38:33 [    INFO] HTTP Request: GET http://testserver/api/assignments/646ad5ba-6e73-486d-816a-ee9352f5ad79 "HTTP/1.1 200 OK"
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/646ad5ba-6e73-486d-816a-ee9352f5ad79/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_assignment_routes.py::test_cancel_clears_mapping_wait_and_refuses_gap_and_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/c4ff1505-15af-4964-8db9-7179780adc75/cancel "HTTP/1.1 200 OK"
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/c4ff1505-15af-4964-8db9-7179780adc75/gaps/c0c80e1c-3ba9-4f7d-b0ed-1984684ec8f5/resolve "HTTP/1.1 409 Conflict"
+2026-11-01 13:38:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/c4ff1505-15af-4964-8db9-7179780adc75/responses/corr-map-cancel "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 70 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 2 passed, 33 deselected, 76 warnings in 15.02s ================

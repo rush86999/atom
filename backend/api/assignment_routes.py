@@ -26,9 +26,11 @@ from core.assignment_planner import (
     validate_proposed_plan,
 )
 from core.assignment_plan import (
+    StepInputError,
     new_teaching_snapshot,
     normalize_standing_authority,
 )
+from core.task_lifecycle import TaskLifecycleError
 from core.assignment_resources import (
     AssignmentResourceError,
     allocate_output_path,
@@ -72,6 +74,10 @@ class AssignmentReconciliation(BaseModel):
 class AssignmentGapResolution(BaseModel):
     resolution: str
     evidence: str = ""
+
+
+class AssignmentRetry(BaseModel):
+    reason: str = "retry a failed step after the cause was repaired"
 
 
 class AssignmentMappingCorrection(BaseModel):
@@ -594,7 +600,7 @@ async def start_assignment(
         )
         if body.proposed_steps is not None:
             validate_proposed_plan(plan)
-    except AssignmentPlanError as exc:
+    except (AssignmentPlanError, StepInputError, TaskLifecycleError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
     executor = _executor({
@@ -750,6 +756,28 @@ async def download_assignment_deliverable(
     )
 
 
+@router.post("/{run_id}/retry/{step_id}")
+async def retry_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentRetry,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Retry one failed step as a new attempt, then resume the same run.
+
+    Used when a failure cause (for example an exhausted wall budget during a
+    legitimate durable wait) has been repaired. The step's attempt counter and
+    the operation history keep the failed attempt visible.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        executor.retry_step(run_id, step_id, reason=body.reason)
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc))
+    return await executor.resume(run_id)
+
+
 @router.post("/{run_id}/resume")
 async def resume_assignment(
     run_id: str,
@@ -793,6 +821,10 @@ async def record_assignment_response(
         evidence=body.evidence,
         value=body.value,
     )
+    if result.get("status") == "terminal":
+        # The run exists and is terminal; the reply is refused rather than
+        # matched to a historical wait and woken.
+        raise HTTPException(status_code=409, detail=result.get("message"))
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
     if result.get("status") in (

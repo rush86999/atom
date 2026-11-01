@@ -36,6 +36,12 @@ frontend: ## Run the frontend dev server on :$(FE_PORT)
 dev: ## Run backend + frontend together (requires tmux or two terminals)
 	@bash scripts/dev.sh
 
+sample: ## Load the documented sample workspace into a running local app
+	@$(PY) scripts/load_sample_workspace.py \
+	  --backend http://127.0.0.1:$(PORT) \
+	  --frontend http://localhost:$(FE_PORT) \
+	  --csv sample-workspace/sample_quote.csv
+
 # -------------------------------------------------------------------
 # Tests
 # -------------------------------------------------------------------

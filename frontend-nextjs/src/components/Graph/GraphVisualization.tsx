@@ -74,6 +74,30 @@ export default function GraphVisualization() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
+
+  // The selected-node panel shows the relationships that actually connect
+  // the node. D3 mutates link.source/target into node objects after layout,
+  // so accept both the pre-layout id strings and the post-layout objects.
+  const selectedRelationships = useMemo(() => {
+    if (!selectedNode) return [];
+    const nodeId = (value: string | Node): string =>
+      typeof value === 'string' ? value : value.id;
+    const byId = new Map(data.nodes.map(n => [n.id, n]));
+    return data.links
+      .filter(link => nodeId(link.source) === selectedNode.id
+        || nodeId(link.target) === selectedNode.id)
+      .map(link => {
+        const sourceId = nodeId(link.source);
+        const targetId = nodeId(link.target);
+        return {
+          id: link.id,
+          type: link.type,
+          source: byId.get(sourceId)?.name || sourceId,
+          target: byId.get(targetId)?.name || targetId,
+          direction: sourceId === selectedNode.id ? 'outgoing' : 'incoming',
+        };
+      });
+  }, [selectedNode, data.nodes, data.links]);
   
   // New Node Form State
   const [newNode, setNewNode] = useState({
@@ -113,12 +137,19 @@ export default function GraphVisualization() {
         const entities = nodesData.data?.entities || [];
         const relationships = linksData.data?.relationships || [];
 
+        // The relationships API returns entity NAMES (from_entity/to_entity)
+        // while D3's forceLink resolves node IDs. Map names to IDs first;
+        // otherwise the simulation throws "node not found" and the explorer
+        // renders an empty graph even though both API calls succeeded.
+        const nodeIdByName = new Map(
+          entities.map((entity: any) => [String(entity.name), String(entity.id)])
+        );
         setData({
           nodes: entities,
           links: relationships.map((l: any) => ({
             ...l,
-            source: l.from_entity,
-            target: l.to_entity
+            source: nodeIdByName.get(String(l.from_entity)) || l.from_entity,
+            target: nodeIdByName.get(String(l.to_entity)) || l.to_entity
           }))
         });
       } else {
@@ -173,6 +204,9 @@ export default function GraphVisualization() {
       .selectAll<SVGGElement, unknown>('g')
       .data(data.nodes)
       .join('g')
+      .attr('data-testid', 'graph-node')
+      .attr('data-node-id', d => d.id)
+      .attr('data-node-name', d => d.name)
       .call(d3.drag<SVGGElement, Node>()
         .on('start', (event, d) => {
           if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -319,8 +353,45 @@ export default function GraphVisualization() {
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[selectedNode.type] || colors.default }}></span>
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-500">{selectedNode.type}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedNode.name}</h3>
+                <h3
+                  className="text-2xl font-bold text-gray-900 mb-2"
+                  data-testid="selected-entity-name"
+                  data-entity-id={selectedNode.id}
+                >{selectedNode.name}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedNode.description || 'No description available.'}</p>
+
+                <div
+                  className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3"
+                  data-testid="selected-relationships"
+                  data-relationship-count={selectedRelationships.length}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-widest">Relationships</h4>
+                    <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                      {selectedRelationships.length}
+                    </span>
+                  </div>
+                  {selectedRelationships.length === 0 ? (
+                    <p className="text-xs text-gray-500">No relationships for this entity.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {selectedRelationships.map(rel => (
+                        <li
+                          key={rel.id}
+                          data-testid="selected-relationship"
+                          className="rounded-lg bg-white px-2.5 py-2 text-xs text-gray-700 shadow-sm"
+                        >
+                          <span className="font-semibold">{rel.source}</span>
+                          <span className="mx-1.5 text-indigo-500">{rel.direction === 'outgoing' ? '→' : '←'}</span>
+                          <span className="font-semibold">{rel.target}</span>
+                          <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                            {rel.type}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 
                 {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
                   <div className="space-y-3 pt-4 border-t border-gray-200">

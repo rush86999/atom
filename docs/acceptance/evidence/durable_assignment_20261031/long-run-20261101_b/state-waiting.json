@@ -1,0 +1,118 @@
+{
+  "schema": "atom-long-run-b-state-1",
+  "run_id": "cac9cbd6-f72b-4fbb-b106-f0990fc5b191",
+  "run_status": "waiting",
+  "assignment_id": "asg-bc8171a465894137",
+  "assignment_status": "waiting",
+  "objective": "Sum Price for the second integrated quote sheet",
+  "teaching_revision": "851207ec455336d3+cabba8f03b6894fa+map",
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "operation_id": "3e8eba43-a0b5-4443-9a75-6042d01db20c",
+      "attempts": 1,
+      "value": "110.00"
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "operation_id": "517f45fc-5f23-41f6-a2be-4c58bcac7ebd",
+      "attempts": 0,
+      "value": null
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0,
+      "value": null
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0,
+      "value": null
+    }
+  ],
+  "waiting_on": {
+    "event": "email",
+    "summary": "authorized external reply",
+    "assignment_wait": {
+      "correlation_id": "quote-missing-currency-2",
+      "question_id": null,
+      "state": "waiting_for_external"
+    },
+    "match_exact": {
+      "correlation_id": "quote-missing-currency-2"
+    },
+    "created_at": "2026-11-01T18:04:41.386922+00:00"
+  },
+  "budget": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "max_wall_seconds": 900.0,
+    "paused_seconds": 0.0,
+    "waiting_since": "2026-11-01T18:04:41.387836+00:00"
+  },
+  "serving_identity": {
+    "pid": 66715,
+    "started_at": "2026-11-01T17:55:43.610131+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "d535aa7d36cf",
+    "source_id": "d535aa7d36cf-dirty.f394d13406d1",
+    "instance_id": "d535aa7d36cf-dirty.f394d13406d1.66715.1793555747",
+    "revision": "d535aa7d36cfd5202326051614646c77807a7808",
+    "dirty": true,
+    "dirty_digest": "f394d13406d1",
+    "dirty_paths": [
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "untracked_paths": [
+      "docs/acceptance/evidence/COMPLETION_BUNDLE_2026-11-01_agent1.md",
+      "docs/acceptance/evidence/complex_teaching_20261101/part1/first-conflict.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part1/missing-qualification.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part1/part1.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part1/waiting-before-restart.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/active-assignment-artifact.docx",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/active-completed.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-expedited-assignment-artifact.docx",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-expedited-completed.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-expedited.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-revised-assignment-artifact.docx",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-revised-completed.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/campaign-a-revised.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/cancellation-late-reply.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/clarification-targeted.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/clarification-targeted.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/clarification.json",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/clarification.png",
+      "docs/acceptance/evidence/complex_teaching_20261101/part2/reopened-after-restart.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/browser-recovery.json",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/01-wait-before-restart.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/02-wait-resumed-after-restart.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/03-mapping-before-revision.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/04-revision-refused.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/05-ambiguous-mappings.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/06-ambiguous-resolved.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/07-cancelled.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser-20261101/screenshots/08-duplicate-resume.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/active-assignment-artifact.docx",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/active-completed.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/long-run-revised-assignment-artifact.docx",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/long-run-revised-completed.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/long-run-revised.json",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/part2/reopened-after-restart.png",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/state-after-restart.json",
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101/state-completed.json",
+      "scripts/acceptance/revised_scope_run.py",
+      "scripts/acceptance/teaching_clarification_campaign.py"
+    ],
+    "captured_at": "2026-11-01T17:55:47.286776+00:00",
+    "port": 8085,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_20261101_b/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T18:05:05.963296+00:00"
+}

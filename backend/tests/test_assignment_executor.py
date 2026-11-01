@@ -2260,3 +2260,35 @@ def test_cost_bearing_adapter_without_a_bound_is_refused(env, tmp_path):
     assert calls["count"] == 0
     assert step["status"] == "failed"
     assert step["failure"]["reason"] == "unbounded_cost_refused"
+
+
+def test_durable_wait_time_is_excluded_from_the_wall_budget(env):
+    """A 15-minute working budget must survive a two-hour external wait.
+
+    The budget gate is the consumer boundary: it must allow the next step
+    after a long durable wait, while still refusing a genuinely long-running
+    working assignment.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    executor = env["executor"]
+    now = datetime.now(timezone.utc)
+    two_hours_ago = (now - timedelta(hours=2)).isoformat()
+    base = {
+        "max_steps": 40,
+        "max_attempts_per_step": 3,
+        "max_wall_seconds": 900,
+        "started_at": two_hours_ago,
+    }
+
+    waiting = dict(base, waiting_since=two_hours_ago, paused_seconds=0.0)
+    assert executor._budget_allows({"budget": waiting}, {"attempts": 0}) is True
+    assert executor._remaining_wall_seconds({"budget": waiting}) > 800
+
+    resolved = dict(base, waiting_since=None, paused_seconds=7200.0)
+    assert executor._budget_allows({"budget": resolved}, {"attempts": 0}) is True
+    assert executor._remaining_wall_seconds({"budget": resolved}) > 800
+
+    working = dict(base, waiting_since=None, paused_seconds=0.0)
+    assert executor._budget_allows({"budget": working}, {"attempts": 0}) is False
+    assert executor._remaining_wall_seconds({"budget": working}) == 0.0

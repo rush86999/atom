@@ -2819,6 +2819,28 @@ class AssignmentExecutor:
         record = self.lifecycle.get_task(run_id)
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
+        assignment_status = str(
+            (record.get("assignment") or {}).get("status") or "")
+        if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+            # A late reply must not match or wake terminal work, even when a
+            # cancelled step still carries its historical wait record.
+            try:
+                self.lifecycle.runs.append_decision(run_id, {
+                    "kind": "external_response_refused",
+                    "rationale": (
+                        f"assignment {assignment_status}: response for "
+                        f"{correlation_id} not used"),
+                    "correlation_id": str(correlation_id or ""),
+                })
+            except Exception:  # noqa: BLE001 — refusal must still return
+                pass
+            return {
+                "status": "terminal",
+                "assignment_status": assignment_status,
+                "message": (
+                    f"The assignment is {assignment_status}; the response "
+                    "was not used to resume work."),
+            }
         from core.task_lifecycle import open_unresolved_questions
 
         for question in open_unresolved_questions(record):
@@ -2973,6 +2995,27 @@ class AssignmentExecutor:
                 if fact_confirmation:
                     item["external_response"]["fact_confirmation"] = (
                         fact_confirmation)
+                # The wait is durable work, not wall-budget consumption.
+                # Accumulate the paused interval here because this path
+                # clears ``waiting`` before the executor's resume loop runs.
+                budget = dict(new_plan.get("budget") or {})
+                waiting_since = (
+                    budget.get("waiting_since")
+                    or step.get("updated_at")
+                    or (step.get("waiting") or {}).get("since"))
+                if waiting_since:
+                    try:
+                        paused = max(
+                            0.0,
+                            self.clock() - datetime.fromisoformat(
+                                str(waiting_since)).timestamp())
+                        budget["paused_seconds"] = (
+                            float(budget.get("paused_seconds") or 0.0)
+                            + paused)
+                    except (TypeError, ValueError):
+                        pass
+                    budget.pop("waiting_since", None)
+                    new_plan["budget"] = budget
                 item["updated_at"] = _utc_now_iso()
                 new_plan["status"] = "planned"
                 new_plan["updated_at"] = _utc_now_iso()
@@ -3002,12 +3045,53 @@ class AssignmentExecutor:
             step = step_by_id(assignment, step_id)
             if step is None:
                 raise AssignmentError(f"unknown step {step_id!r}")
-            if int(step.get("attempts") or 0) >= int(
-                    step.get("max_attempts") or 3):
+            failure = step.get("failure") or {}
+            # A pre-dispatch budget refusal is not an execution attempt. It
+            # must not consume the retry budget or permanently wedge a step
+            # that never reached the adapter.
+            budget_blocked = (
+                failure.get("reason") == "assignment_budget_exhausted")
+            if (not budget_blocked
+                    and int(step.get("attempts") or 0) >= int(
+                        step.get("max_attempts") or 3)):
                 raise AssignmentError(
                     f"step {step_id} exhausted its attempt budget")
+            # Migration/recovery: assignments created before wait time was
+            # excluded could fail a completed durable wait with
+            # ``assignment_budget_exhausted``. Credit the actual interval from
+            # the last completed step to the recorded response, so the retry
+            # can run without a manual budget edit. This is bounded to that
+            # exact failure and an already-recorded external response.
+            if (failure.get("reason") == "assignment_budget_exhausted"
+                    and step.get("external_response")):
+                budget = dict(assignment.get("budget") or {})
+                prior_times = []
+                for other in assignment.get("steps") or []:
+                    if other.get("step_id") == step_id:
+                        continue
+                    if other.get("updated_at"):
+                        try:
+                            prior_times.append(datetime.fromisoformat(
+                                str(other["updated_at"])).timestamp())
+                        except (TypeError, ValueError):
+                            pass
+                started = budget.get("started_at")
+                try:
+                    started_ts = datetime.fromisoformat(
+                        str(started)).timestamp() if started else None
+                except (TypeError, ValueError):
+                    started_ts = None
+                wait_start = max(prior_times) if prior_times else started_ts
+                if wait_start is not None:
+                    paused = max(0.0, self.clock() - wait_start)
+                    budget["paused_seconds"] = (
+                        float(budget.get("paused_seconds") or 0.0) + paused)
+                    budget.pop("waiting_since", None)
+                    assignment["budget"] = budget
             step["status"] = "pending"
-            step["attempts"] = int(step.get("attempts") or 0) + 1
+            step["attempts"] = (
+                1 if budget_blocked
+                else int(step.get("attempts") or 0) + 1)
             step["operation_id"] = None
             step["failure"] = None
             step["waiting"] = None
@@ -3086,6 +3170,11 @@ class AssignmentExecutor:
         record = self.lifecycle.get_task(run_id)
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
+        if str((record.get("assignment") or {}).get("status") or "") == (
+                "cancelled"):
+            # Repeated cancellation is a status read, not a second transition:
+            # keep the first cancellation evidence and dispatch nothing.
+            return self.status(run_id)
         self.lifecycle.apply_transition(run_id, {
             "kind": "cancel",
             "requested_change": _bounded(
@@ -3110,8 +3199,14 @@ class AssignmentExecutor:
             }
             return new_plan, {"status": "cancelled"}
 
-        return self.lifecycle.mutate_assignment(
+        result = self.lifecycle.mutate_assignment(
             run_id, compute, rationale=f"assignment cancelled: {reason}")
+        # Project the terminal state on the shared GoalRun row immediately.
+        # The assignment/task ledger stays authoritative for history; this
+        # clears the run's live waiting projection so public status cannot
+        # claim a cancelled assignment is still waiting for input.
+        self._set_run_status(run_id, "cancelled")
+        return result
 
     # ------------------------------------------------------------ internals
 
@@ -3412,6 +3507,34 @@ class AssignmentExecutor:
             "updated_at": _utc_now_iso(),
         })
 
+    def _effective_wall_elapsed(self, budget: Dict[str, Any]) -> float:
+        """Wall time spent working, excluding durable external waits.
+
+        A wait is persisted work, not CPU/transport time. Counting it against
+        ``max_wall_seconds`` made a 15-minute assignment budget expire during a
+        legitimate two-hour external wait. ``paused_seconds`` is accumulated
+        when the wait resolves; ``waiting_since`` covers the currently open
+        wait (including across a restart).
+        """
+        started = budget.get("started_at")
+        if not started:
+            return 0.0
+        try:
+            started_at = datetime.fromisoformat(str(started)).timestamp()
+        except (TypeError, ValueError):
+            return 0.0
+        paused = float(budget.get("paused_seconds") or 0.0)
+        waiting_since = budget.get("waiting_since")
+        if waiting_since:
+            try:
+                paused += max(
+                    0.0,
+                    self.clock() - datetime.fromisoformat(
+                        str(waiting_since)).timestamp())
+            except (TypeError, ValueError):
+                pass
+        return max(0.0, (self.clock() - started_at) - paused)
+
     def _budget_allows(
         self, assignment: Dict[str, Any], step: Dict[str, Any],
     ) -> bool:
@@ -3423,15 +3546,9 @@ class AssignmentExecutor:
                 step.get("max_attempts") or budget.get(
                     "max_attempts_per_step") or 3):
             return False
-        started = budget.get("started_at")
-        if started:
-            try:
-                started_at = datetime.fromisoformat(str(started)).timestamp()
-                if self.clock() - started_at > float(
-                        budget.get("max_wall_seconds") or 3600.0):
-                    return False
-            except (TypeError, ValueError):
-                pass
+        if self._effective_wall_elapsed(budget) > float(
+                budget.get("max_wall_seconds") or 3600.0):
+            return False
         cost_limit = float(budget.get("max_cost_usd") or 0)
         if (cost_limit > 0
                 and str(budget.get("cost_mode") or "hard") == "hard"
@@ -3449,14 +3566,7 @@ class AssignmentExecutor:
         limit = float(budget.get("max_wall_seconds") or 0)
         if limit <= 0:
             return None
-        started = budget.get("started_at")
-        if not started:
-            return limit
-        try:
-            started_at = datetime.fromisoformat(str(started)).timestamp()
-        except (TypeError, ValueError):
-            return limit
-        return max(0.0, limit - (self.clock() - started_at))
+        return max(0.0, limit - self._effective_wall_elapsed(budget))
 
     def _step_cost_bound(
         self, step: Dict[str, Any], adapter: Any,
@@ -3903,6 +4013,24 @@ class AssignmentExecutor:
             return True
         if not self._resolve_waiting(record, step):
             return False
+        # Charge only working time. Old rows have no waiting_since; the
+        # step's updated_at is the durable moment it entered the wait.
+        budget = dict(assignment.get("budget") or {})
+        waiting_since = (
+            budget.get("waiting_since")
+            or step.get("updated_at")
+            or (step.get("waiting") or {}).get("since"))
+        if waiting_since:
+            try:
+                paused = max(
+                    0.0,
+                    self.clock() - datetime.fromisoformat(
+                        str(waiting_since)).timestamp())
+                budget["paused_seconds"] = (
+                    float(budget.get("paused_seconds") or 0.0) + paused)
+            except (TypeError, ValueError):
+                pass
+            budget.pop("waiting_since", None)
         operation_id = _operation_id_for_step(record, step)
         if operation_id:
             operation = _operation_by_id(record, operation_id) or {}
@@ -3920,9 +4048,79 @@ class AssignmentExecutor:
             "attempts": int(step.get("attempts") or 0) + 1,
             "waiting": None,
             "updated_at": _utc_now_iso()})
+        if budget:
+            updated["budget"] = budget
         self._persist_assignment(
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
+
+    def _autonomy_topic_for_step(
+        self, step: Dict[str, Any],
+    ) -> Optional[str]:
+        """The autonomy topic an unapproved step exercises, if any.
+
+        Explicit ``autonomy_topic`` wins. Otherwise only mutating operation
+        classes are mapped, and outbound adapters must name their surface —
+        an unknown external adapter is governed by the approval/standing
+        rules above, not guessed into a topic.
+        """
+        explicit = str(step.get("autonomy_topic") or "").strip()
+        if explicit:
+            return explicit
+        operation_type = str(step.get("operation_type") or "").lower()
+        adapter = str(step.get("adapter") or "").lower()
+        if operation_type == "edit":
+            return "canvas_edit"
+        if (operation_type == "outbound"
+                and str(step.get("effect") or "") == "external"):
+            if "email" in adapter or "send" in adapter:
+                return "send_email"
+            if "crm" in adapter:
+                return "crm_write"
+        return None
+
+    def _autonomy_gate(
+        self,
+        assignment: Dict[str, Any],
+        step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Re-evaluate runtime autonomy immediately before the effect claim.
+
+        A durable wait/restart can outlive the decision that a hire was
+        allowed to act. This consults the SAME gate a chat/canvas turn
+        consults, using a fresh session so a revoked trust-calibration
+        grant is observed without process state.
+        """
+        topic = self._autonomy_topic_for_step(step)
+        if not topic:
+            return None
+        provenance = assignment.get("provenance") or {}
+        agent_id = str(provenance.get("agent_id") or "").strip() or None
+        user_id = (
+            str(provenance.get("user_id") or "").strip()
+            or str(assignment.get("employee_id") or "").strip()
+            or None)
+        try:
+            from core.autonomy_policy import (
+                OUTCOME_EXECUTE, gate_for_topic,
+            )
+
+            with self.lifecycle.runs._sessions()() as db:
+                gate = gate_for_topic(db, user_id, topic, agent_id)
+            if gate.get("outcome") == OUTCOME_EXECUTE:
+                return None
+            return gate
+        except Exception as exc:  # noqa: BLE001 — fail closed for mutating work
+            logger.warning(
+                "assignment %s: autonomy gate unavailable for %s: %s",
+                assignment.get("assignment_id"), step.get("step_id"), exc)
+            return {
+                "topic": topic,
+                "outcome": "propose",
+                "reason": (
+                    "Runtime autonomy could not be re-verified before this "
+                    "mutating step; human approval is required."),
+            }
 
     def _adapter_allows_standing(self, adapter: Any) -> bool:
         metadata = getattr(adapter, "metadata", None) or {}
@@ -4099,6 +4297,33 @@ class AssignmentExecutor:
             self._persist_assignment(
                 run_id, assignment, "step blocked: action not authorized")
             return
+
+        # Re-verify runtime autonomy AFTER any durable wait and immediately
+        # before the effect claim. A grant that was valid when the assignment
+        # was prepared (or before a restart) is not assumed to still hold.
+        if not approval.get("required") and not authorized_by_grant:
+            autonomy_gate = self._autonomy_gate(assignment, step)
+            if autonomy_gate is not None:
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "autonomy": {
+                        "topic": autonomy_gate.get("topic"),
+                        "outcome": autonomy_gate.get("outcome"),
+                        "reason": autonomy_gate.get("reason"),
+                    },
+                    "updated_at": _utc_now_iso(),
+                })
+                self._persist_assignment(
+                    run_id, assignment,
+                    f"step {step['step_id']} re-gated by autonomy policy")
+                step = step_by_id(assignment, step["step_id"]) or step
+                approval = {
+                    **approval,
+                    "required": True,
+                    "purpose": (
+                        autonomy_gate.get("reason")
+                        or "Runtime autonomy must be re-approved."),
+                    "source": "autonomy_recheck",
+                }
 
         if approval.get("required") and not authorized_by_grant:
             operation = _operation_by_id(
@@ -4316,6 +4541,10 @@ class AssignmentExecutor:
                 "status": "waiting",
                 "waiting": _json_safe(exc.waiting),
                 "updated_at": _utc_now_iso()})
+            budget = dict(assignment.get("budget") or {})
+            if not budget.get("waiting_since"):
+                budget["waiting_since"] = _utc_now_iso()
+                assignment["budget"] = budget
             self._persist_assignment(
                 run_id, assignment, "step waiting for external")
             return
