@@ -103,23 +103,15 @@ fields, observed remote id and readback attempts. A sparse first readback is
 re-read once from the same remote object; the create is never repeated. The
 durable operation identity/payload binding remains the executor's record.
 
-The current `_action_registry_adapter` in `assignment_executor.py` wraps every
-action result as `status=applied`. Agent 1 must map the action's
-`action_result` into the executor outcome (`applied`, `uncertain`, or failed)
-before marking the operation complete. Do not treat a `conflict` allocation as
-applied. The module exports the drop-in mapping:
-
-```python
-from core.connected_actions import action_executor_outcome
-
-result = await action_registry.execute_action(name, arguments, execution_context)
-outcome = action_executor_outcome(result)   # applied | uncertain | failed
-return {"status": outcome, "data": _json_safe(result), ...}
-```
-
-A suggested adapter patch is to replace the unconditional
-`{"status": "applied", ...}` return with the mapped `outcome`; keep the
-existing `ExternalOutcomeUnknown` exception path for adapters that raise it.
+The review candidate's `assignment_executor._action_registry_adapter` uses the
+hardened `_action_result_outcome` classifier and maps connected action
+envelopes to `applied`, `failed` (trusted no-effect), `uncertain` (possibly
+applied/conflict/incomplete), or `unavailable` (read not performed). It
+preserves remote identity and readback/verification evidence on uncertain
+operations and blocks dependents until reconciliation. Do not treat a
+`conflict` allocation as applied. `core.connected_actions.action_executor_outcome`
+remains as a small compatibility/diagnostic helper for direct consumers; the
+executor does not depend on it.
 
 ## Receipt shape
 
