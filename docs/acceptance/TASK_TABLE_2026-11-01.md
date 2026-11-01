@@ -68,3 +68,16 @@ closed. No further repair campaign is indicated for them. Hosted deployment rema
 connector breadth and model-quality exclusions remain; the previously accepted
 one-use Outlook send and Microsoft read-only qualification remain closed and
 unchanged.
+
+## Brennan user-authored canvas addendum
+
+Source: `docs/engineering/USER_AUTHORED_CANVASES.md` (implementation addendum).
+
+| Task | Owner | Next executable action | Blocker |
+|---|---|---|---|
+| User-authored canvas contract | Agent 1 | Extend capability-canvas manifest/instance/field/input-receipt contracts with stable IDs, typed values, revisions and provenance; server validation only | finish pricing/readback repairs first |
+| Three canvas shapes | Agent 1 | Build industrial quote, service proposal and non-sales exception/reconciliation canvases from one build, ordinary UI | depends on contract |
+| Canvas execution/learning boundary | Agent 1 | Fact vs value correction vs reusable lesson vs authority separation; history and dependent invalidation | depends on contract |
+| Provider canvas bindings | Agent 2 | Bind authorized records/files and version/provenance receipts; no per-instance Python | contract agreed |
+| Custom-code runtime | Shared, explicit scope | Mini-app runtime stays sandboxed; explicit refusal when declared runtime unavailable | separate qualification |
+| Usability measurement | Verifier/user | Unfamiliar user creates a canvas, answers a question, checks result, corrects and finds history; record time/errors | after three shapes |

@@ -87,6 +87,64 @@ def _active_rule(rule: Dict[str, Any], as_of: str) -> bool:
     return True
 
 
+def _rate_value(rule: Dict[str, Any]) -> Optional[Decimal]:
+    try:
+        value = Decimal(str(rule.get("rate")))
+        return value if value.is_finite() else None
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
+def _rule_signature(rule: Dict[str, Any]) -> Tuple[Any, ...]:
+    """Material pricing behavior, normalized for decision equivalence."""
+    rate = _rate_value(rule)
+    return (
+        rate.normalize() if rate is not None else None,
+        str(rule.get("discount_type") or rule.get("basis") or "rate").lower(),
+        str(rule.get("cap") or rule.get("max_amount") or ""),
+    )
+
+
+def _missing_gap(line: Dict[str, Any], missing: Sequence[Dict[str, Any]],
+                 keys: Sequence[str]) -> Dict[str, Any]:
+    seen: List[str] = []
+    for key in keys:
+        if key not in seen:
+            seen.append(key)
+    return {
+        "concept": "discount_scope",
+        "reason": (
+            "a scoped discount rule cannot be applied without its qualifiers"),
+        "question": (
+            "Which " + ", ".join(seen) + " applies to this line? A taught "
+            "exception depends on it and could change the discount."),
+        "affected_subjects": [line.get("item_id") or line.get("sku") or ""],
+        "checked_evidence": [
+            str(item["rule"].get("lesson_id") or item["rule"].get("name") or "")
+            for item in missing
+        ],
+        "inputs": {
+            "line": dict(line),
+            "missing_fields": seen,
+            "candidate_rules": [
+                {
+                    "lesson_id": item["rule"].get("lesson_id"),
+                    "name": item["rule"].get("name"),
+                    "revision": item["rule"].get("revision"),
+                    "rate": item["rule"].get("rate"),
+                    "when": dict(item["rule"].get("when") or {}),
+                }
+                for item in missing
+            ],
+        },
+        "next_retrieval": (
+            "confirm the line qualifier through the authorized source"),
+        "next_action": (
+            "read the authorized customer/product evidence and retry"),
+        "kind": "missing_evidence",
+    }
+
+
 def resolve_discount_rule(
     line: Dict[str, Any],
     rules: Sequence[Dict[str, Any]],
@@ -95,19 +153,22 @@ def resolve_discount_rule(
 ) -> Optional[Dict[str, Any]]:
     """Resolve the one governing discount rule for a line.
 
-    More specific rules (more matched ``when`` keys) override broader ones.
-    Equal-specificity rules with different rates are a conflict; missing
-    qualifiers are a clarification. A line may carry an explicit discount
-    that bypasses policy only when the caller marks it ``discount_authority``.
+    Candidates are true (established and matching), false (an established
+    condition excludes them), or unknown (missing evidence could change
+    applicability). Unknown candidates are never treated as false: if an
+    unknown rule could supersede or tie the established winner and its
+    material pricing behavior differs, the caller must clarify.
     """
     applicable: List[Tuple[int, Dict[str, Any]]] = []
     missing: List[Dict[str, Any]] = []
     for raw in rules or []:
         if not isinstance(raw, dict):
             continue
-        if not _active_rule(raw, as_of):
+        if as_of and not _active_rule(raw, as_of):
             continue
         matches, absent = _rule_matches(raw, line)
+        if not as_of and (raw.get("effective_from") or raw.get("effective_to")):
+            absent = list(absent) + ["effective_date"]
         if absent:
             missing.append({"rule": raw, "missing": absent})
             continue
@@ -117,8 +178,8 @@ def resolve_discount_rule(
         top = max(specificity for specificity, _ in applicable)
         winners = [rule for specificity, rule in applicable
                    if specificity == top]
-        rates = {str(rule.get("rate")) for rule in winners}
-        if len(rates) > 1:
+        signatures = {_rule_signature(rule) for rule in winners}
+        if len(signatures) > 1:
             raise NeedsContext({
                 "concept": "discount_rule_conflict",
                 "reason": "equally specific discounts conflict",
@@ -138,6 +199,21 @@ def resolve_discount_rule(
                     "detail": "conflicting discount rules",
                 },
             })
+        selected_signature = _rule_signature(winners[0])
+        blocking = []
+        for item in missing:
+            rule = item["rule"]
+            potential = _rule_specificity(rule)
+            if (potential >= top
+                    and _rule_signature(rule) != selected_signature):
+                blocking.append(item)
+        if blocking:
+            keys: List[str] = []
+            for item in blocking:
+                for key in item["missing"]:
+                    if key not in keys:
+                        keys.append(key)
+            raise NeedsContext(_missing_gap(line, blocking, keys))
         return dict(winners[0])
     if missing:
         keys: List[str] = []
@@ -145,23 +221,8 @@ def resolve_discount_rule(
             for key in item["missing"]:
                 if key not in keys:
                     keys.append(key)
-        raise NeedsContext({
-            "concept": "discount_scope",
-            "reason": "a scoped discount rule cannot be applied without its qualifiers",
-            "question": (
-                "Which " + ", ".join(keys) + " applies to this line? A taught "
-                "exception depends on it."),
-            "affected_subjects": [line.get("item_id") or line.get("sku")],
-            "checked_evidence": [
-                str(rule.get("lesson_id") or rule.get("name") or "")
-                for item in missing for rule in [item["rule"]]
-            ],
-            "next_retrieval": "confirm the line qualifier through the authorized source",
-            "next_action": "read the authorized customer/product evidence and retry",
-            "kind": "missing_evidence",
-        })
+        raise NeedsContext(_missing_gap(line, missing, keys))
     return None
-
 
 def calculate_line_items(
     *,
@@ -458,9 +519,39 @@ def calculate_line_items(
 async def _quote_calculate(
     inputs: Dict[str, Any], context: Dict[str, Any],
 ) -> Dict[str, Any]:
+    line_items = [dict(item) for item in (inputs.get("line_items") or [])
+                  if isinstance(item, dict)]
+    for gap in context.get("resolved_gaps") or []:
+        if str(gap.get("concept") or "") != "discount_scope":
+            continue
+        gap_inputs = dict(gap.get("inputs") or {})
+        fields = [str(item) for item in gap_inputs.get("missing_fields") or []]
+        target = (gap_inputs.get("line") or {}).get("item_id")
+        resolution = str(gap.get("resolution") or "").strip()
+        # The task ledger appends attribution such as " [by user-1]"; that is
+        # audit text, not the field value.
+        if " [by " in resolution and resolution.endswith("]"):
+            resolution = resolution.split(" [by ", 1)[0].strip()
+        if not fields or not resolution:
+            continue
+        matched = False
+        for line in line_items:
+            if target and str(line.get("item_id") or "") != str(target):
+                continue
+            for field in fields:
+                line[field] = resolution
+            matched = True
+        if target and not matched:
+            raise NeedsContext({
+                "concept": "discount_scope",
+                "reason": "the resolved line identity is no longer present",
+                "question": "Which current line should this discount apply to?",
+                "affected_subjects": [target],
+                "kind": "missing_evidence",
+            })
     try:
         return calculate_line_items(
-            line_items=inputs.get("line_items") or [],
+            line_items=line_items,
             currency=str(inputs.get("currency") or ""),
             freight=inputs.get("freight"),
             tax=inputs.get("tax"),
@@ -473,6 +564,19 @@ async def _quote_calculate(
                 or "currency_minor_unit"),
             source_evidence=inputs.get("source_evidence") or [],
         )
+    except NeedsContext as exc:
+        gap = dict(exc.gap or {})
+        gap_inputs = dict(gap.get("inputs") or {})
+        gap_inputs.setdefault(
+            "teaching_revision",
+            (context.get("teaching") or {}).get("revision"))
+        gap_inputs.setdefault("source_versions", [
+            str((source or {}).get("source_version") or "")
+            for source in (context.get("sources") or [])
+            if isinstance(source, dict) and source.get("source_version")
+        ])
+        gap["inputs"] = gap_inputs
+        raise NeedsContext(gap) from exc
     except QuoteInputError as exc:
         raise NeedsContext({
             "concept": "quote_input",

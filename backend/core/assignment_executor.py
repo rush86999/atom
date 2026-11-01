@@ -3224,6 +3224,10 @@ class AssignmentExecutor:
             step = step_by_id(assignment, step_id)
             if step is None:
                 raise AssignmentError(f"unknown step {step_id!r}")
+            if str(step.get("status") or "") == "uncertain":
+                raise AssignmentError(
+                    "step is uncertain; reconcile the existing operation "
+                    "before retrying so a second effect cannot be created")
             failure = step.get("failure") or {}
             # A pre-dispatch budget refusal is not an execution attempt. It
             # must not consume the retry budget or permanently wedge a step
@@ -5210,7 +5214,9 @@ class AssignmentExecutor:
             self._attach_receipt(
                 run_id, operation, step, result,
                 observed_status="uncertain",
-                error_class="external_outcome_unknown",
+                error_class=_bounded(
+                    result.get("error_class")
+                    or "external_outcome_unknown", 120),
                 reconciliation_required=True)
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "uncertain",
@@ -5536,6 +5542,11 @@ async def _action_registry_adapter(
             "error_class": "precondition_failed",
             "evidence": failures,
         }
+    effects = [str((item or {}).get("effect") or "").lower()
+               for item in (action.effects or []) if isinstance(item, dict)]
+    mutating = any(effect in (
+        "write", "create", "update", "delete", "send", "execute",
+        "graph_updated", "record_created") for effect in effects)
     try:
         result = await action_registry.execute_action(
             name, arguments, execution_context)
@@ -5544,37 +5555,89 @@ async def _action_registry_adapter(
         # shared operation record; it is never downgraded to a plain failure.
         raise
     except Exception as exc:  # noqa: BLE001 — receipt keeps the failure
+        if mutating:
+            raise ExternalOutcomeUnknown(
+                f"registered action '{name}' raised after dispatch: "
+                f"{_bounded(str(exc), 400)}",
+                evidence=_bounded(
+                    "action.registry: invocation exception after dispatch",
+                    500),
+            )
         return {
             "status": "failed",
             "message": _bounded(str(exc), 500),
             "error_class": "action_dispatch_error",
         }
+    safe = _json_safe(result)
+    body = safe if isinstance(safe, dict) else {"data": safe}
+    action_result = str(body.get("action_result") or "").lower()
+    status = str(body.get("status") or "").lower()
+    if action_result in ("conflict",):
+        return {
+            "status": "uncertain",
+            "error_class": "readback_conflict",
+            "reason": _bounded(
+                body.get("error") or body.get("message")
+                or "provider readback conflicts with the authorized payload",
+                500),
+            "evidence": _bounded(json.dumps(body, sort_keys=True), 1000),
+            "data": body,
+        }
+    if action_result == "unavailable":
+        return {
+            "status": "failed",
+            "error_class": "unavailable",
+            "message": _bounded(
+                body.get("error") or body.get("message")
+                or "provider readback is unavailable", 500),
+            "data": body,
+        }
+    if action_result == "proven_not_applied":
+        return {
+            "status": "proven_not_applied",
+            "error_class": "proven_not_applied",
+            "message": _bounded(
+                body.get("error") or body.get("message")
+                or "provider proved no effect", 500),
+            "data": body,
+        }
     from core.connected_actions import action_executor_outcome
 
-    outcome = action_executor_outcome(result)
+    outcome = action_executor_outcome(body)
     if outcome == "applied":
         return {
             "status": "applied",
             "summary": f"registered action {name} completed",
-            "data": _json_safe(result),
-            "evidence": [{"kind": "action_registry", "action": name}],
+            "data": body,
+            "evidence": [{"kind": "action_registry", "action": name,
+                          "action_result": action_result or status}],
         }
     if outcome == "uncertain":
         return {
             "status": "uncertain",
-            "reason": (
-                f"registered action {name} reported "
-                f"{result.get('action_result') or 'an unknown outcome'}"),
-            "evidence": _bounded(str(result), 500),
-            "data": _json_safe(result),
+            "error_class": "external_outcome_unknown",
+            "reason": _bounded(
+                body.get("error") or body.get("message")
+                or f"registered action {name} reported "
+                   f"{action_result or status or 'an unknown outcome'}", 500),
+            "evidence": _bounded(json.dumps(body, sort_keys=True), 1000),
+            "data": body,
         }
+    if mutating and action_result not in ("proven_not_applied",):
+        # A mutation with an unrecognized/contradictory envelope is not
+        # proof of no effect. Fail closed and reconcile.
+        raise ExternalOutcomeUnknown(
+            f"registered action '{name}' returned an unrecognized mutation "
+            f"outcome '{action_result or status or 'missing'}'",
+            evidence=_bounded(json.dumps(body, sort_keys=True), 1000),
+        )
     return {
         "status": "failed",
         "message": (
             f"registered action {name} did not apply: "
-            f"{result.get('error') or result.get('status') or 'refused'}"),
-        "error_class": str(result.get("error_kind") or "proven_not_applied"),
-        "data": _json_safe(result),
+            f"{body.get('error') or body.get('status') or 'refused'}"),
+        "error_class": str(body.get("error_kind") or "proven_not_applied"),
+        "data": body,
     }
 
 

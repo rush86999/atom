@@ -168,3 +168,79 @@ def test_adapter_maps_invalid_inputs_to_a_typed_gap():
              "currency": "USD", "freight": "0",
              "tax": {"basis": "none"}}, {}))
     assert excinfo.value.gap["concept"] == "quote_input"
+
+
+def test_missing_exception_context_asks_when_it_changes_the_discount():
+    rules = [
+        {"name": "general", "when": {}, "rate": "0.05"},
+        {"name": "licensed", "when": {"qualification": "licensed"},
+         "rate": "0.10"},
+    ]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule({"item_id": "A", "qualification": ""}, rules)
+    assert "qualification" in exc.value.gap.get("question", "").lower()
+    assert exc.value.gap["inputs"]["missing_fields"] == ["qualification"]
+    assert resolve_discount_rule(
+        {"item_id": "A", "qualification": "licensed"}, rules)["rate"] == "0.10"
+    assert resolve_discount_rule(
+        {"item_id": "A", "qualification": "unlicensed"}, rules)["rate"] == "0.05"
+
+
+def test_definitively_excluded_exception_does_not_block():
+    rules = [
+        {"name": "general", "when": {}, "rate": "0.05"},
+        {"name": "licensed", "when": {"qualification": "licensed"},
+         "rate": "0.10"},
+    ]
+    assert resolve_discount_rule(
+        {"item_id": "A", "qualification": "unlicensed"}, rules)["name"] == (
+        "general")
+
+
+def test_more_specific_unknown_different_behavior_asks():
+    rules = [
+        {"name": "general", "when": {}, "rate": "0.05"},
+        {"name": "tier", "when": {"customer_tier": "gold"},
+         "rate": "0.20"},
+    ]
+    with pytest.raises(NeedsContext):
+        resolve_discount_rule({"item_id": "A"}, rules)
+
+
+def test_equivalent_numeric_rates_do_not_ask_or_conflict():
+    rules = [
+        {"name": "general", "when": {}, "rate": "5"},
+        {"name": "licensed", "when": {"qualification": "licensed"},
+         "rate": "5.00"},
+    ]
+    assert resolve_discount_rule(
+        {"item_id": "A", "qualification": ""}, rules)["name"] == "general"
+
+
+def test_unknown_effective_date_asks_when_it_changes_applicability():
+    rules = [
+        {"name": "general", "when": {}, "rate": "0.05"},
+        {"name": "promo", "when": {}, "rate": "0.10",
+         "effective_from": "2026-01-01", "effective_to": "2026-12-31"},
+    ]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule({"item_id": "A"}, rules, as_of="")
+    assert "effective_date" in exc.value.gap["inputs"]["missing_fields"]
+
+
+def test_unknown_rule_with_same_pricing_behavior_does_not_ask():
+    rules = [
+        {"name": "general", "when": {}, "rate": "5"},
+        {"name": "same", "when": {"customer_tier": "gold"}, "rate": "5.00"},
+    ]
+    assert resolve_discount_rule({"item_id": "A"}, rules)["name"] == "general"
+
+
+def test_equally_specific_established_rules_still_conflict():
+    rules = [
+        {"name": "a", "when": {"customer_tier": "gold"}, "rate": "0.05"},
+        {"name": "b", "when": {"customer_tier": "gold"}, "rate": "0.10"},
+    ]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule({"item_id": "A", "customer_tier": "gold"}, rules)
+    assert exc.value.gap.get("concept") == "discount_rule_conflict"
