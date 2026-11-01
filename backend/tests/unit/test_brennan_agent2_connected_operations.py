@@ -230,10 +230,11 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
     )
     result = asyncio.run(actions.outlook_create_draft(
         {"to": ["buyer@example.invalid"], "subject": "Quote",
-         "body": "Draft body"},
+         "body": "Draft body", "operation_id": "op-draft-1"},
         {"user_id": "user-1", "tenant_id": "t1"}))
 
     assert result["status"] == "success"
+    assert result["action_result"] == "applied"
     assert service.sent is False
     assert service.draft["subject"] == "Quote"
     assert result["read_receipt"]["provider"] == "outlook"
@@ -268,8 +269,8 @@ def test_books_create_bill_requires_authority_and_checks_exact_duplicate(monkeyp
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
-        async def get_bills(self, token, org, per_page=200):
-            return self.existing
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return self.existing, {"has_more": False, "page": page}
 
         async def create_bill(self, token, org, payload):
             self.created += 1
@@ -304,8 +305,8 @@ def test_books_create_bill_reads_back_one_effect(monkeypatch):
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
-        async def get_bills(self, token, org, per_page=200):
-            return []
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False, "page": page}
 
         async def create_bill(self, token, org, payload):
             self.created += 1
@@ -344,8 +345,8 @@ def test_books_create_bill_without_authority_does_not_dispatch(monkeypatch):
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
-        async def get_bills(self, token, org, per_page=200):
-            return []
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False, "page": page}
 
         async def create_bill(self, token, org, payload):
             self.created += 1
@@ -384,3 +385,308 @@ def test_books_proposal_action_returns_proposed_not_posted():
     assert result["status"] == "success"
     assert result["data"]["status"] == "proposed"
     assert result["data"]["posting"] is None
+
+
+# ---------------------------------------------------------------------------
+# Controlled provider HTTP end-to-end: proposal -> duplicate sweep -> create
+# -> authoritative readback.  These exercise the real Books request builder
+# and response parser through httpx.MockTransport; nothing leaves the test.
+# ---------------------------------------------------------------------------
+
+
+def _http_books_service(handler):
+    import httpx
+    from integrations.zoho_books_service import ZohoBooksService
+
+    service = ZohoBooksService("t1", {"access_token": "token"})
+    service.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def token(*args, **kwargs):
+        return "token"
+
+    service._get_active_token = token
+    return service
+
+
+def _bill_like(payload, *, bill_id="bill-http-1", total="120.00", **over):
+    bill = {
+        "bill_id": bill_id,
+        "bill_number": payload.get("bill_number"),
+        "reference_number": payload.get("reference_number"),
+        "vendor_id": payload.get("vendor_id"),
+        "date": payload.get("date"),
+        "currency_code": payload.get("currency_code"),
+        "total": total,
+        "line_items": payload.get("line_items") or [],
+    }
+    bill.update(over)
+    return bill
+
+
+def test_books_bill_http_end_to_end_proposal_create_readback(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    calls = []
+    state = {}
+
+    def handler(request):
+        body = None
+        if request.method == "POST":
+            body = __import__("json").loads(request.content or b"{}")
+        calls.append((request.method, request.url.path, body))
+        if request.method == "GET" and request.url.path.endswith("/bills"):
+            return httpx.Response(200, json={
+                "code": 0, "bills": [],
+                "page_context": {"has_more_page": False, "page": 1},
+            })
+        if request.method == "POST" and request.url.path.endswith("/bills"):
+            state.update(body)
+            return httpx.Response(200, json={
+                "code": 0, "bill": _bill_like(body)})
+        if request.method == "GET" and request.url.path.endswith(
+                "/bills/bill-http-1"):
+            return httpx.Response(200, json={
+                "code": 0, "bill": _bill_like(state)})
+        return httpx.Response(404, json={"code": 404, "message": "unexpected"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-1"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert result["status"] == "success"
+    assert result["action_result"] == "applied"
+    assert result["remote_id"] == "bill-http-1"
+    assert result["provider_receipt"]["operation_id"] == "op-http-1"
+    assert len(result["payload_sha256"]) == 64
+    assert [entry[0] for entry in calls] == ["GET", "POST", "GET"]
+    post = next(entry for entry in calls if entry[0] == "POST")
+    assert post[2]["line_items"][0]["rate"] == "120.00"
+    assert post[2]["currency_code"] == "USD"
+    assert post[2]["reference_number"] == "INV-001"
+
+
+def test_books_bill_http_changed_remote_is_conflict_not_applied(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    posts = []
+
+    def handler(request):
+        if request.method == "GET" and request.url.path.endswith("/bills"):
+            return httpx.Response(200, json={
+                "code": 0, "bills": [],
+                "page_context": {"has_more_page": False}})
+        if request.method == "POST":
+            posts.append(1)
+            body = __import__("json").loads(request.content or b"{}")
+            return httpx.Response(200, json={
+                "code": 0, "bill": _bill_like(body)})
+        if request.method == "GET" and request.url.path.endswith(
+                "/bills/bill-http-1"):
+            return httpx.Response(200, json={
+                "code": 0,
+                "bill": _bill_like({"reference_number": "INV-001",
+                                    "vendor_id": "vendor-1",
+                                    "date": "2026-10-01",
+                                    "currency_code": "USD"},
+                                   total="999.00")})
+        return httpx.Response(404, json={"message": "unexpected"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-2"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert posts == [1]
+    assert result["status"] == "conflict"
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "bill-http-1"
+    assert any("total changed" in item for item in result["conflicts"])
+
+
+def test_books_bill_http_duplicate_exact_reference_is_never_posted(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    posts = []
+
+    def handler(request):
+        if request.method == "POST":
+            posts.append(1)
+            return httpx.Response(500, json={"message": "must not post"})
+        return httpx.Response(200, json={
+            "code": 0,
+            "bills": [{"bill_id": "bill-old", "reference_number": "INV-001",
+                       "bill_number": "BILL-77"}],
+            "page_context": {"has_more_page": False},
+        })
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-3"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert posts == []
+    assert result["status"] == "duplicate"
+    assert result["action_result"] == "proven_not_applied"
+    assert result["existing"]["bill_id"] == "bill-old"
+
+
+def test_books_bill_http_sweep_unavailable_refuses_to_create(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    posts = []
+
+    def handler(request):
+        if request.method == "POST":
+            posts.append(1)
+            return httpx.Response(500, json={"message": "must not post"})
+        return httpx.Response(401, json={"code": 401,
+                                         "message": "invalid token"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-4"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert posts == []
+    assert result["action_result"] == "proven_not_applied"
+    assert result["error_kind"] == "auth_expired"
+
+
+def test_books_bill_http_readback_unavailable_is_uncertain(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    def handler(request):
+        if request.method == "GET" and request.url.path.endswith("/bills"):
+            return httpx.Response(200, json={
+                "code": 0, "bills": [],
+                "page_context": {"has_more_page": False}})
+        if request.method == "POST":
+            body = __import__("json").loads(request.content or b"{}")
+            return httpx.Response(200, json={
+                "code": 0, "bill": _bill_like(body)})
+        return httpx.Response(503, json={"code": 503,
+                                         "message": "temporarily down"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-5"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert result["status"] == "uncertain"
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "bill-http-1"
+    assert result["payload_sha256"]
+
+
+def test_books_bill_digest_mismatch_is_conflict_without_dispatch(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    async def fake_service(ids):  # pragma: no cover - must not be reached
+        raise AssertionError("digest mismatch must not reach the provider")
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-http-6", "payload_sha256": "0" * 64},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+
+    assert result["status"] == "error"
+    assert result["action_result"] == "conflict"
+    assert result["error_kind"] == "payload_changed"
+
+
+def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
+    from core import brennan_connected_actions as actions
+    import httpx
+
+    calls = []
+    estimate_data = {
+        "customer_id": "customer-1",
+        "reference_number": "RFQ-BRENNAN-1",
+        "date": "2026-11-01",
+        "currency_code": "USD",
+        "total": "362.50",
+        "line_items": [
+            {"name": "A", "quantity": "2", "rate": "100.00"},
+            {"name": "B", "quantity": "3", "rate": "50.00",
+             "discount": "5%"},
+            {"name": "Freight", "quantity": "1", "rate": "20.00"},
+        ],
+    }
+
+    def handler(request):
+        calls.append(request.method)
+        body = (__import__("json").loads(request.content or b"{}")
+                if request.method == "POST" else None)
+        if request.method == "POST" and request.url.path.endswith("/estimates"):
+            return httpx.Response(200, json={
+                "code": 0,
+                "estimate": {"estimate_id": "est-http-1", **body,
+                             "estimate_number": "EST-0001"}})
+        if request.method == "GET" and request.url.path.endswith(
+                "/estimates/est-http-1"):
+            return httpx.Response(200, json={
+                "code": 0,
+                "estimate": {"estimate_id": "est-http-1", **estimate_data,
+                             "estimate_number": "EST-0001"}})
+        return httpx.Response(404, json={"message": "unexpected"})
+
+    service = _http_books_service(handler)
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": estimate_data,
+         "authority_reference": "grant-quote-1",
+         "operation_id": "op-quote-1"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    asyncio.run(service.client.aclose())
+
+    assert calls == ["POST", "GET"]
+    assert result["status"] == "success"
+    assert result["action_result"] == "applied"
+    assert result["data"]["total"] == "362.50"
+    assert result["provider_receipt"]["artifact_version"] == "1"

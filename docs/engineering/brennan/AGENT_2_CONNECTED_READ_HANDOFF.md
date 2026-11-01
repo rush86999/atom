@@ -28,9 +28,31 @@ actions declare `{"effect":"read"}`; the planner classifies them as
 | Action | Inputs | Result |
 |---|---|---|
 | `brennan.books.propose_bill` | `proposal_input` | deterministic proposal with `status=proposed` or typed obligations; never posts |
-| `brennan.books.create_bill` | `proposal`, `authority_reference`, `operation_id` | exact duplicate check, provider create, authoritative `get_bill` readback |
-| `brennan.books.create_estimate` | `organization_id`, `estimate_data`, `authority_reference`, `operation_id` | provider create + `get_estimate` readback |
-| `brennan.outlook.create_draft` | `to`, `cc`, `bcc`, `subject`, `body` | draft only; never sends |
+| `brennan.books.create_bill` | `proposal`, `authority_reference`, `operation_id`, optional `payload_sha256`, `proposal_version` | exact duplicate sweep, provider create, authoritative `get_bill` readback and field comparison |
+| `brennan.books.create_estimate` | `organization_id`, `estimate_data`, `authority_reference`, `operation_id`, optional `payload_sha256`, `artifact_version` | provider create + `get_estimate` readback and field comparison |
+| `brennan.outlook.create_draft` | `to`, `cc`, `bcc`, `subject`, `body`, `operation_id`, optional `authority_reference`, `payload_sha256` | draft only; never sends |
+
+Each write action signs the exact effect payload with the same
+`_approval_payload_hash` the executor uses. The result carries
+`payload_sha256` and `provider_receipt{operation_id, authority_reference,
+payload_sha256, ...}`. If the caller supplies `payload_sha256`, a mismatch is
+returned as `action_result=conflict` before any provider call.
+
+Write results use the shared vocabulary:
+
+| `action_result` | Meaning |
+|---|---|
+| `applied` | provider create returned an id and the authoritative readback matches the authorized payload |
+| `proven_not_applied` | validation, authority, duplicate, digest or pre-dispatch failure; no effect was attempted |
+| `uncertain` | the create may have landed (5xx, transport failure, unreadable create response, or readback unavailable) |
+| `conflict` | the readback exists but differs from the authorized payload (total, vendor, reference, currency or date) |
+| `unavailable` | no trustworthy provider result and the effect state cannot be proven |
+
+The current `_action_registry_adapter` in `assignment_executor.py` wraps every
+action result as `status=applied`. Agent 1 must map the action's
+`action_result` into the executor outcome (`applied`, `uncertain`, or failed)
+before marking the operation complete. Do not treat a `conflict` allocation as
+applied.
 
 ## Receipt shape
 

@@ -59,6 +59,7 @@ class ZohoBooksService(IntegrationService):
         "get_bank_transactions_page",
         "get_invoices",
         "get_bills",
+        "get_bills_page",
         "get_bill",
         "get_estimates",
         "get_estimate",
@@ -679,6 +680,27 @@ class ZohoBooksService(IntegrationService):
             "get_bills", "/bills", "bills",
             access_token, organization_id, page=page, per_page=per_page,
             extra_params=extra or None,
+        )
+
+    async def get_bills_page(
+        self, access_token: str, organization_id: str,
+        *, page: int = 1, per_page: int = 200, status: Optional[str] = None,
+        vendor_id: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Strict paged bills read for an exact duplicate sweep.
+
+        Unlike :meth:`get_bills`, a provider failure raises.  A duplicate
+        check must not treat an unavailable page as proof that no bill exists.
+        """
+        extra: Dict[str, Any] = {}
+        if status:
+            extra["status"] = status
+        if vendor_id:
+            extra["vendor_id"] = vendor_id
+        return await self._list(
+            "get_bills", "/bills", "bills",
+            access_token, organization_id, page=page, per_page=per_page,
+            extra_params=extra or None, paged=True,
         )
 
     async def get_bill(self, access_token: str, organization_id: str, bill_id: str) -> Dict[str, Any]:

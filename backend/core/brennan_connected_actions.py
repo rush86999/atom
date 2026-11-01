@@ -16,6 +16,7 @@ import base64
 import hashlib
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 
 from core.action_registry import register_action
@@ -41,10 +42,20 @@ def _ids(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, str]:
 
 
 def _error(provider: str, operation: str, kind: str, message: str,
-           *, reconnect: bool = False) -> Dict[str, Any]:
+           *, reconnect: bool = False,
+           action_result: Optional[str] = None) -> Dict[str, Any]:
+    if action_result is None:
+        action_result = (
+            "unavailable"
+            if kind in ("auth_expired", "auth_revoked", "auth_unavailable",
+                        "provider_error", "parse_error", "rate_limited",
+                        "transient")
+            else "proven_not_applied"
+        )
     return {
         "status": "error",
         "success": False,
+        "action_result": action_result,
         "provider": provider,
         "operation": operation,
         "error_kind": kind,
@@ -52,6 +63,167 @@ def _error(provider: str, operation: str, kind: str, message: str,
         "retryable": kind in ("rate_limited", "transient"),
         "requires_reconnect": reconnect,
     }
+
+
+def _payload_digest(payload: Dict[str, Any]) -> str:
+    """Digest the exact effect payload with the shared approval hasher.
+
+    The executor already signs effects with ``_approval_payload_hash``.  Using
+    the same function means a caller can compare the plan's approval digest
+    with the receipt the action returns instead of maintaining a second
+    canonicalisation rule.
+    """
+    from core.task_lifecycle import _approval_payload_hash
+
+    return _approval_payload_hash(payload)
+
+
+def _decimal_equal(left: Any, right: Any) -> bool:
+    try:
+        return (Decimal(str(left)).quantize(Decimal("0.01"))
+                == Decimal(str(right)).quantize(Decimal("0.01")))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
+def _write_failure(
+    provider: str,
+    operation: str,
+    exc: Exception,
+    *,
+    may_have_landed: bool,
+    remote_id: str = "",
+    payload_sha256: str = "",
+    authority_reference: str = "",
+    operation_id: str = "",
+) -> Dict[str, Any]:
+    """Classify a write failure by whether the provider could have applied it."""
+    from integrations.provider_errors import ProviderRequestError
+
+    if isinstance(exc, ProviderRequestError):
+        safe_kinds = {
+            "auth_expired", "auth_revoked", "auth_unavailable", "unauthorized",
+            "invalid_request", "not_found", "rate_limited",
+        }
+        landed = bool(may_have_landed) and exc.kind not in safe_kinds
+        result = exc.to_dict()
+        result.update({
+            "status": "uncertain" if landed else "error",
+            "action_result": "uncertain" if landed else "proven_not_applied",
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": {
+                "operation_id": operation_id,
+                "authority_reference": authority_reference,
+                "payload_sha256": payload_sha256,
+                "remote_id": remote_id,
+            },
+        })
+        return result
+    return {
+        "status": "uncertain" if may_have_landed else "error",
+        "success": False,
+        "action_result": (
+            "uncertain" if may_have_landed else "proven_not_applied"),
+        "provider": provider,
+        "operation": operation,
+        "error_kind": "provider_error",
+        "error": f"{type(exc).__name__}: {exc}"[:500],
+        "retryable": False,
+        "requires_reconnect": False,
+        "remote_id": remote_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "operation_id": operation_id,
+            "authority_reference": authority_reference,
+            "payload_sha256": payload_sha256,
+            "remote_id": remote_id,
+        },
+    }
+
+
+def _estimate_readback_conflicts(
+    estimate_data: Dict[str, Any], readback: Dict[str, Any],
+) -> list:
+    """Compare the authorized estimate fields with the provider readback."""
+    conflicts = []
+    if not readback.get("estimate_id") and not readback.get("id"):
+        conflicts.append("provider readback has no estimate id")
+    if estimate_data.get("reference_number") not in (None, ""):
+        observed = str(readback.get("reference_number") or "")
+        if observed != str(estimate_data["reference_number"]):
+            conflicts.append(
+                "reference_number changed: authorized "
+                f"{estimate_data['reference_number']!r}, provider readback "
+                f"{observed!r}")
+    if estimate_data.get("customer_id") and readback.get("customer_id") and str(
+            readback["customer_id"]) != str(estimate_data["customer_id"]):
+        conflicts.append(
+            f"customer_id changed: authorized {estimate_data['customer_id']!r}, "
+            f"provider readback {readback['customer_id']!r}")
+    expected_total = estimate_data.get("total", estimate_data.get("grand_total"))
+    observed_total = readback.get("total", readback.get("grand_total"))
+    if expected_total not in (None, ""):
+        if observed_total in (None, "") or not _decimal_equal(
+                observed_total, expected_total):
+            conflicts.append(
+                "total changed: authorized "
+                f"{expected_total!r}, provider readback {observed_total!r}")
+    if readback.get("currency_code") and estimate_data.get("currency_code") and str(
+            readback["currency_code"]).upper() != str(
+                estimate_data["currency_code"]).upper():
+        conflicts.append(
+            "currency changed: authorized "
+            f"{estimate_data['currency_code']!r}, provider readback "
+            f"{readback['currency_code']!r}")
+    if readback.get("date") and estimate_data.get("date") and str(
+            readback["date"]) != str(estimate_data["date"]):
+        conflicts.append(
+            f"date changed: authorized {estimate_data['date']!r}, provider "
+            f"readback {readback['date']!r}")
+    return conflicts
+
+
+def _bill_readback_conflicts(
+    proposal: Dict[str, Any], payload: Dict[str, Any],
+    readback: Dict[str, Any],
+) -> list:
+    """Compare the authoritative readback with the exact authorized payload."""
+    conflicts = []
+    external_id = str(payload.get("reference_number") or "")
+    observed_reference = str(
+        readback.get("reference_number") or readback.get("bill_number") or "")
+    if observed_reference != external_id:
+        conflicts.append(
+            "reference_number changed: authorized "
+            f"{external_id!r}, provider readback {observed_reference!r}")
+    if payload.get("vendor_id") and readback.get("vendor_id") and str(
+            readback["vendor_id"]) != str(payload["vendor_id"]):
+        conflicts.append(
+            f"vendor_id changed: authorized {payload['vendor_id']!r}, "
+            f"provider readback {readback['vendor_id']!r}")
+    if readback.get("total") not in (None, ""):
+        if not _decimal_equal(readback["total"],
+                              proposal.get("document_total")):
+            conflicts.append(
+                "total changed: authorized "
+                f"{proposal.get('document_total')!r}, provider readback "
+                f"{readback.get('total')!r}")
+    else:
+        conflicts.append("provider readback has no total")
+    if readback.get("currency_code") and payload.get("currency_code") and str(
+            readback["currency_code"]).upper() != str(
+                payload["currency_code"]).upper():
+        conflicts.append(
+            "currency changed: authorized "
+            f"{payload['currency_code']!r}, provider readback "
+            f"{readback['currency_code']!r}")
+    if readback.get("date") and payload.get("date") and str(
+            readback["date"]) != str(payload["date"]):
+        conflicts.append(
+            f"date changed: authorized {payload['date']!r}, provider "
+            f"readback {readback['date']!r}")
+    return conflicts
 
 
 def _receipt(provider: str, operation: str, *, resource_id: str = "",
@@ -376,12 +548,42 @@ async def books_get_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                       "cc": {"type": "array"},
                                       "bcc": {"type": "array"},
                                       "subject": {"type": "string"},
-                                      "body": {"type": "string"}},
-                       "required": ["to", "subject", "body"]},
+                                      "body": {"type": "string"},
+                                      "authority_reference": {"type": "string"},
+                                      "operation_id": {"type": "string"},
+                                      "payload_sha256": {"type": "string"}},
+                       "required": ["to", "subject", "body", "operation_id"]},
     effects=[{"effect": "create"}],
 )
 async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
+    operation_id = str(args.get("operation_id") or "")
+    if not operation_id:
+        return _error("outlook", "create_draft_email", "invalid_request",
+                      "A durable operation_id is required.",
+                      action_result="proven_not_applied")
+    draft_payload = {
+        "to": list(args.get("to") or []),
+        "cc": list(args.get("cc") or []),
+        "bcc": list(args.get("bcc") or []),
+        "subject": str(args.get("subject") or ""),
+        "body": str(args.get("body") or ""),
+    }
+    payload_sha256 = _payload_digest(draft_payload)
+    supplied_digest = str(args.get("payload_sha256") or "")
+    base_receipt = {
+        "operation_id": operation_id,
+        "authority_reference": str(args.get("authority_reference") or ""),
+        "payload_sha256": payload_sha256,
+    }
+    if supplied_digest and supplied_digest != payload_sha256:
+        return {
+            **_error("outlook", "create_draft_email", "payload_changed",
+                     "The authorized payload digest does not match this draft.",
+                     action_result="conflict"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
     from integrations.outlook_service import OutlookService
     service = OutlookService(ids["tenant_id"], {})
     token = context.get("access_token") or args.get("access_token")
@@ -390,18 +592,44 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
             token = await service.get_access_token(ids["user_id"])
         except Exception:
             token = None
-    result = await service.create_draft_email(
-        user_id=ids["user_id"], to_recipients=list(args.get("to") or []),
-        subject=str(args.get("subject") or ""), body=str(args.get("body") or ""),
-        cc_recipients=list(args.get("cc") or []),
-        bcc_recipients=list(args.get("bcc") or []), token=token)
+    if not token:
+        return {
+            **_error("outlook", "create_draft_email", "auth_unavailable",
+                     "No Outlook token for this user.",
+                     reconnect=True, action_result="proven_not_applied"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+    try:
+        result = await service.create_draft_email(
+            user_id=ids["user_id"],
+            to_recipients=draft_payload["to"],
+            subject=draft_payload["subject"], body=draft_payload["body"],
+            cc_recipients=draft_payload["cc"],
+            bcc_recipients=draft_payload["bcc"], token=token)
+    except Exception as exc:  # noqa: BLE001 - draft may have landed
+        return _write_failure(
+            "outlook", "create_draft_email", exc, may_have_landed=True,
+            payload_sha256=payload_sha256, operation_id=operation_id)
     if not result:
-        return _error("outlook", "create_draft_email", "provider_error",
-                      "Outlook did not create a draft.")
-    return {"status": "success", "provider": "outlook", "data": result,
+        return {
+            **_error("outlook", "create_draft_email", "provider_error",
+                     "Outlook did not create a draft.",
+                     action_result="uncertain"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+    remote_id = str((result or {}).get("id") or "")
+    return {"status": "success", "success": True,
+            "action_result": "applied",
+            "provider": "outlook", "operation": "create_draft_email",
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+            "data": result,
             "read_receipt": _receipt(
                 "outlook", "create_draft_email",
-                resource_id=str((result or {}).get("id") or ""),
+                resource_id=remote_id,
                 coverage="single", fields=["id", "subject", "toRecipients"])}
 
 
@@ -561,7 +789,9 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
     parameters_schema={"type": "object",
                        "properties": {"proposal": {"type": "object"},
                                       "authority_reference": {"type": "string"},
-                                      "operation_id": {"type": "string"}},
+                                      "operation_id": {"type": "string"},
+                                      "payload_sha256": {"type": "string"},
+                                      "proposal_version": {"type": "string"}},
                        "required": ["proposal", "authority_reference",
                                     "operation_id"]},
     effects=[{"effect": "create"}],
@@ -569,54 +799,179 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
 async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
     proposal = args.get("proposal") or {}
+    authority = str(args.get("authority_reference") or "")
+    operation_id = str(args.get("operation_id") or "")
+    proposal_version = str(
+        args.get("proposal_version") or proposal.get("version") or "1")
     if proposal.get("status") != "proposed":
         return _error("zoho_books", "create_bill", "invalid_request",
                       "Only a reviewed proposal in status 'proposed' can be posted.")
-    if not args.get("authority_reference"):
+    if not authority:
         return _error("zoho_books", "create_bill", "unauthorized",
-                      "An explicit authority reference is required.", reconnect=False)
-    service = await _books_service(ids)
-    token = await _zoho_token(service, ids)
-    if not token:
-        return _error("zoho_books", "create_bill", "auth_unavailable",
-                      "No Zoho Books token for this user.", reconnect=True)
+                      "An explicit authority reference is required.",
+                      action_result="proven_not_applied")
+    if not operation_id:
+        return _error("zoho_books", "create_bill", "invalid_request",
+                      "A durable operation_id is required.",
+                      action_result="proven_not_applied")
     org = str(proposal.get("organization_id") or "")
     if not org:
         return _error("zoho_books", "create_bill", "invalid_request",
-                      "organization_id is required.")
-    # Exact duplicate identity check before dispatch: same provider/org/entity
-    # and exact reference or bill number.  No substring matching.
-    try:
-        existing = await service.get_bills(token, org, per_page=200)
-    except Exception:
-        existing = []
+                      "organization_id is required.",
+                      action_result="proven_not_applied")
     external_id = str(proposal.get("external_id") or "")
+    if not external_id:
+        return _error("zoho_books", "create_bill", "invalid_request",
+                      "external_id is required for duplicate identity.",
+                      action_result="proven_not_applied")
+
+    payload = _bill_payload(proposal)
+    payload_sha256 = _payload_digest(payload)
+    supplied_digest = str(args.get("payload_sha256") or "")
+    base_receipt = {
+        "operation_id": operation_id,
+        "authority_reference": authority,
+        "payload_sha256": payload_sha256,
+        "proposal_version": proposal_version,
+    }
+    if supplied_digest and supplied_digest != payload_sha256:
+        return {
+            **_error(
+                "zoho_books", "create_bill", "payload_changed",
+                "The authorized payload digest does not match this proposal.",
+                action_result="conflict"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+
+    service = await _books_service(ids)
+    token = await _zoho_token(service, ids)
+    if not token:
+        return {
+            **_error("zoho_books", "create_bill", "auth_unavailable",
+                     "No Zoho Books token for this user.",
+                     action_result="proven_not_applied"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+
+    # Exact duplicate identity check over the complete bounded sweep.  An
+    # unavailable page cannot be read as "no duplicate"; the action refuses
+    # to dispatch rather than risk a second provider bill.
+    existing = []
+    page = 1
+    try:
+        while True:
+            rows, page_info = await service.get_bills_page(
+                token, org, page=page, per_page=200)
+            existing.extend(rows)
+            if not page_info.get("has_more"):
+                break
+            page += 1
+            if page > 50:
+                return {
+                    **_error(
+                        "zoho_books", "create_bill", "unavailable",
+                        "The duplicate sweep exceeded its bounded page limit; "
+                        "creation was not attempted.",
+                        action_result="proven_not_applied"),
+                    "payload_sha256": payload_sha256,
+                    "provider_receipt": base_receipt,
+                }
+    except Exception as exc:  # noqa: BLE001 - typed failure below
+        result = _write_failure(
+            "zoho_books", "get_bills", exc, may_have_landed=False,
+            payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
     duplicate = next((
         item for item in existing
-        if external_id and external_id in {
+        if external_id in {
             str(item.get("reference_number") or ""),
             str(item.get("bill_number") or ""),
         }), None)
     if duplicate:
-        return {"status": "duplicate", "provider": "zoho_books",
-                "existing": duplicate,
-                "read_receipt": _receipt(
-                    "zoho_books", "get_bills", resource_id=str(duplicate.get("bill_id") or ""),
-                    coverage="single", fields=["bill_id", "bill_number",
-                                               "reference_number"])}
-    payload = _bill_payload(proposal)
-    created = await service.create_bill(token, org, payload)
+        return {
+            "status": "duplicate",
+            "success": True,
+            "action_result": "proven_not_applied",
+            "provider": "zoho_books",
+            "operation": "create_bill",
+            "remote_id": str(duplicate.get("bill_id") or ""),
+            "payload_sha256": payload_sha256,
+            "existing": duplicate,
+            "provider_receipt": base_receipt,
+            "read_receipt": _receipt(
+                "zoho_books", "get_bills",
+                resource_id=str(duplicate.get("bill_id") or ""),
+                coverage="complete",
+                fields=["bill_id", "bill_number", "reference_number"]),
+        }
+
+    try:
+        created = await service.create_bill(token, org, payload)
+    except Exception as exc:  # noqa: BLE001 - classify below
+        result = _write_failure(
+            "zoho_books", "create_bill", exc, may_have_landed=True,
+            payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
     remote_id = str(created.get("bill_id") or created.get("id") or "")
-    readback = await service.get_bill(token, org, remote_id) if remote_id else {}
+    if not remote_id:
+        # The provider accepted the POST but did not identify the object.  The
+        # effect may exist, so this is uncertain, not failed.
+        return {
+            **_error(
+                "zoho_books", "create_bill", "provider_error",
+                "Zoho Books accepted the create but returned no bill id.",
+                action_result="uncertain"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+    try:
+        readback = await service.get_bill(token, org, remote_id)
+    except Exception as exc:  # noqa: BLE001 - effect may have landed
+        result = _write_failure(
+            "zoho_books", "get_bill", exc, may_have_landed=True,
+            remote_id=remote_id, payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
+    conflicts = _bill_readback_conflicts(proposal, payload, readback)
+    if conflicts:
+        return {
+            "status": "conflict",
+            "success": False,
+            "action_result": "conflict",
+            "provider": "zoho_books",
+            "operation": "create_bill",
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "conflicts": conflicts,
+            "data": readback,
+            "provider_receipt": base_receipt,
+            "read_receipt": _receipt(
+                "zoho_books", "get_bill", resource_id=remote_id,
+                coverage="single",
+                fields=list(readback) if isinstance(readback, dict) else []),
+        }
     return {
         "status": "success",
+        "success": True,
+        "action_result": "applied",
         "provider": "zoho_books",
+        "operation": "create_bill",
         "remote_id": remote_id,
-        "provider_receipt": {"operation_id": args.get("operation_id"),
-                             "authority_reference": args.get("authority_reference")},
-        "data": readback or created,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": base_receipt,
+        "data": readback,
         "read_receipt": _receipt(
-            "zoho_books", "create_bill", resource_id=remote_id,
+            "zoho_books", "get_bill", resource_id=remote_id,
             coverage="single",
             fields=["bill_id", "bill_number", "reference_number", "total",
                     "vendor_id", "date", "currency_code"]),
@@ -630,32 +985,129 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
                        "properties": {"organization_id": {"type": "string"},
                                       "estimate_data": {"type": "object"},
                                       "authority_reference": {"type": "string"},
-                                      "operation_id": {"type": "string"}},
+                                      "operation_id": {"type": "string"},
+                                      "payload_sha256": {"type": "string"},
+                                      "artifact_version": {"type": "string"}},
                        "required": ["organization_id", "estimate_data",
                                     "authority_reference", "operation_id"]},
     effects=[{"effect": "create"}],
 )
 async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
-    if not args.get("authority_reference"):
+    authority = str(args.get("authority_reference") or "")
+    operation_id = str(args.get("operation_id") or "")
+    artifact_version = str(
+        args.get("artifact_version")
+        or (args.get("estimate_data") or {}).get("version") or "1")
+    if not authority:
         return _error("zoho_books", "create_estimate", "unauthorized",
-                      "An explicit authority reference is required.")
+                      "An explicit authority reference is required.",
+                      action_result="proven_not_applied")
+    if not operation_id:
+        return _error("zoho_books", "create_estimate", "invalid_request",
+                      "A durable operation_id is required.",
+                      action_result="proven_not_applied")
+    org = str(args.get("organization_id") or "")
+    if not org:
+        return _error("zoho_books", "create_estimate", "invalid_request",
+                      "organization_id is required.",
+                      action_result="proven_not_applied")
+    estimate_data = args.get("estimate_data") or {}
+    if not isinstance(estimate_data, dict) or not estimate_data:
+        return _error("zoho_books", "create_estimate", "invalid_request",
+                      "estimate_data must be a non-empty object.",
+                      action_result="proven_not_applied")
+
+    payload_sha256 = _payload_digest(estimate_data)
+    supplied_digest = str(args.get("payload_sha256") or "")
+    base_receipt = {
+        "operation_id": operation_id,
+        "authority_reference": authority,
+        "payload_sha256": payload_sha256,
+        "artifact_version": artifact_version,
+    }
+    if supplied_digest and supplied_digest != payload_sha256:
+        return {
+            **_error(
+                "zoho_books", "create_estimate", "payload_changed",
+                "The authorized payload digest does not match this estimate.",
+                action_result="conflict"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+
     service = await _books_service(ids)
     token = await _zoho_token(service, ids)
     if not token:
-        return _error("zoho_books", "create_estimate", "auth_unavailable",
-                      "No Zoho Books token for this user.", reconnect=True)
-    org = str(args["organization_id"])
-    created = await service.create_estimate(token, org, args["estimate_data"])
+        return {
+            **_error("zoho_books", "create_estimate", "auth_unavailable",
+                     "No Zoho Books token for this user.",
+                     action_result="proven_not_applied"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+
+    try:
+        created = await service.create_estimate(token, org, estimate_data)
+    except Exception as exc:  # noqa: BLE001 - classify below
+        result = _write_failure(
+            "zoho_books", "create_estimate", exc, may_have_landed=True,
+            payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
     remote_id = str(created.get("estimate_id") or created.get("id") or "")
-    readback = await service.get_estimate(token, org, remote_id) if remote_id else {}
-    return {"status": "success", "provider": "zoho_books",
+    if not remote_id:
+        return {
+            **_error(
+                "zoho_books", "create_estimate", "provider_error",
+                "Zoho Books accepted the create but returned no estimate id.",
+                action_result="uncertain"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+    try:
+        readback = await service.get_estimate(token, org, remote_id)
+    except Exception as exc:  # noqa: BLE001 - effect may have landed
+        result = _write_failure(
+            "zoho_books", "get_estimate", exc, may_have_landed=True,
+            remote_id=remote_id, payload_sha256=payload_sha256,
+            authority_reference=authority, operation_id=operation_id)
+        result["provider_receipt"] = {
+            **base_receipt, **result.get("provider_receipt", {})}
+        return result
+    conflicts = _estimate_readback_conflicts(estimate_data, readback)
+    if conflicts:
+        return {
+            "status": "conflict",
+            "success": False,
+            "action_result": "conflict",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
             "remote_id": remote_id,
-            "provider_receipt": {"operation_id": args.get("operation_id"),
-                                 "authority_reference": args.get("authority_reference")},
-            "data": readback or created,
+            "payload_sha256": payload_sha256,
+            "conflicts": conflicts,
+            "data": readback,
+            "provider_receipt": base_receipt,
             "read_receipt": _receipt(
-                "zoho_books", "create_estimate", resource_id=remote_id,
+                "zoho_books", "get_estimate", resource_id=remote_id,
                 coverage="single",
-                fields=["estimate_id", "estimate_number", "total",
-                        "customer_id", "date", "currency_code"])}
+                fields=list(readback) if isinstance(readback, dict) else []),
+        }
+    return {
+        "status": "success",
+        "success": True,
+        "action_result": "applied",
+        "provider": "zoho_books",
+        "operation": "create_estimate",
+        "remote_id": remote_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": base_receipt,
+        "data": readback,
+        "read_receipt": _receipt(
+            "zoho_books", "get_estimate", resource_id=remote_id,
+            coverage="single",
+            fields=["estimate_id", "estimate_number", "total",
+                    "customer_id", "date", "currency_code"]),
+    }
