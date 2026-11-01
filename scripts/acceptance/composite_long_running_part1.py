@@ -127,18 +127,30 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
             box.uncheck()
     if applies:
         page.get_by_test_id(f"teach-applies-{applies}").check()
-    page.get_by_test_id("teach-format-font").fill(font)
-    page.get_by_test_id("teach-format-size").fill(size)
-    page.get_by_test_id("teach-format-headings").fill(headings)
-    page.get_by_test_id("teach-format-columns").fill(columns)
-    page.get_by_test_id("teach-context").fill(context)
-    page.get_by_test_id("teach-qualification").fill(qualification)
-    page.get_by_test_id("teach-task-scope").fill(task_scope)
-    page.get_by_test_id("teach-effective-from").fill(effective_from)
-    page.get_by_test_id("teach-effective-to").fill(effective_to)
-    page.get_by_test_id("teach-format-greeting").fill(greeting)
-    page.get_by_test_id("teach-format-signature").fill(signature)
-    page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix)
+    if font:
+        page.get_by_test_id("teach-format-font").fill(font, force=True)
+    if size:
+        page.get_by_test_id("teach-format-size").fill(size, force=True)
+    if headings:
+        page.get_by_test_id("teach-format-headings").fill(headings, force=True)
+    if columns:
+        page.get_by_test_id("teach-format-columns").fill(columns, force=True)
+    if context:
+        page.get_by_test_id("teach-context").fill(context, force=True)
+    if qualification:
+        page.get_by_test_id("teach-qualification").fill(qualification, force=True)
+    if task_scope:
+        page.get_by_test_id("teach-task-scope").fill(task_scope, force=True)
+    if effective_from:
+        page.get_by_test_id("teach-effective-from").fill(effective_from, force=True)
+    if effective_to:
+        page.get_by_test_id("teach-effective-to").fill(effective_to, force=True)
+    if greeting:
+        page.get_by_test_id("teach-format-greeting").fill(greeting, force=True)
+    if signature:
+        page.get_by_test_id("teach-format-signature").fill(signature, force=True)
+    if subject_prefix:
+        page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix, force=True)
     page.get_by_test_id("teach-submit").click()
     page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
 
