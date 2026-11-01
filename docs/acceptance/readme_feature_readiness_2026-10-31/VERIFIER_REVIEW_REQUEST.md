@@ -97,6 +97,12 @@ draft-vs-authorized assessment panel. The integrated sales (`85`) + grants
 and `.../two-domain-autonomous-journey/`. This remains separate from README
 breadth.
 
+**Verifier acceptance (2026-10-31):** the practical scope is accepted at
+source `b7ee7ee22` within the local, single-worker, controlled-outbox boundary.
+Record: `atom-employee-execution/docs/acceptance/VERIFIER_ACCEPTANCE_2026-10-31.md`.
+The 99/123 breadth result remains separate; autonomous judgment, live sending,
+multi-worker and universal reliability remain excluded.
+
 The execution-boundary follow-up (code `b7ee7ee22`) makes post-effect runtime,
 parse, timeout and cancellation errors `uncertain` (never
 `failed_before_effect`) and replaces stop-after-overspend with a conservative

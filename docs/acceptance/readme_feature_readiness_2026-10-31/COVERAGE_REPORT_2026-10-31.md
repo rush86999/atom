@@ -338,6 +338,13 @@ controlled effects, zero assignment approvals. Evidence:
 `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-execution-boundaries/`
 (81 assignment executor/route controls) and `.../two-domain-autonomous-journey/`.
 
+**Verifier acceptance (2026-10-31):** accepted within the local, single-worker,
+controlled-outbox scope at source `b7ee7ee22`. Record:
+`atom-employee-execution/docs/acceptance/VERIFIER_ACCEPTANCE_2026-10-31.md`.
+Autonomous substantive judgment (qualification failed), live sending,
+multi-worker execution and universal feature reliability remain excluded.
+This product milestone is separate from the 99/123 README breadth result.
+
 ---
 
 ## 6. Evidence and reproduction

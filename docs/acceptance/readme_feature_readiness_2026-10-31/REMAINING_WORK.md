@@ -4,6 +4,13 @@
 the items below are the remaining engineering, product decisions and external
 dependencies. This is not a release declaration.
 
+The separate practical milestone is **accepted within its documented local,
+single-worker, controlled-outbox scope** at source `b7ee7ee22`
+(`atom-employee-execution/docs/acceptance/VERIFIER_ACCEPTANCE_2026-10-31.md`).
+It does not change the README denominator or score, and it does not qualify
+autonomous substantive judgment, live sending, multi-worker execution or
+universal feature reliability.
+
 | Item | Owner | Next executable action | Blocker |
 |---|---|---|---|
 | CORE-06 / ROUTE-06 cached BYOK | Agent 1 | Make Settings → save key → Chat pass after the credential-revision rebuild; the current chat route selects an unsupported catalog model (`gpt-5.6-luna-pro`) in the harness | None; engineering/catalog-selection correction |
