@@ -54,3 +54,15 @@ One short backlog. Update this table, not the large ledgers, until a batch passe
 - First-use path: clean install -> `make setup` -> `make dev` -> `make sample`
   completed `232990.00` and a DOCX in **13 seconds** after backend start on the
   clean-install world at `776c6644f`.
+
+## Acceptance record
+
+**Accepted 2026-11-01 within the documented local and controlled-provider
+scope.** Runtime `bec60978b`; evidence/docs `88bf413e8431`; breadth
+**111/123 = 90.2%**. See
+[`VERIFIER_ACCEPTANCE_2026-11-01.md`](VERIFIER_ACCEPTANCE_2026-11-01.md).
+
+The two focused findings (wait-credit duplication and untracked evidence) are
+closed. No further repair campaign is indicated for them. Hosted deployment and
+publication remain deferred; live-send and model-quality exclusions are
+unchanged.
