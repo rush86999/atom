@@ -16,7 +16,8 @@ and broad model campaigns were not performed.
 | **C2 closure (pinned)** | **`414d8add3`** / backend tree `715969f01d23`, worktree `/private/…/c2-pin` |
 | **Cancellation repair** | **`f5d2e085a`** / backend tree `d37da0be5943` (frontend unchanged) |
 | **Budget pause-credit repair** | **`bec60978b` + `019aa1eeb`** / backend tree `c2963fbcdc8e` |
-| **Integrated verification source** | **`f94d7a44b`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` |
+| **Post-acceptance verified source** | **`f1ef414c3`** / backend tree `c2963fbcdc8e`, frontend `c921cb82e784` (63 focused tests) |
+| Bundle/docs HEAD | `423234bfe`; later first-use commits (`8b1abd7e6`, `f84fa32f6`) change the frontend and are **not** part of the verified budget tree |
 | Product diff repair vs campaigns | cancellation files plus the budget-credit files (`assignment_executor.py`, `assignment_plan.py`, `test_assignment_executor.py`) |
 
 The campaign sources and the repair source are deliberately distinct: the
@@ -124,29 +125,50 @@ work at revised scope used revision `0ceff61904cb889b+map`, produced
 Run `d74e637f-86c8-4643-91f3-c469e52ff33e`, assignment
 `asg-888cbd5d67cf4560`.
 
-## 2b. Campaign C2 — the elapsed gate (fresh identity)
+## 2b. Campaign C2 — the elapsed gate (fresh identity, historical source)
 
-C1 resumed 11 minutes before the gate and is kept as the upgrade control. C2
-is the separate run that carries the elapsed requirement; its clock was never
-reset.
+C2 is the separate run that carries the elapsed requirement; its clock was
+never reset.
 
 | Item | Value |
 |---|---|
 | World | `long_run_20261101_b`, backend 8085 / frontend 3145 |
 | Run | `cac9cbd6-f72b-4fbb-b106-f0990fc5b191` |
 | Assignment | `asg-bc8171a465894137` |
-| Objective | Sum Price for the second integrated quote sheet |
 | Teaching revision | `851207ec455336d3+cabba8f03b6894fa+map` |
-| Correlation | `quote-missing-currency-2` |
 | Wait reached | `18:04:53Z` |
-| Two-hour gate | **`20:04:53Z`** |
-| Pinned closure source | `414d8add3`, backend tree `715969f01d23`, pid 73022 |
-| Pre-wait work | `source-1` applied **110.00** (15.10 + 20.20 + 30.30 + 44.40), operation `3e8eba43-…`, **attempts=1** |
+| Elapsed at closure | **7,239.8 s** (>= 7,200 s) |
+| Historical source | `414d8add3112` / backend tree `715969f01d23`, clean pinned worktree `c2-pin` |
+| Completed work | `source-1` applied **110.00** (15.10 + 20.20 + 30.30 + 44.40), operation `3e8eba43-…`, **attempts=1** before and after |
+| Artifact | 37,211 bytes, SHA-256 `bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94`, **Arial 11** |
+| Effect | exactly **one** controlled outbox line, operation `2a593acd-…` |
+| Approval | **explicit**: `send`, payload `ca0ab0a5…`, purpose “Send the prepared response” |
 
-Restart evidence before the gate: pid 66715 → 68921 → 73022, all against the
-same SQLite stores; each time the run stayed `waiting` with the same
-assignment/revision and `source-1` still `attempts=1`. The closure sequence
-below is filled after `20:04:53Z`.
+Restarts: pid 66715 → 68921 → 73022 (pinned) → 87659 (final), all against the
+same SQLite stores. The run remained `waiting` through the first three; the
+final restart sees `achieved` / `completed`, the same artifact hash and one
+outbox line.
+
+### Budget snapshots (historical pre-repair source)
+
+| Stage | paused_seconds | waiting_since | active_wait |
+|---|---|---|---|
+| before response | 0.0 | `18:04:41Z` | null |
+| after response | **7251.69** | null | null |
+| after approval | 7251.69 | null | null |
+| after resume | 7251.69 | null | null |
+| after completion | 7251.69 | null | null |
+| after duplicate response | 7251.69 | null | null |
+
+The wait interval was credited **once**; approval, resume, duplicate response
+and final restart did not add it again. Duplicate resume returned 200 /
+`completed` twice with no extra effect; the duplicate correlated reply returned
+404 `No open gap carries this correlation id…`.
+
+**Scope separation:** this run proves elapsed waiting, restart/resume, preserved
+completed work, exact artifact and one controlled effect on **its historical
+source**. It is **not** verification of the repaired budget code; that is the 63
+focused controls on `c2963fbcdc8e`.
 
 ## 3. Campaign A — complex teaching through the ordinary UI
 
@@ -323,6 +345,7 @@ historical execution, not a relabelled verification of the repaired code.
 | Uncertain-effect controls re-run | `d37da0be5943` | **3 passed** |
 | Browser recovery (pre-repair path) | `715969f01d23` | **5/5 checks** |
 | Browser recovery (integrated) | `c2963fbcdc8e` | **5/5 checks** |
+| C2 elapsed closure (historical) | `715969f01d23` | completed, 7,239.8s, one effect |
 | Cancellation + budget + goal suites | `c2963fbcdc8e` | **140 passed** |
 | Runtime claim batch (integrated) | `c2963fbcdc8e` | **48 passed** |
 
@@ -408,8 +431,18 @@ proposal above and are not counted.
   Outlook send were performed; the accepted qualifications for those remain at
   their previous scope.
 - C2's closure is source-bound to `414d8add3`; the cancellation repair
-  `f5d2e085a` is a separate product source. C2 does not exercise cancellation,
-  so it was not repeated on the repair.
+  `f5d2e085a` and budget repair `019aa1eeb` are later product sources. C2 does
+  not exercise cancellation or the repaired budget ledger; it is historical
+  execution evidence, not verification of those repairs.
+- **First-use path pending its own smoke:** commits after `f1ef414c3`
+  (`8b1abd7e6`, `f84fa32f6`) change the frontend AssignmentPanel/dev-origin
+  behavior. They are outside the verified `c2963fbcdc8e` budget tree and are
+  not called the recommended launch path until a focused first-use smoke is
+  recorded.
+- The accepted tag `accepted-local-2026-11-01-90pct` is preserved. The
+  post-acceptance budget finding is appended to
+  `docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md`; the old baseline is not
+  described as unaffected.
 
 ## 8. Superseded / failed attempts
 
