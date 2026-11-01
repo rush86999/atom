@@ -24,7 +24,12 @@ integrated product still needs. It is not a claim that the goals are met.
 | 11 | Approval binds exact payload; duplicate approval idempotent; changed payload needs fresh review | Payload-bound approval, atomic claim, duplicate prevention, reconciliation | **Real transport** not exercised; only the controlled outbox opts into standing authority | Agent 1 | Wire the real transport adapter behind the same grant/claim/reconcile contract, then request one authorized live test | `employee-execution-execution-boundaries/` + live run | Owner: account/recipient/artifact scope authorization; provider acceptance and recipient delivery are separate claims |
 | 12 | Install/start/login, restart/recover | Clean-install and restart evidence; local launch script | **Local functionality is complete for this goal.** Hosted deployment and publication are a separate, deferred decision | — | — | `install-final.json`, `INTEGRATED_LOCAL_CANDIDATE` | Owner-deferred (not a local gap) |
 
-## Genuine external dependencies (bundle only when needed)
+## Genuine external dependencies (one consolidated request)
+
+See `EXTERNAL_QUALIFICATION_REQUEST_2026-10-31.md` for Parts A (Microsoft
+read-only) and B (one live send).
+
+
 
 1. **Microsoft read-only access** for goal 4/5: which tenant/account, and
    confirmation that its token is current.
