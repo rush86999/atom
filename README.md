@@ -62,17 +62,33 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 ```bash
 git clone https://github.com/rush86999/atom.git && cd atom
 make setup                 # one-shot dev bootstrap (venv, deps, .env, frontend)
-make backend               # full backend on :8001
-# in a second terminal:
-make frontend              # Next.js UI on :3001
+make dev                   # start backend :8001 + UI :3001 together
 ```
 
-**To use LLM features, set one key in `backend/.env`** (or add via Settings > AI):
+In a second terminal, load the documented sample workspace:
+
+```bash
+make sample                # sample employee + editable lessons + one grounded job
+```
+
+**Expected result:** open http://localhost:3001 → sign in as `admin@example.com`
+(password in `backend/logs/bootstrap_admin_password.txt`) → **Assignments**
+shows *Sum Price for the sample quote sheet* completed from
+`sample-workspace/sample_quote.csv` with a downloadable DOCX. The sample
+employee is under **Agents**; its lessons are editable in the **Training**
+panel. This path uses no cloud credential, no live send and no connected
+account, and is designed to be the first successful job within 15 minutes on a
+supported Python 3.11–3.13 / Node 20.9+ machine.
+
+**To use model-backed chat/teaching proposals, set one key in `backend/.env`**
+(or add via Settings > AI):
 - `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DEEPSEEK_API_KEY` / `GOOGLE_API_KEY` … or
 - `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` for fully local
 
-**Expected result:** open http://localhost:3001 → sign in as `admin@example.com` (password in `backend/logs/bootstrap_admin_password.txt`) → describe a workflow in plain language and watch it build with an approval gate before anything ships.
+Deterministic assignments, uploads, calculations, document rendering and the
+sample job above work without a model key. Model-backed discretionary judgment
+is a separate, explicitly limited capability.
 
 [Full Quick Start →](docs/getting_started/quick-start.md) · [Docker →](docs/operations/personal-edition.md) · [DigitalOcean 1-Click →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 

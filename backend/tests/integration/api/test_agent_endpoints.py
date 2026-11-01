@@ -350,6 +350,11 @@ class TestAgentCreationEndpoint:
         assert response.status_code == 201
         data = response.json()
         assert "agent_id" in data["data"]
+        created = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == data["data"]["agent_id"]).first()
+        assert created is not None
+        assert created.workspace_id
+        assert created.tenant_id
 
     def test_create_agent_without_configuration(self, client: TestClient, db_session: Session):
         """Configuration is OPTIONAL per the endpoint contract.

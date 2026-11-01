@@ -1107,7 +1107,12 @@ async def create_custom_agent(
 
     Returns 201 Created on success (HTTP standard for resource creation).
     """
-    # 1. Create Agent
+    # 1. Create Agent. The employee's scope is the authenticated user's
+    # effective scope, not NULL: assignment start resolves an agent by
+    # workspace + tenant, so an unscoped hire was visible in the list but
+    # could not be given work on a fresh install.
+    workspace_id = getattr(current_user, "workspace_id", None) or "default"
+    tenant_id = getattr(current_user, "tenant_id", None) or "default"
     registry_entry = AgentRegistry(
         name=req.name,
         description=req.description,
@@ -1117,6 +1122,8 @@ async def create_custom_agent(
         module_path="core.generic_agent",
         class_name="GenericAgent",
         status=AgentStatus.STUDENT.value,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
         # Round 86: start hires below the INTERN band floor (0.5). The old
         # 0.5 default put every new employee one graded rehearsal away from
         # promotion — confidence should reflect demonstrated work, and the
