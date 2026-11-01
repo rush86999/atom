@@ -273,6 +273,8 @@ def coverage_status(
         "status": "success",
         "provider": provider,
         "scope": scope,
+        "workspace_id": workspace_id,
+        "tenant_id": tenant_id,
         "coverage": coverage,
         "stale": stale,
         "age_seconds": age,
@@ -483,6 +485,8 @@ async def sync_drive_page(
         "read_receipt": {
             "provider": provider,
             "operation": "list_files_page",
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
             "resource_id": scope,
             "account_id": provider_workspace_id or drive_id or site_id,
             "access": "granted",
