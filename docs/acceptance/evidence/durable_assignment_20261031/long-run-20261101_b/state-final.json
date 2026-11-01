@@ -1,0 +1,79 @@
+{
+  "schema": "atom-long-run-b-state-final",
+  "run_id": "cac9cbd6-f72b-4fbb-b106-f0990fc5b191",
+  "run_status": "achieved",
+  "assignment_id": "asg-bc8171a465894137",
+  "assignment_status": "completed",
+  "teaching_revision": "851207ec455336d3+cabba8f03b6894fa+map",
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "operation_id": "3e8eba43-a0b5-4443-9a75-6042d01db20c",
+      "attempts": 1,
+      "value": "110.00",
+      "summary": "sum of Gross Amount = 110.00 USD across 4 row(s) from second_quote.csv / second_quote"
+    },
+    {
+      "step_id": "wait",
+      "status": "applied",
+      "operation_id": "11056144-7543-44dc-9b26-15acfeb5176e",
+      "attempts": 1,
+      "value": "Delivery term: net 30 days from the invoice date.",
+      "summary": "controlled reply received"
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "applied",
+      "operation_id": "b7abcda9-b889-42ef-a4c1-0bbb6f6bfa5d",
+      "attempts": 0,
+      "value": null,
+      "summary": "rendered sum-price-for-the-second-integrated-quote-sheet-20d32298.docx"
+    },
+    {
+      "step_id": "send",
+      "status": "applied",
+      "operation_id": "2a593acd-5a3f-4669-b5d3-a5be790ca88a",
+      "attempts": 0,
+      "value": null,
+      "summary": "controlled provider accepted"
+    }
+  ],
+  "budget": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "paused_seconds": 7251.694753885269,
+    "waiting_since": null,
+    "active_wait": null,
+    "max_wall_seconds": 900.0,
+    "steps_started": 6
+  },
+  "artifact": {
+    "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_20261101_b/data/assignments/default/d1e40903-240e-4199-b4b0-7fc5b07adcdf/draft-34038c6167e3/sum-price-for-the-second-integrated-quote-sheet-20d32298.docx",
+    "sha256_declared": "bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94",
+    "sha256_actual": "bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94",
+    "bytes": 37211
+  },
+  "outbox_lines": 1,
+  "outbox_operations": [
+    "2a593acd-5a3f-4669-b5d3-a5be790ca88a"
+  ],
+  "serving_identity": {
+    "pid": 87659,
+    "started_at": "2026-11-01T20:06:03.119426+00:00",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/c2-pin/backend",
+    "git_commit": "414d8add3112",
+    "source_id": "414d8add3112",
+    "instance_id": "414d8add3112.87659.1793563566",
+    "revision": "414d8add311223493da3e8f0e7a8ec94bc8dec63",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T20:06:06.468021+00:00",
+    "port": 8085,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101_b/atom.db",
+    "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/c2-pin/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T20:06:12.200029+00:00"
+}

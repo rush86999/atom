@@ -1,0 +1,167 @@
+{
+  "schema": "atom-c2-closure-1",
+  "run_id": "cac9cbd6-f72b-4fbb-b106-f0990fc5b191",
+  "assignment_id": "asg-bc8171a465894137",
+  "elapsed_seconds_since_wait": 7239.8,
+  "gate": "2026-11-01T18:04:53Z",
+  "status_before": "waiting",
+  "status_after": "completed",
+  "teaching_revision_before": "851207ec455336d3+cabba8f03b6894fa+map",
+  "teaching_revision_after": "851207ec455336d3+cabba8f03b6894fa+map",
+  "source_1_before": {
+    "status": "applied",
+    "operation_id": "3e8eba43-a0b5-4443-9a75-6042d01db20c",
+    "attempts": 1,
+    "result_value": null
+  },
+  "source_1_after": {
+    "status": "applied",
+    "operation_id": "3e8eba43-a0b5-4443-9a75-6042d01db20c",
+    "attempts": 1,
+    "result_value": null
+  },
+  "steps_after": {
+    "source-1": "applied",
+    "wait": "applied",
+    "deliverable-1": "applied",
+    "send": "applied"
+  },
+  "wait_after": {
+    "status": "applied",
+    "result_value": null,
+    "waiting": {}
+  },
+  "budget_before": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "paused_seconds": 0.0,
+    "waiting_since": "2026-11-01T18:04:41.387836+00:00",
+    "active_wait": null,
+    "wait_credits": null,
+    "wait_credits_schema": null,
+    "steps_started": 3,
+    "attempts_started": null,
+    "elapsed_seconds": 0.0
+  },
+  "budget_after_response": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "paused_seconds": 7251.694753885269,
+    "waiting_since": null,
+    "active_wait": null,
+    "wait_credits": null,
+    "wait_credits_schema": null,
+    "steps_started": 6,
+    "attempts_started": null,
+    "elapsed_seconds": 0.0
+  },
+  "budget_after_completion": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "paused_seconds": 7251.694753885269,
+    "waiting_since": null,
+    "active_wait": null,
+    "wait_credits": null,
+    "wait_credits_schema": null,
+    "steps_started": 6,
+    "attempts_started": null,
+    "elapsed_seconds": 0.0
+  },
+  "budget_after_duplicate_response": {
+    "started_at": "2026-11-01T18:04:35.170933+00:00",
+    "paused_seconds": 7251.694753885269,
+    "waiting_since": null,
+    "active_wait": null,
+    "wait_credits": null,
+    "wait_credits_schema": null,
+    "steps_started": 6,
+    "attempts_started": null,
+    "elapsed_seconds": 0.0
+  },
+  "budget_resume_snapshots": [
+    {
+      "after_approval": {
+        "started_at": "2026-11-01T18:04:35.170933+00:00",
+        "paused_seconds": 7251.694753885269,
+        "waiting_since": null,
+        "active_wait": null,
+        "wait_credits": null,
+        "wait_credits_schema": null,
+        "steps_started": 6,
+        "attempts_started": null,
+        "elapsed_seconds": 0.0
+      }
+    },
+    {
+      "after_resume": {
+        "started_at": "2026-11-01T18:04:35.170933+00:00",
+        "paused_seconds": 7251.694753885269,
+        "waiting_since": null,
+        "active_wait": null,
+        "wait_credits": null,
+        "wait_credits_schema": null,
+        "steps_started": 6,
+        "attempts_started": null,
+        "elapsed_seconds": 0.0
+      }
+    }
+  ],
+  "approvals": [
+    {
+      "step_id": "send",
+      "http": 200,
+      "payload_sha256": "ca0ab0a5ed05688f28339e0f3d0e68f56aa9d7a863bb3ff528aacab7c6320cf6",
+      "artifact_revision": null,
+      "purpose": "Send the prepared response"
+    }
+  ],
+  "approval_required": true,
+  "retry_events": [],
+  "resume_calls": 1,
+  "artifact": {
+    "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/long_run_20261101_b/data/assignments/default/d1e40903-240e-4199-b4b0-7fc5b07adcdf/draft-34038c6167e3/sum-price-for-the-second-integrated-quote-sheet-20d32298.docx",
+    "bytes": 37211,
+    "sha256": "bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94",
+    "declared_sha256": "bce1a2ad9f74fc09c81896b282adf9a49a079a89c461d5d5a5bdaf6768fe6a94",
+    "normal_font": "Arial",
+    "normal_size": 11.0,
+    "text": "Sum Price for the second integrated quote sheet\nSummary\nsum of Gross Amount: 110.00 USD\ncontrolled reply received: Delivery term: net 30 days from the invoice date.\nFindings\nSources\nupload_second_quote__second_quote\nsecond_quote.csv\nsecond_quote\nbd9591c9-174c-4702-8ab2-ee535d12c26a\nsecond_quote.csv / second_quote\nObjective\nSum Price for the second integrated quote sheet\nsecond_quote.csv / second_quote"
+  },
+  "duplicate_resume": [
+    {
+      "status": 200,
+      "assignment_status": "completed"
+    },
+    {
+      "status": 200,
+      "assignment_status": "completed"
+    }
+  ],
+  "duplicate_response": {
+    "http": 404,
+    "body": {
+      "detail": "No open gap carries this correlation id. The response was not used to resume work."
+    }
+  },
+  "outbox_path": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101_b/controlled-outbox.jsonl",
+  "outbox_lines": 1,
+  "outbox_operation_ids": [
+    "2a593acd-5a3f-4669-b5d3-a5be790ca88a"
+  ],
+  "serving_identity": {
+    "pid": 73022,
+    "started_at": "2026-11-01T18:37:36.026842+00:00",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/c2-pin/backend",
+    "git_commit": "414d8add3112",
+    "source_id": "414d8add3112",
+    "instance_id": "414d8add3112.73022.1793558260",
+    "revision": "414d8add311223493da3e8f0e7a8ec94bc8dec63",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T18:37:39.298308+00:00",
+    "port": 8085,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101_b/atom.db",
+    "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/c2-pin/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T20:05:34.457437+00:00"
+}

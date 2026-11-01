@@ -44,6 +44,39 @@ claim.**
    hash/byte mismatches. Evidence:
    `docs/acceptance/readme_feature_readiness_2026-11-01/README.md`.
 
+## Post-acceptance correctness repair — stale live wait double subtraction
+
+This finding was made **after** the acceptance above and is appended rather
+than folded into the old baseline. The accepted tag
+`accepted-local-2026-11-01-90pct` is preserved; the old baseline is **not**
+described as unaffected by this defect.
+
+| Item | Value |
+|---|---|
+| Finding | A legacy budget could carry `paused_seconds` for a completed wait and still keep the same interval in `waiting_since`; effective elapsed subtracted it twice, so 1500 s of real work against a 900 s budget reported ~0 s and was allowed. The legacy retry credit also left the live wait in place. |
+| Repaired successor commit | `f1ef414c352f200301dc016ba1f9c3e3e00637b4` |
+| Backend tree identity | `c2963fbcdc8e2448ac69fb4d5818c41d10ab2d33` |
+| Repair commits | `bec60978b03774f190d4e33d130a7fdf1fe60cd6` (idempotent interval identity) + `019aa1eeba33c24be8171911c8366d96bba2b678` (clear matching live wait; do not double-subtract an already-credited timestamp) |
+| Focused verification | **63 tests**: 61 executor tests + both public-route cancellation tests |
+| Evidence | `docs/acceptance/evidence/budget_repair_20261101/` |
+
+The repair clears the matching `active_wait`/`waiting_since` on every credit
+outcome, ignores a `waiting_since` already present in the credit ledger, and
+does not subtract a legacy paused interval twice when there is no live
+active-wait identity. A genuinely new wait still records `active_wait`, so it
+is still excluded. Genuine active-work exhaustion remains exhausted.
+
+**Scope separation:** the genuine two-hour C2 run executes on its historical
+source `414d8add3` / backend tree `715969f01d23`; it is elapsed-waiting and
+recovery evidence, **not** verification of this repaired budget code. The
+budget repair is verified by the 63 controls above and by the integrated
+recovery controls on `c2963fbcdc8e`.
+
+**Recommended launch path:** recent first-use changes after this tree (for
+example `8b1abd7e6`, frontend `AssignmentPanel.tsx`) are outside the accepted
+budget tree and need their own focused smoke before they become the recommended
+launch path. They are not counted as accepted by this record.
+
 ## Accepted practical scope
 
 - Complex teaching, conflict/qualification refusals, unfamiliar-data mappings,
