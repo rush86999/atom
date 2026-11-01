@@ -77,8 +77,10 @@ shows *Sum Price for the sample quote sheet* completed from
 `sample-workspace/sample_quote.csv` with a downloadable DOCX. The sample
 employee is under **Agents**; its lessons are editable in the **Training**
 panel. This path uses no cloud credential, no live send and no connected
-account, and is designed to be the first successful job within 15 minutes on a
-supported Python 3.11–3.13 / Node 20.9+ machine.
+account. The **15-minute first-use target** covers a complete clean install
+through the sample job; it has **not** been measured end-to-end on this branch.
+The verified **13 seconds** measures only `make sample` after the backend is
+already running, not dependency installation, the frontend build or login.
 
 For the honest three-workflow demo script and its explicit non-claims, see
 [`docs/demo/VERIFIED_WORKFLOWS.md`](docs/demo/VERIFIED_WORKFLOWS.md).
