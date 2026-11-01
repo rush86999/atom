@@ -43,6 +43,20 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
   work blocked, retry/restart creates no second effect, reconcile settles the
   original operation.
 
+### Discount rule language (Agent 1, final boundary)
+- Supported executable schema: percentage `rate` (0..1), optional
+  `discount_type` in percent/percentage/rate, optional `basis` in
+  rate/percentage/percent. Metadata is separate.
+- Monetary caps, fixed/other discount types, unsupported bases and unknown
+  material fields now produce a targeted `discount_rule_unsupported` obligation
+  **before selection or arithmetic**. Cap currency/unit ambiguity is refused.
+- Comparison and execution share one normalized percentage representation;
+  the calculation receipt and row rule reference preserve normalized rate,
+  type, basis, lesson id and revision. The executor JSON bound was raised so
+  the nested representation is not replaced by an ellipsis.
+- Public-route controls: supported rule → 180.00 with complete receipt; capped
+  rule → waiting/refusal with no calculation or document.
+
 ### Commercial readback (Agent 2)
 - Sparse readback (ID + total) is `incomplete`, not verified.
 - Wrong item/quantity/rate with matching total is `mismatch` with line conflicts.

@@ -2857,3 +2857,77 @@ def test_discount_obligation_binds_line_and_resumes_same_quote(
         f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
         json={"resolution": "unlicensed"})
     assert stale.status_code == 409
+
+
+def _quote_route_payload(tmp_path, *, discount_rules, category="B"):
+    source = tmp_path / "quote-rule-source.txt"
+    source.write_text("Authorized quote rule source.\n")
+    return {
+        "objective": "Prepare a quote with the taught discount rule",
+        "sources": [{"kind": "document", "path": str(source)}],
+        "calculation": {
+            "line_items": [{
+                "item_id": "A", "category": category, "quantity": "2",
+                "unit": "each", "pack_size": "1", "unit_price": "100.00",
+                "price_basis": "contract", "currency": "USD",
+            }],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "discount_rules": discount_rules,
+        },
+        "deliverables": [{
+            "kind": "document", "description": "Quote",
+            "content": "Grounded quote.",
+        }],
+    }
+
+
+def test_supported_discount_rule_receipt_through_route(
+        route_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    response = route_env["client"].post(
+        "/api/assignments", json=_quote_route_payload(
+            tmp_path, discount_rules=[{
+                "lesson_id": "rule-1", "revision": 7, "when": {},
+                "rate": "0.100", "discount_type": "percentage",
+                "basis": "rate",
+            }]))
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "applied"
+    assert calc["result"]["value"] == "180.00"
+    rule = calc["result"]["rows"][0]["discount_rule"]
+    assert rule["pricing"] == {
+        "rate": "0.1", "discount_type": "percent", "basis": "rate"}
+    assert rule["revision"] == 7
+    assert calc["result"]["calculation_receipt"]["discount_rules"][0][
+        "pricing"] == rule["pricing"]
+
+
+def test_cap_rule_refuses_through_route_before_arithmetic(
+        route_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    response = route_env["client"].post(
+        "/api/assignments", json=_quote_route_payload(
+            tmp_path, discount_rules=[{
+                "lesson_id": "capped", "revision": 1, "when": {},
+                "rate": "0.10", "cap": "5.00",
+            }]))
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc.get("result") is None
+    gaps = route_env["client"].get(
+        f"/api/assignments/{run_id}").json().get("open_gaps") or []
+    gap = next(item for item in gaps
+               if item.get("concept") == "discount_rule_unsupported")
+    assert "cap" in gap["question"]
+    deliverable = next(item for item in internal["deliverables"]
+                       if item["kind"] == "document")
+    assert deliverable["status"] != "applied"

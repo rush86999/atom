@@ -363,17 +363,64 @@ def test_unknown_rules_with_equivalent_pricing_need_no_redundant_question():
     assert resolved["rate"] == "0.05"
 
 
-def test_decimal_equivalent_caps_do_not_conflict_or_ask():
+def test_decimal_equivalent_percentage_rates_do_not_conflict_or_ask():
     rules = [
         {"name": "A", "when": {"category": "B", "customer": "Acme"},
-         "rate": "0.05", "cap": "10"},
+         "rate": "0.05"},
         {"name": "B", "when": {"category": "B", "customer": "Acme"},
-         "rate": "0.050", "cap": "10.00"},
+         "rate": "0.050"},
     ]
     line = _line("B", category="B", customer="Acme")
     resolved = _assert_completion_sound(line, rules, {})
     assert resolved["rate"] == "0.05"
-    assert resolved["cap"] == "10"
+
+
+def test_monetary_cap_refuses_instead_of_being_ignored():
+    rules = [{"name": "capped", "when": {}, "rate": "0.10", "cap": "5.00"}]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule(_line("A"), rules)
+    assert exc.value.gap["concept"] == "discount_rule_unsupported"
+    assert "cap" in exc.value.gap["question"]
+
+
+def test_fixed_discount_type_refuses():
+    rules = [{"name": "fixed", "when": {}, "rate": "0.10",
+              "discount_type": "fixed"}]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule(_line("A"), rules)
+    assert exc.value.gap["concept"] == "discount_rule_unsupported"
+
+
+def test_unsupported_basis_and_unknown_material_field_refuse():
+    for rule in (
+            {"name": "basis", "when": {}, "rate": "0.10",
+             "basis": "tier_amount"},
+            {"name": "unknown", "when": {}, "rate": "0.10",
+             "tier_override": "gold"}):
+        with pytest.raises(NeedsContext) as exc:
+            resolve_discount_rule(_line("A"), [rule])
+        assert exc.value.gap["concept"] == "discount_rule_unsupported"
+
+
+def test_cap_currency_or_unit_ambiguity_refuses():
+    rules = [{"name": "cap", "when": {}, "rate": "0.10",
+              "cap": {"amount": "5.00", "currency": "CAD"}}]
+    with pytest.raises(NeedsContext) as exc:
+        resolve_discount_rule(_line("A"), rules)
+    assert exc.value.gap["concept"] == "discount_rule_unsupported"
+
+
+def test_supported_rule_receipt_preserves_normalized_pricing():
+    result = _calculate(lines=[_line("A")], discount_rules=[{
+        "lesson_id": "lesson-a", "revision": 4, "when": {},
+        "rate": "0.050", "discount_type": "percentage", "basis": "rate",
+    }])
+    rule = result["rows"][0]["discount_rule"]
+    assert rule["pricing"] == {
+        "rate": "0.05", "discount_type": "percent", "basis": "rate"}
+    assert rule["revision"] == 4
+    assert result["calculation_receipt"]["discount_rules"][0]["pricing"] == (
+        rule["pricing"])
 
 
 def test_dated_unknown_rule_with_equivalent_pricing_is_not_a_question():

@@ -107,27 +107,112 @@ def _normalize_material(value: Any) -> Any:
     return ("number", format(number.normalize(), "f"))
 
 
-def _pricing_signature(rule: Dict[str, Any]) -> Tuple[Any, ...]:
-    """The material commercial result of one rule.
+#: Executable pricing fields. Everything else is either metadata or an
+#: unsupported material field that must refuse rather than be ignored.
+_RULE_PRICING_KEYS = frozenset({"rate", "discount_type", "basis"})
+_RULE_PERCENT_TYPES = frozenset({"", "percent", "percentage", "rate"})
+_RULE_PERCENT_BASES = frozenset({"", "rate", "percentage", "percent"})
 
-    Rate is compared numerically; every other non-metadata field is included
-    verbatim (normalised), so caps, basis or future pricing fields cannot be
-    ignored by the equivalence check.
+
+def _normalized_rule(rule: Dict[str, Any]) -> Dict[str, Any]:
+    """The one supported executable representation: a percentage rate.
+
+    Caps, fixed amounts and unknown material fields are rejected by
+    ``_validate_rule_schema`` before this is used, so comparison and execution
+    cannot diverge.
     """
-    payload = rule if isinstance(rule, dict) else {}
-    signature: Dict[str, Any] = {}
-    for key, value in payload.items():
+    rate = _decimal(rule.get("rate"), "discount.rate")
+    if rate is None or not rate.is_finite() or rate < 0 or rate > 1:
+        raise ValueError("discount.rate must be a fraction between 0 and 1")
+    normalized = format(rate.normalize(), "f")
+    if normalized == "-0":
+        normalized = "0"
+    return {
+        "rate": normalized,
+        "discount_type": "percent",
+        "basis": "rate",
+    }
+
+
+def _validate_rule_schema(rule: Dict[str, Any], line: Dict[str, Any]) -> None:
+    """Fail closed on unsupported pricing semantics before selection."""
+    if not isinstance(rule, dict):
+        return
+    for key, value in rule.items():
         key_text = str(key)
         if key_text.startswith("_") or key_text in _RULE_METADATA_KEYS:
             continue
-        signature[key_text] = _normalize_material(value)
-    rate = payload.get("rate")
-    signature["rate"] = _normalize_material(
-        "0" if _is_missing(rate) else rate)
-    return tuple(sorted(signature.items()))
+        if key_text not in _RULE_PRICING_KEYS:
+            raise NeedsContext(_discount_gap(
+                line,
+                concept="discount_rule_unsupported",
+                mode="unsupported",
+                reason=(
+                    f"discount rule field '{key_text}' has no supported "
+                    "execution semantics"),
+                question=(
+                    f"The taught discount uses '{key_text}', which this build "
+                    "cannot execute safely. Remove it or use a supported "
+                    "percentage rule."),
+                missing_fields=[key_text],
+                candidates=[rule],
+            ))
+    dtype = str(rule.get("discount_type") or "").strip().lower()
+    if dtype not in _RULE_PERCENT_TYPES:
+        raise NeedsContext(_discount_gap(
+            line,
+            concept="discount_rule_unsupported",
+            mode="unsupported",
+            reason=(
+                f"discount_type '{dtype}' is not a supported percentage "
+                "discount"),
+            question=(
+                "A fixed/other discount type is not supported by this build. "
+                "Use a percentage rule or provide an approved method."),
+            missing_fields=["discount_type"],
+            candidates=[rule],
+        ))
+    basis = str(rule.get("basis") or "").strip().lower()
+    if basis not in _RULE_PERCENT_BASES:
+        raise NeedsContext(_discount_gap(
+            line,
+            concept="discount_rule_unsupported",
+            mode="unsupported",
+            reason=(
+                f"discount basis '{basis}' is not a supported percentage "
+                "basis"),
+            question=(
+                "This discount basis is not supported by this build. Use a "
+                "percentage rate or provide an approved method."),
+            missing_fields=["basis"],
+            candidates=[rule],
+        ))
+    try:
+        _normalized_rule(rule)
+    except (QuoteInputError, ValueError):
+        raise NeedsContext(_discount_gap(
+            line,
+            concept="discount_rule_unsupported",
+            mode="unsupported",
+            reason="discount rate is missing or not a finite fraction",
+            question="What percentage discount rate should apply?",
+            missing_fields=["rate"],
+            candidates=[rule],
+        ))
 
 
-_NO_RULE_SIGNATURE = _pricing_signature({})
+def _pricing_signature(rule: Dict[str, Any]) -> Tuple[Any, ...]:
+    """Supported material pricing representation, shared with execution."""
+    if not isinstance(rule, dict) or not rule:
+        return ("no_rule",)
+    try:
+        normalized = _normalized_rule(rule)
+    except (QuoteInputError, ValueError):
+        return ("invalid_rule", _normalize_material(rule.get("rate")))
+    return tuple(sorted(normalized.items()))
+
+
+_NO_RULE_SIGNATURE = ("no_rule",)
 
 
 def _rule_specificity(rule: Dict[str, Any]) -> int:
@@ -247,6 +332,7 @@ def _candidate_summary(rule: Dict[str, Any]) -> Dict[str, Any]:
         "name": rule.get("name"),
         "when": dict(rule.get("when") or {}),
         "rate": str(rule.get("rate")),
+        "pricing": _pricing_signature(rule),
         "effective_from": rule.get("effective_from"),
         "effective_to": rule.get("effective_to"),
         "specificity": _rule_specificity(rule),
@@ -348,6 +434,7 @@ def resolve_discount_rule(
     for raw in rules or []:
         if not isinstance(raw, dict):
             continue
+        _validate_rule_schema(raw, line)
         state, missing = _rule_state(raw, line, as_of)
         evaluated.append({
             "rule": raw,
@@ -578,14 +665,15 @@ def calculate_line_items(
                     "source": "line",
                 }
             elif rule is not None:
-                rate = _decimal(
-                    rule.get("rate"), f"{item_id}.discount_rate")
+                pricing = _normalized_rule(rule)
+                rate = _decimal(rule.get("rate"), f"{item_id}.discount_rate")
                 rule_ref = {
                     "authority": "taught",
                     "lesson_id": rule.get("lesson_id"),
                     "name": rule.get("name"),
                     "revision": rule.get("revision"),
                     "when": dict(rule.get("when") or {}),
+                    "pricing": pricing,
                 }
             else:
                 rate = Decimal("0")
@@ -672,6 +760,8 @@ def calculate_line_items(
                     "revision": rule.get("revision"),
                     "when": dict(rule.get("when") or {}),
                     "rate": str(rule.get("rate")),
+                    "pricing": dict(_normalized_rule(rule))
+                    if isinstance(rule, dict) else {},
                 }
                 for rule in (discount_rules or [])
                 if isinstance(rule, dict)

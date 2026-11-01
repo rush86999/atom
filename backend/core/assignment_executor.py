@@ -280,7 +280,10 @@ def _summarize_result(result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _json_safe(value: Any, *, depth: int = 0) -> Any:
-    if depth > 4:
+    # Calculation/approval receipts nest pricing inside rows/rules; a depth-4
+    # cut would replace material fields with an ellipsis. Keep the bound but
+    # deep enough for the complete normalized rule representation.
+    if depth > 6:
         return "…"
     if isinstance(value, dict):
         return {str(k)[:80]: _json_safe(v, depth=depth + 1)
