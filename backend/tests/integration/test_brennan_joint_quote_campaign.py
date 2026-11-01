@@ -16,7 +16,7 @@ from core.quote_evidence import compute_quote_totals
 
 
 def test_joint_quote_total_posts_and_drafts_without_sending(monkeypatch):
-    from core import brennan_connected_actions as actions
+    from core import connected_actions as actions
 
     lines = [
         {"sku": "A", "quantity": "2", "unit_price": "100.00",
