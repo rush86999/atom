@@ -40,5 +40,9 @@
   "stale_no_binding": true,
   "page_errors": [],
   "elapsed_seconds_to_panel": 100.53,
-  "sampled_at": "2026-11-01T20:26:07Z"
+  "sampled_at": "2026-11-01T20:26:07Z",
+  "agent_options_count": 2,
+  "has_demo_assistant": true,
+  "default_option_label_only": true,
+  "stale_no_binding_interpretation": "The select default option is labelled \"No employee binding\"; Demo Assistant is present and selectable. This is not an unauthenticated or empty projection; the first-use token-reload fix is what makes the agents appear without a manual reload."
 }
