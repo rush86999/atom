@@ -143,14 +143,37 @@ class TestProcessDocument:
         db.query.return_value.filter.return_value.first.return_value = doc
         entity = SimpleNamespace(id="e2")
         p._get_or_create_entity = MagicMock(return_value=entity)
-        p._ai_extract = AsyncMock(return_value={"entity_name": "Acme", "amount": 10})
+        p._ai_extract = AsyncMock(return_value={
+            "entity_name": "Acme", "number": "INV-9", "date": "2026-08-01",
+            "amount": "10.00", "currency": "CAD",
+        })
         with patch.object(dp, "get_automation_settings",
-                          returnValue=SimpleNamespace(is_accounting_enabled=lambda: True)):
+                          return_value=SimpleNamespace(is_accounting_enabled=lambda: True)):
             record = await p.process_document("ws", "d1", doc_type="invoice")
         assert record is not None
         assert record.customer_id == "e2"
-        assert record.invoice_number is None
+        assert record.invoice_number == "INV-9"
+        assert record.currency == "CAD"
         assert doc.invoice_id == record.id
+        assert doc.extracted_data["raw_text"] == "Acme invoice 9"
+        assert doc.extracted_data["extraction"]["number"] == "INV-9"
+
+    async def test_missing_facts_are_obligations_not_defaults(self, proc):
+        p, db = proc
+        doc = _doc(extracted_data={"raw_text": "Acme invoice"})
+        db.query.return_value.filter.return_value.first.return_value = doc
+        p._get_or_create_entity = MagicMock(return_value=SimpleNamespace(id="e2"))
+        p._ai_extract = AsyncMock(return_value={
+            "entity_name": "Acme", "amount": "10.00",
+        })
+        with patch.object(dp, "get_automation_settings",
+                          return_value=SimpleNamespace(is_accounting_enabled=lambda: True)):
+            record = await p.process_document("ws", "d1", doc_type="invoice")
+        assert record is None
+        fields = {item["field"] for item in p.last_obligations}
+        assert {"number", "date", "currency"} <= fields
+        db.add.assert_not_called()
+        db.commit.assert_not_called()
 
     async def test_ai_extract_none_returns_none(self, proc):
         p, db = proc
@@ -215,18 +238,27 @@ class TestEntityAndRecords:
     def test_get_or_create_entity_found(self, proc):
         p, db = proc
         entity = SimpleNamespace(id="e1")
-        db.query.return_value.filter.return_value.first.return_value = entity
+        db.query.return_value.filter.return_value.limit.return_value.all.return_value = [entity]
         result = p._get_or_create_entity("ws", "Vendor Inc", dp.EntityType.VENDOR)
         assert result is entity
         db.add.assert_not_called()
 
     def test_get_or_create_entity_created(self, proc):
         p, db = proc
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.limit.return_value.all.return_value = []
         result = p._get_or_create_entity("ws", "NewCo", dp.EntityType.CUSTOMER)
         assert result.type == dp.EntityType.CUSTOMER
         db.add.assert_called_once()
         db.flush.assert_called_once()
+
+    def test_get_or_create_entity_same_name_is_ambiguous(self, proc):
+        p, db = proc
+        db.query.return_value.filter.return_value.limit.return_value.all.return_value = [
+            SimpleNamespace(id="e1"), SimpleNamespace(id="e2")]
+        with pytest.raises(dp.DocumentFactError) as exc:
+            p._get_or_create_entity("ws", "Acme", dp.EntityType.VENDOR)
+        assert exc.value.field == "entity_name"
+        db.add.assert_not_called()
 
     def test_create_bill_mapping(self, proc):
         p, db = proc
@@ -240,17 +272,24 @@ class TestEntityAndRecords:
         assert bill.issue_date == "parsed:d"
         assert bill.status == dp.BillStatus.DRAFT
 
-    def test_create_invoice_defaults(self, proc):
+    def test_create_invoice_refuses_missing_facts(self, proc):
         p, db = proc
-        inv = p._create_invoice("ws", "c1", {})
-        assert inv.amount == 0.0
-        assert inv.currency == "USD"
-        assert inv.invoice_number is None
+        with pytest.raises(dp.DocumentFactError) as exc:
+            p._create_invoice("ws", "c1", {})
+        assert exc.value.field == "date"
+
+    def test_create_invoice_uses_exact_decimal_and_currency(self, proc):
+        p, db = proc
+        inv = p._create_invoice("ws", "c1", {
+            "number": "INV-1", "date": "2026-01-01",
+            "amount": "10.125", "currency": "cad",
+        })
+        assert inv.amount == __import__("decimal").Decimal("10.125")
+        assert inv.currency == "CAD"
 
     def test_parse_date_missing(self, proc):
         p, db = proc
-        dt = p._parse_date(None)
-        assert isinstance(dt, datetime)
+        assert p._parse_date(None) is None
 
     def test_parse_date_valid(self, proc):
         p, db = proc
@@ -260,12 +299,12 @@ class TestEntityAndRecords:
     def test_parse_date_none_result(self, proc):
         p, db = proc
         with patch.object(dp.dateparser, "parse", return_value=None):
-            assert isinstance(p._parse_date("garbage"), datetime)
+            assert p._parse_date("garbage") is None
 
     def test_parse_date_exception(self, proc):
         p, db = proc
         with patch.object(dp.dateparser, "parse", side_effect=ValueError("bad")):
-            assert isinstance(p._parse_date("garbage"), datetime)
+            assert p._parse_date("garbage") is None
 
 
 class TestPerformOcr:

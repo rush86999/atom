@@ -470,19 +470,48 @@ class TestAccountingSyncManager:
         assert db.added == []
         assert db.flushes == 0
 
-    def test_zoho_defaults_and_ingest_pipeline_failure(self):
+    def test_zoho_missing_facts_are_mapping_errors_not_defaults(self):
         db = _FakeDB({})
-        raw = [{"amount": "5"}]  # no date, no description, no transaction_id
+        raw = [{"amount": "5"}]  # no date, no transaction_id
+        with self._make(db, zoho_tx=raw) as (manager, *_):
+            db._specs[Transaction] = []
+            result = asyncio.run(manager.sync_external_transactions(
+                "ws1", "zoho", {"access_token": "t", "organization_id": "o"})
+            )
+        assert result["status"] == "failed"
+        assert result["ingested"] == 0
+        assert result["mapping_errors"]
+        assert result["mapping_errors"][0]["field"] == "transaction_id"
+        assert db.added == []
+
+    def test_zoho_missing_date_is_reported_not_today(self):
+        db = _FakeDB({})
+        raw = [{"transaction_id": "z1", "amount": "5"}]  # valid id, no date
+        with self._make(db, zoho_tx=raw) as (manager, *_):
+            db._specs[Transaction] = []
+            result = asyncio.run(manager.sync_external_transactions(
+                "ws1", "zoho", {"access_token": "t", "organization_id": "o"})
+            )
+        assert result["status"] == "failed"
+        assert result["mapping_errors"][0]["field"] == "date"
+        assert db.added == []
+
+    def test_zoho_ingest_pipeline_failure_is_partial_not_success(self):
+        db = _FakeDB({})
+        raw = [{"transaction_id": "z1", "amount": "5", "date": "2026-01-05"}]
         with self._make(db, zoho_tx=raw) as (manager, _, _, _, _, pipeline):
             db._specs[Transaction] = []
             pipeline.ingest_message = AsyncMock(side_effect=RuntimeError("boom"))
             result = asyncio.run(manager.sync_external_transactions(
                 "ws1", "zoho", {"access_token": "t", "organization_id": "o"})
             )
+        assert result["status"] == "partial"
         assert result["ingested"] == 1
+        assert result["ingestion_errors"][0]["external_id"] == "z1"
         tx = [a for a in db.added if hasattr(a, "metadata_json")][0]
         assert tx.description == "Zoho Transaction"
-        assert tx.metadata_json["external_id"] == ""
+        assert tx.external_id == "z1"
+        assert tx.source == "zoho"
 
     def test_xero_ingests(self):
         db = _FakeDB({})
@@ -499,16 +528,17 @@ class TestAccountingSyncManager:
         assert tx.transaction_date == datetime(2026, 2, 1)
         xero.get_invoices.assert_awaited_with("t", "tid")
 
-    def test_xero_default_date(self):
+    def test_xero_missing_date_is_reported_not_today(self):
         db = _FakeDB({})
         raw = [{"InvoiceNumber": "INV-2", "Total": "99", "InvoiceID": "x2"}]
         with self._make(db, xero_tx=raw) as (manager, *_):
             db._specs[Transaction] = []
-            asyncio.run(manager.sync_external_transactions(
+            result = asyncio.run(manager.sync_external_transactions(
                 "ws1", "xero", {"access_token": "t", "tenant_id": "tid"})
             )
-            tx = [a for a in db.added if hasattr(a, "metadata_json")][0]
-            assert tx.transaction_date.date() == datetime.now().date()
+            assert result["status"] == "failed"
+            assert result["mapping_errors"][0]["field"] == "DateString"
+            assert db.added == []
 
     def test_quickbooks_ingests(self):
         db = _FakeDB({})
@@ -524,17 +554,17 @@ class TestAccountingSyncManager:
         assert tx.metadata_json["external_id"] == "q1"
         qbo.get_expenses.assert_awaited_with("r", "t")
 
-    def test_quickbooks_defaults(self):
+    def test_quickbooks_missing_date_is_reported_not_today(self):
         db = _FakeDB({})
         raw = [{"TotalAmt": "1", "Id": "q2"}]  # no note, no date
         with self._make(db, qbo_tx=raw) as (manager, *_):
             db._specs[Transaction] = []
-            asyncio.run(manager.sync_external_transactions(
+            result = asyncio.run(manager.sync_external_transactions(
                 "ws1", "quickbooks", {"realm_id": "r", "access_token": "t"})
             )
-            tx = [a for a in db.added if hasattr(a, "metadata_json")][0]
-            assert tx.description == "QBO Expense"
-            assert tx.transaction_date.date() == datetime.now().date()
+            assert result["status"] == "failed"
+            assert result["mapping_errors"][0]["field"] == "TxnDate"
+            assert db.added == []
 
     def test_ingest_pipeline_success_path_uses_quickbooks_type(self):
         db = _FakeDB({})

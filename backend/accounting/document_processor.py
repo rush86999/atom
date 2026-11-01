@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 import json
 import logging
 from typing import Any, Dict, List, Optional
 from accounting.models import Bill, BillStatus, Document, Entity, EntityType, Invoice, InvoiceStatus
 import dateparser
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.automation_settings import get_automation_settings
@@ -35,6 +37,18 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+class DocumentFactError(ValueError):
+    """A financial document is missing a required fact; it is not defaulted."""
+
+    def __init__(self, field: str, message: str):
+        super().__init__(message)
+        self.field = field
+        self.message = message
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"field": self.field, "error": self.message}
+
+
 class AIDocumentProcessor:
     """
     Service for extracting structured financial data from documents using AI.
@@ -42,6 +56,9 @@ class AIDocumentProcessor:
 
     def __init__(self, db: Session):
         self.db = db
+        # Populated when a document cannot be turned into a draft without
+        # inventing a vendor, date, currency or amount.
+        self.last_obligations: List[Dict[str, Any]] = []
         # Initialize PDF OCR service if available
         self.pdf_ocr_service = PDFOCRService() if PDF_OCR_AVAILABLE else None
 
@@ -79,33 +96,64 @@ class AIDocumentProcessor:
                 return None
 
         # 1. AI Extraction
+        self.last_obligations = []
         extraction_data = await self._ai_extract(raw_text, doc_type)
         if not extraction_data:
             return None
 
-        # 2. Entity Matching/Creation
-        entity_name = extraction_data.get("entity_name")
-        entity_type = EntityType.VENDOR if doc_type == "bill" else EntityType.CUSTOMER
-        entity = self._get_or_create_entity(workspace_id, entity_name, entity_type)
+        # 2. Validate the facts a draft needs.  Missing currency, date,
+        # number or amount is an obligation, never today/USD/zero.
+        required = ("entity_name", "number", "date", "amount", "currency")
+        missing = [field for field in required
+                   if extraction_data.get(field) in (None, "")]
+        if missing:
+            self.last_obligations = [
+                {"field": field,
+                 "error": f"the document has no {field}; it was not defaulted"}
+                for field in missing
+            ]
+            logger.warning(
+                "Document %s not drafted; missing %s", document_id, missing)
+            return None
 
-        # 3. Record Creation
-        if doc_type == "bill":
-            record = self._create_bill(workspace_id, entity.id, extraction_data)
-        else:
-            record = self._create_invoice(workspace_id, entity.id, extraction_data)
+        try:
+            # 3. Entity Matching/Creation (exact identity, ambiguity refused)
+            entity_name = extraction_data.get("entity_name")
+            entity_type = (
+                EntityType.VENDOR if doc_type == "bill" else EntityType.CUSTOMER)
+            entity = self._get_or_create_entity(
+                workspace_id, entity_name, entity_type)
+
+            # 4. Record Creation
+            if doc_type == "bill":
+                record = self._create_bill(
+                    workspace_id, entity.id, extraction_data)
+            else:
+                record = self._create_invoice(
+                    workspace_id, entity.id, extraction_data)
+        except DocumentFactError as exc:
+            self.last_obligations = [exc.to_dict()]
+            logger.warning("Document %s not drafted: %s", document_id, exc)
+            return None
 
         if record:
-            # Link document to record
+            # Link document to record.  Preserve the original raw text and
+            # prior extraction history instead of overwriting the document.
             if doc_type == "bill":
                 document.bill_id = record.id
             else:
                 document.invoice_id = record.id
-            
-            document.extracted_data = extraction_data
+
+            preserved = dict(document.extracted_data or {})
+            preserved["extraction"] = extraction_data
+            preserved["extraction_source"] = "ai_document_processor"
+            preserved["extraction_updated_at"] = datetime.now(
+                timezone.utc).isoformat()
+            document.extracted_data = preserved
             self.db.add(record)
             self.db.commit()
             self.db.refresh(record)
-            
+
         return record
 
     async def _ai_extract(self, text: str, doc_type: str) -> Optional[Dict[str, Any]]:
@@ -146,62 +194,101 @@ class AIDocumentProcessor:
             logger.error(f"AI Extraction failed: {e}")
             return None
 
-    def _get_or_create_entity(self, workspace_id: str, name: str, entity_type: EntityType) -> Entity:
-        """Find entity by name or create a new one"""
-        entity = self.db.query(Entity).filter(
-            Entity.workspace_id == workspace_id,
-            Entity.name.ilike(f"%{name}%")
-        ).first()
+    def _get_or_create_entity(self, workspace_id: str, name: str,
+                              entity_type: EntityType) -> Entity:
+        """Resolve exactly one entity by exact normalized name.
 
-        if not entity:
-            logger.info(f"Creating new {entity_type} entity: {name}")
-            entity = Entity(
-                workspace_id=workspace_id,
-                name=name,
-                type=entity_type
-            )
-            self.db.add(entity)
-            self.db.flush()
-        
+        The old ``ilike('%name%')`` matched "Acme" to "Acme Holdings" and
+        silently attached the document to the wrong vendor.  Two exact-name
+        rows are ambiguous and must be resolved by the owner.
+        """
+        normalized = str(name or "").strip()
+        if not normalized:
+            raise DocumentFactError(
+                "entity_name", "the document has no vendor/customer name")
+        matches = self.db.query(Entity).filter(
+            Entity.workspace_id == workspace_id,
+            Entity.type == entity_type,
+            func.lower(Entity.name) == normalized.lower(),
+        ).limit(2).all()
+        if len(matches) > 1:
+            raise DocumentFactError(
+                "entity_name",
+                f"multiple {entity_type.value} identities match {normalized!r}")
+        if matches:
+            return matches[0]
+
+        logger.info(f"Creating new {entity_type} entity: {normalized}")
+        entity = Entity(
+            workspace_id=workspace_id,
+            name=normalized,
+            type=entity_type,
+        )
+        self.db.add(entity)
+        self.db.flush()
         return entity
 
+    def _required_decimal(self, data: Dict[str, Any], field: str) -> Decimal:
+        raw = data.get(field)
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            raise DocumentFactError(field, f"the document has no {field}")
+        if isinstance(raw, bool):
+            raise DocumentFactError(field, f"{field} must be decimal, not boolean")
+        try:
+            value = Decimal(str(raw).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise DocumentFactError(
+                field, f"{field} is not a decimal: {raw!r}") from exc
+        if not value.is_finite():
+            raise DocumentFactError(field, f"{field} must be finite")
+        return value
+
+    def _required_date(self, data: Dict[str, Any], field: str) -> datetime:
+        raw = data.get(field)
+        if raw in (None, ""):
+            raise DocumentFactError(field, f"the document has no {field}")
+        parsed = self._parse_date(raw)
+        if parsed is None:
+            raise DocumentFactError(
+                field, f"{field} is not a recognizable date: {raw!r}")
+        return parsed
+
     def _create_bill(self, workspace_id: str, vendor_id: str, data: Dict[str, Any]) -> Bill:
-        """Create a Bill record from extracted data"""
+        """Create a Bill draft from validated extracted data."""
         return Bill(
             workspace_id=workspace_id,
             vendor_id=vendor_id,
             bill_number=data.get("number"),
-            issue_date=self._parse_date(data.get("date")),
+            issue_date=self._required_date(data, "date"),
             due_date=self._parse_date(data.get("due_date")),
-            amount=float(data.get("amount", 0)),
-            currency=data.get("currency", "USD"),
+            amount=self._required_decimal(data, "amount"),
+            currency=str(data.get("currency") or "").strip().upper(),
             description=data.get("description"),
             status=BillStatus.DRAFT
         )
 
     def _create_invoice(self, workspace_id: str, customer_id: str, data: Dict[str, Any]) -> Invoice:
-        """Create an Invoice record from extracted data"""
+        """Create an Invoice draft from validated extracted data."""
         return Invoice(
             workspace_id=workspace_id,
             customer_id=customer_id,
             invoice_number=data.get("number"),
-            issue_date=self._parse_date(data.get("date")),
+            issue_date=self._required_date(data, "date"),
             due_date=self._parse_date(data.get("due_date")),
-            amount=float(data.get("amount", 0)),
-            currency=data.get("currency", "USD"),
+            amount=self._required_decimal(data, "amount"),
+            currency=str(data.get("currency") or "").strip().upper(),
             description=data.get("description"),
             status=InvoiceStatus.DRAFT
         )
 
-    def _parse_date(self, date_str: Optional[str]) -> datetime:
-        """Robust date parsing using dateparser"""
+    def _parse_date(self, date_str: Optional[str]) -> Optional[datetime]:
+        """Parse a date or return None; never substitute the current time."""
         if not date_str:
-            return datetime.now(timezone.utc)
+            return None
         try:
-            dt = dateparser.parse(date_str)
-            return dt if dt else datetime.now(timezone.utc)
+            return dateparser.parse(date_str)
         except (ValueError, TypeError, AttributeError):
-            return datetime.now(timezone.utc)
+            return None
 
     async def _perform_ocr(self, document) -> Optional[str]:
         """
