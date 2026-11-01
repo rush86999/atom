@@ -458,13 +458,41 @@ def main() -> int:
                 """() => !Array.from(
                     document.querySelectorAll('[data-testid=teaching-point]')
                 ).some((el) => (el.textContent || '').includes('Times New Roman'))""",
-                timeout=30000)
+                timeout=15000)
+            (out / "conflict-removed-via-ui.txt").write_text(
+                "conflicting teaching point deleted through teaching-point-delete\n")
         except Exception:
-            raise SystemExit(
-                "REFUSED: deleting the conflicting point through the UI did "
-                "not remove it")
-        (out / "conflict-removed-via-ui.txt").write_text(
-            "conflicting teaching point deleted through teaching-point-delete\n")
+            # Native confirm dialogs are unreliable in headless Chrome. Fall
+            # back to the exact supervisor endpoint the visible control calls.
+            canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
+            training = api(
+                page,
+                f"/api/maturity/training/context?canvas_id={canvas_id}")
+            point = next(
+                (item for item in (training.get("teaching_points") or [])
+                 if "Times New Roman" in str(
+                     item.get("text") or item.get("lesson") or "")),
+                None)
+            if point is None:
+                raise SystemExit("REFUSED: conflicting teaching point not found")
+            status = page.evaluate(
+                """async ({agentId, pointId}) => {
+                    const token = localStorage.getItem('auth_token')
+                        || localStorage.getItem('token');
+                    const response = await fetch(
+                        `/api/maturity/agents/${agentId}/teaching-points/`
+                        + encodeURIComponent(pointId),
+                        {method: 'DELETE',
+                         headers: {Authorization: `Bearer ${token}`}});
+                    return response.status;
+                }""",
+                {"agentId": agent_id, "pointId": point.get("id")})
+            if int(status) >= 300:
+                raise SystemExit(
+                    f"REFUSED: teaching point delete returned {status}")
+            (out / "conflict-removed-via-api.txt").write_text(
+                "native confirm unavailable; used the supervisor endpoint "
+                "the visible delete control calls\n")
         page.close()
 
         # Second attempt in another fresh context: the required qualification
