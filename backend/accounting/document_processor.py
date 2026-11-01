@@ -145,6 +145,7 @@ class AIDocumentProcessor:
                 document.invoice_id = record.id
 
             preserved = dict(document.extracted_data or {})
+            preserved.setdefault("raw_text", raw_text)
             preserved["extraction"] = extraction_data
             preserved["extraction_source"] = "ai_document_processor"
             preserved["extraction_updated_at"] = datetime.now(
@@ -210,7 +211,7 @@ class AIDocumentProcessor:
             Entity.workspace_id == workspace_id,
             Entity.type == entity_type,
             func.lower(Entity.name) == normalized.lower(),
-        ).limit(2).all()
+        ).all()
         if len(matches) > 1:
             raise DocumentFactError(
                 "entity_name",

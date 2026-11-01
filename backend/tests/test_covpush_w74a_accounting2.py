@@ -591,7 +591,8 @@ class TestAIDocumentProcessor:
         assert float(record.amount) == 100.5
         assert record.vendor_id == "e-1"
         assert doc.bill_id == record.id
-        assert doc.extracted_data == extraction
+        assert doc.extracted_data["raw_text"] == "Acme Corp bill $100"
+        assert doc.extracted_data["extraction"] == extraction
         assert db.commits == 1
         assert db.refreshed == [record]
         ocr.process_pdf.assert_awaited_once()
@@ -663,6 +664,7 @@ class TestAIDocumentProcessor:
         extraction = {
             "entity_name": "New Customer Inc",
             "number": "INV-9",
+            "date": "2026-03-01",
             "amount": 199.99,
             "currency": "USD",
             "description": "services",
@@ -704,10 +706,9 @@ class TestAIDocumentProcessor:
         with self._extract(None, side_effect=RuntimeError("provider down")):
             assert asyncio.run(svc._ai_extract("text", "bill")) is None
 
-    def test_parse_date_none_returns_now(self):
+    def test_parse_date_none_is_not_defaulted_to_now(self):
         svc = self._processor(_FakeDB())
-        dt = svc._parse_date(None)
-        assert dt.tzinfo == timezone.utc
+        assert svc._parse_date(None) is None
 
     def test_parse_date_valid(self):
         svc = self._processor(_FakeDB())
@@ -717,14 +718,12 @@ class TestAIDocumentProcessor:
     def test_parse_date_unparseable(self):
         svc = self._processor(_FakeDB())
         with patch.object(doc_mod.dateparser, "parse", return_value=None):
-            dt = svc._parse_date("not a date")
-        assert dt.tzinfo == timezone.utc
+            assert svc._parse_date("not a date") is None
 
     def test_parse_date_parse_raises(self):
         svc = self._processor(_FakeDB())
         with patch.object(doc_mod.dateparser, "parse", side_effect=ValueError("boom")):
-            dt = svc._parse_date("not a date")
-        assert dt.tzinfo == timezone.utc
+            assert svc._parse_date("not a date") is None
 
     def test_perform_ocr_direct_success(self, tmp_path):
         pdf = tmp_path / "doc.pdf"
