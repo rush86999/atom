@@ -34,6 +34,9 @@ def test_joint_quote_total_posts_and_drafts_without_sending(monkeypatch):
         async def _get_active_token(self, *args, **kwargs):
             return "token"
 
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False, "page": page}
+
         async def create_estimate(self, token, org, data):
             captured["estimate_payload"] = data
             return {"estimate_id": "est-joint", "estimate_number": "EST-1"}
