@@ -154,6 +154,7 @@ provider's terms.
 - [Verified workflow walkthroughs](docs/demo/VERIFIED_WORKFLOWS.md)
 - [Troubleshooting](docs/getting_started/TROUBLESHOOTING.md)
 - [Architecture](docs/architecture/README.md) · [Security boundaries](docs/security/TRUST_VS_SANDBOX.md)
+- [Brennan business-workflow engineering orders](docs/engineering/brennan/README.md)
 - [Contributing](CONTRIBUTING.md) · [Open an issue](https://github.com/rush86999/atom/issues)
 
 For a useful bug report, include the commit/tag, operating system, launch

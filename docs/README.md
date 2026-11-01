@@ -85,3 +85,9 @@ Contribution standards, debugging procedures, and testing frameworks.
 
 ## 📑 Complete Document Index
 For a comprehensive list of all documentation files in alphabetical order, see the **[Atom Alphabetical Index](INDEX.md)**.
+
+## Connected business-workflow implementation
+
+[Two-agent Brennan work orders](engineering/brennan/README.md) cover WorkDrive/OneDrive
+knowledge, Zoho/Microsoft integration, quote preparation, bookkeeping and complex
+durable work. They are implementation requirements, not additional acceptance claims.
