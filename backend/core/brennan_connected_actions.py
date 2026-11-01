@@ -109,6 +109,27 @@ def _error(provider: str, operation: str, kind: str, message: str,
     }
 
 
+def action_executor_outcome(result: Dict[str, Any]) -> str:
+    """Map a connected action result to the executor's outcome vocabulary.
+
+    ``_action_registry_adapter`` must not wrap every return as ``applied``:
+    a duplicate/validation result is ``proven_not_applied``, a changed
+    readback is ``conflict`` and a lost confirmation is ``uncertain``.  Agent
+    1 owns the adapter; this helper is the drop-in mapping for it.
+    """
+    action_result = str((result or {}).get("action_result") or "")
+    if action_result == "applied":
+        return "applied"
+    if action_result == "proven_not_applied":
+        return "failed"
+    if action_result in ("uncertain", "conflict", "unavailable"):
+        return "uncertain"
+    # Legacy read actions return status=success without an action_result.
+    if (result or {}).get("status") == "success":
+        return "applied"
+    return "failed"
+
+
 def _payload_digest(payload: Dict[str, Any]) -> str:
     """Digest the exact effect payload with the shared approval hasher.
 

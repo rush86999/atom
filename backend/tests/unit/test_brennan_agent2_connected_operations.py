@@ -1191,3 +1191,19 @@ def test_service_business_configuration_needs_no_source_edit():
     assert result["data"]["currency"] == "CAD"
     assert result["data"]["document_total"] == "1585.25"
     assert result["data"]["posting"] is None
+
+
+def test_executor_outcome_mapping_never_calls_conflict_applied():
+    from core.brennan_connected_actions import action_executor_outcome
+
+    assert action_executor_outcome({"status": "success",
+                                    "action_result": "applied"}) == "applied"
+    assert action_executor_outcome({"status": "duplicate",
+                                    "action_result": "proven_not_applied"}) == "failed"
+    assert action_executor_outcome({"status": "conflict",
+                                    "action_result": "conflict"}) == "uncertain"
+    assert action_executor_outcome({"status": "uncertain",
+                                    "action_result": "uncertain"}) == "uncertain"
+    assert action_executor_outcome({"status": "error",
+                                    "action_result": "unavailable"}) == "uncertain"
+    assert action_executor_outcome({"status": "success"}) == "applied"

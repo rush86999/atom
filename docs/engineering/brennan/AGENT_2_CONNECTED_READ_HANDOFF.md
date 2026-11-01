@@ -88,7 +88,19 @@ The current `_action_registry_adapter` in `assignment_executor.py` wraps every
 action result as `status=applied`. Agent 1 must map the action's
 `action_result` into the executor outcome (`applied`, `uncertain`, or failed)
 before marking the operation complete. Do not treat a `conflict` allocation as
-applied.
+applied. The module exports the drop-in mapping:
+
+```python
+from core.brennan_connected_actions import action_executor_outcome
+
+result = await action_registry.execute_action(name, arguments, execution_context)
+outcome = action_executor_outcome(result)   # applied | uncertain | failed
+return {"status": outcome, "data": _json_safe(result), ...}
+```
+
+A suggested adapter patch is to replace the unconditional
+`{"status": "applied", ...}` return with the mapped `outcome`; keep the
+existing `ExternalOutcomeUnknown` exception path for adapters that raise it.
 
 ## Receipt shape
 
