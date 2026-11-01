@@ -44,8 +44,11 @@ replaces their search-index rows with `freshness_status=removed` tombstones
 (`tombstoned_external_ids`). The provider object remains the audit record;
 retrieval stops serving the removed row. If the tombstone write fails the
 result says `deletion_check=reported_not_tombstoned` rather than claiming the
-row is excluded. A revoked grant is persisted as `coverage=revoked` and
-returned as a typed error.
+row is excluded. A revoked/expired/missing grant persists
+`coverage=revoked|unavailable` and `retrieval_authorization=withdrawn`; known
+indexed rows for that scope are tombstoned so cached content is not served
+after the grant is gone. Reconnecting and re-listing restores rows that are
+seen again.
 
 The same surface is exposed to the UI as
 `GET /api/document-ingestion/integrations/{integration_id}/sync-status` and

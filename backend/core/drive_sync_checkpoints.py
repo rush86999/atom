@@ -128,6 +128,7 @@ def _new_state(provider: str, scope: str, prior_known: Sequence[str]) -> Dict[st
         "missing_external_ids": [],
         "ids_truncated": False,
         "deletion_check": "pending",
+        "retrieval_authorization": "granted",
         "last_error": None,
         "last_success_at": None,
         "started_at": _now(),
@@ -278,6 +279,8 @@ def coverage_status(
         "checkpoint": state or None,
         "missing_external_ids": list(
             (state or {}).get("missing_external_ids") or []),
+        "retrieval_authorization": (state or {}).get(
+            "retrieval_authorization") or "not_assessed",
         "next_cursor": (state or {}).get("next_cursor"),
         "last_error": (state or {}).get("last_error"),
     }
@@ -343,6 +346,26 @@ async def sync_drive_page(
             "operation": result.get("operation") or "list_files_page",
             "at": _now(),
         }
+        # Withdraw authorization for already-indexed rows when the grant is
+        # gone.  A reconnect plus a fresh listing restores them; retaining
+        # searchable content after revocation would exceed the grant.
+        if kind in ("auth_expired", "auth_revoked", "auth_unavailable"):
+            state["retrieval_authorization"] = "withdrawn"
+            if index_content:
+                known = list(state.get("known_ids")
+                             or state.get("prior_known_ids") or [])
+                if known:
+                    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+                    tombstone = await IntegrationMemoryIndexer(
+                        workspace_id).tombstone_rows(
+                            provider, known, reason=f"grant_{kind}")
+                    if tombstone.get("success"):
+                        state["tombstoned_external_ids"] = known
+                    else:
+                        state["retrieval_authorization"] = "withdraw_failed"
+        else:
+            state["retrieval_authorization"] = "not_assessed"
         save_checkpoint(provider, scope, state, workspace_id=workspace_id,
                         tenant_id=tenant_id)
         result = dict(result)
@@ -396,6 +419,7 @@ async def sync_drive_page(
     state["ids_truncated"] = bool(
         state.get("ids_truncated") or run_truncated)
     state["next_cursor"] = result.get("next_cursor")
+    state["retrieval_authorization"] = "granted"
     has_more = bool(result.get("has_more"))
     state["state"] = "in_progress" if has_more else "complete"
     state["last_success_at"] = _now()
