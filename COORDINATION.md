@@ -361,3 +361,11 @@ tabular row evidence, deletion/revocation tombstones and Agent 1 final
 `acd86a2aa`. Combined assignment + connected suite: **200 passed**. Extended
 assignment suite + joint campaign was **289 passed** before the final module
 rename; the rename suites are green. No live provider call.
+
+**Final controlled state (2026-11-01):** Agent 2 branch
+`codex/brennan-knowledge-accounting-20261101` HEAD `883586234`, clean. Joint
+branch `codex/brennan-joint-20261101` HEAD `51d4369fd`, clean. Combined
+assignment + connected suite: **200 passed**. Full accounting comparison vs
+Agent 1 baseline: 25 pre-existing failures on both sides, no new Agent 2
+failures. Provider contract matrix: zero issues. No live provider call, send,
+tag move or acceptance-status change.
