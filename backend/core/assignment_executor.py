@@ -5549,7 +5549,7 @@ async def _action_registry_adapter(
             "message": _bounded(str(exc), 500),
             "error_class": "action_dispatch_error",
         }
-    from core.brennan_connected_actions import action_executor_outcome
+    from core.connected_actions import action_executor_outcome
 
     outcome = action_executor_outcome(result)
     if outcome == "applied":
