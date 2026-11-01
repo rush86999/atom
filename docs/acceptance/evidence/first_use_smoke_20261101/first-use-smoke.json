@@ -1,0 +1,44 @@
+{
+  "schema": "atom-first-use-smoke-1",
+  "frontend": "http://127.0.0.1:3146",
+  "backend_identity": {
+    "pid": 92689,
+    "started_at": "2026-11-01T20:24:05.244849+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "6747c19576dd",
+    "source_id": "6747c19576dd-dirty.cb443530d878",
+    "instance_id": "6747c19576dd-dirty.cb443530d878.92689.1793564649",
+    "revision": "6747c19576dda93564ffa6f50ed2cc15bc3c1b9b",
+    "dirty": true,
+    "dirty_digest": "cb443530d878",
+    "dirty_paths": [
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "untracked_paths": [
+      "docs/acceptance/evidence/durable_assignment_20261031/long-run-20261101_b/harness-version.json"
+    ],
+    "captured_at": "2026-11-01T20:24:09.260661+00:00",
+    "port": 8086,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/first_use_smoke_20261101/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "memory_paths": [
+    "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/first_use_smoke_20261101/data/atom_memory/default_shared"
+  ],
+  "repo_shared_fallback": false,
+  "build_id": "QtfxLtN33A6voGGeLrtP-",
+  "assignment_panel_loaded": true,
+  "agent_options": [
+    "No employee binding",
+    "Demo Assistant \u00b7 system"
+  ],
+  "source_options": [
+    "No data available yet"
+  ],
+  "agents_page_teach_buttons": 1,
+  "stale_no_binding": true,
+  "page_errors": [],
+  "elapsed_seconds_to_panel": 100.53,
+  "sampled_at": "2026-11-01T20:26:07Z"
+}
