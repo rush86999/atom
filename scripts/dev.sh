@@ -30,9 +30,13 @@ PYTHONPATH=..:. python -m uvicorn main_api_app:app --reload --port "$BACKEND_POR
 BACKEND_PID=$!
 cd ..
 
-# Start frontend
-echo "Starting frontend on :$FRONTEND_PORT..."
+# Start frontend against the backend this invocation actually started. Without
+# this, `make dev BACKEND_PORT=8101` still baked the default :8001 from
+# .env.local into the browser, so login hit the wrong server.
+echo "Starting frontend on :$FRONTEND_PORT (API :$BACKEND_PORT)..."
 cd frontend-nextjs
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:$BACKEND_PORT}" \
+NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
 npm run dev -- -p "$FRONTEND_PORT" &
 FRONTEND_PID=$!
 cd ..

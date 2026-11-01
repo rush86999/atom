@@ -26,15 +26,18 @@ make setup                 # install dependencies, generate backend/.env
 make dev                   # backend :8001 + frontend :3001
 ```
 
-If ports `8001`/`3001` are already in use:
+Python **3.11–3.13** is required. If the default `python3` is newer:
+
+```bash
+PYTHON=python3.11 make setup
+```
+
+If ports `8001`/`3001` are already in use, the same override must be used for
+both processes so the browser talks to the backend `make dev` actually started:
 
 ```bash
 BACKEND_PORT=8101 FRONTEND_PORT=3101 make dev
-```
-
-In a second terminal, use the same ports for the sample loader:
-
-```bash
+# second terminal:
 make sample PORT=8101 FE_PORT=3101
 ```
 
