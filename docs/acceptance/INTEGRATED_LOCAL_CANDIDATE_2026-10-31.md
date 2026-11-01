@@ -10,6 +10,7 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
+| Verifier acceptance | `VERIFIER_ACCEPTANCE_2026-10-31.md` — accepted source `b7ee7ee22` |
 | Final code/evidence | `caee1a057` |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
@@ -277,6 +278,13 @@ OpenAI-compatible server, not a real OpenAI account; this is not a
 real-provider send qualification.
 
 ## Practical assignment boundaries
+
+**Verifier acceptance (2026-10-31):** the exact-content approval, five recovery
+boundaries, execution-boundary repairs and two-domain controlled-autonomy
+journey are accepted within the local, single-worker, controlled-outbox scope
+at source `b7ee7ee22`. See `VERIFIER_ACCEPTANCE_2026-10-31.md`. This does not
+qualify autonomous substantive judgment, live sending, multi-worker execution
+or universal feature reliability.
 
 The practical gate's five open boundaries now have named executable controls
 that pass (executor and route level, scratch store):

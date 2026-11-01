@@ -157,6 +157,12 @@ is unchanged. Evidence:
 
 ## Practical acceptance status
 
+**Verifier acceptance (2026-10-31):** accepted within the local, single-worker,
+controlled-outbox scope at source `b7ee7ee22`. See
+`VERIFIER_ACCEPTANCE_2026-10-31.md`. Autonomous substantive judgment, live
+sending, multi-worker execution and universal feature reliability remain
+explicit exclusions; the model qualification verdict remains failed.
+
 Closed with browser-level evidence:
 
 - the five practical assignment boundaries — wait→restart→resume (backend PID
