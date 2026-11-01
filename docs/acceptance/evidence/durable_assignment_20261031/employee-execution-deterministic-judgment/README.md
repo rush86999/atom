@@ -29,7 +29,9 @@ safe-abstention judge:
 | V3 / correct | **18/18 (1.0)** | passed | passed |
 
 Gap inputs (blank Amount/Status/Risk, 99.99, 49.99, 0) return `REVIEW` plus a
-non-empty unresolved requirement; no gap is approved.
+non-empty unresolved requirement; no gap is approved. Higher-priority rules
+that remain unknown are all retained: if any could change the decision, the
+result is clarification rather than a later rule's confident answer.
 
 `deterministic-qualification.json` contains the decisions, rules, mismatches
 and judge output. `deterministic-judgment.log`: **4 passed** (canvas rule
