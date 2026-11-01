@@ -83,7 +83,7 @@ def main() -> int:
     before = detail["assignment"]
     if before["status"] != "waiting":
         raise SystemExit(f"REFUSED: expected waiting, got {before['status']}")
-    before_steps = {step["step_id"]: step for step in detail.get("steps") or []}
+    before_steps = {step["step_id"]: step for step in before.get("steps") or []}
     source_before = before_steps["source-1"]
     teaching_before = before["teaching_revision"]
     assignment_id = before["assignment_id"]
@@ -112,7 +112,7 @@ def main() -> int:
         assignment = detail.get("assignment") or {}
         if assignment.get("status") == "completed":
             break
-        steps_now = detail.get("steps") or []
+        steps_now = (detail.get("assignment") or {}).get("steps") or []
         awaiting = [step for step in steps_now
                     if step.get("status") == "awaiting_approval"]
         if awaiting:
@@ -163,7 +163,7 @@ def main() -> int:
             f"REFUSED: assignment did not complete: {detail.get('assignment')}")
     after = detail["assignment"]
     budget_after_completion = budget_snapshot(detail)
-    steps = {step["step_id"]: step for step in detail.get("steps") or []}
+    steps = {step["step_id"]: step for step in after.get("steps") or []}
     source_after = steps["source-1"]
     document = next(item for item in after.get("deliverables") or []
                     if item.get("kind") == "document")
