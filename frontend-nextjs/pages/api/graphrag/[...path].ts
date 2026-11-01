@@ -46,16 +46,14 @@ export default async function handler(
 
   const queryString = queryParams.toString();
   const querySuffix = queryString ? `?${queryString}` : "";
-  const backendPath = `/api/graphrag/api/graphrag/${path}`;
-  const fallbackBackendPath = `/api/graphrag/${path}`;
-  const backendUrl = `${BACKEND_URL}${backendPath}${querySuffix}`;
-  const fallbackBackendUrl = `${BACKEND_URL}${fallbackBackendPath}${querySuffix}`;
+  // The backend mounts GraphRAG at /api/graphrag (main_api_app.py includes
+  // graphrag_router without an extra prefix). The old first attempt under
+  // /api/graphrag/api/graphrag always 404'd, so every explorer request paid a
+  // doomed round-trip before the fallback. Proxy the real route directly.
+  const backendUrl = `${BACKEND_URL}/api/graphrag/${path}${querySuffix}`;
 
   try {
-    let response = await proxyToBackend(req, backendUrl);
-    if (response.status === 404) {
-      response = await proxyToBackend(req, fallbackBackendUrl);
-    }
+    const response = await proxyToBackend(req, backendUrl);
     const contentType = response.headers.get("content-type") || "";
 
     if (!contentType.includes("application/json")) {

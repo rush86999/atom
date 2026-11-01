@@ -165,27 +165,14 @@ def main() -> int:
                 "localStorage.setItem('auth_token', %s);"
                 "localStorage.setItem('token', %s);"
                 "localStorage.setItem('user_email', 'admin@example.com');"
+                "sessionStorage.setItem('atom.onboarding.dismissed','1');"
                 % (json.dumps(token), json.dumps(token)))
-            # The Next dev proxy is environment-sensitive; serve the real
-            # backend payloads directly to the page's same-origin fetches so
-            # this check is about the explorer's rendering, not the proxy.
-            context.route(
-                "**/api/product/profile",
-                lambda route: route.fulfill(
-                    status=200, content_type="application/json",
-                    body=json.dumps(profile_payload)))
-            def _graph_route(route):
-                if "/entities" in route.request.url:
-                    body = json.dumps(entities_payload)
-                elif "/relationships" in route.request.url:
-                    body = json.dumps(relationships_payload)
-                else:
-                    route.continue_()
-                    return
-                route.fulfill(status=200, content_type="application/json",
-                              body=body)
-            context.route("**/api/graphrag/**", _graph_route)
+            # No API interception here: the check is about the real page →
+            # Next API route → backend proxy path, so the browser must fetch
+            # it exactly as a user does.
             page = context.new_page()
+            page_errors = []
+            page.on("pageerror", lambda exc: page_errors.append(str(exc)))
             page.goto(f"http://127.0.0.1:{args.frontend_port}/dashboards/knowledge",
                       wait_until="domcontentloaded", timeout=120000)
             page.wait_for_timeout(5000)
@@ -195,38 +182,50 @@ def main() -> int:
             }
             page.screenshot(path=str(args.world / "knowledge-debug.png"),
                             full_page=True)
-            # The Graph tab is the explorer; click it when the page opens on
-            # another tab.
-            try:
-                page.get_by_role("button", name="Graph", exact=False).first.click(
-                    timeout=15000)
-            except Exception:
-                pass
+            # The explorer is the Graph View tab.
+            page.get_by_role("button", name="Graph View", exact=False).first.click(
+                timeout=30000)
             page.get_by_text("GraphRAG Explorer", exact=False).wait_for(
                 state="visible", timeout=120000)
             page.wait_for_function(
-                "document.querySelectorAll('svg circle').length >= 2",
+                "document.querySelectorAll('[data-testid=\"graph-node\"]').length >= 3",
                 timeout=120000,
             )
             circles = page.locator("svg circle")
-            node_count = circles.count()
-            circles.first.click()
+            node_count = page.locator('[data-testid="graph-node"]').count()
+            # The click handler lives on the graph-node group; clicking the
+            # child circle can land on a non-node SVG circle.
+            page.locator('[data-testid="graph-node"]').first.click()
+            page.get_by_test_id("selected-entity-name").wait_for(
+                state="visible", timeout=30000)
+            selected_name = page.get_by_test_id("selected-entity-name").inner_text()
+            relationship_count = page.locator(
+                '[data-testid="selected-relationship"]').count()
+            relationship_text = page.get_by_test_id(
+                "selected-relationships").inner_text()
             page.wait_for_timeout(1000)
             page.screenshot(path=str(screenshot), full_page=True)
             body_text = page.locator("body").inner_text()
-            selected = ("Select an entity on the graph" not in body_text)
             error_visible = ("Unable to load knowledge graph" in body_text)
             result["checks"]["browser"] = {
                 "node_count": node_count,
-                "selected": selected,
+                "relationship_count": relationship_count,
+                "selected_name": selected_name,
+                "relationship_text": relationship_text[:1000],
+                "selected": bool(selected_name.strip()),
+                "page_errors": page_errors,
                 "error_visible": error_visible,
                 "url": page.url,
                 "screenshot": str(screenshot),
             }
             browser.close()
-        ok = (result["checks"]["browser"]["node_count"] >= 2
+        seeded_names = {name for name, _, _ in nodes}
+        ok = (result["checks"]["browser"]["node_count"] >= 3
               and result["checks"]["browser"]["selected"]
-              and not result["checks"]["browser"]["error_visible"])
+              and result["checks"]["browser"]["selected_name"] in seeded_names
+              and result["checks"]["browser"]["relationship_count"] >= 1
+              and not result["checks"]["browser"]["error_visible"]
+              and not result["checks"]["browser"]["page_errors"])
         result["status"] = "verified" if ok else "failed"
     except Exception as exc:
         result["status"] = "failed"

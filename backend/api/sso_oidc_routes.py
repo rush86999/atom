@@ -1,16 +1,18 @@
 """
 OIDC Single Sign-On routes for the Atom platform.
 
-Verification approach note (IMPORTANT):
-    ID-token signature verification is NOT performed locally (no JWKS
-    fetching / RS256 key validation). Instead, the module uses the
-    authorization-code flow and then calls the IdP's ``userinfo`` endpoint
-    with the access token obtained directly from the IdP's token endpoint
-    over TLS. This is secure because the identity assertions never transit
-    the browser: both the code->token exchange and the userinfo call are
-    direct server-to-server HTTPS requests to the issuer. If local ID-token
-    signature verification is needed later, add a JWKS client (e.g.
-    python-jose's ``jwk`` module) — the required libs are already available.
+Verification approach:
+    The authorization-code flow requests the standard ``openid email
+    profile`` scope and a fresh ``nonce``. The token response's ID token is
+    verified locally before any session is issued: the algorithm is pinned
+    to an asymmetric JOSE algorithm announced by the provider (``RS256`` /
+    ``ES256`` / ``PS256``...), the signature is checked against the
+    provider's JWKS, and issuer, audience and nonce are validated. Identity
+    claims come from the verified ID token (userinfo, when configured, is a
+    supplementary server-to-server read; it can never override ``sub`` or
+    the verified claims). This is what makes an invalid issuer, a forged
+    signature or a replayed/mismatched nonce fail closed instead of
+    becoming a session.
 
 Token delivery to the frontend:
     ``frontend-nextjs/lib/backendAuth.ts`` and ``lib/identity.ts`` read the
@@ -61,30 +63,49 @@ _OIDC_PROVIDER = "oidc"
 _DISCOVERY_CACHE_TTL = 300
 _discovery_cache: Dict[str, tuple] = {}
 
+# Provider JWKS cache: jwks_uri -> (fetched_at, jwks_dict). Signing keys
+# rotate; the TTL bounds staleness while avoiding a JWKS fetch per callback.
+_JWKS_CACHE_TTL = 300
+_jwks_cache: Dict[str, tuple] = {}
+
 # Single-use, expiring OAuth2 state store (see module docstring limitation).
 # Keys are SHA-256 digests of the state token; validation scans entries with
 # hmac.compare_digest so the comparison itself is constant time (the dict is
-# only used for pruning, not lookup).
+# only used for pruning, not lookup). The value carries the nonce that the
+# token endpoint's ID token must echo.
 _STATE_TTL = 600
-_pending_states: Dict[str, float] = {}
+_pending_states: Dict[str, tuple] = {}
+
+_SUPPORTED_ID_TOKEN_ALGS = frozenset({
+    "RS256", "RS384", "RS512",
+    "ES256", "ES384", "ES512",
+    "PS256", "PS384", "PS512",
+})
 
 
-def _store_state(state: str) -> None:
+def _store_state(state: str, nonce: str) -> None:
     _prune_states()
-    _pending_states[hashlib.sha256(state.encode()).hexdigest()] = time.time() + _STATE_TTL
+    _pending_states[hashlib.sha256(state.encode()).hexdigest()] = (
+        time.time() + _STATE_TTL,
+        nonce,
+    )
 
 
-def _consume_state(state: str) -> bool:
-    """Single-use, expiring, constant-time state validation."""
+def _consume_state(state: str) -> Optional[str]:
+    """Single-use, expiring, constant-time state validation.
+
+    Returns the nonce bound to the state, or ``None`` when the state is
+    missing, unknown, expired or already consumed.
+    """
     if not state:
-        return False
+        return None
     digest = hashlib.sha256(state.encode()).hexdigest()
     now = time.time()
     for key in list(_pending_states.keys()):
         if hmac.compare_digest(digest, key):
-            expired = _pending_states.pop(key) < now
-            return not expired
-    return False
+            expires_at, nonce = _pending_states.pop(key)
+            return nonce if expires_at >= now else None
+    return None
 
 
 # ============================================================================
@@ -145,7 +166,13 @@ def _sanitized(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def _get_discovery_document(issuer_url: str) -> Dict[str, Any]:
-    """Fetch (with cache) {issuer}/.well-known/openid-configuration."""
+    """Fetch (with cache) {issuer}/.well-known/openid-configuration.
+
+    The discovery document's own ``issuer`` must equal the configured issuer
+    (OIDC Discovery §4.3). A provider that answers with another issuer is not
+    admissible: following its endpoints would let a compromised/misconfigured
+    discovery URL redirect the callback and token exchange elsewhere.
+    """
     now = time.time()
     cached = _discovery_cache.get(issuer_url)
     if cached and now - cached[0] < _DISCOVERY_CACHE_TTL:
@@ -157,11 +184,114 @@ async def _get_discovery_document(issuer_url: str) -> Dict[str, Any]:
         resp.raise_for_status()
         metadata = resp.json()
 
-    for key in ("authorization_endpoint", "token_endpoint", "userinfo_endpoint"):
+    announced_issuer = str(metadata.get("issuer") or "").strip()
+    if announced_issuer and announced_issuer.rstrip("/") != issuer_url.rstrip("/"):
+        raise ValueError(
+            "OIDC discovery issuer mismatch: "
+            f"configured {issuer_url!r}, provider announced {announced_issuer!r}"
+        )
+
+    for key in ("authorization_endpoint", "token_endpoint",
+                "userinfo_endpoint", "jwks_uri"):
         if not metadata.get(key):
             raise ValueError(f"OIDC discovery document missing '{key}'")
+    algorithms = metadata.get("id_token_signing_alg_values_supported")
+    if not algorithms:
+        raise ValueError(
+            "OIDC discovery document does not announce ID-token signing algorithms"
+        )
     _discovery_cache[issuer_url] = (now, metadata)
     return metadata
+
+
+async def _get_jwks(jwks_uri: str) -> Dict[str, Any]:
+    """Fetch (with cache) the provider's JSON Web Key Set.
+
+    Only public keys are requested. Signature verification always happens
+    locally; the provider never sends a pre-verified assertion.
+    """
+    now = time.time()
+    cached = _jwks_cache.get(jwks_uri)
+    if cached and now - cached[0] < _JWKS_CACHE_TTL:
+        return cached[1]
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(jwks_uri)
+        resp.raise_for_status()
+        jwks = resp.json()
+    if not isinstance(jwks, dict) or not isinstance(jwks.get("keys"), list):
+        raise ValueError("OIDC JWKS document has no 'keys' array")
+    _jwks_cache[jwks_uri] = (now, jwks)
+    return jwks
+
+
+def _select_jwk(jwks: Dict[str, Any], kid: Optional[str],
+                algorithm: str) -> Dict[str, Any]:
+    keys = [k for k in (jwks.get("keys") or []) if isinstance(k, dict)]
+    if kid:
+        keys = [k for k in keys if str(k.get("kid") or "") == str(kid)]
+    elif len(keys) > 1:
+        raise ValueError("OIDC ID token has no 'kid' and the JWKS has multiple keys")
+    # Never fall back to a symmetric key or an unrelated algorithm.
+    keys = [k for k in keys if str(k.get("kty") or "").upper() in {"RSA", "EC"}]
+    if not keys:
+        raise ValueError("OIDC JWKS contains no usable signing key for this token")
+    if len(keys) > 1:
+        raise ValueError("OIDC JWKS has multiple candidate keys for this token")
+    return keys[0]
+
+
+def _verify_id_token(id_token: str, cfg: Dict[str, Any],
+                     metadata: Dict[str, Any], jwks: Dict[str, Any],
+                     expected_nonce: str) -> Dict[str, Any]:
+    """Verify an OIDC ID token and return its claims, or raise ValueError.
+
+    Pinned checks: asymmetric algorithm, signature against JWKS, issuer,
+    audience, expiry/not-before, and the nonce bound to the login state.
+    """
+    from jose import jwt as jose_jwt
+    from jose.exceptions import JOSEError
+
+    if not id_token:
+        raise ValueError("token endpoint response missing id_token")
+
+    try:
+        header = jose_jwt.get_unverified_header(id_token)
+    except JOSEError as exc:
+        raise ValueError(f"ID token header is not a JWS: {exc}") from exc
+    algorithm = str(header.get("alg") or "")
+    if algorithm not in _SUPPORTED_ID_TOKEN_ALGS:
+        raise ValueError(f"ID token algorithm {algorithm!r} is not accepted")
+
+    announced = {
+        str(a) for a in
+        (metadata.get("id_token_signing_alg_values_supported") or [])
+    }
+    if announced and algorithm not in announced:
+        raise ValueError(
+            f"ID token algorithm {algorithm!r} was not announced by the provider"
+        )
+
+    key = _select_jwk(jwks, header.get("kid"), algorithm)
+    issuer = str(metadata.get("issuer") or cfg.get("issuer_url") or "").rstrip("/")
+    try:
+        claims = jose_jwt.decode(
+            id_token,
+            key,
+            algorithms=[algorithm],
+            audience=cfg["client_id"],
+            issuer=issuer,
+            options={"verify_at_hash": False},
+        )
+    except JOSEError as exc:
+        raise ValueError(f"ID token verification failed: {exc}") from exc
+
+    token_nonce = str(claims.get("nonce") or "")
+    if not expected_nonce or not token_nonce or not hmac.compare_digest(
+            token_nonce, expected_nonce):
+        raise ValueError("ID token nonce does not match the login state")
+    if not str(claims.get("sub") or "").strip():
+        raise ValueError("ID token has no subject")
+    return claims
 
 
 # ============================================================================
@@ -272,7 +402,8 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail="Failed to contact SSO identity provider")
 
     state = secrets.token_urlsafe(32)
-    _store_state(state)
+    nonce = secrets.token_urlsafe(32)
+    _store_state(state, nonce)
 
     params = {
         "response_type": "code",
@@ -280,6 +411,7 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
         "redirect_uri": _redirect_uri(request),
         "scope": "openid email profile",
         "state": state,
+        "nonce": nonce,
     }
     from urllib.parse import urlencode
     authorize_url = metadata["authorization_endpoint"] + "?" + urlencode(params)
@@ -288,7 +420,7 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
 
 def _prune_states() -> None:
     now = time.time()
-    for s in [s for s, exp in _pending_states.items() if exp < now]:
+    for s in [s for s, (exp, _nonce) in _pending_states.items() if exp < now]:
         _pending_states.pop(s, None)
 
 
@@ -329,8 +461,10 @@ async def oidc_callback(
         raise HTTPException(status_code=503, detail="SSO is disabled or not configured")
 
     # SECURITY: state must be present, single-use, unexpired, compared in
-    # constant time to prevent both replay and timing oracles.
-    if not _consume_state(state):
+    # constant time to prevent both replay and timing oracles. The consumed
+    # state also carries the nonce the provider must echo in the ID token.
+    expected_nonce = _consume_state(state)
+    if not expected_nonce:
         logger.warning("OIDC callback rejected: invalid, expired or replayed state")
         raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
 
@@ -339,7 +473,12 @@ async def oidc_callback(
 
     try:
         metadata = await _get_discovery_document(cfg["issuer_url"])
+        jwks = await _get_jwks(metadata["jwks_uri"])
+    except (httpx.HTTPError, ValueError) as e:
+        logger.error("OIDC discovery/JWKS fetch failed (error=%s)", e)
+        raise HTTPException(status_code=502, detail="Failed to contact SSO identity provider")
 
+    try:
         # Code -> token exchange (direct TLS connection to the IdP).
         async with httpx.AsyncClient(timeout=10.0) as client:
             token_resp = await client.post(
@@ -355,13 +494,34 @@ async def oidc_callback(
             )
             token_resp.raise_for_status()
             tokens = token_resp.json()
+    except httpx.HTTPError as e:
+        logger.error("OIDC token exchange failed (error=%s)", e)
+        raise HTTPException(status_code=502, detail="Failed to complete SSO exchange")
+    except ValueError as e:
+        logger.error("OIDC token response is not JSON (error=%s)", e)
+        raise HTTPException(status_code=502, detail="Failed to complete SSO exchange")
 
-        access_token = tokens.get("access_token")
-        if not access_token:
-            raise ValueError("token endpoint response missing access_token")
+    # The ID token is verified BEFORE the access token is used. Its issuer,
+    # signature, audience and nonce must all match; a token from another
+    # issuer, a forged signature or a replayed nonce never reaches user
+    # provisioning.
+    try:
+        claims = _verify_id_token(
+            tokens.get("id_token"), cfg, metadata, jwks, expected_nonce)
+    except ValueError as e:
+        # Signature/issuer/audience/nonce/format failures are authentication
+        # failures, not retryable upstream outages.
+        logger.warning("OIDC ID token rejected: %s", e)
+        raise HTTPException(status_code=401, detail="Invalid SSO identity token")
 
-        # Identity comes from the userinfo endpoint over TLS — see the module
-        # docstring for why local ID-token signature verification is skipped.
+    access_token = tokens.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=502, detail="SSO token response missing access_token")
+
+    # Supplementary profile read. Identity/subject still come from the
+    # verified ID token; userinfo cannot replace it.
+    userinfo = {}
+    try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             ui_resp = await client.get(
                 metadata["userinfo_endpoint"],
@@ -369,11 +529,19 @@ async def oidc_callback(
             )
             ui_resp.raise_for_status()
             userinfo = ui_resp.json()
-    except httpx.HTTPError as e:
-        logger.error("OIDC token/userinfo exchange failed (error=%s)", e)
-        raise HTTPException(status_code=502, detail="Failed to complete SSO exchange")
+    except httpx.HTTPError as exc:
+        # A verified ID token already carries the identity. Some
+        # standards-compliant providers do not expose a usable userinfo
+        # endpoint for this client; that must not turn a valid login into
+        # a 500. Log and continue with the verified claims.
+        logger.warning("OIDC userinfo unavailable; using verified ID-token claims: %s", exc)
+        userinfo = {}
+    except ValueError:
+        userinfo = {}
 
-    email = (userinfo.get("email") or "").strip().lower()
+    email = str(
+        claims.get("email") or userinfo.get("email") or ""
+    ).strip().lower()
     if not email:
         raise HTTPException(status_code=401, detail="SSO identity does not include an email address")
 
@@ -397,8 +565,14 @@ async def oidc_callback(
         user = User(
             email=email,
             hashed_password=None,  # SSO-provisioned users have no local password
-            first_name=(userinfo.get("given_name") or userinfo.get("name") or "SSO")[:255],
-            last_name=(userinfo.get("family_name") or "User")[:255],
+            first_name=str(
+                claims.get("given_name") or userinfo.get("given_name")
+                or claims.get("name") or userinfo.get("name") or "SSO"
+            )[:255],
+            last_name=str(
+                claims.get("family_name") or userinfo.get("family_name")
+                or "User"
+            )[:255],
             role=cfg.get("default_role") or UserRole.MEMBER.value,
             status=UserStatus.ACTIVE.value,
             is_active=True,

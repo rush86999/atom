@@ -1,14 +1,17 @@
 """Tests for api/sso_oidc_routes.py — OIDC Single Sign-On.
 
-The IdP (discovery, token, userinfo endpoints) is mocked by monkeypatching
-httpx.AsyncClient inside the route module with a canned-response fake (same
-style as the MagicMock/AsyncMock HTTP mocking used by the integration
-service tests — respx is not a project dependency).
+The IdP is a real controlled HTTP provider (``scripts.controlled_oidc_provider``)
+with discovery, JWKS, authorization redirect, token exchange and userinfo. The
+tests therefore exercise the product's real network callback path, including
+ID-token signature/issuer/audience/nonce verification.
 """
+import json
 import os
+import tempfile
 import uuid
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -19,83 +22,18 @@ from sqlalchemy.pool import StaticPool
 import core.models  # noqa: F401
 from api import sso_oidc_routes
 from api.sso_oidc_routes import router
-from core.auth import SECRET_KEY, create_access_token
+from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
-from core.auth import get_current_user
 from core.models import User
+from scripts.controlled_oidc_provider import OIDCProvider
 
-ISSUER = "https://idp.example.com"
-DISCOVERY = {
-    "issuer": ISSUER,
-    "authorization_endpoint": f"{ISSUER}/authorize",
-    "token_endpoint": f"{ISSUER}/token",
-    "userinfo_endpoint": f"{ISSUER}/userinfo",
-}
-
-FAKE_IDP_TOKENS = {"access_token": "fake-access-token", "token_type": "Bearer"}
-FAKE_USERINFO = {
-    "sub": "idp-user-1",
-    "email": "sso.user@example.com",
-    "given_name": "Sso",
-    "family_name": "User",
-}
-
-
-class _FakeResponse:
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            import httpx
-            raise httpx.HTTPStatusError("error", request=None, response=None)
-
-    def json(self):
-        return self._payload
-
-
-class _FakeAsyncClient:
-    """Canned IdP: routes by (method, url) to preset payloads."""
-
-    routes: dict = {}
-    calls: list = []
-
-    def __init__(self, timeout=None):
-        pass
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        return False
-
-    async def get(self, url, headers=None):
-        self.calls.append(("GET", url))
-        return _FakeResponse(self.routes[("GET", url)])
-
-    async def post(self, url, data=None, headers=None):
-        self.calls.append(("POST", url, dict(data or {})))
-        return _FakeResponse(self.routes[("POST", url)])
-
-
-@pytest.fixture()
-def fake_idp(monkeypatch):
-    _FakeAsyncClient.routes = {
-        ("GET", f"{ISSUER}/.well-known/openid-configuration"): DISCOVERY,
-        ("POST", f"{ISSUER}/token"): FAKE_IDP_TOKENS,
-        ("GET", f"{ISSUER}/userinfo"): FAKE_USERINFO,
-    }
-    _FakeAsyncClient.calls = []
-    monkeypatch.setattr(sso_oidc_routes.httpx, "AsyncClient", _FakeAsyncClient)
-    monkeypatch.setattr(sso_oidc_routes, "_discovery_cache", {})
-    monkeypatch.setattr(sso_oidc_routes, "_pending_states", {})
-    return _FakeAsyncClient
+CLIENT_ID = "atom-acceptance-client"
+CLIENT_SECRET = "atom-acceptance-secret"
+CALLBACK = "http://testserver/api/auth/sso/oidc/callback"
 
 
 @pytest.fixture(scope="module")
 def engine():
-    import tempfile
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     eng = create_engine(
@@ -149,14 +87,37 @@ def client(db, admin):
 
     app.dependency_overrides[get_db] = _get_db
     app.dependency_overrides[get_current_user] = _get_current_user
-    return TestClient(app)
+    return TestClient(app, base_url="http://testserver")
 
 
-def _save_config(client, enabled=True, **overrides):
+@pytest.fixture()
+def provider():
+    p = OIDCProvider(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=CALLBACK,
+        email="sso.user@example.com",
+        given_name="Sso",
+        family_name="User",
+    ).start()
+    try:
+        yield p
+    finally:
+        p.stop()
+
+
+@pytest.fixture(autouse=True)
+def _clear_oidc_caches(monkeypatch):
+    monkeypatch.setattr(sso_oidc_routes, "_discovery_cache", {})
+    monkeypatch.setattr(sso_oidc_routes, "_jwks_cache", {})
+    monkeypatch.setattr(sso_oidc_routes, "_pending_states", {})
+
+
+def _save_config(client, provider, enabled=True, **overrides):
     payload = {
-        "issuer_url": ISSUER,
-        "client_id": "atom-client",
-        "client_secret": "super-secret-value",
+        "issuer_url": provider.base_url,
+        "client_id": provider.client_id,
+        "client_secret": provider.client_secret,
         "enabled": enabled,
         "default_role": "member",
         "allowed_domains": ["example.com"],
@@ -171,36 +132,62 @@ def _start_login(client):
     return resp.headers["Location"]
 
 
-def _extract_state(location):
-    return parse_qs(urlparse(location).query)["state"][0]
+def _provider_redirect(location):
+    """Follow the product's IdP redirect against the real provider."""
+    resp = httpx.get(location, follow_redirects=False, timeout=10)
+    assert resp.status_code == 302, resp.text
+    return resp.headers["location"]
+
+
+def _callback(client, callback_url):
+    parsed = urlparse(callback_url)
+    return client.get(parsed.path + ("?" + parsed.query if parsed.query else ""))
+
+
+def _callback_token(resp):
+    start = resp.text.index("var t = ") + len("var t = ")
+    end = resp.text.index(";\n", start)
+    return json.loads(resp.text[start:end])
+
+
+def _decode(token):
+    from jose import jwt as jjwt
+    return jjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+
+
+def _new_provider(mode="valid", **kwargs):
+    defaults = dict(
+        client_id=CLIENT_ID, client_secret=CLIENT_SECRET,
+        redirect_uri=CALLBACK, email="sso.user@example.com",
+        given_name="Sso", family_name="User",
+    )
+    defaults.update(kwargs)
+    return OIDCProvider(mode=mode, **defaults).start()
 
 
 # ============================================================================
 # Config endpoints
 # ============================================================================
 
-def test_config_upsert_and_sanitized_get(client):
-    resp = _save_config(client)
+def test_config_upsert_and_sanitized_get(client, provider):
+    resp = _save_config(client, provider)
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["success"] is True
-    # Secret must never come back, even on write echo.
+    assert resp.json()["success"] is True
     assert "super-secret-value" not in resp.text
-    assert body["config"]["client_secret_configured"] is True
-    assert body["config"]["issuer_url"] == ISSUER
+    assert resp.json()["config"]["client_secret_configured"] is True
+    assert resp.json()["config"]["issuer_url"] == provider.base_url
 
     get_resp = client.get("/api/auth/sso/oidc/config")
     assert get_resp.status_code == 200
     assert get_resp.json()["config"]["enabled"] is True
     assert "client_secret" not in get_resp.json()["config"]
-    assert "super-secret-value" not in get_resp.text
+    assert provider.client_secret not in get_resp.text
 
 
-def test_config_requires_admin(db, engine):
+def test_config_requires_admin(db):
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_db] = lambda: (yield db)
-    # No get_current_user override -> unauthenticated.
     c = TestClient(app)
     assert c.get("/api/auth/sso/oidc/config").status_code in (401, 403)
 
@@ -209,46 +196,51 @@ def test_config_requires_admin(db, engine):
 # Login redirect
 # ============================================================================
 
-def test_login_redirect(client, fake_idp):
-    _save_config(client, enabled=True)
+def test_login_redirect_carries_state_and_nonce(client, provider):
+    _save_config(client, provider)
     location = _start_login(client)
     parsed = urlparse(location)
-    assert f"{ISSUER}/authorize" == f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    assert f"{provider.base_url}/authorize" == (
+        f"{parsed.scheme}://{parsed.netloc}{parsed.path}")
     q = parse_qs(parsed.query)
     assert q["response_type"] == ["code"]
     assert q["scope"] == ["openid email profile"]
-    assert q["client_id"] == ["atom-client"]
-    assert q["redirect_uri"][0].endswith("/api/auth/sso/oidc/callback")
+    assert q["client_id"] == [CLIENT_ID]
+    assert q["redirect_uri"] == [CALLBACK]
     assert len(q["state"][0]) >= 32
+    assert len(q["nonce"][0]) >= 32
 
 
-def test_login_disabled_returns_error(client, fake_idp):
-    _save_config(client, enabled=False)
+def test_login_disabled_returns_error(client, provider):
+    _save_config(client, provider, enabled=False)
     resp = client.get("/api/auth/sso/oidc/login")
     assert resp.status_code == 503
     assert "disabled" in resp.json()["detail"].lower()
 
 
-def test_login_unconfigured_returns_error(client, fake_idp, db):
-    # No DB row and no env fallback.
+def test_login_unconfigured_returns_error(client):
     resp = client.get("/api/auth/sso/oidc/login")
     assert resp.status_code == 409
+
+
+def test_login_discovery_failure_is_502(client):
+    _save_config(client, type("P", (), {
+        "base_url": "http://127.0.0.1:1",
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+    })())
+    resp = client.get("/api/auth/sso/oidc/login")
+    assert resp.status_code == 502
 
 
 # ============================================================================
 # Callback
 # ============================================================================
 
-def _decode(jwt_token):
-    from jose import jwt as jjwt
-    return jjwt.decode(jwt_token, SECRET_KEY, algorithms=["HS256"])
-
-
-def test_callback_happy_path_existing_user(client, fake_idp, db):
-    _save_config(client, enabled=True)
+def test_callback_happy_path_existing_user(client, provider, db):
+    _save_config(client, provider)
     existing = User(
         id=f"u-{uuid.uuid4().hex[:8]}",
-        # Different case: lookup must be case-insensitive.
         email="SSO.User@Example.com",
         hashed_password="h",
         first_name="Old",
@@ -259,72 +251,126 @@ def test_callback_happy_path_existing_user(client, fake_idp, db):
     db.add(existing)
     db.commit()
 
-    state = _extract_state(_start_login(client))
-    resp = client.get(
-        "/api/auth/sso/oidc/callback",
-        params={"code": "authz-code-1", "state": state},
-    )
+    login = _start_login(client)
+    callback = _provider_redirect(login)
+    resp = _callback(client, callback)
     assert resp.status_code == 200
-    assert "auth_token" in resp.text  # HTML stores the token for the frontend
-    # Token exchange happened against the mocked IdP.
-    posted = [c[1] for c in fake_idp.calls if c[0] == "POST"]
-    assert f"{ISSUER}/token" in posted
-    assert f"{ISSUER}/userinfo" in [c[1] for c in fake_idp.calls if c[0] == "GET"]
+    assert "auth_token" in resp.text
 
-    # Extract the serialized JWT from the HTML page.
-    import json
-    start = resp.text.index("var t = ") + len("var t = ")
-    end = resp.text.index(";\n", start)
-    payload = _decode(json.loads(resp.text[start:end]))
+    payload = _decode(_callback_token(resp))
     assert payload["sub"] == existing.id
-    # No duplicate user was provisioned.
     assert db.query(User).filter(User.email.ilike("sso.user@example.com")).count() == 1
+    # The real provider was used: authorization, token, JWKS and discovery.
+    paths = [r["path"] for r in provider.records]
+    assert any(p.startswith("/authorize") for p in paths)
+    assert any(p == "/token" for p in paths)
+    assert any(p == "/jwks" for p in paths)
 
 
-def test_callback_auto_provisions_new_user(client, fake_idp, db):
-    _save_config(client, enabled=True, default_role="member")
-    state = _extract_state(_start_login(client))
-    resp = client.get(
-        "/api/auth/sso/oidc/callback",
-        params={"code": "authz-code-2", "state": state},
-    )
+def test_callback_auto_provisions_new_user(client, provider, db):
+    _save_config(client, provider, default_role="member")
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
     assert resp.status_code == 200
 
     user = db.query(User).filter(User.email == "sso.user@example.com").one()
     assert user.role == "member"
     assert user.status == "active"
-    assert user.hashed_password is None  # no local password for SSO users
+    assert user.hashed_password is None
     assert user.first_name == "Sso"
-
-    import json
-    start = resp.text.index("var t = ") + len("var t = ")
-    end = resp.text.index(";\n", start)
-    payload = _decode(json.loads(resp.text[start:end]))
-    assert payload["sub"] == user.id
+    assert _decode(_callback_token(resp))["sub"] == user.id
 
 
-def test_callback_bad_state_rejected(client, fake_idp, db):
-    _save_config(client, enabled=True)
-    _start_login(client)  # a valid state exists, but we send a bogus one
+def test_callback_bad_state_rejected(client, provider, db):
+    _save_config(client, provider)
+    _start_login(client)
     resp = client.get(
         "/api/auth/sso/oidc/callback",
         params={"code": "authz-code-3", "state": "bogus-state"},
     )
     assert resp.status_code == 401
-    # No user provisioned on rejected callbacks.
     assert db.query(User).filter(User.email == "sso.user@example.com").count() == 0
 
 
-def test_callback_state_single_use(client, fake_idp, db):
-    _save_config(client, enabled=True)
-    state = _extract_state(_start_login(client))
-    first = client.get(
-        "/api/auth/sso/oidc/callback",
-        params={"code": "c1", "state": state},
-    )
+def test_callback_state_single_use(client, provider, db):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    first = _callback(client, callback)
     assert first.status_code == 200
-    replay = client.get(
-        "/api/auth/sso/oidc/callback",
-        params={"code": "c2", "state": state},
-    )
+    replay = _callback(client, callback)
     assert replay.status_code == 401
+
+
+@pytest.mark.parametrize("mode", [
+    "invalid_signature",
+    "invalid_issuer",
+    "invalid_audience",
+    "invalid_nonce",
+    "missing_id_token",
+])
+def test_callback_rejects_bad_id_tokens(client, db, mode):
+    p = _new_provider(mode=mode)
+    try:
+        _save_config(client, p)
+        callback = _provider_redirect(_start_login(client))
+        resp = _callback(client, callback)
+        assert resp.status_code == 401, resp.text
+        assert db.query(User).filter(User.email == "sso.user@example.com").count() == 0
+    finally:
+        p.stop()
+
+
+@pytest.mark.parametrize("mode,expected", [
+    ("token_error", 502),
+    ("callback_error", 400),
+])
+def test_callback_failure_paths(client, db, mode, expected):
+    p = _new_provider(mode=mode)
+    try:
+        _save_config(client, p)
+        callback = _provider_redirect(_start_login(client))
+        resp = _callback(client, callback)
+        assert resp.status_code == expected, resp.text
+        assert db.query(User).filter(User.email == "sso.user@example.com").count() == 0
+    finally:
+        p.stop()
+
+
+def test_callback_userinfo_failure_uses_verified_claims(client, db):
+    p = _new_provider(mode="userinfo_error")
+    try:
+        _save_config(client, p)
+        callback = _provider_redirect(_start_login(client))
+        resp = _callback(client, callback)
+        assert resp.status_code == 200
+        assert db.query(User).filter(User.email == "sso.user@example.com").count() == 1
+    finally:
+        p.stop()
+
+
+def test_callback_disallowed_domain_rejected(client, provider, db):
+    _save_config(client, provider, allowed_domains=["other.example"])
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+    assert resp.status_code == 403
+    assert db.query(User).filter(User.email == "sso.user@example.com").count() == 0
+
+
+def test_discovery_issuer_mismatch_rejected(client, monkeypatch):
+    class MismatchProvider(OIDCProvider):
+        @property
+        def discovery(self):
+            metadata = super().discovery
+            metadata["issuer"] = self.issuer + "/other"
+            return metadata
+
+    p = MismatchProvider(
+        client_id=CLIENT_ID, client_secret=CLIENT_SECRET,
+        redirect_uri=CALLBACK,
+    ).start()
+    try:
+        _save_config(client, p)
+        resp = client.get("/api/auth/sso/oidc/login")
+        assert resp.status_code == 502
+    finally:
+        p.stop()
