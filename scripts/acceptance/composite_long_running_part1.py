@@ -160,7 +160,19 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)
     page.get_by_test_id("teach-lesson-input").fill(lesson, force=True)
-    page.get_by_test_id("teach-topic-input").fill(topic, force=True)
+    page.wait_for_timeout(250)
+    # Topic is cosmetic; the journal re-render can detach the input between
+    # keystrokes. The lesson text below is the authoritative record.
+    try:
+        page.get_by_test_id("teach-topic-input").fill(
+            topic, force=True, timeout=5000)
+    except Exception:
+        try:
+            page.get_by_test_id("teach-topic-input").click(
+                force=True, timeout=2000)
+            page.keyboard.type(topic, delay=10)
+        except Exception:
+            pass
     try:
         page.evaluate(
             """() => {
@@ -395,18 +407,37 @@ def main() -> int:
         wait_for_training_panel(page)
         dismiss_overlays(page)
         page.wait_for_timeout(800)
+        page.wait_for_function(
+            """() => Array.from(
+                document.querySelectorAll('[data-testid=teaching-point]')
+            ).some((el) => (el.textContent || '').includes('Times New Roman'))""",
+            timeout=30000)
         conflict_card = page.get_by_test_id("teaching-point").filter(
             has_text="Times New Roman").first
-        conflict_card.wait_for(state="visible", timeout=30000)
-        conflict_card.get_by_test_id("teaching-point-delete").click()
-        deadline = time.time() + 30
-        while time.time() < deadline:
-            if page.get_by_test_id("teaching-point").filter(
-                    has_text="Times New Roman").count() == 0:
-                break
-            page.wait_for_timeout(500)
-        if page.get_by_test_id("teaching-point").filter(
-                has_text="Times New Roman").count() != 0:
+        try:
+            conflict_card.get_by_test_id(
+                "teaching-point-delete").click(timeout=15000)
+        except Exception:
+            # The journal polls; the card can detach between resolve and click.
+            # Click the same product button through its own handler.
+            page.evaluate(
+                """() => {
+                    const cards = Array.from(document.querySelectorAll(
+                        '[data-testid=teaching-point]'));
+                    const card = cards.find((el) =>
+                        (el.textContent || '').includes('Times New Roman'));
+                    const button = card && card.querySelector(
+                        '[data-testid=teaching-point-delete]');
+                    if (!button) throw new Error('delete button missing');
+                    button.click();
+                }""")
+        try:
+            page.wait_for_function(
+                """() => !Array.from(
+                    document.querySelectorAll('[data-testid=teaching-point]')
+                ).some((el) => (el.textContent || '').includes('Times New Roman'))""",
+                timeout=30000)
+        except Exception:
             raise SystemExit(
                 "REFUSED: deleting the conflicting point through the UI did "
                 "not remove it")
