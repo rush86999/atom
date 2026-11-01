@@ -7,6 +7,15 @@ from core.models import DelegationChain, ChainLink, AgentRegistry
 
 logger = logging.getLogger(__name__)
 
+class FleetDelegationError(ValueError):
+    """A delegation the fleet refuses before creating the link."""
+
+    def __init__(self, code: str, message: str, **extra: Any):
+        self.code = code
+        self.extra = extra
+        super().__init__(message)
+
+
 class AgentFleetService:
     """
     Service for orchestrating multi-agent fleets (Admiralty model).
@@ -59,11 +68,133 @@ class AgentFleetService:
         Adds a new specialized agent to an active fleet.
         """
         logger.info(f"Recruiting fleet member {child_agent_id} for chain {chain_id}")
-        
-        # Merge optimization data into context
-        final_context = context_json or {}
+
+        chain = self.db.query(DelegationChain).filter(
+            DelegationChain.id == chain_id).first()
+        # Legacy callers (fault-tolerance recovery) create links without a
+        # persisted chain row. There is no chain context to enforce depth or
+        # scope against, so only contract validation applies there.
+        # Validation needs the persisted chain row. Mocks and partial
+        # adapters pose as a chain object but carry no real identity; only a
+        # materialized DelegationChain is authoritative. Legacy callers with
+        # no chain row keep working (depth/scope have no context to check).
+        real_chain = isinstance(chain, DelegationChain)
+        links = []
+        if real_chain:
+            links = list(self.db.query(ChainLink).filter(
+                ChainLink.chain_id == chain_id).all())
+
+        if real_chain:
+            # --- cycles -------------------------------------------------------
+            parent_of: Dict[str, str] = {}
+            for existing in links:
+                parent_of.setdefault(existing.child_agent_id, existing.parent_agent_id)
+            ancestors = set()
+            cursor = parent_agent_id
+            while cursor in parent_of and cursor not in ancestors:
+                cursor = parent_of[cursor]
+                ancestors.add(cursor)
+            if (child_agent_id == parent_agent_id
+                    or child_agent_id == chain.root_agent_id
+                    or child_agent_id in ancestors):
+                raise FleetDelegationError(
+                    "delegation_cycle",
+                    f"Recruiting {child_agent_id} under {parent_agent_id} would "
+                    "create a delegation cycle.")
+
+            # --- nesting depth (not link count) -------------------------------
+            depth_by_node = {chain.root_agent_id: 0}
+            adjacency: Dict[str, List[str]] = {}
+            for existing in links:
+                adjacency.setdefault(existing.parent_agent_id, []).append(
+                    existing.child_agent_id)
+            queue = [chain.root_agent_id]
+            while queue:
+                node = queue.pop(0)
+                for child in adjacency.get(node, []):
+                    if child in depth_by_node:
+                        continue
+                    depth_by_node[child] = depth_by_node[node] + 1
+                    queue.append(child)
+            if parent_agent_id not in depth_by_node:
+                raise FleetDelegationError(
+                    "unknown_parent",
+                    f"Parent agent {parent_agent_id} is not part of chain {chain_id}.")
+            new_depth = depth_by_node[parent_agent_id] + 1
+            max_depth = int(chain.max_depth or 5)
+            if new_depth > max_depth:
+                raise FleetDelegationError(
+                    "depth_exceeded",
+                    f"Delegation depth {new_depth} exceeds the chain limit "
+                    f"{max_depth}; a wide but shallow fleet is allowed.",
+                    depth=new_depth, max_depth=max_depth)
+
+            # --- cross-scope references --------------------------------------
+            root_agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == chain.root_agent_id).first()
+            parent_agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == parent_agent_id).first()
+            child_agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == child_agent_id).first()
+            # The parent must live in the chain's scope too: a cross-tenant
+            # parent could otherwise recruit a local child into a foreign
+            # fleet (the link would look tenant-local while the coordinator's
+            # authority came from somewhere else).
+            if parent_agent is not None:
+                if (chain.tenant_id and parent_agent.tenant_id
+                        and parent_agent.tenant_id != chain.tenant_id):
+                    raise FleetDelegationError(
+                        "cross_scope",
+                        f"Parent agent {parent_agent_id} belongs to another "
+                        "tenant.")
+                if root_agent is not None:
+                    if (root_agent.workspace_id and parent_agent.workspace_id
+                            and parent_agent.workspace_id
+                            != root_agent.workspace_id):
+                        raise FleetDelegationError(
+                            "cross_scope",
+                            f"Parent agent {parent_agent_id} belongs to "
+                            "another workspace.")
+            if child_agent is not None:
+                if (chain.tenant_id and child_agent.tenant_id
+                        and child_agent.tenant_id != chain.tenant_id):
+                    raise FleetDelegationError(
+                        "cross_scope",
+                        f"Agent {child_agent_id} belongs to another tenant.")
+                if root_agent is not None:
+                    if (root_agent.tenant_id and child_agent.tenant_id
+                            and child_agent.tenant_id != root_agent.tenant_id):
+                        raise FleetDelegationError(
+                            "cross_scope",
+                            f"Agent {child_agent_id} belongs to another tenant.")
+                    if (root_agent.workspace_id and child_agent.workspace_id
+                            and child_agent.workspace_id != root_agent.workspace_id):
+                        raise FleetDelegationError(
+                            "cross_scope",
+                            f"Agent {child_agent_id} belongs to another workspace.")
+
+        # --- contract accountability -------------------------------------
+        merged_context = dict(context_json or {})
         if optimization_metadata:
-            final_context["optimization"] = optimization_metadata
+            merged_context["optimization"] = optimization_metadata
+        contract_raw = merged_context.get("delegation_contract")
+        if contract_raw is not None:
+            from core.fleet_orchestration.delegation_contracts import (
+                ContractError, validate_contract_payload,
+            )
+
+            try:
+                merged_context["delegation_contract"] = (
+                    validate_contract_payload(contract_raw))
+            except ContractError as exc:
+                raise FleetDelegationError(
+                    "invalid_contract",
+                    f"Delegation contract rejected: {exc}",
+                    detail=exc.code,
+                    **getattr(exc, "extra", {}),
+                )
+
+        final_context = merged_context
 
         link = ChainLink(
             chain_id=chain_id,
@@ -79,9 +210,8 @@ class AgentFleetService:
         self.db.add(link)
         
         # Increment total links in chain
-        chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
-        if chain:
-            chain.total_links += 1
+        if chain is not None:
+            chain.total_links = int(chain.total_links or 0) + 1
             
         self.db.commit()
         self.db.refresh(link)

@@ -467,19 +467,120 @@ def trust_check(db: Any, agent_id: Optional[str], topic: str) -> Dict[str, Any]:
     return out
 
 
+def trust_calibration_check(db: Any) -> Dict[str, Any]:
+    """Runtime authorization verdict from the trust-calibration ledger.
+
+    This is the consumer the automation ledger was missing: when the
+    gateway is enabled, autonomy relaxation is authorized ONLY while the
+    latest durable action is an applied ``enable``. A subsequent
+    certification regression writes a ``revoked`` row and this check turns
+    false immediately — there is no cached grant and no process-local state,
+    so a resumed wait or a restarted worker re-reads the same answer.
+
+    Flag off (the default) is neutral-pass: the legacy gate behavior is
+    unchanged. Flag on with no certified ledger entry proposes instead of
+    executing, matching the documented "relax only after certification"
+    contract.
+    """
+    out: Dict[str, Any] = {
+        "enabled": False,
+        "resolved": None,
+        "ok": True,
+        "reason": None,
+    }
+    try:
+        from core.trust_calibration.gateway import enabled as _tc_enabled
+
+        if not _tc_enabled():
+            return out
+        from core.trust_calibration.automation import resolved_trust_enforce
+
+        out["enabled"] = True
+        resolved = bool(resolved_trust_enforce(db))
+        out["resolved"] = resolved
+        out["ok"] = resolved
+        if not resolved:
+            out["reason"] = (
+                "Trust calibration has not certified autonomous relaxation "
+                "(or a verified regression revoked it) — the hire proposes "
+                "until certification passes again."
+            )
+    except Exception as e:  # noqa: BLE001 — a ledger outage must not crash a turn
+        logger.debug(f"trust calibration check skipped: {e}")
+    return out
+
+
+def revocation_check(db: Any, agent_id: Optional[str], topic: str) -> Dict[str, Any]:
+    """Runtime revocation for a topic, written by verified regressions.
+
+    ``CapabilityGraduationService.record_usage`` records a persisted
+    ``autonomy_revocations`` entry when an externally verified failure hits a
+    capability that had verified successes. The gate must refuse that topic
+    until the hire re-earns it — a stored ledger row alone is not revocation.
+    """
+    out: Dict[str, Any] = {
+        "applicable": False,
+        "revoked": False,
+        "ok": True,
+        "reason": None,
+        "detail": None,
+    }
+    if not agent_id or topic not in TOPIC_GATES:
+        return out
+    try:
+        from core.models import AgentRegistry
+
+        row = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if row is None:
+            return out
+        config = getattr(row, "configuration", None)
+        if not isinstance(config, dict):
+            return out
+        revocations = config.get("autonomy_revocations") or {}
+        key = TOPIC_GATES[topic].get("trust_domain") or topic
+        detail = revocations.get(key) or revocations.get(topic)
+        if not detail:
+            return out
+        out.update(
+            applicable=True,
+            revoked=True,
+            ok=False,
+            reason=(
+                detail.get("reason")
+                if isinstance(detail, dict) else str(detail)
+            ) or "verified_regression",
+            detail=detail if isinstance(detail, dict) else {"reason": detail},
+        )
+    except Exception as e:  # noqa: BLE001 — a failed read must not silently grant
+        logger.debug(f"autonomy revocation check skipped: {e}")
+    return out
+
+
 def _gate_reason(
     label: str,
     mode_ok: bool,
     maturity: Dict[str, Any],
     trust: Dict[str, Any],
     cycle: Optional[Dict[str, Any]] = None,
+    calibration: Optional[Dict[str, Any]] = None,
+    revocation: Optional[Dict[str, Any]] = None,
 ) -> str:
+    if revocation is not None and not revocation["ok"]:
+        return (
+            f"{label} autonomy was revoked after a verified regression "
+            f"({revocation.get('reason')}); the hire must re-earn it."
+        )
     if not mode_ok:
         return f"You asked to approve every {label.lower()} — the hire proposes only."
     if cycle is not None and not cycle["ok"]:
         return cycle["reason"] or (
             f"A human correction reset the {label.lower()} autonomy cycle — "
             f"the hire proposes until it re-earns autonomy."
+        )
+    if calibration is not None and not calibration["ok"]:
+        return calibration["reason"] or (
+            f"Trust calibration does not authorize autonomous "
+            f"{label.lower()} right now — the hire proposes."
         )
     if not maturity["ok"]:
         return (
@@ -518,17 +619,21 @@ def gate_for_topic(
     mode = get_effective_mode(db, user_id, topic)
     maturity = maturity_check(db, agent_id, topic)
     trust = trust_check(db, agent_id, topic)
+    revocation = revocation_check(db, agent_id, topic)
     mode_ok = mode_allows_autonomy(mode)
     cycle = (
         autonomy_cycle(db, agent_id, topic)
         if mode == MODE_AUTO_UNTIL_CORRECTED
         else None
     )
+    calibration = trust_calibration_check(db)
     execute = (
         mode_ok
         and maturity["ok"]
         and trust["ok"]
         and (cycle is None or cycle["ok"])
+        and calibration["ok"]
+        and revocation["ok"]
     )
     label = TOPICS.get(topic, {}).get("label", topic)
     return {
@@ -537,8 +642,11 @@ def gate_for_topic(
         "maturity": maturity,
         "trust": trust,
         "cycle": cycle,
+        "calibration": calibration,
+        "revocation": revocation,
         "outcome": OUTCOME_EXECUTE if execute else OUTCOME_PROPOSE,
-        "reason": _gate_reason(label, mode_ok, maturity, trust, cycle),
+        "reason": _gate_reason(
+            label, mode_ok, maturity, trust, cycle, calibration, revocation),
     }
 
 

@@ -72,6 +72,71 @@ def recommended_effort(task_text: str) -> Dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
+class ContractError(ValueError):
+    """A delegation contract that must not reach execution."""
+
+    def __init__(self, code: str, message: str, **extra: Any):
+        self.code = code
+        self.extra = extra
+        super().__init__(message)
+
+
+def _accountable_id(raw: Any) -> str:
+    """Resolve exactly one accountable agent id from a contract payload."""
+    if not isinstance(raw, dict):
+        raise ContractError("contract_type", "Delegation contract must be an object.")
+    ids = raw.get("accountable_agent_ids")
+    if ids is not None:
+        values = list(ids) if isinstance(ids, (list, tuple, set)) else [ids]
+        if len(values) != 1:
+            raise ContractError(
+                "accountable_count",
+                "A delegation contract must name exactly one accountable agent.",
+                count=len(values),
+            )
+        raw = {**raw, "accountable_agent_id": values[0], "accountable_agent_ids": None}
+    value = raw.get("accountable_agent_id")
+    if isinstance(value, (list, tuple, set, dict)):
+        raise ContractError(
+            "accountable_count",
+            "A delegation contract must name exactly one accountable agent.",
+            count=len(value),
+        )
+    text = str(value or "").strip()
+    if not text:
+        raise ContractError(
+            "accountable_missing",
+            "A delegation contract must name exactly one accountable agent.",
+            count=0,
+        )
+    return text
+
+
+def validate_contract(contract: "DelegationContract") -> "DelegationContract":
+    """Validate before construction/execution; exactly one accountable agent."""
+    if not str(contract.objective or "").strip():
+        raise ContractError("objective_missing", "Contract objective is required.")
+    _accountable_id({"accountable_agent_id": contract.accountable_agent_id})
+    budget = contract.effort_budget or {}
+    for key in ("max_steps", "max_tool_calls"):
+        try:
+            value = int(budget.get(key))
+        except (TypeError, ValueError):
+            raise ContractError(
+                "effort_invalid", f"effort_budget.{key} must be an integer.")
+        if value < 1:
+            raise ContractError(
+                "effort_invalid", f"effort_budget.{key} must be positive.")
+    return contract
+
+
+def validate_contract_payload(raw: Any) -> Dict[str, Any]:
+    """Validate a raw contract dict (as stored on a link) and return it."""
+    accountable = _accountable_id(raw)
+    contract = validate_contract(DelegationContract.from_dict(raw))
+    return {**dict(raw), "accountable_agent_id": accountable}
+
+
 @dataclass
 class DelegationContract:
     """Typed handoff between a coordinator and a specialist (R2).
@@ -117,15 +182,27 @@ class DelegationContract:
         return cls(**data)
 
 
+_UNSET = object()
+
+
 def build_contract(
     *,
     goal: str,
     task_desc: str,
     domain: str,
+    accountable_agent_id: Any = _UNSET,
     tool_guidance: Optional[List[str]] = None,
     output_format: Optional[str] = None,
 ) -> DelegationContract:
-    """Build a contract for one delegated sub-task."""
+    """Build a contract for one delegated sub-task.
+
+    ``accountable_agent_id`` is optional only for legacy callers that build
+    a NON-executable draft (the original API predates RACI). Any value that
+    is supplied — including an empty string or a collection — is validated:
+    an execution-bound contract must name exactly one accountable agent.
+    The fleet/execution boundary always validates the stored payload, so an
+    omitted field can never reach execution.
+    """
     objective = f"{task_desc.strip()} (fleet goal: {goal.strip()})"
     domain_hint = {
         "finance": "prefer accounting/data tools over web search",
@@ -135,13 +212,17 @@ def build_contract(
     guidance = list(tool_guidance or [])
     if domain_hint:
         guidance.insert(0, domain_hint)
-    return DelegationContract(
+    provided = accountable_agent_id is not _UNSET
+    contract = DelegationContract(
         objective=objective,
         output_format=output_format
         or "structured markdown with a short findings list",
         tool_guidance=guidance,
         effort_budget=recommended_effort(f"{task_desc} {goal}"),
+        accountable_agent_id=(
+            str(accountable_agent_id or "").strip() if provided else None),
     )
+    return validate_contract(contract) if provided else contract
 
 
 def render_contract_prompt(contract: DelegationContract) -> str:
@@ -165,7 +246,8 @@ def render_contract_prompt(contract: DelegationContract) -> str:
 
 
 def contract_for_link(
-    *, goal: str, sub_task: Dict[str, Any]
+    *, goal: str, sub_task: Dict[str, Any],
+    accountable_agent_id: Any = _UNSET,
 ) -> DelegationContract:
     """Build the contract for one fleet recruitment sub-task dict.
 
@@ -175,17 +257,21 @@ def contract_for_link(
         goal=goal,
         task_desc=str(sub_task.get("task", "")),
         domain=str(sub_task.get("domain", "general")),
+        accountable_agent_id=accountable_agent_id,
     )
 
 
 def maybe_contract_for_link(
-    *, goal: str, sub_task: Dict[str, Any]
+    *, goal: str, sub_task: Dict[str, Any],
+    accountable_agent_id: Any = _UNSET,
 ) -> Optional[DelegationContract]:
     """Flag-gated variant used at wire-in points (None when disabled)."""
     if not contracts_enabled():
         return None
     try:
-        return contract_for_link(goal=goal, sub_task=sub_task)
+        return contract_for_link(
+            goal=goal, sub_task=sub_task,
+            accountable_agent_id=accountable_agent_id)
     except Exception as e:  # noqa: BLE001 — additive only, fail open to None
         logger.debug(f"contract build failed: {e}")
         return None
