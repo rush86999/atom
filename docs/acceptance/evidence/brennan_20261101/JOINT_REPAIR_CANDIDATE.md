@@ -71,6 +71,19 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
 | Joint route/executor/quote/evidence + commercial readback + Agent 2 connected/checkpoint/bookkeeping + joint campaigns | **258 passed** |
 | Retrieval selector | 8/8; selection/sufficiency 1.0; mean 0.045ms (selector only, not end-to-end ingestion/provider latency) |
 
+### Executable data transfer (Agent 1 consumption)
+- Serialization now separates diagnostics from executable fields. Rows, items,
+  line items, bytes/content_b64, records, receipts and evidence are preserved
+  in full up to explicit bounds; oversized executable values refuse instead of
+  being sliced. Diagnostic summaries remain bounded.
+- Actual registered WorkDrive read → executor → row mapping → quote calculation
+  controls at 79, 80 and 81 rows: all rows survive, content_b64 is byte-exact,
+  multibyte text is preserved, read receipt is complete/not truncated, and the
+  quote total uses every row.
+- A 501-row bounded read returns partial coverage and blocks full-population
+  calculation; oversized inline content fails explicitly with no downstream
+  work.
+
 ## Remaining joint gaps
 
 - WorkDrive/OneDrive bytes → parsed typed records → quote line items is still

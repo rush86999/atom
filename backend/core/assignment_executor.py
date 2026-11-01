@@ -279,20 +279,65 @@ def _summarize_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return {"summary": "step completed"}
 
 
-def _json_safe(value: Any, *, depth: int = 0) -> Any:
-    # Calculation/approval receipts nest pricing inside rows/rules; a depth-4
-    # cut would replace material fields with an ellipsis. Keep the bound but
-    # deep enough for the complete normalized rule representation.
-    if depth > 6:
+class ExecutablePayloadTooLarge(ValueError):
+    """An inline executable value exceeds the supported transfer bound."""
+
+
+#: Fields whose contents are consumed by downstream work. They are never
+#: silently sliced; an oversized value refuses explicitly.
+_EXECUTABLE_FIELDS = frozenset({
+    "rows", "items", "line_items", "records", "data", "payload", "payloads",
+    "content", "content_b64", "documents", "attachments", "evidence",
+    "provider_receipt", "read_receipt", "receipt", "verification", "conflicts",
+})
+_MAX_EXECUTABLE_STRING = 2_000_000
+_MAX_EXECUTABLE_LIST = 10_000
+_MAX_EXECUTABLE_DEPTH = 14
+
+
+def _json_safe(
+    value: Any, *, depth: int = 0, executable: bool = False,
+) -> Any:
+    """Serialize a result, preserving executable data.
+
+    Diagnostics are bounded for lifecycle readability. Executable fields
+    (rows, bytes, receipts) are preserved in full or refused explicitly; a
+    diagnostic limit must never silently change downstream calculation.
+    """
+    if depth > (_MAX_EXECUTABLE_DEPTH if executable else 6):
+        if executable:
+            raise ExecutablePayloadTooLarge(
+                "executable payload exceeds the supported nesting depth")
         return "…"
     if isinstance(value, dict):
-        return {str(k)[:80]: _json_safe(v, depth=depth + 1)
-                for k, v in list(value.items())[:60]}
+        result: Dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            child_executable = executable or (
+                key_text.strip().lower() in _EXECUTABLE_FIELDS)
+            result[key_text if executable else key_text[:80]] = _json_safe(
+                item, depth=depth + 1, executable=child_executable)
+        return result
     if isinstance(value, (list, tuple)):
-        return [_json_safe(v, depth=depth + 1) for v in list(value)[:80]]
+        if executable and len(value) > _MAX_EXECUTABLE_LIST:
+            raise ExecutablePayloadTooLarge(
+                f"executable list has {len(value)} items; limit is "
+                f"{_MAX_EXECUTABLE_LIST}")
+        limit = len(value) if executable else min(len(value), 80)
+        return [
+            _json_safe(item, depth=depth + 1, executable=executable)
+            for item in list(value)[:limit]
+        ]
     if value is None or isinstance(value, (int, float, bool)):
         return value
-    return str(value)[:2000]
+    text = str(value)
+    if executable:
+        if len(text) > _MAX_EXECUTABLE_STRING:
+            raise ExecutablePayloadTooLarge(
+                f"executable string has {len(text)} characters; limit is "
+                f"{_MAX_EXECUTABLE_STRING}")
+        return text
+    return text[:2000]
 
 
 def _filter_records(
@@ -5796,8 +5841,27 @@ async def _action_registry_adapter(
             "error_class": "action_dispatch_error",
         }
 
-    outcome = _action_result_outcome(result, mutating=mutating)
     payload = result if isinstance(result, dict) else {}
+    read_receipt = payload.get("read_receipt") if isinstance(
+        payload.get("read_receipt"), dict) else {}
+    receipt_fields = read_receipt.get("fields") if isinstance(
+        read_receipt.get("fields"), dict) else {}
+    if not mutating and (
+            receipt_fields.get("truncated") is True
+            or str(read_receipt.get("coverage") or "").lower() in (
+                "partial", "bounded", "truncated")):
+        return {
+            "status": "partial",
+            "error_class": "partial_coverage",
+            "message": (
+                f"registered read action '{name}' returned partial coverage; "
+                "full-population work is blocked until the complete source is "
+                "available"),
+            "data": _json_safe(result, executable=True),
+            "evidence": [{"kind": "action_registry", "action": name,
+                          "coverage": "partial"}],
+        }
+    outcome = _action_result_outcome(result, mutating=mutating)
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
@@ -5809,14 +5873,14 @@ async def _action_registry_adapter(
         "remote_id": remote_id,
         "provider_ref": provider_ref,
         "payload_sha256": payload.get("payload_sha256"),
-        "provider_receipt": _json_safe(payload.get("provider_receipt")),
-        "verification": _json_safe(payload.get("verification")),
+        "provider_receipt": _json_safe(payload.get("provider_receipt"), executable=True),
+        "verification": _json_safe(payload.get("verification"), executable=True),
     }
     if outcome == "applied":
         return {
             "status": "applied",
             "summary": f"registered action {name} completed",
-            "data": _json_safe(result),
+            "data": _json_safe(result, executable=True),
             "evidence": [{"kind": "action_registry", "action": name}],
             **identity,
         }
@@ -5827,8 +5891,8 @@ async def _action_registry_adapter(
                 f"registered action {name} reported "
                 f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
             "evidence": _bounded(str(result), 500),
-            "data": _json_safe(result),
-            "conflicts": _json_safe(payload.get("conflicts") or []),
+            "data": _json_safe(result, executable=True),
+            "conflicts": _json_safe(payload.get("conflicts") or [], executable=True),
             **identity,
         }
     if outcome == "unavailable":
@@ -5840,7 +5904,7 @@ async def _action_registry_adapter(
             "error_class": str(
                 payload.get("error_kind") or "source_unavailable"),
             "evidence": _bounded(str(result), 500),
-            "data": _json_safe(result),
+            "data": _json_safe(result, executable=True),
             **identity,
         }
     return {
@@ -5850,7 +5914,7 @@ async def _action_registry_adapter(
             f"{payload.get('error') or payload.get('status') or 'refused'}"),
         "error_class": str(
             payload.get("error_kind") or "proven_not_applied"),
-        "data": _json_safe(result),
+        "data": _json_safe(result, executable=True),
         **identity,
     }
 
