@@ -80,6 +80,9 @@ panel. This path uses no cloud credential, no live send and no connected
 account, and is designed to be the first successful job within 15 minutes on a
 supported Python 3.11–3.13 / Node 20.9+ machine.
 
+For the honest three-workflow demo script and its explicit non-claims, see
+[`docs/demo/VERIFIED_WORKFLOWS.md`](docs/demo/VERIFIED_WORKFLOWS.md).
+
 **To use model-backed chat/teaching proposals, set one key in `backend/.env`**
 (or add via Settings > AI):
 - `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or

@@ -13,7 +13,7 @@ claim.**
 | Frozen functional breadth | **111/123 = 90.2%** |
 | Acceptance tag | `accepted-local-2026-11-01-90pct` |
 | Configuration | local, single worker, SQLite scratch worlds, controlled outbox, controlled local providers |
-| Transport | controlled effects only; no live send in this campaign |
+| Transport | controlled effects for this campaign; the separately accepted one-use Outlook send and Microsoft read-only qualification remain closed |
 
 ## Independently confirmed
 
@@ -55,12 +55,24 @@ claim.**
 - Bounded controlled actions with exact payload approval and one-effect
   enforcement.
 
+## Previously accepted live qualification
+
+Separately from this campaign, **one specifically authorized Outlook send** and
+**Microsoft read-only ingestion** were previously accepted under their recorded
+authorizations. Those qualifications are closed and remain preserved. They are
+not evidence of broader live-send reliability.
+
+What remains unqualified is **broader live sending beyond that single authorized
+send, autonomous live sending, and connector/recipient breadth**. This campaign
+used controlled effects only and did not attempt a second live send.
+
 ## Explicit exclusions
 
 - Universal feature reliability is not established.
 - Qualified discretionary-model judgment remains failed/unsupported.
 - Multi-worker execution and long soak behaviour are not claimed.
-- Recipient delivery and live qualification of every connector are not claimed.
+- Broader live sending, autonomous live sending, connector breadth and
+  recipient delivery beyond the accepted one-use qualification are not claimed.
 - Hosted deployment and publication remain deferred.
 - The accepted Microsoft read-only and one-use Outlook send qualifications
   remain closed; no second live send was attempted.
@@ -71,7 +83,10 @@ claim.**
 > inventory, including complex teaching, unfamiliar-data work, durable waiting,
 > restart/resume, artifacts and bounded controlled actions.**
 
-This statement does not extend to the exclusions above.
+Separately accepted under their recorded authorizations: **one specifically
+authorized Outlook send** and **Microsoft read-only ingestion**. Broader live
+sending, autonomous live sending, connector breadth and discretionary model
+judgment are not claimed by this statement.
 
 ## Preservation
 

@@ -64,5 +64,7 @@ scope.** Runtime `bec60978b`; evidence/docs `88bf413e8431`; breadth
 
 The two focused findings (wait-credit duplication and untracked evidence) are
 closed. No further repair campaign is indicated for them. Hosted deployment and
-publication remain deferred; live-send and model-quality exclusions are
+publication remain deferred. Broader live sending, autonomous live sending,
+connector breadth and model-quality exclusions remain; the previously accepted
+one-use Outlook send and Microsoft read-only qualification remain closed and
 unchanged.
