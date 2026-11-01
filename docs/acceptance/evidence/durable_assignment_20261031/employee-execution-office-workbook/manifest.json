@@ -2,7 +2,7 @@
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-office-workbook",
   "source_checkpoint": "589389218",
-  "final_candidate": "3a33e34de",
+  "final_candidate": "614db9c18",
   "files": {
     "README.md": {
       "sha256": "9a76184cb1ffcbd8860665362e4cc94d0edc943754e04adb19c1a0a0085c4596",

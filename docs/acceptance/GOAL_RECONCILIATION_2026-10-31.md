@@ -1,6 +1,6 @@
 # 12-goal reconciliation — merged candidate 2026-10-31
 
-**Candidate:** merged README + employee-execution fixes, source `a0e4dd7ed`
+**Candidate:** merged README + employee-execution fixes, source `589389218`
 (accepted product source `b7ee7ee22`). Configuration: isolated local world,
 `core` profile, single worker, controlled outbox, no live provider/send.
 
