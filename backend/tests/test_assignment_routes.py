@@ -2041,3 +2041,106 @@ def test_cancel_clears_mapping_wait_and_refuses_gap_and_reply(route_env):
     assert _outbox_empty()
     assert env["executor"].status(run_id)["assignment"]["status"] == (
         "cancelled")
+
+
+def test_quote_journey_uses_sources_and_taught_line_discount(
+        route_env, tmp_path, monkeypatch):
+    """Multi-source quote with a taught exception yields the 362.50 fixture.
+
+    Independent expected arithmetic:
+      A 2 x 100.00            = 200.00
+      B 3 x 50.00, 5% on B    = 142.50
+      freight                 =  20.00
+      explicit no tax         =   0.00
+      total                   = 362.50
+    """
+    import docx
+    from core.student_learning_service import deliver_teacher_lesson
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agreement = tmp_path / "brennan-customer-agreement.docx"
+    document = docx.Document()
+    document.add_paragraph("Customer: Acme Fabrication")
+    document.add_paragraph("Agreement: AF-2026")
+    document.add_paragraph(
+        "Taught exception: category B lines carry a 5% contract discount.")
+    document.save(agreement)
+
+    agent_id = _teaching_agent(
+        route_env, "Quote employee", "Arial", "quote-reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Apply the customer agreement discount exception",
+        topic="quote discount", applies_to=["document"],
+        format_spec={
+            "font_name": "Arial",
+            "line_discount_rules": [{
+                "lesson_id": "quote-category-b",
+                "revision": 1,
+                "name": "category B contract discount",
+                "when": {"category": "B"},
+                "rate": "0.05",
+            }],
+        },
+        context={"audience": "quote-reviewer"}, workspace_id="ws-1")
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare the Acme quote using the governing agreement",
+        "agent_id": agent_id,
+        "sources": [
+            {
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+            },
+            {"kind": "document", "path": str(agreement)},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "A", "category": "A", "quantity": "2",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "100.00", "price_basis": "contract",
+                 "currency": "USD"},
+                {"item_id": "B", "category": "B", "quantity": "3",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "50.00", "price_basis": "contract",
+                 "currency": "USD"},
+            ],
+            "currency": "USD",
+            "freight": "20.00",
+            "tax": {"basis": "none"},
+            "rounding": "half_up",
+            "scale": 2,
+            "rounding_authority": "customer agreement AF-2026",
+        },
+        "deliverables": [{"kind": "document", "description": "Acme quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    receipt = calc["result"]["calculation_receipt"]
+    assert receipt["subtotal"] == "342.50"
+    assert receipt["total"] == "362.50"
+    assert receipt["tax"]["basis"] == "none"
+    assert receipt["rounding_authority"] == "customer agreement AF-2026"
+    assert receipt["discount_rules"][0]["lesson_id"] == "quote-category-b"
+    assert [row["discount_rate"] for row in calc["result"]["rows"]] == [
+        "0", "0.05"]
+
+    deliverable = next(item for item in assignment["deliverables"]
+                       if item["kind"] == "document")
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            deliverable["artifact_path"]).paragraphs)
+    for table in docx.Document(deliverable["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "362.50" in text, text
+    assert "scotch-parts.xlsx" in text, text
+    assert "brennan-customer-agreement.docx" in text, text

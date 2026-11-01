@@ -5067,6 +5067,7 @@ class AssignmentExecutor:
             "grouping_dimension": result.get("grouping_dimension"),
             "values": result.get("values"),
             "subtotals": result.get("subtotals"),
+            "calculation_receipt": result.get("calculation_receipt"),
             "source": result.get("source"),
             "source_label": result.get("source_label"),
             "formulas": result.get("formulas"),
@@ -6713,3 +6714,8 @@ default_adapter_registry.register(
     metadata={"effect": "external", "required_actions": ["outbound"],
               "requires_approval": True,
               "allow_standing_authorization": False})
+
+# Importing the line-item calculator registers ``quote.calculate`` on the
+# default registry. It is imported last to avoid a module-initialization
+# cycle; registries cloned after this point carry the adapter.
+import core.assignment_quote  # noqa: E402,F401
