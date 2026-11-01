@@ -1,7 +1,12 @@
 {
   "schema": "atom-deterministic-assessment-qualification-1",
   "dataset": "qualification-2026-10-31",
-  "dataset_sha256": null,
+  "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+  "scoring": {
+    "version": "v2-2026-10-31",
+    "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+    "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+  },
   "configuration": {
     "mode": "deterministic",
     "provider": "none",
@@ -118,12 +123,17 @@
           "basis": "Open and Amount in the 50-99 band."
         }
       ],
+      "determinate_cases": 18,
       "judgment": {
         "schema": "atom-substantive-assessment-judgment-2",
         "phase": "create",
         "dataset_id": "qualification-2026-10-31",
-        "dataset_sha256": null,
-        "scoring": null,
+        "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+        "scoring": {
+          "version": "v2-2026-10-31",
+          "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+          "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+        },
         "served_provider": "deterministic",
         "served_model": "taught_rules",
         "expected": {
@@ -241,7 +251,7 @@
             "unresolved_requirements": [
               "Confirm Risk before deciding."
             ],
-            "note": "Risk is blank. V3 reads 'regardless of Risk' as making it irrelevant; V1 cannot satisfy 'Risk Low'.",
+            "note": "Risk is blank. Under V1 the field is material (approval requires 'Risk Low'), so the input is incomplete and must abstain with a preserved requirement. Under V3 'regardless of Risk' makes the field immaterial: APPROVE is the expected decision and is scored, not treated as an unsupported approval.",
             "accepted": true
           },
           "Q-011": {
@@ -257,7 +267,7 @@
             "actual": "REVIEW",
             "conservative_reading": "REVIEW",
             "unresolved_requirements": [
-              "Confirm Amount before deciding."
+              "No taught rule covers this record; review required."
             ],
             "note": "0 is below the '50-99' band; the policy gives no rule.",
             "accepted": true
@@ -316,16 +326,6 @@
           "basis": "Amount is required to evaluate the policy."
         },
         {
-          "decision": "REVIEW",
-          "when": [
-            {
-              "field": "Risk",
-              "op": "blank"
-            }
-          ],
-          "basis": "Risk is blank; abstain despite the V3 wording."
-        },
-        {
           "decision": "APPROVE",
           "when": [
             {
@@ -363,12 +363,17 @@
           "basis": "Open and Amount in the 50-99 band."
         }
       ],
+      "determinate_cases": 19,
       "judgment": {
         "schema": "atom-substantive-assessment-judgment-2",
         "phase": "correct",
         "dataset_id": "qualification-2026-10-31",
-        "dataset_sha256": null,
-        "scoring": null,
+        "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+        "scoring": {
+          "version": "v2-2026-10-31",
+          "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+          "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+        },
         "served_provider": "deterministic",
         "served_model": "taught_rules",
         "expected": {
@@ -407,7 +412,7 @@
           "Q-007": "DENY",
           "Q-008": "DENY",
           "Q-009": "REVIEW",
-          "Q-010": "REVIEW",
+          "Q-010": "APPROVE",
           "Q-011": "REVIEW",
           "Q-012": "REVIEW",
           "Q-013": "APPROVE",
@@ -430,6 +435,7 @@
           "Q-006",
           "Q-007",
           "Q-008",
+          "Q-010",
           "Q-013",
           "Q-014",
           "Q-015",
@@ -447,7 +453,6 @@
           "Q-002",
           "Q-004",
           "Q-009",
-          "Q-010",
           "Q-011",
           "Q-012"
         ],
@@ -480,15 +485,6 @@
             "note": "Amount is blank; the policy cannot evaluate either band.",
             "accepted": true
           },
-          "Q-010": {
-            "actual": "REVIEW",
-            "conservative_reading": "APPROVE",
-            "unresolved_requirements": [
-              "Confirm Risk before deciding."
-            ],
-            "note": "Risk is blank. V3 reads 'regardless of Risk' as making it irrelevant; V1 cannot satisfy 'Risk Low'.",
-            "accepted": true
-          },
           "Q-011": {
             "actual": "REVIEW",
             "conservative_reading": "REVIEW",
@@ -502,7 +498,7 @@
             "actual": "REVIEW",
             "conservative_reading": "REVIEW",
             "unresolved_requirements": [
-              "Confirm Amount before deciding."
+              "No taught rule covers this record; review required."
             ],
             "note": "0 is below the '50-99' band; the policy gives no rule.",
             "accepted": true
@@ -517,7 +513,6 @@
             "Q-002",
             "Q-004",
             "Q-009",
-            "Q-010",
             "Q-011",
             "Q-012"
           ]

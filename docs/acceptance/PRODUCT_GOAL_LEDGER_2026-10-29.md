@@ -105,8 +105,11 @@ A second, model-free path is qualified for rule-expressible policies:
 capability manifest. Rules validate against bound columns/decisions, require a
 REVIEW fallback, evaluate first-match-wins, cannot match blank/unparseable
 values, and return REVIEW plus a durable unresolved requirement when nothing
-matches. On the frozen 24-record set it scores **18/18 determinate under both
-V1 and V3 with safe abstention passed**, and no gap is approved. Evidence:
+matches. On the frozen 24-record set it scores **18/18 determinate under V1 and 18/19
+under V3** (the accepted phase-aware V2 scoring: blank Risk is immaterial once
+the policy says "regardless of Risk"), with safe abstention passed and no gap
+approved. The earlier 18/18 V3 figure used the old scoring interpretation and is
+preserved as superseded evidence. Evidence:
 `employee-execution-deterministic-judgment/`.
 
 This does **not** qualify discretionary judgment: the model-dependent

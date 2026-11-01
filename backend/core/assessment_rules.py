@@ -24,24 +24,16 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
 
+_TRUE = "true"
+_FALSE = "false"
+_UNKNOWN = "unknown"
+
 OPS = {
     "eq", "ne", "gt", "gte", "lt", "lte", "in", "contains",
     "blank", "not_blank",
 }
 
 
-def _text(value: Any) -> str:
-    return str(value or "").strip()
-
-
-def _decimal(value: Any) -> Optional[Decimal]:
-    text = _text(value)
-    if not text:
-        return None
-    try:
-        return Decimal(text)
-    except (InvalidOperation, ValueError):
-        return None
 
 
 def validate_decision_rules(
@@ -95,53 +87,109 @@ def validate_decision_rules(
     return cleaned
 
 
-def _condition_matches(
-    cells: Dict[str, Any], condition: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Return matched/missing for one condition (missing means no match)."""
+
+def _is_absent(value: Any) -> bool:
+    """Absent or blank only. Numeric zero is a real value, not a blank."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    return False
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _decimal(value: Any) -> "tuple[Optional[Decimal], bool]":
+    """Return (value, invalid). Non-finite/malformed input is invalid."""
+    if _is_absent(value):
+        return None, False
+    try:
+        parsed = Decimal(_text(value))
+    except (InvalidOperation, ValueError):
+        return None, True
+    if not parsed.is_finite():
+        return None, True
+    return parsed, False
+
+
+def _condition(cells: Dict[str, Any], condition: Dict[str, Any]) -> Dict[str, Any]:
+    """Three-valued condition: true, false or unknown.
+
+    Unknown means the row cannot decide the condition: a missing field, or a
+    malformed/non-finite value. It is never collapsed into false, because a
+    false would let a lower-priority rule win confidently.
+    """
     field = condition["field"]
     op = condition["op"]
+    present = not _is_absent(cells.get(field))
     value = cells.get(field)
-    text = _text(value)
     expected = condition.get("value")
+
     if op == "blank":
-        return {"matched": text == "", "missing": False}
+        return {"state": _FALSE if present else _TRUE, "field": field,
+                "reason": f"{field} is blank"}
     if op == "not_blank":
-        return {"matched": text != "", "missing": False}
-    if text == "":
-        return {"matched": False, "missing": True}
+        return {"state": _TRUE if present else _FALSE, "field": field,
+                "reason": f"{field} is blank"}
+    if not present:
+        return {"state": _UNKNOWN, "field": field,
+                "reason": f"missing value for {field}"}
+
     if op in ("gt", "gte", "lt", "lte"):
-        left = _decimal(value)
-        right = _decimal(expected)
-        if left is None or right is None:
-            return {"matched": False, "missing": True}
+        left, left_bad = _decimal(value)
+        right, right_bad = _decimal(expected)
+        if left_bad or right_bad or left is None or right is None:
+            return {"state": _UNKNOWN, "field": field,
+                    "reason": f"invalid numeric value for {field}"}
         matched = {
             "gt": left > right, "gte": left >= right,
             "lt": left < right, "lte": left <= right,
         }[op]
-        return {"matched": matched, "missing": False}
+        return {"state": _TRUE if matched else _FALSE, "field": field}
+
     if op == "in":
         values = expected if isinstance(expected, (list, tuple, set)) else [expected]
-        matched = text.casefold() in {
+        matched = _text(value).casefold() in {
             _text(item).casefold() for item in values}
-        return {"matched": matched, "missing": False}
+        return {"state": _TRUE if matched else _FALSE, "field": field}
+
     if op == "contains":
-        return {
-            "matched": _text(expected).casefold() in text.casefold(),
-            "missing": False,
-        }
+        matched = _text(expected).casefold() in _text(value).casefold()
+        return {"state": _TRUE if matched else _FALSE, "field": field}
+
+    # eq / ne
+    right, _right_bad = _decimal(expected)
+    if right is not None:
+        left, left_bad = _decimal(value)
+        if left_bad or left is None:
+            return {"state": _UNKNOWN, "field": field,
+                    "reason": f"invalid numeric value for {field}"}
+        equal = left == right
+    else:
+        equal = _text(value).casefold() == _text(expected).casefold()
     if op == "ne":
-        if _decimal(value) is not None and _decimal(expected) is not None:
-            return {"matched": _decimal(value) != _decimal(expected),
-                    "missing": False}
-        return {"matched": text.casefold() != _text(expected).casefold(),
-                "missing": False}
-    # eq
-    if _decimal(value) is not None and _decimal(expected) is not None:
-        return {"matched": _decimal(value) == _decimal(expected),
-                "missing": False}
-    return {"matched": text.casefold() == _text(expected).casefold(),
-            "missing": False}
+        equal = not equal
+    return {"state": _TRUE if equal else _FALSE, "field": field}
+
+
+def _rule_state(
+    cells: Dict[str, Any], rule: Dict[str, Any],
+) -> "tuple[str, List[Dict[str, Any]]]":
+    """A rule is false if any condition is false, else unknown if any is."""
+    unknown: List[Dict[str, Any]] = []
+    for condition in rule.get("when") or []:
+        result = _condition(cells, condition)
+        if result["state"] == _FALSE:
+            return _FALSE, []
+        if result["state"] == _UNKNOWN:
+            unknown.append(result)
+    if unknown:
+        return _UNKNOWN, unknown
+    return _TRUE, []
 
 
 def evaluate_row(
@@ -150,46 +198,75 @@ def evaluate_row(
     *,
     fallback: str = "REVIEW",
 ) -> Dict[str, Any]:
-    """Evaluate one authoritative row; never invents a decision."""
-    missing_fields: List[str] = []
+    """Evaluate one authoritative row; never invents a decision.
+
+    Rules are ordered. A definitively matching rule decides only when no
+    higher-priority rule is still unknown with a DIFFERENT decision; otherwise
+    the result is clarification, because the earlier rule may apply.
+    """
+    earlier_unknown: Optional["tuple[Dict[str, Any], List[Dict[str, Any]]]"] = None
     for rule in rules:
-        matched = True
-        rule_missing: List[str] = []
-        for condition in rule.get("when") or []:
-            result = _condition_matches(cells, condition)
-            if result.get("missing"):
-                rule_missing.append(str(condition.get("field")))
-            if not result.get("matched"):
-                matched = False
-        if matched:
-            gap_fields = [
-                str(condition.get("field"))
-                for condition in rule.get("when") or []
-                if condition.get("op") == "blank"
-            ]
-            unresolved = [
-                f"Confirm {field} before deciding."
-                for field in gap_fields
-            ]
-            return {
-                "decision": rule["decision"],
-                "basis": [rule.get("basis") or rule["decision"]],
-                "matched_rule": rule,
-                "unresolved": unresolved,
-                "missing_fields": gap_fields,
-            }
-        for field in rule_missing:
-            if field not in missing_fields:
-                missing_fields.append(field)
-    reason = (
-        "Missing value for " + ", ".join(missing_fields) + "."
-        if missing_fields else
-        "No taught rule covers this record; review required."
-    )
+        state, unknown = _rule_state(cells, rule)
+        if state == _UNKNOWN:
+            if earlier_unknown is None:
+                earlier_unknown = (rule, unknown)
+            continue
+        if state == _FALSE:
+            continue
+        if earlier_unknown is not None:
+            earlier_rule, earlier_fields = earlier_unknown
+            if earlier_rule["decision"] != rule["decision"]:
+                return {
+                    "decision": fallback,
+                    "basis": [
+                        f"Rule {earlier_rule['decision']} may apply; a later "
+                        f"rule would give {rule['decision']}."
+                    ],
+                    "matched_rule": None,
+                    "unresolved": [
+                        f"Confirm {item['field']} before deciding."
+                        for item in earlier_fields
+                    ],
+                    "missing_fields": [
+                        item["field"] for item in earlier_fields],
+                    "ambiguous_with": earlier_rule["decision"],
+                }
+        gap_fields = [
+            str(condition["field"])
+            for condition in rule.get("when") or []
+            if condition["op"] == "blank"
+        ]
+        return {
+            "decision": rule["decision"],
+            "basis": [rule.get("basis") or rule["decision"]],
+            "matched_rule": rule,
+            "unresolved": [
+                f"Confirm {field} before deciding." for field in gap_fields],
+            "missing_fields": gap_fields,
+        }
+
+    if earlier_unknown is not None:
+        rule, unknown = earlier_unknown
+        return {
+            "decision": fallback,
+            "basis": [
+                "Cannot evaluate the "
+                f"{rule['decision']} rule: "
+                + "; ".join(item["reason"] for item in unknown) + "."
+            ],
+            "matched_rule": None,
+            "unresolved": [
+                f"Confirm {item['field']} before deciding."
+                for item in unknown
+            ],
+            "missing_fields": [item["field"] for item in unknown],
+        }
+
+    reason = "No taught rule covers this record; review required."
     return {
         "decision": fallback,
         "basis": [reason],
         "matched_rule": None,
         "unresolved": [reason],
-        "missing_fields": missing_fields,
+        "missing_fields": [],
     }

@@ -20,9 +20,12 @@ sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "acceptance"))
 
 from core.assessment_rules import evaluate_row, validate_decision_rules  # noqa: E402
-from substantive_assessment_campaign import _judge  # noqa: E402
+from substantive_assessment_campaign import (  # noqa: E402
+    _judge, apply_scoring_overlay, load_dataset,
+)
 
 SET = ROOT / "scripts/acceptance/qualification/assessment_qualification_set_2026-10-31.json"
+SCORING = ROOT / "scripts/acceptance/qualification/assessment_scoring_v2_2026-10-31.json"
 
 
 def _rules_v1() -> List[Dict[str, Any]]:
@@ -68,9 +71,6 @@ def _rules_v3() -> List[Dict[str, Any]]:
         {"decision": "REVIEW", "when": [
             {"field": "Amount", "op": "blank"}],
          "basis": "Amount is required to evaluate the policy."},
-        {"decision": "REVIEW", "when": [
-            {"field": "Risk", "op": "blank"}],
-         "basis": "Risk is blank; abstain despite the V3 wording."},
         {"decision": "APPROVE", "when": [
             {"field": "Status", "op": "eq", "value": "Open"},
             {"field": "Amount", "op": "gte", "value": 100}],
@@ -109,23 +109,35 @@ def _result(dataset: Dict[str, Any], rules: List[Dict[str, Any]]) -> Dict[str, A
 
 
 def run_qualification() -> Dict[str, Any]:
-    dataset = json.loads(SET.read_text())
+    # Use the CURRENT qualification contract: the hash-bound, phase-aware V2
+    # scoring overlay. V1 has 18 determinate cases, V3 has 19 (blank Risk is
+    # immaterial once the policy says "regardless of Risk").
+    dataset = apply_scoring_overlay(load_dataset(str(SET)), str(SCORING))
     phases = {}
+    expected_determinate = {"v1": 18, "v3": 19}
     for label, phase, rules in (
             ("v1", "create", _rules_v1()),
             ("v3", "correct", _rules_v3()),
     ):
         judgment = _judge(_result(dataset, rules), dataset, phase, strict=False)
+        determinate = len(judgment.get("determinate_subjects") or [])
+        if determinate != expected_determinate[label]:
+            judgment["ok"] = False
+            judgment.setdefault("errors", []).append(
+                f"expected {expected_determinate[label]} determinate cases, "
+                f"got {determinate}")
         phases[label] = {
             "phase": phase,
             "rules": rules,
+            "determinate_cases": determinate,
             "judgment": judgment,
         }
     ok = all(item["judgment"].get("ok") for item in phases.values())
     return {
         "schema": "atom-deterministic-assessment-qualification-1",
         "dataset": dataset["id"],
-        "dataset_sha256": dataset.get("sha256"),
+        "dataset_sha256": dataset.get("set_sha256"),
+        "scoring": dataset.get("scoring"),
         "configuration": {
             "mode": "deterministic",
             "provider": "none",

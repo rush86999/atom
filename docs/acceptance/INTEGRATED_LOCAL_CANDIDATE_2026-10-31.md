@@ -13,7 +13,7 @@ publication remain deferred by the owner.
 | Verifier acceptance | `VERIFIER_ACCEPTANCE_2026-10-31.md` — accepted source `b7ee7ee22` |
 | Final code/evidence | `9095e3fd0` (integrated candidate `f2e809ba5`) |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
-| Deterministic judgment | `assessment_mode=deterministic`; 18/18 on the frozen set under V1 and V3, safe abstention passed (`employee-execution-deterministic-judgment/`) |
+| Deterministic judgment | `assessment_mode=deterministic`; 18/18 V1 and 18/19 V3 under the V2 overlay, safe abstention passed (`employee-execution-deterministic-judgment/`) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |
 | Execution boundaries | `b7ee7ee22` / `84da4cbfd` (81 assignment executor/route controls) |

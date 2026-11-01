@@ -5,14 +5,18 @@
   "final_candidate": "9095e3fd0",
   "files": {
     "README.md": {
-      "sha256": "4aed5979a775de76d95b97da37dd8630bfb7f5ff6b067f4f59d8bb55485f11c1",
-      "bytes": 1999
+      "sha256": "1d25895138529588964508bbc0a642deb553ca718bfedd0e87ec61080c3b1cf7",
+      "bytes": 3713
     },
     "deterministic-judgment.log": {
-      "sha256": "020cd6ba9777e5a61683caa13e70ad0fd0edcedca59e14e714990d14d99af105",
-      "bytes": 4206
+      "sha256": "1c567b20b5279ce3b576681791754d8d772c3406a24f3159d07616d91765f9e8",
+      "bytes": 5186
     },
     "deterministic-qualification.json": {
+      "sha256": "5a45ce1fc08be7c3e0aa9b193adb4f65ac149fcfbd889b342c5ace3dbae11599",
+      "bytes": 16598
+    },
+    "deterministic-qualification.superseded.json": {
       "sha256": "4f3bc110f1c7ddadee30eb320485beb1e726f4404752ad8ee91379e0f3b61993",
       "bytes": 15083
     }

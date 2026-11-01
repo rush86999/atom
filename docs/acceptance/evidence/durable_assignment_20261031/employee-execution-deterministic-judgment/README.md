@@ -46,3 +46,38 @@ No claim is made that arbitrary natural-language policy text can be converted
 to rules automatically. Authoring the rules is an explicit human/teaching
 action. Model-dependent judgment, live sending, multi-worker execution and
 universal reliability remain out of scope.
+
+## Corrected semantics and current qualification contract (2026-10-31)
+
+Four defects were reproduced and repaired:
+
+1. **Three-valued conditions** — a rule is false only when a condition is
+   definitively false; missing or malformed input makes it *unknown*. A later
+   matching rule no longer wins over an earlier unknown rule with a different
+   decision; the result is clarification with the earlier field preserved.
+2. **Value normalization** — `0` is a value, not a blank. Non-finite input
+   (`NaN`, `Infinity`) and malformed numerics are rejected before comparison and
+   surface as an unresolved invalid-input result, not an exception.
+3. **Rules follow the taught policy** — the defensive V3 “blank Risk → REVIEW”
+   rule was removed. V3 says “regardless of Risk”, so a blank Risk must not
+   abstain.
+4. **Current scoring contract** — the qualification now applies the hash-bound
+   phase-aware V2 overlay: **18 determinate cases under V1 and 19 under V3**,
+   plus safe abstention.
+
+Reproduced result on the frozen set:
+
+| Phase | Determinate | Accuracy | Safe abstention |
+|---|---:|---:|---|
+| V1 / create | 18 | 1.0 | passed |
+| V3 / correct | 19 | 1.0 | passed |
+
+The previous 18/18 V3 result used the old scoring interpretation and is
+preserved as `deterministic-qualification.superseded.json`; it is superseded,
+not deleted.
+
+Negative twins: earlier unknown vs later conflicting match → clarification;
+zero matched by a zero rule; `NaN` → explicit unresolved invalid input; V3
+blank Risk → APPROVE. The frozen set also runs through the canvas assessment
+boundary in `test_assessment_rules_semantics.py` (18/19 determinate, every gap
+REVIEW with a preserved requirement).
