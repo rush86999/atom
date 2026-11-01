@@ -4,6 +4,11 @@
 connection, a token renewal, a source write or a send. It is the single request
 for the two inputs that cannot be produced by local engineering alone.
 
+**Concrete current proposal (2026-11-01):**
+`LIVE_QUALIFICATION_REQUEST_2026-11-01.md` identifies the current account,
+tenant, genuine workbook/attachment, expected values, exact read-only Graph
+operations, mailbox identity, frozen payload hashes and reconciliation scope.
+
 Fill in the bracketed fields and reply with the statement for each part. Until
 then, both remain unexecuted and the local engineering continues against
 controlled fixtures.

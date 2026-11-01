@@ -60,7 +60,10 @@ integrated product still needs. It is not a claim that the goals are met.
 ## Genuine external dependencies (one consolidated request)
 
 See `EXTERNAL_QUALIFICATION_REQUEST_2026-10-31.md` for Parts A (Microsoft
-read-only) and B (one live send).
+read-only) and B (one live send). The concrete current proposal is
+`LIVE_QUALIFICATION_REQUEST_2026-11-01.md` (account, tenant, workbook/attachment,
+expected values, Graph operations, mailbox identity, payload hashes and
+reconciliation scope).
 
 
 
