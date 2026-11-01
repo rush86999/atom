@@ -1207,6 +1207,10 @@ def test_executor_outcome_mapping_never_calls_conflict_applied():
     assert action_executor_outcome({"status": "error",
                                     "action_result": "unavailable"}) == "uncertain"
     assert action_executor_outcome({"status": "success"}) == "applied"
+    # Legacy read actions return a bare value dict with no status.
+    assert action_executor_outcome({"value": 21}) == "applied"
+    assert action_executor_outcome({"status": "error",
+                                    "error_kind": "auth_expired"}) == "failed"
 
 
 def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):

@@ -39,9 +39,13 @@ actions declare `{"effect":"read"}`; the planner classifies them as
 `IngestionSettings.usage_stats_json.sync_cursors` row. A call without a cursor
 resumes an unfinished checkpoint; `fresh=true` starts a new complete
 enumeration and retains the previous ID set for deletion comparison. A
-complete re-listing returns disappeared items in `missing_external_ids` but
-never deletes memory rows automatically. A revoked grant is persisted as
-`coverage=revoked` and returned as a typed error.
+complete re-listing returns disappeared items in `missing_external_ids` and
+replaces their search-index rows with `freshness_status=removed` tombstones
+(`tombstoned_external_ids`). The provider object remains the audit record;
+retrieval stops serving the removed row. If the tombstone write fails the
+result says `deletion_check=reported_not_tombstoned` rather than claiming the
+row is excluded. A revoked grant is persisted as `coverage=revoked` and
+returned as a typed error.
 
 The same surface is exposed to the UI as
 `GET /api/document-ingestion/integrations/{integration_id}/sync-status` and
