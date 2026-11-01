@@ -6,7 +6,7 @@
   "sufficient_evidence": 1.0,
   "unsupported_answers": 0,
   "latency_ms": {
-    "max": 0.137,
+    "max": 0.134,
     "mean": 0.045
   },
   "cases": [
@@ -21,7 +21,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.137,
+      "latency_ms": 0.134,
       "selected_count": 2,
       "excluded_count": 1
     },
@@ -36,7 +36,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.042,
+      "latency_ms": 0.043,
       "selected_count": 1,
       "excluded_count": 0
     },
@@ -51,7 +51,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.029,
+      "latency_ms": 0.03,
       "selected_count": 2,
       "excluded_count": 0
     },
@@ -66,7 +66,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.044,
+      "latency_ms": 0.042,
       "selected_count": 1,
       "excluded_count": 0
     },
@@ -81,7 +81,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.027,
+      "latency_ms": 0.028,
       "selected_count": 2,
       "excluded_count": 0
     },
@@ -96,7 +96,7 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.025,
+      "latency_ms": 0.024,
       "selected_count": 1,
       "excluded_count": 1
     },
@@ -126,9 +126,10 @@
       "obligation_ok": true,
       "untrusted_ok": true,
       "unsupported_ready_plan": false,
-      "latency_ms": 0.03,
+      "latency_ms": 0.028,
       "selected_count": 2,
       "excluded_count": 2
     }
   ]
 }
+

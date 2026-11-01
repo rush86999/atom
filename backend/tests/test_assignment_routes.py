@@ -2145,6 +2145,35 @@ def test_quote_journey_uses_sources_and_taught_line_discount(
     assert "scotch-parts.xlsx" in text, text
     assert "brennan-customer-agreement.docx" in text, text
 
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "controlled-quote-journey",
+            "controlled": True,
+            "live_connected": False,
+            "objective": "Prepare the Acme quote using the governing agreement",
+            "run_id": body["run_id"],
+            "assignment_id": assignment["assignment_id"],
+            "plan_revision": assignment["plan_revision"],
+            "teaching_revision": body.get("teaching_revision"),
+            "teaching_fingerprint": assignment.get("teaching_fingerprint"),
+            "sources": internal.get("sources") or [],
+            "calculation_receipt": receipt,
+            "calculation_rows": calc["result"]["rows"],
+            "expected_total_independent": "362.50",
+            "artifact_path": deliverable["artifact_path"],
+            "stored_artifact": stored,
+            "artifact_sha256": deliverable.get("sha256"),
+            "artifact_text": text,
+            "status_after_build": assignment["status"],
+        }
+        with open(os.path.join(
+                evidence_dir, "quote_journey.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
 
 def test_service_proposal_route_uses_the_same_assignment_api(
         route_env, tmp_path, monkeypatch):
@@ -2340,6 +2369,31 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
                        if item["kind"] == "document")
     assert deliverable["artifact_path"].endswith(".docx")
     assert deliverable["status"] == "applied"
+
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote-corrected.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "teaching-correction-reassessment",
+            "controlled": True,
+            "before_teaching_revision": before_revision,
+            "after_teaching_revision": after["teaching_snapshot"]["revision"],
+            "old_plan_revision": retained["plan_revision"],
+            "new_plan_revision": after["plan_revision"],
+            "teaching_history": after.get("teaching_history") or [],
+            "affected_steps": body["affected_steps"],
+            "preserved_steps": body["preserved_steps"],
+            "before_total": calc["prior_results"][-1]["result"]["value"],
+            "after_total": calc["result"]["value"],
+            "new_work_total": second_calc["result"]["value"],
+            "stored_artifact": stored,
+            "artifact_revision": deliverable.get("artifact_revision"),
+        }
+        with open(os.path.join(
+                evidence_dir, "teaching_correction.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
 
 
 def test_quote_controlled_commercial_update_duplicate_and_uncertain(
