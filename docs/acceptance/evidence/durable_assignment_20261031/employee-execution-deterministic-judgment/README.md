@@ -81,7 +81,7 @@ not deleted.
 Negative twins: earlier unknown vs later conflicting match → clarification;
 zero matched by a zero rule; `NaN` → explicit unresolved invalid input; V3
 blank Risk → APPROVE. The frozen set also runs through the canvas assessment
-boundary in `test_assessment_rules_semantics.py` (18/19 determinate, every gap
+boundary in `test_assessment_rules_semantics.py` (19/19 determinate, every gap
 REVIEW with a preserved requirement).
 
 ## Multiple higher-priority unknowns (2026-10-31)

@@ -87,7 +87,8 @@ def open_teaching(page, frontend: str, agent_id: str) -> str:
     button.wait_for(timeout=30000)
     button.click()
     page.wait_for_url("**/canvas/**", timeout=30000)
-    page.get_by_test_id("training-panel").wait_for(timeout=30000)
+    page.get_by_test_id("training-panel").wait_for(state="attached", timeout=30000)
+    page.wait_for_timeout(800)
     return page.url
 
 
@@ -113,8 +114,13 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
                 '[data-testid="teach-lesson-input"]');
             return !!el && !el.disabled && el.offsetParent !== null;
         }""", timeout=30000)
-    page.get_by_test_id("teach-lesson-input").fill(lesson)
-    page.get_by_test_id("teach-topic-input").fill(topic)
+    for _ in range(5):
+        if page.locator('[role="dialog"]').count() == 0:
+            break
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+    page.get_by_test_id("teach-lesson-input").fill(lesson, force=True)
+    page.get_by_test_id("teach-topic-input").fill(topic, force=True)
     page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
     for box in page.locator('[data-testid^="teach-applies-"]').all():
         if box.is_checked():
@@ -308,7 +314,9 @@ def main() -> int:
         # Remove the conflicting lesson through the normal teaching surface.
         page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(timeout=30000)
+        page.get_by_test_id("training-panel").wait_for(
+            state="attached", timeout=30000)
+        page.wait_for_timeout(800)
         canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
         training = api(
             page,
