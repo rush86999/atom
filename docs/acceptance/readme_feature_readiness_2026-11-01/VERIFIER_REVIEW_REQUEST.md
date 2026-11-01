@@ -1,7 +1,7 @@
 # Independent verifier review request — 2026-11-01
 
-**Candidate:** `776c6644f0b122082de2a2188c90a174877c1fc3` (runtime code);
-docs/evidence commit `dbd761082` records the claim bundle.
+**Candidate:** `a0fce85b0` (runtime code); final docs/evidence commit
+`6d969d0b5`.
 **Branch:** `codex/employee-execution-readiness`
 **Claimed breadth:** **111/123 = 90.2%** functional claims, frozen denominator.
 **Practical scope:** local, single-worker, SQLite scratch world, controlled
@@ -71,10 +71,14 @@ Claimed:
 - Clean install → first successful sample job: **13 seconds** after backend
   start on the clean-install world, result `232990.00`, DOCX
   `e71f40c31211f28a188a04d44b43bfbf69bfd3a0ee06e9a1805aede493152900`.
-- Complex teaching sales + grants campaign and genuinely elapsed long-running
-  campaign: evidence to be appended under `evidence/campaigns/` in this same
-  candidate; the recovery browser and execution-boundary controls are already
-  green.
+- Complex teaching sales + grants campaign: **passed**; evidence under
+  `evidence/campaigns/teaching-two-domain/` and
+  `docs/acceptance/evidence/complex_teaching_20261101/`.
+- Genuinely elapsed two-hour assignment: **passed**; started
+  `2026-11-01T13:40:04Z`, resumed after the real two-hour mark, source `550.00`
+  preserved, one controlled effect, duplicate resume/late reply added none.
+  Evidence under `evidence/campaigns/long-run/`.
+- Recovery browser: **5/5**; execution-boundary controls: **18 passed**.
 - One source/build identity; the serving process reports its source id at
   `/health` and on `X-Atom-Source`.
 

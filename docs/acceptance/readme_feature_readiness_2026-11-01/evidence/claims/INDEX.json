@@ -1,13 +1,13 @@
 {
   "schema": "atom-readme-claim-evidence-2026-11-01",
   "source": {
-    "commit": "776c6644f0b122082de2a2188c90a174877c1fc3",
+    "commit": "a0fce85b0 (runtime code); evidence commit 6d969d0b5",
     "branch": "codex/employee-execution-readiness",
     "working_tree": "clean at capture",
     "denominator": 123,
     "prior_verified": 99,
     "target_verified": 111,
-    "note": "Final candidate adds the scoped employee-creation first-use fix and the sample-workspace loader. Runtime batch 229 passed; product batch and clean-install first job rerun on this source."
+    "note": "Final runtime batch 230 passed at 6d969d0b5. Sales and grants teaching campaigns, the two-hour elapsed assignment, first-use sample, recovery browser and product batch are recorded in this directory."
   },
   "configuration": {
     "backend": "isolated SQLite worlds; local controlled OpenAI-compatible endpoints; no cloud credential or live provider",

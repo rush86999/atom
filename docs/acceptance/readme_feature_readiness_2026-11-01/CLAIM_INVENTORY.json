@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-11-01T15:20:00+00:00",
+  "generated_at": "2026-11-01T18:15:00+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
-    "commit": "776c6644f0b122082de2a2188c90a174877c1fc3",
+    "commit": "a0fce85b0 (runtime code); evidence commit 6d969d0b5",
     "tag": "integrated-local-2026-11-01-candidate",
     "lines": 264
   },
