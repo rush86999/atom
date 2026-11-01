@@ -1,0 +1,118 @@
+
+tests/test_assignment_routes.py::test_real_books_estimate_uncertainty_blocks_and_keeps_one_effect 
+-------------------------------- live log setup --------------------------------
+2026-11-01 18:22:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-01 18:22:42 [    INFO] runtime identity: source_id=0b2fd8d9a0ee revision=0b2fd8d9a0ee dirty=False (0 modified, 0 untracked)
+2026-11-01 18:22:42 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-01 18:22:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/c22d1025-c256-4470-8d08-b5fcaca876b5/approve/action-1 "HTTP/1.1 200 OK"
+2026-11-01 18:22:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/c22d1025-c256-4470-8d08-b5fcaca876b5/resume "HTTP/1.1 200 OK"
+2026-11-01 18:22:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/c22d1025-c256-4470-8d08-b5fcaca876b5/retry/action-1 "HTTP/1.1 409 Conflict"
+2026-11-01 18:22:42 [    INFO] HTTP Request: GET http://testserver/api/assignments/c22d1025-c256-4470-8d08-b5fcaca876b5 "HTTP/1.1 200 OK"
+2026-11-01 18:22:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/c22d1025-c256-4470-8d08-b5fcaca876b5/reconcile/action-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_assignment_routes.py::test_discount_obligation_binds_line_and_resumes_same_quote 
+-------------------------------- live log call ---------------------------------
+2026-11-01 18:22:43 [    INFO] Learning skipped for agent-3a618c81: status intern (not STUDENT)
+2026-11-01 18:22:43 [    INFO] Learning skipped for agent-3a618c81: status intern (not STUDENT)
+2026-11-01 18:22:43 [    INFO] Learning skipped for agent-3a618c81: status intern (not STUDENT)
+2026-11-01 18:22:43 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-01 18:22:43 [    INFO] HTTP Request: GET http://testserver/api/assignments/d6198b00-4f4a-4077-a466-e9775514b143 "HTTP/1.1 200 OK"
+2026-11-01 18:22:43 [    INFO] HTTP Request: POST http://testserver/api/assignments/d6198b00-4f4a-4077-a466-e9775514b143/gaps/8e30ab59-5ccb-412a-85c3-5be59dc62e32/resolve "HTTP/1.1 200 OK"
+2026-11-01 18:22:43 [    INFO] HTTP Request: POST http://testserver/api/assignments/d6198b00-4f4a-4077-a466-e9775514b143/gaps/8e30ab59-5ccb-412a-85c3-5be59dc62e32/resolve "HTTP/1.1 200 OK"
+2026-11-01 18:22:43 [    INFO] HTTP Request: POST http://testserver/api/assignments/d6198b00-4f4a-4077-a466-e9775514b143/gaps/8e30ab59-5ccb-412a-85c3-5be59dc62e32/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/integration/test_brennan_joint_document_flow.py::test_changed_file_bytes_change_the_quote_total PASSED [ 15%]
+tests/integration/test_brennan_joint_document_flow.py::test_unknown_customer_blocks_quote_evidence PASSED [ 20%]
+tests/integration/test_brennan_joint_document_flow.py::test_runtime_quote_reaches_verified_estimate_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-01 18:22:43 [    INFO] Created HITL action 3c924dd8-7d36-4f12-ab4e-9fbc74e4e035 for agent None
+2026-11-01 18:22:43 [    INFO] Created HITL action f0cbfe45-6dce-4617-b8ba-6f78f0669366 for agent None
+PASSED                                                                   [ 25%]
+tests/integration/test_brennan_joint_document_flow.py::test_unexpected_customer_prevents_quote_plan_even_with_line_items PASSED [ 30%]
+tests/unit/test_brennan_commercial_readback.py::test_fully_matching_estimate_is_verified PASSED [ 35%]
+tests/unit/test_brennan_commercial_readback.py::test_id_and_total_only_is_incomplete_not_verified PASSED [ 40%]
+tests/unit/test_brennan_commercial_readback.py::test_wrong_customer_is_a_mismatch PASSED [ 45%]
+tests/unit/test_brennan_commercial_readback.py::test_wrong_currency_and_date_are_mismatches PASSED [ 50%]
+tests/unit/test_brennan_commercial_readback.py::test_wrong_item_with_same_total_is_a_mismatch PASSED [ 55%]
+tests/unit/test_brennan_commercial_readback.py::test_wrong_quantity_or_rate_with_same_total_is_a_mismatch PASSED [ 60%]
+tests/unit/test_brennan_commercial_readback.py::test_missing_expected_line_is_a_mismatch_when_lines_are_partial PASSED [ 65%]
+tests/unit/test_brennan_commercial_readback.py::test_extra_observed_line_is_a_mismatch PASSED [ 70%]
+tests/unit/test_brennan_commercial_readback.py::test_changed_discount_and_tax_are_mismatches PASSED [ 75%]
+tests/unit/test_brennan_commercial_readback.py::test_equivalent_percentage_and_amount_discount_is_accepted PASSED [ 80%]
+tests/unit/test_brennan_commercial_readback.py::test_equivalent_decimal_formatting_and_reordered_lines_are_accepted PASSED [ 85%]
+tests/unit/test_brennan_commercial_readback.py::test_duplicate_lines_are_a_multiset_not_a_set PASSED [ 90%]
+tests/unit/test_brennan_commercial_readback.py::test_bill_full_match_and_wrong_vendor_line PASSED [ 95%]
+tests/unit/test_brennan_commercial_readback.py::test_bill_sparse_readback_is_incomplete PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 40 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 20 passed, 55 warnings in 16.36s =======================
