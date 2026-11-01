@@ -26,6 +26,8 @@ cd backend
 if [ -d "venv" ]; then
     source venv/bin/activate
 fi
+ADDITIONAL_ALLOWED_ORIGINS="${ADDITIONAL_ALLOWED_ORIGINS:-http://localhost:$FRONTEND_PORT,http://127.0.0.1:$FRONTEND_PORT}" \
+ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1,localhost:$BACKEND_PORT,127.0.0.1:$BACKEND_PORT,localhost:$FRONTEND_PORT,127.0.0.1:$FRONTEND_PORT,testserver}" \
 PYTHONPATH=..:. python -m uvicorn main_api_app:app --reload --port "$BACKEND_PORT" &
 BACKEND_PID=$!
 cd ..
