@@ -1,0 +1,70 @@
+{
+  "schema": "atom-long-run-b-state-2",
+  "run_id": "cac9cbd6-f72b-4fbb-b106-f0990fc5b191",
+  "run_status": "waiting",
+  "assignment_id": "asg-bc8171a465894137",
+  "assignment_status": "waiting",
+  "teaching_revision": "851207ec455336d3+cabba8f03b6894fa+map",
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "operation_id": "3e8eba43-a0b5-4443-9a75-6042d01db20c",
+      "attempts": 1,
+      "value": "110.00"
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "operation_id": "517f45fc-5f23-41f6-a2be-4c58bcac7ebd",
+      "attempts": 0,
+      "value": null
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0,
+      "value": null
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "operation_id": null,
+      "attempts": 0,
+      "value": null
+    }
+  ],
+  "waiting_on": {
+    "event": "email",
+    "summary": "authorized external reply",
+    "assignment_wait": {
+      "correlation_id": "quote-missing-currency-2",
+      "question_id": null,
+      "state": "waiting_for_external"
+    },
+    "match_exact": {
+      "correlation_id": "quote-missing-currency-2"
+    },
+    "created_at": "2026-11-01T18:04:41.386922+00:00"
+  },
+  "serving_identity": {
+    "pid": 68921,
+    "started_at": "2026-11-01T18:14:47.668963+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "414d8add3112",
+    "source_id": "414d8add3112",
+    "instance_id": "414d8add3112.68921.1793556890",
+    "revision": "414d8add311223493da3e8f0e7a8ec94bc8dec63",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T18:14:50.509317+00:00",
+    "port": 8085,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/long_run_20261101_b/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "sampled_at": "2026-11-01T18:14:57.904723+00:00"
+}
