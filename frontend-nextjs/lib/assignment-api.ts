@@ -77,6 +77,16 @@ export interface AssignmentDetail {
     authorized_actions: string[];
     standing_authority?: Record<string, any> | null;
     budget: Record<string, unknown>;
+    progress?: {
+      total_steps: number;
+      required_steps: number;
+      completed_steps: number;
+      waiting_steps: number;
+      failed_steps: number;
+      uncertain_steps: number;
+      open_gap_count: number;
+    };
+    teaching_history?: Array<Record<string, unknown>>;
     steps: AssignmentStep[];
     created_at: string | null;
     updated_at: string | null;

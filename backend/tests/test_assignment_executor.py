@@ -2912,6 +2912,16 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
              "citation": {"sheet": "Items", "row": 3}},
         ],
     }
+    from core.action_registry import action_registry
+
+    async def read_customer(args, context):
+        return {"data": {"customer_id": "cust-1", "name": "Example Customer"},
+                "read_receipt": {"provider": "zoho_crm",
+                                 "resource_id": "crm-cust-1",
+                                 "coverage": "complete"}}
+
+    action_registry.register(
+        "test.quote.customer", read_customer, effects=[{"effect": "read"}])
     requirements = derive_quote_requirements(
         "Prepare a customer quote", requested={"customer_id": "cust-1"})
     validation = validate_quote_evidence(
@@ -2929,6 +2939,11 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
         },
         teaching=_teaching(), workspace_id="ws_assign",
         tenant_id="tenant_assign", employee_id="user-1",
+        evidence_reads=[{
+            "step_id": "read-customer",
+            "action": "test.quote.customer",
+            "arguments": {"record_id": "cust-1"},
+        }],
         document_path=str(tmp / "quote.docx"),
         email_draft_path=str(tmp / "quote-draft.eml"),
         email_to=["customer@example.invalid"], subject="Customer quote")
@@ -2945,6 +2960,10 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
     calc = step_by_id(assignment, "calculate")
     assert calc["result"]["value"] == "362.50"
     assert calc["result"]["calculation_receipt"]["total"] == "362.50"
+    read_customer_step = step_by_id(assignment, "read-customer")
+    assert read_customer_step["status"] == "applied"
+    assert read_customer_step["result"]["data"]["read_receipt"][
+        "provider"] == "zoho_crm"
     assert proof["quote_evidence"]["status"] == "ready" if (
         proof := assignment.get("provenance")) else False
     draft = step_by_id(assignment, "email-draft")

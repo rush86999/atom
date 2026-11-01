@@ -535,6 +535,8 @@ def plan_quote_assignment(
     email_to: Optional[Sequence[str]] = None,
     subject: Optional[str] = None,
     discount_rules: Optional[Sequence[Dict[str, Any]]] = None,
+    actions: Optional[Sequence[Dict[str, Any]]] = None,
+    evidence_reads: Optional[Sequence[Dict[str, Any]]] = None,
     scale: int = 2,
     rounding_authority: str = "agreement:round-half-up-2dp",
 ) -> Dict[str, Any]:
@@ -637,9 +639,12 @@ def plan_quote_assignment(
         sources=[source],
         deliverables=deliverables,
         calculation=calculation,
+        evidence_reads=list(evidence_reads or []),
         teaching_snapshot=teaching_snapshot,
+        actions=actions,
         authorized_actions=(
             ["retrieve", "calculate", "present"]
+            + (["outbound"] if actions else [])
             + (["edit"] if email_draft_path else [])),
         employee_id=employee_id, workspace_id=workspace_id,
         tenant_id=tenant_id,

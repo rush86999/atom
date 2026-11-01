@@ -2197,7 +2197,8 @@ def test_service_proposal_route_uses_the_same_assignment_api(
     assert "consulting-hours" in text or "Service" in text
 
 
-def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme"):
+def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme",
+                 actions=None, email_draft=False):
     import docx
 
     if route_env["db"].query(DatasetEntry).filter(
@@ -2232,7 +2233,13 @@ def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme")
             "tax": {"basis": "none"}, "rounding": "half_up", "scale": 2,
             "rounding_authority": "agreement AF-2026",
         },
-        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "actions": list(actions or []),
+        "deliverables": (
+            [{"kind": "document", "description": "Quote"}]
+            + ([{"kind": "email_draft", "step_id": "email-draft",
+                 "description": "Quote email",
+                 "to": ["buyer@example.invalid"],
+                 "subject": "Acme quote"}] if email_draft else [])),
         "task_context": {"audience": "quote-reviewer"},
     })
 
@@ -2333,3 +2340,148 @@ def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
                        if item["kind"] == "document")
     assert deliverable["artifact_path"].endswith(".docx")
     assert deliverable["status"] == "applied"
+
+
+def test_quote_controlled_commercial_update_duplicate_and_uncertain(
+        route_env, tmp_path, monkeypatch):
+    """Document -> registered commercial update -> email draft.
+
+    The controlled action stands in for Agent 2's Zoho write; the executor
+    operation id is the idempotency identity. A lost provider response is
+    uncertain and must reconcile without a second call.
+    """
+    from core.action_registry import action_registry
+    from core.assignment_executor import ExternalOutcomeUnknown
+
+    action_name = f"test.quote.update.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def controlled_update(args, context):
+        calls.append({"args": dict(args), "run_id": context.get("run_id"),
+                      "operation": context.get("assignment_id")})
+        if args.get("mode") == "uncertain":
+            raise ExternalOutcomeUnknown(
+                "provider accepted the update then lost the response",
+                "controlled-readback:deal-1:v2")
+        return {
+            "status": "applied",
+            "record_id": "deal-1",
+            "version": "v2",
+            "readback": {
+                "record_id": "deal-1",
+                "quote_total": args.get("quote_total"),
+                "version": "v2",
+            },
+        }
+
+    action_registry.register(
+        action_name, controlled_update,
+        description="Controlled commercial record update",
+        effects=[{"effect": "record_created", "object": "deal"}])
+
+    agent_id = _teaching_agent(
+        route_env, "Commercial quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+
+    def update_spec(**overrides):
+        spec = {
+            "step_id": "commercial-update",
+            "action": action_name,
+            "title": "Create the Zoho commercial record",
+            "arguments": {"quote_total": "362.50", "deal": "deal-1"},
+            "target": {"record_id": "deal-1"},
+            "permitted_fields": ["quote_total", "validity"],
+            "expected_version": "v1",
+            "approval_purpose": "Create the quote in Zoho",
+        }
+        spec.update(overrides)
+        return spec
+
+    started = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id,
+        actions=[update_spec()], email_draft=True)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    action_step = next(step for step in assignment["steps"]
+                       if step["step_id"] == "commercial-update")
+    assert action_step["status"] == "awaiting_approval", action_step
+    assert action_step["depends_on"] == ["source-1", "source-2",
+                                         "calculate", "deliverable-1"]
+    draft_step = next(step for step in assignment["steps"]
+                      if step["step_id"] == "email-draft")
+    assert "commercial-update" in draft_step["depends_on"]
+    assert calls == []
+
+    approved = route_env["client"].post(
+        f"/api/assignments/{run_id}/approve/commercial-update",
+        json={"note": "bounded commercial update"})
+    assert approved.status_code == 200, approved.text
+    completed = approved.json()["assignment"]
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(calls) == 1, calls
+    internal_completed = route_env["lifecycle"].get_assignment(run_id)
+    updated = next(step for step in internal_completed["steps"]
+                   if step["step_id"] == "commercial-update")
+    assert updated["result"]["data"]["readback"]["record_id"] == "deal-1"
+    draft = next(step for step in internal_completed["steps"]
+                 if step["step_id"] == "email-draft")
+    assert draft["status"] == "applied"
+    assert "362.50" in str(draft["result"].get("draft") or
+                           draft["result"].get("body") or "")
+
+    # Duplicate resume/approval replay must not repeat the effect.
+    again = route_env["client"].post(
+        f"/api/assignments/{run_id}/resume", json={})
+    assert again.status_code == 200, again.text
+    assert len(calls) == 1, calls
+
+    # Uncertain provider outcome: one call, marked uncertain, reconciled
+    # against the existing operation without a resend.
+    uncertain = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Acme Uncertain",
+        actions=[update_spec(arguments={"quote_total": "362.50",
+                                        "deal": "deal-1",
+                                        "mode": "uncertain"})])
+    assert uncertain.status_code == 200, uncertain.text
+    uncertain_run = uncertain.json()["run_id"]
+    approved = route_env["client"].post(
+        f"/api/assignments/{uncertain_run}/approve/commercial-update",
+        json={"note": "bounded commercial update"})
+    assert approved.status_code == 200, approved.text
+    status = route_env["client"].get(
+        f"/api/assignments/{uncertain_run}").json()
+    assert status["assignment"]["status"] == "blocked", status
+    uncertain_step = next(step for step in status["assignment"]["steps"]
+                          if step["step_id"] == "commercial-update")
+    assert uncertain_step["status"] == "uncertain"
+    assert len(calls) == 2, calls
+
+    reconciled = route_env["client"].post(
+        f"/api/assignments/{uncertain_run}/reconcile/commercial-update",
+        json={"verdict": "applied",
+              "evidence": "provider readback shows deal-1 at v2",
+              "evidence_ref": "controlled-readback:deal-1:v2"})
+    assert reconciled.status_code == 200, reconciled.text
+    assert len(calls) == 2, calls
+
+    # Cancellation before approval: no late event revives the commercial
+    # effect, and no provider call occurs.
+    cancelled = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Acme Cancel",
+        actions=[update_spec(step_id="commercial-update")])
+    assert cancelled.status_code == 200, cancelled.text
+    cancelled_run = cancelled.json()["run_id"]
+    before_cancel_calls = len(calls)
+    stopped = route_env["client"].post(
+        f"/api/assignments/{cancelled_run}/cancel",
+        json={"reason": "customer withdrew the RFQ"})
+    assert stopped.status_code == 200, stopped.text
+    assert stopped.json()["assignment"]["status"] == "cancelled"
+    late = route_env["client"].post(
+        f"/api/assignments/{cancelled_run}/approve/commercial-update",
+        json={"note": "late approval"})
+    assert late.status_code in (404, 409), late.text
+    assert len(calls) == before_cancel_calls
