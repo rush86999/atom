@@ -329,6 +329,11 @@ Source `bec60978b` plus follow-up `019aa1eeb`, backend tree
   recorded credit with stale wait, concurrent external responses, restart while
   waiting. **140 focused tests pass** on `c2963fbcdc8e`.
 
+This repair is recorded as a **post-acceptance correctness repair** in
+`docs/acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md`; the accepted tag
+`accepted-local-2026-11-01-90pct` is preserved and the old baseline is not
+described as unaffected.
+
 C2 ran on `414d8add3` and does not load this repair; its budget snapshots are
 historical execution, not a relabelled verification of the repaired code.
 
@@ -347,6 +352,7 @@ historical execution, not a relabelled verification of the repaired code.
 | Browser recovery (integrated) | `c2963fbcdc8e` | **5/5 checks** |
 | C2 elapsed closure (historical) | `715969f01d23` | completed, 7,239.8s, one effect |
 | Cancellation + budget + goal suites | `c2963fbcdc8e` | **140 passed** |
+| Verifier-focused subset (61 executor + 2 public-route cancellation) | `c2963fbcdc8e` | **63 passed** |
 | Runtime claim batch (integrated) | `c2963fbcdc8e` | **48 passed** |
 
 Evidence: `sibling_controls_20261101/`, `cancellation_repair_20261101/`,
