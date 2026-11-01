@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Long Run Specialist",
+  "agent_id": "3f0e3016-33e0-422e-b979-d34b028264da",
+  "canvas_url": "http://127.0.0.1:3130/canvas/adee4092-bb63-4da7-b0ee-9de07f3a58dd?agent_id=3f0e3016-33e0-422e-b979-d34b028264da&side=training",
+  "objective": "Sum Price for the two-hour durable quote",
+  "correlation_id": "longrun-2h-20261101",
+  "run_id": "3986261f-cdee-4abc-8f0c-35b76ea9fd7a",
+  "assignment_id": "asg-04993277770f4f2c",
+  "teaching_revision": "8cf265c90286f0dc+a2629f3c25a57acb+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "longrun_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "8cf265c90286f0dc+a2629f3c25a57acb+map",
+      "source": "upload",
+      "dataset_name": "upload_longrun_quote__longrun_quote",
+      "external_id": "sha1:c74ff768bf3434982d5ee1aabca0ad3b09214eab",
+      "available_columns": [
+        "Item",
+        "Gross Amount",
+        "Currency",
+        "Status",
+        "Qualification"
+      ],
+      "numeric_columns": [
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "550.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "longrun-2h-20261101",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nlongrun_quote.csv / longrun_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nOptional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\n\nNo durable assignments yet.",
+  "teaching_points_visible": 0
+}
