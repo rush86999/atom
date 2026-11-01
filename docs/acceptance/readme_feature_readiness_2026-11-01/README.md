@@ -16,10 +16,11 @@ authority.
 
 ## Source identity
 
-- Runtime code: `a0fce85b0` (product tree unchanged from `8e999ab32` for the
-  teaching runs; backend changes since the 99-claim baseline are the runtime
-  enforcement, budget/wait accounting and first-use scoping commits).
-- Final evidence commit: `dce03d804` (docs/evidence only).
+- Runtime code: `bec60978b` (the 99-claim baseline plus runtime enforcement,
+  first-use scoping and the idempotent wait-credit repair; campaign captures at
+  `a0fce85b0`/`776c6644f` predate only the budget repair).
+- Evidence bundle commit: `76ac5528f` (docs/evidence only; the final
+  source-binding commit is its docs-only child).
 - Frontend production build: clean checkout at `a0fce85b0` (frontend files
   unchanged through the final commit), `BUILD_ID` `gVUTIhFCOe-IPrxsvBkAG`.
 - Clean install: fresh worktree, own `backend/venv` and `node_modules`,

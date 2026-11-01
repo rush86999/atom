@@ -3,7 +3,7 @@
 **Status: 111/123 = 90.2% self-assessed, awaiting independent verifier
 acceptance. This is not a release declaration.**
 
-- Candidate source: `a0fce85b0`
+- Candidate source: `bec60978b` (runtime); evidence bundle `76ac5528f`
 - Branch: `codex/employee-execution-readiness`
 - Frozen denominator: **123 eligible functional claims** (unchanged)
 - Prior accepted local milestone: 99/123 at `29d9075b6` / accepted execution
@@ -40,7 +40,8 @@ One reusable acceptance world now lives at
 explicit tenant/workspace/user/agent rows, replaceable session factory,
 observable effect ledger, deterministic fault points).
 
-Full runtime batch at `a0fce85b0`: **229 passed**.
+Earlier runtime batch at `a0fce85b0`: **229 passed**. Final repaired runtime
+batch at `bec60978b`: **235 passed**.
 
 The recovery controls cover crash before dispatch, after dispatch/before receipt
 persistence, cancellation, duplicate correlation, reconciliation `applied`,
@@ -105,7 +106,8 @@ No cloud credential, connector or outbound step was used.
 2. **Product batch** — CORE-06, ROUTE-06, ROUTE-03, GRAPH-05, INST-01, GOV-05.
    Evidence: `evidence/claims/{core06,routing,graph05,install01,oidc}`.
 3. **Final integrated candidate** — 111/123 plus the completed teaching and
-   long-running campaigns on `a0fce85b0`, with the final manifest and hash
+   long-running campaigns (captured on the product tree before the runtime-only
+   budget repair) with the final manifest and hash
    verification.
 
 The verifier remains the acceptance authority; this report does not

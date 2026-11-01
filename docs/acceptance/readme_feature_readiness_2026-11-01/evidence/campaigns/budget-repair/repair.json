@@ -1,7 +1,7 @@
 {
   "schema": "atom-budget-wait-repair-2026-11-01",
   "status": "passed",
-  "runtime_source": "bec60978b (final docs commit 9d60278c1)",
+  "runtime_source": "bec60978b (runtime); evidence bundle 76ac5528f",
   "finding": "The legacy retry path added a completed wait interval again on every retry, erasing consumed working time and allowing a genuinely over-budget assignment.",
   "repair": {
     "identity": "Each wait is keyed by the wait operation id (persisted on the step as wait_operation_id) and recorded once in budget.wait_credits.",

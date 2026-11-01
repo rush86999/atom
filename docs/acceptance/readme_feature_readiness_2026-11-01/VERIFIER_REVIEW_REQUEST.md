@@ -1,7 +1,6 @@
 # Independent verifier review request — 2026-11-01
 
-**Candidate:** `bec60978b` (runtime code); final docs/evidence commit
-`9d60278c1`.
+**Candidate:** `bec60978b` (runtime code); evidence bundle `76ac5528f`.
 **Branch:** `codex/employee-execution-readiness`
 **Claimed breadth:** **111/123 = 90.2%** functional claims, frozen denominator.
 **Practical scope:** local, single-worker, SQLite scratch world, controlled

@@ -1,7 +1,7 @@
 {
   "schema": "atom-readme-claim-evidence-2026-11-01",
   "source": {
-    "commit": "a0fce85b0 (runtime code); evidence commit 6d969d0b5",
+    "commit": "bec60978b (runtime code); evidence bundle 76ac5528f",
     "branch": "codex/employee-execution-readiness",
     "working_tree": "clean at capture",
     "denominator": 123,
