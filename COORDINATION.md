@@ -384,3 +384,7 @@ now refuses an unknown vendor by default (obligation, not a silent create).
 
 **Final heads after receipt identity sync:** Agent 2 `ddcf2a787`; joint
 `b9c8ba654`. Both clean. Focused joint regression after the sync: 166 passed.
+
+**Verified final joint HEAD:** `b9c8ba654` — combined assignment + connected
+suite **202 passed** after the receipt identity sync. Agent 2 branch
+`ddcf2a787`, Agent 1 branch `acd86a2aa`. All worktrees clean.
