@@ -109,9 +109,16 @@ def _line_rate(line: Dict[str, Any]) -> Optional[Decimal]:
 
 def _discount_descriptor(line: Dict[str, Any]) -> Tuple[Optional[str], Optional[Decimal]]:
     """Return (mode, value); mode is percent, amount, or ambiguous."""
-    if _get(line, "discount_percent", "discount_rate") is not None:
-        return "percent", _decimal(
-            _get(line, "discount_percent", "discount_rate"))
+    percent = _get(line, "discount_percent")
+    if percent is not None:
+        return "percent", _decimal(percent)
+    rate = _get(line, "discount_rate")
+    if rate is not None:
+        # quote.calculate stores discount_rate as a fraction (0.05), while
+        # discount_percent/provider percentages are percentage points (5).
+        value = _decimal(rate)
+        return "percent", (value * Decimal("100")
+                           if value is not None else None)
     amount = _get(line, "discount_amount")
     if amount is not None:
         return "amount", _decimal(amount)

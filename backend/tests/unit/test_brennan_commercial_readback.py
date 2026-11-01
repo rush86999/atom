@@ -297,3 +297,14 @@ def test_bill_reference_can_be_echoed_as_bill_number():
     result = verify_bill_readback(
         proposal, payload, observed, organization_id="org-1")
     assert result["status"] == "verified", result
+
+
+def test_fraction_discount_rate_matches_provider_percentage():
+    expected = _expected_estimate(line_items=[
+        {"item_id": "A", "quantity": "2", "rate": "100.00",
+         "discount_rate": "0.05"}])
+    observed = _observed_estimate(line_items=[
+        {"item_id": "A", "quantity": "2", "rate": "100.00",
+         "discount": "5%"}])
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "verified", result
