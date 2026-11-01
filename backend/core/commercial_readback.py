@@ -109,9 +109,16 @@ def _line_rate(line: Dict[str, Any]) -> Optional[Decimal]:
 
 def _discount_descriptor(line: Dict[str, Any]) -> Tuple[Optional[str], Optional[Decimal]]:
     """Return (mode, value); mode is percent, amount, or ambiguous."""
-    if _get(line, "discount_percent", "discount_rate") is not None:
-        return "percent", _decimal(
-            _get(line, "discount_percent", "discount_rate"))
+    percent = _get(line, "discount_percent")
+    if percent is not None:
+        return "percent", _decimal(percent)
+    rate = _get(line, "discount_rate")
+    if rate is not None:
+        # quote.calculate stores discount_rate as a fraction (0.05), while
+        # discount_percent/provider percentages are percentage points (5).
+        value = _decimal(rate)
+        return "percent", (value * Decimal("100")
+                           if value is not None else None)
     amount = _get(line, "discount_amount")
     if amount is not None:
         return "amount", _decimal(amount)
@@ -209,6 +216,8 @@ def _compare_discount(report: Dict[str, Any], field: str,
     exp_mode, exp_value = _discount_descriptor(expected_line)
     if exp_mode is None:
         return
+    if exp_mode in ("percent", "amount") and exp_value == 0:
+        return
     report["checked_fields"].append(field)
     obs_mode, obs_value = _discount_descriptor(observed_line)
     if obs_mode is None or obs_value is None:
@@ -241,6 +250,9 @@ def _compare_tax(report: Dict[str, Any], field: str,
                  observed_line: Dict[str, Any]) -> None:
     expected = _tax_descriptor(expected_line)
     if not any(value not in (None, "") for value in expected.values()):
+        return
+    if (not expected["tax_id"] and expected["percent"] == 0
+            and expected["amount"] in (None, Decimal("0"))):
         return
     observed = _tax_descriptor(observed_line)
     if expected["tax_id"]:
@@ -308,6 +320,20 @@ def _compare_lines(report: Dict[str, Any], expected_lines: Sequence[Dict[str, An
             if obs_kind == exp_kind and obs_key == exp_key:
                 candidates.append(observed)
         if not candidates:
+            # A provider line without the stable id but with the exact
+            # expected name is incomplete identity evidence, not a definite
+            # wrong item.
+            exp_name = _text(_get(expected, "name", "description")).casefold()
+            fallback = next((
+                observed for observed in remaining
+                if exp_name and _text(
+                    _get(observed, "name", "description")).casefold() == exp_name
+            ), None)
+            if fallback is not None:
+                remaining.remove(fallback)
+                _add_missing(report, f"line_items[{index}].identity")
+                _compare_line(report, index, expected, fallback)
+                continue
             _add_mismatch(report, f"line_items[{index}].identity",
                           f"{exp_kind}:{exp_key}", "no matching line")
             continue
@@ -369,6 +395,7 @@ def verify_estimate_readback(
         "tax_total": _get(estimate_data, "tax_total"),
         "discount_total": _get(estimate_data, "discount_total"),
         "terms": _get(estimate_data, "terms", "delivery_terms"),
+        "validity": _get(estimate_data, "validity", "expiry_date"),
     }
     observed = {
         "customer_id": _get(readback, "customer_id"),
@@ -380,6 +407,7 @@ def verify_estimate_readback(
         "tax_total": _get(readback, "tax_total", "tax_amount"),
         "discount_total": _get(readback, "discount_total"),
         "terms": _get(readback, "terms"),
+        "validity": _get(readback, "validity", "expiry_date"),
     }
     _compare_scalar(report, "customer_id", expected["customer_id"],
                     observed["customer_id"], normalizer=_text)
@@ -398,6 +426,8 @@ def verify_estimate_readback(
                      observed["discount_total"])
     _compare_scalar(report, "terms", expected["terms"], observed["terms"],
                     normalizer=_text)
+    _compare_scalar(report, "validity", expected["validity"],
+                    observed["validity"], normalizer=_text)
     observed_org = _get(readback, "organization_id")
     if organization_id and observed_org not in (None, ""):
         _compare_scalar(report, "organization_id", organization_id,
@@ -432,7 +462,8 @@ def verify_bill_readback(
         "currency_code": _get(readback, "currency_code", "currency"),
         "date": _get(readback, "date", "bill_date"),
         "due_date": _get(readback, "due_date"),
-        "reference_number": _get(readback, "reference_number"),
+        "reference_number": _get(readback, "reference_number",
+                                  "bill_number"),
         "total": _get(readback, "total", "grand_total"),
         "sub_total": _get(readback, "sub_total", "subtotal"),
         "tax_total": _get(readback, "tax_total", "tax_amount"),

@@ -90,8 +90,10 @@ input. Generated numbers are not treated as the caller's reference.
 - Lines: canonical multiset keyed by stable item id (or exact normalized name
   only when the caller supplied no item id). Order is ignored; duplicate lines
   are preserved.
-- Discounts: explicit percentage or amount. A percentage and an amount that
-  produce the same line discount are accepted; an ambiguous mode is incomplete.
+- Discounts: `discount_percent`/provider percentages are percentage points
+  (`5`); `discount_rate` from `quote.calculate` is a fraction (`0.05`).
+  `discount_amount` is an amount. Equivalent percentage/amount formulas are
+  accepted; an ambiguous mode is incomplete.
 - Text: trim and collapse whitespace. Names/terms are otherwise compared
   exactly; whitespace normalization is not permission for semantic drift.
 

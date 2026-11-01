@@ -1652,3 +1652,102 @@ def test_bill_sparse_readback_is_uncertain_without_second_create(monkeypatch):
     assert result["verification"]["status"] == "incomplete"
     assert service.created == 1
     assert service.readbacks == 2
+
+
+def test_repeat_after_uncertain_readback_reconciles_same_remote(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.estimates = []
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return list(self.estimates), {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            self.estimates.append({"estimate_id": "est-1",
+                                   "reference_number": data["reference_number"],
+                                   "total": data["total"]})
+            return {"estimate_id": "est-1"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            return {"estimate_id": estimate_id, "total": "362.50"}
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    args = {"organization_id": "org-1",
+            "estimate_data": _full_estimate_data(),
+            "authority_reference": "grant-1",
+            "operation_id": "op-reconcile-1"}
+    context = {"user_id": "u", "tenant_id": "t1"}
+
+    first = asyncio.run(actions.books_create_estimate(args, context))
+    assert first["action_result"] == "uncertain"
+    assert first["remote_id"] == "est-1"
+
+    second = asyncio.run(actions.books_create_estimate(args, context))
+    assert second["status"] == "duplicate"
+    assert second["action_result"] == "proven_not_applied"
+    assert second["existing"]["estimate_id"] == "est-1"
+    assert service.created == 1
+
+
+def test_changed_payload_under_same_reference_refuses_second_create(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.estimates = []
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return list(self.estimates), {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            estimate = _full_estimate_readback(
+                estimate_id="est-1",
+                reference_number=data["reference_number"])
+            self.estimates.append(estimate)
+            return {"estimate_id": "est-1"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            return self.estimates[0]
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    context = {"user_id": "u", "tenant_id": "t1"}
+    first_data = _full_estimate_data()
+    changed = _full_estimate_data()
+    changed["total"] = "999.00"
+
+    first = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": first_data,
+         "authority_reference": "grant-1", "operation_id": "op-change-1"},
+        context))
+    assert first["action_result"] == "applied"
+
+    second = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": changed,
+         "authority_reference": "grant-1", "operation_id": "op-change-1"},
+        context))
+    assert second["status"] == "duplicate"
+    assert second["action_result"] == "proven_not_applied"
+    assert second["existing"]["estimate_id"] == "est-1"
+    assert service.created == 1

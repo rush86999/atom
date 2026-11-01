@@ -265,3 +265,54 @@ def test_bill_sparse_readback_is_incomplete():
     assert result["status"] == "incomplete"
     assert "vendor_id" in result["missing_fields"]
     assert "line_items" in result["missing_fields"]
+
+
+def test_missing_item_id_with_matching_name_is_incomplete_identity():
+    expected = _expected_estimate(line_items=[
+        {"item_id": "A", "name": "Widget", "quantity": "2",
+         "rate": "100.00"}])
+    observed = _observed_estimate(line_items=[
+        {"name": "Widget", "quantity": "2", "rate": "100.00"}])
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "incomplete"
+    assert "line_items[0].identity" in result["missing_fields"]
+    assert result["mismatches"] == []
+
+
+def test_zero_discount_and_zero_tax_may_be_omitted_by_provider():
+    expected = _expected_estimate(line_items=[{
+        "item_id": "A", "quantity": "2", "rate": "100.00",
+        "discount_percent": "0", "tax_percentage": "0"}])
+    observed = _observed_estimate(line_items=[{
+        "item_id": "A", "quantity": "2", "rate": "100.00"}])
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "verified", result
+
+
+def test_bill_reference_can_be_echoed_as_bill_number():
+    proposal, payload = _expected_bill()
+    observed = _observed_bill()
+    observed.pop("reference_number")
+    observed["bill_number"] = "INV-1"
+    result = verify_bill_readback(
+        proposal, payload, observed, organization_id="org-1")
+    assert result["status"] == "verified", result
+
+
+def test_fraction_discount_rate_matches_provider_percentage():
+    expected = _expected_estimate(line_items=[
+        {"item_id": "A", "quantity": "2", "rate": "100.00",
+         "discount_rate": "0.05"}])
+    observed = _observed_estimate(line_items=[
+        {"item_id": "A", "quantity": "2", "rate": "100.00",
+         "discount": "5%"}])
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "verified", result
+
+
+def test_terms_and_validity_are_material_when_supplied():
+    expected = _expected_estimate(terms="FOB Origin", validity="30 days")
+    observed = _observed_estimate(terms="FOB Destination", validity="30 days")
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "mismatch"
+    assert any(item["field"] == "terms" for item in result["mismatches"])
