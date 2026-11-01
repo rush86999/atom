@@ -1,0 +1,77 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-integrated-local-journey-repaired",
+  "source_checkpoint": "31ba9725e02a",
+  "final_candidate": "31ba9725e02a",
+  "note": "Post-repair normal-app journey on clean source 31ba9725e02a (dirty=false). Replaces the pre-repair run as the current journey evidence.",
+  "files": {
+    "README.md": {
+      "sha256": "c2415c739de2f3b3c2ac6360736e8a06b8d4b2017fcbffa56c11bbac18be0a8c",
+      "bytes": 1823
+    },
+    "artifacts/active-assignment-artifact.docx": {
+      "sha256": "9dfe4204455c2f0458b58aa07a00760350984a9531b991d40f2a6c2d44b549dc",
+      "bytes": 37207
+    },
+    "artifacts/active-reload-assignment-artifact.docx": {
+      "sha256": "9dfe4204455c2f0458b58aa07a00760350984a9531b991d40f2a6c2d44b549dc",
+      "bytes": 37207
+    },
+    "artifacts/revised-assignment-artifact.docx": {
+      "sha256": "11711129e996cb01eb60224e0ebf1a76e6c86da2d94ad2b43368f01ea094da80",
+      "bytes": 37148
+    },
+    "first-conflict.txt": {
+      "sha256": "aeada5896531a512841904b4e41758645e23981a757e2ac87f90aa7436dcaf1d",
+      "bytes": 857
+    },
+    "health-after-restart.json": {
+      "sha256": "085b971c8d5127510bae0ec4a6282651dc2165a180b8ef83cf1afcc1564fce22",
+      "bytes": 1227
+    },
+    "missing-qualification.txt": {
+      "sha256": "d0fe4658ab9fc203878b5e4072c16217e8446e4b81a50d4acfd6de998f972491",
+      "bytes": 818
+    },
+    "outbox.jsonl": {
+      "sha256": "86383770fc220a8ef8a6e7c6f8f77f5022a21189116323423bc6dab258c6a39d",
+      "bytes": 777
+    },
+    "part1.json": {
+      "sha256": "e6ffef2c98ed942c23bdaaf3f6e03ceef30b864fb3fb643e963178d37866fb4c",
+      "bytes": 3199
+    },
+    "part2.json": {
+      "sha256": "c5133ec6923e12cb418c838a73fc58f7020a45d8b2149db334c498da8c4b812a",
+      "bytes": 3715
+    },
+    "screenshots/active-completed.png": {
+      "sha256": "33fae18b8c02cd1f1cb023fb1dd507973d9322216f878bf914e9ebf60e7069a7",
+      "bytes": 178151
+    },
+    "screenshots/reopened-after-restart.png": {
+      "sha256": "dc3d9262257965d1d024c5ab3fad70a54570219b7b4ffa80cbea8ee1719d5e04",
+      "bytes": 164480
+    },
+    "screenshots/revised-completed.png": {
+      "sha256": "016a574489735061f38fd0950152f6497773daa8a6abe3717ae8482f57d6bdd5",
+      "bytes": 168199
+    },
+    "screenshots/waiting-before-restart.png": {
+      "sha256": "802e8105a1560053a9f8820b111b47ce8090733acb53ae3a6b2c96713d8bbe35",
+      "bytes": 191655
+    },
+    "serving-identity.txt": {
+      "sha256": "81a7bc0aca995f6d5f3cbe9355a77632d39fd508424c0e37d017982d8747a416",
+      "bytes": 302
+    },
+    "sources.json": {
+      "sha256": "944d13b0caa4762ccdb476a54e3e613ac5bd65544f1a9f7012ae58f6ad5a06b2",
+      "bytes": 1733
+    },
+    "verify.json": {
+      "sha256": "3ccdfb4df709e274634fc5d579e96aba5827efd1304c47bcb4cf4bb68d848b75",
+      "bytes": 4608
+    }
+  }
+}

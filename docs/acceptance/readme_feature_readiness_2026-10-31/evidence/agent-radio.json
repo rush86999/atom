@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance",
+  "generated_at": "2026-10-31T13:47:53.385196+00:00",
+  "started_at": "2026-10-31T13:47:51.532236+00:00",
+  "config": {
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/atom.db",
+    "product_profile": "full",
+    "external_integrations": "tokenless; schedulers/pollers off",
+    "llm": "bounded local OpenAI-compatible stub (no cloud spend)"
+  },
+  "groups": {
+    "radio": "groups_radio:radio"
+  },
+  "group_errors": [],
+  "results": [
+    {
+      "claim_id": "RADIO-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/create.json"
+      ],
+      "notes": "thread=a57d180b-1689-43af-a6b4-b50187e3f845",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/send.json"
+      ],
+      "notes": "sent=True mention_delivered=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/budget.json"
+      ],
+      "notes": "error=budget_exceeded",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/wait.json"
+      ],
+      "notes": "first_timeout=True second_delivered=True",
+      "blocker": ""
+    }
+  ]
+}

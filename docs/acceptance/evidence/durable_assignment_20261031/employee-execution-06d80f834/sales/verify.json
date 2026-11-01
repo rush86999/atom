@@ -1,0 +1,107 @@
+{
+  "schema": "atom-composite-long-running-verify-2",
+  "status": "passed",
+  "active": {
+    "run_id": "43124796-a93a-4f99-a0aa-3a4bc4f6fc95",
+    "status": "completed",
+    "teaching_revision": "6b3d626819827b82+f4a1bf30f4229acf+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "integrated_quote",
+        "column": "Gross Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "6b3d626819827b82+f4a1bf30f4229acf+map",
+        "source": "upload",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "available_columns": [
+          "Item Code",
+          "Units",
+          "Gross Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Units",
+          "Gross Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "400.00",
+    "artifact": {
+      "path": "/Users/rushiparikh/projects/atom-integrated-world-20261031/evidence/sales-composite-2/active-reload-assignment-artifact.docx",
+      "bytes": 37214,
+      "sha256": "44ccb68f06e6cb11b24a8263adcc2f731fd91bbb5606edfe2d011447b90acd90",
+      "normal_font": "Arial",
+      "normal_size": 11.0,
+      "text": "Sum Price for the integrated quote sheet 2026-10-31 run 2\nSummary\nsum of Gross Amount: 400.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\n1e467d12-64e4-4edb-ae59-f9f284786f5c\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the integrated quote sheet 2026-10-31 run 2\nintegrated_quote.csv / integrated_quote"
+    }
+  },
+  "second": {
+    "run_id": "43421db7-aebb-409b-96c4-3f2ea1ca787b",
+    "status": "completed",
+    "teaching_revision": "4ac061d30c13cf0a+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "clean_quote",
+        "column": "Net Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "4ac061d30c13cf0a+map",
+        "source": "upload",
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "external_id": "sha1:07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "available_columns": [
+          "SKU",
+          "Quantity",
+          "Net Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Quantity",
+          "Net Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "2225.75",
+    "artifact": {
+      "path": "/Users/rushiparikh/projects/atom-integrated-world-20261031/evidence/sales-composite-2/revised-assignment-artifact.docx",
+      "bytes": 37165,
+      "sha256": "30696aedb5320ccd1babb86b95f7b1bb4ea7d6456b567d461bc34606acc9e950",
+      "normal_font": "Calibri",
+      "normal_size": 14.0,
+      "text": "Sum Price for the revised clean quote sheet 2026-10-31\nSummary\nsum of Net Amount: 2225.75 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\nb73f8cf7-3fe0-46bb-87d2-4f62dcf9e8c9\nclean_quote.csv / clean_quote\nObjective\nSum Price for the revised clean quote sheet 2026-10-31\nclean_quote.csv / clean_quote"
+    }
+  },
+  "teaching_revision_changed_for_new_work": true,
+  "outbox": [
+    {
+      "operation_id": "2481abef-def2-4ece-87ea-fa61ee8b9501",
+      "to": [
+        "acceptance@example.invalid"
+      ],
+      "subject": "[Quote] Sum Price for the integrated quote sheet 2026-10-31 run 2",
+      "body": "Dear colleague,\n\nResult:\n- sum of Gross Amount: 400.00 USD\n- controlled reply received: FOB destination; delivery term supplied by the customer.\nFindings:\n- integrated_quote.csv / integrated_quote\n  - row 2 | sheet_row | 2 | 100.00 | USD | C2\n  - row 3 | sheet_row | 3 | 250.50 | USD | C3\n  - row 4 | sheet_row | 4 | 49.50 | USD | C4\nSources:\n- upload_integrated_quote__integrated_quote\n- integrated_quote.csv\n- integrated_quote\n- 1e467d12-64e4-4edb-ae59-f9f284786f5c\n- integrated_quote.csv / integrated_quote\n\nSales team",
+      "teaching_revision": "6b3d626819827b82+f4a1bf30f4229acf+map"
+    }
+  ],
+  "outbox_all_lines": 1
+}

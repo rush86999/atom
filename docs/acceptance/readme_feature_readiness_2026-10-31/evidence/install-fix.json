@@ -1,0 +1,88 @@
+{
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-install-fix-world",
+  "base": "http://127.0.0.1:8138",
+  "checks": {
+    "password_file": {
+      "exists": true,
+      "mode": "0o600",
+      "length": 22
+    },
+    "login": {
+      "status": 200,
+      "token": true
+    },
+    "profile": {
+      "status": 200,
+      "profile": "full"
+    },
+    "task_create": {
+      "status": 200,
+      "id": "6ab7c56f-3c01-4c23-ac8e-ac94555a6bae",
+      "body": {
+        "success": true,
+        "task": {
+          "id": "6ab7c56f-3c01-4c23-ac8e-ac94555a6bae",
+          "title": "install acceptance durable task",
+          "description": null,
+          "dueDate": null,
+          "priority": "medium",
+          "status": "todo",
+          "project": null,
+          "tags": [],
+          "estimatedHours": 0,
+          "actualHours": 0,
+          "color": "#3182CE",
+          "metadata": {},
+          "createdAt": "2026-10-31T15:01:11",
+          "updatedAt": "2026-10-31T15:01:11"
+        }
+      }
+    },
+    "workflow": {
+      "workflow_id": "091154bb-b6d4-4bf7-8feb-ecde6b1269a6",
+      "execution_id": "2884ac86-17cc-4161-85d5-4e0a9a668d31",
+      "create_status": 200,
+      "survives_restart": true,
+      "history_after_restart": [
+        {
+          "execution_id": "2884ac86-17cc-4161-85d5-4e0a9a668d31",
+          "workflow_id": "091154bb-b6d4-4bf7-8feb-ecde6b1269a6",
+          "trigger_data": {},
+          "start_time": "2026-10-31T15:01:11.640011",
+          "end_time": null,
+          "status": "completed",
+          "actions_executed": [],
+          "errors": [],
+          "results": {
+            "node-1": {
+              "status": "success",
+              "service": "database",
+              "action": "query",
+              "result": {
+                "action": "query",
+                "result": "Database query executed",
+                "status": "success"
+              },
+              "timestamp": "2026-10-31T11:01:11.781433",
+              "execution_method": "service_registry"
+            }
+          },
+          "duration_ms": 0.0
+        }
+      ]
+    },
+    "office_canvas": {
+      "canvas_id": "canvas_418991011270",
+      "present_status": 200,
+      "restart_status": 200,
+      "canvas_read": true,
+      "download_ok": true
+    },
+    "restart": {
+      "login_status": 200,
+      "task_survives": true,
+      "task_id": "6ab7c56f-3c01-4c23-ac8e-ac94555a6bae"
+    }
+  },
+  "status": "verified"
+}

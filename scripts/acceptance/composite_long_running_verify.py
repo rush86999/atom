@@ -83,7 +83,9 @@ def _result_value(state: dict, step_id: str) -> str:
 
 
 def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
-                      objective: str, candidate: str) -> None:
+                      objective: str, candidate: str, measure: str = "Price",
+                      context: str = "sales",
+                      qualification: str = "licensed") -> None:
     page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
               wait_until="domcontentloaded")
     page.get_by_test_id("assignment-source-select").wait_for(timeout=30000)
@@ -97,9 +99,9 @@ def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
     page.get_by_test_id("assignment-objective-input").fill(objective)
     page.get_by_test_id("assignment-measure-select").select_option(
         label="Other business concept…")
-    page.get_by_test_id("assignment-custom-measure-input").fill("Price")
-    page.get_by_test_id("assignment-context-input").fill("sales")
-    page.get_by_test_id("assignment-qualification-input").fill("licensed")
+    page.get_by_test_id("assignment-custom-measure-input").fill(measure)
+    page.get_by_test_id("assignment-context-input").fill(context)
+    page.get_by_test_id("assignment-qualification-input").fill(qualification)
     page.get_by_test_id("assignment-task-scope-input").fill("revised")
     page.get_by_test_id("assignment-start-button").click()
     page.get_by_test_id("mapping-candidates").wait_for(timeout=60000)
@@ -120,8 +122,8 @@ def validate(record: dict, expected: dict) -> None:
     _assert(record["active"]["teaching_revision"] == expected["active_revision"],
             "active teaching revision changed")
     active_mapping = (record["active"].get("mapping") or [{}])[0]
-    _assert(active_mapping.get("concept") == "Price",
-            "active mapping concept is not Price")
+    _assert(active_mapping.get("concept") == expected["concept"],
+            f"active mapping concept is {active_mapping.get('concept')!r}")
     _assert(active_mapping.get("column") == expected["active_column"],
             f"active mapping column is {active_mapping.get('column')!r}")
     _assert(record["active"].get("result_value") == expected["active_result"],
@@ -143,8 +145,8 @@ def validate(record: dict, expected: dict) -> None:
             != record["active"]["teaching_revision"],
             "new work did not adopt a new teaching revision")
     second_mapping = (record["second"].get("mapping") or [{}])[0]
-    _assert(second_mapping.get("concept") == "Price",
-            "second mapping concept is not Price")
+    _assert(second_mapping.get("concept") == expected["concept"],
+            f"second mapping concept is {second_mapping.get('concept')!r}")
     _assert(second_mapping.get("column") == expected["second_column"],
             f"second mapping column is {second_mapping.get('column')!r}")
     _assert(record["second"].get("result_value") == expected["second_result"],
@@ -229,6 +231,15 @@ def main() -> int:
     ap.add_argument("--expected-second-size", default="14")
     ap.add_argument("--expected-active-result", default="400.00")
     ap.add_argument("--expected-second-result", default="2225.75")
+    ap.add_argument("--measure", default="Price")
+    ap.add_argument("--context", default="sales")
+    ap.add_argument("--qualification", default="licensed")
+    ap.add_argument("--second-source", default="clean_quote.csv")
+    ap.add_argument("--second-candidate", default="Net Amount")
+    ap.add_argument("--active-column", default="Gross Amount")
+    ap.add_argument("--greeting", default="Dear colleague,")
+    ap.add_argument("--signature", default="Sales team")
+    ap.add_argument("--subject-prefix", default="[Quote]")
     ap.add_argument("--negative-controls", action="store_true")
     args = ap.parse_args()
 
@@ -237,7 +248,7 @@ def main() -> int:
     password = Path(args.password_file).read_text().strip()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True, channel="chrome")
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
 
@@ -250,8 +261,9 @@ def main() -> int:
 
         start_and_resolve(
             page, frontend=args.frontend, agent_id=part1["agent_id"],
-            source_file="clean_quote.csv", objective=args.second_objective,
-            candidate="Net Amount")
+            source_file=args.second_source, objective=args.second_objective,
+            candidate=args.second_candidate, measure=args.measure,
+            context=args.context, qualification=args.qualification)
         second_artifact = download(page, out, "revised")
         rows = api(page, "/api/assignments?include_terminal=true")
         second_run = next(
@@ -297,19 +309,20 @@ def main() -> int:
     }
     expected = {
         "active_revision": part1["teaching_revision"],
-        "active_column": "Gross Amount",
+        "active_column": args.active_column,
+        "concept": args.measure,
         "active_result": args.expected_active_result,
         "active_font": args.expected_active_font,
         "active_size": args.expected_active_size,
         "active_sha": args.expected_active_sha,
-        "second_column": "Net Amount",
+        "second_column": args.second_candidate,
         "second_result": args.expected_second_result,
         "second_font": args.expected_second_font,
         "second_size": args.expected_second_size,
         "second_sha": args.expected_second_sha,
-        "subject_prefix": "[Quote]",
-        "greeting": "Dear colleague,",
-        "signature": "Sales team",
+        "subject_prefix": args.subject_prefix,
+        "greeting": args.greeting,
+        "signature": args.signature,
     }
     try:
         validate(record, expected)

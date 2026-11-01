@@ -1,0 +1,107 @@
+{
+  "schema": "atom-composite-long-running-verify-2",
+  "status": "passed",
+  "active": {
+    "run_id": "933234fd-f647-4e3f-adca-5f160bc6afe0",
+    "status": "completed",
+    "teaching_revision": "128caf90451c6c2b+36031bfcb3779de3+map",
+    "mapping": [
+      {
+        "concept": "Approved Amount",
+        "sheet": "grant_applications",
+        "column": "Award Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "d55f0d93b5f1b85e4873a6dd5372a782df5610d4",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "128caf90451c6c2b+36031bfcb3779de3+map",
+        "source": "upload",
+        "dataset_name": "upload_grant_applications__grant_applications",
+        "external_id": "sha1:d55f0d93b5f1b85e4873a6dd5372a782df5610d4",
+        "available_columns": [
+          "Application ID",
+          "Requested Units",
+          "Award Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Requested Units",
+          "Award Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "4250.00",
+    "artifact": {
+      "path": "/Users/rushiparikh/projects/atom-integrated-world-20261031/evidence/grants-composite-2/active-reload-assignment-artifact.docx",
+      "bytes": 37227,
+      "sha256": "72f82ce554b846a689dbe220f346d381fdeb5ad2ad55cee9bfde26ff2f461f44",
+      "normal_font": "Arial",
+      "normal_size": 11.0,
+      "text": "Sum Approved Amount for the grant application sheet 2026-10-31 run 2\nSummary\nsum of Award Amount: 4250.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_grant_applications__grant_applications\ngrant_applications.csv\ngrant_applications\n3df58bf3-cc76-494a-9651-96edc83547f2\ngrant_applications.csv / grant_applications\nObjective\nSum Approved Amount for the grant application sheet 2026-10-31 run 2\ngrant_applications.csv / grant_applications"
+    }
+  },
+  "second": {
+    "run_id": "8d868332-0eee-4d85-bf78-7725e06718c5",
+    "status": "completed",
+    "teaching_revision": "7814ad71440ecdda+map",
+    "mapping": [
+      {
+        "concept": "Approved Amount",
+        "sheet": "grant_applications_revised",
+        "column": "Approved Award",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "1a0090e76d2870e6899f540510f9240047cd627b",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "7814ad71440ecdda+map",
+        "source": "upload",
+        "dataset_name": "upload_grant_applications_revised__grant_applications_revised",
+        "external_id": "sha1:1a0090e76d2870e6899f540510f9240047cd627b",
+        "available_columns": [
+          "Grant ID",
+          "Units",
+          "Approved Award",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Units",
+          "Approved Award"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "4250.00",
+    "artifact": {
+      "path": "/Users/rushiparikh/projects/atom-integrated-world-20261031/evidence/grants-composite-2/revised-assignment-artifact.docx",
+      "bytes": 37174,
+      "sha256": "2bfabdce188e79c972f6108f4e262e7fe0826e1b64be71f12a526b660a31e481",
+      "normal_font": "Calibri",
+      "normal_size": 14.0,
+      "text": "Sum Approved Amount for the revised grant application sheet 2026-10-31\nSummary\nsum of Approved Award: 4250.00 USD\nFindings\nSources\nupload_grant_applications_revised__grant_applications_revised\ngrant_applications_revised.csv\ngrant_applications_revised\n119f79df-92d7-47b9-867b-31c7c18120db\ngrant_applications_revised.csv / grant_applications_revised\nObjective\nSum Approved Amount for the revised grant application sheet 2026-10-31\ngrant_applications_revised.csv / grant_applications_revised"
+    }
+  },
+  "teaching_revision_changed_for_new_work": true,
+  "outbox": [
+    {
+      "operation_id": "0cf6529f-c699-4936-b7b7-5aa37345b31b",
+      "to": [
+        "acceptance@example.invalid"
+      ],
+      "subject": "[Grant] Sum Approved Amount for the grant application sheet 2026-10-31 run 2",
+      "body": "Dear grants committee,\n\nResult:\n- sum of Award Amount: 4250.00 USD\n- controlled reply received: FOB destination; delivery term supplied by the customer.\nFindings:\n- grant_applications.csv / grant_applications\n  - row 2 | sheet_row | 2 | 1000.00 | USD | C2\n  - row 3 | sheet_row | 3 | 2500.00 | USD | C3\n  - row 4 | sheet_row | 4 | 750.00 | USD | C4\nSources:\n- upload_grant_applications__grant_applications\n- grant_applications.csv\n- grant_applications\n- 3df58bf3-cc76-494a-9651-96edc83547f2\n- grant_applications.csv / grant_applications\n\nGrants team",
+      "teaching_revision": "128caf90451c6c2b+36031bfcb3779de3+map"
+    }
+  ],
+  "outbox_all_lines": 2
+}

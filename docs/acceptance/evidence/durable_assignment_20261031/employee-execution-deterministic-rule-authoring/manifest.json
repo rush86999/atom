@@ -1,0 +1,29 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-deterministic-rule-authoring",
+  "source_checkpoint": "31ba9725e02a",
+  "final_candidate": "31ba9725e02a",
+  "note": "Deterministic rules authored through the ordinary canvas capability panel on clean source 31ba9725e02a (dirty=false). Not a developer-installed manifest.",
+  "files": {
+    "README.md": {
+      "sha256": "0c575cb17f4dd793de4f862d4c82033bea28e5a8a4a03ff24a650062034edba1",
+      "bytes": 1426
+    },
+    "capability.csv": {
+      "sha256": "80b1a87b0ef0f406b60db22dd41b9a2b2b3107b7b759ee0a830947b580003c43",
+      "bytes": 79
+    },
+    "manifest-authoring.json": {
+      "sha256": "fe7453ccce010a4ec2df48deb9dcce1687ecb4777375cb99949789874d9dd46d",
+      "bytes": 1647
+    },
+    "result.json": {
+      "sha256": "0d1fdf3872463d383c9ca3c2dfad3134ccae0c614734e15790a70b21d2bf7bf7",
+      "bytes": 1471
+    },
+    "screenshot.png": {
+      "sha256": "39997fc5752310d3519e3d9a80e2efa082881763cc4d8b03ea8cd5ab48373381",
+      "bytes": 164809
+    }
+  }
+}

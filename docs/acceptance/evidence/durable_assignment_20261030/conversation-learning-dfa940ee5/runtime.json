@@ -1,0 +1,57 @@
+{
+  "schema": "atom-conversation-learning-runtime-4",
+  "world": "/Users/rushiparikh/projects/atom-conversation-context-world",
+  "database": "/Users/rushiparikh/projects/atom-conversation-context-world/atom.db",
+  "data_dir": "/Users/rushiparikh/projects/atom-conversation-context-world/data",
+  "backend": {
+    "host": "127.0.0.1",
+    "port": 8071,
+    "product_profile": "core",
+    "local_only": true,
+    "scheduler": false,
+    "ingestion_sync": false,
+    "turn_decision_routing": false,
+    "task_lifecycle_enabled": true,
+    "model_runtime": "local Ollama"
+  },
+  "frontend": {
+    "host": "127.0.0.1",
+    "port": 3130,
+    "build": "next build --webpack",
+    "public_api_url": "http://127.0.0.1:8071",
+    "loopback_allowed": true
+  },
+  "agent": {
+    "id": "agent-browser-final",
+    "name": "Browser Learning Agent",
+    "workspace_id": "default"
+  },
+  "lesson": {
+    "id": "77fcb41c777f45b1bf50e4a6f5644267",
+    "revision": 1,
+    "context": {
+      "customer": "Customer-A",
+      "qualification": "licensed"
+    },
+    "method": "multiply_sum",
+    "inputs": ["Qty", "Price"],
+    "output_unit": "USD"
+  },
+  "campaign_sessions": {
+    "prefix": "boundary-final-prefix",
+    "ambiguous": "boundary-final-ambig",
+    "malformed": "boundary-final-malformed",
+    "compound": "boundary-final-compound"
+  },
+  "compound_approval": {
+    "draft_canvas_id": "93282faa-f516-4597-add3-36bd3fc2d224",
+    "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+    "hitl_id": "26e5c037-0f39-4f2c-9421-ca3cc7e39e16",
+    "controlled_transport_result": "handled/resumed; draft_only; no real send"
+  },
+  "source_service_8001": {
+    "pid": 19046,
+    "restarted": false,
+    "note": "The pre-existing source service was left untouched; all evidence uses the isolated world on 8071."
+  }
+}

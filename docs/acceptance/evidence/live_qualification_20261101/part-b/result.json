@@ -1,0 +1,111 @@
+{
+  "schema": "atom-live-qualification-b-result-1",
+  "passed": true,
+  "run_id": "9ac79044-0d44-446e-8da8-2482709aa350",
+  "provider_acceptance": "sent",
+  "sent_items_matches": 1,
+  "grant": {
+    "grant_id": "sga-live-qual-1793535072",
+    "actions": [
+      "outbound"
+    ],
+    "max_effects": 1,
+    "used_effects": 1,
+    "recipients": [
+      "rish@brennan.ca"
+    ],
+    "expires_at": "2026-11-02T12:11:12.740114Z",
+    "granted_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "granted_at": "2026-11-01T12:11:12.758675+00:00",
+    "status": "exhausted",
+    "usage": [
+      {
+        "use": 1,
+        "step_id": "send",
+        "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+        "at": "2026-11-01T12:11:12.841650+00:00"
+      }
+    ]
+  },
+  "exact_body_sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
+  "durable_binding_body_sha256": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696",
+  "graph_raw_body_sha256": "9049028366bc9edad808241bac312d2578f6845f7e4b1f7130924972a6fabe4b",
+  "normalized_body_verified": true,
+  "sent_message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAHvYQP3AAA=",
+  "internet_message_id": "<YQBPR0101MB474880A00C3F4D8766081B98AC6B2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>",
+  "sent_at": "2026-11-01T12:11:13Z",
+  "recipient": [
+    "rish@brennan.ca"
+  ],
+  "subject": "[Atom qualification] One authorized send 2026-11-01",
+  "has_attachments": false,
+  "restart_terminal": true,
+  "no_second_effect": true,
+  "verification_checks": [
+    {
+      "name": "exact body file matches the frozen hash",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "normal token resolver returned a usable grant",
+      "ok": true,
+      "detail": {
+        "state": "valid",
+        "token_available": true,
+        "refresh_attempted": false,
+        "refresh_succeeded": false,
+        "refresh_token_replaced": false,
+        "requires_reconnect": false,
+        "retryable": false,
+        "detail": ""
+      }
+    },
+    {
+      "name": "mailbox identity is the authorized account",
+      "ok": true,
+      "detail": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(id,userPrincipalName,mail,displayName)/$entity",
+        "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+        "userPrincipalName": "rish@brennan.ca",
+        "mail": "rish@brennan.ca",
+        "displayName": "Rish Maniar"
+      }
+    },
+    {
+      "name": "restart left the operation terminal",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "restart did not add a second Sent Items row",
+      "ok": true,
+      "detail": {
+        "matches": 1
+      }
+    },
+    {
+      "name": "one-use grant is exhausted after one effect",
+      "ok": true,
+      "detail": {
+        "used": 1,
+        "max": 1,
+        "status": "exhausted"
+      }
+    },
+    {
+      "name": "durable binding still carries the exact body",
+      "ok": true,
+      "detail": "0b8c96d5aab954cc4b5a879ea95c37b7680a7b0984d877d526294385d8a1e696"
+    },
+    {
+      "name": "Sent Items body matches the frozen body after Graph wrapping",
+      "ok": true,
+      "detail": {
+        "graph_raw_sha256": "9049028366bc9edad808241bac312d2578f6845f7e4b1f7130924972a6fabe4b",
+        "normalized_sha256": "00e97cf19e0a2944a1e73ec2e4bb48c3e7c024cb39dffe46bfc77fc5cc312ecd"
+      }
+    }
+  ],
+  "raw_first_pass_note": "send.json retains the raw-HTML hash check, which Exchange wrapping fails; verify-result.json is the authoritative normalized reconciliation."
+}

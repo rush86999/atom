@@ -1,0 +1,1248 @@
+
+----------------------------- live log collection ------------------------------
+2026-10-31 11:22:21 [    INFO] EscalationManager initialized
+2026-10-31 11:22:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 11:22:21 [    INFO] EscalationManager initialized
+2026-10-31 11:22:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 11:22:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 11:22:21 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-10-31 11:22:21 [    INFO] No token storage file found, starting empty
+2026-10-31 11:22:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-10-31 11:22:21 [    INFO] MCP Service initialized
+2026-10-31 11:22:21 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_integration_business_catalog.py::test_catalog_meets_readme_threshold 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:21 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_integration_business_catalog.py::test_every_provider_carries_resolvable_evidence PASSED [  0%]
+tests/test_integration_business_catalog.py::test_aliases_are_not_double_counted PASSED [  1%]
+tests/test_integration_business_catalog.py::test_named_readme_providers_are_present PASSED [  1%]
+tests/test_graphrag_pattern_fallback.py::test_failed_llm_extraction_falls_back_to_patterns 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 11:22:21 [    INFO] EscalationManager initialized
+2026-10-31 11:22:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 11:22:21 [    INFO] EscalationManager initialized
+2026-10-31 11:22:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 11:22:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 11:22:21 [    INFO] Using LLM-based extraction for document fallback-doc
+2026-10-31 11:22:21 [    INFO] LLM extraction produced nothing for fallback-doc; using pattern fallback
+2026-10-31 11:22:21 [    INFO] Pattern extraction found 3 entities
+PASSED                                                                   [  1%]
+tests/test_covpush_wfengine.py::TestConvertNodesToSteps::test_basic_conversion PASSED [  2%]
+tests/test_covpush_wfengine.py::TestConvertNodesToSteps::test_malformed_connection_skipped 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [ WARNING] Ignoring malformed connection: {'source': 'a'}
+2026-10-31 11:22:21 [ WARNING] Ignoring malformed connection: {'target': 'b'}
+PASSED                                                                   [  2%]
+tests/test_covpush_wfengine.py::TestConvertNodesToSteps::test_cycle_raises_value_error 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [   ERROR] Workflow contains cycle. Nodes in cycle: ['a', 'b']
+PASSED                                                                   [  3%]
+tests/test_covpush_wfengine.py::TestConvertNodesToSteps::test_empty_nodes PASSED [  3%]
+tests/test_covpush_wfengine.py::TestConvertNodesToSteps::test_nodes_without_connections PASSED [  3%]
+tests/test_covpush_wfengine.py::TestBuildExecutionGraph::test_graph_structure PASSED [  4%]
+tests/test_covpush_wfengine.py::TestBuildExecutionGraph::test_unknown_node_connection_ignored PASSED [  4%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_no_condition_returns_true PASSED [  5%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_evaluate_true_expression PASSED [  5%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_evaluate_false_expression PASSED [  5%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_missing_variable_is_false 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [ WARNING] Variable ghost.value not found in condition: ${ghost.value} == 1
+PASSED                                                                   [  6%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_string_comparison PASSED [  6%]
+tests/test_covpush_wfengine.py::TestConditionEvaluation::test_code_injection_blocked 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [ WARNING] SafeEval blocked: Function calls are not allowed
+2026-10-31 11:22:21 [   ERROR] Code injection blocked in condition '__import__('os').system('id')': Unsafe expression: Function calls are not allowed
+2026-10-31 11:22:21 [ WARNING] Variable a.__class__.__base__ not found in condition: ${a.__class__.__base__} == 1
+PASSED                                                                   [  7%]
+tests/test_covpush_wfengine.py::TestResolveParameters::test_passthrough_non_string PASSED [  7%]
+tests/test_covpush_wfengine.py::TestResolveParameters::test_pure_reference_preserves_type PASSED [  7%]
+tests/test_covpush_wfengine.py::TestResolveParameters::test_interpolation_multiple_vars PASSED [  8%]
+tests/test_covpush_wfengine.py::TestResolveParameters::test_missing_variable_raises PASSED [  8%]
+tests/test_covpush_wfengine.py::TestResolveParameters::test_get_value_from_path PASSED [  9%]
+tests/test_covpush_wfengine.py::TestSchemaValidation::test_no_schema_passes PASSED [  9%]
+tests/test_covpush_wfengine.py::TestSchemaValidation::test_valid_schema_passes PASSED [  9%]
+tests/test_covpush_wfengine.py::TestSchemaValidation::test_invalid_input_raises PASSED [ 10%]
+tests/test_covpush_wfengine.py::TestSchemaValidation::test_invalid_output_raises PASSED [ 10%]
+tests/test_covpush_wfengine.py::TestSchemaValidation::test_errors_attr_defaults PASSED [ 11%]
+tests/test_covpush_wfengine.py::TestDependencies::test_dependencies_met PASSED [ 11%]
+tests/test_covpush_wfengine.py::TestDependencies::test_dependencies_not_met PASSED [ 11%]
+tests/test_covpush_wfengine.py::TestDependencies::test_no_dependencies PASSED [ 12%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_registry_service_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [    INFO] Executing email.send with params: {}
+PASSED                                                                   [ 12%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_generic_executor_unknown_service 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [    INFO] Executing custom_thing.go with params: {}
+2026-10-31 11:22:21 [    INFO] Service custom_thing not in registry, attempting generic execution via catalog
+PASSED                                                                   [ 12%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_unknown_service_no_fallback_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [    INFO] Executing no_such_service.go with params: {}
+2026-10-31 11:22:21 [    INFO] Service no_such_service not in registry, attempting generic execution via catalog
+2026-10-31 11:22:21 [    INFO] Attempting generic execution for no_such_service.go
+2026-10-31 11:22:21 [   ERROR] Failed to fetch catalog item: Service 'no_such_service' not found in Integration Catalog
+2026-10-31 11:22:21 [ WARNING] Generic execution failed or service not found in catalog: Service 'no_such_service' not found in Integration Catalog
+2026-10-31 11:22:21 [   ERROR] Failed to execute no_such_service.go: Unknown service: no_such_service (and generic execution failed: Service 'no_such_service' not found in Integration Catalog)
+PASSED                                                                   [ 13%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_fallback_service_used 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:21 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:21 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-10-31 11:22:21 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:21 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:21 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:21 [    INFO] Attempting fallback service email.chat_postMessage
+PASSED                                                                   [ 13%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_primary_and_fallback_fail_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:22 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:22 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:22 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:22 [    INFO] Attempting fallback service stripe.chat_postMessage
+2026-10-31 11:22:22 [   ERROR] Fallback service stripe.chat_postMessage also failed: [VAL_7001] Stripe service not available
+PASSED                                                                   [ 14%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_timeout_raises_step_timeout_error 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:22 [ WARNING] Primary service email.send failed: Step s1 timed out after 0.05 seconds
+2026-10-31 11:22:22 [   ERROR] Failed to execute email.send: Step s1 timed out after 0.05 seconds
+PASSED                                                                   [ 14%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_fallback_timeout_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:22 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:22 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:22 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:22 [    INFO] Attempting fallback service email.chat_postMessage
+2026-10-31 11:22:22 [   ERROR] Fallback service email.chat_postMessage also failed: Fallback service email.chat_postMessage timed out after 0.05s
+PASSED                                                                   [ 14%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_status_error_dict_fails_step 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:22 [ WARNING] Primary service email.send failed: Step s1 failed: boom
+2026-10-31 11:22:22 [   ERROR] Failed to execute email.send: Step s1 failed: boom
+PASSED                                                                   [ 15%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_ai_service_executes_without_type_error 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing ai.summarize with params: {}
+PASSED                                                                   [ 15%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_calendar_database_webhook_services_work 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing calendar.run with params: {}
+2026-10-31 11:22:22 [    INFO] Executing database.run with params: {}
+2026-10-31 11:22:22 [    INFO] Executing webhook.run with params: {}
+PASSED                                                                   [ 16%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_mcp_service_error_surfaces_as_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing mcp.do with params: {}
+2026-10-31 11:22:22 [   ERROR] Workflow MCP action 'do' failed: server_id is required for MCP actions
+2026-10-31 11:22:22 [ WARNING] Primary service mcp.do failed: Step s1 failed: MCP action failed
+2026-10-31 11:22:22 [   ERROR] Failed to execute mcp.do: Step s1 failed: MCP action failed
+PASSED                                                                   [ 16%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_email_automation_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing email_automation.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Email automation failed: Unknown email_automation action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service email_automation.nope failed: Step s1 failed: Unknown email_automation action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute email_automation.nope: Step s1 failed: Unknown email_automation action: nope
+PASSED                                                                   [ 16%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_email_automation_draft_nudge 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing email_automation.draft_nudge with params: {}
+PASSED                                                                   [ 17%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_gmail_no_token_raises_auth_error 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing gmail.send_email with params: {}
+2026-10-31 11:22:22 [    INFO] Executing Gmail action send_email with connection None (Token found: False)
+2026-10-31 11:22:22 [   ERROR] Gmail execution failed: [AUTH_1001] Gmail authentication required (no token found)
+2026-10-31 11:22:22 [ WARNING] Primary service gmail.send_email failed: [AUTH_1001] Gmail authentication required (no token found)
+2026-10-31 11:22:22 [   ERROR] Failed to execute gmail.send_email: [AUTH_1001] Gmail authentication required (no token found)
+PASSED                                                                   [ 17%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_slack_unsupported_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing slack.totally_unknown with params: {}
+2026-10-31 11:22:22 [    INFO] Executing Slack action totally_unknown with connection c1 (Token found: True)
+2026-10-31 11:22:22 [   ERROR] Slack execution failed: Unsupported Slack action: totally_unknown. Supported actions: chat_postMessage, chat_getChannels, chat_getUsers, get_channel_info, get_channel_history, update_message, delete_message, search_messages, files_list, files_get_upload_url_external, reactions_add
+2026-10-31 11:22:22 [ WARNING] Primary service slack.totally_unknown failed: Unsupported Slack action: totally_unknown. Supported actions: chat_postMessage, chat_getChannels, chat_getUsers, get_channel_info, get_channel_history, update_message, delete_message, search_messages, files_list, files_get_upload_url_external, reactions_add
+2026-10-31 11:22:22 [   ERROR] Failed to execute slack.totally_unknown: Unsupported Slack action: totally_unknown. Supported actions: chat_postMessage, chat_getChannels, chat_getUsers, get_channel_info, get_channel_history, update_message, delete_message, search_messages, files_list, files_get_upload_url_external, reactions_add
+PASSED                                                                   [ 18%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_outlook_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing outlook.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Outlook execution failed: Unknown Outlook action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service outlook.nope failed: Unknown Outlook action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute outlook.nope: Unknown Outlook action: nope
+PASSED                                                                   [ 18%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_jira_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing jira.nope with params: {}
+2026-10-31 11:22:22 [ WARNING] JiraService initialized for tenant default... without credentials
+2026-10-31 11:22:22 [   ERROR] Jira execution failed: Unknown Jira action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service jira.nope failed: Unknown Jira action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute jira.nope: Unknown Jira action: nope
+PASSED                                                                   [ 18%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_trello_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing trello.nope with params: {}
+2026-10-31 11:22:22 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-10-31 11:22:22 [   ERROR] Trello execution failed: Unknown Trello action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service trello.nope failed: Unknown Trello action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute trello.nope: Unknown Trello action: nope
+PASSED                                                                   [ 19%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_zoho_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing zoho_crm.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Zoho CRM execution failed: Unknown Zoho CRM action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service zoho_crm.nope failed: Unknown Zoho CRM action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute zoho_crm.nope: Unknown Zoho CRM action: nope
+2026-10-31 11:22:22 [    INFO] Executing zoho_books.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Zoho Books execution failed: Unknown Zoho Books action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service zoho_books.nope failed: Unknown Zoho Books action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute zoho_books.nope: Unknown Zoho Books action: nope
+2026-10-31 11:22:22 [    INFO] Executing zoho_inventory.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Zoho Inventory execution failed: Unknown Zoho Inventory action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service zoho_inventory.nope failed: Unknown Zoho Inventory action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute zoho_inventory.nope: Unknown Zoho Inventory action: nope
+PASSED                                                                   [ 19%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_shopify_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing shopify.nope with params: {}
+2026-10-31 11:22:22 [   ERROR] Shopify execution failed: Unknown Shopify action: nope
+2026-10-31 11:22:22 [ WARNING] Primary service shopify.nope failed: Unknown Shopify action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute shopify.nope: Unknown Shopify action: nope
+PASSED                                                                   [ 20%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_goal_management_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing goal_management.nope with params: {}
+2026-10-31 11:22:22 [ WARNING] Primary service goal_management.nope failed: Unknown goal_management action: nope
+2026-10-31 11:22:22 [   ERROR] Failed to execute goal_management.nope: Unknown goal_management action: nope
+PASSED                                                                   [ 20%]
+tests/test_covpush_wfengine.py::TestExecuteStep::test_stripe_unavailable_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Executing stripe.x with params: {}
+2026-10-31 11:22:22 [ WARNING] Primary service stripe.x failed: [VAL_7001] Stripe service not available
+2026-10-31 11:22:22 [   ERROR] Failed to execute stripe.x: [VAL_7001] Stripe service not available
+PASSED                                                                   [ 20%]
+tests/test_covpush_wfengine.py::TestExecuteAgentWithMcp::test_agent_execution_without_db_crash 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [   ERROR] Agent agent-xyz not found for MCP execution
+PASSED                                                                   [ 21%]
+tests/test_covpush_wfengine.py::TestExecuteAgentWithMcp::test_agent_not_found_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [   ERROR] Agent None not found for MCP execution
+PASSED                                                                   [ 21%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_missing_workflow_id 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [   ERROR] Error executing sub-workflow: workflow_id is required for workflow actions
+PASSED                                                                   [ 22%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_subworkflow_completes 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [    INFO] Sub-workflow wf-sub execution sub-exec completed successfully
+PASSED                                                                   [ 22%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_subworkflow_fails 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [   ERROR] Sub-workflow wf-sub execution sub-exec failed: nope
+PASSED                                                                   [ 22%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_subworkflow_cancelled_and_paused 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:22 [ WARNING] Sub-workflow wf-sub execution sub-exec was cancelled
+2026-10-31 11:22:22 [ WARNING] Sub-workflow wf-sub execution sub-exec is paused, waiting for input
+PASSED                                                                   [ 23%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_subworkflow_timeout 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [ WARNING] Sub-workflow wf-sub execution sub-exec timed out after 0.05s
+PASSED                                                                   [ 23%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_load_workflow_by_id PASSED [ 24%]
+tests/test_covpush_wfengine.py::TestExecuteWorkflowAction::test_load_workflow_by_id_missing_file PASSED [ 24%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_start_workflow_background_tasks PASSED [ 24%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_start_workflow_normalizes_workflow_id_key PASSED [ 25%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_resume_workflow PASSED [ 25%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_resume_workflow_not_found PASSED [ 25%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_resume_workflow_not_paused 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [ WARNING] Cannot resume execution exec-1 in state PENDING
+PASSED                                                                   [ 26%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_cancel_execution 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Cancellation requested for execution exec-1
+PASSED                                                                   [ 26%]
+tests/test_covpush_wfengine.py::TestWorkflowLifecycle::test_singleton_engine PASSED [ 27%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_successful_run 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+PASSED                                                                   [ 27%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_successful_run_single_task 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+PASSED                                                                   [ 27%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_step_failure_marks_workflow_failed 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:23 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:23 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:23 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:23 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:23 [   ERROR] Step s1 failed: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 28%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_missing_input_pauses 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Pausing execution exec-1 at step s1: Variable input.missing_var not found
+PASSED                                                                   [ 28%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_cancellation_stops_run 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Cancellation requested for execution exec-1
+2026-10-31 11:22:23 [    INFO] Execution exec-1 cancelled
+PASSED                                                                   [ 29%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_dependency_not_met_skips_step 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [ WARNING] Step s2 skipped — dependencies not met
+PASSED                                                                   [ 29%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_condition_not_met_skips_step 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Step s1 condition not met: ${input.x} == 99
+PASSED                                                                   [ 29%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_completed_step_skipped_on_resume 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-10-31 11:22:23 [ WARNING] Cannot resume execution exec-1 in state COMPLETED
+PASSED                                                                   [ 30%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_governance_block_pauses_workflow_for_hitl 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [ WARNING] 🚫 Governance pause for execution exec-1 at step s1: not allowed
+PASSED                                                                   [ 30%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_output_error_dict_fails_run 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [ WARNING] Primary service email.send failed: Step s1 failed: inner boom
+2026-10-31 11:22:23 [   ERROR] Failed to execute email.send: Step s1 failed: inner boom
+2026-10-31 11:22:23 [   ERROR] Step s1 failed: Step s1 failed: inner boom
+PASSED                                                                   [ 31%]
+tests/test_covpush_wfengine.py::TestRunExecutionLinear::test_marketplace_tracking_called 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:23 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+PASSED                                                                   [ 31%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_completion 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:23 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+PASSED                                                                   [ 31%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_conditional_branch_not_activated 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:24 [ WARNING] Workflow execution exec-1 ended with pending steps
+PASSED                                                                   [ 32%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_step_failure_fails_workflow 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:24 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:24 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Step a failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Workflow execution exec-1 failed due to step failure: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 32%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_continue_on_error_activates_downstream 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:24 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:24 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Step a failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [ WARNING] Step a failed but continue_on_error is True, marking as failed but continuing workflow
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:24 [ WARNING] Workflow execution exec-1 ended with pending steps
+PASSED                                                                   [ 33%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_cancellation 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Cancellation requested for execution exec-1
+2026-10-31 11:22:24 [    INFO] Workflow exec-1 cancelled by user request
+PASSED                                                                   [ 33%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_resume_completed_steps_activate_connections 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+PASSED                                                                   [ 33%]
+tests/test_covpush_wfengine.py::TestRunExecutionGraph::test_graph_execution_timeout_cleanup 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:24 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:24 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Step a failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:24 [   ERROR] Workflow execution exec-1 failed due to step failure: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 34%]
+tests/test_covpush_wfengine.py::TestRunWorkflowArborRefinement::test_success_path 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:24 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=98cfe789-86a2-4ea8-baa9-18174fcb1885 tier=solo
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:24 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-10-31 11:22:24 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:24 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-10-31 11:22:25 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.91
+PASSED                                                                   [ 34%]
+tests/test_covpush_wfengine.py::TestRunWorkflowArborRefinement::test_failure_path 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=9608b44f-0f86-4edb-bdfb-e6063b416672 tier=solo
+2026-10-31 11:22:25 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:25 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:25 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:25 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:25 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:25 [   ERROR] Step s1 failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:25 [ WARNING] [Arbor/Workflow] Workflow execution FAILED: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 35%]
+tests/test_covpush_wfengine.py::TestDebugSessions::test_create_and_get 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 4e3274e5-6947-4ac5-84ad-0ef78b98af4a for workflow wf-1
+PASSED                                                                   [ 35%]
+tests/test_covpush_wfengine.py::TestDebugSessions::test_create_default_name 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 58343ac9-e68b-45be-bfd0-73c425cde604 for workflow wf-1
+PASSED                                                                   [ 35%]
+tests/test_covpush_wfengine.py::TestDebugSessions::test_active_sessions_filter 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session b010d622-8ed5-424a-9b4e-1ac617e34ec3 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Created debug session ea49575c-9152-4f4a-b4ea-7c2f5a57a7fa for workflow wf-1
+PASSED                                                                   [ 36%]
+tests/test_covpush_wfengine.py::TestDebugSessions::test_pause_resume_complete 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session f4be081b-f70e-4a9e-81e3-11e95d9383bc for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Paused debug session f4be081b-f70e-4a9e-81e3-11e95d9383bc
+2026-10-31 11:22:25 [    INFO] Resumed debug session f4be081b-f70e-4a9e-81e3-11e95d9383bc
+2026-10-31 11:22:25 [    INFO] Completed debug session f4be081b-f70e-4a9e-81e3-11e95d9383bc
+PASSED                                                                   [ 36%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_add_remove_toggle_get 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 3e12f862-ae35-4200-ba4b-e53d6e37629b on node node-a
+2026-10-31 11:22:25 [    INFO] Removed breakpoint 3e12f862-ae35-4200-ba4b-e53d6e37629b
+2026-10-31 11:22:25 [    INFO] Added breakpoint ee6c92ce-90a1-41ab-af79-20aa5435a9af on node node-a
+2026-10-31 11:22:25 [    INFO] Toggled breakpoint ee6c92ce-90a1-41ab-af79-20aa5435a9af to disabled=True
+2026-10-31 11:22:25 [    INFO] Toggled breakpoint ee6c92ce-90a1-41ab-af79-20aa5435a9af to disabled=False
+PASSED                                                                   [ 37%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_get_breakpoints_filters 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 8d38b69e-c964-4f4d-a23e-70e20eb9f65c on node n1
+2026-10-31 11:22:25 [    INFO] Added breakpoint 5a6e2388-3026-4e5f-a9ae-7e0612956aeb on node n2
+PASSED                                                                   [ 37%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_hit_pauses 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint fb9b26bc-72ec-4ef3-a487-b4d1cc02e0c4 on node node-a
+PASSED                                                                   [ 37%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_hit_log_message 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint eeb935ca-479f-4953-a2cf-8c1461be4de0 on node node-a
+PASSED                                                                   [ 38%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_hit_condition_false 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 83384004-ed46-44ea-b79e-8dd6c917e656 on node node-a
+PASSED                                                                   [ 38%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_hit_condition_true 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 98cfbc3b-86c5-48b5-aa5f-81b51e738705 on node node-a
+PASSED                                                                   [ 38%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_hit_limit 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 72a29748-4cdb-44d1-8de9-502cd7d21d52 on node node-a
+PASSED                                                                   [ 39%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_check_breakpoint_session_scoped 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 438f78b5-f5a4-49b2-a86c-69bdd6945f07 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added breakpoint e1cb18b9-d01a-476e-a936-9f57b39e1d07 on node node-a
+PASSED                                                                   [ 39%]
+tests/test_covpush_wfengine.py::TestBreakpoints::test_disabled_breakpoint_ignored 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Added breakpoint 4905d42b-1de9-4f1a-b544-9e5139e73a50 on node node-a
+2026-10-31 11:22:25 [    INFO] Toggled breakpoint 4905d42b-1de9-4f1a-b544-9e5139e73a50 to disabled=True
+PASSED                                                                   [ 40%]
+tests/test_covpush_wfengine.py::TestStepControl::test_step_over 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session a3a134b6-5a1d-4d16-a7f1-686c9be9798c for workflow wf-1
+PASSED                                                                   [ 40%]
+tests/test_covpush_wfengine.py::TestStepControl::test_step_into 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session cc456132-64d0-46f0-bade-819856cbe541 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Stepped into node nested-1, call stack depth: 1
+PASSED                                                                   [ 40%]
+tests/test_covpush_wfengine.py::TestStepControl::test_step_out 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 29a21ebd-b0c0-4bfa-84ef-af0b2c0d8aa0 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Stepped into node n1, call stack depth: 1
+2026-10-31 11:22:25 [    INFO] Stepped out to node None, call stack depth: 0
+2026-10-31 11:22:25 [ WARNING] Cannot step out: call stack is empty for session 29a21ebd-b0c0-4bfa-84ef-af0b2c0d8aa0
+PASSED                                                                   [ 41%]
+tests/test_covpush_wfengine.py::TestStepControl::test_continue_and_pause_execution 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 3ba10d77-abec-4f36-88a7-52c5dff6927f for workflow wf-1
+PASSED                                                                   [ 41%]
+tests/test_covpush_wfengine.py::TestTraces::test_create_and_complete_trace PASSED [ 42%]
+tests/test_covpush_wfengine.py::TestTraces::test_complete_trace_error PASSED [ 42%]
+tests/test_covpush_wfengine.py::TestTraces::test_get_execution_traces PASSED [ 42%]
+tests/test_covpush_wfengine.py::TestTraces::test_calculate_variable_changes PASSED [ 43%]
+tests/test_covpush_wfengine.py::TestTraces::test_complete_trace_duration_and_changes PASSED [ 43%]
+tests/test_covpush_wfengine.py::TestVariables::test_create_snapshot_and_previews PASSED [ 44%]
+tests/test_covpush_wfengine.py::TestVariables::test_get_variables_and_watch PASSED [ 44%]
+tests/test_covpush_wfengine.py::TestVariables::test_modify_and_bulk_modify 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session d8af2fd4-b651-45fa-bd38-c2f219679743 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Modified variable x in session d8af2fd4-b651-45fa-bd38-c2f219679743
+2026-10-31 11:22:25 [    INFO] Modified variable y in session d8af2fd4-b651-45fa-bd38-c2f219679743
+PASSED                                                                   [ 44%]
+tests/test_covpush_wfengine.py::TestSessionPersistence::test_export_and_import 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 3b131d22-f081-4886-8ab9-bdb1ce59a1a6 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added breakpoint 9f6f8c65-0e12-44bd-865b-f15baaa0f93a on node n1
+2026-10-31 11:22:25 [    INFO] Exported debug session 3b131d22-f081-4886-8ab9-bdb1ce59a1a6
+2026-10-31 11:22:25 [    INFO] Created debug session 75fd4108-c734-4fcc-a7a5-ee2ad4455e2e for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added breakpoint ef1b0e72-225f-41d5-8023-dcb1399bed82 on node n1
+2026-10-31 11:22:25 [    INFO] Imported debug session as 75fd4108-c734-4fcc-a7a5-ee2ad4455e2e
+PASSED                                                                   [ 45%]
+tests/test_covpush_wfengine.py::TestSessionPersistence::test_import_restore_variables_and_breakpoints 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session aba2a3e6-beaf-40cc-8b96-ac12558d94db for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Modified variable v in session aba2a3e6-beaf-40cc-8b96-ac12558d94db
+2026-10-31 11:22:25 [    INFO] Added breakpoint dab8b864-c5f7-4eb1-ab15-efabdebb658b on node n1
+2026-10-31 11:22:25 [    INFO] Exported debug session aba2a3e6-beaf-40cc-8b96-ac12558d94db
+2026-10-31 11:22:25 [    INFO] Created debug session e5117b3b-8674-46a1-9797-28795206443a for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added breakpoint bd96c2ef-016f-4885-a077-565ad76111c4 on node n1
+2026-10-31 11:22:25 [    INFO] Imported debug session as e5117b3b-8674-46a1-9797-28795206443a
+PASSED                                                                   [ 45%]
+tests/test_covpush_wfengine.py::TestProfiling::test_start_profiling 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 51f16090-716f-4e3a-b486-7c7232bafd6e for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Started performance profiling for session 51f16090-716f-4e3a-b486-7c7232bafd6e
+PASSED                                                                   [ 46%]
+tests/test_covpush_wfengine.py::TestProfiling::test_record_step_timing_and_report 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 23fa4c3d-c1fc-4530-9809-10014772a193 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Started performance profiling for session 23fa4c3d-c1fc-4530-9809-10014772a193
+PASSED                                                                   [ 46%]
+tests/test_covpush_wfengine.py::TestCollaboration::test_add_remove_collaborators 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 329949d9-9292-4f51-a5ae-65f909f0bfb5 for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added collaborator user-2 with permission viewer to session 329949d9-9292-4f51-a5ae-65f909f0bfb5
+2026-10-31 11:22:25 [    INFO] Removed collaborator user-2 from session 329949d9-9292-4f51-a5ae-65f909f0bfb5
+PASSED                                                                   [ 46%]
+tests/test_covpush_wfengine.py::TestCollaboration::test_permission_hierarchy 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session b4d46593-0eed-422e-9578-2c890adf325e for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added collaborator user-2 with permission viewer to session b4d46593-0eed-422e-9578-2c890adf325e
+PASSED                                                                   [ 47%]
+tests/test_covpush_wfengine.py::TestCollaboration::test_get_session_collaborators 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created debug session 39b761a3-6ad3-43e8-b0f3-36b63eec648e for workflow wf-1
+2026-10-31 11:22:25 [    INFO] Added collaborator user-2 with permission operator to session 39b761a3-6ad3-43e8-b0f3-36b63eec648e
+PASSED                                                                   [ 47%]
+tests/test_covpush_wfengine.py::TestTraceStreaming::test_stream_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created trace stream trace_s1_exec-1_12d59ea5 for execution exec-1
+2026-10-31 11:22:25 [    INFO] Trace stream update (no WebSocket): trace_s1_exec-1_12d59ea5
+2026-10-31 11:22:25 [    INFO] Closed trace stream trace_s1_exec-1_12d59ea5
+2026-10-31 11:22:25 [    INFO] Closed trace stream trace_s1_exec-1_12d59ea5
+PASSED                                                                   [ 48%]
+tests/test_covpush_wfengine.py::TestTraceStreaming::test_async_websocket_helpers PASSED [ 48%]
+tests/test_covpush_wfengine.py::TestAnalyticsInit::test_init_creates_db 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_init_creates_db0/an.db
+PASSED                                                                   [ 48%]
+tests/test_covpush_wfengine.py::TestAnalyticsInit::test_tilde_path_expansion 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_tilde_path_expansion0/an2.db
+PASSED                                                                   [ 49%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_workflow_start 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_workflow_start0/an.db
+PASSED                                                                   [ 49%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_completion_statuses 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_completion_statuses0/an.db
+PASSED                                                                   [ 50%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_step_execution_with_and_without_duration 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_step_execution_with0/an.db
+PASSED                                                                   [ 50%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_manual_override 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_manual_override0/an.db
+PASSED                                                                   [ 50%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_resource_usage 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_resource_usage0/an.db
+PASSED                                                                   [ 51%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_user_activity 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_user_activity0/an.db
+PASSED                                                                   [ 51%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_track_metric 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_track_metric0/an.db
+PASSED                                                                   [ 51%]
+tests/test_covpush_wfengine.py::TestAnalyticsTracking::test_flush_persists_buffers 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_flush_persists_buffers0/an.db
+PASSED                                                                   [ 52%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_empty_db_metrics 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_empty_db_metrics0/an.db
+PASSED                                                                   [ 52%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_performance_metrics_aggregation 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_performance_metrics_aggre0/an.db
+PASSED                                                                   [ 53%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_cached_metrics_returned 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_cached_metrics_returned0/an.db
+PASSED                                                                   [ 53%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_stale_cache_not_returned 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_stale_cache_not_returned0/an.db
+PASSED                                                                   [ 53%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_failed_executions_and_errors 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_failed_executions_and_err0/an.db
+PASSED                                                                   [ 54%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_all_workflows_metrics 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_all_workflows_metrics0/an.db
+PASSED                                                                   [ 54%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_all_workflows_error_breakdown 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_all_workflows_error_break0/an.db
+PASSED                                                                   [ 55%]
+tests/test_covpush_wfengine.py::TestAnalyticsPerformance::test_get_performance_metrics_specific 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_get_performance_metrics_s0/an.db
+PASSED                                                                   [ 55%]
+tests/test_covpush_wfengine.py::TestAnalyticsSystemOverview::test_system_overview 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_system_overview0/an.db
+PASSED                                                                   [ 55%]
+tests/test_covpush_wfengine.py::TestAnalyticsSystemOverview::test_system_overview_empty 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_system_overview_empty0/an.db
+PASSED                                                                   [ 56%]
+tests/test_covpush_wfengine.py::TestAnalyticsAlerts::test_create_alert_and_get_all 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:25 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_create_alert_and_get_all0/an.db
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:25 [    INFO] Created alert: High failures (a1)
+PASSED                                                                   [ 56%]
+tests/test_covpush_wfengine.py::TestAnalyticsAlerts::test_check_alerts_trigger_and_resolve 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_check_alerts_trigger_and_0/an.db
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created alert: Spike (a1)
+2026-10-31 11:22:26 [CRITICAL] ALERT: Spike - d (Severity: critical)
+2026-10-31 11:22:26 [ WARNING] Alert triggered: Spike
+2026-10-31 11:22:26 [    INFO] Alert resolved: Spike
+PASSED                                                                   [ 57%]
+tests/test_covpush_wfengine.py::TestAnalyticsAlerts::test_update_and_delete_alert 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_update_and_delete_alert0/an.db
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created alert: N (a1)
+2026-10-31 11:22:26 [    INFO] Deleted alert: a1
+PASSED                                                                   [ 57%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_unique_workflow_count 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_unique_workflow_count0/an.db
+PASSED                                                                   [ 57%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_workflow_name_and_ids 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_workflow_name_and_ids0/an.db
+PASSED                                                                   [ 58%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_last_execution_time 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_last_execution_time0/an.db
+PASSED                                                                   [ 58%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_execution_timeline 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_execution_timeline0/an.db
+PASSED                                                                   [ 59%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_error_breakdown_all 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_error_breakdown_all0/an.db
+PASSED                                                                   [ 59%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_error_breakdown_specific 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_error_breakdown_specific0/an.db
+PASSED                                                                   [ 59%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_recent_events 
+-------------------------------- live log setup --------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_recent_events0/an.db
+PASSED                                                                   [ 60%]
+tests/test_covpush_wfengine.py::TestAnalyticsQueries::test_background_processing_enabled 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Workflow Analytics Engine initialized with database: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-2083/test_background_processing_ena0/bg.db
+PASSED                                                                   [ 60%]
+tests/test_covpush_wfengine.py::TestVersioningBasics::test_checksum_and_change_type PASSED [ 61%]
+tests/test_covpush_wfengine.py::TestVersioningBasics::test_change_type_detection PASSED [ 61%]
+tests/test_covpush_wfengine.py::TestVersioningBasics::test_node_based_workflow_with_null_steps PASSED [ 61%]
+tests/test_covpush_wfengine.py::TestVersioningBasics::test_bump_version PASSED [ 62%]
+tests/test_covpush_wfengine.py::TestVersionCRUD::test_create_version_chain 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.1 for workflow w1
+PASSED                                                                   [ 62%]
+tests/test_covpush_wfengine.py::TestVersionCRUD::test_duplicate_checksum_rejected 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [   ERROR] Error creating version: This workflow version already exists
+PASSED                                                                   [ 62%]
+tests/test_covpush_wfengine.py::TestVersionCRUD::test_get_version_and_history 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+PASSED                                                                   [ 63%]
+tests/test_covpush_wfengine.py::TestVersionCRUD::test_rollback_to_version 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.1 for workflow w1
+2026-10-31 11:22:26 [    INFO] Rolled back workflow w1 to version 1.0.0
+2026-10-31 11:22:26 [   ERROR] Error rolling back to version 9.9.9: Version 9.9.9 not found
+PASSED                                                                   [ 63%]
+tests/test_covpush_wfengine.py::TestVersionDiff::test_compare_versions_with_modified_steps 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+PASSED                                                                   [ 64%]
+tests/test_covpush_wfengine.py::TestVersionDiff::test_compare_added_removed_steps 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+PASSED                                                                   [ 64%]
+tests/test_covpush_wfengine.py::TestVersionDiff::test_compare_missing_version_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [   ERROR] Error comparing versions: One or both versions not found
+PASSED                                                                   [ 64%]
+tests/test_covpush_wfengine.py::TestVersionDiff::test_diff_cached_second_call 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+PASSED                                                                   [ 65%]
+tests/test_covpush_wfengine.py::TestVersionDiff::test_find_step_changes PASSED [ 65%]
+tests/test_covpush_wfengine.py::TestBranches::test_create_branch_and_get_branches 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created branch feature-x for workflow w1
+2026-10-31 11:22:26 [   ERROR] Error creating branch: Branch feature-x already exists
+2026-10-31 11:22:26 [   ERROR] Error creating branch: Base version 9.9.9 not found
+PASSED                                                                   [ 66%]
+tests/test_covpush_wfengine.py::TestBranches::test_merge_branch 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created branch feat for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.2.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Merged branch feat into main
+2026-10-31 11:22:26 [   ERROR] Error merging branch: Source branch ghost not found
+2026-10-31 11:22:26 [   ERROR] Error merging branch: Target branch ghost not found
+PASSED                                                                   [ 66%]
+tests/test_covpush_wfengine.py::TestVersionMetrics::test_update_and_get_metrics 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+PASSED                                                                   [ 66%]
+tests/test_covpush_wfengine.py::TestVersionMetrics::test_get_version_metrics_performance_score 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+PASSED                                                                   [ 67%]
+tests/test_covpush_wfengine.py::TestDeleteVersion::test_delete_version 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Deleted version 1.0.0 for workflow w1
+PASSED                                                                   [ 67%]
+tests/test_covpush_wfengine.py::TestDeleteVersion::test_delete_in_use_version_rejected 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created branch feat for workflow w1
+2026-10-31 11:22:26 [   ERROR] Error deleting version: Cannot delete version that is currently in use
+PASSED                                                                   [ 68%]
+tests/test_covpush_wfengine.py::TestVersionManager::test_create_workflow_version 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.0.1 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.0.2 for workflow w1
+PASSED                                                                   [ 68%]
+tests/test_covpush_wfengine.py::TestVersionManager::test_rollback_workflow_and_changes 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Created version 1.0.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.0 for workflow w1
+2026-10-31 11:22:26 [    INFO] Created version 1.1.1 for workflow w1
+2026-10-31 11:22:26 [    INFO] Rolled back workflow w1 to version 1.0.0
+PASSED                                                                   [ 68%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_slack_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing slack.chat_postMessage with params: {'channel': 'c', 'text': 'hi'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action chat_postMessage with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.list_channels with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action list_channels with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.chat_getUsers with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action chat_getUsers with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.get_channel_info with params: {'channel_id': 'c1'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action get_channel_info with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.get_channel_history with params: {'channel_id': 'c1'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action get_channel_history with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.update_message with params: {'channel_id': 'c', 'message_ts': '1', 'text': 'x'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action update_message with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.delete_message with params: {'channel_id': 'c', 'message_ts': '1'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action delete_message with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.search_messages with params: {'query': 'q'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action search_messages with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.files_list with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action files_list with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.files_get_upload_url_external with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action files_get_upload_url_external with connection c1 (Token found: True)
+2026-10-31 11:22:26 [    INFO] Executing slack.reactions_add with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action reactions_add with connection c1 (Token found: True)
+PASSED                                                                   [ 69%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_slack_missing_params_raise 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing slack.get_channel_info with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action get_channel_info with connection c1 (Token found: True)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: channel_id is required for get_channel_info
+2026-10-31 11:22:26 [ WARNING] Primary service slack.get_channel_info failed: channel_id is required for get_channel_info
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.get_channel_info: channel_id is required for get_channel_info
+2026-10-31 11:22:26 [    INFO] Executing slack.get_channel_history with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action get_channel_history with connection c1 (Token found: True)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: channel_id is required for get_channel_history
+2026-10-31 11:22:26 [ WARNING] Primary service slack.get_channel_history failed: channel_id is required for get_channel_history
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.get_channel_history: channel_id is required for get_channel_history
+2026-10-31 11:22:26 [    INFO] Executing slack.delete_message with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action delete_message with connection c1 (Token found: True)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: channel_id and message_ts are required for delete_message
+2026-10-31 11:22:26 [ WARNING] Primary service slack.delete_message failed: channel_id and message_ts are required for delete_message
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.delete_message: channel_id and message_ts are required for delete_message
+2026-10-31 11:22:26 [    INFO] Executing slack.search_messages with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action search_messages with connection c1 (Token found: True)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: query is required for search_messages
+2026-10-31 11:22:26 [ WARNING] Primary service slack.search_messages failed: query is required for search_messages
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.search_messages: query is required for search_messages
+2026-10-31 11:22:26 [    INFO] Executing slack.update_message with params: {'channel_id': 'c'}
+2026-10-31 11:22:26 [    INFO] Executing Slack action update_message with connection c1 (Token found: True)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: channel_id, message_ts, and text are required for update_message
+2026-10-31 11:22:26 [ WARNING] Primary service slack.update_message failed: channel_id, message_ts, and text are required for update_message
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.update_message: channel_id, message_ts, and text are required for update_message
+PASSED                                                                   [ 69%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_asana_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] AsanaService initialized for tenant default... without access token
+2026-10-31 11:22:26 [    INFO] Executing asana.create_task with params: {'name': 'n', 'workspace': 'w'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action create_task with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.get_tasks with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_tasks with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.get_projects with params: {'workspace': 'w'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_projects with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.update_task with params: {'task_gid': 't1', 'name': 'x'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action update_task with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.add_comment with params: {'task_gid': 't1', 'text': 'hi'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action add_comment with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.get_workspaces with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_workspaces with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.get_users with params: {'workspace': 'w'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_users with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.get_teams with params: {'workspace': 'w'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_teams with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.search_tasks with params: {'workspace': 'w', 'query': 'q'}
+2026-10-31 11:22:26 [    INFO] Executing Asana action search_tasks with connection c1
+2026-10-31 11:22:26 [    INFO] Executing asana.create_project with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action create_project with connection c1
+PASSED                                                                   [ 70%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_asana_missing_params_raise 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing asana.update_task with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action update_task with connection c1
+2026-10-31 11:22:26 [   ERROR] Asana execution failed: task_gid is required for update_task
+2026-10-31 11:22:26 [ WARNING] Primary service asana.update_task failed: task_gid is required for update_task
+2026-10-31 11:22:26 [   ERROR] Failed to execute asana.update_task: task_gid is required for update_task
+2026-10-31 11:22:26 [    INFO] Executing asana.add_comment with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action add_comment with connection c1
+2026-10-31 11:22:26 [   ERROR] Asana execution failed: task_gid and text are required for add_comment
+2026-10-31 11:22:26 [ WARNING] Primary service asana.add_comment failed: task_gid and text are required for add_comment
+2026-10-31 11:22:26 [   ERROR] Failed to execute asana.add_comment: task_gid and text are required for add_comment
+2026-10-31 11:22:26 [    INFO] Executing asana.get_users with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action get_users with connection c1
+2026-10-31 11:22:26 [   ERROR] Asana execution failed: workspace is required for get_users
+2026-10-31 11:22:26 [ WARNING] Primary service asana.get_users failed: workspace is required for get_users
+2026-10-31 11:22:26 [   ERROR] Failed to execute asana.get_users: workspace is required for get_users
+2026-10-31 11:22:26 [    INFO] Executing asana.search_tasks with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Asana action search_tasks with connection c1
+2026-10-31 11:22:26 [   ERROR] Asana execution failed: workspace and query are required for search_tasks
+2026-10-31 11:22:26 [ WARNING] Primary service asana.search_tasks failed: workspace and query are required for search_tasks
+2026-10-31 11:22:26 [   ERROR] Failed to execute asana.search_tasks: workspace and query are required for search_tasks
+PASSED                                                                   [ 70%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_discord_action 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing discord.send_message with params: {'channel_id': 'c', 'content': 'hi'}
+2026-10-31 11:22:26 [    INFO] Executing Discord action send_message with connection c1
+PASSED                                                                   [ 70%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_hubspot_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing hubspot.create_contact with params: {'email': 'a@b.c'}
+2026-10-31 11:22:26 [    INFO] Executing HubSpot action create_contact with connection c1
+2026-10-31 11:22:26 [    INFO] Executing hubspot.create_deal with params: {'dealname': 'd'}
+2026-10-31 11:22:26 [    INFO] Executing HubSpot action create_deal with connection c1
+PASSED                                                                   [ 71%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_salesforce_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing salesforce.create_lead with params: {'lastname': 'L'}
+2026-10-31 11:22:26 [    INFO] Executing Salesforce action create_lead with connection c1
+2026-10-31 11:22:26 [    INFO] Executing salesforce.create_contact with params: {'lastname': 'L'}
+2026-10-31 11:22:26 [    INFO] Executing Salesforce action create_contact with connection c1
+2026-10-31 11:22:26 [    INFO] Executing salesforce.create_opportunity with params: {'name': 'o'}
+2026-10-31 11:22:26 [    INFO] Executing Salesforce action create_opportunity with connection c1
+PASSED                                                                   [ 71%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_salesforce_no_token_raises 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing salesforce.create_lead with params: {'lastname': 'L'}
+2026-10-31 11:22:26 [    INFO] Executing Salesforce action create_lead with connection c1
+2026-10-31 11:22:26 [   ERROR] Salesforce execution failed: [AUTH_1001] Salesforce authentication required (token + instance_url)
+2026-10-31 11:22:26 [ WARNING] Primary service salesforce.create_lead failed: [AUTH_1001] Salesforce authentication required (token + instance_url)
+2026-10-31 11:22:26 [   ERROR] Failed to execute salesforce.create_lead: [AUTH_1001] Salesforce authentication required (token + instance_url)
+PASSED                                                                   [ 72%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_github_create_issue 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing github.create_issue with params: {'owner': 'o', 'repo': 'r', 'title': 't', 'body': 'b'}
+2026-10-31 11:22:26 [    INFO] Executing GitHub action create_issue with connection c1
+PASSED                                                                   [ 72%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_zoom_create_meeting 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing zoom.create_meeting with params: {'topic': 't'}
+PASSED                                                                   [ 72%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_notion_create_page 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing notion.create_page with params: {'parent': {'database_id': 'd'}}
+PASSED                                                                   [ 73%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_outlook_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing outlook.send_email with params: {'to_recipients': ['a@b.c']}
+2026-10-31 11:22:26 [    INFO] Executing outlook.create_event with params: {}
+2026-10-31 11:22:26 [    INFO] Executing outlook.get_emails with params: {}
+2026-10-31 11:22:26 [    INFO] Executing outlook.list_messages with params: {}
+2026-10-31 11:22:26 [    INFO] Executing outlook.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Outlook execution failed: Unknown Outlook action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service outlook.nope failed: Unknown Outlook action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute outlook.nope: Unknown Outlook action: nope
+PASSED                                                                   [ 73%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_jira_trello_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing jira.issue_create with params: {}
+2026-10-31 11:22:26 [    INFO] Executing jira.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Jira execution failed: Unknown Jira action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service jira.nope failed: Unknown Jira action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute jira.nope: Unknown Jira action: nope
+2026-10-31 11:22:26 [    INFO] Executing trello.create_card with params: {}
+2026-10-31 11:22:26 [    INFO] Executing trello.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Trello execution failed: Unknown Trello action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service trello.nope failed: Unknown Trello action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute trello.nope: Unknown Trello action: nope
+PASSED                                                                   [ 74%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_stripe_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing stripe.payment_intents_create with params: {}
+2026-10-31 11:22:26 [    INFO] Executing stripe.payment_intents_create with params: {}
+2026-10-31 11:22:26 [ WARNING] Stripe action 'payment_intents_create' requires access_token but none found for connection_id: c1. Skipping execution.
+2026-10-31 11:22:26 [ WARNING] Primary service stripe.payment_intents_create failed: Step s1 failed: Stripe access token not found
+2026-10-31 11:22:26 [   ERROR] Failed to execute stripe.payment_intents_create: Step s1 failed: Stripe access token not found
+2026-10-31 11:22:26 [    INFO] Executing stripe.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Stripe execution failed: Unknown Stripe action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service stripe.nope failed: Unknown Stripe action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute stripe.nope: Unknown Stripe action: nope
+PASSED                                                                   [ 74%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_shopify_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing shopify.orders_create with params: {}
+2026-10-31 11:22:26 [    INFO] Executing shopify.async_method with params: {}
+2026-10-31 11:22:26 [    INFO] Executing shopify.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Shopify execution failed: Unknown Shopify action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service shopify.nope failed: Unknown Shopify action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute shopify.nope: Unknown Shopify action: nope
+PASSED                                                                   [ 74%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_zoho_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing zoho_crm.list_records with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_crm.async_list with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_crm.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Zoho CRM execution failed: Unknown Zoho CRM action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service zoho_crm.nope failed: Unknown Zoho CRM action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute zoho_crm.nope: Unknown Zoho CRM action: nope
+2026-10-31 11:22:26 [    INFO] Executing zoho_books.list_records with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_books.async_list with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_books.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Zoho Books execution failed: Unknown Zoho Books action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service zoho_books.nope failed: Unknown Zoho Books action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute zoho_books.nope: Unknown Zoho Books action: nope
+2026-10-31 11:22:26 [    INFO] Executing zoho_inventory.list_records with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_inventory.async_list with params: {}
+2026-10-31 11:22:26 [    INFO] Executing zoho_inventory.nope with params: {}
+2026-10-31 11:22:26 [   ERROR] Zoho Inventory execution failed: Unknown Zoho Inventory action: nope
+2026-10-31 11:22:26 [ WARNING] Primary service zoho_inventory.nope failed: Unknown Zoho Inventory action: nope
+2026-10-31 11:22:26 [   ERROR] Failed to execute zoho_inventory.nope: Unknown Zoho Inventory action: nope
+PASSED                                                                   [ 75%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_goal_management_actions 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing goal_management.create_goal with params: {'title': 't', 'target_date': '2026-12-31T00:00:00Z'}
+2026-10-31 11:22:26 [    INFO] Executing goal_management.create_goal with params: {}
+2026-10-31 11:22:26 [ WARNING] Primary service goal_management.create_goal failed: Missing title or target_date for create_goal
+2026-10-31 11:22:26 [   ERROR] Failed to execute goal_management.create_goal: Missing title or target_date for create_goal
+2026-10-31 11:22:26 [    INFO] Executing goal_management.check_escalations with params: {}
+PASSED                                                                   [ 75%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_email_followup_detect 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing email_automation.detect_followups with params: {'days_threshold': 5}
+PASSED                                                                   [ 75%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_main_agent_error_dict PASSED [ 76%]
+tests/test_covpush_wfengine.py::TestServiceExecutors::test_email_and_webhook_simulated 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:26 [    INFO] Executing webhook.call with params: {}
+PASSED                                                                   [ 76%]
+tests/test_covpush_wfengine.py::TestAgentWithMcpSuccess::test_full_agent_execution PASSED [ 77%]
+tests/test_covpush_wfengine.py::TestAgentWithMcpSuccess::test_llm_failure_falls_back 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [   ERROR] LLM execution failed for agent agent-1: llm down
+PASSED                                                                   [ 77%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_publish_orchestration_unknown_event PASSED [ 77%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_publish_orchestration_bus_exception PASSED [ 78%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_graph_missing_input_pauses 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Pausing execution exec-1 at step a: Variable input.missing not found
+2026-10-31 11:22:26 [   ERROR] Unexpected exception in step execution: Variable input.missing not found
+2026-10-31 11:22:26 [    INFO] Workflow exec-1 paused due to missing input
+PASSED                                                                   [ 78%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_run_execution_outer_exception_fails 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [   ERROR] Execution exec-1 failed: 'id'
+PASSED                                                                   [ 79%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_governance_exception_fails_open 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:26 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+PASSED                                                                   [ 79%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_non_system_agent_lookup 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing email.send with params: {}
+2026-10-31 11:22:26 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+PASSED                                                                   [ 79%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_marketplace_failure_tracking 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [    INFO] Executing slack.chat_postMessage with params: {}
+2026-10-31 11:22:26 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-10-31 11:22:26 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:26 [ WARNING] Primary service slack.chat_postMessage failed: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:26 [   ERROR] Failed to execute slack.chat_postMessage: [AUTH_1001] Slack authentication required (no token found)
+2026-10-31 11:22:26 [   ERROR] Step s1 failed: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 80%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_condition_non_bool_result PASSED [ 80%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_condition_safe_eval_error_path 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [ WARNING] Variable s1.count not found in condition: ${s1.count} < ${s2.count}
+PASSED                                                                   [ 81%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_resolve_parameters_nested_path_through_scalar PASSED [ 81%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_load_workflow_corrupt_json 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:26 [   ERROR] Error loading workflow w1: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 81%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_subworkflow_polls_running_then_completes 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:27 [    INFO] Sub-workflow wf-sub execution sub-exec completed successfully
+PASSED                                                                   [ 82%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_arbor_refinement_wrapper_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:27 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=7170f148-73a3-4044-adcc-37fa67648d4c tier=solo
+2026-10-31 11:22:27 [   ERROR] [Arbor/Workflow] HTR execution wrapper failed: start failed
+PASSED                                                                   [ 82%]
+tests/test_covpush_wfengine.py::TestEngineEdges::test_goal_management_update_subtask PASSED [ 83%]
+tests/core/test_documents_hybrid.py::test_semantic_query_returns_doc_without_lexical_overlap PASSED [ 83%]
+tests/core/test_documents_hybrid.py::test_rrf_fusion_ranks_both_leg_matches_first PASSED [ 83%]
+tests/core/test_documents_hybrid.py::test_lexical_only_when_vector_leg_empty PASSED [ 84%]
+tests/core/test_documents_hybrid.py::test_no_results_label PASSED        [ 84%]
+tests/core/test_documents_hybrid.py::test_vector_only_low_similarity_is_not_a_result PASSED [ 85%]
+tests/core/test_documents_hybrid.py::test_vector_leg_reads_similarity_score PASSED [ 85%]
+tests/core/test_documents_hybrid.py::test_unbridged_vector_hits_flagged_not_dropped PASSED [ 85%]
+tests/core/test_documents_hybrid.py::test_vector_leg_failure_degrades_to_lexical 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:29 [ WARNING] DocumentsHybridSearch vector leg failed (unknown): RuntimeError('LanceDB down')
+PASSED                                                                   [ 86%]
+tests/core/test_documents_hybrid.py::test_never_raises_on_garbage PASSED [ 86%]
+tests/core/test_documents_hybrid.py::test_chunk_hit_hydrates_through_ingest_stamp PASSED [ 87%]
+tests/core/test_documents_hybrid.py::test_chunk_hit_hydrates_from_suffix_without_stamp PASSED [ 87%]
+tests/core/test_documents_hybrid.py::test_chunk_and_parent_lexical_hit_fuse_into_one_entry PASSED [ 87%]
+tests/core/test_documents_hybrid.py::test_unknown_chunk_still_surfaces_as_unbridged PASSED [ 88%]
+tests/core/test_documents_hybrid.py::test_json_string_metadata_is_tolerated PASSED [ 88%]
+tests/core/test_documents_hybrid.py::test_chunk_flood_must_not_outrank_both_legs_single_doc PASSED [ 88%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_ingest_awaits_async_engine 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/ingest "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_list_entities_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/entities?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_list_entities_empty 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/entities?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_entity_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/entities?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_entity_failure_raises_500 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [ WARNING] API Error: INGESTION_FAILED - Failed to add entity
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/entities?workspace_id=ws1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_canonical_search_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/canonical-search?workspace_id=ws1&type=company&q=Acme "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_canonical_search_query_too_long_422 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/canonical-search?workspace_id=ws1&type=company&q=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_list_relationships_maps_node_names 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_list_relationships_falls_back_to_ids 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_list_relationships_empty 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_relationship_success_by_name 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_relationship_src_resolved_by_id 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_relationship_dst_resolved_by_id 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_relationship_missing_entities_404 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [ WARNING] API Error: NOT_FOUND - Source or target entity not found
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_add_relationship_failure_raises_500 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [ WARNING] API Error: INGESTION_FAILED - Failed to add relationship
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/relationships?workspace_id=ws1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_build_communities 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/build-communities?user_id=u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_query_awaits_async_engine 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/query "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_query_missing_query_422 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: POST http://testserver/api/graphrag/query "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_neighbors_entity_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [ WARNING] API Error: NOT_FOUND - Entity not found
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/entities/ghost/neighbors?workspace_id=ws1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_neighbors_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/entities/n1/neighbors?workspace_id=ws1&depth=2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_context_success 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/context?user_id=ws1&query=hello "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_stats_with_user_id 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/stats?user_id=u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestGraphRAGRoutes::test_stats_without_user_id 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/graphrag/stats "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestLearningRoutes::test_progress_found 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/learning/progress/ag-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestLearningRoutes::test_progress_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [ WARNING] API Error: NOT_FOUND - Learning data not found: agent ag-1
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/learning/progress/ag-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestLearningRoutes::test_adaptations 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/learning/adaptations/ag-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestLearningRoutes::test_tenant_summary_empty 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/learning/tenant/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w32_learning_graphrag_routes.py::TestLearningRoutes::test_tenant_summary_aggregates_per_agent 
+-------------------------------- live log call ---------------------------------
+2026-10-31 11:22:31 [    INFO] HTTP Request: GET http://testserver/api/learning/tenant/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom-employee-execution/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 508 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_wfengine.py::TestExecuteStep::test_gmail_no_token_raises_auth_error
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/google/api_core/_python_version_support.py:263: FutureWarning: You are using a Python version (3.11.16) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2027-10-24). Please upgrade to the latest Python version, or at least Python 3.12, to continue receiving updates for google.api_core past that date.
+    warnings.warn(message, FutureWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 254 passed, 516 warnings in 24.37s ======================

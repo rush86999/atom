@@ -462,12 +462,30 @@ def _teaching_relevance_tokens(query: Optional[str]) -> set:
 
 def _lesson_relevance_haystack(entry: Dict[str, Any]) -> str:
     canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
-    return " ".join((
+    parts = [
         str(entry.get("topic") or ""),
         _lesson_text(entry),
         str(canvas.get("name") or ""),
         str(canvas.get("label") or ""),
-    )).lower()
+    ]
+    # A structured method declares the inputs the user will name. "Qty 2 and
+    # Price 7.50" is about the taught pricing method even when the lesson's
+    # prose never says "qty" or "price"; the method contract is the relevance
+    # evidence, not a phrase list.
+    try:
+        from core.conversation_learning import method_from_lesson
+
+        method = method_from_lesson(entry)
+        if method is not None:
+            parts.append(str(getattr(method, "operation", "") or ""))
+            parts.append(str(getattr(method, "output_unit", "") or ""))
+            for item in getattr(method, "inputs", []) or []:
+                parts.append(str(getattr(item, "concept", "") or ""))
+                parts.append(str(getattr(item, "column", "") or ""))
+                parts.append(str(getattr(item, "unit", "") or ""))
+    except Exception:  # noqa: BLE001 — relevance is additive
+        pass
+    return " ".join(parts).lower()
 
 
 def _context_allowed_values(value: Any) -> List[str]:
@@ -619,17 +637,28 @@ def resolve_teaching_contract(
         else:
             method_status = "applicable"
             method_lessons = top_items
+    # Guidance-only lessons (style, protocol, preference, approach) are
+    # applicable teaching even though there is no executable method. They
+    # must not be reported as "no_method" — that reads as no teaching at all
+    # and hid promoted non-arithmetic lessons from callers.
+    guidance_lessons = [
+        entry for entry in applicable
+        if method_from_lesson(entry) is None
+    ]
     if required_rows:
         status = "needs_context"
     elif method_status == "conflict":
         status = "conflict"
     elif method_lessons:
         status = "applicable"
+    elif guidance_lessons:
+        status = "guidance"
     else:
         status = "no_method"
     return {
         "status": status,
         "applicable_lessons": applicable,
+        "guidance_lessons": guidance_lessons,
         "required_context": required_rows,
         "conflicts": conflicts,
         "excluded_lessons": excluded,

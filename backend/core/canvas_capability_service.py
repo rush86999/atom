@@ -21,6 +21,7 @@ not CanvasContext.
 from __future__ import annotations
 
 import csv
+import copy
 import hashlib
 import io
 import json
@@ -33,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
+from sqlalchemy import func, update
 
 from core.models import Canvas, CanvasAudit
 
@@ -46,6 +48,159 @@ _SUPPORTED_OPERATIONS = TABLE_OPERATIONS
 _SUPPORTED_BASE_COMPONENTS = {"table"}
 _MAX_BIND_BYTES = int(os.getenv("ATOM_CANVAS_BIND_MAX_BYTES", str(20 * 1024 * 1024)))
 _MAX_ASSESS_SUBJECTS = int(os.getenv("ATOM_ASSESS_MAX_SUBJECTS", "50") or 50)
+
+#: Server-controlled review policy for assessments.
+#:
+#: ``always`` (default) requires human review for EVERY assessment, whatever
+#: the model reports about its own uncertainty. That is the correct default for
+#: an unqualified configuration: a confident, wrong APPROVE reports no
+#: uncertainty, and certification only proves the contract was satisfied, not
+#: that the decision is correct.
+#:
+#: ``model_reported`` is an explicit opt-out for a configuration that has been
+#: independently qualified; it restores the old behaviour (review only when
+#: uncertified or the model reports unresolved requirements).
+_REVIEW_POLICY_ALWAYS = "always"
+#: ``scoped`` grants autonomy only to a configuration that is BOTH qualified in
+#: the server-controlled registry AND allowed by the owner's autonomy policy
+#: (mode x maturity x trust) for the ``canvas_assessment`` topic.
+_REVIEW_POLICY_SCOPED = "scoped"
+_REVIEW_POLICIES = {_REVIEW_POLICY_ALWAYS, _REVIEW_POLICY_SCOPED}
+_ASSESSMENT_CAPABILITY = "canvas_assessment.model_judgment"
+_ASSESSMENT_TOPIC = "canvas_assessment"
+
+_QUALIFICATION_CACHE: Dict[str, Any] = {"signature": None, "registry": None}
+
+
+def current_assessment_revision(canvas: Canvas) -> int:
+    """Monotonic token for assessment-state writes (assess + approval)."""
+    record = _canvas_content(canvas).get("assessment_review") or {}
+    try:
+        return int(record.get("assessment_revision") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _qualification_registry_path() -> Path:
+    configured = os.getenv("ATOM_ASSESSMENT_QUALIFICATION_FILE")
+    if configured:
+        return Path(configured)
+    return (Path(__file__).resolve().parents[1] / "config"
+            / "assessment_qualification.json")
+
+
+def load_assessment_qualification_registry() -> Dict[str, Any]:
+    """Read the server-controlled registry, reloading when the file changes."""
+    path = _qualification_registry_path()
+    try:
+        stat = path.stat()
+    except OSError:
+        return {"schema": None, "configurations": [], "path": str(path)}
+    signature = (str(path), stat.st_mtime_ns, stat.st_size)
+    if _QUALIFICATION_CACHE.get("signature") == signature:
+        return _QUALIFICATION_CACHE["registry"]
+    try:
+        registry = json.loads(path.read_text())
+    except Exception as exc:  # noqa: BLE001 — fail closed on an unreadable file
+        logger.warning("assessment qualification registry unreadable: %s", exc)
+        registry = {"schema": None, "configurations": [], "error": str(exc)}
+    registry.setdefault("configurations", [])
+    registry["path"] = str(path)
+    _QUALIFICATION_CACHE["signature"] = signature
+    _QUALIFICATION_CACHE["registry"] = registry
+    return registry
+
+
+def assessment_serving_configuration(provider: Any) -> Dict[str, Any]:
+    """The serving configuration an assessment actually ran against.
+
+    Qualification is not a property of a model name: the same weights behind a
+    different endpoint or budget are a different configuration.
+    """
+    if str(provider or "") == "ollama":
+        base_url = (os.getenv("OLLAMA_BASE_URL")
+                    or "http://localhost:11434/v1").rstrip("/")
+        try:
+            timeout = int(float(os.getenv("OLLAMA_REQUEST_TIMEOUT") or 600))
+        except ValueError:
+            timeout = 600
+        return {"base_url": base_url, "request_timeout": str(timeout)}
+    return {}
+
+
+def assessment_qualification(
+    provider: Any, model: Any, *,
+    policy_text: Any = None,
+    decision_options: Any = None,
+    subject_field: Any = None,
+    contract_version: Any = None,
+    serving: Any = None,
+) -> Dict[str, Any]:
+    """Qualification state for one exact configuration and task scope.
+
+    A qualified entry applies only to the contract version, serving
+    configuration, policy text, decision vocabulary and subject field it was
+    qualified against. A model name alone authorizes nothing.
+    """
+    registry = load_assessment_qualification_registry()
+    wanted = (str(provider or ""), str(model or ""))
+    for entry in registry.get("configurations") or []:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("capability") != _ASSESSMENT_CAPABILITY:
+            continue
+        if (str(entry.get("provider") or ""),
+                str(entry.get("model") or "")) != wanted:
+            continue
+        revoked = bool(entry.get("revoked"))
+        base = {
+            "status": entry.get("status"),
+            "revoked": revoked,
+            "configuration_id": entry.get("id"),
+            "contract_version": entry.get("contract_version"),
+            "evidence": entry.get("evidence"),
+            "limitations": entry.get("limitations"),
+            "registry": registry.get("path"),
+        }
+        if entry.get("status") != "qualified" or revoked:
+            return {**base, "qualified": False, "scope_reasons": ["not_qualified"]}
+
+        reasons: List[str] = []
+        if str(entry.get("contract_version") or "") != str(contract_version or ""):
+            reasons.append("contract_version_mismatch")
+        scope = entry.get("scope") or {}
+        if str(scope.get("task_policy") or "") != str(policy_text or ""):
+            reasons.append("policy_out_of_scope")
+        if [str(x) for x in scope.get("decision_options") or []] != [
+                str(x) for x in (decision_options or [])]:
+            reasons.append("decision_vocabulary_out_of_scope")
+        if str(scope.get("subject_field") or "") != str(subject_field or ""):
+            reasons.append("subject_field_out_of_scope")
+        declared_serving = entry.get("serving")
+        if not isinstance(declared_serving, dict) or not declared_serving:
+            reasons.append("serving_configuration_undeclared")
+        elif declared_serving != (serving or {}):
+            reasons.append("serving_configuration_mismatch")
+        return {
+            **base,
+            "qualified": not reasons,
+            "scope_reasons": reasons,
+            "scope": scope,
+            "serving": declared_serving,
+        }
+    return {
+        "qualified": False,
+        "status": "unregistered",
+        "revoked": False,
+        "scope_reasons": ["unregistered"],
+        "registry": registry.get("path"),
+    }
+
+
+def assessment_review_policy() -> str:
+    raw = (os.getenv("ATOM_ASSESSMENT_REVIEW_POLICY") or _REVIEW_POLICY_ALWAYS)
+    value = raw.strip().lower()
+    return value if value in _REVIEW_POLICIES else _REVIEW_POLICY_ALWAYS
 
 # A connected catalog row names a provider. These are the token families the
 # existing journey services already resolve; adding a provider here does not
@@ -151,6 +306,46 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     required = manifest.get("required_approvals") or []
     if not isinstance(required, list):
         raise CapabilityError("invalid_manifest", "required_approvals must be a list.")
+    mode = str(manifest.get("assessment_mode") or "model").strip().lower()
+    if mode not in ("model", "deterministic"):
+        raise CapabilityError(
+            "invalid_manifest",
+            "assessment_mode must be 'model' or 'deterministic'.")
+    rules = manifest.get("decision_rules") or []
+    if mode == "deterministic":
+        if not isinstance(rules, list) or not rules:
+            raise CapabilityError(
+                "invalid_manifest",
+                "deterministic assessment requires decision_rules.")
+        from core.assessment_rules import OPS
+
+        if "REVIEW" not in {
+                str(item).strip().upper() for item in decisions}:
+            raise CapabilityError(
+                "invalid_manifest",
+                "deterministic assessment requires a REVIEW fallback "
+                "decision.")
+        for index, rule in enumerate(rules):
+            if not isinstance(rule, dict):
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] must be an object.")
+            if str(rule.get("decision") or "").strip().upper() not in {
+                    str(item).strip().upper() for item in decisions}:
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] decision is not allowed.")
+            conditions = rule.get("when")
+            if not isinstance(conditions, list) or not conditions:
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"decision_rules[{index}] requires conditions.")
+            for condition in conditions:
+                if (not isinstance(condition, dict)
+                        or str(condition.get("op") or "").lower() not in OPS):
+                    raise CapabilityError(
+                        "invalid_manifest",
+                        f"decision_rules[{index}] has an invalid condition.")
     clean = dict(manifest)
     clean.pop("manifest_revision", None)
     clean["base_component"] = base
@@ -161,6 +356,8 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     clean["task_policy"] = str(manifest.get("task_policy") or "").strip()
     clean["outputs"] = [str(x).lower() for x in outputs]
     clean["required_approvals"] = list(required)
+    clean["assessment_mode"] = mode
+    clean["decision_rules"] = list(rules)
     clean["manifest_revision"] = manifest_revision(clean)
     return clean
 
@@ -1271,6 +1468,8 @@ async def assess_operation(
     db, canvas: Canvas, user: Any, ask: str,
     llm_service: Any = None,
     max_subjects: Optional[int] = None,
+    clarification_answers: Optional[Sequence[Dict[str, Any]]] = None,
+    clarification_revisions: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
@@ -1389,6 +1588,30 @@ async def assess_operation(
         f"{len(unassessed_subjects)} selected but unassessed "
         f"(cap {cap}, {coverage['limit_source']})."
     )
+    clarification_text = ""
+    if clarification_answers:
+        revisions = clarification_revisions or {}
+        revision_text = ""
+        if revisions:
+            revision_text = (
+                "\n\nACCEPTED REVISIONS (the answers were given against these)"
+                "\nsource=%s | policy=%s | manifest=%s" % (
+                    revisions.get("source"),
+                    revisions.get("policy"),
+                    revisions.get("manifest"),
+                )
+            )
+        clarification_text = (
+            "\n\nCLARIFICATION ANSWERS" + revision_text + "\n"
+            + "\n".join(
+                f"- requirement_id={item.get('requirement_id')} | "
+                f"subject={item.get('subject')} | "
+                f"requirement={item.get('requirement')} | "
+                f"answer={item.get('answer')}"
+                for item in clarification_answers
+                if isinstance(item, dict)
+            )
+        )
     system = (
         "You assess authoritative canvas rows under the task policy below. "
         "Use only the supplied rows and policy. Do not invent rows, columns, "
@@ -1398,55 +1621,96 @@ async def assess_operation(
         + "\n" + coverage_text
         + "\n\nSOURCE ROWS\n" + source_rows
         + "\n\nPOLICY TEXT\n" + policy_text
+        + clarification_text
     )
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": str(ask or "Assess every selected row.")},
     ]
-    review_model = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
-    if not review_model:
-        raise CapabilityError(
-            "review_model_unconfigured",
-            "ATOM_REVIEW_MODEL is not configured; refusing an unpinned review dispatch.",
-        )
-    if llm_service is None:
-        from core.llm_service import get_llm_service
+    assessment_mode = str(
+        manifest.get("assessment_mode") or "model").strip().lower()
+    if assessment_mode == "deterministic":
+        from core.assessment_rules import evaluate_row, validate_decision_rules
 
-        llm_service = get_llm_service(
-            workspace_id=canvas.workspace_id,
-            tenant_id=canvas.tenant_id,
-        )
-    answer = await generate_structured_review(
-        llm_service,
-        messages=messages,
-        model=review_model,
-        llm_scope={
-            "workspace_id": canvas.workspace_id,
-            "tenant_id": canvas.tenant_id,
-            "agent_id": (manifest.get("teaching_binding") or {}).get("agent_id"),
-        },
-    )
-    route = dict(LAST_STRUCTURED_REVIEW)
-    if not answer:
-        return {
-            "success": False,
-            "operation": "assess",
-            "canvas_id": canvas.id,
-            "status": "failed_closed",
-            "certified": False,
-            "errors": [{
-                "code": route.get("failure_kind") or "structured_review_failed",
-                "stage": route.get("failure_stage"),
-                "detail": route.get("failure_detail"),
-            }],
-            "route": route,
-            "source": source,
-            "coverage": coverage,
-            "subjects": subjects,
-            "unassessed_subjects": unassessed_subjects,
-            "manifest_revision": manifest.get("manifest_revision"),
-            "policy_revision": policy_revision(manifest),
+        try:
+            rules = validate_decision_rules(
+                manifest.get("decision_rules") or [],
+                columns=columns, decisions=decisions)
+        except ValueError as exc:
+            raise CapabilityError(
+                "invalid_manifest", f"decision_rules: {exc}", 409)
+        deterministic = []
+        for row, entry in zip(assessed_rows, evidence):
+            outcome = evaluate_row(
+                dict(row.get("cells") or {}), rules, fallback="REVIEW")
+            deterministic.append({
+                "subject_id": entry["subject_id"],
+                "decision": outcome["decision"],
+                "basis": list(outcome["basis"]),
+                "evidence_ids": [entry["evidence_id"]],
+                "policy_ids": [policy_id],
+                "unresolved_requirements": list(outcome["unresolved"]),
+            })
+        answer = (
+            "```review_result\n"
+            + json.dumps({"assessments": deterministic}, default=str)
+            + "\n```")
+        route = {
+            "ok": True,
+            "served_provider": "deterministic",
+            "served_model": "taught_rules",
+            "failure_kind": None,
+            "failure_stage": None,
+            "output_mode": "deterministic",
         }
+    else:
+        review_model = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
+        if not review_model:
+            raise CapabilityError(
+                "review_model_unconfigured",
+                "ATOM_REVIEW_MODEL is not configured; refusing an unpinned "
+                "review dispatch.",
+            )
+        if llm_service is None:
+            from core.llm_service import get_llm_service
+
+            llm_service = get_llm_service(
+                workspace_id=canvas.workspace_id,
+                tenant_id=canvas.tenant_id,
+            )
+        answer = await generate_structured_review(
+            llm_service,
+            messages=messages,
+            model=review_model,
+            llm_scope={
+                "workspace_id": canvas.workspace_id,
+                "tenant_id": canvas.tenant_id,
+                "agent_id": (
+                    manifest.get("teaching_binding") or {}).get("agent_id"),
+            },
+        )
+        route = dict(LAST_STRUCTURED_REVIEW)
+        if not answer:
+            return {
+                "success": False,
+                "operation": "assess",
+                "canvas_id": canvas.id,
+                "status": "failed_closed",
+                "certified": False,
+                "errors": [{
+                    "code": route.get("failure_kind")
+                    or "structured_review_failed",
+                    "stage": route.get("failure_stage"),
+                    "detail": route.get("failure_detail"),
+                }],
+                "route": route,
+                "source": source,
+                "coverage": coverage,
+                "subjects": subjects,
+                "unassessed_subjects": unassessed_subjects,
+                "manifest_revision": manifest.get("manifest_revision"),
+                "policy_revision": policy_revision(manifest),
+            }
     review = build_review_result(
         execution_id=execution_id,
         requested_records=subjects,
@@ -1456,6 +1720,63 @@ async def assess_operation(
         policy_index=policies,
     )
     certified = bool(review.get("ok")) and review.get("completion") == "completed"
+    unresolved_subjects = [
+        str(item.get("subject_id"))
+        for item in (review.get("assessments") or [])
+        if isinstance(item, dict) and (item.get("unresolved_requirements") or [])
+    ]
+    review_policy = assessment_review_policy()
+    review_reasons: List[str] = []
+    if not certified:
+        review_reasons.append("assessment_uncertified")
+    if unresolved_subjects:
+        review_reasons.append("unresolved_requirements")
+    serving = assessment_serving_configuration(route.get("served_provider"))
+    if route.get("served_provider") == "deterministic":
+        qualification = {
+            "qualified": True,
+            "status": "deterministic_rules",
+            "configuration_id": "deterministic:taught_rules",
+            "contract_version": review.get("schema_version"),
+            "scope_reasons": [],
+            "checked_at": _now().isoformat(),
+            "note": (
+                "The decisions were produced by the manifest's versioned "
+                "taught rules, not by a model."),
+        }
+    else:
+        qualification = assessment_qualification(
+            route.get("served_provider"), route.get("served_model"),
+            policy_text=manifest.get("task_policy") or "",
+            decision_options=manifest.get("decision_options") or [],
+            subject_field=(
+                manifest.get("data_binding") or {}).get("subject_field"),
+            contract_version=review.get("schema_version"),
+            serving=serving,
+        )
+    if review_policy == _REVIEW_POLICY_ALWAYS:
+        review_reasons.append("review_policy_always")
+    else:
+        # SCOPED: autonomy needs BOTH a qualified configuration AND the
+        # owner's policy for this topic. One cannot override the other.
+        if not qualification.get("qualified"):
+            review_reasons.append("qualification_required")
+        try:
+            from core.autonomy_policy import OUTCOME_EXECUTE, gate_for_topic
+
+            gate = gate_for_topic(
+                db, str(getattr(user, "id", "") or "") or None,
+                _ASSESSMENT_TOPIC,
+                agent_id=str(
+                    (manifest.get("teaching_binding") or {}).get("agent_id")
+                    or "") or None,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            gate = {"outcome": "propose", "error": str(exc)[:200]}
+        if gate.get("outcome") != OUTCOME_EXECUTE:
+            review_reasons.append("autonomy_policy_denied")
+    review_required = bool(review_reasons)
+
     execution_fingerprint = _sha256_json({
         "policy_revision": policy_revision(manifest),
         "teaching_context": manifest.get("teaching_context") or {},
@@ -1465,7 +1786,88 @@ async def assess_operation(
         "max_subjects": cap,
         "assessed_subjects": subjects,
         "decisions": decisions,
+        "clarification_answers": list(clarification_answers or []),
     })[:24]
+    # Deep copy: SQLAlchemy's JSON column compares old and new values, so an
+    # in-place mutation of a nested record would be seen as "no change" and
+    # silently skip the UPDATE.
+    content = copy.deepcopy(_canvas_content(canvas))
+    assessment_artifact = _canonical_assessment_artifact(
+        review.get("assessments") or [])
+    previous_assessment_revision = current_assessment_revision(canvas)
+    content["assessment_review"] = {
+        "execution_id": execution_id,
+        "execution_fingerprint": execution_fingerprint,
+        "source_revision": source.get("source_version"),
+        "policy_revision": policy_revision(manifest),
+        "manifest_revision": manifest.get("manifest_revision"),
+        "canvas_revision": current_revision(canvas),
+        # Every writer of assessment state increments this token; approval is
+        # a compare-and-swap on it, so two writers cannot both win.
+        "assessment_revision": previous_assessment_revision + 1,
+        "certified": certified,
+        "review_required": review_required,
+        "review_reasons": review_reasons,
+        "review_policy": review_policy,
+        "qualification": qualification,
+        "served_provider": route.get("served_provider"),
+        "served_model": route.get("served_model"),
+        "contract_version": review.get("schema_version"),
+        "serving": serving,
+        "authority": {
+            "owner_id": str(getattr(user, "id", "") or ""),
+            "agent_id": str(
+                (manifest.get("teaching_binding") or {}).get("agent_id") or ""),
+            "workspace_id": str(canvas.workspace_id or ""),
+            "tenant_id": str(canvas.tenant_id or ""),
+            "capability": _ASSESSMENT_CAPABILITY,
+            "topic": _ASSESSMENT_TOPIC,
+        },
+        # The single reviewed artifact and its digest. No separate decision
+        # map: what is approved is exactly what is returned downstream.
+        "assessments": assessment_artifact,
+        "assessment_content_sha256": _assessment_digest(assessment_artifact),
+        "unresolved_subjects": [
+            item["subject_id"] for item in assessment_artifact
+            if item["unresolved_requirements"]
+        ],
+        "clarifications": [
+            {
+                # Stable identity: two requirements on one subject are two
+                # distinct obligations, not one keyed by subject.
+                "requirement_id": _sha256_json({
+                    "execution_id": execution_id,
+                    "subject": item["subject_id"],
+                    "ordinal": ordinal,
+                    "requirement": requirement,
+                })[:20],
+                "execution_id": execution_id,
+                "subject": item["subject_id"],
+                "requirement": requirement,
+                "answer": None,
+                "answered_at": None,
+            }
+            for item in assessment_artifact
+            for ordinal, requirement in enumerate(
+                item["unresolved_requirements"])
+        ],
+        "clarification_state": (
+            "open" if any(item["unresolved_requirements"]
+                          for item in assessment_artifact) else "none"),
+        "request": {
+            "ask": str(ask or ""),
+            "execution_id": execution_id,
+            "execution_fingerprint": execution_fingerprint,
+        },
+        "assessed_at": _now().isoformat(),
+        # A new assessment invalidates any earlier human approval: the
+        # authorization below is cleared here and must be granted again for
+        # THIS execution, source/policy revision and assessment content.
+        "authorization": None,
+    }
+    canvas.content = content
+    db.commit()
+
     return {
         "success": certified,
         "operation": "assess",
@@ -1474,10 +1876,27 @@ async def assess_operation(
         "execution_fingerprint": execution_fingerprint,
         "status": review.get("completion"),
         "certified": certified,
+        "review_required": review_required,
+        "review_reasons": review_reasons,
+        "qualification": qualification,
+        "unresolved_subjects": unresolved_subjects,
+        "clarification": assessment_clarification(canvas),
+        "authorization": assessment_authorization(canvas, db=db),
         "assessments": review.get("assessments") or [],
         "errors": review.get("errors") or [],
         "review": review,
-        "rendered": render_review_result(review) if certified else "",
+        # `rendered` is the human-readable decision artifact. Until the
+        # assessment is authorized (and under the default policy that means a
+        # human approved it), the existing consumer must not receive it as an
+        # actionable decision set.
+        "rendered": (
+            render_review_result(review)
+            if certified and assessment_authorization(canvas, db=db).get("state")
+            == "authorized" else ""),
+        "rendered_suppressed": bool(
+            certified and assessment_authorization(canvas, db=db).get("state")
+            != "authorized"),
+        "authorized": assessment_authorization(canvas, db=db).get("state") == "authorized",
         "route": route,
         "source": source,
         "source_revision": source.get("source_version"),
@@ -1634,6 +2053,757 @@ def edit_operation(
         "source": fresh_source,
         "writeback": fresh_source.get("writeback"),
         "manifest_revision": manifest.get("manifest_revision"),
+    }
+
+
+_APPROVER_ROLES = {"workspace_admin", "admin", "owner", "super_admin"}
+
+
+def _canonical_assessment_artifact(
+    assessments: Any,
+) -> List[Dict[str, Any]]:
+    """The ONE reviewed artifact: decisions, basis, evidence, policy, gaps.
+
+    Canonical form (subjects sorted, nested lists sorted, fixed keys) so the
+    digest is a function of the reviewed content and nothing else. Downstream
+    decisions are derived from THIS artifact — there is no separately mutable
+    decision map that could disagree with what was approved.
+    """
+    normalized: List[Dict[str, Any]] = []
+    for item in sorted(
+        (a for a in (assessments or []) if isinstance(a, dict)),
+        key=lambda a: str(a.get("subject_id")),
+    ):
+        evidence = sorted(
+            (
+                {
+                    "evidence_id": entry.get("evidence_id"),
+                    "row_ref": entry.get("row_ref"),
+                    "values": list(entry.get("values") or []),
+                }
+                for entry in (
+                    item.get("evidence_refs") or item.get("evidence") or [])
+                if isinstance(entry, dict)
+            ),
+            key=lambda e: str(e.get("evidence_id")),
+        )
+        policies = sorted(
+            (
+                {
+                    "policy_id": entry.get("policy_id"),
+                    "lesson": entry.get("lesson"),
+                }
+                for entry in (
+                    item.get("policy_refs") or item.get("policies") or [])
+                if isinstance(entry, dict)
+            ),
+            key=lambda e: str(e.get("policy_id")),
+        )
+        normalized.append({
+            "subject_id": str(item.get("subject_id")),
+            "decision": str(item.get("decision")),
+            "basis": [str(entry) for entry in (item.get("basis") or [])],
+            "evidence": evidence,
+            "policies": policies,
+            "unresolved_requirements": [
+                str(entry)
+                for entry in (item.get("unresolved_requirements") or [])
+            ],
+        })
+    return normalized
+
+
+def _assessment_digest(assessments: Any) -> str:
+    """Digest computed from the artifact itself, never from a stored hash."""
+    return _sha256_json(_canonical_assessment_artifact(assessments))
+
+
+def _assessment_binding(
+    record: Dict[str, Any], digest: Optional[str] = None,
+) -> Dict[str, Any]:
+    return {
+        "execution_id": record.get("execution_id"),
+        "execution_fingerprint": record.get("execution_fingerprint"),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+        "canvas_revision": record.get("canvas_revision"),
+        "assessment_content_sha256": (
+            digest if digest is not None
+            else _assessment_digest(record.get("assessments") or [])),
+    }
+
+
+def _reload_canvas(db, canvas: Canvas) -> Canvas:
+    """Authoritative read that bypasses the session's identity-map copy.
+
+    A stale ORM object is exactly how a lost update happens: validation sees
+    revision N while the database is already at N+1.
+    """
+    if db is None:
+        return canvas
+    fresh = (
+        db.query(Canvas)
+        .populate_existing()
+        .filter(Canvas.id == canvas.id)
+        .one_or_none()
+    )
+    return fresh or canvas
+
+
+def _assessment_cas_predicates(
+    dialect: str, revision: Any, execution_id: str,
+    assessment_revision: Any = None,
+):
+    """WHERE-clause predicates for an atomic assessment write.
+
+    The revision is the capability revision stored in the canvas content; the
+    execution id pins the exact assessment. Both are evaluated BY THE DATABASE,
+    so a write that lands between our read and our update makes the update
+    match zero rows instead of overwriting it.
+    """
+    if dialect == "sqlite":
+        return (
+            func.json_extract(Canvas.content, "$.capability_revision")
+            == revision,
+            func.json_extract(
+                Canvas.content, "$.assessment_review.execution_id")
+            == execution_id,
+            func.json_extract(
+                Canvas.content, "$.assessment_review.assessment_revision")
+            == assessment_revision,
+        )
+    if dialect == "postgresql":
+        return (
+            Canvas.content["capability_revision"].astext == str(revision),
+            Canvas.content["assessment_review"]["execution_id"].astext
+            == execution_id,
+            Canvas.content["assessment_review"]["assessment_revision"].astext
+            == str(assessment_revision),
+        )
+    return None
+
+
+def assessment_authorization(
+    canvas: Canvas, db=None,
+) -> Dict[str, Any]:
+    state = _assessment_authorization_state(canvas, db=db)
+    state["outcome"] = _typed_outcome(
+        str(state.get("state") or ""),
+        bool(state.get("unresolved_subjects")),
+    )
+    return state
+
+
+def _cas_update_assessment_content(
+    db, canvas: Canvas, *, observed_revision: Any, execution_id: str,
+    new_content: Dict[str, Any], observed_assessment_revision: Any,
+) -> bool:
+    """Database-enforced compare-and-swap for an assessment write.
+
+    Returns True only when EXACTLY one row matched (id, capability revision,
+    assessment execution id). Zero rows means another writer changed the canvas
+    after our read; the caller must refuse and leave their work in place.
+    """
+    dialect = db.get_bind().dialect.name
+    predicates = _assessment_cas_predicates(
+        dialect, observed_revision, execution_id, observed_assessment_revision)
+    if predicates is None:
+        return False
+    result = db.execute(
+        update(Canvas)
+        .where(Canvas.id == canvas.id)
+        .where(*predicates)
+        .values(content=new_content, updated_at=_now())
+    )
+    return result.rowcount == 1
+
+
+def _typed_outcome(state: str, unresolved: bool = False) -> str:
+    """Map an authorization state to the typed next step.
+
+    execute  - proceed now
+    clarify  - information is missing; ask the smallest useful question
+    propose  - a human must review/approve before the effect
+    refuse   - authority or validity is gone; do not act
+    reconcile- reserved for a possibly-performed external effect
+    """
+    if state == "authorized":
+        return "execute"
+    if state == "review_required":
+        return "clarify" if unresolved else "propose"
+    return "refuse"
+
+
+def _assessment_authorization_state(
+    canvas: Canvas, db=None,
+) -> Dict[str, Any]:
+    """Authorization state of the CURRENT assessment on this canvas.
+
+    The canvas is reloaded from the database when a session is supplied, and
+    the digest is RECOMPUTED from the persisted artifact on every call. A
+    stored hash is not evidence, and a session's cached copy is not the truth.
+    """
+    fresh = _reload_canvas(db, canvas) if db is not None else canvas
+    content = _canvas_content(fresh)
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        return {"state": "no_assessment"}
+
+    artifact = record.get("assessments")
+    if not isinstance(artifact, list) or not artifact:
+        return {
+            "state": "content_drift",
+            "reason": "assessment artifact is missing or unreadable",
+        }
+    digest = _assessment_digest(artifact)
+    if digest != record.get("assessment_content_sha256"):
+        return {
+            "state": "content_drift",
+            "reason": "assessment content changed since it was recorded",
+            "recomputed_sha256": digest,
+            "recorded_sha256": record.get("assessment_content_sha256"),
+        }
+    if record.get("canvas_revision") != current_revision(fresh):
+        return {
+            "state": "stale_assessment",
+            "reason": "canvas data changed since this assessment",
+            "binding": _assessment_binding(record, digest),
+        }
+
+    manifest = get_manifest(fresh) or {}
+    source = _dataset_source(fresh)
+    current_policy = policy_revision(manifest) if manifest else None
+    current_source = source.get("source_version")
+    if (
+        record.get("policy_revision") != current_policy
+        or record.get("source_revision") != current_source
+    ):
+        return {
+            "state": "stale_assessment",
+            "reason": "policy or source changed since this assessment",
+            "binding": _assessment_binding(record, digest),
+        }
+
+    binding = _assessment_binding(record, digest)
+    # Current authority is re-evaluated from live state, never from the
+    # assessment's stored review_required flag. Qualification, task scope AND
+    # the owner's present autonomy gate must all still permit this operation.
+    if record.get("review_policy") == _REVIEW_POLICY_SCOPED:
+        current_qualification = assessment_qualification(
+            record.get("served_provider"), record.get("served_model"),
+            policy_text=manifest.get("task_policy") or "",
+            decision_options=manifest.get("decision_options") or [],
+            subject_field=(
+                manifest.get("data_binding") or {}).get("subject_field"),
+            contract_version=record.get("contract_version"),
+            serving=assessment_serving_configuration(
+                record.get("served_provider")),
+        )
+        if not current_qualification.get("qualified"):
+            return {
+                "state": (
+                    "revoked" if current_qualification.get("revoked")
+                    else "qualification_out_of_scope"),
+                "reason": (
+                    "qualification_revoked"
+                    if current_qualification.get("revoked")
+                    else "qualification_out_of_scope"),
+                "qualification": current_qualification,
+                "binding": binding,
+            }
+        authority = record.get("authority") or {}
+        if db is None:
+            return {
+                "state": "authority_unverified",
+                "reason": "no session to re-evaluate owner authority",
+                "authority": authority,
+                "binding": binding,
+            }
+        try:
+            from core.autonomy_policy import OUTCOME_EXECUTE, gate_for_topic
+
+            gate = gate_for_topic(
+                db,
+                str(authority.get("owner_id") or "") or None,
+                str(authority.get("topic") or _ASSESSMENT_TOPIC),
+                agent_id=str(authority.get("agent_id") or "") or None,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            gate = {"outcome": "propose", "error": str(exc)[:200]}
+        if gate.get("outcome") != OUTCOME_EXECUTE:
+            return {
+                "state": "authority_withdrawn",
+                "reason": "owner autonomy gate no longer allows execution",
+                "authority": authority,
+                "gate": gate,
+                "binding": binding,
+            }
+    if not record.get("review_required"):
+        # Only reachable under the explicit ``model_reported`` opt-out.
+        return {
+            "state": "authorized",
+            "approval": None,
+            "binding": binding,
+            "reason": "review_policy_model_reported",
+        }
+    approval = record.get("authorization") or {}
+    if approval and all(
+        approval.get(key) == value for key, value in binding.items()
+    ):
+        return {"state": "authorized", "approval": approval, "binding": binding}
+    return {
+        "state": "review_required",
+        "review_reasons": list(record.get("review_reasons") or []),
+        "unresolved_subjects": [
+            item["subject_id"] for item in artifact
+            if item.get("unresolved_requirements")
+        ],
+        "binding": binding,
+    }
+
+
+def assessment_clarification(canvas: Canvas) -> Dict[str, Any]:
+    """Durable clarification obligation attached to the current assessment."""
+    record = _canvas_content(canvas).get("assessment_review") or {}
+    requirements = list(record.get("clarifications") or [])
+    open_items = [item for item in requirements if not item.get("answer")]
+    state = record.get("clarification_state") or (
+        "open" if open_items else "none")
+    if requirements and not open_items:
+        state = "answered"
+    return {
+        "state": state,
+        "execution_id": record.get("execution_id"),
+        "request": record.get("request") or {},
+        "requirements": requirements,
+        "open_count": len(open_items),
+        "historical_answers": list(record.get("historical_answers") or []),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+    }
+
+
+def clarification_revision_mismatch(
+    canvas: Canvas, record: Dict[str, Any],
+) -> List[str]:
+    """Which accepted revisions have moved since the assessment was recorded."""
+    manifest = get_manifest(canvas) or {}
+    current_source = _dataset_source(canvas).get("source_version")
+    current_policy = policy_revision(manifest) if manifest else None
+    current_manifest = manifest.get("manifest_revision")
+    mismatch: List[str] = []
+    if record.get("canvas_revision") != current_revision(canvas):
+        mismatch.append("canvas_revision_changed")
+    if record.get("source_revision") != current_source:
+        mismatch.append("source_revision_changed")
+    if record.get("policy_revision") != current_policy:
+        mismatch.append("policy_revision_changed")
+    if record.get("manifest_revision") != current_manifest:
+        mismatch.append("manifest_revision_changed")
+    return mismatch
+
+
+def clarification_resume_readiness(canvas: Canvas) -> Dict[str, Any]:
+    """Whether the answered obligation may still be resumed on this canvas."""
+    record = _canvas_content(canvas).get("assessment_review") or {}
+    if not isinstance(record, dict) or not record:
+        return {"state": "no_assessment", "ready": False}
+    open_items = [
+        item for item in (record.get("clarifications") or [])
+        if not item.get("answer")
+    ]
+    if open_items:
+        return {
+            "state": "open",
+            "ready": False,
+            "open_count": len(open_items),
+        }
+    mismatch = clarification_revision_mismatch(canvas, record)
+    if mismatch:
+        return {
+            "state": "reassessment_required",
+            "ready": False,
+            "stale": mismatch,
+            "execution_id": record.get("execution_id"),
+        }
+    return {
+        "state": "ready_to_resume",
+        "ready": True,
+        "execution_id": record.get("execution_id"),
+        "accepted_revisions": {
+            "source": record.get("source_revision"),
+            "policy": record.get("policy_revision"),
+            "manifest": record.get("manifest_revision"),
+        },
+    }
+
+
+def answer_assessment_clarification(
+    db, canvas: Canvas, user: Any, execution_id: str,
+    answers: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Record answers against specific obligations.
+
+    An answer identifies its obligation by ``requirement_id``. A subject-only
+    answer is accepted only when that subject has exactly one open
+    requirement; otherwise it is refused as ambiguous, because collapsing two
+    requirements onto one subject is how an answer lands on the wrong one.
+    """
+    fresh = _reload_canvas(db, canvas)
+    content = copy.deepcopy(_canvas_content(fresh))
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas.", 409)
+    if str(record.get("execution_id")) != str(execution_id):
+        raise CapabilityError(
+            "stale_assessment",
+            "The named assessment is not the current one; re-read before "
+            "answering.",
+            409,
+            current_execution_id=record.get("execution_id"),
+        )
+    requirements = list(record.get("clarifications") or [])
+    if not requirements:
+        raise CapabilityError(
+            "no_clarification",
+            "This assessment has no open clarification requirement.",
+            409,
+        )
+    if not answers:
+        raise CapabilityError(
+            "invalid_answer", "At least one answer is required.", 400)
+
+    open_by_id = {
+        str(item.get("requirement_id")): item for item in requirements
+        if not item.get("answer")
+    }
+    open_by_subject: Dict[str, List[Dict[str, Any]]] = {}
+    for item in open_by_id.values():
+        open_by_subject.setdefault(str(item.get("subject")), []).append(item)
+
+    updates: Dict[str, str] = {}
+    for answer in answers:
+        if not isinstance(answer, dict):
+            raise CapabilityError(
+                "invalid_answer", "Each answer must be an object.", 400)
+        requirement_id = str(answer.get("requirement_id") or "").strip()
+        subject = str(answer.get("subject") or "").strip()
+        text = str(answer.get("answer") or "").strip()
+        if requirement_id:
+            if requirement_id not in open_by_id:
+                raise CapabilityError(
+                    "unknown_requirement",
+                    f"Requirement '{requirement_id}' is not open on this "
+                    "assessment.",
+                    400,
+                )
+            target = open_by_id[requirement_id]
+        else:
+            candidates = open_by_subject.get(subject) or []
+            if not candidates:
+                raise CapabilityError(
+                    "unknown_subject",
+                    f"Subject '{subject}' has no open clarification "
+                    "requirement.",
+                    400,
+                )
+            if len(candidates) > 1:
+                raise CapabilityError(
+                    "ambiguous_requirement",
+                    f"Subject '{subject}' has {len(candidates)} open "
+                    "requirements; identify the requirement_id.",
+                    400,
+                    requirement_ids=[
+                        item.get("requirement_id") for item in candidates],
+                )
+            target = candidates[0]
+        if not text:
+            raise CapabilityError(
+                "invalid_answer",
+                f"The answer for '{target.get('requirement_id')}' must be "
+                "non-empty.",
+                400,
+            )
+        target_id = str(target.get("requirement_id"))
+        if target_id in updates and updates[target_id] != text:
+            raise CapabilityError(
+                "conflicting_answer",
+                f"Two different answers were supplied for '{target_id}'.",
+                400,
+            )
+        updates[target_id] = text
+
+    mismatch = clarification_revision_mismatch(fresh, record)
+    observed_revision = current_revision(fresh)
+    observed_assessment_revision = record.get("assessment_revision")
+    if mismatch:
+        # The accepted revisions moved: keep the answers as HISTORICAL input
+        # and require a reassessment. They are never silently transferred.
+        history = list(record.get("historical_answers") or [])
+        answered_at = _now().isoformat()
+        for requirement_id, text in updates.items():
+            item = open_by_id[requirement_id]
+            history.append({
+                "requirement_id": requirement_id,
+                "subject": item.get("subject"),
+                "requirement": item.get("requirement"),
+                "answer": text,
+                "answered_at": answered_at,
+                "reason": "revisions_changed",
+                "stale": list(mismatch),
+                "accepted_revisions": {
+                    "source": record.get("source_revision"),
+                    "policy": record.get("policy_revision"),
+                    "manifest": record.get("manifest_revision"),
+                },
+            })
+        record["historical_answers"] = history
+        record["assessment_revision"] = (
+            int(observed_assessment_revision or 0) + 1)
+        content["assessment_review"] = record
+        written = _cas_update_assessment_content(
+            db, fresh,
+            observed_revision=observed_revision,
+            execution_id=str(record.get("execution_id")),
+            observed_assessment_revision=observed_assessment_revision,
+            new_content=content,
+        )
+        if not written:
+            db.rollback()
+            raise CapabilityError(
+                "assessment_conflict",
+                "The canvas changed while the answer was being recorded.",
+                409,
+            )
+        db.commit()
+        db.expire(fresh)
+        return {
+            "success": False,
+            "canvas_id": fresh.id,
+            "state": "reassessment_required",
+            "outcome": "refuse",
+            "stale": mismatch,
+            "answers_preserved": [
+                item for item in history if item.get("answered_at") == answered_at
+            ],
+            "clarification": assessment_clarification(fresh),
+            "ready_to_resume": False,
+        }
+
+    answered_at = _now().isoformat()
+    for requirement_id, text in updates.items():
+        open_by_id[requirement_id]["answer"] = text
+        open_by_id[requirement_id]["answered_at"] = answered_at
+
+    # Answers are new inputs: any earlier approval no longer applies.
+    record["authorization"] = None
+    record["assessment_revision"] = int(observed_assessment_revision or 0) + 1
+    record["clarification_state"] = (
+        "answered" if all(item.get("answer") for item in requirements)
+        else "open")
+    content["assessment_review"] = record
+    written = _cas_update_assessment_content(
+        db, fresh,
+        observed_revision=observed_revision,
+        execution_id=str(record.get("execution_id")),
+        observed_assessment_revision=observed_assessment_revision,
+        new_content=content,
+    )
+    if not written:
+        db.rollback()
+        raise CapabilityError(
+            "assessment_conflict",
+            "The canvas changed while the answer was being recorded; reload "
+            "and answer the current assessment.",
+            409,
+        )
+    db.commit()
+    db.expire(fresh)
+    clarification = assessment_clarification(fresh)
+    return {
+        "success": True,
+        "canvas_id": fresh.id,
+        "state": clarification["state"],
+        "clarification": clarification,
+        "ready_to_resume": clarification["open_count"] == 0,
+    }
+
+
+def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict[str, Any]:
+    """Record a human approval with a database-enforced compare-and-swap.
+
+    Every validation runs against a freshly reloaded row, and the write is a
+    conditional UPDATE on (capability revision, assessment execution id).
+    Exactly one row must change; zero means another writer got there first, so
+    the approval is refused and the newer content is left untouched.
+    """
+    if db is None:
+        raise CapabilityError(
+            "unsupported_database",
+            "Assessment approval requires a database session.",
+            409,
+        )
+    fresh = _reload_canvas(db, canvas)
+    content = copy.deepcopy(_canvas_content(fresh))
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas to approve.", 409)
+    if str(record.get("execution_id")) != str(execution_id):
+        raise CapabilityError(
+            "stale_assessment",
+            "The named assessment is not the current one; re-read and approve "
+            "the current execution.",
+            409,
+            current_execution_id=record.get("execution_id"),
+        )
+    role = str(getattr(user, "role", "") or "").lower()
+    if role not in _APPROVER_ROLES:
+        raise CapabilityError(
+            "approval_forbidden",
+            "Only a workspace admin or owner can approve an assessment.",
+            403,
+        )
+
+    state = assessment_authorization(fresh, db=db)
+    if state.get("state") == "content_drift":
+        raise CapabilityError(
+            "assessment_content_changed",
+            "The assessment content changed after it was recorded; run a fresh "
+            "assessment before approving.",
+            409,
+        )
+    if state.get("state") == "stale_assessment":
+        raise CapabilityError(
+            "stale_assessment",
+            "The canvas, source or policy changed since this assessment; run a "
+            "fresh assessment before approving.",
+            409,
+        )
+    if state.get("state") == "no_assessment":
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas to approve.", 409)
+
+    artifact = record.get("assessments") or []
+    digest = _assessment_digest(artifact)
+    if state.get("state") == "authorized" and state.get("approval"):
+        # Already approved for this exact binding: do NOT create a second
+        # transition. Two simultaneous approvals converge on one record.
+        return {
+            "success": True,
+            "canvas_id": fresh.id,
+            "authorization": state,
+            "idempotent": True,
+        }
+    if not record.get("review_required"):
+        return {
+            "success": True,
+            "canvas_id": fresh.id,
+            "authorization": assessment_authorization(fresh, db=db),
+        }
+    observed_revision = record.get("canvas_revision")
+    observed_assessment_revision = record.get("assessment_revision")
+    approval = {
+        **_assessment_binding(record, digest),
+        "approved_by": str(getattr(user, "id", "") or ""),
+        "approved_role": role,
+        "approved_at": _now().isoformat(),
+    }
+    record["authorization"] = approval
+    # The approval itself is a relevant write: advance the concurrency token.
+    record["assessment_revision"] = int(observed_assessment_revision or 0) + 1
+    content["assessment_review"] = record
+    audit_payload = {
+        **{key: approval.get(key) for key in (
+            "execution_id", "execution_fingerprint", "source_revision",
+            "policy_revision", "manifest_revision", "canvas_revision",
+            "assessment_content_sha256")},
+        "unresolved_subjects": [
+            item["subject_id"] for item in artifact
+            if item.get("unresolved_requirements")
+        ],
+        "content": content,
+    }
+    _audit(db, fresh, user, "capability_assessment_approved", audit_payload)
+
+    written = _cas_update_assessment_content(
+        db, fresh,
+        observed_revision=observed_revision,
+        execution_id=str(record.get("execution_id")),
+        observed_assessment_revision=observed_assessment_revision,
+        new_content=content,
+    )
+    if not written:
+        # Another writer changed the canvas (or the assessment) after our
+        # validation. Keep their work: roll back and refuse.
+        db.rollback()
+        raise CapabilityError(
+            "assessment_conflict",
+            "The canvas changed while the approval was being recorded; reload "
+            "and review the current assessment before approving.",
+            409,
+        )
+    db.commit()
+    db.expire(fresh)
+    return {
+        "success": True,
+        "canvas_id": fresh.id,
+        "authorization": assessment_authorization(fresh, db=db),
+    }
+
+
+def decisions_operation(canvas: Canvas, db=None, user: Any = None) -> Dict[str, Any]:
+    """Downstream consumer: decisions derived from the authorized artifact.
+
+    Re-reads the authoritative row and revalidates the recomputed digest, the
+    revision and the policy/source binding before returning anything. There is
+    no separate decision map: the decisions ARE the reviewed artifact.
+    """
+    fresh = _reload_canvas(db, canvas) if db is not None else canvas
+    record = _canvas_content(fresh).get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas.", 409)
+    authority = (record.get("authority") or {})
+    if user is not None:
+        caller = str(getattr(user, "id", "") or "")
+        owner = str(authority.get("owner_id") or "")
+        if owner and caller != owner:
+            raise CapabilityError(
+                "authority_mismatch",
+                "This assessment belongs to a different owner.",
+                403,
+                owner_id=owner,
+            )
+    authorization = assessment_authorization(fresh, db=db)
+    if authorization.get("state") != "authorized":
+        raise CapabilityError(
+            "review_required",
+            "This assessment has not been authorized for downstream use.",
+            409,
+            authorization=authorization,
+        )
+    artifact = _canonical_assessment_artifact(record.get("assessments") or [])
+    return {
+        "success": True,
+        "operation": "decisions",
+        "canvas_id": fresh.id,
+        "execution_id": record.get("execution_id"),
+        "execution_fingerprint": record.get("execution_fingerprint"),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+        "canvas_revision": record.get("canvas_revision"),
+        "assessment_content_sha256": authorization.get("binding", {}).get(
+            "assessment_content_sha256"),
+        "decisions": {
+            item["subject_id"]: item["decision"] for item in artifact
+        },
+        "assessments": artifact,
+        "authorization": authorization,
     }
 
 

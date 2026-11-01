@@ -1,0 +1,59 @@
+{
+  "run_id": "1d945c3e-a457-4824-bcd8-b99e0bbf5750",
+  "canvas_id": "ab090ab7-d682-4bff-9a5e-a17d4c048936",
+  "grant": {
+    "grant_id": "sga-live-qual-1793534594",
+    "actions": [
+      "outbound"
+    ],
+    "max_effects": 1,
+    "recipients": [
+      "rish@brennan.ca"
+    ],
+    "expires_at": "2026-11-02T12:03:14.607258Z"
+  },
+  "assignment": {
+    "objective": "Authorized live Outlook qualification send",
+    "agent_id": "bcdf6905-da1a-412d-8511-fae9ba098852",
+    "sources": [
+      {
+        "kind": "workbook",
+        "dataset_name": "upload_live_b_source__live_b_source",
+        "source": "upload",
+        "external_id": "sha1:8e3fd7bd8b9115664a0e36b25a49b7cf26e91afa",
+        "source_version": "8e3fd7bd8b9115664a0e36b25a49b7cf26e91afa",
+        "sheet": "live-b-source"
+      }
+    ],
+    "deliverables": [
+      {
+        "kind": "email_draft",
+        "description": "Authorized qualification email draft",
+        "to": [
+          "rish@brennan.ca"
+        ],
+        "subject": "[Atom qualification] One authorized send 2026-11-01",
+        "body": "This is the single authorized Outlook qualification message from Atom.\n\nIt verifies the real send path, one-use authorization, and Sent Items reconciliation. No action is required.\n\n</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Regards,</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Rish M.</i></b></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\"><span style=\"color:black\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\"color:blue\"><a href=\"http://www.brennan.ca/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:blue; margin:0px\"><u>www.brennan.ca</u></a></span></div><div style=\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\"><span class=\"spanWithBackgroundColor\" style=\"color:red; background-color:rgb(255,255,255)\"><b><i>How am I doing?</i></b></span><span class=\"spanWithBackgroundColor\" style=\"color:rgb(68,84,106); background-color:rgb(255,255,255)\"><b><i>&nbsp;</i></b><a href=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\" title=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\"><br></span></div></div><div id=\"appendonsend\">"
+      }
+    ],
+    "outbound": {
+      "to": [
+        "rish@brennan.ca"
+      ],
+      "subject": "[Atom qualification] One authorized send 2026-11-01",
+      "body": "This is the single authorized Outlook qualification message from Atom.\n\nIt verifies the real send path, one-use authorization, and Sent Items reconciliation. No action is required.\n\n</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Regards,</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Rish M.</i></b></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\"><span style=\"color:black\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\"color:blue\"><a href=\"http://www.brennan.ca/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:blue; margin:0px\"><u>www.brennan.ca</u></a></span></div><div style=\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\"><span class=\"spanWithBackgroundColor\" style=\"color:red; background-color:rgb(255,255,255)\"><b><i>How am I doing?</i></b></span><span class=\"spanWithBackgroundColor\" style=\"color:rgb(68,84,106); background-color:rgb(255,255,255)\"><b><i>&nbsp;</i></b><a href=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\" title=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\"><br></span></div></div><div id=\"appendonsend\">",
+      "canvas_id": "ab090ab7-d682-4bff-9a5e-a17d4c048936"
+    },
+    "standing_authority": {
+      "grant_id": "sga-live-qual-1793534594",
+      "actions": [
+        "outbound"
+      ],
+      "max_effects": 1,
+      "recipients": [
+        "rish@brennan.ca"
+      ],
+      "expires_at": "2026-11-02T12:03:14.607258Z"
+    }
+  }
+}

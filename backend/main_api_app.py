@@ -2962,7 +2962,10 @@ try:
     try:
         from api.graphrag_routes import router as graphrag_router
 
-        app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
+        # graphrag_router already carries /api/graphrag; adding the prefix
+        # again produced /api/graphrag/api/graphrag and 404'd the public and
+        # frontend paths.
+        app.include_router(graphrag_router, tags=["graphrag"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
@@ -3762,8 +3765,10 @@ try:
     # --- PORTED FEATURES ---
     try:
         from api.canvas_routes import router as canvas_router
+        from api.canvas_routes import ws_router as canvas_ws_router
 
         app.include_router(canvas_router)
+        app.include_router(canvas_ws_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas routes not found: {e}")
 
@@ -4641,12 +4646,30 @@ except Exception as e:
 
 @app.get("/api/integrations")
 async def list_integrations(current_user: User = Depends(get_current_user)):
-    """List all available integrations and their status"""
+    """List available integrations and their status.
+
+    ``integrations`` remains the lazy-loaded router-module inventory for
+    backward compatibility. ``business_catalog`` is the truthful, user-facing
+    provider catalog (each entry records the evidence that it ships); the
+    README's "46+ business integrations" claim is measured against that block,
+    never against the internal module list.
+    """
+    from core.integration_business_catalog import build_business_catalog
+
     return {
         "total": len(get_integration_list()),
         "integrations": list(get_integration_list().keys()),
         "loaded": get_loaded_integrations(),
+        "business_catalog": build_business_catalog(),
     }
+
+
+@app.get("/api/integrations/business-catalog")
+async def list_business_integrations(current_user: User = Depends(get_current_user)):
+    """The canonical business-provider catalog (provider count + evidence)."""
+    from core.integration_business_catalog import build_business_catalog
+
+    return build_business_catalog()
 
 
 @app.post("/api/integrations/{integration_name}/load")

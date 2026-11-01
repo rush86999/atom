@@ -616,7 +616,11 @@ class EpisodeService:
                 summarize_tool_errors,
             )
 
-            execution_errors = list(execution.metadata_json or {}).get("tool_errors") or []
+            _execution_metadata = (
+                execution.metadata_json
+                if isinstance(execution.metadata_json, dict) else {}
+            )
+            execution_errors = _execution_metadata.get("tool_errors") or []
             if execution_errors:
                 merged_metadata.setdefault("tool_errors", execution_errors)
             success, outcome = effective_outcome(success, outcome, merged_metadata)
@@ -630,7 +634,12 @@ class EpisodeService:
         # Create episode
         episode = AgentEpisode(
             agent_id=execution.agent_id,
-            tenant_id=execution.tenant_id,
+            # A run that did not stamp tenant_id must not make episode
+            # persistence fail (NOT NULL): fall back to the agent's tenant,
+            # then the single-tenant default.
+            tenant_id=(execution.tenant_id
+                       or getattr(agent, "tenant_id", None)
+                       or "default"),
             execution_id=execution_id,
             task_description=task_description,
             maturity_at_time=agent.status,

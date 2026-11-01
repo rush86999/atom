@@ -653,10 +653,26 @@ async def execute_with_conductor(
         step_kwargs.setdefault("step_type", StepType.AGENT)
         wf_steps.append(WorkflowStep(**step_kwargs))
 
+    # The route accepts a plain JSON object, but the conductor works on a
+    # WorkflowExecutionContext. Passing the dict through (the old behavior)
+    # reached `context.started_at = ...` inside execute_workflow and 500'd every
+    # conductor call that supplied context — the documented `context` field was
+    # therefore unusable. Build the real execution context and keep the caller's
+    # object as input/shared data.
+    from core.orchestration.conductor_agent import WorkflowExecutionContext
+
+    exec_context = WorkflowExecutionContext(
+        tenant_id=getattr(user, "tenant_id", None) or "default",
+        user_id=str(getattr(user, "id", "") or ""),
+        workspace_id=getattr(user, "workspace_id", None) or "default",
+        input_data=dict(context or {}),
+        shared_context=dict(context or {}),
+    )
+
     result = await conductor.execute_workflow(
         steps=wf_steps,
         start_step=start_step,
-        context=context,
+        context=exec_context,
         strategy=strategy_enum,
     )
 

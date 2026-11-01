@@ -20,6 +20,11 @@ export interface LearningReview {
     applies_to: string[];
     context: Record<string, unknown>;
   };
+  artifact_and_protocol?: {
+    format_spec: Record<string, unknown>;
+    conditions: Record<string, unknown>;
+    decision_options: string[];
+  };
   referenced_data_and_versions: Array<{
     reference: string;
     relation: string;
@@ -132,6 +137,9 @@ export async function createLearningCandidate(payload: {
   method_status?: string;
   applies_to?: string[];
   context?: Record<string, any>;
+  format_spec?: Record<string, any>;
+  conditions?: Record<string, any>;
+  decision_options?: string[];
   references?: Array<Record<string, any>>;
   authority_message_id?: string;
   authority_excerpt?: string;

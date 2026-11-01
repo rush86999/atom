@@ -1,0 +1,119 @@
+
+----------------------------- live log collection ------------------------------
+2026-10-31 20:18:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-10-31 20:18:10 [    INFO] EscalationManager initialized
+2026-10-31 20:18:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:18:10 [    INFO] EscalationManager initialized
+2026-10-31 20:18:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 20:18:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 20:18:10 [    INFO] MCP Service initialized
+2026-10-31 20:18:10 [    INFO] Device WebSocket module loaded - real device communication enabled
+
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_graduation_criteria_constants_defined 
+-------------------------------- live log setup --------------------------------
+2026-10-31 20:18:10 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_intern_eligibility_calculation PASSED [  6%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_supervised_eligibility_calculation PASSED [  9%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_autonomous_eligibility_calculation PASSED [ 12%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_agent_not_found PASSED [ 16%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_unknown_maturity_level PASSED [ 19%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_workspace_specific_rules PASSED [ 22%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_run_graduation_exam_creates_exam 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [    INFO] EscalationManager initialized
+2026-10-31 20:18:10 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 25%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_submission_handling 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [    INFO] EscalationManager initialized
+2026-10-31 20:18:10 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 29%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_evaluation_and_scoring PASSED [ 32%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_pass_fail_determination PASSED [ 35%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_result_recording PASSED [ 38%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_retry_logic PASSED [ 41%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_validate_constitutional_compliance PASSED [ 45%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_student_to_intern 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [   ERROR] Invalid promotion transition for agent-001: STUDENT -> intern
+FAILED                                                                   [ 48%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_intern_to_supervised 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [   ERROR] Invalid promotion transition for agent-001: INTERN -> supervised
+FAILED                                                                   [ 51%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_supervised_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [   ERROR] Invalid promotion transition for agent-001: SUPERVISED -> autonomous
+FAILED                                                                   [ 54%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_notification PASSED [ 58%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_rollback 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [   ERROR] Database error querying agent agent-001: DB error
+PASSED                                                                   [ 61%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_history_tracking PASSED [ 64%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_graduation_thresholds_configuration PASSED [ 67%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_criteria_immutable PASSED [ 70%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_workspace_specific_overrides PASSED [ 74%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_default_configuration_loading PASSED [ 77%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_configuration_validation PASSED [ 80%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_calculate_supervision_metrics PASSED [ 83%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_performance_trend_calculation PASSED [ 87%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_validate_graduation_with_supervision PASSED [ 90%]
+tests/test_graduated_shell.py::TestGraduatedShellAccess::test_intern_can_read_but_not_monitor 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [    INFO] Device audit created: execute_command on device test-device-123 by user user-1 - Success: True
+2026-10-31 20:18:10 [    INFO] Command executed on device test-device-123: ls
+PASSED                                                                   [ 93%]
+tests/test_graduated_shell.py::TestGraduatedShellAccess::test_supervised_can_monitor_but_not_full 
+-------------------------------- live log call ---------------------------------
+2026-10-31 20:18:10 [    INFO] Device audit created: execute_command on device test-device-123 by user user-1 - Success: True
+2026-10-31 20:18:10 [    INFO] Command executed on device test-device-123: ps
+PASSED                                                                   [ 96%]
+tests/test_graduated_shell.py::TestGraduatedShellAccess::test_global_whitelist_still_applies FAILED [100%]
+
+=================================== FAILURES ===================================
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/premerge-baseline/backend/tests/test_agent_graduation_service.py:527: AssertionError: assert False
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/premerge-baseline/backend/tests/test_agent_graduation_service.py:544: AssertionError: assert False
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/premerge-baseline/backend/tests/test_agent_graduation_service.py:576: assert False is True
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/premerge-baseline/backend/tests/test_graduated_shell.py:106: AssertionError: assert 'not in whitelist' in 'maturity check failed. required: autonomous'
+=============================== warnings summary ===============================
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 62 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_student_to_intern
+FAILED tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_intern_to_supervised
+FAILED tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_supervised_to_autonomous
+FAILED tests/test_graduated_shell.py::TestGraduatedShellAccess::test_global_whitelist_still_applies
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 failed, 27 passed, 68 warnings in 13.57s ==================

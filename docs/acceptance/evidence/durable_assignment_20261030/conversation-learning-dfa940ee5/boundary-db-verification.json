@@ -1,0 +1,156 @@
+{
+  "draft": {
+    "id": "93282faa-f516-4597-add3-36bd3fc2d224",
+    "canvas_type": "email",
+    "content": {
+      "to": "alice@example.com",
+      "cc": "",
+      "subject": "Quote",
+      "body": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+      "content": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only."
+    }
+  },
+  "proposal": {
+    "id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+    "status": "executed",
+    "proposal_data": {
+      "action_type": "send_email",
+      "canvas_id": "93282faa-f516-4597-add3-36bd3fc2d224",
+      "to": "alice@example.com",
+      "cc": "",
+      "subject": "Quote",
+      "body": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+      "thread_id": "",
+      "reply_all": false
+    },
+    "execution_success": true
+  },
+  "hitl": {
+    "id": "26e5c037-0f39-4f2c-9421-ca3cc7e39e16",
+    "status": "pending",
+    "action_type": "chat_request_obligation",
+    "params": {
+      "session_id": "boundary-final-compound",
+      "objective": "Use the pricing method for the Customer-A licensed order with Qty 2 and Price 7.50; then email the quote.",
+      "calculation_receipt": {
+        "status": "applied",
+        "operation": "multiply_sum",
+        "validated_inputs": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "label": "Qty",
+            "raw_value": "2",
+            "value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message",
+            "malformed": false
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "label": "Price",
+            "raw_value": "7.50",
+            "value": "7.50",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              72,
+              82
+            ],
+            "source": "user_message",
+            "malformed": false
+          }
+        ],
+        "value": "15",
+        "unit": "USD",
+        "lesson_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "input_evidence": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "raw_value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message"
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "raw_value": "7.50",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              72,
+              82
+            ],
+            "source": "user_message"
+          }
+        ],
+        "covered_obligations": [
+          "calculation"
+        ],
+        "input_totals": {
+          "quantity": "2",
+          "unit_price": "7.5"
+        },
+        "assumptions": []
+      },
+      "obligations": [
+        {
+          "kind": "action",
+          "text": "email the quote"
+        }
+      ],
+      "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+      "draft_canvas_id": "93282faa-f516-4597-add3-36bd3fc2d224",
+      "to": "alice@example.com",
+      "subject": "Quote",
+      "body": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only."
+    }
+  },
+  "controlled_transport": {
+    "hitl_id": "26e5c037-0f39-4f2c-9421-ca3cc7e39e16",
+    "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+    "result": {
+      "handled": true,
+      "resumed": true,
+      "kind": "chat_obligation",
+      "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+      "result": {
+        "success": true,
+        "status": "draft_only",
+        "message": "Email draft_only to alice@example.com"
+      }
+    },
+    "send_calls": 1,
+    "to": [
+      "alice@example.com"
+    ],
+    "proposal_status": "executed"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "run_id": "0b7a8bd5-4762-45aa-a3de-81f2d287aed7",
+  "agent_id": "cb8df6f1-f824-470b-9015-e1516ea34480",
+  "source": {
+    "dataset_name": "upload_twenty_four_sheet_workbook__data01",
+    "source": "upload",
+    "sheet": "Data01",
+    "row_count": 25,
+    "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+    "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464"
+  },
+  "status": "completed",
+  "source_step": {
+    "step_id": "source-1",
+    "title": "Aggregate workbook source",
+    "operation_type": "calculate",
+    "adapter": "dataset.aggregate",
+    "depends_on": [],
+    "required": true,
+    "effect": "local",
+    "status": "applied",
+    "recovery_class": "terminal",
+    "operation_id": "5767e966-a332-47a4-9429-c7e6ea151b37",
+    "attempts": 0,
+    "result_summary": "sum of Total = 1725.00  across 25 row(s) from twenty_four_sheet_workbook.xlsx / Data01",
+    "result_value": "1725.00",
+    "result_unit": "",
+    "result_measure": "Total",
+    "prior_result_count": 0,
+    "artifact_revision": null,
+    "gap_ids": [],
+    "waiting": {},
+    "external_response": {},
+    "approval_request": {},
+    "standing_authority_receipt": {},
+    "failure": {}
+  },
+  "teaching_revision": "untrained"
+}

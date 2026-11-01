@@ -1,0 +1,106 @@
+{
+  "schema": "atom-conversation-learning-acceptance-9",
+  "source_commit": "dcac5d32349ff923be38fa36ed668810dccb62cb",
+  "source_tree": "12355fa7c1fd743af8e4c5235670809c4864df9c",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "atomic_binding_matrix": [
+    {
+      "case": "recipient changed immediately before claim",
+      "expected": "payload_changed; 0 transport; proposal pending",
+      "test": "test_chat_obligation_change_between_read_and_claim_refused",
+      "result": "pass"
+    },
+    {
+      "case": "canvas changed immediately before claim",
+      "expected": "payload_changed; 0 transport; proposal pending",
+      "test": "test_chat_obligation_canvas_change_between_read_and_claim_refused",
+      "result": "pass"
+    },
+    {
+      "case": "recipient changed after preparation",
+      "expected": "payload_changed; 0 transport",
+      "test": "test_chat_obligation_payload_drift_refused[to-different-recipient@example.invalid]",
+      "result": "pass"
+    },
+    {
+      "case": "body changed after preparation",
+      "expected": "payload_changed; 0 transport",
+      "test": "test_chat_obligation_payload_drift_refused[body-A different body that was never reviewed.]",
+      "result": "pass"
+    },
+    {
+      "case": "attachment hash changed after preparation",
+      "expected": "payload_changed; 0 transport",
+      "test": "test_chat_obligation_payload_drift_refused[attachment_hashes-value2]",
+      "result": "pass"
+    },
+    {
+      "case": "matching payload",
+      "expected": "one transport; executed snapshot/hash persisted",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "duplicate approval",
+      "expected": "replayed; no second transport",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "rejection",
+      "expected": "rejected; 0 transport",
+      "test": "test_chat_obligation_rejection_has_no_transport",
+      "result": "pass"
+    }
+  ],
+  "live_controlled_campaign": [
+    {
+      "case": "recipient changed between read and claim",
+      "evidence": "atomic-binding-campaign.json",
+      "result": "payload_changed; 0 transport calls; pending_approval"
+    },
+    {
+      "case": "canvas changed between review and claim",
+      "evidence": "atomic-binding-campaign.json",
+      "result": "payload_changed; 0 transport calls; pending_approval"
+    },
+    {
+      "case": "matching payload",
+      "evidence": "atomic-binding-campaign.json",
+      "result": "handled/resumed; 1 controlled call; executed"
+    },
+    {
+      "case": "duplicate approval",
+      "evidence": "atomic-binding-campaign.json",
+      "result": "replayed; still 1 call"
+    },
+    {
+      "case": "executed snapshot audit",
+      "evidence": "atomic-binding-campaign.json",
+      "result": "executed_action.to=alice@example.com; digest == reviewed digest"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "427 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-learning-tests.log"
+    },
+    "typescript": {
+      "result": "clean",
+      "log": "typescript-check.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}

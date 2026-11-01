@@ -1,0 +1,169 @@
+{
+  "operation": {
+    "schema_version": 1,
+    "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+    "objective_id": "01de2e54-bf62-4ad1-a0c7-a769f66407ba",
+    "objective_revision": 1,
+    "execution_id": "asg-0444fb79e4f745f4:send:1",
+    "operation_type": "outbound",
+    "requested_change": "Send the approved response",
+    "idempotency_key": "assignment:asg-0444fb79e4f745f4:send:r1:a1",
+    "parent_operation_id": null,
+    "evidence_revision": null,
+    "status": "applied",
+    "authorization": "pending_approval",
+    "operation_binding": {
+      "binding_version": 1,
+      "action_name": "email.send_outlook",
+      "workspace_id": "default",
+      "account_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "task_revision": 1,
+      "arguments": {
+        "to": [
+          "rish@brennan.ca"
+        ],
+        "cc": [],
+        "subject": "[Atom qualification] One authorized send 2026-11-01",
+        "body": "This is the single authorized Outlook qualification message from Atom.\n\nIt verifies the real send path, one-use authorization, and Sent Items reconciliation. No action is required.\n\n</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Regards,</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Rish M.</i></b></div><div style=\"font-family:Calibri,Helvetica,sans-serif; font-size:18pt; color:rgb(0,0,0)\"><b><i>Brennan Machinery Inc.</i></b></div><div style=\"font-family:&quot;Segoe UI&quot;,sans-serif; font-size:13.5pt; color:rgb(0,0,0)\"><span style=\"color:black\"><b><i>Visit Our Web Site</i></b>&nbsp;</span><span style=\"color:blue\"><a href=\"http://www.brennan.ca/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:blue; margin:0px\"><u>www.brennan.ca</u></a></span></div><div style=\"font-family:Calibri,sans-serif,serif,EmojiFont; font-size:12pt\"><span class=\"spanWithBackgroundColor\" style=\"color:red; background-color:rgb(255,255,255)\"><b><i>How am I doing?</i></b></span><span class=\"spanWithBackgroundColor\" style=\"color:rgb(68,84,106); background-color:rgb(255,255,255)\"><b><i>&nbsp;</i></b><a href=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\" title=\"https://forms.zohopublic.ca/brennanmachineryinc1/form/Howarewedoing/formperma/TK5qza8iSjh9aFRaFykDnScn0UALNkPgoEYN_hdq3g0\"><b><i>Rate&nbsp;my performance</i></b></a><b><i>.</i></b></span></div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><b>Reclaim your floor space and monetize your idle equipment.</b>&nbsp;</div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Simply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.</div><hr style=\"border-width:1px; border-style:none none solid; border-color:currentcolor; display:inline-block; width:98%\"><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\">All quotes are valid for 15 days only, thank you for understanding.</span></div><div style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(68,84,106)\"><span class=\"spanWithBackgroundColor\" style=\"background-color:rgb(255,255,255)\"><br></span></div></div><div id=\"appendonsend\">",
+        "attachment_ids": [],
+        "attachment_hashes": {},
+        "deliverable_id": "del-send",
+        "canvas_id": "682aa54c-4f3c-4e85-b9f0-9fb99ec3922a",
+        "draft_revision": "f86f2167a836622b"
+      },
+      "artifact_refs": [
+        {
+          "artifact_id": "f86f2167a836622b",
+          "revision": "f86f2167a836622b",
+          "sha256": "d043e4541758767a1ebdd906b4cb376606bd35b079eb45d91f5ce19ba589ca0d"
+        }
+      ],
+      "authorization_ref": "Send the prepared response",
+      "prerequisite_operation_ids": [
+        "4d3a0ac5-ec8a-4210-b93e-da4bf9f48b2e",
+        "1cb7696b-a617-4928-aa60-473436b1d5ca"
+      ],
+      "prerequisite_evidence_revisions": [
+        "8e3fd7bd8b9115664a0e36b25a49b7cf26e91afa"
+      ]
+    },
+    "binding_sha256": "8c0fc6817de7615aace9c3756dd35e2bb73d29e5e58cf4183739f3d9a14ca0d7",
+    "assignment_id": "asg-0444fb79e4f745f4",
+    "step_id": "send",
+    "plan_revision": 1,
+    "adapter": "email.send_outlook",
+    "effect": "external",
+    "teaching_fingerprint": "bf16aca23b7a85a0282c07bf67efad47",
+    "authorization_revision": "c65bf3875a80d10dbeb063e87b6bb2cf",
+    "claimed_by": "instance_id:0aa6105e4872.14763.1793535055",
+    "claimed_at": "2026-11-01T12:11:12.845945+00:00",
+    "claimed_task_revision": 1,
+    "claimed_operation_revision": 1,
+    "reconciliation": {
+      "provider_state": "sent",
+      "checked_at": 1793535073.41248
+    },
+    "outcome_uncertain": false,
+    "receipt": {
+      "receipt_version": 1,
+      "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+      "execution_id": null,
+      "action": "email.send_outlook",
+      "binding_sha256": "8c0fc6817de7615aace9c3756dd35e2bb73d29e5e58cf4183739f3d9a14ca0d7",
+      "observed_status": "provider_accepted",
+      "error_class": null,
+      "reconciliation_required": false,
+      "at": "2026-11-01T12:11:13.420952+00:00",
+      "source": {
+        "kind": null,
+        "path": null,
+        "revision": null,
+        "sha256": null,
+        "source_version": null,
+        "coverage": null
+      },
+      "calculation": null,
+      "outbound": {
+        "provider_state": "sent",
+        "provider_ref": null
+      },
+      "readback": null,
+      "summary": "provider accepted message (sent)",
+      "evidence": [
+        {
+          "kind": "outbound",
+          "provider_state": "sent"
+        }
+      ]
+    },
+    "execution": {
+      "summary": "provider accepted message (sent)",
+      "evidence": [
+        {
+          "kind": "outbound",
+          "provider_state": "sent"
+        }
+      ],
+      "artifact": null,
+      "artifact_revision": null,
+      "value": null,
+      "unit": null,
+      "expression": null,
+      "operation": null,
+      "measure": null,
+      "group_by": null,
+      "grouping_dimension": null,
+      "values": null,
+      "subtotals": null,
+      "source": null,
+      "source_label": null,
+      "formulas": null,
+      "matched_count": null,
+      "selected_count": null,
+      "truncated": null,
+      "substantive": null,
+      "source_version": null,
+      "provider_ref": null,
+      "rows": null,
+      "schema": null,
+      "text": null,
+      "decision": null,
+      "draft": null,
+      "data": null,
+      "at": "2026-11-01T12:11:13.419391+00:00",
+      "receipt": {
+        "receipt_version": 1,
+        "operation_id": "910dd2c2-283a-426c-ad5c-6a63ebe425c8",
+        "execution_id": null,
+        "action": "email.send_outlook",
+        "binding_sha256": "8c0fc6817de7615aace9c3756dd35e2bb73d29e5e58cf4183739f3d9a14ca0d7",
+        "observed_status": "provider_accepted",
+        "error_class": null,
+        "reconciliation_required": false,
+        "at": "2026-11-01T12:11:13.420952+00:00",
+        "source": {
+          "kind": null,
+          "path": null,
+          "revision": null,
+          "sha256": null,
+          "source_version": null,
+          "coverage": null
+        },
+        "calculation": null,
+        "outbound": {
+          "provider_state": "sent",
+          "provider_ref": null
+        },
+        "readback": null,
+        "summary": "provider accepted message (sent)",
+        "evidence": [
+          {
+            "kind": "outbound",
+            "provider_state": "sent"
+          }
+        ]
+      }
+    }
+  },
+  "payload_sha256": null
+}

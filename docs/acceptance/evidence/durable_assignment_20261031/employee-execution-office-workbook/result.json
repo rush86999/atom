@@ -1,0 +1,52 @@
+{
+  "checks": [
+    {
+      "name": "workbook formulas visible",
+      "ok": true,
+      "detail": {
+        "B2": "4",
+        "D2": "40",
+        "F2": "105"
+      }
+    },
+    {
+      "name": "second sheet present",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "edit recalculated formulas",
+      "ok": true,
+      "detail": {
+        "B2": "6",
+        "D2": "60",
+        "F2": "125"
+      }
+    },
+    {
+      "name": "downloaded workbook has edited value and formulas",
+      "ok": true,
+      "detail": {
+        "B2": 6,
+        "D2": "=B2*C2",
+        "F2": "=SUM(D2:D4)"
+      }
+    },
+    {
+      "name": "reload preserved workbook state",
+      "ok": true,
+      "detail": {
+        "B2": "6",
+        "D2": "60",
+        "F2": "125"
+      }
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "passed": 6,
+  "failed": 0
+}

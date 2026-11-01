@@ -1,0 +1,8 @@
+{
+  "catalog_entry": "00399616-42f7-4f7d-8867-822752b15a46",
+  "source": "outlook",
+  "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+  "old_parquet": "/Users/rushiparikh/projects/atom/backend/data/sheet_datasets/default/e0a7fb8a1b47/outlook_harsle_press_brake_stock_price_list.parquet",
+  "new_parquet": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/live_qualification_20261101/data/sheet_datasets/default/e0a7fb8a1b47/outlook_harsle_press_brake_stock_price_list.parquet",
+  "reason": "The qualification world inherited a catalog pointer to the live world dataset store. The same genuine bytes were re-fetched read-only from Graph, hash-matched, and the product-materialized copy was placed inside the qualification world store so the product source access boundary could be exercised without seeding a catalog row."
+}

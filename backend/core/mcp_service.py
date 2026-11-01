@@ -252,10 +252,19 @@ class MCPService:
         logger.debug(f"Registered tool {tool.name} for server {tool.server_id}")
 
     async def register_server(self, server_id: str, server_config: Dict[str, Any]):
-        """Register a new MCP server (stdio or http)"""
+        """Register a new MCP server (stdio or http) and verify the handshake."""
         self.servers[server_id] = server_config
         # Refresh tools for this server
         await self.refresh_tools(server_id)
+        if server_id not in self.external_clients:
+            # refresh_tools records the failure but does not raise. Registration
+            # must not leave a half-registered server behind: the route would
+            # report success/connected=false while a later caller could still
+            # see the unverified config in self.servers.
+            self.servers.pop(server_id, None)
+            self.tools_cache.pop(server_id, None)
+            raise MCPClientError(
+                f"{server_id}: MCP handshake failed; server not registered")
 
     async def get_active_connections(self) -> List[Dict[str, Any]]:
         """Returns a list of currently connected MCP servers."""
@@ -660,6 +669,13 @@ class MCPService:
             elif tool_name == "run_local_terminal":
                 from core.satellite_service import satellite_service
                 result = await satellite_service.execute_local_tool(tenant_id, "run_terminal", arguments)
+            elif (server_id and server_id in self.external_clients
+                  and (self.tool_registry is None
+                       or self.tool_registry.get(tool_name) is None)):
+                # External MCP server tool: dispatch over the live JSON-RPC
+                # client. Native registry tools keep precedence by name.
+                logger.info("MCP: Executing External Tool %s/%s", server_id, tool_name)
+                result = await self.call_external_tool(server_id, tool_name, arguments)
             elif self.tool_registry:
                 tool_meta = self.tool_registry.get(tool_name)
                 if tool_meta:

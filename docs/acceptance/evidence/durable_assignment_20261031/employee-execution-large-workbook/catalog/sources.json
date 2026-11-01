@@ -1,0 +1,730 @@
+{
+  "file_name": "twenty_four_sheet_workbook.xlsx",
+  "source": "upload",
+  "source_count": 24,
+  "total_row_count": 547,
+  "sources": [
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data01",
+      "sheet": "Data01",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data02",
+      "sheet": "Data02",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data03",
+      "sheet": "Data03",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data04",
+      "sheet": "Data04",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data05",
+      "sheet": "Data05",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data06",
+      "sheet": "Data06",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data07",
+      "sheet": "Data07",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data08",
+      "sheet": "Data08",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data09",
+      "sheet": "Data09",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data10",
+      "sheet": "Data10",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data11",
+      "sheet": "Data11",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data12",
+      "sheet": "Data12",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data13",
+      "sheet": "Data13",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data14",
+      "sheet": "Data14",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data15",
+      "sheet": "Data15",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data16",
+      "sheet": "Data16",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data17",
+      "sheet": "Data17",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data18",
+      "sheet": "Data18",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data19",
+      "sheet": "Data19",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__data20",
+      "sheet": "Data20",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "ID",
+        "Qty",
+        "Unit Price",
+        "Total",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Qty",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 25,
+      "coverage": {
+        "known": true,
+        "source_row_count": 25,
+        "materialized_row_count": 25,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__summary",
+      "sheet": "Summary",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "Sheet",
+        "Total",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Total"
+      ],
+      "row_count": 21,
+      "coverage": {
+        "known": true,
+        "source_row_count": 21,
+        "materialized_row_count": 21,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__rates",
+      "sheet": "Rates",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "Currency",
+        "Rate",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Rate"
+      ],
+      "row_count": 1,
+      "coverage": {
+        "known": true,
+        "source_row_count": 1,
+        "materialized_row_count": 1,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__notes",
+      "sheet": "Notes",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "Subject",
+        "Note",
+        "__sheet_row"
+      ],
+      "numeric_columns": [],
+      "row_count": 2,
+      "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    },
+    {
+      "dataset_name": "upload_twenty_four_sheet_workbook__index",
+      "sheet": "Index",
+      "file_name": "twenty_four_sheet_workbook.xlsx",
+      "source": "upload",
+      "external_id": "sha1:1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "source_version": "1bf080a1c3b3a8a9b4895307b05ecb309285e464",
+      "kind": "workbook",
+      "columns": [
+        "Sheet",
+        "Rows",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Rows"
+      ],
+      "row_count": 23,
+      "coverage": {
+        "known": true,
+        "source_row_count": 23,
+        "materialized_row_count": 23,
+        "truncated": false,
+        "row_cap": 500000
+      },
+      "ingested_at": "2026-11-01T02:31:41"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Integrated Grant Reviewer 2",
+  "agent_id": "de5bcb7c-8f50-445e-88b9-c2713f4cc70f",
+  "canvas_url": "http://127.0.0.1:3130/canvas/a020db0b-5519-4ec6-8c5f-2c787f4ec746?agent_id=de5bcb7c-8f50-445e-88b9-c2713f4cc70f&side=training",
+  "objective": "Sum Approved Amount for the grant application sheet 2026-10-31 run 2",
+  "correlation_id": "grant-missing-delivery-20261031-2",
+  "run_id": "933234fd-f647-4e3f-adca-5f160bc6afe0",
+  "assignment_id": "asg-68b8ef5d38d64367",
+  "teaching_revision": "128caf90451c6c2b+36031bfcb3779de3+map",
+  "mapping": [
+    {
+      "concept": "Approved Amount",
+      "sheet": "grant_applications",
+      "column": "Award Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "d55f0d93b5f1b85e4873a6dd5372a782df5610d4",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "128caf90451c6c2b+36031bfcb3779de3+map",
+      "source": "upload",
+      "dataset_name": "upload_grant_applications__grant_applications",
+      "external_id": "sha1:d55f0d93b5f1b85e4873a6dd5372a782df5610d4",
+      "available_columns": [
+        "Application ID",
+        "Requested Units",
+        "Award Amount",
+        "Currency"
+      ],
+      "numeric_columns": [
+        "Requested Units",
+        "Award Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "4250.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "grant-missing-delivery-20261031-2",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nReview Grant Applications From Assistant \u00b7 General\nReview Grant Applications From Assistant \u00b7 General\ngrant_applications.csv / grant_applications \u00b7 3 rows\ngrant_applications_revised.csv / grant_applications_revised \u00b7 3 rows\nclean_quote.csv / clean_quote \u00b7 3 rows\nintegrated_quote.csv / integrated_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Requested Units\nSum Award Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\nSum Price for the revised clean quote sheet 2026-10-31\ncompleted\nSum Price for the integrated quote sheet 2026-10-31 run 2\ncompleted\n\nSum Price for the revised clean quote sheet 2026-10-31\n\ncompleted\n\nPlan revision 1 \u00b7 teaching 4ac061d30c13cf0a+map\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nCompleted work\n\nAggregate workbook source\nRender Sum Price for the revised clean quote sheet 2026-10-31\nResult: 2225.75 USD \u00b7 Net Amount\n\nArtifacts\n\nSum Price for the revised clean quote sheet 2026-10-31\napplied\nDownload\n\nMappings\n\nPrice \u2192 Net Amount\n\nSource: upload \u00b7 Sheet: clean_quote \u00b7 Version: 07e5d4bad0b1\n\nRequired unit: not specified \u00b7 Established: source-established (USD)\n\nMapping revision: 2 \u00b7 Teaching revision: 4ac061d30c13cf0a+map\n\nCorrect mapping\nResume\nCancel",
+  "teaching_points_visible": 0
+}

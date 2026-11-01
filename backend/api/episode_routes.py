@@ -136,11 +136,22 @@ async def create_episode(
             status_code=400
         )
 
+    # EpisodeSegmentationService returns the production episode record as a
+    # dict (the ORM row is not the source of truth); older callers treated it
+    # as an object and 500'd on every explicit create.
+    if isinstance(episode, dict):
+        episode_id = episode.get("id")
+        title = episode.get("title") or episode.get("task_description")
+        status = episode.get("status")
+    else:
+        episode_id = getattr(episode, "id", None)
+        title = getattr(episode, "task_description", None)
+        status = getattr(episode, "status", None)
     return router.success_response(
         data={
-            "episode_id": episode.id,
-            "title": episode.task_description,
-            "status": episode.status
+            "episode_id": episode_id,
+            "title": title,
+            "status": status,
         },
         message="Episode created successfully"
     )

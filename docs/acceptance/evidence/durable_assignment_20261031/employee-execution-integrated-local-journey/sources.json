@@ -1,0 +1,120 @@
+[
+    {
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "sheet": "clean_quote",
+        "file_name": "clean_quote.csv",
+        "source": "upload",
+        "external_id": "sha1:fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "source_version": "fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "kind": "workbook",
+        "columns": [
+            "Item",
+            "Net Amount",
+            "Currency",
+            "Status",
+            "Qualification",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Net Amount"
+        ],
+        "row_count": 3,
+        "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T01:11:05.348509"
+    },
+    {
+        "dataset_name": "office_canvas_merged_workbook__orders",
+        "sheet": "Orders",
+        "file_name": "merged_workbook.xlsx",
+        "source": "office_canvas",
+        "external_id": "sha1:e1258281ab98cfa4dfba9ea7ba663f8da3ddd1ec",
+        "source_version": "e1258281ab98cfa4dfba9ea7ba663f8da3ddd1ec",
+        "kind": "workbook",
+        "columns": [
+            "Item",
+            "Qty",
+            "Price",
+            "Total",
+            "c5",
+            "Grand Total",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Qty",
+            "Price",
+            "Total",
+            "c5",
+            "Grand Total"
+        ],
+        "row_count": 3,
+        "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T01:10:08"
+    },
+    {
+        "dataset_name": "office_canvas_merged_workbook__rates",
+        "sheet": "Rates",
+        "file_name": "merged_workbook.xlsx",
+        "source": "office_canvas",
+        "external_id": "sha1:e1258281ab98cfa4dfba9ea7ba663f8da3ddd1ec",
+        "source_version": "e1258281ab98cfa4dfba9ea7ba663f8da3ddd1ec",
+        "kind": "workbook",
+        "columns": [
+            "Currency",
+            "Rate",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Rate"
+        ],
+        "row_count": 1,
+        "coverage": {
+            "known": true,
+            "source_row_count": 1,
+            "materialized_row_count": 1,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T01:10:08"
+    },
+    {
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "sheet": "integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "source": "upload",
+        "external_id": "sha1:93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "source_version": "93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "kind": "workbook",
+        "columns": [
+            "Item",
+            "Gross Amount",
+            "Currency",
+            "Status",
+            "Qualification",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Gross Amount"
+        ],
+        "row_count": 3,
+        "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T00:54:54.802613"
+    }
+]

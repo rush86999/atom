@@ -1,0 +1,52 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-dcac5d323",
+  "source_commit": "dcac5d32349ff923be38fa36ed668810dccb62cb",
+  "source_tree": "12355fa7c1fd743af8e4c5235670809c4864df9c",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "4dd1bcdf73da3b3f365785bb0b8d6520abf6d0ce264a02d2d13bc464d33ba213",
+      "bytes": 3506
+    },
+    "acceptance-matrix.json": {
+      "sha256": "16f0b51229a49b10969495b3b7eaaa48d5839a52fd8a5a5284146281e01d5711",
+      "bytes": 3644
+    },
+    "atomic-binding-campaign.json": {
+      "sha256": "2f5721907a92c9a9475fcb0137e5b3c832dbee2bcfd4ea38219f916736edce39",
+      "bytes": 2587
+    },
+    "frontend-learning-tests.log": {
+      "sha256": "ecb827ca10d739b40ceda88ddf1b5cae75662f60a2add244991cca13c3a05183",
+      "bytes": 661
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "db9008220f757111038b0f944b2d14d49e2600c822c7350528c4694ce6be8c7c",
+      "bytes": 281
+    },
+    "runtime.json": {
+      "sha256": "f7448cf2785b04f7dc61bb58a60e0305dc36baf0a80f498194344de632ff17ea",
+      "bytes": 1779
+    },
+    "source-commit.txt": {
+      "sha256": "44930b192a69d0936bafa2fe8b3622a47847f16e46f40b8d9b06ed33db620dc6",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "1b9d3817218a7e238053a4e57e3ef4470ee2c91aab51f56d79af10ad12fb1a49",
+      "bytes": 41
+    },
+    "targeted-regressions.log": {
+      "sha256": "cd565fcf65247de579214ad187f8f0884225984c26a8545c3d987a86a5cf63b1",
+      "bytes": 252019
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

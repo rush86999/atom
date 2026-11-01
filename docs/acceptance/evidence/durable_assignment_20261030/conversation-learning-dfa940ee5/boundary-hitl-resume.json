@@ -1,0 +1,20 @@
+{
+  "hitl_id": "26e5c037-0f39-4f2c-9421-ca3cc7e39e16",
+  "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+  "result": {
+    "handled": true,
+    "resumed": true,
+    "kind": "chat_obligation",
+    "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+    "result": {
+      "success": true,
+      "status": "draft_only",
+      "message": "Email draft_only to alice@example.com"
+    }
+  },
+  "send_calls": 1,
+  "to": [
+    "alice@example.com"
+  ],
+  "proposal_status": "executed"
+}

@@ -1,0 +1,96 @@
+{
+  "session_id": "session_1793413816142_oskeniboc",
+  "restart_clarification": "Before I can run the taught method, I found more than one value for Price: 7.50, 8.00. Which one should I use? Reply with the field and value, for example 'Price 8.00 USD'.",
+  "answer_outcome": "completed",
+  "answer_message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=8.00 USD) = 16 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+  "receipt": {
+    "status": "applied",
+    "operation": "multiply_sum",
+    "validated_inputs": [
+      {
+        "concept": "quantity",
+        "column": "Qty",
+        "label": "Qty",
+        "raw_value": "2",
+        "value": "2",
+        "raw_unit": "",
+        "normalized_unit": "units",
+        "required_unit": "units",
+        "unit_status": "compatible",
+        "unit_authority": "method_declared",
+        "span": [
+          62,
+          67
+        ],
+        "source": "user_message",
+        "malformed": false
+      },
+      {
+        "concept": "unit_price",
+        "column": "Price",
+        "label": "Price",
+        "raw_value": "8.00",
+        "value": "8.00",
+        "raw_unit": "",
+        "normalized_unit": "USD",
+        "required_unit": "USD",
+        "unit_status": "compatible",
+        "unit_authority": "user_confirmation",
+        "span": [
+          0,
+          4
+        ],
+        "source": "user_confirmation",
+        "malformed": false
+      }
+    ],
+    "value": "16",
+    "unit": "USD",
+    "lesson_ref": {
+      "id": "77fcb41c777f45b1bf50e4a6f5644267",
+      "revision": 1
+    },
+    "input_evidence": [
+      {
+        "concept": "quantity",
+        "column": "Qty",
+        "raw_value": "2",
+        "raw_unit": "",
+        "normalized_unit": "units",
+        "required_unit": "units",
+        "unit_status": "compatible",
+        "unit_authority": "method_declared",
+        "span": [
+          62,
+          67
+        ],
+        "source": "user_message"
+      },
+      {
+        "concept": "unit_price",
+        "column": "Price",
+        "raw_value": "8.00",
+        "raw_unit": "",
+        "normalized_unit": "USD",
+        "required_unit": "USD",
+        "unit_status": "compatible",
+        "unit_authority": "user_confirmation",
+        "span": [
+          0,
+          4
+        ],
+        "source": "user_confirmation"
+      }
+    ],
+    "covered_obligations": [
+      "calculation"
+    ],
+    "input_totals": {
+      "quantity": "2",
+      "unit_price": "8"
+    },
+    "assumptions": []
+  },
+  "history_last_outcome": "completed",
+  "page_errors": []
+}

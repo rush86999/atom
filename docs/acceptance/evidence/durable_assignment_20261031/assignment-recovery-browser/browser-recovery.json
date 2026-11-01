@@ -1,0 +1,441 @@
+{
+  "schema": "atom-assignment-recovery-browser-1",
+  "generated_at": "2026-10-31T21:45:10.674Z",
+  "ui_base": "http://127.0.0.1:3003",
+  "api_base": "http://127.0.0.1:8090",
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-recovery-browser",
+  "backend_reset_pid": 29010,
+  "scenarios": [
+    {
+      "objective": "Recovery wait restart resume 1793482749420",
+      "runId": "9c36406a-f1f1-46c7-b0bd-61e01179209c"
+    },
+    {
+      "objective": "Recovery revision invalidation 1793482820423",
+      "runId": "a60e908c-0cab-4f6e-a177-ac9c24a79f67"
+    },
+    {
+      "objective": "Recovery ambiguous mapping 1793482870615",
+      "runId": "24de8042-6dfc-4345-856d-656146efd0ad"
+    },
+    {
+      "objective": "Recovery cancellation 1793482921771",
+      "runId": "371534e9-8910-463b-b936-87f1b1a14501"
+    },
+    {
+      "objective": "Recovery duplicate resume 1793482990037",
+      "runId": "ff84b27d-59e7-4635-aeae-848619fec034"
+    }
+  ],
+  "checks": [
+    {
+      "name": "wait -> restart -> resume",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery wait restart resume 1793482749420",
+        "pid1": 29010,
+        "pid2": 29081,
+        "waiting": true,
+        "durable": true,
+        "completed": true,
+        "result80": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/01-wait-before-restart.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/02-wait-resumed-after-restart.png"
+        ]
+      }
+    },
+    {
+      "name": "changed source revision invalidates stale work",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery revision invalidation 1793482820423",
+        "runId": "a60e908c-0cab-4f6e-a177-ac9c24a79f67",
+        "cards": 2,
+        "errorText": "Requested version 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is not the active version 'bbbbbbbbbbbb'.",
+        "completedPreserved": true,
+        "mappingPreserved": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/03-mapping-before-revision.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/04-revision-refused.png"
+        ]
+      }
+    },
+    {
+      "name": "ambiguous mapping identity",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery ambiguous mapping 1793482870615",
+        "runId": "24de8042-6dfc-4345-856d-656146efd0ad",
+        "cards": 2,
+        "correctable": 1,
+        "disabled": 1,
+        "unboundStatus": 409,
+        "unboundBody": {
+          "detail": "more than one confirmed mapping exists for concept 'Total'; name the sheet or source version"
+        },
+        "ambiguousRefusal": true,
+        "resolved": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/05-ambiguous-mappings.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/06-ambiguous-resolved.png"
+        ]
+      }
+    },
+    {
+      "name": "cancellation refuses a late response",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery cancellation 1793482921771",
+        "runId": "371534e9-8910-463b-b936-87f1b1a14501",
+        "persisted": true,
+        "lateStatus": 200,
+        "lateBody": {
+          "run_id": "371534e9-8910-463b-b936-87f1b1a14501",
+          "assignment": {
+            "assignment_id": "asg-1031543a2d0745dc",
+            "objective": "Recovery cancellation 1793482921771",
+            "employee_id": "browser-admin",
+            "workspace_id": "default",
+            "plan_revision": 1,
+            "status": "cancelled",
+            "teaching_revision": "3e7c4a60629c2ff0",
+            "teaching_fingerprint": "d02651673f0fbe316a7d82545c543a83",
+            "effective_lesson_ids": [
+              {
+                "id": "1ab3da69462f4310bb54cc2efac03464",
+                "revision": 1
+              },
+              {
+                "id": "07feb898cd2441679c67662c7b3ed12e",
+                "revision": 1
+              },
+              {
+                "id": "8ff23b9b5cb646be851dff79aa1d4151",
+                "revision": 1
+              }
+            ],
+            "mappings": [
+              {
+                "concept": "Total",
+                "sheet": "US$ SCOTCH PARTS",
+                "column": "Total",
+                "unit": "USD",
+                "unit_authority": "source_evidence",
+                "required_unit": "USD",
+                "source_unit": "USD",
+                "source_unit_column": "Currency",
+                "source_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "revision": 1,
+                "lesson_id": "1ab3da69462f4310bb54cc2efac03464",
+                "lesson_revision": 1,
+                "teaching_revision": "3e7c4a60629c2ff0",
+                "source": null,
+                "dataset_name": null,
+                "external_id": null,
+                "available_columns": [],
+                "numeric_columns": [],
+                "correctable": false
+              },
+              {
+                "concept": "Total",
+                "sheet": "US$ SCOTCH PARTS",
+                "column": "Total",
+                "unit": "USD",
+                "unit_authority": "source_evidence",
+                "required_unit": "USD",
+                "source_unit": "USD",
+                "source_unit_column": "Currency",
+                "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "revision": 1,
+                "lesson_id": "07feb898cd2441679c67662c7b3ed12e",
+                "lesson_revision": 1,
+                "teaching_revision": "3e7c4a60629c2ff0",
+                "source": "onedrive",
+                "dataset_name": "scotch_parts_price_list",
+                "external_id": "browser-scotch-drive-1",
+                "available_columns": [
+                  "Item Number",
+                  "Description",
+                  "Quantity",
+                  "Unit Price",
+                  "Total",
+                  "Currency"
+                ],
+                "numeric_columns": [
+                  "Quantity",
+                  "Unit Price",
+                  "Total"
+                ],
+                "correctable": false
+              }
+            ],
+            "mapping_history": [],
+            "deliverables": [
+              {
+                "deliverable_id": "del-deliverable-1",
+                "kind": "document",
+                "description": "Recovery cancellation 1793482921771",
+                "required": true,
+                "step_id": "deliverable-1",
+                "status": "pending",
+                "artifact_revision": null,
+                "artifact_path": null,
+                "sha256": null
+              }
+            ],
+            "sources": [
+              {
+                "kind": "workbook",
+                "binding": {
+                  "resource_id": "browser-scotch-entry",
+                  "dataset_name": "scotch_parts_price_list",
+                  "source": "onedrive",
+                  "source_kind": "file",
+                  "external_id": "browser-scotch-drive-1",
+                  "original_file_name": "scotch-parts.xlsx",
+                  "representation": "parquet_frame",
+                  "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "sheet": "US$ SCOTCH PARTS",
+                  "columns": [
+                    "Item Number",
+                    "Description",
+                    "Quantity",
+                    "Unit Price",
+                    "Total",
+                    "Currency",
+                    "__sheet_row"
+                  ],
+                  "numeric_columns": [
+                    "Quantity",
+                    "Unit Price",
+                    "Total"
+                  ],
+                  "row_count": 3,
+                  "coverage": {
+                    "known": true,
+                    "source_row_count": 3,
+                    "materialized_row_count": 3,
+                    "truncated": false
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": false
+                }
+              }
+            ],
+            "authorized_actions": [
+              "calculate",
+              "present",
+              "retrieve"
+            ],
+            "budget": {
+              "max_steps": 12,
+              "max_attempts_per_step": 3,
+              "max_wall_seconds": 900,
+              "max_cost_usd": 0,
+              "steps_started": 2,
+              "started_at": "2026-10-31T21:42:44.249580+00:00",
+              "elapsed_seconds": 0,
+              "cost_usd": 0
+            },
+            "steps": [
+              {
+                "step_id": "source-1",
+                "title": "Read workbook source",
+                "operation_type": "retrieve",
+                "adapter": "dataset.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "53c3fe94-6fd7-4885-b199-3c3d410eb1d3",
+                "attempts": 0,
+                "result_summary": "read 3 of 3 matching row(s) from scotch-parts.xlsx / US$ SCOTCH PARTS",
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "failure": {}
+              },
+              {
+                "step_id": "wait",
+                "title": "Wait for the missing external fact",
+                "operation_type": "retrieve",
+                "adapter": "assignment.controlled_wait",
+                "depends_on": [
+                  "source-1"
+                ],
+                "required": true,
+                "effect": "read_only",
+                "status": "pending",
+                "recovery_class": "safe_to_resume",
+                "operation_id": null,
+                "attempts": 1,
+                "result_summary": null,
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {
+                  "correlation_id": "corr-cancel-1793482921771",
+                  "fact": "",
+                  "response": "late reply after cancellation",
+                  "source": "browser-admin",
+                  "evidence": "",
+                  "fact_resolution": {
+                    "status": "unknown",
+                    "fact": ""
+                  },
+                  "at": "2026-10-31T21:43:10.019465+00:00"
+                },
+                "approval_request": {},
+                "failure": {}
+              },
+              {
+                "step_id": "calculate",
+                "title": "Calculate the requested result",
+                "operation_type": "calculate",
+                "adapter": "formula.calculate",
+                "depends_on": [
+                  "source-1",
+                  "wait"
+                ],
+                "required": true,
+                "effect": "local",
+                "status": "cancelled",
+                "recovery_class": "terminal",
+                "operation_id": null,
+                "attempts": 0,
+                "result_summary": null,
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "failure": {}
+              },
+              {
+                "step_id": "deliverable-1",
+                "title": "Render Recovery cancellation 1793482921771",
+                "operation_type": "present",
+                "adapter": "artifact.document",
+                "depends_on": [
+                  "source-1",
+                  "wait",
+                  "calculate"
+                ],
+                "required": true,
+                "effect": "local",
+                "status": "cancelled",
+                "recovery_class": "terminal",
+                "operation_id": null,
+                "attempts": 0,
+                "result_summary": null,
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "failure": {}
+              }
+            ],
+            "created_at": "2026-10-31T21:42:44.240553+00:00",
+            "updated_at": "2026-10-31T21:43:10.024291+00:00",
+            "completed_at": "2026-10-31T21:42:48.879204+00:00"
+          },
+          "open_gaps": [],
+          "operations": [
+            {
+              "operation_id": "53c3fe94-6fd7-4885-b199-3c3d410eb1d3",
+              "step_id": "source-1",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null
+            },
+            {
+              "operation_id": "31d15ee2-b9c8-4bc9-8d34-68aebee123b7",
+              "step_id": "wait",
+              "type": "retrieve",
+              "status": "cancelled",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null
+            }
+          ]
+        },
+        "beforeEffects": 0,
+        "afterEffects": 0,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/07-cancelled.png"
+        ]
+      }
+    },
+    {
+      "name": "duplicate concurrent resume dispatches once",
+      "ok": true,
+      "detail": {
+        "objective": "Recovery duplicate resume 1793482990037",
+        "runId": "ff84b27d-59e7-4635-aeae-848619fec034",
+        "clicks": [
+          "fulfilled",
+          "fulfilled"
+        ],
+        "calcSteps": 1,
+        "calcResults": 1,
+        "priorResults": 0,
+        "status": "completed",
+        "beforeEffects": 0,
+        "afterEffects": 0,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/screenshots/08-duplicate-resume.png"
+        ]
+      }
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "outbox_effects": 0,
+  "source": {
+    "backend_head": "b24f67c29",
+    "files": {
+      "backend/scripts/assignment_browser_acceptance_server.py": "6b8aa0ad3644032954137c346c7d53c73efffdcc7302f51b9c200e9af5c5dce1",
+      "backend/core/assignment_executor.py": "fa7f6e3061c2869fd2d4084d3316a9b76fa96bf25c28a32c9afe6969a004e5a7",
+      "backend/api/assignment_routes.py": "b407d22e2ddfac1c0ae924dce81a2cf85e467bdda58fc99c0eddf78719dd5c59",
+      "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "144d10f93eeb1026871de3016bf697f4166c0fed93d1f8800753a352adead02b"
+    },
+    "evidence_generated_at_source": "b24f67c29",
+    "candidate_source": "f8198c60e",
+    "assignment_code_unchanged": true,
+    "unchanged_files": [
+      "backend/scripts/assignment_browser_acceptance_server.py",
+      "backend/core/assignment_executor.py",
+      "backend/api/assignment_routes.py",
+      "frontend-nextjs/components/assignments/AssignmentPanel.tsx"
+    ]
+  }
+}

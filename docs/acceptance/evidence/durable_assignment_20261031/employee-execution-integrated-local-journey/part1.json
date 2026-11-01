@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Integrated Quote Specialist 6",
+  "agent_id": "364fc497-7cd6-4684-a665-5a9ad3ef074e",
+  "canvas_url": "http://127.0.0.1:3130/canvas/85aaf69c-342c-439d-8111-4def93c5072b?agent_id=364fc497-7cd6-4684-a665-5a9ad3ef074e&side=training",
+  "objective": "Sum Price for the merged quote sheet 6",
+  "correlation_id": "quote-merged-6",
+  "run_id": "9e2ebe30-4e7a-4015-9caf-21a77f9bf904",
+  "assignment_id": "asg-9ea876575a444d43",
+  "teaching_revision": "9d2be203e5f7500f+f012bcf9e64e7fb5+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "integrated_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "9d2be203e5f7500f+f012bcf9e64e7fb5+map",
+      "source": "upload",
+      "dataset_name": "upload_integrated_quote__integrated_quote",
+      "external_id": "sha1:93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+      "available_columns": [
+        "Item",
+        "Gross Amount",
+        "Currency",
+        "Status",
+        "Qualification"
+      ],
+      "numeric_columns": [
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "550.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "quote-merged-6",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nintegrated_quote.csv / integrated_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nOptional bounded authority: the named recipients and send count are granted now; matching sends need no per-step approval.\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\nSum Price for the merged quote sheet\nwaiting\n\nCurrent: Wait for the missing external fact\n\nSum Price for the merged quote sheet\n\nwaiting\n\nPlan revision 1 \u00b7 teaching 435bcddfd543b567+ee211bfabd8d7603\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nWaiting: Wait for the missing external fact\n\nWaiting for external responder\n\nCorrelated response\n\nWaiting for external responder on quote-merged-1 \u00b7 missing fact: delivery_term. Paste only the authorized response; it is evidence, not teaching.\n\nDeliver\n\nCompleted work\n\nAggregate workbook source\nResult: 500.00 USD \u00b7 Price\n\nArtifacts\n\nSum Price for the merged quote sheet\npending\nProvider-accepted response\npending\nResume\nCancel\nDurable state persisted",
+  "teaching_points_visible": 0
+}

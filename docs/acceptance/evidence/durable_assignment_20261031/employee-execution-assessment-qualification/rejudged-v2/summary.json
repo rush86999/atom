@@ -1,0 +1,177 @@
+{
+  "create": {
+    "scoring": {
+      "version": "v2-2026-10-31",
+      "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+      "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+    },
+    "accuracy": 0.9444,
+    "determinate": 18,
+    "gaps": [
+      "Q-002",
+      "Q-004",
+      "Q-009",
+      "Q-010",
+      "Q-011",
+      "Q-012"
+    ],
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-010",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  },
+  "correct": {
+    "scoring": {
+      "version": "v2-2026-10-31",
+      "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+      "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+    },
+    "accuracy": 0.9474,
+    "determinate": 19,
+    "gaps": [
+      "Q-002",
+      "Q-004",
+      "Q-009",
+      "Q-011",
+      "Q-012"
+    ],
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  },
+  "after-restart": {
+    "scoring": {
+      "version": "v2-2026-10-31",
+      "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+      "sha256": "8e00d24af6fd033b00f8a07d366297d11ff8a560343e15bbff1b1cba03a335dd"
+    },
+    "accuracy": 0.9474,
+    "determinate": 19,
+    "gaps": [
+      "Q-002",
+      "Q-004",
+      "Q-009",
+      "Q-011",
+      "Q-012"
+    ],
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  }
+}

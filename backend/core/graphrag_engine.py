@@ -377,7 +377,10 @@ class GraphRAGEngine:
             # 2. URLs
             url_pattern = r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))[^\s]*'
             for match in re.finditer(url_pattern, text):
-                url = match.group()
+                # Sentence punctuation is not part of the URL. Without this,
+                # "visit https://example.com/a." stores the trailing period in
+                # the entity identity and citations no longer match the source.
+                url = match.group().rstrip(".,;:!?")
                 if url not in entity_names:
                     entities.append(Entity(
                         id=str(uuid.uuid4()),
@@ -549,6 +552,19 @@ class GraphRAGEngine:
         if self._is_llm_available(ws_id):
             logger.info(f"Using LLM-based extraction for document {doc_id}")
             entities, relationships = await self._llm_extract_entities_and_relationships(text, doc_id, source, ws_id)
+            if not entities and not relationships:
+                # Availability is not success: a missing/invalid provider
+                # policy, an extractor crash, or a non-JSON reply used to leave
+                # the document with ZERO entities even though the deterministic
+                # extractor can read emails/URLs/phones/dates. Fall back so a
+                # fresh install without a cloud key still gets a graph.
+                logger.info(
+                    "LLM extraction produced nothing for %s; using pattern fallback",
+                    doc_id,
+                )
+                entities, relationships = self._pattern_extract_entities_and_relationships(
+                    text, doc_id, source
+                )
         else:
             entities, relationships = self._pattern_extract_entities_and_relationships(text, doc_id, source)
 

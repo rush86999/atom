@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance",
+  "generated_at": "2026-10-31T15:00:39.774384+00:00",
+  "started_at": "2026-10-31T15:00:31.172351+00:00",
+  "config": {
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/atom.db",
+    "product_profile": "full",
+    "external_integrations": "tokenless; schedulers/pollers off",
+    "llm": "bounded local OpenAI-compatible stub (no cloud spend)"
+  },
+  "groups": {
+    "core": "groups_core:core_workspace"
+  },
+  "group_errors": [],
+  "results": [
+    {
+      "claim_id": "CORE-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/chat.json"
+      ],
+      "notes": "chat=200 session=7947c32c-9f31-41b6-beb4-dbe3425e15e1 reply='acceptance reply for: nd offer to retry. Never invent tool activity.\"}, {\"role\":' provider=openai model=gpt-4o-mini",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/canvas.json"
+      ],
+      "notes": "canvas=1665f2b2-98b4-47d0-8b16-74696b3ac5b3 update=200",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/teach.json"
+      ],
+      "notes": "teach=200 lessons=200",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/settings.json"
+      ],
+      "notes": "providers=200 settings=200 openai_configured=True secret_masked=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/profile.json"
+      ],
+      "notes": "profile=core enabled=['activity', 'agents', 'approvals', 'canvas', 'chat', 'documents', 'settings'] deferred_enabled=[]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-profile-world/evidence/core/episodes.json"
+      ],
+      "notes": "episode=5afc5be1-6008-4356-bbda-ded2889c77e2 episodes=2",
+      "blocker": ""
+    }
+  ]
+}

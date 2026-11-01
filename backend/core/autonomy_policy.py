@@ -104,6 +104,15 @@ TOPICS: Dict[str, Dict[str, str]] = {
         "description": "Editing PDF canvases (pages/merge) and approving them for send-out",
         "default_mode": MODE_AUTO_IF_MATURE,
     },
+    "canvas_assessment": {
+        "label": "Substantive assessment",
+        "description": (
+            "Acting on model-dependent decisions for a user canvas. Default "
+            "human_always until the serving configuration is qualified and the "
+            "owner grants this topic autonomy."
+        ),
+        "default_mode": MODE_HUMAN_ALWAYS,
+    },
 }
 
 # Per-topic gate metadata. governance_action is the action_type fed to
@@ -154,6 +163,11 @@ TOPIC_GATES: Dict[str, Dict[str, Any]] = {
         "governance_action": "integration_ingest_write",
         "min_maturity": "intern",
         "trust_domain": "integration_ingest",
+    },
+    "canvas_assessment": {
+        "governance_action": "update_canvas",
+        "min_maturity": "supervised",
+        "trust_domain": "canvas_assessment",
     },
 }
 

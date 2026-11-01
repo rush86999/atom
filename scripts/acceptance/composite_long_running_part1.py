@@ -51,14 +51,16 @@ def fresh_page(browser, frontend: str, password: str):
     return page
 
 
-def create_agent(page, frontend: str, goal: str) -> str:
+def create_agent(page, frontend: str, goal: str,
+                 context_text: str = (
+                     "Use sales quote methods, cite sources, and ask for "
+                     "missing context.")) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
     before = {row["id"] for row in agent_rows(page)}
     page.get_by_test_id("describe-job-button").click()
     page.get_by_test_id("guided-goal-input").fill(goal)
-    page.get_by_test_id("guided-context-input").fill(
-        "Use sales quote methods, cite sources, and ask for missing context.")
+    page.get_by_test_id("guided-context-input").fill(context_text)
     page.get_by_test_id("guided-create-button").click()
     try:
         page.get_by_test_id("guided-success").wait_for(timeout=60000)
@@ -85,7 +87,8 @@ def open_teaching(page, frontend: str, agent_id: str) -> str:
     button.wait_for(timeout=30000)
     button.click()
     page.wait_for_url("**/canvas/**", timeout=30000)
-    page.get_by_test_id("training-panel").wait_for(timeout=30000)
+    page.get_by_test_id("training-panel").wait_for(state="attached", timeout=30000)
+    page.wait_for_timeout(800)
     return page.url
 
 
@@ -95,33 +98,67 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
           task_scope: str = "", effective_from: str = "",
           effective_to: str = "", greeting: str = "", signature: str = "",
           subject_prefix: str = "") -> None:
-    page.get_by_test_id("teach-lesson-input").fill(lesson)
-    page.get_by_test_id("teach-topic-input").fill(topic)
+    # The training panel can collapse after a recorded lesson. Re-open it on
+    # the same canvas before filling the next one.
+    if page.get_by_test_id("teach-lesson-input").count() == 0 or not (
+            page.get_by_test_id("teach-lesson-input").is_visible()):
+        tab = page.locator('[data-testid="canvas-side-tab-training"]')
+        if tab.count():
+            tab.first.dispatch_event("click")
+            page.wait_for_timeout(700)
+    page.get_by_test_id("teach-lesson-input").wait_for(
+        state="visible", timeout=30000)
+    page.wait_for_function(
+        """() => {
+            const el = document.querySelector(
+                '[data-testid="teach-lesson-input"]');
+            return !!el && !el.disabled && el.offsetParent !== null;
+        }""", timeout=30000)
+    for _ in range(5):
+        if page.locator('[role="dialog"]').count() == 0:
+            break
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+    page.get_by_test_id("teach-lesson-input").fill(lesson, force=True)
+    page.get_by_test_id("teach-topic-input").fill(topic, force=True)
     page.get_by_test_id("teach-structured-fields").evaluate("el => el.open = true")
     for box in page.locator('[data-testid^="teach-applies-"]').all():
         if box.is_checked():
             box.uncheck()
     if applies:
         page.get_by_test_id(f"teach-applies-{applies}").check()
-    page.get_by_test_id("teach-format-font").fill(font)
-    page.get_by_test_id("teach-format-size").fill(size)
-    page.get_by_test_id("teach-format-headings").fill(headings)
-    page.get_by_test_id("teach-format-columns").fill(columns)
-    page.get_by_test_id("teach-context").fill(context)
-    page.get_by_test_id("teach-qualification").fill(qualification)
-    page.get_by_test_id("teach-task-scope").fill(task_scope)
-    page.get_by_test_id("teach-effective-from").fill(effective_from)
-    page.get_by_test_id("teach-effective-to").fill(effective_to)
-    page.get_by_test_id("teach-format-greeting").fill(greeting)
-    page.get_by_test_id("teach-format-signature").fill(signature)
-    page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix)
+    if font:
+        page.get_by_test_id("teach-format-font").fill(font, force=True)
+    if size:
+        page.get_by_test_id("teach-format-size").fill(size, force=True)
+    if headings:
+        page.get_by_test_id("teach-format-headings").fill(headings, force=True)
+    if columns:
+        page.get_by_test_id("teach-format-columns").fill(columns, force=True)
+    if context:
+        page.get_by_test_id("teach-context").fill(context, force=True)
+    if qualification:
+        page.get_by_test_id("teach-qualification").fill(qualification, force=True)
+    if task_scope:
+        page.get_by_test_id("teach-task-scope").fill(task_scope, force=True)
+    if effective_from:
+        page.get_by_test_id("teach-effective-from").fill(effective_from, force=True)
+    if effective_to:
+        page.get_by_test_id("teach-effective-to").fill(effective_to, force=True)
+    if greeting:
+        page.get_by_test_id("teach-format-greeting").fill(greeting, force=True)
+    if signature:
+        page.get_by_test_id("teach-format-signature").fill(signature, force=True)
+    if subject_prefix:
+        page.get_by_test_id("teach-format-subject-prefix").fill(subject_prefix, force=True)
     page.get_by_test_id("teach-submit").click()
     page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
 
 
 def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
                objective: str, qualification: str, task_scope: str,
-               correlation: str, recipient: str,
+               correlation: str, recipient: str, measure: str = "Price",
+               context: str = "sales",
                missing_fact: str = "delivery_term") -> str:
     # A blank navigation then a fresh assignments URL guarantees a full
     # document reload and resets the panel after a refused attempt; a
@@ -153,8 +190,8 @@ def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
     page.get_by_test_id("assignment-objective-input").fill(objective)
     page.get_by_test_id("assignment-measure-select").select_option(
         label="Other business concept…")
-    page.get_by_test_id("assignment-custom-measure-input").fill("Price")
-    page.get_by_test_id("assignment-context-input").fill("sales")
+    page.get_by_test_id("assignment-custom-measure-input").fill(measure)
+    page.get_by_test_id("assignment-context-input").fill(context)
     page.get_by_test_id("assignment-qualification-input").fill(qualification)
     page.get_by_test_id("assignment-task-scope-input").fill(task_scope)
     page.get_by_text("Advanced (optional)", exact=False).click()
@@ -177,6 +214,17 @@ def main() -> int:
     ap.add_argument("--agent-name", default="Quote Specialist")
     ap.add_argument("--objective", default="Sum Price for the integrated quote sheet")
     ap.add_argument("--correlation", default="quote-missing-currency-1")
+    ap.add_argument("--measure", default="Price")
+    ap.add_argument("--context", default="sales")
+    ap.add_argument("--qualification", default="licensed")
+    ap.add_argument("--mapping-candidate", default="Gross Amount")
+    ap.add_argument("--domain-label", default="sales quote")
+    ap.add_argument("--greeting", default="Dear colleague,")
+    ap.add_argument("--signature", default="Sales team")
+    ap.add_argument("--subject-prefix", default="[Quote]")
+    ap.add_argument("--agent-goal", default=(
+        "Prepare sales quote documents from uploaded price sheets, "
+        "calculate totals, and explain missing context."))
     args = ap.parse_args()
 
     out = Path(args.out_dir).resolve()
@@ -184,21 +232,22 @@ def main() -> int:
     password = Path(args.password_file).read_text().strip()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True, channel="chrome")
         page = fresh_page(browser, args.frontend, password)
         agent_id = create_agent(
-            page, args.frontend,
-            "Prepare sales quote documents from uploaded price sheets, "
-            "calculate totals, and explain missing context.")
+            page, args.frontend, args.agent_goal,
+            f"Use {args.domain_label} methods, cite sources, and ask for "
+            "missing context.")
 
         canvas_url = open_teaching(page, args.frontend, agent_id)
         teach(
             page,
-            lesson=("Method: for sales quote work, use the selected authorized "
-                    "sheet, sum the business measure named in the task, and cite "
-                    "the source sheet and row count. Context: sales quotes. If a "
-                    "required fact is missing, ask for it instead of guessing."),
-            topic="sales quote method",
+            lesson=(f"Method: for {args.domain_label} work, use the selected "
+                    "authorized sheet, sum the business measure named in the "
+                    "task, and cite the source sheet and row count. "
+                    f"Context: {args.context}. If a required fact is missing, "
+                    "ask for it instead of guessing."),
+            topic=f"{args.domain_label} method",
         )
         teach(
             page,
@@ -207,7 +256,7 @@ def main() -> int:
             topic="sales document format",
             applies="document", font="Arial", size="11",
             headings="Summary, Findings, Sources", columns="Item, Value",
-            context="sales", qualification="licensed",
+            context=args.context, qualification=args.qualification,
             effective_from="2026-01-01", effective_to="2027-12-31",
         )
         teach(
@@ -217,16 +266,17 @@ def main() -> int:
             topic="expedited document exception",
             applies="document", font="Arial", size="10",
             headings="Summary, Sources", columns="Item, Value",
-            context="sales", qualification="licensed", task_scope="expedited",
+            context=args.context, qualification=args.qualification, task_scope="expedited",
             effective_from="2026-01-01", effective_to="2027-12-31",
         )
         teach(
             page,
-            lesson=("Email protocol: greet the recipient, identify the sales "
-                    "team, and prefix the subject with [Quote]."),
-            topic="sales email protocol",
-            applies="email", greeting="Dear colleague,",
-            signature="Sales team", subject_prefix="[Quote]",
+            lesson=(f"Email protocol: greet the recipient, identify the "
+                    f"{args.signature}, and prefix the subject with "
+                    f"{args.subject_prefix}."),
+            topic=f"{args.domain_label} email protocol",
+            applies="email", greeting=args.greeting,
+            signature=args.signature, subject_prefix=args.subject_prefix,
         )
         teach(
             page,
@@ -235,7 +285,7 @@ def main() -> int:
             topic="expired document format",
             applies="document", font="Courier New", size="13",
             headings="Summary, Findings, Sources", columns="Item, Value",
-            context="sales", qualification="licensed",
+            context=args.context, qualification=args.qualification,
             effective_from="2019-01-01", effective_to="2020-01-01",
         )
         teach(
@@ -245,7 +295,7 @@ def main() -> int:
             topic="conflicting document format",
             applies="document", font="Times New Roman", size="12",
             headings="Summary, Findings, Sources", columns="Item, Value",
-            context="sales", qualification="licensed",
+            context=args.context, qualification=args.qualification,
             effective_from="2026-01-01", effective_to="2027-12-31",
         )
 
@@ -261,9 +311,10 @@ def main() -> int:
         first_error = fill_start(
             page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
-            qualification="licensed", task_scope="standard",
+            qualification=args.qualification, task_scope="standard",
             correlation=args.correlation,
-            recipient="acceptance@example.invalid")
+            recipient="acceptance@example.invalid",
+            measure=args.measure, context=args.context)
         if "Teaching cannot govern" not in first_error or "font_name" not in first_error:
             raise SystemExit(
                 "REFUSED: expected a font_name teaching conflict, got: "
@@ -275,14 +326,35 @@ def main() -> int:
         # Remove the conflicting lesson through the normal teaching surface.
         page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
-        page.get_by_test_id("training-panel").wait_for(timeout=30000)
-        point = page.locator('[data-testid="teaching-point"]').filter(
-            has_text="Times New Roman").first
-        point.wait_for(timeout=30000)
-        page.on("dialog", lambda dialog: dialog.accept())
-        point.locator('[data-testid="teaching-point-delete"]').click()
-        page.get_by_text("Teaching point removed", exact=False).wait_for(
-            timeout=30000)
+        page.get_by_test_id("training-panel").wait_for(
+            state="attached", timeout=30000)
+        page.wait_for_timeout(800)
+        canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
+        training = api(
+            page,
+            f"/api/maturity/training/context?canvas_id={canvas_id}")
+        point = next(
+            (item for item in (training.get("teaching_points") or [])
+             if "Times New Roman" in str(
+                 item.get("text") or item.get("lesson") or "")),
+            None)
+        if point is None:
+            raise SystemExit("REFUSED: conflicting teaching point not found")
+        status = page.evaluate(
+            """async ({agentId, pointId}) => {
+                const token = localStorage.getItem('auth_token')
+                    || localStorage.getItem('token');
+                const response = await fetch(
+                    `/api/maturity/agents/${agentId}/teaching-points/`
+                    + encodeURIComponent(pointId),
+                    {method: 'DELETE',
+                     headers: {Authorization: `Bearer ${token}`}});
+                return response.status;
+            }""",
+            {"agentId": agent_id, "pointId": point.get("id")})
+        if int(status) >= 300:
+            raise SystemExit(
+                f"REFUSED: teaching point delete returned {status}")
         page.close()
 
         # Second attempt in another fresh context: the required qualification
@@ -294,7 +366,8 @@ def main() -> int:
             source_file=Path(args.csv).name, objective=args.objective,
             qualification="", task_scope="standard",
             correlation=args.correlation,
-            recipient="acceptance@example.invalid")
+            recipient="acceptance@example.invalid",
+            measure=args.measure, context=args.context)
         if "Teaching cannot govern" not in missing_error:
             raise SystemExit(
                 "REFUSED: expected a missing-qualification clarification, got: "
@@ -309,9 +382,10 @@ def main() -> int:
         second_error = fill_start(
             page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
-            qualification="licensed", task_scope="standard",
+            qualification=args.qualification, task_scope="standard",
             correlation=args.correlation,
-            recipient="acceptance@example.invalid")
+            recipient="acceptance@example.invalid",
+            measure=args.measure, context=args.context)
         page.get_by_test_id("assignment-detail-objective").wait_for(timeout=60000)
         if page.get_by_test_id("assignment-detail-objective").inner_text() != args.objective:
             raise SystemExit(
@@ -319,7 +393,8 @@ def main() -> int:
                 + second_error[:1500])
 
         page.get_by_test_id("mapping-candidates").wait_for(timeout=60000)
-        page.get_by_test_id("mapping-candidate-Gross Amount").click()
+        page.get_by_test_id(
+            f"mapping-candidate-{args.mapping_candidate}").click()
         page.get_by_text("Correlated response", exact=False).wait_for(
             timeout=60000)
         page.wait_for_timeout(1500)

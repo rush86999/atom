@@ -1,0 +1,99 @@
+
+----------------------------- live log collection ------------------------------
+2026-10-31 18:35:58 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_canvas_assessment_clarification_routes.py::test_clarify_route_consumes_saved_answers_into_generation 
+-------------------------------- live log setup --------------------------------
+2026-10-31 18:35:59 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 18:35:59 [    INFO] EscalationManager initialized
+2026-10-31 18:35:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 18:35:59 [    INFO] EscalationManager initialized
+2026-10-31 18:35:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 18:35:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 18:35:59 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-10-31 18:35:59 [    INFO] EscalationManager initialized
+2026-10-31 18:35:59 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:35:59 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-10-31 18:35:59 [    INFO] EscalationManager initialized
+2026-10-31 18:35:59 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:35:59 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess/canvas-canvas_clarify_route_1-8bef971ddae5/clarify "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_canvas_assessment_clarification.py::test_assessment_persists_the_clarification_obligation PASSED [ 11%]
+tests/test_canvas_assessment_clarification.py::test_clarification_survives_a_restart PASSED [ 16%]
+tests/test_canvas_assessment_clarification.py::test_partial_answer_stays_open_and_clears_approval PASSED [ 22%]
+tests/test_canvas_assessment_clarification.py::test_full_answer_resumes_the_same_work PASSED [ 27%]
+tests/test_canvas_assessment_clarification.py::test_answer_for_an_unknown_subject_is_refused PASSED [ 33%]
+tests/test_canvas_assessment_clarification.py::test_answer_after_reassessment_is_stale PASSED [ 38%]
+tests/test_canvas_assessment_clarification.py::test_two_requirements_on_one_subject_require_requirement_ids PASSED [ 44%]
+tests/test_canvas_assessment_clarification.py::test_reordered_answers_and_conflicting_replay PASSED [ 50%]
+tests/test_canvas_assessment_clarification.py::test_changed_policy_preserves_the_answer_as_history PASSED [ 55%]
+tests/test_canvas_assessment_clarification.py::test_changed_source_preserves_the_answer_as_history PASSED [ 61%]
+tests/test_canvas_assessment_clarification.py::test_multiple_requirements_on_one_subject_need_requirement_ids PASSED [ 66%]
+tests/test_canvas_assessment_clarification.py::test_unknown_requirement_id_is_refused PASSED [ 72%]
+tests/test_canvas_assessment_clarification.py::test_conflicting_answers_for_one_requirement_are_refused PASSED [ 77%]
+tests/test_canvas_assessment_clarification.py::test_changed_revision_preserves_answers_and_requires_reassessment PASSED [ 83%]
+tests/test_canvas_assessment_routes.py::test_exact_assessment_approval_and_drift_refusal 
+-------------------------------- live log call ---------------------------------
+2026-10-31 18:36:11 [    INFO] EscalationManager initialized
+2026-10-31 18:36:11 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-9c1d22135bf4/approve "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/authorization "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-9c1d22135bf4/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_canvas_assessment_routes.py::test_unsupported_approval_fails_the_qualification_gate PASSED [ 94%]
+tests/test_canvas_assessment_routes.py::test_route_clarification_resumes_and_invalidates_prior_approval 
+-------------------------------- live log call ---------------------------------
+2026-10-31 18:36:11 [    INFO] EscalationManager initialized
+2026-10-31 18:36:11 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-2f4edf5d6ffe/approve "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] EscalationManager initialized
+2026-10-31 18:36:11 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:36:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-2f4edf5d6ffe/clarify "HTTP/1.1 200 OK"
+2026-10-31 18:36:11 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom-phase-d/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom-phase-d/backend/venv/lib/python3.11/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../atom-phase-d/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom-phase-d/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 36 warnings
+  /Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 18 passed, 43 warnings in 26.35s =======================

@@ -1,0 +1,21 @@
+25 broken internal symlink(s) under /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds (preserved by rsync -a)
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+  broken internal symlinks: 25 (preserved verbatim by rsync -a)
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/analytics_data -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/analytics_data
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/evidence_collection_framework.py -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/evidence_collection_framework.py
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/token_status.txt -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/token_status.txt
+    ... and 22 more (python -m core.world_storage_guard audit-symlinks --all)
+frontend exited during startup
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use 127.0.0.1:3132
+    at <unknown> (Error: listen EADDRINUSE: address already in use 127.0.0.1:3132) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 3132
+}
+startup failed; cleaning up only this invocation's processes
+stopping backend pid 78051

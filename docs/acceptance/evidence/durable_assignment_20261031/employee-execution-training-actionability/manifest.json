@@ -1,0 +1,21 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-training-actionability",
+  "source_checkpoint": "5664c46c5",
+  "final_candidate": "bc164fb96632",
+  "note": "Historical blocked run on a string-retargeted build; superseded by employee-execution-unforced-teaching/ on clean stock source bc164fb96632.",
+  "files": {
+    "README.md": {
+      "sha256": "e226083f1e5c4dc9b0d500e35c77c5b82674387f6a99e097f19bf9ca6116e10e",
+      "bytes": 3177
+    },
+    "training-panel-before.png": {
+      "sha256": "1f3391e73dc6395bca616513c6c2aac9e115c6c9adcd9b4a0455158a03236b71",
+      "bytes": 155639
+    },
+    "training-stall-trace.zip": {
+      "sha256": "c093f686d48082a9f3d325cc89502bb74a792745494c35c57c8c5fbfe5f013d8",
+      "bytes": 6759090
+    }
+  }
+}

@@ -85,7 +85,21 @@ class ExternalOutcomeUnknown(AssignmentError):
     def __init__(self, reason: str, evidence: str = ""):
         self.reason = str(reason or "provider outcome unknown")
         self.evidence = str(evidence or "")
+        self.effect_possible = True
         super().__init__(self.reason)
+
+
+class ExternalOutcomeNotApplied(AssignmentError):
+    """A trusted adapter established that no external effect was possible.
+
+    Generic exceptions after an external dispatch are UNKNOWN, never
+    "failed before effect": the call may have landed. Only this explicit
+    contract (or ``effect_possible=False``) permits a safe retry.
+    """
+
+    def __init__(self, reason: str = "dispatch refused before effect"):
+        self.effect_possible = False
+        super().__init__(reason)
 
 
 @dataclass
@@ -191,6 +205,7 @@ def _authorization_revision(assignment: Dict[str, Any]) -> str:
         "plan_revision": assignment.get("plan_revision"),
         "teaching_fingerprint": snapshot.get("fingerprint"),
         "authorized_actions": assignment.get("authorized_actions") or [],
+        "standing_authority": assignment.get("standing_authority") or {},
         "workspace_id": assignment.get("workspace_id"),
     })[:32]
 
@@ -3025,7 +3040,42 @@ class AssignmentExecutor:
         result = self.lifecycle.reconcile_uncertain_operation(
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)
-        return {"status": "reconciled", "operation": result}
+        if verdict == "applied":
+            assignment = self._mark_step(
+                (self.lifecycle.get_assignment(run_id) or {}),
+                step_id,
+                {
+                    "status": "applied",
+                    "result": _json_safe(result.get("execution") or {
+                        "summary": "reconciled applied",
+                        "evidence": [evidence],
+                    }),
+                    "failure": None,
+                })
+            self._persist_assignment(
+                run_id, assignment, f"step {step_id} reconciled applied")
+        elif verdict == "not_applied":
+            # No effect landed. Clear the operation binding so the next
+            # resume creates a NEW operation (the original failed record is
+            # preserved); never rewind or overwrite the evidence.
+            assignment = self.lifecycle.get_assignment(run_id) or {}
+            assignment = self._mark_step(assignment, step_id, {
+                "status": "pending",
+                "operation_id": None,
+                "attempts": int(step.get("attempts") or 0) + 1,
+                "failure": {
+                    "reason": "reconciled_not_applied",
+                    "message": _bounded(evidence, 500),
+                },
+            })
+            self._persist_assignment(
+                run_id, assignment, f"step {step_id} reconciled not applied")
+        return {
+            "status": "reconciled",
+            "verdict": verdict,
+            "operation": result,
+            "assignment": self.lifecycle.get_assignment(run_id) or {},
+        }
 
     # ------------------------------------------------------------- cancel
 
@@ -3173,7 +3223,7 @@ class AssignmentExecutor:
                 "tool": step.get("adapter"),
                 "verified": applied,
                 "outcome": (execution.get("summary")
-                            or step.get("failure", {}).get("message") or ""),
+                            or (step.get("failure") or {}).get("message") or ""),
                 "required": bool(step.get("required", True)),
                 "evidence_refs": list(step.get("evidence_refs") or []),
             })
@@ -3382,7 +3432,200 @@ class AssignmentExecutor:
                     return False
             except (TypeError, ValueError):
                 pass
+        cost_limit = float(budget.get("max_cost_usd") or 0)
+        if (cost_limit > 0
+                and str(budget.get("cost_mode") or "hard") == "hard"
+                and float(budget.get("cost_usd") or 0)
+                + float(budget.get("reserved_cost_usd") or 0)
+                >= cost_limit):
+            return False
         return True
+
+    def _remaining_wall_seconds(
+        self, assignment: Dict[str, Any],
+    ) -> Optional[float]:
+        """Remaining assignment wall budget, or None when unbounded."""
+        budget = assignment.get("budget") or {}
+        limit = float(budget.get("max_wall_seconds") or 0)
+        if limit <= 0:
+            return None
+        started = budget.get("started_at")
+        if not started:
+            return limit
+        try:
+            started_at = datetime.fromisoformat(str(started)).timestamp()
+        except (TypeError, ValueError):
+            return limit
+        return max(0.0, limit - (self.clock() - started_at))
+
+    def _step_cost_bound(
+        self, step: Dict[str, Any], adapter: Any,
+    ) -> Optional[float]:
+        """Conservative upper bound the adapter declares for one operation."""
+        raw = step.get("max_cost_usd")
+        if raw is None:
+            raw = (getattr(adapter, "metadata", None) or {}).get(
+                "max_cost_usd")
+        if raw is None:
+            return None
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            return None
+
+    def _cost_bearing(self, adapter: Any) -> bool:
+        return bool((getattr(adapter, "metadata", None) or {}).get(
+            "cost_bearing"))
+
+    def _reserve_step_cost(
+        self,
+        run_id: str,
+        assignment: Dict[str, Any],
+        step: Dict[str, Any],
+        operation_id: str,
+        bound: Optional[float],
+        adapter: Any,
+    ) -> Dict[str, Any]:
+        """Reserve the declared upper bound before dispatch.
+
+        Hard mode refuses an operation whose reservation would exceed the
+        limit (including concurrent reservations) and refuses a cost-bearing
+        adapter with no declared bound. Soft mode records an explicitly
+        authorized overrun instead of pretending the limit held.
+        """
+        budget = assignment.get("budget") or {}
+        limit = float(budget.get("max_cost_usd") or 0)
+        mode = str(budget.get("cost_mode") or "hard").lower()
+        cost_bearing = self._cost_bearing(adapter)
+        if limit <= 0:
+            return {"ok": True, "assignment": assignment, "bound": 0.0}
+        if cost_bearing and bound is None and mode != "soft":
+            return {
+                "ok": False,
+                "reason": "unbounded_cost_refused",
+                "message": (
+                    "This cost-bearing operation declares no upper bound; "
+                    "refusing autonomous execution under a hard budget."),
+            }
+        reserve = float(bound or 0.0)
+
+        def compute(record, current):
+            current_budget = dict(current.get("budget") or {})
+            committed = float(current_budget.get("cost_usd") or 0)
+            reserved = float(current_budget.get("reserved_cost_usd") or 0)
+            current_limit = float(current_budget.get("max_cost_usd") or 0)
+            current_mode = str(current_budget.get("cost_mode") or "hard")
+            existing = [
+                item for item in (current_budget.get("cost_reservations")
+                                  or [])
+                if item.get("operation_id") == operation_id
+            ]
+            if existing:
+                return current, {
+                    "ok": True, "assignment": current,
+                    "bound": reserve, "already": True,
+                }
+            if (current_limit > 0
+                    and committed + reserved + reserve
+                    > current_limit + 1e-9):
+                if current_mode == "hard":
+                    raise AssignmentError(
+                        "assignment_cost_budget_exhausted: "
+                        f"committed={committed:.6f} "
+                        f"reserved={reserved:.6f} "
+                        f"requested={reserve:.6f} "
+                        f"limit={current_limit:.6f}")
+                current_budget["soft_limit_exceeded"] = True
+            reservations = list(
+                current_budget.get("cost_reservations") or [])
+            reservations.append({
+                "operation_id": operation_id,
+                "step_id": step.get("step_id"),
+                "bound_usd": reserve,
+                "reserved_at": _utc_now_iso(),
+                "mode": current_mode,
+            })
+            current_budget["reserved_cost_usd"] = round(reserved + reserve, 6)
+            current_budget["cost_reservations"] = reservations[-80:]
+            current["budget"] = current_budget
+            return current, {
+                "ok": True, "assignment": current,
+                "bound": reserve, "already": False,
+            }
+
+        try:
+            return self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale=(
+                    f"reserve cost bound for {step.get('step_id')}"))
+        except Exception as exc:  # noqa: BLE001 — refuse before dispatch
+            return {
+                "ok": False,
+                "reason": "assignment_cost_budget_exhausted",
+                "message": _bounded(str(exc), 500),
+            }
+
+    def _settle_step_cost(
+        self,
+        assignment: Dict[str, Any],
+        run_id: str,
+        step: Dict[str, Any],
+        operation_id: str,
+        bound: float,
+        outcome: str,
+        actual: float = 0.0,
+    ) -> Dict[str, Any]:
+        """Release the reservation and commit actual (or conservative) cost.
+
+        ``applied`` commits the actual cost; ``uncertain`` commits the full
+        reserved bound because the provider may have charged it; a proven
+        no-effect failure releases the reservation. An actual overrun in hard
+        mode is recorded as a budget violation, never hidden.
+        """
+        reserve = float(bound or 0.0)
+
+        def compute(record, current):
+            current_budget = dict(current.get("budget") or {})
+            reservations = [
+                item for item in (current_budget.get("cost_reservations")
+                                  or [])
+                if item.get("operation_id") != operation_id
+            ]
+            held = float(current_budget.get("reserved_cost_usd") or 0)
+            current_budget["reserved_cost_usd"] = round(
+                max(0.0, held - reserve), 6)
+            current_budget["cost_reservations"] = reservations[-80:]
+            if outcome == "applied":
+                charge = max(0.0, float(actual or 0))
+                if charge <= 0 and reserve > 0:
+                    charge = reserve
+            elif outcome == "uncertain":
+                charge = reserve
+            else:
+                charge = 0.0
+            committed = float(current_budget.get("cost_usd") or 0)
+            current_budget["cost_usd"] = round(committed + charge, 6)
+            if (str(current_budget.get("cost_mode") or "hard") == "hard"
+                    and charge > reserve + 1e-9):
+                current_budget["cost_overrun_usd"] = round(
+                    float(current_budget.get("cost_overrun_usd") or 0)
+                    + (charge - reserve), 6)
+                current_budget["cost_violation"] = (
+                    "actual cost exceeded the reserved bound")
+            current["budget"] = current_budget
+            return current, {"charged": charge, "assignment": current}
+
+        try:
+            result = self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale=(
+                    f"settle cost for {step.get('step_id')} ({outcome})"))
+            return result.get("assignment") or assignment
+        except Exception as exc:  # noqa: BLE001 — accounting is observable
+            logger.error(
+                "assignment %s: cost settlement failed for %s: %s",
+                run_id, step.get("step_id"), exc)
+            return assignment
 
     def _bump_steps_started(
         self, assignment: Dict[str, Any],
@@ -3601,6 +3844,8 @@ class AssignmentExecutor:
                 assignment.get("deliverables") or []),
             "authorized_actions": list(
                 assignment.get("authorized_actions") or []),
+            "standing_authority": copy.deepcopy(
+                assignment.get("standing_authority") or {}),
             "task_revision": copy.deepcopy(record.get("task_revision") or {}),
             "resolved_gaps": [
                 copy.deepcopy(item)
@@ -3679,6 +3924,113 @@ class AssignmentExecutor:
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
 
+    def _adapter_allows_standing(self, adapter: Any) -> bool:
+        metadata = getattr(adapter, "metadata", None) or {}
+        if metadata.get("allow_standing_authorization"):
+            return True
+        # The real Outlook transport opts in only when BOTH the live send and
+        # bounded live standing authority are explicitly enabled. The shipped
+        # default remains approval-only.
+        return bool(
+            getattr(adapter, "name", "") == "email.send_outlook"
+            and os.getenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") == "1"
+            and os.getenv(
+                "ATOM_ASSIGNMENT_ALLOW_STANDING_LIVE_SEND", "0") == "1"
+        )
+
+    def _standing_grant_covers(
+        self, assignment: Dict[str, Any], step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """The explicit bounded grant covering this outbound step, if any.
+
+        Coverage is deliberately narrow: outbound effects only, an adapter
+        that opted in, an unexpired active grant with remaining uses, and
+        every actual recipient inside the named recipient set.
+        """
+        grant = assignment.get("standing_authority")
+        if not isinstance(grant, dict) or grant.get("status") != "active":
+            return None
+        if "outbound" not in (grant.get("actions") or []):
+            return None
+        if str(step.get("effect") or "") != "external" or str(
+                step.get("operation_type") or "") != "outbound":
+            return None
+        adapter = self.adapters.get(step.get("adapter") or "")
+        if adapter is None or not self._adapter_allows_standing(adapter):
+            return None
+        if int(grant.get("used_effects") or 0) >= int(
+                grant.get("max_effects") or 0):
+            return None
+        expires_at = str(grant.get("expires_at") or "").strip()
+        if expires_at:
+            try:
+                if self.clock() >= datetime.fromisoformat(expires_at).timestamp():
+                    return None
+            except (TypeError, ValueError):
+                return None
+        allowed = {
+            str(item).strip().lower()
+            for item in (grant.get("recipients") or []) if str(item).strip()
+        }
+        inputs = self._resolve_inputs(assignment, step)
+        recipients = {
+            str(item).strip().lower()
+            for key in ("to", "cc")
+            for item in (inputs.get(key) or [])
+            if str(item).strip()
+        }
+        if not recipients or not recipients <= allowed:
+            return None
+        return grant
+
+    def _reserve_standing_grant(
+        self, run_id: str, assignment: Dict[str, Any], step: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Atomically consume one bounded grant use before dispatch.
+
+        A lost CAS or an exhausted/out-of-scope grant returns None; the
+        caller then falls back to the ordinary human approval path. The grant
+        is never consumed by a step the grant does not cover.
+        """
+        grant_id = str(
+            (assignment.get("standing_authority") or {}).get("grant_id") or "")
+        if not grant_id:
+            return None
+
+        def compute(record, current):
+            grant = self._standing_grant_covers(current, step)
+            if not grant or str(grant.get("grant_id")) != grant_id:
+                raise AssignmentError("standing authority is no longer usable")
+            use = int(grant.get("used_effects") or 0) + 1
+            updated = copy.deepcopy(current)
+            next_grant = dict(updated.get("standing_authority") or {})
+            next_grant["used_effects"] = use
+            next_grant["usage"] = list(next_grant.get("usage") or []) + [{
+                "use": use,
+                "step_id": step.get("step_id"),
+                "operation_id": step.get("operation_id"),
+                "at": _utc_now_iso(),
+            }]
+            if use >= int(next_grant.get("max_effects") or 0):
+                next_grant["status"] = "exhausted"
+            updated["standing_authority"] = next_grant
+            return updated, {
+                "assignment": updated,
+                "grant": next_grant,
+                "use": use,
+            }
+
+        try:
+            return self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale=(
+                    f"standing authority use for {step.get('step_id')}"))
+        except Exception as exc:  # noqa: BLE001 — fall back to approval
+            logger.warning(
+                "assignment %s: standing authority reservation refused: %s",
+                run_id, exc)
+            return None
+
     async def _run_step(
         self,
         run_id: str,
@@ -3698,8 +4050,42 @@ class AssignmentExecutor:
         external = step.get("effect") == "external"
         approval = step.get("approval") or {}
         standing = str(step.get("standing_authorization") or "").strip()
+        standing_reservation = None
+        if self._standing_grant_covers(assignment, step):
+            try:
+                prepared = self._prepare_effect(assignment, step, record)
+            except Exception as exc:  # noqa: BLE001 — fall back to approval
+                logger.warning(
+                    "assignment %s: standing authority prepare refused for "
+                    "%s: %s", run_id, step.get("step_id"), exc)
+                prepared = None
+            if prepared is not None:
+                standing_reservation = self._reserve_standing_grant(
+                    run_id, assignment, step)
+            if standing_reservation:
+                assignment = standing_reservation["assignment"]
+                grant = standing_reservation["grant"]
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "standing_authority_receipt": {
+                        "grant_id": grant.get("grant_id"),
+                        "use": standing_reservation["use"],
+                        "max_effects": grant.get("max_effects"),
+                        "recipients": list(grant.get("recipients") or []),
+                        "payload_sha256": prepared.get("payload_sha256"),
+                        "authorized_at": _utc_now_iso(),
+                    },
+                })
+                self._persist_assignment(
+                    run_id, assignment,
+                    f"step {step['step_id']} covered by standing authority")
+                step = step_by_id(assignment, step["step_id"]) or step
+
+        authorized_by_grant = standing_reservation is not None
         if external and not approval.get("required") and not (
-                standing and standing in (assignment.get("authorized_actions") or [])):
+                authorized_by_grant or (
+                    standing
+                    and standing in (assignment.get("authorized_actions") or [])
+                )):
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "failed",
                 "failure": {
@@ -3714,7 +4100,7 @@ class AssignmentExecutor:
                 run_id, assignment, "step blocked: action not authorized")
             return
 
-        if approval.get("required"):
+        if approval.get("required") and not authorized_by_grant:
             operation = _operation_by_id(
                 self.lifecycle.get_task(run_id) or record, operation_id) or operation
             if operation.get("status") == "awaiting_approval":
@@ -3865,14 +4251,62 @@ class AssignmentExecutor:
                 run_id, assignment, "adapter unavailable")
             return
 
+        cost_bound = self._step_cost_bound(step, adapter)
+        reservation = self._reserve_step_cost(
+            run_id, assignment, step, operation_id, cost_bound, adapter)
+        if not reservation.get("ok"):
+            try:
+                self.lifecycle.transition_operation(
+                    run_id, operation_id, "failed")
+            except TaskLifecycleError:
+                pass
+            self._attach_receipt(
+                run_id, operation, step,
+                {"summary": reservation.get("message") or
+                 reservation.get("reason") or "cost budget refused"},
+                observed_status="failed_before_effect",
+                error_class=str(
+                    reservation.get("reason") or "cost_budget_refused"))
+            assignment = self._mark_step(assignment, step["step_id"], {
+                "status": "failed",
+                "failure": {
+                    "reason": str(
+                        reservation.get("reason")
+                        or "assignment_cost_budget_exhausted"),
+                    "message": _bounded(
+                        reservation.get("message") or
+                        "The operation was refused before dispatch by the "
+                        "hard cost budget.", 500),
+                },
+                "updated_at": _utc_now_iso()})
+            self._persist_assignment(
+                run_id, assignment, "cost budget refused before dispatch")
+            return
+        assignment = reservation.get("assignment") or assignment
+        cost_bound = float(reservation.get("bound") or 0.0)
+
         try:
-            result = await _invoke(
+            remaining = self._remaining_wall_seconds(assignment)
+            if remaining is not None and remaining <= 0:
+                raise AssignmentError(
+                    "assignment wall budget was exhausted during an operation")
+            invocation = _invoke(
                 adapter.handler, dict(resolved_inputs), context)
+            if remaining is None:
+                result = await invocation
+            else:
+                result = await asyncio.wait_for(invocation, timeout=remaining)
             result = dict(result or {})
         except NeedsContext as exc:
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "released")
             await self._record_gap(run_id, record, assignment, step, operation_id, exc.gap)
             return
         except WaitingForExternal as exc:
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "released")
             self.lifecycle.set_operation_waiting(
                 run_id, operation_id, waiting=exc.waiting)
             self._enter_wait(
@@ -3886,6 +4320,9 @@ class AssignmentExecutor:
                 run_id, assignment, "step waiting for external")
             return
         except ExternalOutcomeUnknown as exc:
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "uncertain")
             self.lifecycle.record_uncertain_outcome(
                 run_id, operation_id, reason=exc.reason,
                 evidence=exc.evidence, observed_by=step.get("adapter") or "")
@@ -3905,7 +4342,75 @@ class AssignmentExecutor:
             self._persist_assignment(
                 run_id, assignment, "external outcome uncertain")
             return
+        except asyncio.CancelledError as exc:
+            # Cancellation after an external dispatch is not proof of no
+            # effect. Persist uncertainty before propagating the cancellation.
+            if str(step.get("effect") or "") == "external":
+                reason = (
+                    f"dispatch cancelled after invocation "
+                    f"({type(exc).__name__})")
+                assignment = self._settle_step_cost(
+                    assignment, run_id, step, operation_id, cost_bound,
+                    "uncertain")
+                self.lifecycle.record_uncertain_outcome(
+                    run_id, operation_id, reason=reason,
+                    evidence=reason,
+                    observed_by=step.get("adapter") or "")
+                self._attach_receipt(
+                    run_id, operation, step,
+                    {"summary": reason},
+                    observed_status="uncertain",
+                    error_class="external_dispatch_cancelled",
+                    reconciliation_required=True)
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "status": "uncertain",
+                    "failure": {
+                        "reason": "external_outcome_unknown",
+                        "message": reason,
+                    },
+                    "updated_at": _utc_now_iso()})
+                self._persist_assignment(
+                    run_id, assignment, "external dispatch cancelled")
+            raise
         except Exception as exc:  # noqa: BLE001 — durable failure state
+            external = str(step.get("effect") or "") == "external"
+            effect_possible = external and not (
+                isinstance(exc, ExternalOutcomeNotApplied)
+                or getattr(exc, "effect_possible", True) is False)
+            if effect_possible:
+                # The adapter was invoked but the exception does not prove the
+                # effect was absent (parse error, timeout, ordinary runtime
+                # error). Never label this failed-before-effect; a resend could
+                # duplicate a real provider effect.
+                reason = (
+                    f"external dispatch raised {type(exc).__name__} after "
+                    f"invocation; effect may have landed")
+                assignment = self._settle_step_cost(
+                    assignment, run_id, step, operation_id, cost_bound,
+                    "uncertain")
+                self.lifecycle.record_uncertain_outcome(
+                    run_id, operation_id, reason=reason,
+                    evidence=f"{type(exc).__name__}: {exc}",
+                    observed_by=step.get("adapter") or "")
+                self._attach_receipt(
+                    run_id, operation, step,
+                    {"summary": reason, "error": str(exc)[:500]},
+                    observed_status="uncertain",
+                    error_class="adapter_exception_after_dispatch",
+                    reconciliation_required=True)
+                assignment = self._mark_step(assignment, step["step_id"], {
+                    "status": "uncertain",
+                    "failure": {
+                        "reason": "external_outcome_unknown",
+                        "message": _bounded(reason, 500),
+                    },
+                    "updated_at": _utc_now_iso()})
+                self._persist_assignment(
+                    run_id, assignment, "external dispatch uncertain")
+                return
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "failed_before_effect")
             try:
                 self.lifecycle.transition_operation(
                     run_id, operation_id, "failed")
@@ -3929,11 +4434,17 @@ class AssignmentExecutor:
 
         outcome = str(result.get("status") or "applied")
         if outcome == "needs_context":
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "released")
             await self._record_gap(
                 run_id, record, assignment, step, operation_id,
                 result.get("gap") or {})
             return
         if outcome == "waiting":
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "released")
             waiting = result.get("waiting") or {}
             self.lifecycle.set_operation_waiting(
                 run_id, operation_id, waiting=waiting)
@@ -3948,6 +4459,9 @@ class AssignmentExecutor:
                 run_id, assignment, "step waiting")
             return
         if outcome == "uncertain":
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "uncertain")
             self.lifecycle.record_uncertain_outcome(
                 run_id, operation_id,
                 reason=_bounded(result.get("reason") or "provider outcome "
@@ -3970,6 +4484,9 @@ class AssignmentExecutor:
                 run_id, assignment, "external outcome uncertain")
             return
         if outcome == "skipped":
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "released")
             self.lifecycle.transition_operation(
                 run_id, operation_id, "cancelled")
             assignment = self._mark_step(assignment, step["step_id"], {
@@ -3981,6 +4498,9 @@ class AssignmentExecutor:
                 run_id, assignment, "step skipped")
             return
         if outcome not in ("applied", "completed"):
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "failed_before_effect")
             self.lifecycle.transition_operation(
                 run_id, operation_id, "failed")
             self._attach_receipt(
@@ -4049,6 +4569,13 @@ class AssignmentExecutor:
 
         artifact = result.get("artifact") if isinstance(
             result.get("artifact"), dict) else {}
+        try:
+            actual_cost = float(result.get("cost_usd") or 0)
+        except (TypeError, ValueError):
+            actual_cost = 0.0
+        assignment = self._settle_step_cost(
+            assignment, run_id, step, operation_id, cost_bound,
+            "applied", actual_cost)
         assignment = self._mark_step(assignment, step["step_id"], {
             "status": "applied",
             "result": execution,

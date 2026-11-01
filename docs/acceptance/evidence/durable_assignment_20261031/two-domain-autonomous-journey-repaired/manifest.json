@@ -1,0 +1,45 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "two-domain-autonomous-journey-repaired",
+  "source_checkpoint": "803ef2666",
+  "code_repair": "b7ee7ee22",
+  "files": {
+    "README.md": {
+      "sha256": "e2a612ce3e745e1bcc96f82430363c0644cd94e3c59272ac454f27339ddb2857",
+      "bytes": 2393
+    },
+    "artifacts.json": {
+      "sha256": "192aef1c07ac2c33c4ee26116271893849197c581e08e4cbb3c7439d8bdd55f0",
+      "bytes": 1962
+    },
+    "backend-reset.log": {
+      "sha256": "83c7ce887fa6bf486192cf5d5e593f902ac265b0c9ca4e009759997d1e11c681",
+      "bytes": 104
+    },
+    "backend-restart.log": {
+      "sha256": "83c7ce887fa6bf486192cf5d5e593f902ac265b0c9ca4e009759997d1e11c681",
+      "bytes": 104
+    },
+    "outbox.jsonl": {
+      "sha256": "1700737d59968a588b13f2e6b560ec01c521cd86a843c128dd38bacb9a7196d9",
+      "bytes": 1271
+    },
+    "two-domain.json": {
+      "sha256": "9462177f8ff45868ee224b034750ffcb03606fcd4ca70d3cab96bafa097b7cc5",
+      "bytes": 5278
+    },
+    "screenshots/01-two-domains-waiting.png": {
+      "sha256": "fc7a69bf73cc899481209d376ed7313de1310c790012e631f8ad00dfb2a467f5",
+      "bytes": 125236
+    },
+    "screenshots/02-grants-completed.png": {
+      "sha256": "fd1e671a152f3b2eda7bed614096cae0fc762dc1e4235c52c6534e0d6ca4545e",
+      "bytes": 130529
+    },
+    "screenshots/02-sales-completed.png": {
+      "sha256": "4c3a05615d15c4697592d08c1d1f1b2092238dfe7f0c8cc072a0388aaa445e05",
+      "bytes": 127575
+    }
+  },
+  "final_candidate": "614db9c18"
+}

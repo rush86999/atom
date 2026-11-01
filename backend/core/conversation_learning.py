@@ -77,6 +77,10 @@ METHOD_STATUSES = {
     "example_only",
     "partially_inferred",
     "unresolved",
+    # A promoted conversation lesson may be pure guidance (style, protocol,
+    # preference, approach). It has no executable arithmetic method; the
+    # absence of a method is intentional, not an unresolved calculation.
+    "not_applicable",
 }
 
 CANDIDATE_STATUSES = {
@@ -389,6 +393,12 @@ class LearningCandidate(BaseModel):
     intended_outcome: str = ""
     applies_to: List[str] = Field(default_factory=list)
     context: Dict[str, Any] = Field(default_factory=dict)
+    # Artifact/communication teaching travels on the same candidate so a
+    # promoted conversation lesson reaches the artifact lanes, not only the
+    # chat prompt. These are optional; pure guidance lessons omit them.
+    format_spec: Dict[str, Any] = Field(default_factory=dict)
+    conditions: Dict[str, Any] = Field(default_factory=dict)
+    decision_options: List[str] = Field(default_factory=list)
     method: MethodSpec = Field(default_factory=MethodSpec)
     method_status: str = "unresolved"
     dependencies: List[LearningDependency] = Field(default_factory=list)
@@ -1029,7 +1039,7 @@ def derive_dependencies(candidate: LearningCandidate) -> List[LearningDependency
             edge_id=edge.edge_id,
         )
 
-    if candidate.method_status != "explicit":
+    if candidate.method_status not in ("explicit", "not_applicable"):
         status = (
             "missing" if candidate.method_status == "unresolved"
             else "ambiguous")
@@ -1040,10 +1050,36 @@ def derive_dependencies(candidate: LearningCandidate) -> List[LearningDependency
             "calculation, conditions and exceptions before promotion.",
         )
 
-    for issue in validate_method(candidate.method):
+    if candidate.method_status != "not_applicable":
+        for issue in validate_method(candidate.method):
+            add(
+                issue["kind"], issue["status"], issue["question"],
+                concept=str(issue.get("concept") or ""))
+
+    # Artifact/communication teaching is validated by the same contract the
+    # renderers consume. A malformed format is a review blocker, never a
+    # silently ignored field.
+    if candidate.format_spec:
+        from core.artifact_teaching import normalize_artifact_teaching
+
+        normalized_format = normalize_artifact_teaching(
+            candidate.applies_to, candidate.format_spec,
+            candidate.conditions)
+        for error in normalized_format.get("errors") or []:
+            add("format", "incomplete", f"Artifact teaching is invalid: {error}")
+        for unsupported in normalized_format.get("unsupported") or []:
+            add(
+                "format",
+                "incomplete",
+                f"Artifact teaching key '{unsupported}' is not supported.",
+            )
+
+    if candidate.decision_options and len(candidate.decision_options) < 2:
         add(
-            issue["kind"], issue["status"], issue["question"],
-            concept=str(issue.get("concept") or ""))
+            "decisions",
+            "incomplete",
+            "A review decision schema needs at least two allowed decisions.",
+        )
 
     if not candidate.authority_message_id:
         add(
@@ -1107,7 +1143,8 @@ def candidate_readiness(candidate: LearningCandidate) -> Dict[str, Any]:
     ]
     review_ready = (
         not blocking
-        and candidate.method_status == "explicit"
+        and candidate.method_status in ("explicit", "not_applicable")
+        and bool(candidate.proposed_lesson.strip())
         and bool(candidate.applies_to or candidate.context)
         and candidate.status not in ("rejected", "invalidated")
     )
@@ -1172,6 +1209,15 @@ def _candidate_digest(candidate: LearningCandidate) -> str:
             for dep in candidate.dependencies
         ],
     }
+    # Backward-compatible identity: older candidates predate these fields and
+    # must keep their stored digest. Only a non-empty new field changes the
+    # payload, which is exactly when the candidate content changed.
+    if candidate.format_spec:
+        payload["format_spec"] = candidate.format_spec
+    if candidate.conditions:
+        payload["conditions"] = candidate.conditions
+    if candidate.decision_options:
+        payload["decision_options"] = list(candidate.decision_options)
     return canonical_sha256(payload)
 
 
@@ -1228,6 +1274,9 @@ def build_candidate(
     method_status: str = "unresolved",
     applies_to: Optional[Sequence[str]] = None,
     context: Optional[Dict[str, Any]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    decision_options: Optional[Sequence[str]] = None,
     evidence: Optional[ConversationEvidence] = None,
     references: Optional[Sequence[ReferenceEdge | Dict[str, Any]]] = None,
     authority_message_id: str = "",
@@ -1263,6 +1312,12 @@ def build_candidate(
         applies_to=[_bounded(item, 80) for item in (applies_to or []) if
                     _bounded(item, 80)],
         context=dict(context or {}),
+        format_spec=dict(format_spec or {}),
+        conditions=dict(conditions or {}),
+        decision_options=[
+            _bounded(item, 80) for item in (decision_options or [])
+            if _bounded(item, 80)
+        ][:20],
         method=method_model,
         method_status=method_status,
         references=[
@@ -1542,6 +1597,9 @@ def revise_candidate(
     method_status: Optional[str] = None,
     applies_to: Optional[Sequence[str]] = None,
     context: Optional[Dict[str, Any]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    decision_options: Optional[Sequence[str]] = None,
     changed_by: str = "",
 ) -> LearningCandidate:
     """Change candidate content; any prior approval is no longer valid."""
@@ -1558,6 +1616,15 @@ def revise_candidate(
             _bounded(item, 80) for item in applies_to if _bounded(item, 80)]
     if context is not None:
         candidate.context = dict(context)
+    if format_spec is not None:
+        candidate.format_spec = dict(format_spec)
+    if conditions is not None:
+        candidate.conditions = dict(conditions)
+    if decision_options is not None:
+        candidate.decision_options = [
+            _bounded(item, 80) for item in decision_options
+            if _bounded(item, 80)
+        ][:20]
     candidate.revision += 1
     candidate.confirmed_by = None
     candidate.confirmed_revision = None
@@ -1672,6 +1739,9 @@ def promote_candidate(
             "tenant_id": candidate.tenant_id,
             "applies_to": list(candidate.applies_to),
             "context": candidate.context,
+            "format_spec": dict(candidate.format_spec),
+            "conditions": dict(candidate.conditions),
+            "decision_options": list(candidate.decision_options),
             "method": candidate.method.model_dump(mode="json"),
             "method_status": candidate.method_status,
             "references": [
@@ -1708,6 +1778,11 @@ def promote_candidate(
         teacher_agent_id=str(reviewer or "human_supervisor"),
         details=details,
         context=dict(candidate.context),
+        applies_to=(
+            list(candidate.applies_to) if candidate.format_spec else None),
+        format_spec=dict(candidate.format_spec) or None,
+        conditions=dict(candidate.conditions) or None,
+        decision_options=list(candidate.decision_options) or None,
         workspace_id=candidate.workspace_id,
     )
     if entry is None:
@@ -1737,6 +1812,8 @@ def method_from_lesson(entry: Dict[str, Any]) -> Optional[MethodSpec]:
                                                 dict) else {}
     learning = details.get("conversation_learning") if isinstance(
         details.get("conversation_learning"), dict) else {}
+    if str(learning.get("method_status") or "") == "not_applicable":
+        return None
     method = learning.get("method")
     if not isinstance(method, dict):
         return None
@@ -1957,6 +2034,11 @@ def review_payload(candidate: LearningCandidate) -> Dict[str, Any]:
         "where_it_applies": {
             "applies_to": list(candidate.applies_to),
             "context": candidate.context,
+        },
+        "artifact_and_protocol": {
+            "format_spec": dict(candidate.format_spec),
+            "conditions": dict(candidate.conditions),
+            "decision_options": list(candidate.decision_options),
         },
         "referenced_data_and_versions": [
             {

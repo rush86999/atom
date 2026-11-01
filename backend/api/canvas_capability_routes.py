@@ -19,12 +19,19 @@ from core.deployment_audience import require_pilot_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_capability_service import (
     CapabilityError,
+    approve_assessment,
     assess_operation,
+    answer_assessment_clarification,
+    assessment_authorization,
+    assessment_clarification,
+    assessment_review_policy,
+    clarification_resume_readiness,
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
     calculate_operation,
     current_revision,
+    decisions_operation,
     edit_operation,
     effective_operations,
     export_operation,
@@ -133,6 +140,10 @@ async def read_capability(
             "operations": effective_operations(canvas, manifest),
             "policy_revision": policy_revision(manifest) if manifest else None,
             "revision": current_revision(canvas),
+            # Existing read consumers see the review state, so none of them
+            # can treat the assessment as authorized by omission.
+            "review_policy": assessment_review_policy(),
+            "authorization": assessment_authorization(canvas, db=db),
             "dataset": {
                 "columns": dataset.get("columns") or [],
                 "row_count": len(dataset.get("rows") or []),
@@ -271,6 +282,109 @@ async def capability_assess(
             db, canvas, current_user, request.ask,
             max_subjects=request.max_subjects,
         )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+class ClarifyRequest(BaseModel):
+    answers: List[Dict[str, Any]]
+
+
+@router.post("/{canvas_id}/capability/assess/{execution_id}/clarify")
+async def capability_clarify(
+    canvas_id: str,
+    execution_id: str,
+    request: ClarifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Answer a durable clarification, then resume the same work.
+
+    The obligation keeps the original objective, request identity, source and
+    teaching revisions. Once every requirement is answered the assessment is
+    re-dispatched against the same canvas and policy; the new execution
+    invalidates the old approval.
+    """
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        result = answer_assessment_clarification(
+            db, canvas, current_user, execution_id, request.answers)
+        if not result.get("ready_to_resume"):
+            return result
+        # Re-read and re-validate immediately before dispatch: a policy/source/
+        # manifest change between recording the answer and resuming must not
+        # silently reuse the answer under the new rules.
+        canvas = _canvas(db, canvas_id, current_user)
+        readiness = clarification_resume_readiness(canvas)
+        if not readiness.get("ready"):
+            return {
+                "success": False,
+                "canvas_id": canvas.id,
+                "state": readiness.get("state"),
+                "outcome": "refuse",
+                "stale": readiness.get("stale") or [],
+                "clarification": assessment_clarification(canvas),
+                "ready_to_resume": False,
+            }
+        original = (result.get("clarification") or {}).get(
+            "request", {}).get("ask") or "Assess every selected row."
+        resumed = await assess_operation(
+            db, canvas, current_user, original,
+            clarification_answers=result["clarification"]["requirements"],
+            clarification_revisions=readiness.get("accepted_revisions"))
+        resumed["clarification_resumed"] = True
+        return resumed
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.get("/{canvas_id}/capability/decisions")
+async def capability_decisions(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Downstream use of an assessment's decisions.
+
+    Refuses with ``review_required`` / ``stale_assessment`` unless the current
+    assessment is certified without unresolved requirements or a human
+    approved exactly this execution at the same source/policy revisions.
+    """
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return decisions_operation(canvas, db=db, user=current_user)
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.get("/{canvas_id}/capability/authorization")
+async def capability_authorization(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return {
+            "success": True,
+            "canvas_id": canvas.id,
+            "authorization": assessment_authorization(canvas, db=db),
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/assess/{execution_id}/approve")
+async def capability_approve_assessment(
+    canvas_id: str,
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Human approval bound to one exact assessment."""
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return approve_assessment(db, canvas, current_user, execution_id)
     except CapabilityError as exc:
         return _error(exc)
 

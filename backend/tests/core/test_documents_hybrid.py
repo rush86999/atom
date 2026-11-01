@@ -175,6 +175,39 @@ async def test_no_results_label(db):
 
 
 @pytest.mark.asyncio
+async def test_vector_only_low_similarity_is_not_a_result(db):
+    """Nearest-neighbour existence is not relevance.
+
+    A nonsense query still returns the k nearest LanceDB rows; before the
+    floor they were fused as results. A distance of 0.95 (similarity 0.05)
+    must not surface a document when the lexical leg has no match.
+    """
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    svc = DocumentsHybridSearch(
+        db=db, lancedb=FakeLanceDB([bridged_row("doc_a", 0.95)]))
+    res = await svc.search("zzz qqq")
+    assert res["hybrid"] == "no_results", res
+    assert res["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_vector_leg_reads_similarity_score(db):
+    """The handler's ``score`` (similarity) must be honored, not defaulted."""
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    class ScoreLanceDB:
+        def search(self, *args, **kwargs):
+            return [{"id": "doc_a", "score": 0.9, "text": "revenue growth",
+                     "metadata": {"file_name": "x"}}]
+
+    svc = DocumentsHybridSearch(db=db, lancedb=ScoreLanceDB())
+    res = await svc.search("revenue growth")
+    assert res["stats"]["vector_hits"] >= 1, res
+    assert any(r["id"] == "doc_a" for r in res["results"])
+
+
+@pytest.mark.asyncio
 async def test_unbridged_vector_hits_flagged_not_dropped(db):
     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 

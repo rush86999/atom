@@ -1,0 +1,83 @@
+{
+  "schema": "atom-teaching-interaction-smoke-1",
+  "marker": "unforced-teach-1793506601",
+  "agent_id": "7eaad1e3-f7ae-4ae2-8029-17f68780741f",
+  "canvas_id": "4ce720eb-2610-4177-8463-f95cc86fc2f8",
+  "checks": [
+    {
+      "name": "welcome wizard completed by visible clicks",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "an employee with a Teach action is visible",
+      "ok": true,
+      "detail": "7eaad1e3-f7ae-4ae2-8029-17f68780741f"
+    },
+    {
+      "name": "Teach opens the employee canvas",
+      "ok": true,
+      "detail": "http://127.0.0.1:3130/canvas/4ce720eb-2610-4177-8463-f95cc86fc2f8?agent_id=7eaad1e3-f7ae-4ae2-8029-17f68780741f&side=training"
+    },
+    {
+      "name": "training form is visible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "optional fields open with an ordinary click",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "form filled without force",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "lesson submitted",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "lesson survives reload",
+      "ok": true,
+      "detail": {
+        "canvas_id": "4ce720eb-2610-4177-8463-f95cc86fc2f8",
+        "points": 3
+      }
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "passed": true,
+  "serving_identity": {
+    "pid": 77558,
+    "started_at": "2026-11-01T04:16:33.658566+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "bc164fb96632",
+    "source_id": "bc164fb96632",
+    "instance_id": "bc164fb96632.77558.1793506596",
+    "revision": "bc164fb96632bb15d597ebd46ee4d9773f594be5",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T04:16:35.884904+00:00",
+    "port": 8071,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_repair4_20261031/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "unforced": true,
+  "interactions": {
+    "force_fill": false,
+    "dom_mutation": false,
+    "dispatch_event": false,
+    "session_storage_shortcut": false,
+    "welcome_wizard": "visible Next / Start Automating clicks"
+  }
+}

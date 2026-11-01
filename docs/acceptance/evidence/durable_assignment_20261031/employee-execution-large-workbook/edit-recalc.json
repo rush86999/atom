@@ -1,0 +1,56 @@
+{
+  "before": {
+    "B2": "2",
+    "D2": "22",
+    "SummaryB2": "1725",
+    "SummaryB22": "34500"
+  },
+  "revert_response": {
+    "status": 200,
+    "success": true,
+    "recalc_status": "complete",
+    "recalculated": true,
+    "formula_gaps": []
+  },
+  "edit_response": {
+    "status": 200,
+    "success": true,
+    "recalc_status": "complete",
+    "recalculated": true,
+    "formula_gaps": []
+  },
+  "after": {
+    "B2": 5,
+    "D2": 55.0,
+    "SummaryB2": 1758.0,
+    "SummaryB22": 34533.0
+  },
+  "edit_value": "2 -> 5",
+  "sheets": [
+    "Data01",
+    "Data02",
+    "Data03",
+    "Data04",
+    "Data05",
+    "Data06",
+    "Data07",
+    "Data08",
+    "Data09",
+    "Data10",
+    "Data11",
+    "Data12",
+    "Data13",
+    "Data14",
+    "Data15",
+    "Data16",
+    "Data17",
+    "Data18",
+    "Data19",
+    "Data20",
+    "Summary",
+    "Rates",
+    "Notes",
+    "Index"
+  ],
+  "leading_zero_id": "0001"
+}

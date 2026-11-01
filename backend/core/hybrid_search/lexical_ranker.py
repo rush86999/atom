@@ -40,16 +40,43 @@ _MAX_PREFILTER = 200
 # same function — DB-state-dependent results. Route stopword-only queries to
 # the ILIKE path so behavior is consistent regardless of FTS availability.
 _ENGLISH_STOPWORDS = frozenset({
-    "a", "an", "and", "are", "as", "at", "be", "but", "by",
-    "for", "if", "in", "into", "is", "it", "no", "not", "of",
-    "on", "or", "such", "that", "the", "their", "then", "there",
-    "these", "they", "this", "to", "was", "will", "with",
+    # Postgres 'english' / NLTK-style list (the set FTS5 and tsvector drop).
+    "a", "about", "above", "after", "again", "against", "all", "am",
+    "an", "and", "any", "are", "as", "at", "be", "because", "been",
+    "before", "being", "below", "between", "both", "but", "by", "can",
+    "could", "did", "do", "does", "doing", "down", "during", "each",
+    "few", "for", "from", "further", "had", "has", "have", "having",
+    "he", "her", "here", "hers", "herself", "him", "himself", "his",
+    "how", "i", "if", "in", "into", "is", "it", "its", "itself",
+    "just", "me", "more", "most", "my", "myself", "no", "nor", "not",
+    "now", "of", "off", "on", "once", "only", "or", "other", "our",
+    "ours", "ourselves", "out", "over", "own", "same", "she", "should",
+    "so", "some", "such", "than", "that", "the", "their", "theirs",
+    "them", "themselves", "then", "there", "these", "they", "this",
+    "those", "through", "to", "too", "under", "until", "up", "very",
+    "was", "we", "were", "what", "when", "where", "which", "while",
+    "who", "whom", "why", "will", "with", "would", "you", "your",
+    "yours", "yourself", "yourselves",
 })
 
 
 def _query_safe_tokens(query: str) -> List[str]:
     """Split a user query into FTS-safe alphanumeric tokens (>= 2 chars)."""
     return [t for t in _FTS_TOKEN_CLEAN.findall(query.lower()) if len(t) >= 2]
+
+
+def _meaningful_tokens(query: str) -> List[str]:
+    """Query tokens without English stopwords, preserving all-stopword queries.
+
+    A mixed query such as "parrot spotted at the rainforest path" used to
+    feed "at"/"the" into FTS/ILIKE, so unrelated documents matched and a
+    semantic query looked lexical. Stopwords carry no retrieval signal here;
+    if the whole query is stopwords, fall back to the old tokens so the
+    existing stopword-only routing is unchanged.
+    """
+    tokens = [t for t in _query_safe_tokens(query) if t]
+    meaningful = [t for t in tokens if t not in _ENGLISH_STOPWORDS]
+    return meaningful or tokens
 
 
 def _fts_table_exists(db: Session, table_name: str) -> bool:
@@ -301,7 +328,7 @@ def _search_iliike_fallback(
     # hits for every conversational query (same bug class as the GraphRAG
     # keyword leg). Tokens ORed across title+preview, then ranked by the
     # needle-substring weighting below.
-    tokens = [t for t in _FTS_TOKEN_CLEAN.findall(query.lower()) if len(t) >= 2][:8]
+    tokens = _meaningful_tokens(query)[:8]
     if not tokens:
         return []
     needle = query.lower()
@@ -474,7 +501,7 @@ def search_documents_lexical(
     if not query or len(query.strip()) < 3:
         return []
     try:
-        tokens = [t for t in _query_safe_tokens(query) if t]
+        tokens = _meaningful_tokens(query)
         if not tokens:
             return []
         # Stopword-only queries: FTS5/tsvector engines drop these tokens

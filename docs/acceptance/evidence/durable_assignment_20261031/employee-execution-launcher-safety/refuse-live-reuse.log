@@ -1,0 +1,2 @@
+REFUSED: backend pid 77892 from /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/integrated_launcher_safety_20261031/backend.pid is still alive
+startup failed; cleaning up only this invocation's processes

@@ -1,0 +1,206 @@
+{
+  "schema": "atom-canvas-capability-local-1",
+  "status": "passed",
+  "canvas_url": "http://127.0.0.1:3130/canvas/2efbe5c0-8cc1-46af-911c-7e2760701471",
+  "manifest": {
+    "schema_version": 1,
+    "base_component": "table",
+    "operations": [
+      "read",
+      "select",
+      "calculate",
+      "edit",
+      "export",
+      "bind"
+    ],
+    "data_binding": {
+      "subject_field": "Ref",
+      "measure_field": "Amount",
+      "status_field": "Status"
+    },
+    "editable_fields": [
+      "Amount",
+      "Status"
+    ],
+    "teaching_binding": {
+      "agent_id": "de5bcb7c-8f50-445e-88b9-c2713f4cc70f",
+      "scope_id": "canvas-local-acceptance"
+    },
+    "decision_options": [
+      "APPROVE",
+      "REVIEW",
+      "DENY"
+    ],
+    "task_policy": "Approve Amount >= 100 when Status is Open; review lower amounts.",
+    "outputs": [
+      "xlsx"
+    ],
+    "required_approvals": []
+  },
+  "effective": "effective: bind, read",
+  "bind": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "columns": [
+        "Ref",
+        "Amount",
+        "Status"
+      ],
+      "row_count": 4,
+      "source": {
+        "file_name": "pipeline_a.csv",
+        "resource_id": "canvas:2efbe5c0-8cc1-46af-911c-7e2760701471",
+        "source_version": "b77a0927de6d4e20",
+        "sha256": "ef6fbccf309623e70fc7153b29f56a2e350dae287635fccc550bcbbca18c1ead",
+        "snapshot": {
+          "kind": "canvas_dataset_snapshot",
+          "resource_id": "canvas:2efbe5c0-8cc1-46af-911c-7e2760701471",
+          "version": "b77a0927de6d4e20",
+          "sha256": "ef6fbccf309623e70fc7153b29f56a2e350dae287635fccc550bcbbca18c1ead",
+          "rows": 4,
+          "columns": 3
+        },
+        "writeback": {
+          "supported": false,
+          "upstream_mutated": false,
+          "performed": false
+        }
+      },
+      "revision": 1,
+      "manifest": {
+        "schema_version": 1,
+        "base_component": "table",
+        "operations": [
+          "read",
+          "select",
+          "calculate",
+          "edit",
+          "export",
+          "bind"
+        ],
+        "data_binding": {
+          "subject_field": "Ref",
+          "measure_field": "Amount",
+          "status_field": "Status",
+          "resource_id": "canvas:2efbe5c0-8cc1-46af-911c-7e2760701471",
+          "source_version": "b77a0927de6d4e20"
+        },
+        "editable_fields": [
+          "Amount",
+          "Status"
+        ],
+        "teaching_binding": {
+          "agent_id": "de5bcb7c-8f50-445e-88b9-c2713f4cc70f",
+          "scope_id": "canvas-local-acceptance"
+        },
+        "decision_options": [
+          "APPROVE",
+          "REVIEW",
+          "DENY"
+        ],
+        "task_policy": "Approve Amount >= 100 when Status is Open; review lower amounts.",
+        "outputs": [
+          "xlsx"
+        ],
+        "required_approvals": [],
+        "manifest_revision": "cf8ea4ae9bc0a407"
+      },
+      "operations": {
+        "declared": [
+          "bind",
+          "calculate",
+          "edit",
+          "export",
+          "read",
+          "select"
+        ],
+        "adapter": [
+          "assess",
+          "bind",
+          "calculate",
+          "edit",
+          "export",
+          "read",
+          "select"
+        ],
+        "resource": [
+          "assess",
+          "bind",
+          "calculate",
+          "edit",
+          "export",
+          "read",
+          "select"
+        ],
+        "effective": [
+          "bind",
+          "calculate",
+          "edit",
+          "export",
+          "read",
+          "select"
+        ],
+        "manifest_revision": "cf8ea4ae9bc0a407"
+      }
+    }
+  },
+  "before": {
+    "total": "290.00",
+    "text": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: b77a0927de6d4e20\nmanifest: b72425c4ca158aed\ntotal: 290.00"
+  },
+  "edit": {
+    "status": 200,
+    "success": true,
+    "edits": [
+      {
+        "row": 2,
+        "column": "Amount",
+        "before": "75",
+        "after": "110",
+        "changed": true,
+        "already_satisfied": false,
+        "readback": "110",
+        "readback_matches": true
+      }
+    ]
+  },
+  "after": {
+    "total": "325.00",
+    "text": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: 75ad9642d5a8b8e5\nmanifest: b72425c4ca158aed\ntotal: 325.00"
+  },
+  "export": {
+    "path": "/Users/rushiparikh/projects/atom-integrated-world-20261031/evidence/canvas-capability/canvas-export.xlsx",
+    "bytes": 5647,
+    "sha256": "0f10cc8e896081e569c9119ff15e4dd651e105a99cf46f7849dbc79198a76208",
+    "rows": [
+      [
+        "Ref",
+        "Amount",
+        "Status"
+      ],
+      [
+        "A-101",
+        110,
+        "Open"
+      ],
+      [
+        "A-102",
+        60,
+        "Open"
+      ],
+      [
+        "A-103",
+        0,
+        "Closed"
+      ],
+      [
+        "A-104",
+        155,
+        "Open"
+      ]
+    ]
+  },
+  "reload_revision": "revision 2 \u00b7 4 rows",
+  "page_errors": []
+}

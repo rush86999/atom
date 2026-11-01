@@ -1,0 +1,14 @@
+25 broken internal symlink(s) under /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds (preserved by rsync -a)
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+  broken internal symlinks: 25 (preserved verbatim by rsync -a)
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/analytics_data -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/analytics_data
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/evidence_collection_framework.py -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/evidence_collection_framework.py
+    - /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/core_release_ui_20261027/backend_root/token_status.txt -> /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/data/acceptance_worlds/core_release_ui_20261027/code/backend/token_status.txt
+    ... and 22 more (python -m core.world_storage_guard audit-symlinks --all)
+world=/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/integrated_launcher_safety_20261031
+database=/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/integrated_launcher_safety_20261031/atom.db
+backend=http://127.0.0.1:8072 pid=77793 source=d57bb66f6796-dirty.1f6495ced0b2
+frontend=http://127.0.0.1:3132 pid=77823
+stop: kill -INT 77793 77823

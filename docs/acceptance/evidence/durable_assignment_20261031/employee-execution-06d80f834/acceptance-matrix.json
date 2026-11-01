@@ -1,0 +1,362 @@
+{
+  "schema": "atom-employee-execution-acceptance-1",
+  "source_checkpoint": "9ccd7b6c1",
+  "product_teaching_commit": "3e344f5b1",
+  "preserved_tags": {
+    "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "conversation-learning-2026-10-30": "d2b297deb846df548b6cfe6ab5b0bf9724fcad69"
+  },
+  "configuration": {
+    "world": "/Users/rushiparikh/projects/atom-integrated-world-20261031",
+    "backend": "http://127.0.0.1:8071",
+    "frontend": "http://127.0.0.1:3130",
+    "product_profile": "core",
+    "local_only": true,
+    "turn_decision_routing": false,
+    "task_lifecycle_enabled": true,
+    "scheduler": false,
+    "ingestion_sync": false,
+    "controlled_transport": true,
+    "real_send": false
+  },
+  "goals": [
+    {
+      "id": 1,
+      "goal": "Domain-independent employee work",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/verify.json",
+        "grants/verify.json"
+      ],
+      "result": "sales 400.00 USD and 2225.75 USD; grants 4250.00 USD twice",
+      "gap": "two domains only; arbitrary domains/schemas not claimed"
+    },
+    {
+      "id": 2,
+      "goal": "Teaching context, approach, protocol, formatting, correction",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/first-conflict.txt",
+        "sales/missing-qualification.txt",
+        "grants/verify.json",
+        "conversation-guidance/candidates.json"
+      ],
+      "result": "conflict surfaced; missing qualification clarified; revised teaching adopted for new work; guidance-only candidate promoted with method_status=not_applicable and format_spec",
+      "gap": "arbitrary prose and every renderer field not claimed"
+    },
+    {
+      "id": 3,
+      "goal": "Unfamiliar sheets, columns, mappings and units",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/verify.json",
+        "grants/verify.json",
+        "logs/targeted-backend.log"
+      ],
+      "result": "Price -> Gross Amount; Approved Amount -> Award Amount / Approved Award; source units established",
+      "gap": "arbitrary Excel schemas and authority surfaces not claimed"
+    },
+    {
+      "id": 4,
+      "goal": "Connected ingestion and retrieval",
+      "status": "partial",
+      "evidence": [
+        "sales/part1.json",
+        "grants/part1.json"
+      ],
+      "result": "controlled local CSV uploads and retrieval through the product",
+      "gap": "no fresh live connector run; historical Microsoft evidence is source-bound to 001f93472"
+    },
+    {
+      "id": 5,
+      "goal": "Large workbooks and formula ingestion",
+      "status": "partial",
+      "evidence": [],
+      "result": "historical 24-sheet/formula evidence preserved outside this candidate",
+      "gap": "not rerun on 06d80f834; small CSVs only"
+    },
+    {
+      "id": 6,
+      "goal": "User-created canvas operations and export",
+      "status": "verified_for_supported_adapter",
+      "evidence": [
+        "canvas/canvas.json",
+        "canvas/canvas-export.xlsx"
+      ],
+      "result": "calculate 290.00; edit row 2 75->110 with readback; calculate 325.00; XLSX exported; reload revision 2 / 4 rows",
+      "gap": "canvas assessment not run (no ATOM_REVIEW_MODEL); arbitrary spreadsheet controls not claimed"
+    },
+    {
+      "id": 7,
+      "goal": "Grounded selection, calculations and assessments",
+      "status": "blocked_external",
+      "evidence": [
+        "sales/verify.json",
+        "grants/verify.json",
+        "logs/targeted-backend.log",
+        "employee-execution-assessment-blocker/blocker.json"
+      ],
+      "result": "calculations with row/cell provenance; review contract tests pass; substantive assessment attempted but blocked",
+      "gap": "no usable model infrastructure: DeepSeek key empty, OpenRouter HTTP 402, local Ollama model store unreadable"
+    },
+    {
+      "id": 8,
+      "goal": "Editable DOCX/PPTX and email draft",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/active-reload-assignment-artifact.docx",
+        "sales/revised-assignment-artifact.docx",
+        "grants/active-reload-assignment-artifact.docx",
+        "grants/revised-assignment-artifact.docx",
+        "presentation/presentation.json",
+        "sales/verify.json",
+        "grants/verify.json"
+      ],
+      "result": "DOCX with taught fonts/headings; 4-slide PPTX; controlled email draft with protocol",
+      "gap": "no real send; no image/chart understanding claim"
+    },
+    {
+      "id": 9,
+      "goal": "User-created canvases inherit capabilities",
+      "status": "verified_for_supported_adapter",
+      "evidence": [
+        "canvas/canvas.json"
+      ],
+      "result": "manifest installed, CSV bound, calculate/edit/export/reload",
+      "gap": "table adapter only"
+    },
+    {
+      "id": 10,
+      "goal": "Long-running, complex and durable execution",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/part1.json",
+        "sales/verify.json",
+        "grants/part1.json",
+        "grants/verify.json",
+        "logs/targeted-backend.log"
+      ],
+      "result": "browser close, real backend restart, durable wait, delayed response, teaching change, artifact restart; recovery/cancel/uncertain/duplicate tests pass",
+      "gap": "one worker; no multi-day soak or multi-worker campaign"
+    },
+    {
+      "id": 11,
+      "goal": "Approval binding and controlled continuation",
+      "status": "verified_for_tested_scope",
+      "evidence": [
+        "sales/verify.json",
+        "grants/verify.json",
+        "sales/negative-controls.json",
+        "grants/negative-controls.json",
+        "logs/targeted-backend.log"
+      ],
+      "result": "exact payload approval executed once; duplicate/rejection/drift controls; no real send",
+      "gap": "recipient delivery and real-provider send not claimed"
+    },
+    {
+      "id": 12,
+      "goal": "Local usability, install and recovery",
+      "status": "verified_for_documented_local_configuration",
+      "evidence": [
+        "docs/acceptance/INTEGRATED_LOCAL_CANDIDATE_2026-10-31.md",
+        "sales/reopened-after-restart.png",
+        "grants/reopened-after-restart.png"
+      ],
+      "result": "isolated local backend/frontend, normal login, restart and resume",
+      "gap": "hosted deployment/publication owner-deferred; live connectors and real sends not performed"
+    }
+  ],
+  "tests": {
+    "targeted_backend": "284 passed",
+    "frontend_learning": "5 passed",
+    "typescript": "clean"
+  },
+  "verifier_handoff": {
+    "harnesses": [
+      "scripts/acceptance/composite_long_running_part1.py",
+      "scripts/acceptance/composite_long_running_part2.py",
+      "scripts/acceptance/composite_long_running_verify.py",
+      "scripts/acceptance/canvas_capability_local.py",
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "browser_actions": "agent creation, teaching, conflict removal, data upload, assignment start, mapping confirmation, correlated response, approval, download, canvas create/bind/calculate/edit/export/reload",
+    "setup_actions": "isolated world creation, admin password, controlled outbox, source-bound local fixtures",
+    "known_failures": [
+      "canvas assessment requires an unconfigured ATOM_REVIEW_MODEL",
+      "large-workbook/formula recalculation not rerun",
+      "live connector qualification not repeated",
+      "no real send or recipient-delivery claim"
+    ]
+  },
+  "evidence_source": "06d80f834",
+  "blocked_external": [
+    {
+      "item": "model-backed substantive assessment",
+      "evidence": "employee-execution-assessment-blocker/",
+      "smallest_input": "funded provider key with declared review model, or readable local Ollama model store"
+    }
+  ],
+  "integrated_merge": {
+    "agent2_branch": "codex/readme-feature-readiness",
+    "merge_commit": "931892be0",
+    "shared_file": "backend/main_api_app.py (additive: conversation-learning routes + business catalog)",
+    "merge_introduced_fix": "GraphRAG URL entity trailing sentence punctuation stripped"
+  },
+  "readme_coverage": {
+    "inventory": "docs/acceptance/readme_feature_readiness_2026-10-31/CLAIM_INVENTORY.json",
+    "eligible_functional": 123,
+    "verified_functional": 83,
+    "coverage": "67.5%",
+    "not_counted": 40,
+    "security": "8/8 verified",
+    "group_errors": 0,
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/",
+    "status": "self_assessed_corrected_pending_verifier",
+    "note": "100/123 was withdrawn after the verifier audit; 83/123 is the corrected result. 80% gate not met."
+  },
+  "byok_refresh": {
+    "status": "verified_for_tested_scope",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/",
+    "result": "Settings save -> Chat used key A; replacement -> key B; removal -> no provider call and fail-closed; keys absent from logs",
+    "scope": "bounded local OpenAI-compatible server; x-atom-model=gpt-4o-mini; no real provider send",
+    "normal_routing": {
+      "status": "verified_for_tested_scope",
+      "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/normal-routing/",
+      "result": "no model pin; key A served by gpt-4o-mini, replacement by gpt-5.6-luna/o4-mini; removal no new call and fail-closed",
+      "scope": "bounded local OpenAI-compatible provider; not a real-account send"
+    }
+  },
+  "assessment_campaign": {
+    "status": "executed_with_findings",
+    "harness": "scripts/acceptance/substantive_assessment_campaign.py",
+    "phases": [
+      "preflight",
+      "create",
+      "correct",
+      "after-restart"
+    ],
+    "served_provider": "ollama",
+    "served_model": "llama3.1:8b",
+    "system_gates": "certified, 6/6 subject coverage, real provenance, changed policy revision, post-restart stability",
+    "judgment": {
+      "create_v1": 0.8333,
+      "correct_v3": 1.0,
+      "after_restart_v3": 1.0
+    },
+    "finding": "A-204 (Amount 95) approved instead of REVIEW under policy v1; model reading error, not a rendering defect",
+    "claim": "pipeline verified; reliable boundary judgment not claimed for the 8B local model",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-substantive-assessment/"
+  },
+  "assessment_qualification": {
+    "status": "completed_with_findings",
+    "dataset_id": "qualification-2026-10-31",
+    "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+    "records": 24,
+    "determinate_cases": 18,
+    "gap_cases": 6,
+    "attempts": [
+      {
+        "id": "attempt-1",
+        "runtime": "default 600s budget, 4096 context",
+        "outcome": "incomplete_runtime_timeout"
+      },
+      {
+        "id": "attempt-2",
+        "runtime": "OLLAMA_REQUEST_TIMEOUT=1800, 8192 context",
+        "outcome": "completed_with_findings"
+      }
+    ],
+    "judgment": {
+      "create_v1": 0.9444,
+      "correct_v3": 0.9444,
+      "after_restart_v3": 0.9444
+    },
+    "restart_gates": "10/10",
+    "stable_error": "Q-021 (blank Region) returns REVIEW instead of APPROVE",
+    "dangerous_gap": "Q-012 (Amount 0) approved although the policy gives no rule below 50",
+    "requirement": "human review for substantive recommendations; autonomous decisions outside supported scope",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/"
+  },
+  "assignment_boundaries": {
+    "status": "executable_controls_passed",
+    "controls": 8,
+    "failed": 0,
+    "boundaries": [
+      "restart_while_waiting",
+      "revision_invalidation",
+      "ambiguity",
+      "cancellation",
+      "duplicate_resume"
+    ],
+    "level": "executor_and_route (scratch store); no browser rerun",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assignment-boundaries/"
+  },
+  "assessment_review_enforcement": {
+    "status": "implemented",
+    "default_policy": "always (human approval for every assessment, regardless of model-reported uncertainty)",
+    "opt_out": "ATOM_ASSESSMENT_REVIEW_POLICY=model_reported, only for an independently qualified deployment",
+    "review_required_state": true,
+    "existing_consumers_enforced": [
+      "assess response withholds rendered/actionable artifact (authorized=false, rendered_suppressed=true)",
+      "capability read exposes review_policy and authorization",
+      "capability/decisions refuses unless authorized"
+    ],
+    "approval_binding": [
+      "execution_id",
+      "execution_fingerprint",
+      "source_revision",
+      "policy_revision",
+      "manifest_revision",
+      "assessment_content_sha256"
+    ],
+    "controls": 30,
+    "judge_safe_abstention": true,
+    "scoring_version": "v2-2026-10-31 (phase-specific materiality)",
+    "artifact": "one canonical assessment artifact (decisions, basis, evidence, policy refs, unresolved requirements)",
+    "digest": "recomputed from persisted content at approval, authorization and consumption; stored hashes are not trusted",
+    "refusal_states": [
+      "review_required",
+      "content_drift",
+      "stale_assessment"
+    ],
+    "revision_cas": "approval binds canvas_revision; a data change between review, approval and consumption requires fresh review",
+    "concurrency": {
+      "mechanism": "conditional UPDATE on (canvas id, capability revision, assessment execution id, assessment revision)",
+      "token": "monotonic assessment_revision incremented by assess and approval",
+      "on_conflict": "rollback; newer content preserved; assessment_conflict",
+      "consumption": "authoritative reload before authorization",
+      "repeat_approval": "idempotent, one transition"
+    },
+    "scoped_autonomy": {
+      "policy_modes": [
+        "always (default containment)",
+        "scoped"
+      ],
+      "removed": "model_reported (a model cannot authorize itself)",
+      "requirements": [
+        "qualified registry entry (status=qualified, revoked=false)",
+        "owner autonomy policy for canvas_assessment (mode x maturity x trust)"
+      ],
+      "registry": "backend/config/assessment_qualification.json",
+      "failed_configuration": "ollama/llama3.1:8b registered as failed; no autonomy",
+      "revocation": "re-read at consumption; state revoked refuses downstream use",
+      "consumption_recheck": [
+        "qualification scope",
+        "owner gate_for_topic (mode x maturity x trust)",
+        "owner identity binding",
+        "fail closed without a session"
+      ],
+      "withdrawal_state": "authority_withdrawn",
+      "scope_dimensions": [
+        "capability",
+        "provider",
+        "model",
+        "contract_version",
+        "serving (base_url, request budget)",
+        "task_policy",
+        "decision_options",
+        "subject_field"
+      ]
+    }
+  }
+}

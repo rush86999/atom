@@ -1,0 +1,200 @@
+{
+  "schema": "atom-guided-rule-authoring-smoke-1",
+  "canvas_id": "4277fee7-50bd-4e31-9952-042668a6464b",
+  "checks": [
+    {
+      "name": "welcome wizard completed by visible clicks",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "blank canvas created through the UI",
+      "ok": true,
+      "detail": "http://127.0.0.1:3130/canvas/4277fee7-50bd-4e31-9952-042668a6464b"
+    },
+    {
+      "name": "capability panel opened",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "CSV bound through the panel",
+      "ok": true,
+      "detail": "4 bound fields available"
+    },
+    {
+      "name": "field mapping set with selects",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "three rules built without manifest JSON",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "guided save accepted by the existing validator",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "effective operations include assess and edit",
+      "ok": true,
+      "detail": "effective: assess, bind, calculate, edit, export, read, select"
+    },
+    {
+      "name": "manifest persisted deterministically",
+      "ok": true,
+      "detail": {
+        "decision_rules": 3,
+        "task_policy": "Rule 1: DENY when Status is Closed. Rule 2: APPROVE when Status is Open and Amount is at least 100. Rule 3: REVIEW when Status is Open and Amount is at least 50 and Amount is at most 99."
+      }
+    },
+    {
+      "name": "deterministic assess served",
+      "ok": true,
+      "detail": "deterministic"
+    },
+    {
+      "name": "decisions match the guided rules",
+      "ok": true,
+      "detail": {
+        "D-1": "APPROVE",
+        "D-2": "REVIEW",
+        "D-3": "DENY"
+      }
+    },
+    {
+      "name": "exact assessment approved and decisions used",
+      "ok": true,
+      "detail": "D-1: APPROVE | D-2: REVIEW | D-3: DENY"
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "passed": true,
+  "serving_identity": {
+    "pid": 77558,
+    "started_at": "2026-11-01T04:16:33.658566+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "git_commit": "bc164fb96632",
+    "source_id": "bc164fb96632",
+    "instance_id": "bc164fb96632.77558.1793506596",
+    "revision": "bc164fb96632bb15d597ebd46ee4d9773f594be5",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-01T04:16:35.884904+00:00",
+    "port": 8071,
+    "error": null,
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_repair4_20261031/atom.db",
+    "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+  },
+  "manifest": {
+    "schema_version": 1,
+    "base_component": "table",
+    "operations": [
+      "read",
+      "select",
+      "calculate",
+      "assess",
+      "edit",
+      "export",
+      "bind"
+    ],
+    "data_binding": {
+      "subject_field": "Ref",
+      "measure_field": "Amount",
+      "status_field": "Status",
+      "resource_id": "canvas:4277fee7-50bd-4e31-9952-042668a6464b",
+      "source_version": "d03944fc5d97eb2e"
+    },
+    "editable_fields": [
+      "Amount",
+      "Status"
+    ],
+    "teaching_binding": {
+      "agent_id": "",
+      "scope_id": ""
+    },
+    "decision_options": [
+      "APPROVE",
+      "REVIEW",
+      "DENY"
+    ],
+    "task_policy": "Rule 1: DENY when Status is Closed. Rule 2: APPROVE when Status is Open and Amount is at least 100. Rule 3: REVIEW when Status is Open and Amount is at least 50 and Amount is at most 99.",
+    "outputs": [
+      "xlsx"
+    ],
+    "required_approvals": [],
+    "assessment_mode": "deterministic",
+    "decision_rules": [
+      {
+        "decision": "DENY",
+        "basis": "Closed records are denied.",
+        "when": [
+          {
+            "field": "Status",
+            "op": "eq",
+            "value": "Closed"
+          }
+        ]
+      },
+      {
+        "decision": "APPROVE",
+        "basis": "Open and Amount at least 100.",
+        "when": [
+          {
+            "field": "Status",
+            "op": "eq",
+            "value": "Open"
+          },
+          {
+            "field": "Amount",
+            "op": "gte",
+            "value": "100"
+          }
+        ]
+      },
+      {
+        "decision": "REVIEW",
+        "basis": "Open and Amount 50-99.",
+        "when": [
+          {
+            "field": "Status",
+            "op": "eq",
+            "value": "Open"
+          },
+          {
+            "field": "Amount",
+            "op": "gte",
+            "value": "50"
+          },
+          {
+            "field": "Amount",
+            "op": "lte",
+            "value": "99"
+          }
+        ]
+      }
+    ],
+    "manifest_revision": "fdcabe2e7043169f"
+  },
+  "assessments": {
+    "D-1": "APPROVE",
+    "D-2": "REVIEW",
+    "D-3": "DENY"
+  },
+  "decisions_text": "D-1: APPROVE\nD-2: REVIEW\nD-3: DENY",
+  "authorized_text": "Authorized assessment \u2014 decisions may be used.\n\nUse decisions",
+  "unforced": {
+    "force_fill": false,
+    "dom_mutation": false,
+    "dispatch_event": false,
+    "raw_manifest_editor_used": false
+  }
+}

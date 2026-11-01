@@ -1,0 +1,37 @@
+{
+  "schema": "atom-substantive-assessment-preflight-1",
+  "status": "blocked_external",
+  "review_model": "",
+  "review_provider": "",
+  "blockers": [
+    "ATOM_REVIEW_MODEL is not set",
+    "ATOM_REVIEW_PROVIDER is not set"
+  ],
+  "smallest_required_input": "A funded provider key with the declared review model, or a readable local Ollama model store.",
+  "records": [
+    "A-201",
+    "A-202",
+    "A-203",
+    "A-204",
+    "A-205",
+    "A-206"
+  ],
+  "policy_v1": "Approve Open records with Amount >= 100 and Risk Low. Review Open records with Amount 50-99 or Risk High. Deny Closed records. Exception: North region with Risk High requires Review even when Amount >= 100.",
+  "expected_v1": {
+    "A-201": "APPROVE",
+    "A-202": "REVIEW",
+    "A-203": "DENY",
+    "A-204": "REVIEW",
+    "A-205": "REVIEW",
+    "A-206": "REVIEW"
+  },
+  "policy_v3": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records.",
+  "expected_v3": {
+    "A-201": "APPROVE",
+    "A-202": "REVIEW",
+    "A-203": "DENY",
+    "A-204": "REVIEW",
+    "A-205": "APPROVE",
+    "A-206": "REVIEW"
+  }
+}

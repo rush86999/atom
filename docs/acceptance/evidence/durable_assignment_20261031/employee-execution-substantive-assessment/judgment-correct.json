@@ -1,0 +1,25 @@
+{
+  "schema": "atom-substantive-assessment-judgment-1",
+  "phase": "correct",
+  "served_provider": "ollama",
+  "served_model": "llama3.1:8b",
+  "expected": {
+    "A-201": "APPROVE",
+    "A-202": "REVIEW",
+    "A-203": "DENY",
+    "A-204": "REVIEW",
+    "A-205": "APPROVE",
+    "A-206": "REVIEW"
+  },
+  "actual": {
+    "A-201": "APPROVE",
+    "A-202": "REVIEW",
+    "A-203": "DENY",
+    "A-204": "REVIEW",
+    "A-205": "APPROVE",
+    "A-206": "REVIEW"
+  },
+  "mismatches": {},
+  "accuracy": 1.0,
+  "ok": true
+}

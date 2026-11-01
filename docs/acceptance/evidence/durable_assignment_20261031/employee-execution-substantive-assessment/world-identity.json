@@ -1,0 +1,38 @@
+{
+  "schema": "atom-substantive-assessment-world-identity-1",
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/assessment_campaign_20261031",
+  "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/assessment_campaign_20261031/atom.db",
+  "source_id": "8d75173d2718",
+  "backend_pids": {
+    "create_and_correct": 93571,
+    "after_restart": 94951
+  },
+  "frontend_pids": {
+    "create_and_correct": 93594,
+    "after_restart": 94971
+  },
+  "backend_ports": {
+    "backend": 8071,
+    "frontend": 3130
+  },
+  "review_configuration": {
+    "ATOM_REVIEW_MODEL": "llama3.1:8b",
+    "ATOM_REVIEW_PROVIDER": "ollama",
+    "OLLAMA_BASE_URL": "http://127.0.0.1:11435/v1",
+    "ATOM_LOCAL_ONLY": "true",
+    "ATOM_PRODUCT_PROFILE": "core"
+  },
+  "served_model_identity": {
+    "name": "llama3.1:8b",
+    "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+    "size": 4920753328,
+    "quantization_level": "Q4_K_M",
+    "parameter_size": "8.0B",
+    "runtime": "ollama serve on 127.0.0.1:11435 with OLLAMA_MODELS=~/.ollama/models-local (CPU inference)"
+  },
+  "notes": [
+    "The packaged Ollama.app server on :11434 points at an unmounted external volume and returns HTTP 500; this run used a separate server over the readable local model store.",
+    "The model store was verified by a direct /api/chat completion before the campaign.",
+    "No cloud provider, credential or connected system was used."
+  ]
+}

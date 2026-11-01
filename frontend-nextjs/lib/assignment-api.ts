@@ -21,6 +21,7 @@ export interface AssignmentStep {
   gap_ids: string[];
   waiting: Record<string, unknown>;
   approval_request: Record<string, unknown>;
+  standing_authority_receipt?: Record<string, any>;
   failure: Record<string, unknown>;
 }
 
@@ -74,6 +75,7 @@ export interface AssignmentDetail {
     deliverables: AssignmentDeliverable[];
     sources: Record<string, unknown>[];
     authorized_actions: string[];
+    standing_authority?: Record<string, any> | null;
     budget: Record<string, unknown>;
     steps: AssignmentStep[];
     created_at: string | null;
@@ -159,6 +161,7 @@ export async function createAssignment(payload: {
   wait?: Record<string, unknown>;
   task_context?: Record<string, unknown>;
   transport?: string;
+  standing_authority?: Record<string, unknown>;
 }): Promise<Record<string, any>> {
   // Creation is not idempotent on the server. The shared client retries
   // timeouts, and a cold first request can exceed the default 10s while the
@@ -250,6 +253,20 @@ export async function approveAssignmentStep(
   const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/approve/${encodeURIComponent(stepId)}`,
     { note }
+  );
+  return data;
+}
+
+export async function reconcileAssignmentStep(
+  runId: string,
+  stepId: string,
+  verdict: "applied" | "not_applied" | "insufficient",
+  evidence: string,
+  evidenceRef?: string
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/reconcile/${encodeURIComponent(stepId)}`,
+    { verdict, evidence, evidence_ref: evidenceRef || undefined }
   );
   return data;
 }

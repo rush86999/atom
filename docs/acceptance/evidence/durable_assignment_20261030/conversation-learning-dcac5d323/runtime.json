@@ -1,0 +1,54 @@
+{
+  "schema": "atom-conversation-learning-runtime-6",
+  "world": "/Users/rushiparikh/projects/atom-conversation-context-world",
+  "database": "/Users/rushiparikh/projects/atom-conversation-context-world/atom.db",
+  "data_dir": "/Users/rushiparikh/projects/atom-conversation-context-world/data",
+  "backend": {
+    "host": "127.0.0.1",
+    "port": 8071,
+    "product_profile": "core",
+    "local_only": true,
+    "scheduler": false,
+    "ingestion_sync": false,
+    "turn_decision_routing": false,
+    "task_lifecycle_enabled": true,
+    "model_runtime": "local Ollama"
+  },
+  "agent": {
+    "id": "agent-browser-final",
+    "workspace_id": "default"
+  },
+  "lesson": {
+    "id": "77fcb41c777f45b1bf50e4a6f5644267",
+    "revision": 1,
+    "method": "multiply_sum",
+    "output_unit": "USD"
+  },
+  "atomic_binding_campaign": {
+    "recipient_interleave": {
+      "proposal_id": "3cbb2ed9-4121-4a38-85ac-aa0e19c837ee",
+      "hitl_id": "b065840b-b994-4b8b-8ee6-5903b0b11aca",
+      "transport_calls": 0,
+      "proposal_status": "pending_approval"
+    },
+    "canvas_interleave": {
+      "proposal_id": "06dc024d-780f-4caa-9b87-e0db2f97eb19",
+      "hitl_id": "7ec2b4ea-139d-4ed7-a57d-6bfe9c5884ba",
+      "transport_calls": 0,
+      "proposal_status": "pending_approval"
+    },
+    "matching_payload": {
+      "proposal_id": "116c4583-2877-48d9-982b-cfea2704a341",
+      "hitl_id": "df3692a1-fc08-47f0-8700-500f552a6714",
+      "transport_calls": 1,
+      "proposal_status": "executed",
+      "executed_action_to": "alice@example.com",
+      "executed_digest_matches_reviewed": true
+    }
+  },
+  "source_service_8001": {
+    "pid": 19046,
+    "restarted": false,
+    "note": "The pre-existing source service was left untouched; all evidence uses the isolated world on 8071."
+  }
+}

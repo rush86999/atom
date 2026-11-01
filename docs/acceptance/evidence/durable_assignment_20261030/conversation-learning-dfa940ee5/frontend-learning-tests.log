@@ -1,0 +1,22 @@
+PASS components/learning/__tests__/ConversationLearningReview.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/product-profile-learning.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 2 passed, 2 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        1.405 s
+Ran all test suites matching components/learning/__tests__/ConversationLearningReview.test.tsx|lib/__tests__/product-profile-learning.test.ts.

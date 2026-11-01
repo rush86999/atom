@@ -280,6 +280,31 @@ class BYOKManager:
         read/write — the runtime-visible half of the wizard/Settings writes."""
         self._refresh_api_keys_from_disk(force=False)
 
+    def credential_fingerprint(self) -> str:
+        """Stable, non-secret fingerprint of the stored credential set.
+
+        Runtime handlers build their provider clients once. A key saved,
+        replaced or removed through Settings must invalidate that snapshot
+        without a process restart, so the handler compares this fingerprint
+        before serving a new request. Includes the key HASH (never the key),
+        provider, identity name, environment, tenant and active flag.
+        """
+        self._ensure_fresh_store()
+        rows = []
+        for key_id, obj in sorted((self.api_keys or {}).items()):
+            if not isinstance(obj, APIKey):
+                continue
+            rows.append("|".join((
+                str(key_id),
+                str(obj.provider_id),
+                str(obj.key_name),
+                str(obj.environment),
+                str(obj.tenant_id or ""),
+                str(obj.key_hash),
+                "1" if obj.is_active else "0",
+            )))
+        return hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()
+
     def _merge_disk_entries(self) -> None:
         """Adopt entries another writer saved since our last read/write.
 

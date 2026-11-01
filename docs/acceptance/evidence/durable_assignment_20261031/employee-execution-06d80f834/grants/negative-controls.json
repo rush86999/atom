@@ -1,0 +1,26 @@
+{
+  "schema": "atom-composite-verifier-negative-controls-1",
+  "status": "passed",
+  "cases": {
+    "wrong_font": {
+      "rejected": true,
+      "reason": "active font mismatch"
+    },
+    "unchanged_revision": {
+      "rejected": true,
+      "reason": "new work did not adopt a new teaching revision"
+    },
+    "duplicate_operation": {
+      "rejected": true,
+      "reason": "expected one outbox line, got 2"
+    },
+    "missing_protocol": {
+      "rejected": true,
+      "reason": "outbox subject lacks '[Grant]'"
+    },
+    "contradictory_completion": {
+      "rejected": true,
+      "reason": "active artifact contains the contradictory currency statement"
+    }
+  }
+}

@@ -1,0 +1,1168 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py",
+  "merged_at": "2026-10-31T20:28:13.686941+00:00",
+  "inputs": [
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+  ],
+  "results": [
+    {
+      "claim_id": "ASK-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/ask/verified_autonomy.json"
+      ],
+      "notes": "verified=20/20 before=propose after=execute maturity=supervised control_canvas=propose error=None [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ASK-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/ask/cold_start.json"
+      ],
+      "notes": "cold-start recommendation=ask [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ASK-03",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/ask/automation.json"
+      ],
+      "notes": "Automatic revocation is consent-gated; live revocation needs certified observations [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ASK-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/ask/certify.json"
+      ],
+      "notes": "weak_certified=False strong_certified=True strong_brier=4.2e-05 denial_coverage=1.0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ASK-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/ask/gated_relaxation.json"
+      ],
+      "notes": "stats=200 uncertified=collecting certified=enable queued=approval enforce=False->True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/chat.json"
+      ],
+      "notes": "chat=200 session=8aba121a-1923-4665-9251-0ef14aba03f5 reply='acceptance reply for: nd offer to retry. Never invent tool activity.\"}, {\"role\":' provider=openai model=gpt-4o-mini [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/data/formats.json"
+      ],
+      "notes": "{\"acceptance_txt.txt\": [200, 1, true], \"acceptance_csv.csv\": [200, 1, true], \"acceptance_xlsx.xlsx\": [200, 1, true], \"acceptance_docx.docx\": [200, 1, true], \"acceptance_pptx.pptx\": [200, 1, true], \"acceptance_eml.eml\": [200, 1, true], \"acceptance_pdf.pdf\": [200, 1, true]} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/canvas.json"
+      ],
+      "notes": "canvas=cc7ee893-8db3-43d4-9cd8-b6dd4b62dce9 update=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/teach_apply.json"
+      ],
+      "notes": "teach=200 lesson=b3d34245051643358cd86797b3e0c6c5 applied=True control=False same_goal=True wrong_goal=False corrected=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/goals/create.json"
+      ],
+      "notes": "goal=57fad624-90ad-4e48-b579-c42b3aacd24c [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/settings.json"
+      ],
+      "notes": "providers=200 settings=200 openai_configured=True secret_masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "CORE-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/profile.json"
+      ],
+      "notes": "profile=full enabled=['activity', 'agents', 'approvals', 'automations', 'boards', 'business_dashboards', 'canvas', 'chat', 'command_centers', 'connectors', 'documents', 'governance', 'marketplace', 'productivity', 'search', 'settings', 'tasks', 'team_chat'] deferred_enabled=['automations', 'governance', 'marketplace', 'search', 'tasks'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOAL-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/goals/objective_loop.json"
+      ],
+      "notes": "predicate stop at 2/5 calls status=objective_satisfied; control burned 3/3 status=max_steps_exceeded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOAL-02",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "utility target scoring executes inside the model-backed ReAct loop; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOAL-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/goals/custom_action.json"
+      ],
+      "notes": "student=False intern=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOAL-04",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "stuck detection executes inside the model-backed ReAct loop; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOAL-05",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "The same paused goal run (identity, status and canvases) was re-read after a real backend restart; approval resumed it into exactly one deliverable [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/tier_gate.json"
+      ],
+      "notes": "complexity-3 statuses={'student': 'BLOCKED', 'intern': 'BLOCKED', 'supervised': 'PENDING_APPROVAL', 'autonomous': 'APPROVED'}; student read=APPROVED [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/approval_execution.json"
+      ],
+      "notes": "checkpoint=a96049fe-e4b9-48b5-928c-db75f11656ae before=0 approve=200 resumed=True after=1 reject=200 reject_canvases=0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/audit_execution.json"
+      ],
+      "notes": "actor=cb6e6eda-64c9-4e8a-9add-37d48abd397d action=tool:tasks.create target=be489399-91b5-4bf6-80b1-c19af7f0766e outcome=True task=1c7e7cfe-5d42-4b97-9edc-3b686e8018b2 replay=['execution_start', 'tool:tasks.create', 'execution_complete'] unauth=401 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-04",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/training.json"
+      ],
+      "notes": "Training queue/proposals/complete API reachable; session creation is triggered by a blocked agent run (needs a model-backed run) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/sso_config.json"
+      ],
+      "notes": "config=200 read=200 secret_hidden=True login=503 (full IdP callback is exercised by the bounded-IdP scenario) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/scim.json"
+      ],
+      "notes": "create=201 id=84f5ec13-45c6-4046-b5ac-a3799ba6a6b7 list=200 unauth=401 deactivate=200 active=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/rbac.json"
+      ],
+      "notes": "roles=['admin', 'guest', 'member', 'owner', 'super_admin', 'team_lead', 'viewer', 'workspace_admin'] member=403 admin=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GOV-08",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/governance/lifecycle.json"
+      ],
+      "notes": "create=201 id=a8ced5f4-aa5c-4103-80b8-6b1939f9ffd4 read=200 delete=200 read_after_delete=404 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/graphrag/ingest.json"
+      ],
+      "notes": "entities=3 names=['2026-10-01', 'alice@example.com', 'https://example.com/atlas'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/graphrag/hop.json"
+      ],
+      "notes": "two_hop_visible=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/graphrag/communities.json"
+      ],
+      "notes": "communities=1 build=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/graphrag/jit.json"
+      ],
+      "notes": "fact=201 id=961cd71e-d38e-4738-a8e2-4907862ff75e verify=200 verified=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-05",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/graphrag/query.json"
+      ],
+      "notes": "Graph query works at the API; the D3 explorer page itself is a browser check (separate UI scenario) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/openai_chat.json"
+      ],
+      "notes": "chat_status=200 choices=1 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/anthropic.json"
+      ],
+      "notes": "messages_status=200 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/models.json"
+      ],
+      "notes": "models=2 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/key_lifecycle.json"
+      ],
+      "notes": "invalid=401 revoke=200 revoked_use=401 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/override.json"
+      ],
+      "notes": "x-atom-model override reached the upstream [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/error_path.json"
+      ],
+      "notes": "transport failure mapped to 502 code=all_providers_failed [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INST-02",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "Documented uvicorn main_api_app:app process served /health/ready and /api/product/profile [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INST-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.txt"
+      ],
+      "notes": "next dev --webpack on :3130 (documented `make frontend` command) reached Ready and GET /login returned HTTP 200 with the Next.js app shell [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INST-04",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "Fresh root generated the 0600 bootstrap password file; that password logged in [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INST-05",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "Task created before the restart was readable from a new backend process on the same data root [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/catalog.json"
+      ],
+      "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/connection_status.json"
+      ],
+      "notes": "no_token=False with_token=True after_delete=False source=oauth_token [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/oauth_connect.json"
+      ],
+      "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/controlled_read.json"
+      ],
+      "notes": "deals=2 path=/crm/v3/objects/deals bearer=True no_token_error=True controlled_provider=True error=None [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/outbound_hitl.json"
+      ],
+      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 retry=duplicate sent_after_retry=1 replay_approval=400 race_effects=1 restart=uncertain_effect changed=conflict persist=uncertain_effect noeffect=failed_before_effect binding=approval_binding_mismatch reject=200 denied_retry=waiting_approval [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/disconnect.json"
+      ],
+      "notes": "disconnect=200 revoked=True connected_after=False [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/webhook.json"
+      ],
+      "notes": "accepted=200 replay=duplicate forged=401 missing=401 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-08",
+      "status": "verified",
+      "evidence": [
+        "integrations/catalog.json"
+      ],
+      "notes": "named providers with adapter/oauth/route evidence: ['github', 'gitlab', 'gmail', 'hubspot', 'jira', 'linear', 'notion', 'quickbooks', 'salesforce', 'shopify', 'slack', 'stripe', 'teams', 'zoom']; missing=[] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-09",
+      "status": "blocked_external",
+      "evidence": [],
+      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/mcp_register.json"
+      ],
+      "notes": "server=acceptance-mcp listed=True tool_count=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/mcp_execute.json"
+      ],
+      "notes": "execute=200 result_echoed=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/a2a_card.json"
+      ],
+      "notes": "skills=4 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/a2a_send.json"
+      ],
+      "notes": "send=200 result=True unauth=403 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/acp.json"
+      ],
+      "notes": "initialize=True session/new=True agent_chunk=True stopReason=end_turn [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "IO-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/interop/tracing.json"
+      ],
+      "notes": "request=200 spans=1 export=200 batch_types=['trace-create', 'span-create'] error=None [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/per_turn.json"
+      ],
+      "notes": "hook_persisted=True category=exact_value transient_persisted=False controlled_provider=True error=None [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/sql_recall.json"
+      ],
+      "notes": "prompt_tier_hit=True public_api_hit=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/semantic.json"
+      ],
+      "notes": "vector_written=1 semantic_hit=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/episodes.json"
+      ],
+      "notes": "episode=7cbdbcc5-7fb3-456e-aba9-68da139b681f episodes=2 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/remember.json"
+      ],
+      "notes": "fact_id=bbd5087e-560e-4681-ad3e-327da513d46f [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/forget.json"
+      ],
+      "notes": "forget=True after={'found': True, 'status': 'invalidated'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-07",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "Evolution harness is disabled in this world (ATOM_AGENT_EVOLUTION_ENABLED=false); enabling it is a separate controlled world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MINI-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/miniapp/scaffold.json"
+      ],
+      "notes": "app=3449b699-8286-4137-8a92-7f5daaa50670 status=200 body={\"success\": true, \"app\": {\"id\": \"3449b699-8286-4137-8a92-7f5daaa50670\", \"name\": \"acceptance-app-650e92\", \"status\": \"draft\"}, \"canvas_id\": \"ac75bfa5-3c0c-4bf0-8e93-bd82526daf6b\", \"logic_source\": \"\", \"manifest\": {\"declared_scopes\": [\"*\"], \"skills\": [], \"integrations\": [], \"entrypoint\": \"logic\", \"dependencies\": [], \"base_image\": \"python:3.11-slim\", \"assets\": [], \"storage\": {\"enabled\": true, \"backend\" [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MINI-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/miniapp/logic.json"
+      ],
+      "notes": "invalid=400 valid=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MINI-03",
+      "status": "environment_limited",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/miniapp/dev_run.json"
+      ],
+      "notes": "Firecracker is the only mini-app runtime; this macOS host has no KVM, so the runtime is expected to fail closed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MINI-04",
+      "status": "environment_limited",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/miniapp/install.json"
+      ],
+      "notes": "Per-instance record store is host-mediated; install needs the Firecracker runtime on this host [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MINI-05",
+      "status": "architecture_only",
+      "evidence": [],
+      "notes": "Firecracker microVM isolation (and therefore per-instance sandbox execution) cannot be exercised on macOS without KVM; the runtime fails closed by design [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/docx.json"
+      ],
+      "notes": "heading_preserved=True table_preserved=True font=Courier New [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/xlsx.json"
+      ],
+      "notes": "leading_zero='00123' formulas={'D2': '=SUM(B2:C2)', 'E2': '=B2*C2', 'SummaryB1': '=Data!D2+Data!D3'} [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/formula.json"
+      ],
+      "notes": "formula_result=200 recalc=200 cross_sheet_value=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/pptx.json"
+      ],
+      "notes": "titles=['PPTX-EDITED'] bodies=['Edited body'] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/present.json"
+      ],
+      "notes": "canvas=canvas_ec723e7c30c3 download_ok=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/sync.json"
+      ],
+      "notes": "paragraph_in_place=True heading_preserved=True tables=1 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/live_broadcast.json"
+      ],
+      "notes": "canvas=canvas_ec723e7c30c3 canvas_channel=True user_channel=True same_revision=True unrelated_canvas=canvas_317fbb0ab10a error=None [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "OFF-08",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "A presented Office canvas and its downloadable file were re-read from a new backend process on the same data root [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/readback.json"
+      ],
+      "notes": "{\"trigger_workflow\": true, \"tasks.create\": true} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/readback.json"
+      ],
+      "notes": "DB read-back: present row verified, removed row refuted [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/readback.json"
+      ],
+      "notes": "A self-report with no system-of-record row is refuted [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/kill_switch.json"
+      ],
+      "notes": "enforce_stamped=True kill_switch_pass_through=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/two_tier.json"
+      ],
+      "notes": "self_report_and_external_verified_coexist=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORACLE-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/oracle/reviewer_loop.json"
+      ],
+      "notes": "reviewer_calls=2 attempts=6 feedback_on_redelegation=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-01",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "Queen workflow blueprint requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-02",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "Fleet open-ended task requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/orchestration/conductor.json"
+      ],
+      "notes": "strategies_executed=['sequential', 'parallel', 'hybrid', 'adaptive', 'rollback_safe'] invalid=422; deterministic executor called once under each strategy [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/orchestration/state_machine.json"
+      ],
+      "notes": "legal=TransitionResult.SUCCESS illegal=TransitionResult.INVALID state=WorkflowState.QUEUED [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-05",
+      "status": "verified",
+      "evidence": [
+        "workflows/versioning.json"
+      ],
+      "notes": "Rollback to 0.1.0 created 0.2.1 and the version history contains it = True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/orchestration/matcher.json"
+      ],
+      "notes": "ranked=['803d71f4-b226-48f2-8b08-fc8f67708bbf', '80ea0936-1011-4b8d-bfba-9c8130cd9587'] strong=803d71f4-b226-48f2-8b08-fc8f67708bbf [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-07",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "fleet routing audit row requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ORCH-08",
+      "status": "inaccurate",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/orchestration/depth.json"
+      ],
+      "notes": "DelegationChain stores max_depth but AgentFleetService.recruit_member does not reject a link beyond it; the README/CLAUDE.md enforcement claim is overstated. [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/radio/create.json"
+      ],
+      "notes": "thread=b2f0a7c4-932a-42ca-9dcf-4ea3273d6214 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/radio/send.json"
+      ],
+      "notes": "sent=True mention_delivered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/radio/budget.json"
+      ],
+      "notes": "error=budget_exceeded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "RADIO-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/radio/wait.json"
+      ],
+      "notes": "first_timeout=True second_delivered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/tiers.json"
+      ],
+      "notes": "tiers={'simple': 'micro', 'moderate': 'micro', 'technical': 'standard', 'advanced': 'versatile'} [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/providers.json"
+      ],
+      "notes": "provider_count=37 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-03",
+      "status": "partial",
+      "evidence": [],
+      "notes": "Configured provider policy admits one gateway route; a failed upstream returns all_providers_failed instead of falling back to the local provider [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/learning_rerank.json"
+      ],
+      "notes": "loaded=56 baseline=minimax-m3 trained=gpt-4o ready=True rows=56 models=2 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/rtk.json"
+      ],
+      "notes": "chars 2670 -> 138; structured_unchanged=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-06",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/local_models.json"
+      ],
+      "notes": "Local OpenAI-compatible provider is the harness upstream; the user-facing settings surface is served [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-07",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "opencode-go needs a real subscription key; the provider resolves but no live call is made [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/lexical.json"
+      ],
+      "notes": "Exact rare token retrieved through documents.search [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/vector.json"
+      ],
+      "notes": "query='parrot spotted at the rainforest treetop path' lexical_hits=0 vector_hits=1 semantic_hit=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/rrf.json"
+      ],
+      "notes": "RRF k=60 scores {'doc_c310cf9c1402bf6518972bd7': 0.032787} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/hybrid.json",
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/citation_cat.json"
+      ],
+      "notes": "hits=5 citation_path=knowledge/documents/doc_c310cf9c1402bf6518972bd7/content.lines resolved=True legs={\"lexical\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 1, \"duration_ms\": 1.36}, \"vector\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 6, \"durat [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/search/missing.json"
+      ],
+      "notes": "A token absent from the corpus yields an explicit empty result [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/sandbox.json"
+      ],
+      "notes": "blocked=blocked allowed=allowed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/token_encryption.json"
+      ],
+      "notes": "ciphertext=True decrypt_ok=True oauth_callback_wired=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/capabilities.json"
+      ],
+      "notes": "allowed=True denied=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/gatekeeper.json"
+      ],
+      "notes": "read_allowed=True mutation_paused=True masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/taint.json"
+      ],
+      "notes": "label=restricted external_blocked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/mcp_egress.json"
+      ],
+      "notes": "permitted=True refused={'metadata': 502, 'file': 502, 'outside_allowlist': 502, 'transport': 502} attempts=0 leaked=[] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/unauth.json"
+      ],
+      "notes": "{\"/api/documents\": 401, \"/api/agents/\": 401, \"/api/v1/admin/settings\": 401, \"/api/goal-runs\": 401} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEC-08",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/security/fail_closed.json"
+      ],
+      "notes": "result=MissingKeyError [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/contracts.json"
+      ],
+      "notes": "accountable=agent-accountable-1 fields=['accountable_agent_id', 'effort_budget', 'objective', 'output_format', 'task_boundaries', 'tool_guidance'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/privileges.json"
+      ],
+      "notes": "default=False expired=False live=True revoked=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/coi.json"
+      ],
+      "notes": "self_conflict=True distinct=False rotation=b [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/contribution.json"
+      ],
+      "notes": "success_sum=1.0 late_failure_sum=0.25 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/alignment.json"
+      ],
+      "notes": "ran=True green=True max_gap=0.0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "TEAM-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/teams/telemetry.json"
+      ],
+      "notes": "recruits=3 pairs=2 repeat=1 reviews=2 coi=1 empty=0 report=0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/vfs/ls.json",
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/vfs/tree.json"
+      ],
+      "notes": "entries=8 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/vfs/cat.json"
+      ],
+      "notes": "line-numbered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/vfs/grep.json"
+      ],
+      "notes": "matches=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/vfs/flag.json"
+      ],
+      "notes": "legacy_hits=1 with VFS disabled [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/create.json"
+      ],
+      "notes": "create=200 id=476cf657-a24f-4463-a052-001ad8fc3bae reread=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/execute.json"
+      ],
+      "notes": "execute=200 execution=97ebb990-b37c-4be1-b6f8-266629dfea86 status=completed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
+      ],
+      "notes": "A completed workflow execution was re-read from a new backend process on the same data root [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/schedule.json"
+      ],
+      "notes": "job=job_476cf657-a24f-4463-a052-001ad8fc3bae_1793471953.991502 listed=True removed=True; actual firing requires ENABLE_SCHEDULER (off in this world) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-05",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/hitl_queue.json"
+      ],
+      "notes": "Workflow pause/resume needs a model-backed low-maturity agent run; the HITL queue itself is exercised by GOV-02 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/versioning.json"
+      ],
+      "notes": "v1=0.1.0 rollback=200 rollback_version=0.2.1 recorded=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "WF-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/workflows/templates.json"
+      ],
+      "notes": "template=00c445dd-1d6e-5da3-9a41-dc0b1289d936 import=200 execute=200 execution=afe23b9c-8279-42d5-8266-eb1ed214bbca status=completed steps=2 unknown=404 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]",
+      "blocker": ""
+    }
+  ]
+}

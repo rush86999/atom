@@ -165,3 +165,89 @@ cd backend && venv/bin/python -m pytest \
 ## Append your session below this line
 
 (Format: `## Session: <name> (<date>)` + Goal / Files owned / Notes / Status.)
+
+---
+
+## Session: README feature readiness, Agent 2 (2026-10-31)
+
+**Branch/worktree:** `codex/readme-feature-readiness` in
+`/Users/rushiparikh/projects/atom-readme-features`, based on immutable
+`local-core-2026-10-30-final` (`da9cc8b12`). Tags were not moved.
+
+**Goal:** establish and verify the README-marketed functional surface (breadth),
+without invalidating the accepted local-core work and without deploying.
+
+**Owned in this session (do not refactor in parallel without a note):**
+
+- `docs/acceptance/readme_feature_readiness_2026-10-31/` (inventory, coverage
+  report, evidence)
+- `scripts/acceptance/readme_claim_inventory.py`,
+  `scripts/acceptance/merge_readme_results.py`,
+  `scripts/acceptance/readme_local_install.py`
+- `backend/scripts/readme_acceptance/` (harness + local OpenAI/Anthropic/OAuth/
+  MCP stub)
+- README integration/catalog wiring:
+  `backend/core/integration_business_catalog.py`, `main_api_app.py`
+  (`/api/integrations` + `/business-catalog` only)
+- Hybrid search relevance floor: `core/hybrid_search/documents_hybrid.py`
+- GraphRAG route argument fix: `api/graphrag_routes.py`; extraction fallback:
+  `core/graphrag_engine.py`
+- MCP external-tool dispatch seam: `core/mcp_service.py`,
+  `integrations/mcp_service.py` (external branch only)
+- Workflow conductor context + node-versioning fixes:
+  `core/workflow_endpoints.py`, `core/workflow_versioning_system.py`
+- Episode creation null/list robustness: `core/episode_service.py`
+- Tests added/updated: `tests/test_integration_business_catalog.py`,
+  `tests/test_graphrag_pattern_fallback.py`,
+  `tests/core/test_documents_hybrid.py`,
+  `tests/test_covpush_wfengine.py`,
+  `tests/test_covpush_w32_learning_graphrag_routes.py`
+
+**Not owned / handed to Agent 1:**
+
+- Live BYOK key refresh for the cached chat LLM service. A key stored after
+  `LLMService` construction is not seen by chat (Settings → AI appears saved,
+  chat still says no provider) until restart. Gateway works. Repro and details
+  are in
+  `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md`
+  §6. This is a shared Chat/lifecycle defect, not patched here.
+
+**Result (integrated campaign):** 99/123 eligible functional claims verified
+(80.5%). The earlier 100/123 (81.3%), 83/123 and 82/123 self-assessments are
+withdrawn; the denominator is unchanged. Security 8/8 separately. 24 functional
+claims remain unverified/partial/blocked/environment-limited or inaccurate;
+none are counted. ORCH-08 remains **inaccurate** (delegation `max_depth` is
+stored but not enforced). GOAL-01 is **verified**: the loop stops at 2/5 with
+`objective_satisfied`, the 3/3 control returns `max_steps_exceeded`, and the
+satisfied run persists as a successful execution/audit close-out. GOAL-05 is
+verified across a real backend restart. ASK-03, ROUTE-03 and GRAPH-05 are
+deliberately left partial rather than counted on weaker evidence.
+
+The final audit (`evidence/CLAIM_AUDIT_2026-10-31_final.json`) downgrades only
+ORACLE-01, GOV-05, TEAM-01, TEAM-05 and CORE-06. The earlier 18-claim audit is
+retained as history. The broad campaign ran 130 claims with 0 failed and 0
+group errors; the install/restart script and acceptance harness now exit
+nonzero on assertion failure. The mandatory practical employee gate and the
+substantive model-quality assessment are still separate open items. Cached
+BYOK refresh code is in place (credential revision, dispatch backstop,
+negative-cache reset), but the full Settings → Chat acceptance remains partial
+because the chat router selects an unsupported catalog model in the harness.
+Model access is now available locally; the assessment issue is failed
+qualification/review enforcement, not unavailable infrastructure. Unsupported
+approvals must fail qualification and human review must be enforced before
+downstream action. Firecracker/KVM and live-provider environments remain
+external blockers. No deployment, send, credential change or connected-system
+write was performed.
+
+**Worlds/ports:** harness worlds live under
+`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;
+the install check uses port 8137. No external credentials, sends, deployments
+or writes to connected systems.
+
+**Status:** README coverage target reached (99/123); awaiting independent
+verifier agreement. The controlled practical-assignment gate passed for
+retrieval/calculation/artifact/approval/durable reopen; process restart while
+waiting, changed-revision invalidation, ambiguity, cancellation and duplicate
+resume remain open. The substantive model-quality assessment remains blocked
+on authorized model access. Not a release declaration.
+

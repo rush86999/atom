@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "claim_id": "PERF-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count.txt"
+      ],
+      "notes": "93,825 `def test_` functions across 3,749 files exceeds the README's 85k+ claim (count method: grep, not pytest collection)",
+      "blocker": ""
+    }
+  ]
+}

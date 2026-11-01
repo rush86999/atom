@@ -1,0 +1,148 @@
+{
+  "schema": "atom-conversation-learning-acceptance-7",
+  "source_commit": "dfa940ee5ee248d5bde3fda5a367fc454ce84dc8",
+  "source_tree": "774ed1f15bfa93f7a84f9bd44c3e88c513a37f12",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "parser_matrix": [
+    {
+      "case": "Qty 2, Price 7.50 USD",
+      "expected": "15.00 USD",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "Price €7.50 with USD method",
+      "expected": "no arithmetic; incompatible unit",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "Price 7.50€ with USD method",
+      "expected": "no arithmetic; incompatible unit",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "answer 8.00 or 9.00",
+      "expected": "ambiguous; no calculation",
+      "test": "test_operand_answer_confirms_or_preserves_units",
+      "result": "pass"
+    },
+    {
+      "case": "answer Price 8.00 or Price 9.00",
+      "expected": "ambiguous; no calculation",
+      "test": "test_operand_answer_confirms_or_preserves_units",
+      "result": "pass"
+    },
+    {
+      "case": "answer Price 7.50.5",
+      "expected": "malformed token; no repaired value",
+      "test": "test_operand_answer_confirms_or_preserves_units",
+      "result": "pass"
+    },
+    {
+      "case": "answer €8.00",
+      "expected": "unit incompatible; no calculation",
+      "test": "test_operand_answer_confirms_or_preserves_units",
+      "result": "pass"
+    },
+    {
+      "case": "failed answer refreshes pending candidates",
+      "expected": "latest candidate reflected in the question",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    }
+  ],
+  "compound_matrix": [
+    {
+      "case": "calculate plus email, no recipient",
+      "expected": "receipt + draft + durable recipient clarification",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "recipient supplied",
+      "expected": "draft updated; concrete AgentProposal + pending HITL",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "HITL approval with controlled transport",
+      "expected": "handled/resumed; proposal executed; no real send",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "evidence": "boundary-hitl-resume.json",
+      "result": "pass"
+    },
+    {
+      "case": "public route compound request",
+      "expected": "partial; concrete proposal/HITL; no send",
+      "test": "test_public_chat_compound_request_keeps_email_obligation",
+      "result": "pass"
+    }
+  ],
+  "live_campaign": [
+    {
+      "case": "prefixed EUR refusal",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "EUR clarification answer refusal",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "compatible USD answer resumes",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "ambiguous answer refusal",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "single value resumes",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "malformed token refusal",
+      "evidence": "boundary-campaign.json",
+      "result": "pass"
+    },
+    {
+      "case": "compound draft and recipient clarification",
+      "evidence": "boundary-campaign.json, boundary-db-verification.json",
+      "result": "pass"
+    },
+    {
+      "case": "compound approval resume with controlled transport",
+      "evidence": "boundary-hitl-resume.json",
+      "result": "pass"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "421 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-learning-tests.log"
+    },
+    "typescript": {
+      "result": "clean",
+      "log": "typescript-check.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}

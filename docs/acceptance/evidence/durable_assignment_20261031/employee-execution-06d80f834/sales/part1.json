@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Integrated Quote Specialist 2",
+  "agent_id": "f16e7c6c-6952-47ad-aeea-6eeec346da1a",
+  "canvas_url": "http://127.0.0.1:3130/canvas/5a96e147-afed-4139-880b-8d2117d46083?agent_id=f16e7c6c-6952-47ad-aeea-6eeec346da1a&side=training",
+  "objective": "Sum Price for the integrated quote sheet 2026-10-31 run 2",
+  "correlation_id": "quote-missing-currency-20261031-2",
+  "run_id": "43124796-a93a-4f99-a0aa-3a4bc4f6fc95",
+  "assignment_id": "asg-ce22610a9f954074",
+  "teaching_revision": "6b3d626819827b82+f4a1bf30f4229acf+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "integrated_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "6b3d626819827b82+f4a1bf30f4229acf+map",
+      "source": "upload",
+      "dataset_name": "upload_integrated_quote__integrated_quote",
+      "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "available_columns": [
+        "Item Code",
+        "Units",
+        "Gross Amount",
+        "Currency"
+      ],
+      "numeric_columns": [
+        "Units",
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "400.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "quote-missing-currency-20261031-2",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nintegrated_quote.csv / integrated_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Units\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\n\nNo durable assignments yet.",
+  "teaching_points_visible": 0
+}

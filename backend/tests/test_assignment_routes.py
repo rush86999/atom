@@ -1688,3 +1688,159 @@ def test_assignment_consumes_contextual_conversation_method(
     persisted = status.json()["assignment"].get("effective_lesson_ids") or []
     assert any(item.get("id") == lesson["id"] and item.get("revision") == 1
                for item in persisted), persisted
+
+
+def _uncertain_assignment(env):
+    from core.assignment_executor import ExternalOutcomeUnknown
+
+    calls = {"count": 0, "effects": 0}
+
+    async def uncertain(inputs, context):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            calls["effects"] += 1
+            raise ExternalOutcomeUnknown(
+                "provider may have accepted the effect",
+                evidence="outbox: row-1")
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "sent", "provider_ref": "provider-2",
+        }
+
+    def prepare(inputs, context):
+        return {
+            "payload": {"to": inputs.get("to"),
+                        "subject": inputs.get("subject"),
+                        "body": inputs.get("body")},
+            "requested_by": "owner-1",
+        }
+
+    registry = default_adapter_registry
+    registry.register("test.route.uncertain", uncertain, prepare=prepare)
+    env["executor"].adapters.register(
+        "test.route.uncertain", uncertain, prepare=prepare)
+    plan = new_assignment(
+        objective="Route uncertain effect",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="route-r1"),
+        steps=[new_step(
+            step_id="send", title="Uncertain send",
+            operation_type="outbound", adapter="test.route.uncertain",
+            inputs={"to": ["test@example.invalid"], "subject": "S",
+                    "body": "B"},
+            effect="external", approval_required=True,
+            approval_purpose="Send the uncertain effect")],
+    )
+    record = env["executor"].create_assignment(
+        "conv-route", "Route uncertain effect", assignment=plan)
+    run_id = record["run_id"]
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "send", approved_by="lead-1")
+    _run(env["executor"].execute(run_id))
+    return run_id, calls
+
+
+def test_route_reconcile_applied_never_resends(route_env):
+    run_id, calls = _uncertain_assignment(route_env)
+    record = route_env["lifecycle"].get_assignment(run_id)
+    step = next(item for item in record["steps"]
+                if item["step_id"] == "send")
+    assert step["status"] == "uncertain"
+
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/send",
+        json={"verdict": "applied",
+              "evidence": "the outbox row proves provider acceptance",
+              "evidence_ref": "outbox: row-1"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verdict"] == "applied"
+    assert body["assignment"]["assignment"]["status"] == "completed"
+    assert calls["count"] == 1
+    assert calls["effects"] == 1
+
+
+def test_route_reconcile_insufficient_keeps_uncertain_and_never_resends(
+        route_env):
+    run_id, calls = _uncertain_assignment(route_env)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/send",
+        json={"verdict": "insufficient",
+              "evidence": "the provider audit returned no row"})
+    assert response.status_code == 200, response.text
+    assert response.json()["verdict"] == "insufficient"
+    record = route_env["lifecycle"].get_assignment(run_id)
+    step = next(item for item in record["steps"]
+                if item["step_id"] == "send")
+    assert step["status"] == "uncertain"
+    assert calls["count"] == 1
+
+
+def test_route_reconcile_not_applied_allows_one_new_operation(route_env):
+    run_id, calls = _uncertain_assignment(route_env)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/send",
+        json={"verdict": "not_applied",
+              "evidence": "the provider audit proves no row was created"})
+    assert response.status_code == 200, response.text
+    assert response.json()["verdict"] == "not_applied"
+    # The retry is a NEW operation and still needs approval; the failed
+    # evidence is preserved.
+    assert calls["count"] == 1
+    record = route_env["lifecycle"].get_assignment(run_id)
+    send = next(item for item in record["steps"]
+                if item["step_id"] == "send")
+    assert send["status"] == "awaiting_approval"
+    assert send["attempts"] == 1
+    operations = [
+        item for item in route_env["lifecycle"].get_task(run_id)["operations"]
+        if item.get("step_id") == "send"]
+    assert len(operations) == 2
+
+    approved = route_env["client"].post(
+        f"/api/assignments/{run_id}/approve/send", json={})
+    assert approved.status_code == 200, approved.text
+    assert calls["count"] == 2
+    record = route_env["lifecycle"].get_assignment(run_id)
+    assert record["status"] == "completed"
+    send = next(item for item in record["steps"]
+                if item["step_id"] == "send")
+    assert send["status"] == "applied"
+
+
+def test_route_reconcile_requires_evidence_and_authority(route_env):
+    run_id, _ = _uncertain_assignment(route_env)
+    missing = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/send",
+        json={"verdict": "applied", "evidence": ""})
+    assert missing.status_code == 409, missing.text
+
+    route_env["current"]["user"] = route_env["users"]["member"]
+    denied = route_env["client"].post(
+        f"/api/assignments/{run_id}/reconcile/send",
+        json={"verdict": "applied", "evidence": "outbox row"})
+    assert denied.status_code == 403, denied.text
+
+
+def test_standing_authority_requires_a_real_bound():
+    from core.assignment_plan import normalize_standing_authority
+    from core.task_lifecycle import TaskLifecycleError
+
+    with pytest.raises(TaskLifecycleError):
+        normalize_standing_authority(
+            {"actions": ["outbound"], "max_effects": 0,
+             "recipients": ["a@example.invalid"]}, granted_by="owner-1")
+    with pytest.raises(TaskLifecycleError):
+        normalize_standing_authority(
+            {"actions": ["outbound"], "max_effects": 1},
+            granted_by="owner-1")
+    with pytest.raises(TaskLifecycleError):
+        normalize_standing_authority(
+            {"actions": ["crm_write"], "max_effects": 1,
+             "recipients": ["a@example.invalid"]}, granted_by="owner-1")
+    grant = normalize_standing_authority(
+        {"actions": ["outbound"], "max_effects": 2,
+         "recipients": ["A@Example.invalid"]}, granted_by="owner-1")
+    assert grant["recipients"] == ["a@example.invalid"]
+    assert grant["used_effects"] == 0
+    assert grant["status"] == "active"

@@ -206,8 +206,14 @@ class MCPService(IntegrationService):
         return MCPToolConverter.convert_to_openai_tools(all_tools)
 
     async def get_active_connections(self) -> List[Dict[str, Any]]:
-        """Returns a list of currently connected MCP servers."""
-        return [
+        """Returns a list of currently connected MCP servers.
+
+        Includes servers registered through the real P6 client (``core.mcp_service``)
+        — the register route writes there, and before this merge the legacy list
+        endpoint reported only the three built-in pseudo-servers, so a newly
+        connected external server was invisible to every UI/agent consumer.
+        """
+        out = [
             {
                 "server_id": sid,
                 "name": info.get("name"),
@@ -215,9 +221,38 @@ class MCPService(IntegrationService):
                 "status": "connected"
             } for sid, info in self.active_servers.items()
         ]
+        try:
+            from core.mcp_service import mcp_service as core_mcp
+
+            known = {row["server_id"] for row in out}
+            for sid, tools in core_mcp.tools_cache.items():
+                if sid in known or sid not in core_mcp.external_clients:
+                    continue
+                out.append({
+                    "server_id": sid,
+                    "name": sid,
+                    "connected_at": None,
+                    "status": "connected",
+                    "tool_count": len(tools),
+                    "external": True,
+                })
+        except Exception as exc:  # noqa: BLE001 — read surface must not crash
+            logger.debug("external MCP connection merge skipped: %s", exc)
+        return out
 
     async def get_server_tools(self, server_id: str) -> List[Dict[str, Any]]:
         """Returns a list of tools supported by a specific MCP server."""
+        try:
+            from core.mcp_service import mcp_service as core_mcp
+
+            if server_id in core_mcp.external_clients and server_id in core_mcp.tools_cache:
+                return [
+                    {"name": t.name, "description": t.description,
+                     "parameters": t.parameters}
+                    for t in core_mcp.tools_cache[server_id]
+                ]
+        except Exception:  # noqa: BLE001
+            pass
         if server_id == "google-search":
             return [
                 {"name": "web_search", "description": "Search the web for real-time information", "parameters": {"query": "string"}},
@@ -2954,7 +2989,23 @@ class MCPService(IntegrationService):
                 from integrations.universal_integration_service import NATIVE_INTEGRATIONS
                 return {"native_integrations": sorted(list(NATIVE_INTEGRATIONS)), "native_count": len(NATIVE_INTEGRATIONS)}
 
-        # Unknown MCP server - fail explicitly
+        # Unknown MCP server - fail explicitly. External servers registered
+        # through the real P6 client live in core.mcp_service; dispatch there
+        # before declaring the tool unimplemented (the two registries used to
+        # be disconnected, so a successfully registered external tool could be
+        # discovered but never executed).
+        if server_id:
+            try:
+                from core.mcp_service import mcp_service as core_mcp
+
+                if server_id in core_mcp.external_clients:
+                    return await core_mcp.call_external_tool(
+                        server_id, tool_name, arguments)
+            except Exception as exc:  # noqa: BLE001
+                logger.error("External MCP tool %s/%s failed: %s",
+                             server_id, tool_name, exc)
+                return {"error": f"External MCP tool failed: {exc}",
+                        "status": "error"}
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
 
     async def execute_entity_tool(

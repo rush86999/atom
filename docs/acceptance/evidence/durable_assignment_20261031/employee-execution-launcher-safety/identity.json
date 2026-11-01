@@ -1,0 +1,22 @@
+{
+  "schema": "atom-integrated-launcher-identity-1",
+  "backend": {
+    "url": "http://127.0.0.1:8072",
+    "status": "healthy",
+    "pid": 77793,
+    "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/integrated_launcher_safety_20261031/atom.db",
+    "port": 8072,
+    "source_id": "d57bb66f6796-dirty.1f6495ced0b2",
+    "instance_id": "d57bb66f6796-dirty.1f6495ced0b2.77793.1793454678"
+  },
+  "frontend": {
+    "url": "http://127.0.0.1:3132",
+    "service": "atom-frontend",
+    "status": "healthy",
+    "pid": 77823
+  },
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/integrated_launcher_safety_20261031",
+  "secret_mode": "0600",
+  "marker_mode": "0600"
+}

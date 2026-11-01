@@ -1,0 +1,33 @@
+{
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-01T02:22:39.713603+00:00",
+    "identity": {
+        "pid": 64859,
+        "started_at": "2026-11-01T02:18:09.705817+00:00",
+        "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+        "git_commit": "31ba9725e02a",
+        "source_id": "31ba9725e02a",
+        "instance_id": "31ba9725e02a.64859.1793499492",
+        "revision": "31ba9725e02a12f1efb6dd7c612f91479ee1eb63",
+        "dirty": false,
+        "dirty_digest": "e3b0c44298fc",
+        "dirty_paths": [],
+        "untracked_paths": [],
+        "captured_at": "2026-11-01T02:18:12.456823+00:00",
+        "port": 8071,
+        "error": null,
+        "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_repair4_20261031/atom.db",
+        "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+        "database": "operational",
+        "redis": "operational",
+        "vector_store": "operational"
+    },
+    "memory_mb": 653.05
+}

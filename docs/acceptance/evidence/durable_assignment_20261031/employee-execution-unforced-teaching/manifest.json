@@ -1,0 +1,25 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-unforced-teaching",
+  "source_checkpoint": "bc164fb96632",
+  "final_candidate": "bc164fb96632",
+  "note": "Stock production build unforced teaching smoke: visible wizard completion, Teaching optional fields opened by click, no force/DOM shortcut, lesson survived reload. Clean source bc164fb96632 (dirty=false).",
+  "files": {
+    "README.md": {
+      "sha256": "5b42d6900e3602e8021afbe1ae9d18b77ef12668686dae08c66bf0ecbca16bfe",
+      "bytes": 1333
+    },
+    "health.json": {
+      "sha256": "b4b6961e72ffe65f3ebc911b8925f57757770d9d91d426b7366f35cbb57a94b6",
+      "bytes": 725
+    },
+    "result.json": {
+      "sha256": "a78c37b9ad535b751f0900b75ad43fbeb605ffa32076647dffd9aad1264d95e3",
+      "bytes": 2378
+    },
+    "teaching-recorded.png": {
+      "sha256": "78d609c433d0677bcaa9b97bbc0e63dd3355b8ad31f683ccf8b4dc52ea5f8ef7",
+      "bytes": 153953
+    }
+  }
+}

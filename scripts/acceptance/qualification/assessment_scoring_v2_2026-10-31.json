@@ -1,0 +1,13 @@
+{
+  "schema": "atom-assessment-scoring-1",
+  "version": "v2-2026-10-31",
+  "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+  "rationale": "Phase-specific materiality. A blank field is only an incomplete input when the policy in force actually depends on it. V1 approval requires 'Risk Low', so a blank Risk is material; V3 approves 'regardless of Risk', so the same blank cannot change the decision and an APPROVE is not unsupported. The frozen rows, policies and expected decisions are unchanged; only this judging rule is versioned.",
+  "overrides": {
+    "Q-010": {
+      "determinate_v1": false,
+      "determinate_v3": true,
+      "note": "Risk is blank. Under V1 the field is material (approval requires 'Risk Low'), so the input is incomplete and must abstain with a preserved requirement. Under V3 'regardless of Risk' makes the field immaterial: APPROVE is the expected decision and is scored, not treated as an unsupported approval."
+    }
+  }
+}

@@ -1,0 +1,48 @@
+Sum Approved Amount for the grant application sheet 2026-10-31 run 2
+
+waiting
+
+Plan revision 1 · teaching 128caf90451c6c2b+36031bfcb3779de3+map
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Awaiting approval: Send the approved response
+
+Completed work
+
+Aggregate workbook source
+Wait for the missing external fact
+Render Sum Approved Amount for the grant application sheet 2026-10-31 run 2
+Result: 4250.00 USD · Award Amount
+Result: FOB destination; delivery term supplied by the customer.
+
+Artifacts
+
+Sum Approved Amount for the grant application sheet 2026-10-31 run 2
+applied
+Download
+Provider-accepted response
+pending
+
+Mappings
+
+Approved Amount → Award Amount
+
+Source: upload · Sheet: grant_applications · Version: d55f0d93b5f1
+
+Required unit: not specified · Established: source-established (USD)
+
+Mapping revision: 2 · Teaching revision: 128caf90451c6c2b+36031bfcb3779de3+map
+
+Correct mapping
+
+Approval required
+
+Purpose: Send the prepared response
+
+Payload e34a979e1373aaca
+
+Approve this payload
+Resume
+Cancel
+Durable state persisted

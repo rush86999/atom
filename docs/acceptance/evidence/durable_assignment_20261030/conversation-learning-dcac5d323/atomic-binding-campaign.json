@@ -1,0 +1,72 @@
+{
+  "recipient_interleave": {
+    "proposal_id": "3cbb2ed9-4121-4a38-85ac-aa0e19c837ee",
+    "hitl_id": "b065840b-b994-4b8b-8ee6-5903b0b11aca",
+    "result": {
+      "handled": true,
+      "resumed": false,
+      "kind": "chat_obligation",
+      "proposal_id": "3cbb2ed9-4121-4a38-85ac-aa0e19c837ee",
+      "status": "payload_changed",
+      "reason": "the proposal payload changed after review; fresh approval is required",
+      "fresh_review_required": true
+    },
+    "transport_calls": 0,
+    "proposal_status": "pending_approval"
+  },
+  "canvas_interleave": {
+    "proposal_id": "06dc024d-780f-4caa-9b87-e0db2f97eb19",
+    "hitl_id": "7ec2b4ea-139d-4ed7-a57d-6bfe9c5884ba",
+    "result": {
+      "handled": true,
+      "resumed": false,
+      "kind": "chat_obligation",
+      "proposal_id": "06dc024d-780f-4caa-9b87-e0db2f97eb19",
+      "status": "payload_changed",
+      "reason": "the canvas/artifact changed after review; fresh approval is required",
+      "fresh_review_required": true
+    },
+    "transport_calls": 0,
+    "proposal_status": "pending_approval"
+  },
+  "positive": {
+    "proposal_id": "116c4583-2877-48d9-982b-cfea2704a341",
+    "hitl_id": "df3692a1-fc08-47f0-8700-500f552a6714",
+    "result": {
+      "handled": true,
+      "resumed": true,
+      "kind": "chat_obligation",
+      "proposal_id": "116c4583-2877-48d9-982b-cfea2704a341",
+      "result": {
+        "success": true,
+        "status": "draft_only",
+        "message": "Email draft_only to alice@example.com"
+      }
+    },
+    "transport_calls": 1,
+    "proposal_status": "executed",
+    "duplicate": {
+      "handled": true,
+      "resumed": true,
+      "replayed": true,
+      "kind": "chat_obligation",
+      "proposal_id": "116c4583-2877-48d9-982b-cfea2704a341",
+      "status": "already_executed"
+    },
+    "calls_after_duplicate": 1,
+    "executed_action": {
+      "action_type": "send_email",
+      "attachment_hashes": {},
+      "attachment_ids": [],
+      "body": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+      "canvas_id": "bbbbebb5-9d5b-4339-b3ee-2fc7dc378aa3",
+      "cc": "",
+      "reply_all": false,
+      "subject": "Quote",
+      "thread_id": "",
+      "to": "alice@example.com"
+    },
+    "executed_action_sha256": "5283d5606e15f6fae75adff609c980fb4de4aa198b776801a09820dc6908f719",
+    "reviewed_payload_sha256": "5283d5606e15f6fae75adff609c980fb4de4aa198b776801a09820dc6908f719"
+  }
+}

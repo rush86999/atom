@@ -131,6 +131,77 @@ class ContactGovernance:
             
             return approved_count / total_count
 
+    def find_approved_action(
+        self, workspace_id: str, action_type: str, platform: str,
+        params: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Most recent approved outbound record and its immutable payload.
+
+        The lookup is intentionally broader than recipient/content: a
+        changed action-relevant parameter must be detected and refused
+        BEFORE a claim is created, not silently treated as "no approval".
+        An exact payload returns ``binding_ok=True``; otherwise the most
+        recent approval is returned with ``binding_ok=False`` so the caller
+        can refuse/resolve it.
+        """
+        from core import outbound_operation_claim
+
+        with self._session_scope() as db:
+            rows = (
+                db.query(HITLAction)
+                .filter(
+                    HITLAction.workspace_id == workspace_id,
+                    HITLAction.action_type == action_type,
+                    HITLAction.platform == platform,
+                    HITLAction.status == HITLActionStatus.APPROVED.value,
+                )
+                .order_by(HITLAction.reviewed_at.desc(), HITLAction.created_at.desc())
+                .limit(50)
+                .all()
+            )
+            for row in rows:
+                row_params = dict(row.params or {})
+                approved_hash = outbound_operation_claim.payload_sha256(
+                    workspace_id=workspace_id, approval_id=row.id,
+                    action_type=action_type, platform=platform,
+                    params=row_params)
+                # The approval id is part of the canonical hash, so compare
+                # the same approval id on both sides for exactness.
+                request_hash_for_row = outbound_operation_claim.payload_sha256(
+                    workspace_id=workspace_id, approval_id=row.id,
+                    action_type=action_type, platform=platform, params=params)
+                if approved_hash == request_hash_for_row:
+                    return {
+                        "id": row.id,
+                        "binding_ok": True,
+                        "params": row_params,
+                        "context_snapshot": dict(row.context_snapshot or {}),
+                    }
+            if rows:
+                row = rows[0]
+                return {
+                    "id": row.id,
+                    "binding_ok": False,
+                    "params": dict(row.params or {}),
+                    "context_snapshot": dict(row.context_snapshot or {}),
+                    "requested_params": dict(params or {}),
+                    "reason": "request payload does not match the reviewed approval payload",
+                }
+        return None
+
+    def mark_effect_applied(self, action_id: str, effect: Dict[str, Any]) -> bool:
+        """Record that the approved effect was applied exactly once."""
+        with self._session_scope() as db:
+            row = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+            if row is None:
+                return False
+            snapshot = dict(row.context_snapshot or {})
+            snapshot["effect_applied"] = True
+            snapshot["effect_record"] = dict(effect or {})
+            row.context_snapshot = snapshot
+            db.commit()
+            return True
+
     async def request_approval(self, workspace_id: str, action_type: str, platform: str, params: Dict[str, Any], reason: str) -> str:
         """
         Pauses the action and creates a HITL record in the database.

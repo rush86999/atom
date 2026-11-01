@@ -1,0 +1,60 @@
+[
+    {
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "sheet": "clean_quote",
+        "file_name": "clean_quote.csv",
+        "source": "upload",
+        "external_id": "sha1:fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "source_version": "fb8543eafeec5a21fc2c0689ddb3b78ef73de899",
+        "kind": "workbook",
+        "columns": [
+            "Item",
+            "Net Amount",
+            "Currency",
+            "Status",
+            "Qualification",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Net Amount"
+        ],
+        "row_count": 3,
+        "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T02:18:57"
+    },
+    {
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "sheet": "integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "source": "upload",
+        "external_id": "sha1:93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "source_version": "93be84d22f8650d6ce33975bc0c0a9ae71aaa9d5",
+        "kind": "workbook",
+        "columns": [
+            "Item",
+            "Gross Amount",
+            "Currency",
+            "Status",
+            "Qualification",
+            "__sheet_row"
+        ],
+        "numeric_columns": [
+            "Gross Amount"
+        ],
+        "row_count": 3,
+        "coverage": {
+            "known": true,
+            "source_row_count": 3,
+            "materialized_row_count": 3,
+            "truncated": false,
+            "row_cap": 500000
+        },
+        "ingested_at": "2026-11-01T02:14:04"
+    }
+]

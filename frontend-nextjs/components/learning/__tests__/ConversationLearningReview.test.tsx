@@ -228,4 +228,35 @@ describe("ConversationLearningReview", () => {
       );
     });
   });
+
+  it("drafts a guidance-only lesson without a dummy calculation", async () => {
+    (listLearningCandidates as jest.Mock).mockResolvedValue([]);
+    (createLearningCandidate as jest.Mock).mockResolvedValue(payload());
+
+    render(<ConversationLearningReview threadId="thread-1" reviewer="owner" />);
+    fireEvent.change(await screen.findByTestId("learning-employee-select"), {
+      target: { value: "agent-1" },
+    });
+    fireEvent.change(screen.getByTestId("learning-lesson-input"), {
+      target: { value: "Open quote emails with 'Dear colleague,'." },
+    });
+    fireEvent.change(screen.getByTestId("learning-applies-input"), {
+      target: { value: "email" },
+    });
+    fireEvent.click(screen.getByTestId("learning-guidance-only"));
+    fireEvent.change(screen.getByTestId("learning-format-input"), {
+      target: { value: '{"greeting":"Dear colleague,"}' },
+    });
+    fireEvent.click(screen.getByTestId("learning-draft-button"));
+
+    await waitFor(() => {
+      expect(createLearningCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: {},
+          method_status: "not_applicable",
+          format_spec: { greeting: "Dear colleague," },
+        })
+      );
+    });
+  });
 });

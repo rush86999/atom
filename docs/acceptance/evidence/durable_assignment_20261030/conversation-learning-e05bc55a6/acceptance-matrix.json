@@ -1,0 +1,94 @@
+{
+  "schema": "atom-conversation-learning-acceptance-8",
+  "source_commit": "e05bc55a6c8402a1eaef9958bdda9865b74f0bc3",
+  "source_tree": "37ec5a02e5c4ff501d40866409b9bf5eb5b68d68",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "approval_binding_matrix": [
+    {
+      "case": "matching reviewed payload",
+      "expected": "executes once through controlled transport",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "duplicate approval",
+      "expected": "replayed; no second transport",
+      "test": "test_compound_email_draft_clarification_and_approval_resume",
+      "result": "pass"
+    },
+    {
+      "case": "recipient changed after review",
+      "expected": "payload_changed; zero transport; proposal pending",
+      "test": "test_chat_obligation_payload_drift_refused[to-different-recipient@example.invalid]",
+      "result": "pass"
+    },
+    {
+      "case": "body changed after review",
+      "expected": "payload_changed; zero transport; proposal pending",
+      "test": "test_chat_obligation_payload_drift_refused[body-A different body that was never reviewed.]",
+      "result": "pass"
+    },
+    {
+      "case": "attachment hash changed after review",
+      "expected": "payload_changed; zero transport; proposal pending",
+      "test": "test_chat_obligation_payload_drift_refused[attachment_hashes-value2]",
+      "result": "pass"
+    },
+    {
+      "case": "rejection",
+      "expected": "proposal rejected; zero transport",
+      "test": "test_chat_obligation_rejection_has_no_transport",
+      "result": "pass"
+    }
+  ],
+  "live_controlled_campaign": [
+    {
+      "case": "recipient drift",
+      "evidence": "approval-binding-campaign.json",
+      "result": "payload_changed; 0 transport calls; pending_approval"
+    },
+    {
+      "case": "body drift",
+      "evidence": "approval-binding-campaign.json",
+      "result": "payload_changed; 0 transport calls; pending_approval"
+    },
+    {
+      "case": "attachment drift",
+      "evidence": "approval-binding-campaign.json",
+      "result": "payload_changed; 0 transport calls; pending_approval"
+    },
+    {
+      "case": "matching payload",
+      "evidence": "approval-binding-campaign.json",
+      "result": "handled/resumed; 1 controlled transport call; executed"
+    },
+    {
+      "case": "duplicate approval",
+      "evidence": "approval-binding-campaign.json",
+      "result": "replayed; still 1 transport call"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "425 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-learning-tests.log"
+    },
+    "typescript": {
+      "result": "clean",
+      "log": "typescript-check.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}
