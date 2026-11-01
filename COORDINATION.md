@@ -251,3 +251,54 @@ waiting, changed-revision invalidation, ambiguity, cancellation and duplicate
 resume remain open. The substantive model-quality assessment remains blocked
 on authorized model access. Not a release declaration.
 
+
+---
+
+## Session: Brennan Agent 2 — connected knowledge and accounting (2026-11-01)
+
+**Branch/worktree:** `codex/brennan-knowledge-accounting-20261101` in
+`/private/tmp/atom-brennan-agent2`, based on `587fbc251`.
+
+**Goal:** provider contracts, WorkDrive/OneDrive knowledge, Zoho Books
+bookkeeping and authoritative writeback for the Brennan business acceptance.
+The accepted tags and the 123-claim denominator are unchanged.
+
+**Owned in this session (do not refactor in parallel without a note):**
+
+- `backend/core/provider_contract_matrix.py`, `backend/integrations/provider_errors.py`
+- `backend/integrations/zoho_books_service.py`, `zoho_crm_service.py`,
+  `zoho_inventory_service.py`, `zoho_workdrive_service.py`,
+  `onedrive_service.py`, `microsoft365_service.py`,
+  `universal_integration_service.py`
+- `backend/core/brennan_connected_actions.py` (action registrations),
+  `backend/core/drive_sync_checkpoints.py`,
+  `backend/core/drive_tree_ingestion.py` (index_rows refactor)
+- `backend/accounting/bookkeeping_proposal.py`, `sync_manager.py`,
+  `document_processor.py`
+- `backend/api/document_ingestion_routes.py` (drive sync status/page routes)
+- tests under `backend/tests/unit/test_brennan_*` and the affected legacy
+  accounting/provider tests
+- `docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md`
+
+**Handoff for Agent 1:** the action names, schemas, receipt shape,
+write-result vocabulary and executor-consumption requirement are in
+`docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md` (copied into this
+checkout). Key request: `_action_registry_adapter` must map the action's
+`action_result` (`applied|proven_not_applied|uncertain|conflict|unavailable`)
+into the executor outcome instead of wrapping every return as `applied`.
+
+**Verified in the Agent 2 branch:** provider contract matrix has zero issues;
+focused provider/connected/accounting suite **223 passed**. The quote fixture
+`A 2x100 + B 3x50 less 5% on B + freight 20, no tax` is exercised as
+`362.50` in the estimate HTTP end-to-end test. Concurrent same-bill calls
+produce one provider effect; changed remote readback is `conflict`; revoked
+sweep is `proven_not_applied`; drive page restart resumes from the persisted
+cursor and reports remote deletions without deleting memory.
+
+**Boundaries:** no live Zoho/Microsoft token, read, refresh, write or send was
+used. All verification is controlled/fixture-based. The prior one-use Outlook
+send authorization remains exhausted.
+
+**Status:** continuing Agent 2 work; awaiting Agent 1's branch handoff for the
+joint Outlook RFQ → knowledge → quote → wait/restart → authorized Zoho update
+→ Outlook draft campaign.
