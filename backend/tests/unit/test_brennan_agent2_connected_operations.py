@@ -703,6 +703,10 @@ def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
         calls.append(request.method)
         body = (__import__("json").loads(request.content or b"{}")
                 if request.method == "POST" else None)
+        if request.method == "GET" and request.url.path.endswith("/estimates"):
+            return httpx.Response(200, json={
+                "code": 0, "estimates": [],
+                "page_context": {"has_more_page": False}})
         if request.method == "POST" and request.url.path.endswith("/estimates"):
             return httpx.Response(200, json={
                 "code": 0,
@@ -729,7 +733,7 @@ def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
         {"user_id": "user-1", "tenant_id": "t1"}))
     asyncio.run(service.client.aclose())
 
-    assert calls == ["POST", "GET"]
+    assert calls == ["GET", "POST", "GET"]
     assert result["status"] == "success"
     assert result["action_result"] == "applied"
     assert result["data"]["total"] == "362.50"
@@ -1289,3 +1293,106 @@ def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):
     assert len(result["sha256"]) == 64
     assert result["read_receipt"]["kind"] == "supplier_document"
     assert service.sent is False
+
+
+def test_estimate_exact_reference_duplicate_is_never_posted(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return ([{"estimate_id": "est-old",
+                      "reference_number": "RFQ-QUOTE-1",
+                      "estimate_number": "EST-OLD"}],
+                    {"has_more": False})
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            raise AssertionError("duplicate estimate must not be posted")
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1",
+         "estimate_data": {"customer_id": "c1",
+                           "reference_number": "RFQ-QUOTE-1",
+                           "date": "2026-11-01", "currency_code": "USD",
+                           "total": "362.50", "line_items": []},
+         "authority_reference": "grant-1",
+         "operation_id": "op-est-dup-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["status"] == "duplicate"
+    assert result["action_result"] == "proven_not_applied"
+    assert result["existing"]["estimate_id"] == "est-old"
+    assert service.created == 0
+
+
+def test_concurrent_same_estimate_creates_one_provider_effect(monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.estimates = []
+            self.created = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return list(self.estimates), {"has_more": False, "page": page}
+
+        async def create_estimate(self, token, org, data):
+            await asyncio.sleep(0.01)
+            self.created += 1
+            estimate = {"estimate_id": f"est-{self.created}",
+                        "reference_number": data["reference_number"],
+                        "estimate_number": f"EST-{self.created}",
+                        "customer_id": data["customer_id"],
+                        "date": data["date"],
+                        "currency_code": data["currency_code"],
+                        "total": data["total"]}
+            self.estimates.append(estimate)
+            return estimate
+
+        async def get_estimate(self, token, org, estimate_id):
+            return next(item for item in self.estimates
+                        if item["estimate_id"] == estimate_id)
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    estimate_data = {
+        "customer_id": "c1", "reference_number": "RFQ-CONCURRENT-1",
+        "date": "2026-11-01", "currency_code": "USD",
+        "total": "362.50", "line_items": [],
+    }
+
+    async def attempt(operation_id):
+        return await actions.books_create_estimate(
+            {"organization_id": "org-1", "estimate_data": estimate_data,
+             "authority_reference": "grant-1",
+             "operation_id": operation_id},
+            {"user_id": "u", "tenant_id": "t1"})
+
+    async def run_both():
+        return await asyncio.gather(
+            attempt("op-est-concurrent-1"), attempt("op-est-concurrent-2"))
+
+    first, second = asyncio.run(run_both())
+    outcomes = sorted([first["action_result"], second["action_result"]])
+    assert outcomes == ["applied", "proven_not_applied"]
+    assert {first["status"], second["status"]} == {"success", "duplicate"}
+    assert service.created == 1
