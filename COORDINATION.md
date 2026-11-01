@@ -428,3 +428,6 @@ at `e984185ea` is the single review candidate.
 `codex/brennan-joint-20261101` branch is **SUPERSEDED** (partial intermediate
 commits only; do not use as a release candidate). Component branches remain
 Agent 1 `0aebf372e` and Agent 2 `7a006c147`. Joint core suite is **241 passed**.
+
+**Candidate documentation sync:** review candidate now `e01efb49d`; the
+connected-read handoff reflects the hardened executor outcome classifier.

@@ -60,7 +60,7 @@ The same surface is exposed to the UI as
 |---|---|---|
 | `brennan.books.propose_bill` | `proposal_input` | deterministic proposal with `status=proposed` or typed obligations; never posts |
 | `brennan.books.create_bill` | `proposal`, `authority_reference`, `operation_id`, optional `payload_sha256`, `proposal_version` | exact duplicate sweep, provider create, authoritative `get_bill` readback and field comparison |
-| `brennan.books.create_estimate` | `organization_id`, `estimate_data`, `authority_reference`, `operation_id`, optional `payload_sha256`, `artifact_version` | provider create + `get_estimate` readback and field comparison |
+| `brennan.books.create_estimate` | `organization_id`, `estimate_data` (must include `reference_number`), `authority_reference`, `operation_id`, optional `payload_sha256`, `artifact_version` | exact estimate duplicate sweep, provider create + `get_estimate` readback and field comparison |
 | `brennan.outlook.create_draft` | `to`, `cc`, `bcc`, `subject`, `body`, `operation_id`, optional `authority_reference`, `payload_sha256` | draft only; never sends |
 
 Each write action signs the exact effect payload with the same
@@ -86,29 +86,32 @@ Write results use the shared vocabulary:
 
 | `action_result` | Meaning |
 |---|---|
-| `applied` | provider create returned an id and the authoritative readback matches the authorized payload |
+| `applied` | provider create returned an id and the **complete** authoritative readback is verified |
 | `proven_not_applied` | validation, authority, duplicate, digest or pre-dispatch failure; no effect was attempted |
-| `uncertain` | the create may have landed (5xx, transport failure, unreadable create response, or readback unavailable) |
-| `conflict` | the readback exists but differs from the authorized payload (total, vendor, reference, currency or date) |
+| `uncertain` | the create may have landed (5xx, transport failure, unreadable create response) **or the readback is incomplete** |
+| `conflict` | the remote object exists but a material field differs from the authorized payload |
 | `unavailable` | no trustworthy provider result and the effect state cannot be proven |
 
-The current `_action_registry_adapter` in `assignment_executor.py` wraps every
-action result as `status=applied`. Agent 1 must map the action's
-`action_result` into the executor outcome (`applied`, `uncertain`, or failed)
-before marking the operation complete. Do not treat a `conflict` allocation as
-applied. The module exports the drop-in mapping:
+The verification contract, material fields, provider-managed fields,
+normalization rules and recovery behavior are in
+[AGENT_2_READBACK_VERIFICATION.md](AGENT_2_READBACK_VERIFICATION.md).
 
-```python
-from core.brennan_connected_actions import action_executor_outcome
+A remote id plus a matching total is incomplete verification, not success.
+Estimate/bill writes return a `verification` block with
+`status=verified|incomplete|mismatch`, `missing_fields`, `mismatches`, checked
+fields, observed remote id and readback attempts. A sparse first readback is
+re-read once from the same remote object; the create is never repeated. The
+durable operation identity/payload binding remains the executor's record.
 
-result = await action_registry.execute_action(name, arguments, execution_context)
-outcome = action_executor_outcome(result)   # applied | uncertain | failed
-return {"status": outcome, "data": _json_safe(result), ...}
-```
-
-A suggested adapter patch is to replace the unconditional
-`{"status": "applied", ...}` return with the mapped `outcome`; keep the
-existing `ExternalOutcomeUnknown` exception path for adapters that raise it.
+The review candidate's `assignment_executor._action_registry_adapter` uses the
+hardened `_action_result_outcome` classifier and maps connected action
+envelopes to `applied`, `failed` (trusted no-effect), `uncertain` (possibly
+applied/conflict/incomplete), or `unavailable` (read not performed). It
+preserves remote identity and readback/verification evidence on uncertain
+operations and blocks dependents until reconciliation. Do not treat a
+`conflict` allocation as applied. `core.connected_actions.action_executor_outcome`
+remains as a small compatibility/diagnostic helper for direct consumers; the
+executor does not depend on it.
 
 ## Receipt shape
 
