@@ -22,7 +22,15 @@ effect counters.
 
 - `17:55:59Z` — campaign start
 - `18:04:53Z` — durable external-fact wait reached
+- `18:14:50Z` — **real backend restart while waiting**: pid 66715 stopped,
+  pid 68921 started against the same database/stores; the run is still
+  `waiting`, same assignment, same teaching revision, `source-1` still
+  `110.00` with operation `3e8eba43-…` and `attempts=1`
 - **no resume before `20:04:53Z`** (two real hours after the wait)
+
+The restart moved from source `d535aa7d36cf` to `414d8add3112`; the product
+trees are identical (`backend 715969f01d23`, `frontend c921cb82e784`), so the
+only change is harness/test history. See `state-after-restart.json`.
 
 ## Completed work before the wait
 
