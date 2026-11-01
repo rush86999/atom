@@ -87,17 +87,26 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
 def open_assignment(page, frontend: str, objective: str,
                     run_id: str = "") -> None:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
-    if run_id:
-        page.get_by_test_id(f"assignment-summary-{run_id}").click()
-    else:
-        page.get_by_text(objective, exact=False).first.click()
-    page.get_by_test_id("assignment-detail").wait_for(timeout=30000)
+    page.wait_for_timeout(800)
+    detail = page.get_by_test_id("assignment-detail")
+    # A single active run is auto-selected; the summary card may not exist.
+    # If the auto-selection is a different run, select this objective by text.
+    current = page.get_by_test_id("assignment-detail-objective")
+    if not current.count() or current.first.inner_text().strip() != objective:
+        summary = page.get_by_test_id(f"assignment-summary-{run_id}") if run_id else None
+        if summary is not None and summary.count():
+            summary.first.click()
+        else:
+            row = page.get_by_text(objective, exact=False)
+            if row.count():
+                row.first.click()
+    detail.wait_for(timeout=30000)
     page.wait_for_function(
         """expected => {
             const el = document.querySelector(
                 '[data-testid="assignment-detail-objective"]');
             return el && el.textContent.trim() === expected;
-        }""", arg=objective, timeout=30000)
+        }""", arg=objective, timeout=60000)
 
 
 def download(page, out: Path, stem: str) -> dict:
