@@ -150,6 +150,13 @@ used for teaching.
 - **Wrong-context exclusion**: the journal still holds the grants lesson, but
   the sales assignment's effective lessons are only the document (`49caa9ad…`)
   and email (`3da8215c…`) points; the expired and grants points are absent.
+- **Two different qualifications, kept separate:** deleting the conflicting
+  lesson proves *recovery from conflicting teaching* (the start was refused and
+  became possible after removal). It is **not** correction history. The
+  correction evidence is the revised-teaching/snapshot check: while the active
+  run waited, a `task_scope=revised` lesson was added; the active run kept its
+  accepted revision and Arial 11, while a new revised run used the new revision
+  and Calibri 14. The lesson revision also survives restart.
 - **Ordered policy with exception**: an `expedited` run used revision
   `5bb5ae1fa2056534+map` and produced **Arial 10** (the more specific lesson)
   with the same `506.00` total, SHA-256
@@ -172,13 +179,29 @@ delivered; the active run kept Arial 11. New revised work used revision
 `1c6e8b05ad8eeca130422114ea176b61b32a404f7ae17a4a14c9cd46ade42a8e`
 (run `4bbc6800-ad2d-4f2e-87e9-e694bc40293a`).
 
-### Cancellation sibling
+### Cancellation sibling — two distinct cases, stated precisely
 
-An abandoned mapping run from a failed harness attempt
-(`73ac5c86-16c2-4e39-ad57-eca361c2f369`) was cancelled (`status=cancelled`).
-A late correlated reply then returned **404**:
-`No open gap carries this correlation id. The response was not used to resume work.`
-Outbox remained at 1 line.
+1. **Real wait, exact correlation (the control that proves cancellation):**
+   recovery run `afe9748b-b813-47f8-bc9a-3b8bb618874c` had an open wait for
+   correlation `corr-cancel-…`. It was cancelled through the UI, the cancelled
+   state survived a page reload, and a late response to that same correlation
+   returned **200** with `assignment.status = cancelled` and **no steps**; the
+   outbox stayed at **0** effects. The assignment exists as cancelled and the
+   response did not resume it.
+2. **Mapping-gap run, unrelated correlation (the 404 case):** abandoned run
+   `73ac5c86-16c2-4e39-ad57-eca361c2f369` was waiting for a **mapping
+   question** (`question_id 898060d7…`), never for the email correlation
+   `campaign-a-missing-term-1`. Its assignment is `cancelled` with both steps
+   cancelled and the cancellation in the decision log. The late response
+   returned **404** `No open gap carries this correlation id…` because the
+   correlation never belonged to that run. This proves the correlation check,
+   **not** the cancellation path; the first case proves the cancellation path.
+
+**Defect observed (no data/effect risk):** after the public API cancel of the
+mapping-gap run, the assignment is cancelled and no effect occurs, but
+`goal_runs.status`/`waiting_on` still read `waiting`/`human_input`. The UI cancel
+path clears the run projection; the API path does not. Evidence:
+`complex_teaching_20261101/part2/cancellation-proof.json`.
 
 ### Clarification boundary
 
@@ -249,7 +272,11 @@ submission. Reserve claims named in the task table: TEAM-05, MEM-07, GOAL-02.
   and `calculation_expression` (whose formula language supports `ROUND`) is
   authorable only through the API/raw format JSON, not the panel. Campaign A
   therefore verifies deterministic calculation (sum) and exact independent
-  arithmetic, not a UI-taught rounding rule.
+  arithmetic, not a UI-taught rounding rule. **Frozen-inventory check:** no
+  counted claim promises taught rounding — the only "round" matches are
+  round-trip claims (OIDC, workbook values, OAuth tokens, MCP schemas). No claim
+  is being counted for it, so no claim is left uncounted; it is recorded as a
+  product limitation, not a claimed capability.
 - **Exception scopes over-ask in chat clarification.** A general request that
   matches an exception lesson is asked for the exception's `task_scope` too,
   because `resolve_teaching_contract` unions every relevant lesson's missing
