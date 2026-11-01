@@ -1,0 +1,18 @@
+{
+  "pid": 77558,
+  "started_at": "2026-11-01T04:16:33.658566+00:00",
+  "cwd": "/Users/rushiparikh/projects/atom-employee-execution/backend",
+  "git_commit": "bc164fb96632",
+  "source_id": "bc164fb96632",
+  "instance_id": "bc164fb96632.77558.1793506596",
+  "revision": "bc164fb96632bb15d597ebd46ee4d9773f594be5",
+  "dirty": false,
+  "dirty_digest": "e3b0c44298fc",
+  "dirty_paths": [],
+  "untracked_paths": [],
+  "captured_at": "2026-11-01T04:16:35.884904+00:00",
+  "port": 8071,
+  "error": null,
+  "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/merged_acceptance_repair4_20261031/atom.db",
+  "byok_key_store": "/Users/rushiparikh/projects/atom-employee-execution/backend/data/byok_keys.json"
+}

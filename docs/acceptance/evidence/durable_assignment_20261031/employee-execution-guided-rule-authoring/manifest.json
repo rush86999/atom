@@ -1,0 +1,29 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-guided-rule-authoring",
+  "source_checkpoint": "bc164fb96632",
+  "final_candidate": "bc164fb96632",
+  "note": "Guided deterministic-rule authoring through the ordinary canvas panel: field mapping, editable fields, ordered rules, server validation, deterministic assess and exact-content approval. Clean source bc164fb96632 (dirty=false).",
+  "files": {
+    "README.md": {
+      "sha256": "f91630796a1a783c77c59cf9707d88fa1a73fb99a2f70d204006cbd6a487f2b3",
+      "bytes": 1958
+    },
+    "capability.csv": {
+      "sha256": "80b1a87b0ef0f406b60db22dd41b9a2b2b3107b7b759ee0a830947b580003c43",
+      "bytes": 79
+    },
+    "guided-rules.png": {
+      "sha256": "7d1debd31be4b65f101dd0fecb6071903f0d1cd81a43416acd2ffa4a83512c56",
+      "bytes": 209155
+    },
+    "health.json": {
+      "sha256": "b4b6961e72ffe65f3ebc911b8925f57757770d9d91d426b7366f35cbb57a94b6",
+      "bytes": 725
+    },
+    "result.json": {
+      "sha256": "0358e97f0414264eb4a968d23908a41596a43fbba953695d3ae309e5f3fef0e4",
+      "bytes": 5231
+    }
+  }
+}

@@ -1,5 +1,12 @@
 # Unforced teaching interaction — blocked (2026-10-31)
 
+> **SUPERSEDED — historical.** This run used a string-retargeted build at
+> `5664c46c5` and its own limits note says to reproduce on a stock build. A
+> stock production build on clean `bc164fb96632` passed the same unforced
+> interaction with **9/9** checks; see
+> `../employee-execution-unforced-teaching/`. Keep this bundle as the record of
+> the retargeted-build failure, not as the current teaching-usability status.
+
 **Result: did not pass.** This check deliberately avoids `fill(force=True)` and
 DOM mutation, so it can show whether an ordinary user can operate the Teaching
 form. On the current candidate the canvas page becomes CPU-bound as soon as the
