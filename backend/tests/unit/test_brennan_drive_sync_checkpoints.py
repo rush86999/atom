@@ -276,3 +276,79 @@ def test_sync_page_route_returns_page_and_records_feedback(monkeypatch):
 
     assert result["coverage"] == "partial"
     assert recorded and recorded[0][0][1] == "onedrive"
+
+
+class FakeIndexHandler:
+    def __init__(self):
+        self.rows = {}
+
+    def add_document(self, **kwargs):
+        self.rows[kwargs["doc_id"]] = kwargs
+        return True
+
+
+def test_repeated_page_reimport_upserts_same_doc_id(monkeypatch):
+    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+    handler = FakeIndexHandler()
+    monkeypatch.setattr(IntegrationMemoryIndexer, "_handler", lambda self: handler)
+    service = FakeStateService()
+    _patch_state(monkeypatch, service)
+
+    async def fake_read(provider, **kwargs):
+        return _page("a", "b", cursor=None, has_more=False)
+
+    monkeypatch.setattr(checkpoints, "_read_page", fake_read)
+    common = dict(provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
+                  tenant_id="t1", folder_id="folder-1",
+                  provider_workspace_id="provider-ws")
+
+    asyncio.run(checkpoints.sync_drive_page(**common, fresh=True))
+    assert len(handler.rows) == 2
+    doc_ids = set(handler.rows)
+    first_text = handler.rows[sorted(doc_ids)[0]]["text"]
+
+    # Crash after page import but before the checkpoint was durably committed:
+    # the next run re-reads the same page.  The stable doc id must upsert,
+    # not create a second row.
+    asyncio.run(checkpoints.sync_drive_page(**common, fresh=True))
+    assert len(handler.rows) == 2
+    assert set(handler.rows) == doc_ids
+    assert sorted(handler.rows)[0] in doc_ids
+    assert handler.rows[sorted(doc_ids)[0]]["text"] == first_text
+
+
+def test_memory_index_outage_is_explicit_and_cursor_does_not_advance(monkeypatch):
+    service = FakeStateService()
+    _patch_state(monkeypatch, service)
+
+    async def fake_read(provider, **kwargs):
+        return _page("a", cursor="cursor-1", has_more=True)
+
+    async def failing_index(self, integration_id, rows, max_rows=500):
+        return {"success": False, "error": "Memory handler unavailable"}
+
+    monkeypatch.setattr(checkpoints, "_read_page", fake_read)
+    monkeypatch.setattr(
+        "core.drive_tree_ingestion.IntegrationMemoryIndexer.index_rows",
+        failing_index)
+    common = dict(provider="zoho_workdrive", user_id="u", workspace_id="ws-1",
+                  tenant_id="t1", folder_id="folder-1",
+                  provider_workspace_id="provider-ws")
+
+    result = asyncio.run(checkpoints.sync_drive_page(**common))
+    assert result["status"] == "error"
+    assert result["error_kind"] == "memory_unavailable"
+    assert result["checkpoint"]["coverage"] == "failed"
+    assert result["checkpoint"]["next_cursor"] is None
+
+
+def test_same_external_id_in_different_site_or_provider_has_distinct_scope():
+    a = checkpoints.checkpoint_scope(
+        "onedrive", folder_id="folder-1", drive_id="drive-1", site_id="site-1")
+    b = checkpoints.checkpoint_scope(
+        "onedrive", folder_id="folder-1", drive_id="drive-1", site_id="site-2")
+    c = checkpoints.checkpoint_scope(
+        "zoho_workdrive", folder_id="folder-1",
+        provider_workspace_id="workspace-1")
+    assert len({a, b, c}) == 3

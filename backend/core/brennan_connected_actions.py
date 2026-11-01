@@ -12,18 +12,62 @@ No action sends email.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
+import functools
 import hashlib
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from core.action_registry import register_action
 
 logger = logging.getLogger(__name__)
 
 _MAX_FILE_BYTES = 25 * 1024 * 1024
+
+# Serialize same-target writes inside this process.  The assignment executor's
+# effect arbiter is the cross-process/durable guarantee; this closes the local
+# sweep-then-create race where two coroutines both see no duplicate and both
+# post before either readback lands.
+_effect_locks: Dict[str, asyncio.Lock] = {}
+
+
+def _serialized_effect(key_fn: Callable[[Dict[str, Any], Dict[str, Any]], str]):
+    def decorator(fn):
+        @functools.wraps(fn)
+        async def wrapper(args: Dict[str, Any], context: Dict[str, Any]):
+            key = key_fn(args or {}, context or {})
+            lock = _effect_locks.setdefault(key, asyncio.Lock())
+            try:
+                async with lock:
+                    return await fn(args, context)
+            finally:
+                if not lock.locked() and _effect_locks.get(key) is lock:
+                    _effect_locks.pop(key, None)
+
+        return wrapper
+
+    return decorator
+
+
+def _bill_effect_key(args: Dict[str, Any], context: Dict[str, Any]) -> str:
+    proposal = args.get("proposal") or {}
+    return ("zoho_books|bill|"
+            f"{proposal.get('organization_id') or ''}|"
+            f"{proposal.get('external_id') or ''}")
+
+
+def _estimate_effect_key(args: Dict[str, Any], context: Dict[str, Any]) -> str:
+    data = args.get("estimate_data") or {}
+    reference = data.get("reference_number") or args.get("operation_id") or ""
+    return (f"zoho_books|estimate|{args.get('organization_id') or ''}|"
+            f"{reference}")
+
+
+def _draft_effect_key(args: Dict[str, Any], context: Dict[str, Any]) -> str:
+    return f"outlook|draft|{args.get('operation_id') or ''}"
 
 
 def _now() -> str:
@@ -555,6 +599,7 @@ async def books_get_bill(args: Dict[str, Any], context: Dict[str, Any]):
                        "required": ["to", "subject", "body", "operation_id"]},
     effects=[{"effect": "create"}],
 )
+@_serialized_effect(_draft_effect_key)
 async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
     operation_id = str(args.get("operation_id") or "")
@@ -796,6 +841,7 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                     "operation_id"]},
     effects=[{"effect": "create"}],
 )
+@_serialized_effect(_bill_effect_key)
 async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
     proposal = args.get("proposal") or {}
@@ -992,6 +1038,7 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                     "authority_reference", "operation_id"]},
     effects=[{"effect": "create"}],
 )
+@_serialized_effect(_estimate_effect_key)
 async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
     ids = _ids(args, context)
     authority = str(args.get("authority_reference") or "")

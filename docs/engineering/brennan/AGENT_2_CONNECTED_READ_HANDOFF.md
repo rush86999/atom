@@ -53,6 +53,12 @@ Each write action signs the exact effect payload with the same
 payload_sha256, ...}`. If the caller supplies `payload_sha256`, a mismatch is
 returned as `action_result=conflict` before any provider call.
 
+Same-target financial writes are serialized in-process by the registered
+action (the durable cross-process guarantee remains the executor's effect
+arbiter). A second concurrent call for the same provider/organization/external
+ID runs its duplicate sweep after the first readback and returns
+`duplicate`/`proven_not_applied` instead of creating a second provider object.
+
 Write results use the shared vocabulary:
 
 | `action_result` | Meaning |

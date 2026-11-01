@@ -690,3 +690,60 @@ def test_books_estimate_http_end_to_end_quote_total(monkeypatch):
     assert result["action_result"] == "applied"
     assert result["data"]["total"] == "362.50"
     assert result["provider_receipt"]["artifact_version"] == "1"
+
+
+def test_concurrent_same_bill_creates_one_provider_effect(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.bills = []
+            self.created = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return list(self.bills), {"has_more": False, "page": page}
+
+        async def create_bill(self, token, org, payload):
+            await asyncio.sleep(0.01)
+            self.created += 1
+            bill = {"bill_id": f"bill-{self.created}",
+                    "reference_number": payload["reference_number"],
+                    "bill_number": payload["bill_number"],
+                    "vendor_id": payload["vendor_id"],
+                    "date": payload["date"],
+                    "currency_code": payload["currency_code"],
+                    "total": "120.00"}
+            self.bills.append(bill)
+            return bill
+
+        async def get_bill(self, token, org, bill_id):
+            return next(item for item in self.bills
+                        if item["bill_id"] == bill_id)
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+
+    async def attempt(operation_id):
+        return await actions.books_create_bill(
+            {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+             "operation_id": operation_id},
+            {"user_id": "user-1", "tenant_id": "t1"})
+
+    async def run_both():
+        return await asyncio.gather(
+            attempt("op-concurrent-1"), attempt("op-concurrent-2"))
+
+    first, second = asyncio.run(run_both())
+
+    outcomes = sorted([first["action_result"], second["action_result"]])
+    assert outcomes == ["applied", "proven_not_applied"]
+    assert {first["status"], second["status"]} == {"success", "duplicate"}
+    assert service.created == 1
+    assert len(service.bills) == 1
