@@ -200,37 +200,46 @@ def evaluate_row(
 ) -> Dict[str, Any]:
     """Evaluate one authoritative row; never invents a decision.
 
-    Rules are ordered. A definitively matching rule decides only when no
-    higher-priority rule is still unknown with a DIFFERENT decision; otherwise
-    the result is clarification, because the earlier rule may apply.
+    Every higher-priority rule that is still *unknown* remains a live
+    possibility until a rule matches definitively. A definite match is only
+    allowed to decide when none of those possibilities could produce a
+    DIFFERENT decision; otherwise the row needs clarification. Retaining only
+    the first unknown would let an intervening possible DENY be missed when an
+    earlier and a later rule happen to share a decision.
     """
-    earlier_unknown: Optional["tuple[Dict[str, Any], List[Dict[str, Any]]]"] = None
+    earlier_unknowns: List["tuple[Dict[str, Any], List[Dict[str, Any]]]"] = []
     for rule in rules:
         state, unknown = _rule_state(cells, rule)
         if state == _UNKNOWN:
-            if earlier_unknown is None:
-                earlier_unknown = (rule, unknown)
+            earlier_unknowns.append((rule, unknown))
             continue
         if state == _FALSE:
             continue
-        if earlier_unknown is not None:
-            earlier_rule, earlier_fields = earlier_unknown
-            if earlier_rule["decision"] != rule["decision"]:
-                return {
-                    "decision": fallback,
-                    "basis": [
-                        f"Rule {earlier_rule['decision']} may apply; a later "
-                        f"rule would give {rule['decision']}."
-                    ],
-                    "matched_rule": None,
-                    "unresolved": [
-                        f"Confirm {item['field']} before deciding."
-                        for item in earlier_fields
-                    ],
-                    "missing_fields": [
-                        item["field"] for item in earlier_fields],
-                    "ambiguous_with": earlier_rule["decision"],
-                }
+
+        conflicting = [
+            (prior, fields) for prior, fields in earlier_unknowns
+            if prior["decision"] != rule["decision"]
+        ]
+        if conflicting:
+            fields: List[str] = []
+            for _prior, prior_fields in conflicting:
+                for item in prior_fields:
+                    if item["field"] not in fields:
+                        fields.append(item["field"])
+            return {
+                "decision": fallback,
+                "basis": [
+                    "A higher-priority rule may still apply and would change "
+                    f"the decision from {rule['decision']}."
+                ],
+                "matched_rule": None,
+                "unresolved": [
+                    f"Confirm {field} before deciding." for field in fields
+                ],
+                "missing_fields": fields,
+                "ambiguous_with": sorted({
+                    prior["decision"] for prior, _ in conflicting}),
+            }
         gap_fields = [
             str(condition["field"])
             for condition in rule.get("when") or []
@@ -245,21 +254,22 @@ def evaluate_row(
             "missing_fields": gap_fields,
         }
 
-    if earlier_unknown is not None:
-        rule, unknown = earlier_unknown
+    if earlier_unknowns:
+        fields = []
+        for _prior, prior_fields in earlier_unknowns:
+            for item in prior_fields:
+                if item["field"] not in fields:
+                    fields.append(item["field"])
         return {
             "decision": fallback,
             "basis": [
-                "Cannot evaluate the "
-                f"{rule['decision']} rule: "
-                + "; ".join(item["reason"] for item in unknown) + "."
+                "Cannot evaluate the taught rules with the available values."
             ],
             "matched_rule": None,
             "unresolved": [
-                f"Confirm {item['field']} before deciding."
-                for item in unknown
+                f"Confirm {field} before deciding." for field in fields
             ],
-            "missing_fields": [item["field"] for item in unknown],
+            "missing_fields": fields,
         }
 
     reason = "No taught rule covers this record; review required."

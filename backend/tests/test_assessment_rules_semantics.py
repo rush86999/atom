@@ -39,7 +39,7 @@ def test_earlier_unknown_rule_blocks_a_later_conflicting_match():
     ]
     out = evaluate_row({"Amount": 120, "Region": None}, rules)
     assert out["decision"] == "REVIEW"
-    assert out["ambiguous_with"] == "REVIEW"
+    assert out["ambiguous_with"] == ["REVIEW"]
     assert out["unresolved"] == ["Confirm Region before deciding."]
     assert out["missing_fields"] == ["Region"]
 
@@ -209,3 +209,138 @@ def test_frozen_set_passes_through_the_canvas_boundary_v3(db, user):
     dataset, result = _run_phase(
         db, user, _rules_v3(), dataset["policy_v3"], "correct")
     _assert_boundary_decisions(dataset, result, "correct", 19)
+
+
+def test_multiple_earlier_unknowns_cannot_be_overlooked():
+    """The verifier's exact case: an intervening possible DENY."""
+    rules = [
+        {"decision": "APPROVE", "when": [
+            {"field": "Region", "op": "eq", "value": "North"}],
+         "basis": "North approves."},
+        {"decision": "DENY", "when": [
+            {"field": "Risk", "op": "eq", "value": "High"}],
+         "basis": "High risk denies."},
+        {"decision": "APPROVE", "when": [
+            {"field": "Amount", "op": "gte", "value": 100}],
+         "basis": "Amount approves."},
+    ]
+    out = evaluate_row({"Amount": 120}, rules)
+    assert out["decision"] == "REVIEW"
+    assert out["unresolved"] == ["Confirm Risk before deciding."]
+    assert out["ambiguous_with"] == ["DENY"]
+
+    # The completions genuinely disagree, so a confident result must fail.
+    assert evaluate_row(
+        {"Region": "South", "Risk": "High", "Amount": 120}, rules
+    )["decision"] == "DENY"
+    assert evaluate_row(
+        {"Region": "North", "Risk": "High", "Amount": 120}, rules
+    )["decision"] == "APPROVE"
+
+
+def test_repeated_labels_do_not_force_clarification():
+    rules = [
+        {"decision": "APPROVE", "when": [
+            {"field": "Region", "op": "eq", "value": "North"}],
+         "basis": "North approves."},
+        {"decision": "APPROVE", "when": [
+            {"field": "Risk", "op": "eq", "value": "Low"}],
+         "basis": "Low risk approves."},
+        {"decision": "APPROVE", "when": [
+            {"field": "Amount", "op": "gte", "value": 100}],
+         "basis": "Amount approves."},
+    ]
+    out = evaluate_row({"Amount": 120}, rules)
+    assert out["decision"] == "APPROVE"
+    assert out["unresolved"] == []
+
+
+def test_false_conjunction_beats_unknown():
+    rules = [
+        {"decision": "DENY", "when": [
+            {"field": "Status", "op": "eq", "value": "Closed"},
+            {"field": "Region", "op": "eq", "value": "North"}],
+         "basis": "closed north"},
+        {"decision": "APPROVE", "when": [
+            {"field": "Amount", "op": "gte", "value": 100}],
+         "basis": "amount"},
+    ]
+    # Status is Open (definitively false), so the rule cannot apply even though
+    # Region is missing. The later rule wins without clarification.
+    out = evaluate_row(
+        {"Status": "Open", "Amount": 120}, rules)
+    assert out["decision"] == "APPROVE"
+    assert out["missing_fields"] == []
+
+
+def test_missing_field_no_rule_uses_is_irrelevant():
+    rules = [
+        {"decision": "APPROVE", "when": [
+            {"field": "Amount", "op": "gte", "value": 100}],
+         "basis": "amount"},
+    ]
+    out = evaluate_row(
+        {"Amount": 120, "Region": None, "Note": None}, rules)
+    assert out["decision"] == "APPROVE"
+    assert out["unresolved"] == []
+
+
+@pytest.mark.parametrize("rules,cells,domain", [
+    pytest.param(
+        [
+            {"decision": "APPROVE", "when": [
+                {"field": "Region", "op": "eq", "value": "North"}]},
+            {"decision": "DENY", "when": [
+                {"field": "Risk", "op": "eq", "value": "High"}]},
+            {"decision": "APPROVE", "when": [
+                {"field": "Amount", "op": "gte", "value": 100}]},
+        ],
+        {"Amount": 120},
+        {"Region": ["North", "South"], "Risk": ["High", "Low"]},
+        id="three-rule",
+    ),
+    pytest.param(
+        [
+            {"decision": "DENY", "when": [
+                {"field": "Region", "op": "eq", "value": "North"}]},
+            {"decision": "APPROVE", "when": [
+                {"field": "Risk", "op": "eq", "value": "Low"}]},
+            {"decision": "APPROVE", "when": [
+                {"field": "Amount", "op": "gte", "value": 100}]},
+        ],
+        {"Amount": 120},
+        {"Region": ["North", "South"], "Risk": ["High", "Low"]},
+        id="two-unknowns-conflict",
+    ),
+    pytest.param(
+        [
+            {"decision": "DENY", "when": [
+                {"field": "Region", "op": "eq", "value": "North"}]},
+            {"decision": "DENY", "when": [
+                {"field": "Risk", "op": "eq", "value": "High"}]},
+            {"decision": "APPROVE", "when": [
+                {"field": "Amount", "op": "gte", "value": 100}]},
+        ],
+        {"Amount": 120},
+        {"Region": ["North", "South"], "Risk": ["High", "Low"]},
+        id="two-unknowns-same-label",
+    ),
+])
+def test_partial_input_matches_fully_specified_completions(
+        rules, cells, domain):
+    """If completions disagree, a confident result must fail."""
+    import itertools
+
+    fields = sorted(domain)
+    decisions = set()
+    for values in itertools.product(*(domain[f] for f in fields)):
+        filled = dict(cells)
+        filled.update(dict(zip(fields, values)))
+        decisions.add(evaluate_row(filled, rules)["decision"])
+
+    out = evaluate_row(cells, rules)
+    if len(decisions) > 1:
+        assert out["decision"] == "REVIEW"
+        assert out["unresolved"], "ambiguity must preserve a requirement"
+    else:
+        assert out["decision"] == next(iter(decisions))
