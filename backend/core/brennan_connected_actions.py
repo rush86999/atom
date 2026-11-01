@@ -17,6 +17,7 @@ import base64
 import functools
 import hashlib
 import logging
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Optional
@@ -74,8 +75,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_ACTION_IDS: ContextVar[Dict[str, str]] = ContextVar(
+    "brennan_action_ids", default={})
+
+
 def _ids(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, str]:
-    return {
+    ids = {
         "tenant_id": str(context.get("tenant_id") or args.get("tenant_id")
                          or "default"),
         "workspace_id": str(context.get("workspace_id")
@@ -83,6 +88,8 @@ def _ids(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, str]:
         "user_id": str(context.get("user_id") or args.get("user_id")
                        or context.get("employee_id") or ""),
     }
+    _ACTION_IDS.set(ids)
+    return ids
 
 
 def _error(provider: str, operation: str, kind: str, message: str,
@@ -324,6 +331,82 @@ async def _chart_of_account_ids(
     return ids
 
 
+def _tabular_rows(content: bytes, file_name: Optional[str],
+                  *, max_rows: int = 500) -> Optional[Dict[str, Any]]:
+    """Parse CSV/XLSX bytes into typed rows without guessing the schema.
+
+    Returns ``{"rows", "columns", "sheet", "truncated"}`` for a supported
+    tabular file, ``{"error": ...}`` for a corrupt/encrypted/unsupported one,
+    and ``None`` when the file is not tabular (a prose document stays prose).
+    """
+    import csv
+    import io
+
+    name = str(file_name or "").strip().lower()
+    extension = name.rsplit(".", 1)[-1] if "." in name else ""
+    try:
+        if extension in ("csv", "tsv"):
+            text = None
+            for encoding in ("utf-8-sig", "utf-8", "cp1252"):
+                try:
+                    text = content.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if text is None:
+                return {"error": "the delimited file is not decodable text"}
+            delimiter = "\t" if extension == "tsv" else ","
+            reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+            all_rows = list(reader)
+            if not all_rows:
+                return {"rows": [], "columns": [], "sheet": None,
+                        "truncated": False}
+            columns = [str(value).strip() for value in all_rows[0]]
+            rows = []
+            for index, values in enumerate(all_rows[1:max_rows + 1], start=2):
+                if not any(str(value).strip() for value in values):
+                    continue
+                row = {columns[pos]: (values[pos] if pos < len(values) else "")
+                       for pos in range(len(columns)) if columns[pos]}
+                row["__row"] = index
+                rows.append(row)
+            return {"rows": rows, "columns": columns, "sheet": None,
+                    "truncated": len(all_rows) - 1 > max_rows}
+        if extension in ("xlsx", "xlsm"):
+            from openpyxl import load_workbook
+
+            workbook = load_workbook(
+                io.BytesIO(content), data_only=True, read_only=True)
+            sheet = workbook.worksheets[0]
+            values = list(sheet.iter_rows(values_only=True))
+            if not values:
+                return {"rows": [], "columns": [], "sheet": sheet.title,
+                        "truncated": False}
+            columns = [str(value).strip() if value is not None else ""
+                       for value in values[0]]
+            rows = []
+            for index, values_row in enumerate(
+                    values[1:max_rows + 1], start=2):
+                if not any(value not in (None, "") for value in values_row):
+                    continue
+                row = {}
+                for pos, column in enumerate(columns):
+                    if not column:
+                        continue
+                    value = (values_row[pos]
+                             if pos < len(values_row) else None)
+                    if hasattr(value, "isoformat"):
+                        value = value.isoformat()
+                    row[column] = value
+                row["__row"] = index
+                rows.append(row)
+            return {"rows": rows, "columns": columns, "sheet": sheet.title,
+                    "truncated": len(values) - 1 > max_rows}
+    except Exception as exc:  # noqa: BLE001 - corrupt/encrypted/unsupported
+        return {"error": f"{type(exc).__name__}: {exc}"[:300]}
+    return None
+
+
 def _bill_readback_conflicts(
     proposal: Dict[str, Any], payload: Dict[str, Any],
     readback: Dict[str, Any],
@@ -381,10 +464,14 @@ def _receipt(provider: str, operation: str, *, resource_id: str = "",
     values; Agent 1 reads a dict when it is present and otherwise falls back
     to top-level values.  ``access`` makes an authorized read explicit.
     """
+    ids = _ACTION_IDS.get({})
     receipt: Dict[str, Any] = {
         "provider": provider,
         "operation": operation,
-        "account": {"workspace_id": None, "account_id": account_id},
+        "workspace_id": ids.get("workspace_id") or None,
+        "tenant_id": ids.get("tenant_id") or None,
+        "account": {"workspace_id": ids.get("workspace_id") or None,
+                    "account_id": account_id},
         "account_id": account_id,
         "resource_id": resource_id,
         "version": version,
@@ -524,6 +611,29 @@ async def workdrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
     if len(content) > int(args.get("max_bytes") or _MAX_FILE_BYTES):
         return _error("zoho_workdrive", "read_file", "too_large",
                       "WorkDrive file exceeds the bounded read size.")
+    file_name = (meta or {}).get("name")
+    tabular = _tabular_rows(content, file_name)
+    rows = (tabular or {}).get("rows")
+    typed_fields = args.get("typed_fields") or {
+        "name": file_name,
+        "size": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+    if tabular:
+        typed_fields = {
+            **typed_fields,
+            "columns": tabular.get("columns") or [],
+            "sheet": tabular.get("sheet"),
+            "truncated": bool(tabular.get("truncated")),
+        }
+        if tabular.get("error"):
+            typed_fields["parse_error"] = tabular["error"]
+    citations = [
+        {"provider": "zoho_workdrive", "file_id": file_id,
+         "sheet": (tabular or {}).get("sheet"),
+         "row": row.get("__row")}
+        for row in (rows or [])[:20]
+    ]
     return {
         "status": "success",
         "provider": "zoho_workdrive",
@@ -531,20 +641,20 @@ async def workdrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
         "content_b64": base64.b64encode(content).decode("ascii"),
         "sha256": hashlib.sha256(content).hexdigest(),
         "bytes": len(content),
+        "rows": rows or [],
+        "parse_error": (tabular or {}).get("error"),
         "read_receipt": _receipt(
             "zoho_workdrive", "download_file", resource_id=file_id,
             version=str((meta or {}).get("version") or ""),
             coverage="complete",
             account_id=str(args.get("workspace_id") or ""),
-            kind=args.get("evidence_kind"),
+            kind=args.get("evidence_kind") or ("price_rows" if rows else None),
             customer_id=args.get("customer_id"),
             price_basis=args.get("price_basis"),
             effective_date=args.get("effective_date"),
-            fields=args.get("typed_fields") or {
-                "name": (meta or {}).get("name"),
-                "size": len(content),
-                "sha256": hashlib.sha256(content).hexdigest(),
-            },
+            fields=typed_fields,
+            rows=rows or [],
+            citations=citations,
             evidence=[{"kind": "file", "id": file_id,
                        "sha256": hashlib.sha256(content).hexdigest()}],
         ),
@@ -635,25 +745,53 @@ async def onedrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
     if len(content) > int(args.get("max_bytes") or _MAX_FILE_BYTES):
         return _error("onedrive", "read_file", "too_large",
                       "OneDrive file exceeds the bounded read size.")
+    meta_result = await service.get_file_metadata(token, file_id)
+    meta_data = (meta_result.get("data")
+                 if isinstance(meta_result, dict)
+                 and meta_result.get("status") == "success" else {}) or {}
+    file_name = meta_data.get("name")
+    tabular = _tabular_rows(content, file_name)
+    rows = (tabular or {}).get("rows")
+    typed_fields = args.get("typed_fields") or {
+        "name": file_name,
+        "size": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+    if tabular:
+        typed_fields = {
+            **typed_fields,
+            "columns": tabular.get("columns") or [],
+            "sheet": tabular.get("sheet"),
+            "truncated": bool(tabular.get("truncated")),
+        }
+        if tabular.get("error"):
+            typed_fields["parse_error"] = tabular["error"]
+    citations = [
+        {"provider": "onedrive", "file_id": file_id,
+         "sheet": (tabular or {}).get("sheet"),
+         "row": row.get("__row")}
+        for row in (rows or [])[:20]
+    ]
     return {
         "status": "success",
         "provider": "onedrive",
-        "file": {"id": file_id},
+        "file": {"id": file_id, "name": file_name},
         "content_b64": base64.b64encode(content).decode("ascii"),
         "sha256": hashlib.sha256(content).hexdigest(),
         "bytes": len(content),
+        "rows": rows or [],
+        "parse_error": (tabular or {}).get("error"),
         "read_receipt": _receipt(
             "onedrive", "download_file_bytes", resource_id=file_id,
             coverage="complete",
             account_id=str(args.get("drive_id") or args.get("site_id") or ""),
-            kind=args.get("evidence_kind"),
+            kind=args.get("evidence_kind") or ("price_rows" if rows else None),
             customer_id=args.get("customer_id"),
             price_basis=args.get("price_basis"),
             effective_date=args.get("effective_date"),
-            fields=args.get("typed_fields") or {
-                "size": len(content),
-                "sha256": hashlib.sha256(content).hexdigest(),
-            },
+            fields=typed_fields,
+            rows=rows or [],
+            citations=citations,
             evidence=[{"kind": "file", "id": file_id,
                        "sha256": hashlib.sha256(content).hexdigest()}],
         ),

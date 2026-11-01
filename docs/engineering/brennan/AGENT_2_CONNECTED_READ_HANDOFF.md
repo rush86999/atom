@@ -118,6 +118,8 @@ Every read returns `status=success` plus:
 {
   "provider": "zoho_books",
   "operation": "get_bill",
+  "workspace_id": "ws-1",
+  "tenant_id": "t1",
   "account_id": "org-1",
   "resource_id": "bill-1",
   "version": "provider-version-if-any",
@@ -142,6 +144,12 @@ optional caller metadata on the file reads. Agent 1's evidence validator
 consumes `access`, `kind`, `customer_id`, the `fields` dict, `rows`, `content`,
 `resource_id`, `version` and `retrieved_at`; no provider-specific shape is
 required by that validator.
+
+File reads parse CSV/TSV/XLSX/XLSM bytes into `rows` with a stable
+sheet/row citation and `fields.columns`. A corrupt, encrypted or unsupported
+workbook returns the bytes plus an explicit `parse_error`; it never returns an
+empty successful row set. Prose files keep `content_b64`/`sha256`; text
+extraction remains a separate bounded step.
 
 Provider failures return `status=error` with `error_kind` in
 `auth_expired|auth_revoked|auth_unavailable|unauthorized|not_found|rate_limited|
