@@ -101,8 +101,12 @@ class TestCapabilities:
     def test_operations(self):
         svc = _svc()
         caps = svc.get_capabilities()
-        assert set(caps["operations"]) == {'get_leads', 'get_deals', 'get_modules',
-                                           'create_lead', 'create_record'}
+        # Capabilities come from the actual dispatch table.  The old list
+        # omitted contacts/accounts/single-record reads that the business
+        # actions require.
+        assert {'get_leads', 'get_deals', 'get_modules', 'create_lead',
+                'create_record', 'get_contacts', 'get_accounts',
+                'get_record', 'search_records', 'update_record'} <= set(caps["operations"])
         assert caps["required_params"] == ["access_token"]
         assert caps["supports_webhooks"] is False
 
@@ -229,7 +233,8 @@ class TestGetActiveToken:
              patch("core.privsec.token_encryption.encrypt_token", return_value="enc-newtok"), \
              patch("core.privsec.token_encryption.stamp_credential_metadata") as stamp:
             token = await svc._get_active_token("tid1")
-        assert token == "enc-newtok"
+        # Callers get plaintext, never the ciphertext stored on the row.
+        assert token == "refresh-plain"
         assert db.commits == 1
         assert record.access_token == "enc-newtok"
         stamp.assert_called_once_with(record)

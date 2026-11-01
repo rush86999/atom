@@ -2337,3 +2337,13 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         "undeclared_relations_in_use": onto.undeclared_relations_in_use(
             context.get("workspace_id", "default")),
     }
+
+
+# Connected business actions (provider reads + draft/write actions).
+# Imported after the decorator/registry are defined; provider imports inside
+# the module are lazy so this does not load every integration at startup.
+try:  # pragma: no cover - import wiring
+    from core import connected_actions as _connected_actions  # noqa: F401
+except Exception as _connected_import_error:  # noqa: BLE001
+    logger.warning("Connected actions not registered: %s",
+                   _connected_import_error)

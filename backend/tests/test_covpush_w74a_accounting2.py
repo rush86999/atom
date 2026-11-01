@@ -591,7 +591,8 @@ class TestAIDocumentProcessor:
         assert float(record.amount) == 100.5
         assert record.vendor_id == "e-1"
         assert doc.bill_id == record.id
-        assert doc.extracted_data == extraction
+        assert doc.extracted_data["raw_text"] == "Acme Corp bill $100"
+        assert doc.extracted_data["extraction"] == extraction
         assert db.commits == 1
         assert db.refreshed == [record]
         ocr.process_pdf.assert_awaited_once()
@@ -657,12 +658,16 @@ class TestAIDocumentProcessor:
         assert db.added == [record]
         assert db.commits == 1
 
-    def test_invoice_success_with_entity_created(self):
+    def test_invoice_success_with_existing_entity(self):
         doc = _mk_doc(extracted_data={"raw_text": "data"})
-        db = _FakeDB({doc_mod.Document: [doc], doc_mod.Entity: []})
+        db = _FakeDB({
+            doc_mod.Document: [doc],
+            doc_mod.Entity: [SimpleNamespace(id="e-1")],
+        })
         extraction = {
             "entity_name": "New Customer Inc",
             "number": "INV-9",
+            "date": "2026-03-01",
             "amount": 199.99,
             "currency": "USD",
             "description": "services",
@@ -673,12 +678,25 @@ class TestAIDocumentProcessor:
                 record = asyncio.run(svc.process_document("ws1", "doc-1", doc_type="invoice"))
         assert record.invoice_number == "INV-9"
         assert doc.invoice_id == record.id
-        assert len(db.added) == 2
-        assert db.flushes == 1
-        created = db.added[0]
-        assert created.name == "New Customer Inc"
-        assert created.workspace_id == "ws1"
-        assert record.customer_id == created.id
+        assert db.added == [record]
+        assert db.flushes == 0
+        assert record.customer_id == "e-1"
+
+    def test_unknown_entity_is_an_obligation_not_a_silent_create(self):
+        doc = _mk_doc(extracted_data={"raw_text": "data"})
+        db = _FakeDB({doc_mod.Document: [doc], doc_mod.Entity: []})
+        extraction = {
+            "entity_name": "Unknown Vendor",
+            "number": "B-9", "date": "2026-03-01",
+            "amount": "10.00", "currency": "USD",
+        }
+        with patch.object(doc_mod, "get_automation_settings", return_value=self._settings(True)):
+            with self._extract(extraction):
+                svc = self._processor(db)
+                record = asyncio.run(svc.process_document("ws1", "doc-1"))
+        assert record is None
+        assert svc.last_obligations[0]["field"] == "entity_name"
+        assert db.added == []
 
     def test_ai_extract_dict_output(self):
         db = _FakeDB()
@@ -704,10 +722,9 @@ class TestAIDocumentProcessor:
         with self._extract(None, side_effect=RuntimeError("provider down")):
             assert asyncio.run(svc._ai_extract("text", "bill")) is None
 
-    def test_parse_date_none_returns_now(self):
+    def test_parse_date_none_is_not_defaulted_to_now(self):
         svc = self._processor(_FakeDB())
-        dt = svc._parse_date(None)
-        assert dt.tzinfo == timezone.utc
+        assert svc._parse_date(None) is None
 
     def test_parse_date_valid(self):
         svc = self._processor(_FakeDB())
@@ -717,14 +734,12 @@ class TestAIDocumentProcessor:
     def test_parse_date_unparseable(self):
         svc = self._processor(_FakeDB())
         with patch.object(doc_mod.dateparser, "parse", return_value=None):
-            dt = svc._parse_date("not a date")
-        assert dt.tzinfo == timezone.utc
+            assert svc._parse_date("not a date") is None
 
     def test_parse_date_parse_raises(self):
         svc = self._processor(_FakeDB())
         with patch.object(doc_mod.dateparser, "parse", side_effect=ValueError("boom")):
-            dt = svc._parse_date("not a date")
-        assert dt.tzinfo == timezone.utc
+            assert svc._parse_date("not a date") is None
 
     def test_perform_ocr_direct_success(self, tmp_path):
         pdf = tmp_path / "doc.pdf"

@@ -121,7 +121,14 @@ class TestCapabilities:
     def test_operations(self):
         svc = _svc()
         caps = svc.get_capabilities()
-        assert caps["operations"] == ['get_organizations', 'get_contacts', 'get_bank_transactions']
+        # Capabilities are generated from the same table the dispatcher uses.
+        # The old hard-coded list omitted bank/cash/estimate/bill operations
+        # that the service actually implemented (or advertised elsewhere).
+        assert "get_organizations" in caps["operations"]
+        assert "get_contacts" in caps["operations"]
+        assert "get_bank_transactions" in caps["operations"]
+        assert "get_invoices" in caps["operations"]
+        assert "create_bill" in caps["operations"]
         assert caps["required_params"] == ["access_token"]
         assert caps["supports_webhooks"] is False
         assert caps["rate_limits"] == {"requests_per_minute": 100}
