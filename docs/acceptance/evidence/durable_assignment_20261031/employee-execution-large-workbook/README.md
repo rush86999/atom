@@ -12,7 +12,7 @@ compatibility claim.
 - 20 data sheets × 25 rows = **500 data rows** (the catalog also exposes the
   four reference sheets: **547 materialized rows** across 24 sources);
 - leading-zero IDs (`0001`…`0025`) preserved as text;
-- some Unit Price / Note cells blank;
+- some `Note` cells blank (verified present in the exported workbook);
 - each data row computes `Total = Qty * Unit Price` (`=B2*C2`);
 - `Summary!B2:B21` sums each data sheet (`=SUM(Data01!D2:D26)`);
 - `Summary!B22` is the grand total (`=SUM(B2:B21)`).

@@ -6,8 +6,8 @@
   "note": "Goal 5 large-workbook exercise: 24 sheets / 500 data rows / 547 catalog rows; full-population retrieval without supplied rows, edit recalculation, byte-identical export, restart/reopen. Clean source 31ba9725e02a (dirty=false).",
   "files": {
     "README.md": {
-      "sha256": "365dd844b8b5a12b086b21612cd68d9d2a150b906a1db2984f4afaf8db0697e6",
-      "bytes": 3621
+      "sha256": "88e102526cf879cf492b5ec0fc41ef9ef23969102ae34e4bb7b80359b1a54198",
+      "bytes": 3654
     },
     "artifacts/full-population-total.docx": {
       "sha256": "12b28775e3e3fd76f2ca565e526807cb90f3237531a982b55f038fe6dbf99f12",
