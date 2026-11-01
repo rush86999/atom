@@ -2641,6 +2641,10 @@ def test_idle_budget_unions_overlapping_waits_across_restart(env):
     budget = assignment["budget"]
     assert 49.9 <= budget["paused_seconds"] <= 50.1
     assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
+    status = restarted.status(run_id)
+    assert 49.9 <= status["assignment"]["budget"]["working_seconds"] <= 50.1
+    assert 49.9 <= status["assignment"]["budget"]["paused_seconds"] <= 50.1
+    assert status["assignment"]["progress"]["waiting_steps"] == 2
 
     # Concurrent replies for the two outstanding waits must resolve once
     # each without adding another idle interval.

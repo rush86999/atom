@@ -157,6 +157,7 @@ def resolve_discount_rule(
                 for item in missing for rule in [item["rule"]]
             ],
             "next_retrieval": "confirm the line qualifier through the authorized source",
+            "next_action": "read the authorized customer/product evidence and retry",
             "kind": "missing_evidence",
         })
     return None
@@ -235,6 +236,7 @@ def calculate_line_items(
                     "reason": "the line has no selling unit",
                     "question": f"Which unit applies to {item_id}?",
                     "affected_subjects": [item_id],
+                    "next_retrieval": "read the authorized product record",
                     "kind": "missing_evidence",
                 })
             pack_size = line.get("pack_size")
@@ -244,6 +246,7 @@ def calculate_line_items(
                     "reason": "the line has no pack size",
                     "question": f"Which pack size applies to {item_id}?",
                     "affected_subjects": [item_id],
+                    "next_retrieval": "read the authorized product record",
                     "kind": "missing_evidence",
                 })
             price_basis = str(line.get("price_basis") or "").strip().lower()
@@ -256,6 +259,7 @@ def calculate_line_items(
                         f"Is the price for {item_id} a list, contract or "
                         "selling price?"),
                     "affected_subjects": [item_id],
+                    "next_retrieval": "read the authorized price agreement",
                     "kind": "missing_evidence",
                 })
             line_currency = str(
@@ -475,4 +479,10 @@ async def _quote_calculate(
             "reason": str(exc),
             "question": str(exc),
             "kind": "missing_evidence",
+            "next_retrieval": (
+                "confirm the missing or invalid quote field with the "
+                "customer or the governing agreement"),
+            "next_action": (
+                "read the authorized customer/agreement evidence and retry"),
+            "resolver": "quote owner",
         }) from exc

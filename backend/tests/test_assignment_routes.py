@@ -2485,3 +2485,43 @@ def test_quote_controlled_commercial_update_duplicate_and_uncertain(
         json={"note": "late approval"})
     assert late.status_code in (404, 409), late.text
     assert len(calls) == before_cancel_calls
+
+
+def test_quote_missing_tax_is_a_typed_clarification_not_zero(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Clarifying quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a quote with an unstated tax treatment",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+        ],
+        "calculation": {
+            "line_items": [{
+                "item_id": "A", "category": "A", "quantity": "1",
+                "unit": "each", "pack_size": "1", "unit_price": "10.00",
+                "price_basis": "contract", "currency": "USD"}],
+            "currency": "USD", "freight": "0",
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement",
+        },
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "waiting", body
+    gaps = body["assignment"]["open_gaps"]
+    assert any(gap.get("concept") == "quote_input" for gap in gaps), gaps
+    tax_question = next(
+        gap for gap in gaps if gap.get("concept") == "quote_input")
+    assert "tax" in tax_question["question"].lower()
+    calc = next(step for step in body["assignment"]["assignment"]["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
