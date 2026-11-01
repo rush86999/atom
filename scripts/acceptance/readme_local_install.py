@@ -31,10 +31,8 @@ from scripts.readme_acceptance.common import reset_world  # noqa: E402
 from scripts.readme_acceptance import mock_llm_server  # noqa: E402
 PYTHON = Path(os.getenv(
     "ATOM_ACCEPTANCE_PYTHON",
-    "/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python"))
-OVERLAY = os.getenv(
-    "ATOM_ACCEPTANCE_OVERLAY",
-    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-pyoverlay")
+    str((REPO / "backend" / "venv" / "bin" / "python").resolve())))
+OVERLAY = os.getenv("ATOM_ACCEPTANCE_OVERLAY", "")
 ADMIN_PASSWORD = "ReadmeInstall!2026"
 
 
@@ -100,7 +98,9 @@ class Backend:
             "OLLAMA_BASE_URL": os.getenv("ATOM_INSTALL_LLM_URL", "http://127.0.0.1:59996/v1"),
             "OPENAI_BASE_URL": os.getenv("ATOM_INSTALL_LLM_URL", "http://127.0.0.1:59996/v1"),
             "OPENAI_API_KEY": "sk-install-acceptance-local-upstream",
-            "PYTHONPATH": f"{OVERLAY}:{REPO}:{BACKEND}",
+            "PYTHONPATH": ":".join(
+                part for part in (OVERLAY, str(REPO), str(BACKEND))
+                if part),
             "LOG_LEVEL": "WARNING",
         }
         log = open(self.world / f"backend-{self.port}.log", "w")
