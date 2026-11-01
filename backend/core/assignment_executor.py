@@ -3412,6 +3412,34 @@ class AssignmentExecutor:
             "updated_at": _utc_now_iso(),
         })
 
+    def _effective_wall_elapsed(self, budget: Dict[str, Any]) -> float:
+        """Wall time spent working, excluding durable external waits.
+
+        A wait is persisted work, not CPU/transport time. Counting it against
+        ``max_wall_seconds`` made a 15-minute assignment budget expire during a
+        legitimate two-hour external wait. ``paused_seconds`` is accumulated
+        when the wait resolves; ``waiting_since`` covers the currently open
+        wait (including across a restart).
+        """
+        started = budget.get("started_at")
+        if not started:
+            return 0.0
+        try:
+            started_at = datetime.fromisoformat(str(started)).timestamp()
+        except (TypeError, ValueError):
+            return 0.0
+        paused = float(budget.get("paused_seconds") or 0.0)
+        waiting_since = budget.get("waiting_since")
+        if waiting_since:
+            try:
+                paused += max(
+                    0.0,
+                    self.clock() - datetime.fromisoformat(
+                        str(waiting_since)).timestamp())
+            except (TypeError, ValueError):
+                pass
+        return max(0.0, (self.clock() - started_at) - paused)
+
     def _budget_allows(
         self, assignment: Dict[str, Any], step: Dict[str, Any],
     ) -> bool:
@@ -3423,15 +3451,9 @@ class AssignmentExecutor:
                 step.get("max_attempts") or budget.get(
                     "max_attempts_per_step") or 3):
             return False
-        started = budget.get("started_at")
-        if started:
-            try:
-                started_at = datetime.fromisoformat(str(started)).timestamp()
-                if self.clock() - started_at > float(
-                        budget.get("max_wall_seconds") or 3600.0):
-                    return False
-            except (TypeError, ValueError):
-                pass
+        if self._effective_wall_elapsed(budget) > float(
+                budget.get("max_wall_seconds") or 3600.0):
+            return False
         cost_limit = float(budget.get("max_cost_usd") or 0)
         if (cost_limit > 0
                 and str(budget.get("cost_mode") or "hard") == "hard"
@@ -3449,14 +3471,7 @@ class AssignmentExecutor:
         limit = float(budget.get("max_wall_seconds") or 0)
         if limit <= 0:
             return None
-        started = budget.get("started_at")
-        if not started:
-            return limit
-        try:
-            started_at = datetime.fromisoformat(str(started)).timestamp()
-        except (TypeError, ValueError):
-            return limit
-        return max(0.0, limit - (self.clock() - started_at))
+        return max(0.0, limit - self._effective_wall_elapsed(budget))
 
     def _step_cost_bound(
         self, step: Dict[str, Any], adapter: Any,
@@ -3903,6 +3918,24 @@ class AssignmentExecutor:
             return True
         if not self._resolve_waiting(record, step):
             return False
+        # Charge only working time. Old rows have no waiting_since; the
+        # step's updated_at is the durable moment it entered the wait.
+        budget = dict(assignment.get("budget") or {})
+        waiting_since = (
+            budget.get("waiting_since")
+            or step.get("updated_at")
+            or (step.get("waiting") or {}).get("since"))
+        if waiting_since:
+            try:
+                paused = max(
+                    0.0,
+                    self.clock() - datetime.fromisoformat(
+                        str(waiting_since)).timestamp())
+                budget["paused_seconds"] = (
+                    float(budget.get("paused_seconds") or 0.0) + paused)
+            except (TypeError, ValueError):
+                pass
+            budget.pop("waiting_since", None)
         operation_id = _operation_id_for_step(record, step)
         if operation_id:
             operation = _operation_by_id(record, operation_id) or {}
@@ -3920,6 +3953,8 @@ class AssignmentExecutor:
             "attempts": int(step.get("attempts") or 0) + 1,
             "waiting": None,
             "updated_at": _utc_now_iso()})
+        if budget:
+            updated["budget"] = budget
         self._persist_assignment(
             run_id, updated, f"step {step['step_id']} waiting resolved")
         return True
@@ -4411,6 +4446,10 @@ class AssignmentExecutor:
                 "status": "waiting",
                 "waiting": _json_safe(exc.waiting),
                 "updated_at": _utc_now_iso()})
+            budget = dict(assignment.get("budget") or {})
+            if not budget.get("waiting_since"):
+                budget["waiting_since"] = _utc_now_iso()
+                assignment["budget"] = budget
             self._persist_assignment(
                 run_id, assignment, "step waiting for external")
             return

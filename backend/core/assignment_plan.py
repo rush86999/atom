@@ -520,6 +520,8 @@ def new_assignment(
             "steps_started": 0,
             "started_at": None,
             "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": None,
             "cost_usd": 0.0,
         },
         "provenance": _clean_dict(provenance),
