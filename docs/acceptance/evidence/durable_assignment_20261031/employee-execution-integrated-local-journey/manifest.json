@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-integrated-local-journey",
-  "source_checkpoint": "merged-working-tree",
-  "final_candidate": "merged-working-tree",
+  "source_checkpoint": "2ca5e7f03",
+  "final_candidate": "2ca5e7f03",
   "files": {
     "README.md": {
       "sha256": "41d6ade0a1b67f08e5bbb56793c649395270e11530c7565876758e72c504cd15",
@@ -23,6 +23,10 @@
     "first-conflict.txt": {
       "sha256": "ab6cd1eb7e8f9645daf5f898ede404b513294c8ce981f04485a4bf7ca526db43",
       "bytes": 1762
+    },
+    "focused-tests.log": {
+      "sha256": "01ace8d30759d6543349d67834b550fdd948077b121ec2de1ff12cac67dd444e",
+      "bytes": 52658
     },
     "missing-qualification.txt": {
       "sha256": "d19c881bedeba156c780c5811c3c26b946dacb227622bc529d25cc6bfd6e8163",
