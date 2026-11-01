@@ -238,14 +238,14 @@ class TestEntityAndRecords:
     def test_get_or_create_entity_found(self, proc):
         p, db = proc
         entity = SimpleNamespace(id="e1")
-        db.query.return_value.filter.return_value.limit.return_value.all.return_value = [entity]
+        db.query.return_value.filter.return_value.all.return_value = [entity]
         result = p._get_or_create_entity("ws", "Vendor Inc", dp.EntityType.VENDOR)
         assert result is entity
         db.add.assert_not_called()
 
     def test_get_or_create_entity_created(self, proc):
         p, db = proc
-        db.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.all.return_value = []
         result = p._get_or_create_entity("ws", "NewCo", dp.EntityType.CUSTOMER)
         assert result.type == dp.EntityType.CUSTOMER
         db.add.assert_called_once()
@@ -253,7 +253,7 @@ class TestEntityAndRecords:
 
     def test_get_or_create_entity_same_name_is_ambiguous(self, proc):
         p, db = proc
-        db.query.return_value.filter.return_value.limit.return_value.all.return_value = [
+        db.query.return_value.filter.return_value.all.return_value = [
             SimpleNamespace(id="e1"), SimpleNamespace(id="e2")]
         with pytest.raises(dp.DocumentFactError) as exc:
             p._get_or_create_entity("ws", "Acme", dp.EntityType.VENDOR)
