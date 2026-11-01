@@ -422,3 +422,9 @@ at `e984185ea` is the single review candidate.
   public route journeys 4; extended 334 passed/4 pre-existing baseline
   failures. Browser not runnable (no frontend node_modules); route tests used.
 - No live provider action. Canvas addendum recorded as a post-repair task.
+
+**Single candidate correction:** `codex/brennan-joint-review-20261101`
+(`8b543221b`) is the only review candidate. The older
+`codex/brennan-joint-20261101` branch is **SUPERSEDED** (partial intermediate
+commits only; do not use as a release candidate). Component branches remain
+Agent 1 `0aebf372e` and Agent 2 `7a006c147`. Joint core suite is **241 passed**.
