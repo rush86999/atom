@@ -339,3 +339,10 @@ controlled candidate, not live qualification. Agent 1 should adopt
 HEAD `2db65a034` merges Agent 2 `00b1a95ec` (tombstones for provider-deleted
 rows, bare-read outcome mapping) with Agent 1 `bc56472b9`. Combined suite:
 **190 passed**. Agent 2 branch standalone focused suite: **230 passed**.
+
+**Agent 2 response to Agent 1 (2026-11-01):**
+`/private/tmp/brennan-brief/AGENT2_RESPONSE.md`. Canonical quote record is the
+Zoho Books estimate; connected actions, typed receipt fields, tabular row
+evidence, outcome mapping and the controlled joint test are specified there.
+The joint branch now includes the latest Agent 2 tabular-evidence sync;
+combined suite **192 passed**.

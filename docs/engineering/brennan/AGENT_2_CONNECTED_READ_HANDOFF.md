@@ -44,8 +44,11 @@ replaces their search-index rows with `freshness_status=removed` tombstones
 (`tombstoned_external_ids`). The provider object remains the audit record;
 retrieval stops serving the removed row. If the tombstone write fails the
 result says `deletion_check=reported_not_tombstoned` rather than claiming the
-row is excluded. A revoked grant is persisted as `coverage=revoked` and
-returned as a typed error.
+row is excluded. A revoked/expired/missing grant persists
+`coverage=revoked|unavailable` and `retrieval_authorization=withdrawn`; known
+indexed rows for that scope are tombstoned so cached content is not served
+after the grant is gone. Reconnecting and re-listing restores rows that are
+seen again.
 
 The same surface is exposed to the UI as
 `GET /api/document-ingestion/integrations/{integration_id}/sync-status` and
@@ -115,6 +118,8 @@ Every read returns `status=success` plus:
 {
   "provider": "zoho_books",
   "operation": "get_bill",
+  "workspace_id": "ws-1",
+  "tenant_id": "t1",
   "account_id": "org-1",
   "resource_id": "bill-1",
   "version": "provider-version-if-any",
@@ -139,6 +144,12 @@ optional caller metadata on the file reads. Agent 1's evidence validator
 consumes `access`, `kind`, `customer_id`, the `fields` dict, `rows`, `content`,
 `resource_id`, `version` and `retrieved_at`; no provider-specific shape is
 required by that validator.
+
+File reads parse CSV/TSV/XLSX/XLSM bytes into `rows` with a stable
+sheet/row citation and `fields.columns`. A corrupt, encrypted or unsupported
+workbook returns the bytes plus an explicit `parse_error`; it never returns an
+empty successful row set. Prose files keep `content_b64`/`sha256`; text
+extraction remains a separate bounded step.
 
 Provider failures return `status=error` with `error_kind` in
 `auth_expired|auth_revoked|auth_unavailable|unauthorized|not_found|rate_limited|
