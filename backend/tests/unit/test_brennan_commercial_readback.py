@@ -308,3 +308,11 @@ def test_fraction_discount_rate_matches_provider_percentage():
          "discount": "5%"}])
     result = _verify(expected=expected, observed=observed)
     assert result["status"] == "verified", result
+
+
+def test_terms_and_validity_are_material_when_supplied():
+    expected = _expected_estimate(terms="FOB Origin", validity="30 days")
+    observed = _observed_estimate(terms="FOB Destination", validity="30 days")
+    result = _verify(expected=expected, observed=observed)
+    assert result["status"] == "mismatch"
+    assert any(item["field"] == "terms" for item in result["mismatches"])

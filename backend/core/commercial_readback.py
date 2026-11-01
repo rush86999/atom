@@ -395,6 +395,7 @@ def verify_estimate_readback(
         "tax_total": _get(estimate_data, "tax_total"),
         "discount_total": _get(estimate_data, "discount_total"),
         "terms": _get(estimate_data, "terms", "delivery_terms"),
+        "validity": _get(estimate_data, "validity", "expiry_date"),
     }
     observed = {
         "customer_id": _get(readback, "customer_id"),
@@ -406,6 +407,7 @@ def verify_estimate_readback(
         "tax_total": _get(readback, "tax_total", "tax_amount"),
         "discount_total": _get(readback, "discount_total"),
         "terms": _get(readback, "terms"),
+        "validity": _get(readback, "validity", "expiry_date"),
     }
     _compare_scalar(report, "customer_id", expected["customer_id"],
                     observed["customer_id"], normalizer=_text)
@@ -424,6 +426,8 @@ def verify_estimate_readback(
                      observed["discount_total"])
     _compare_scalar(report, "terms", expected["terms"], observed["terms"],
                     normalizer=_text)
+    _compare_scalar(report, "validity", expected["validity"],
+                    observed["validity"], normalizer=_text)
     observed_org = _get(readback, "organization_id")
     if organization_id and observed_org not in (None, ""):
         _compare_scalar(report, "organization_id", organization_id,
