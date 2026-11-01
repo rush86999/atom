@@ -275,12 +275,12 @@
       "bytes": 6085
     },
     "evidence/claims/core06/result.json": {
-      "sha256": "6a165954990b8e573268a2f80b67d1cd7348f7ca1895a24d805fb4cd63cb6230",
+      "sha256": "2bdadbb33d23b5ad6162f95b2e6f0dcfd3a8bc8a77fc269793006ebf619b40fc",
       "bytes": 5649
     },
     "evidence/claims/core06/run.log": {
-      "sha256": "fc651cd2fd3ff7e7a68a7ac4e6b44a424fab957db73b634a5078779001985472",
-      "bytes": 11655
+      "sha256": "5d2fc2ccccc3ccbaeb9e426161ff2954c83c09b6b0f66b138a19fe6708dd9e6b",
+      "bytes": 11656
     },
     "evidence/claims/goal-no-progress/pytest.log": {
       "sha256": "bd774368a00d8513b595cbbc8aca007f805f8ff49fc6ed4298ffa3400edbcb8b",
@@ -315,7 +315,7 @@
       "bytes": 9368
     },
     "evidence/claims/oidc/pytest.log": {
-      "sha256": "27a27f0372560780ec83071e4fecdfc4bcaaa0c4584c38a0f379837d77881f6e",
+      "sha256": "aa8a7b0fdfb04a0166ea11d591130b9f0408e00d94d498d95350176f91e6e32a",
       "bytes": 26260
     },
     "evidence/claims/orch-team/fleet-pytest.log": {
@@ -335,8 +335,8 @@
       "bytes": 11602
     },
     "evidence/claims/routing/pytest.log": {
-      "sha256": "ccb7fc7bec9047cdc6d5e070077b77ff861e82a7d78c39788b56c876e06ad609",
-      "bytes": 78977
+      "sha256": "f8886bef75606c9e2cfd79c8c024153be5b448d7a06f2e7be1f3c79a2f9ac953",
+      "bytes": 78754
     },
     "evidence/claims/training-lifecycle/pytest.log": {
       "sha256": "6b0ee418ef8d94bbf6cd92a7347ee452298ce0d114587d682932cfd92fbe0137",
