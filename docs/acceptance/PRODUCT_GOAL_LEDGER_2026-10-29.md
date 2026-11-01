@@ -256,20 +256,22 @@ The frozen README claim inventory (123 eligible functional claims) was
 re-executed on the integrated candidate after merging Agent 2's
 feature-readiness branch:
 
-- **83 / 123 verified functional claims (67.5%)** after the verifier-driven
-  correction. The earlier 100/123 figure was withdrawn because status-only and
-  source-inspection assertions did not establish the claims.
-- 40 claims are not counted (partial/unverified/inaccurate/blocked/
+- **99 / 123 verified functional claims (80.5%)** in the final wave after the
+  verifier-driven corrections. The earlier 100/123 and 83/123 figures are
+  history: the first was withdrawn for status-only assertions, the second was
+  an intermediate correction.
+- 24 claims are not counted (partial/unverified/inaccurate/blocked/
   environment-limited/architecture-only); see
   `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md` §4.
-- The 80% milestone gate is **not met**.
+- The 80% breadth checkpoint is **met**; it is not a readiness claim.
 - Security 8/8 verified; performance, compatibility and comparative claims
   remain tracked separately and are not part of the functional numerator.
 - No group errors in the integrated rerun.
 
 Evidence: `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/`.
 This is a self-assessment pending independent verifier agreement; it is not a
-release approval, and the 80% gate remains open. The rerun used the bounded local provider/OAuth/MCP stub, not
+release approval. The 80% breadth checkpoint is met, while the practical
+employee gates are tracked separately in `REMAINING_WORK_2026-10-31.md`. The rerun used the bounded local provider/OAuth/MCP stub, not
 live provider qualification.
 
 ## Historical records

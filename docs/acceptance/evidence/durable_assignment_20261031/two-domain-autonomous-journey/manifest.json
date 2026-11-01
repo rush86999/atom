@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "two-domain-autonomous-journey",
-  "source_checkpoint": "0e21fd0f7",
-  "final_candidate": "0e21fd0f7",
+  "source_checkpoint": "77b39fef7",
+  "final_candidate": "77b39fef7",
   "files": {
     "README.md": {
       "sha256": "a86e2ebc0623e423fa079e23188f293e69bb79ff322e602489f4e0cf3cd189dd",

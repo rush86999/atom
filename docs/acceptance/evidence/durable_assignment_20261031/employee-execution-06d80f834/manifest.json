@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-06d80f834",
-  "source_checkpoint": "0e21fd0f7",
+  "source_checkpoint": "77b39fef7",
   "product_teaching_commit": "3e344f5b1",
   "preserved_tags": {
     "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
@@ -181,6 +181,6 @@
       "bytes": 1182
     }
   },
-  "final_candidate": "0e21fd0f7",
+  "final_candidate": "77b39fef7",
   "evidence_source": "06d80f834"
 }
