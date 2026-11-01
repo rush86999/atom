@@ -343,6 +343,7 @@ def main() -> int:
         page.goto(canvas_url, wait_until="domcontentloaded")
         page.get_by_test_id("training-panel").wait_for(
             state="attached", timeout=30000)
+        dismiss_overlays(page)
         page.wait_for_timeout(800)
         canvas_id = canvas_url.split("?")[0].rstrip("/").split("/")[-1]
         training = api(
