@@ -78,10 +78,13 @@ recovery evidence, **not** verification of this repaired budget code. The
 budget repair is verified by the 63 controls above and by the integrated
 recovery controls on `c2963fbcdc8e`.
 
-**Recommended launch path:** recent first-use changes after this tree (for
-example `8b1abd7e6`, frontend `AssignmentPanel.tsx`) are outside the accepted
-budget tree and need their own focused smoke before they become the recommended
-launch path. They are not counted as accepted by this record.
+**Recommended launch path:** the accepted baseline remains
+`accepted-local-2026-11-01-90pct` (`88bf413e8431`). The separately smoke-tested
+first-use successor is tagged `successor-first-use-2026-11-01` on
+`successor/first-use-polish-2026-11-01`; it includes the focused memory-path and
+first-visit check at `d8120737e`. That successor is a recommended launch path,
+not a change to this acceptance. See
+[`SUCCESSOR_RELEASE_2026-11-01.md`](SUCCESSOR_RELEASE_2026-11-01.md).
 
 ## Launcher memory-path handoff (focused repair)
 
