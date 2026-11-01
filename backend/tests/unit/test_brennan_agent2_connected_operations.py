@@ -212,7 +212,7 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
             self.sent = False
             self.draft = None
 
-        async def get_access_token(self, user_id):
+        async def _get_access_token(self, user_id):
             return "token"
 
         async def create_draft_email(self, **kwargs):
@@ -1207,3 +1207,43 @@ def test_executor_outcome_mapping_never_calls_conflict_applied():
     assert action_executor_outcome({"status": "error",
                                     "action_result": "unavailable"}) == "uncertain"
     assert action_executor_outcome({"status": "success"}) == "applied"
+
+
+def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeOutlook:
+        def __init__(self):
+            self.last_error = None
+            self.sent = False
+
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def get_attachment_metadata(self, user_id, message_id, token=None):
+            return [{"id": "att-1", "name": "invoice.pdf", "size": 5,
+                     "contentType": "application/pdf"}]
+
+        async def download_attachment(self, user_id, message_id, attachment_id,
+                                      token=None):
+            return b"%PDF-"
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            self.sent = True
+            raise AssertionError("attachment read must not send")
+
+    service = FakeOutlook()
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: service)
+    result = asyncio.run(actions.outlook_read_attachments(
+        {"message_id": "msg-1", "attachment_id": "att-1",
+         "evidence_kind": "supplier_document"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+
+    assert result["status"] == "success"
+    assert result["bytes"] == 5
+    assert result["attachment"]["name"] == "invoice.pdf"
+    assert len(result["sha256"]) == 64
+    assert result["read_receipt"]["kind"] == "supplier_document"
+    assert service.sent is False

@@ -797,7 +797,7 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
     token = context.get("access_token") or args.get("access_token")
     if not token:
         try:
-            token = await service.get_access_token(ids["user_id"])
+            token = await service._get_access_token(ids["user_id"])
         except Exception:
             token = None
     if not token:
@@ -1610,6 +1610,92 @@ async def books_list_accounts(args: Dict[str, Any], context: Dict[str, Any]):
     }
 
 
+@register_action(
+    "brennan.outlook.read_attachments",
+    description="List or download invoice/receipt attachments from one Outlook message with binary evidence; never sends.",
+    parameters_schema={"type": "object",
+                       "properties": {"message_id": {"type": "string"},
+                                      "attachment_id": {"type": "string"},
+                                      "max_bytes": {"type": "integer"},
+                                      "evidence_kind": {"type": "string"},
+                                      "customer_id": {"type": "string"},
+                                      "typed_fields": {"type": "object"}},
+                       "required": ["message_id"]},
+    effects=[{"effect": "read"}],
+)
+async def outlook_read_attachments(args: Dict[str, Any], context: Dict[str, Any]):
+    ids = _ids(args, context)
+    message_id = str(args.get("message_id") or "").strip()
+    if not message_id:
+        return _error("outlook", "read_attachments", "invalid_request",
+                      "message_id is required.")
+    from integrations.outlook_service import OutlookService
+
+    service = OutlookService(ids["tenant_id"], {})
+    token = context.get("access_token") or args.get("access_token")
+    if not token:
+        try:
+            token = await service._get_access_token(ids["user_id"])
+        except Exception:
+            token = None
+    if not token:
+        return _error("outlook", "read_attachments", "auth_unavailable",
+                      "No Outlook token for this user.", reconnect=True)
+    attachments = await service.get_attachment_metadata(
+        ids["user_id"], message_id, token=token)
+    if service.last_error:
+        return service.last_error
+    attachment_id = str(args.get("attachment_id") or "").strip()
+    if not attachment_id:
+        return {
+            "status": "success",
+            "provider": "outlook",
+            "operation": "read_attachments",
+            "attachments": attachments,
+            "read_receipt": _receipt(
+                "outlook", "get_attachment_metadata",
+                resource_id=message_id, coverage="complete",
+                kind="attachment_index",
+                fields={"count": len(attachments),
+                        "attachments": attachments}),
+        }
+    content = await service.download_attachment(
+        ids["user_id"], message_id, attachment_id, token=token)
+    if content is None:
+        return service.last_error or _error(
+            "outlook", "read_attachments", "provider_error",
+            "Outlook returned no attachment content.")
+    if len(content) > int(args.get("max_bytes") or _MAX_FILE_BYTES):
+        return _error("outlook", "read_attachments", "too_large",
+                      "Outlook attachment exceeds the bounded read size.")
+    meta = next((item for item in attachments
+                 if str(item.get("id")) == attachment_id), {})
+    digest = hashlib.sha256(content).hexdigest()
+    return {
+        "status": "success",
+        "provider": "outlook",
+        "operation": "read_attachments",
+        "attachment": meta or {"id": attachment_id},
+        "content_b64": base64.b64encode(content).decode("ascii"),
+        "sha256": digest,
+        "bytes": len(content),
+        "read_receipt": _receipt(
+            "outlook", "get_attachment_content",
+            resource_id=attachment_id, coverage="complete",
+            kind=args.get("evidence_kind") or "supplier_document",
+            customer_id=args.get("customer_id"),
+            fields=args.get("typed_fields") or {
+                "name": (meta or {}).get("name"),
+                "content_type": (meta or {}).get("contentType"),
+                "size": len(content),
+                "sha256": digest,
+                "message_id": message_id,
+            },
+            evidence=[{"kind": "attachment", "id": attachment_id,
+                       "sha256": digest, "message_id": message_id}]),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Business-independent action names.
 #
@@ -1638,6 +1724,7 @@ _GENERIC_ALIASES = {
     "connected.books.create_bill": "brennan.books.create_bill",
     "connected.books.create_estimate": "brennan.books.create_estimate",
     "connected.outlook.create_draft": "brennan.outlook.create_draft",
+    "connected.outlook.read_attachments": "brennan.outlook.read_attachments",
 }
 
 for _generic, _legacy in _GENERIC_ALIASES.items():

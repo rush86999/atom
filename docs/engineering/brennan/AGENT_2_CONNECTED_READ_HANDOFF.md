@@ -30,6 +30,7 @@ actions declare `{"effect":"read"}`; the planner classifies them as
 | `brennan.books.get_estimate` | `organization_id`, `estimate_id` | `data`, `read_receipt` |
 | `brennan.books.resolve_vendor` | `name`, optional `organization_id` | `match_status` (`resolved`/`ambiguous`/`missing`), exact `candidates`, `read_receipt` |
 | `brennan.books.list_accounts` | `organization_id`, optional `query` | complete `accounts` with exact IDs, `read_receipt` |
+| `brennan.outlook.read_attachments` | `message_id`, optional `attachment_id`, `max_bytes`, `evidence_kind`, `customer_id`, `typed_fields` | attachment list or binary `content_b64` + `sha256` + receipt; never sends |
 | `brennan.workdrive.sync_page` | `folder_id`, `provider_workspace_id`, `team_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
 | `brennan.onedrive.sync_page` | `folder_id`, `drive_id`, `site_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
 | `brennan.knowledge.sync_status` | `provider` (`zoho_workdrive`/`onedrive`), folder/drive/site identity | `coverage`, `stale`, `age_seconds`, `checkpoint`, `missing_external_ids`, `last_error` |
