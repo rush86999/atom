@@ -1,0 +1,20 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-training-actionability",
+  "source_checkpoint": "5664c46c5",
+  "product_equivalent": "233fa587f",
+  "files": {
+    "README.md": {
+      "sha256": "6265eadbb09ce0fac77dc9c07e93d6ddb50dd1209bbeeac71fb3501d192a3252",
+      "bytes": 2201
+    },
+    "training-panel-before.png": {
+      "sha256": "1f3391e73dc6395bca616513c6c2aac9e115c6c9adcd9b4a0455158a03236b71",
+      "bytes": 155639
+    },
+    "training-stall-trace.zip": {
+      "sha256": "c093f686d48082a9f3d325cc89502bb74a792745494c35c57c8c5fbfe5f013d8",
+      "bytes": 6759090
+    }
+  }
+}
