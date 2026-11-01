@@ -404,3 +404,21 @@ from `docs/engineering/USER_AUTHORED_CANVASES.md`. Agent 2 scope is recorded
 in `docs/engineering/brennan/AGENT_2_CANVAS_TASKS.md`: provider bindings,
 version/provenance receipts, canvas-action mapping, complete readback, sandbox
 refusal, and no authority from canvas text. Not started in this repair batch.
+
+**Blocking repair batch candidate (2026-11-01):**
+`codex/brennan-joint-review-20261101` in `/private/tmp/atom-brennan-review`
+at `e984185ea` is the single review candidate.
+- Agent 1: `0aebf372e` (discount true/false/unknown, completion oracle,
+  durable line obligations, executor outcome hardening).
+- Agent 2: `7a006c147` (complete commercial readback, sparse vs mismatch,
+  bounded retry, estimate/bill normalization).
+- Joint: one assignment reads controlled WorkDrive bytes, maps rows, pauses
+  on a missing discount qualification, resumes, computes 362.50, creates one
+  estimate, verifies the complete readback, and creates the Outlook draft
+  without sending. Changed file bytes produce 376.75.
+- Real connected handler uncertainty control: approval -> uncertain envelope
+  -> dependent draft blocked -> restart no new create -> reconcile -> draft.
+- Tests: joint core 236 passed; Agent 2 focused 273; Agent 1 required 164;
+  public route journeys 4; extended 334 passed/4 pre-existing baseline
+  failures. Browser not runnable (no frontend node_modules); route tests used.
+- No live provider action. Canvas addendum recorded as a post-repair task.
