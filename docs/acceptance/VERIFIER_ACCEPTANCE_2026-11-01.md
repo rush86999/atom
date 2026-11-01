@@ -4,6 +4,12 @@
 This is not a release, hosted deployment, publication or universal reliability
 claim.**
 
+> **Post-acceptance note:** the budget pause-credit defect was found after this
+> acceptance. It is repaired in “Post-acceptance correctness repair” below
+> (successor commit `f1ef414c3`, backend tree `c2963fbcdc8e`, 63 focused
+> tests). The accepted identity above is preserved and is **not** retroactively
+> described as unaffected.
+
 ## Accepted identity
 
 | Item | Value |
