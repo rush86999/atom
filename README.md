@@ -84,9 +84,9 @@ shows *Sum Price for the sample quote sheet* completed from
 employee is under **Agents**; its lessons are editable in the **Training**
 panel. This path uses no cloud credential, no live send and no connected
 account. The **15-minute first-use target** covers a complete clean install
-through the sample job. A fresh-worktree run on this host measured **~4 min
-22 s** with warm package caches (including one failed default-Python attempt);
-cold-network install time is not measured. The verified **13 seconds** measures
+through the sample job. A fresh-worktree run on this host measured **~5 min
+15 s** across setup, dev startup, sample creation and browser verification with
+warm package caches; cold-network install time is not measured. The verified **13 seconds** measures
 only `make sample` after the backend is already running, not dependency
 installation, the frontend build or login.
 

@@ -17,14 +17,15 @@ evidence manifest were not modified.
 | Step | Result | Notes |
 |---|---|---|
 | Default `make setup` | refused in ~5 s | Default `python3` was 3.14; the bootstrap named the supported interpreter. Fixed by documenting `PYTHON=python3.11 make setup`. |
-| `PYTHON=python3.11 make setup` | **97 s** | Fresh venv, backend deps, frontend deps, `.env`. |
-| `make dev` with port override | **95 s** to backend + frontend health | First frontend compile included. |
-| `make sample PORT=8101 FE_PORT=3101` | **16 s** | `status: passed`, result `232990.00`. |
-| Browser login + first Assignments visit | **54 s** | Sample job visible on the first visit after the token fix. |
+| `PYTHON=python3.11 make setup` | **102 s** | Fresh venv, backend deps, frontend deps, `.env`. |
+| `make dev` with port override | **96 s** to backend + frontend health | First frontend compile included. |
+| `make sample PORT=8101 FE_PORT=3101` | **17 s** | `status: passed`, result `232990.00`. |
+| Browser login + first Assignments visit | **100 s** | Sample job visible on the first visit; the first Assignments data load takes several seconds on a cold dev compile and does not need a reload. |
 
-**Measured complete journey (warm caches): ~4 min 22 s**, including the failed
-default-Python attempt. The **15-minute** figure remains the target for a cold
-network install, not a measured guarantee.
+**Measured complete journey (warm caches): ~5 min 15 s** across the four steps.
+The failed default-Python attempt added ~5 s in the earlier exploratory run.
+The **15-minute** figure remains the target for a cold network install, not a
+measured guarantee.
 
 ## Confusing steps and failures found
 
