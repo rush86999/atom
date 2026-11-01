@@ -54,8 +54,12 @@ Evidence: [`evidence/campaigns/recovery/execution-boundaries.log`](evidence/camp
 | Campaign | State |
 |---|---|
 | A — complex teaching, transfer and correction | **Next:** sales and grants browser flows on the restarted final candidate; revised teaching while an accepted run waits; corrected new work; active snapshot retained. |
-| B — long-running ≥2h | Part 1 durably waiting since `2026-11-01T13:40:04Z` on world `long_run_2h_20261101`; source result `550.00`; resume after the genuine two-hour mark with a real backend restart. Recovery browser already **5/5** at `aba2754ec`. |
+| B — long-running ≥2h | **Passed.** Part 1 waited from `2026-11-01T13:40:04Z`; a real backend restart resumed the same run after the genuine two-hour mark; source `550.00` stayed applied; the correlated reply arrived at `15:43:27Z`; the DOCX rendered (`4a91281abe91d303...`); the controlled send was approved and applied **once**; duplicate resume and a late reply left the outbox at **1 line**. Evidence: `evidence/campaigns/long-run/`. |
 | C — ordinary usability | Clean install/startup, production login and browser surfaces passed; artifact download/reopen and clarification are exercised by the teaching campaign and recovery controls. |
+
+### Budget repair found by the long-run
+
+The first resume exposed a real defect: the 15-minute wall budget counted the two-hour durable wait as working time and failed the wait step. The failure is preserved in `evidence/campaigns/long-run/budget-failure-preserved.json`. The fix excludes `paused_seconds`/`waiting_since` from wall time, charges the pause in both the direct-response and resume paths, and lets a pre-dispatch budget refusal be retried without consuming an execution attempt. The same run then completed without recreating the source result or repeating the effect.
 
 Recovery browser evidence:
 [`evidence/campaigns/recovery/browser-final/browser-recovery.json`](evidence/campaigns/recovery/browser-final/browser-recovery.json)
