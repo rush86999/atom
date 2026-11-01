@@ -170,7 +170,7 @@ def main() -> int:
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--part1", required=True)
     ap.add_argument("--agent-name", default="Quote Specialist")
-    ap.add_argument("--objective", default="Sum Price for the integrated quote sheet")
+    ap.add_argument("--objective", default=None)
     ap.add_argument("--second-objective",
                     default="Sum Price for the revised clean quote sheet")
     ap.add_argument("--measure", default="Price")
@@ -195,7 +195,7 @@ def main() -> int:
         browser = p.chromium.launch(headless=True, channel="chrome")
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
-        open_assignment(page, args.frontend, args.objective, run_id)
+        open_assignment(page, args.frontend, part1["objective"], run_id)
 
         before = api(page, f"/api/assignments/{run_id}")
         if before["assignment"]["status"] != "waiting":
@@ -227,7 +227,7 @@ def main() -> int:
                 "REFUSED: active assignment adopted a new teaching revision "
                 "without an explicit reassessment")
 
-        open_assignment(page, args.frontend, args.objective, run_id)
+        open_assignment(page, args.frontend, part1["objective"], run_id)
         detail = page.get_by_test_id("assignment-detail")
         detail.get_by_label("Correlated response").fill(args.response)
         detail.get_by_role("button", name="Deliver").click()
