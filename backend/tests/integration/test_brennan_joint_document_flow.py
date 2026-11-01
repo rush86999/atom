@@ -46,11 +46,11 @@ def env(tmp_path):
     }
 
 
-def _csv(price_b: str = "50.00") -> bytes:
+def _csv(price_b: str = "50.00", discount_b: str = "5") -> bytes:
     return (
         "sku,category,quantity,unit,pack,unit_price,currency,discount_percent\n"
         "A,A,2,each,1,100.00,USD,0\n"
-        f"B,B,3,each,1,{price_b},USD,5\n"
+        f"B,B,3,each,1,{price_b},USD,{discount_b}\n"
     ).encode("utf-8")
 
 
@@ -359,3 +359,262 @@ def test_unexpected_customer_prevents_quote_plan_even_with_line_items(tmp_path):
     )
     assert planned["status"] != "ready"
     assert planned["plan"] is None
+
+
+def test_one_assignment_consumes_bytes_calculates_and_drafts(env, monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "readback": 0, "draft": 0}
+    captured = {}
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "price-list.csv", "version": "v1"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return _csv("50.00", discount_b="0")
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    class FakeBooks:
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            calls["create"] += 1
+            captured["estimate"] = data
+            return {"estimate_id": "est-one-1"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            calls["readback"] += 1
+            data = captured["estimate"]
+            return {
+                "estimate_id": estimate_id,
+                "estimate_number": "EST-ONE-1",
+                "customer_id": data["customer_id"],
+                "reference_number": data["reference_number"],
+                "date": data["date"],
+                "currency_code": data["currency_code"],
+                "total": data["total"],
+                "sub_total": data["sub_total"],
+                "tax_total": data["tax_total"],
+                "line_items": data["line_items"],
+            }
+
+    class FakeOutlook:
+        def __init__(self):
+            self.sent = False
+
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["draft"] += 1
+            captured["draft"] = kwargs
+            return {"id": "draft-one-1", "subject": kwargs["subject"]}
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            self.sent = True
+            raise AssertionError("draft must not send")
+
+    async def fake_workdrive(ids):
+        return FakeWorkDrive()
+
+    async def fake_books(ids):
+        return FakeBooks()
+
+    outlook = FakeOutlook()
+    monkeypatch.setattr(actions, "_workdrive_service", fake_workdrive)
+    monkeypatch.setattr(actions, "_books_service", fake_books)
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: outlook)
+
+    read = new_step(
+        step_id="read",
+        title="Read the returned price list bytes",
+        operation_type="retrieve",
+        adapter="action.registry",
+        inputs={
+            "action": "connected.workdrive.read_file",
+            "arguments": {
+                "file_id": "file-1", "evidence_kind": "price_rows",
+                "customer_id": "customer-1",
+                "price_basis": "customer_contract",
+            },
+        },
+        effect="read_only",
+    )
+    map_rows = new_step(
+        step_id="map",
+        title="Map rows to quote lines",
+        operation_type="calculate",
+        adapter="quote.lines_from_rows",
+        depends_on=["read"],
+        inputs={
+            "rows": {"$ref": "read.data.rows"},
+            "columns": {
+                "item_id": "sku", "quantity": "quantity",
+                "unit": "unit", "pack_size": "pack",
+                "unit_price": "unit_price", "currency": "currency",
+                "description": "sku", "category": "category",
+                "discount": "discount_percent",
+            },
+            "defaults": {"price_basis": "contract"},
+            "discount_mode": "percent",
+            "discount_authority": "price-list:v1",
+            "source_ref": {"resource_id": "file-1", "version": "v1"},
+        },
+        effect="local",
+    )
+    calculate = new_step(
+        step_id="calculate",
+        title="Calculate the quote",
+        operation_type="calculate",
+        adapter="quote.calculate",
+        depends_on=["map"],
+        inputs={
+            "line_items": {"$ref": "map.line_items"},
+            "currency": "USD",
+            "freight": "20.00",
+            "tax": {"basis": "none"},
+            "discount_rules": [
+                {"lesson_id": "general-b", "revision": 1,
+                 "name": "general B discount",
+                 "when": {"category": "B"}, "rate": "0.05"},
+                {"lesson_id": "licensed-b", "revision": 1,
+                 "name": "licensed B exception",
+                 "when": {"category": "B",
+                          "qualification": "licensed"},
+                 "rate": "0.10"},
+            ],
+            "rounding": "half_up",
+            "scale": 2,
+            "rounding_authority": "agreement:round-half-up-2dp",
+        },
+        effect="local",
+    )
+    prepare_lines = new_step(
+        step_id="prepare-lines",
+        title="Prepare provider estimate lines",
+        operation_type="calculate",
+        adapter="quote.estimate_lines",
+        depends_on=["calculate"],
+        inputs={
+            "rows": {"$ref": "calculate.rows"},
+            "account_map": {"A": "acct-1", "B": "acct-1"},
+        },
+        effect="local",
+    )
+    estimate = new_step(
+        step_id="estimate",
+        title="Create the verified estimate",
+        operation_type="outbound",
+        adapter="action.registry",
+        depends_on=["prepare-lines"],
+        inputs={
+            "action": "connected.books.create_estimate",
+            "arguments": {
+                "organization_id": "org-1",
+                "estimate_data": {
+                    "customer_id": "customer-1",
+                    "reference_number": "RFQ-ONE-1",
+                    "date": "2026-11-01",
+                    "currency_code": "USD",
+                    "total": "${calculate.value}",
+                    "sub_total": "${calculate.value}",
+                    "tax_total": "0.00",
+                    "line_items": {"$ref": "prepare-lines.line_items"},
+                },
+                "authority_reference": "grant-one-1",
+                "operation_id": "op-one-1",
+            },
+        },
+        effect="external",
+        approval_required=True,
+        approval_purpose="Create the estimate",
+    )
+    draft = new_step(
+        step_id="email-draft",
+        title="Create the Outlook draft from the verified quote",
+        operation_type="outbound",
+        adapter="action.registry",
+        depends_on=["estimate"],
+        inputs={
+            "action": "connected.outlook.create_draft",
+            "arguments": {
+                "to": ["buyer@example.invalid"],
+                "subject": "Quote RFQ-ONE-1",
+                "body": "Quoted total: ${calculate.value} USD",
+                "operation_id": "op-one-draft-1",
+            },
+        },
+        effect="external",
+        approval_required=True,
+        approval_purpose="Create the Outlook draft",
+    )
+    plan = new_assignment(
+        objective="Quote from returned bytes",
+        steps=[read, map_rows, calculate, prepare_lines, estimate, draft],
+        authorized_actions=["retrieve", "calculate", "outbound"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        budget={"max_steps": 30, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600},
+    )
+    run_id = env["executor"].create_assignment(
+        f"conv-{uuid.uuid4().hex[:8]}",
+        "Quote from returned bytes", assignment=plan)["run_id"]
+
+    started = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    assert started["status"] == "waiting"
+    calc_step = next(step for step in started["steps"]
+                     if step["step_id"] == "calculate")
+    assert calc_step["status"] == "waiting"
+    gap = next(
+        item for item in env["lifecycle"].get_task(
+            run_id)["task_revision"]["unresolved"]
+        if item["status"] == "open")
+    assert gap["concept"] == "discount_scope"
+    binding = gap["inputs"]["quote_discount"]
+    assert binding["missing_fields"] == ["qualification"]
+    assert [rule["lesson_id"] for rule in binding["candidate_rules"]] == [
+        "general-b", "licensed-b"]
+
+    env["executor"].resolve_gap(
+        run_id, gap["question_id"], resolution="unlicensed",
+        resolved_by="pricing owner",
+        evidence="accepted customer qualification: unlicensed")
+    started = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    calc_step = next(step for step in started["steps"]
+                     if step["step_id"] == "calculate")
+    assert calc_step["status"] == "applied"
+    assert calc_step["result_value"] == "362.50"
+    estimate_step = next(step for step in started["steps"]
+                         if step["step_id"] == "estimate")
+    assert estimate_step["status"] == "awaiting_approval"
+    assert calls["create"] == 0
+
+    env["executor"].approve_step(
+        run_id, "estimate", approved_by="owner", note="verified quote")
+    after_estimate = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    estimate_step = next(step for step in after_estimate["steps"]
+                         if step["step_id"] == "estimate")
+    assert estimate_step["status"] == "applied", estimate_step
+    assert calls["create"] == 1
+    assert calls["readback"] == 1
+
+    env["executor"].approve_step(
+        run_id, "email-draft", approved_by="owner", note="draft only")
+    final = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    draft_step = next(step for step in final["steps"]
+                      if step["step_id"] == "email-draft")
+    assert draft_step["status"] == "applied", draft_step
+    assert calls["create"] == 1
+    assert calls["draft"] == 1
+    assert "362.50" in captured["draft"]["body"]
+    assert outlook.sent is False

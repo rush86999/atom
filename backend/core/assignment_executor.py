@@ -5377,6 +5377,7 @@ class AssignmentExecutor:
             "source_version": result.get("source_version"),
             "provider_ref": result.get("provider_ref"),
             "rows": result.get("rows"),
+            "line_items": result.get("line_items"),
             "schema": result.get("schema"),
             "text": result.get("text"),
             "decision": result.get("decision"),
@@ -7221,3 +7222,4 @@ default_adapter_registry.register(
 # default registry. It is imported last to avoid a module-initialization
 # cycle; registries cloned after this point carry the adapter.
 import core.assignment_quote  # noqa: E402,F401
+import core.quote_rows  # noqa: E402,F401

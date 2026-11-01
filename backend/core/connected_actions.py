@@ -151,6 +151,51 @@ def action_executor_outcome(result: Dict[str, Any]) -> str:
     return "applied"
 
 
+def _normalize_estimate_data(estimate_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize runtime quote rows into the provider estimate contract.
+
+    `quote.calculate` exposes ``unit_price`` and a fraction ``discount_rate``;
+    Zoho line items use ``rate`` and a percentage.  Normalization happens
+    before the payload digest so the authorized payload and the readback
+    comparison use the same canonical form.
+    """
+    normalized = dict(estimate_data or {})
+    lines = []
+    for raw in normalized.get("line_items") or normalized.get("lines") or []:
+        if not isinstance(raw, dict):
+            continue
+        line = dict(raw)
+        if line.get("rate") in (None, "") and line.get("unit_price") is not None:
+            line["rate"] = str(line["unit_price"])
+        if (line.get("item_id") in (None, "")
+                and line.get("sku") not in (None, "")):
+            line["item_id"] = str(line["sku"])
+        if line.get("name") in (None, ""):
+            line["name"] = str(line.get("description")
+                               or line.get("item_id") or "Quote line")
+        if (line.get("discount_percent") in (None, "")
+                and line.get("discount_rate") not in (None, "")):
+            try:
+                line["discount_percent"] = str(
+                    Decimal(str(line["discount_rate"])) * Decimal("100"))
+            except (InvalidOperation, ValueError):
+                pass
+        # Keep only provider payload fields.  Evidence/source references and
+        # calculated gross/net values stay in the calculation receipt; they
+        # must not deepen the bound operation payload or become provider
+        # input.
+        allowed = {
+            "item_id", "name", "description", "quantity", "rate",
+            "discount_percent", "discount_amount", "discount_type",
+            "unit", "account_id", "tax_id", "tax_name", "tax_percentage",
+        }
+        lines.append({key: value for key, value in line.items()
+                      if key in allowed and value not in (None, "")})
+    if lines:
+        normalized["line_items"] = lines
+    return normalized
+
+
 def _payload_digest(payload: Dict[str, Any]) -> str:
     """Digest the exact effect payload with the shared approval hasher.
 
@@ -1389,7 +1434,7 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         return _error("zoho_books", "create_estimate", "invalid_request",
                       "organization_id is required.",
                       action_result="proven_not_applied")
-    estimate_data = args.get("estimate_data") or {}
+    estimate_data = _normalize_estimate_data(args.get("estimate_data") or {})
     if not isinstance(estimate_data, dict) or not estimate_data:
         return _error("zoho_books", "create_estimate", "invalid_request",
                       "estimate_data must be a non-empty object.",
