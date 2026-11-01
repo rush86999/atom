@@ -4,7 +4,20 @@ Identity: integrated candidate `bc164fb96632` (guided deterministic-rule
 authoring; the post-repair journey and 24-sheet evidence executed on
 `31ba9725e02a`). Configuration: local, single worker,
 `ATOM_PRODUCT_PROFILE=core`, controlled transport. Hosted deployment and
-publication remain owner-deferred.
+publication remain owner-deferred and are not completion gates.
+
+Overall completion awaits only the two current-candidate live qualifications:
+Microsoft read-only connection/ingestion/agent retrieval, and the specifically
+authorized Outlook send with exact account, recipient, payload/attachment and
+reconciliation scope. Hosted deployment is deferred, not a completion gate.
+Accepted local UI, workbook, deterministic-rule and durable-execution evidence
+is closed; do not repeat those campaigns without a relevant source or product
+change.
+
+**Verifier closure (2026-11-01):** 248 entries across 27 manifests matched;
+four frontend tests across two suites passed; the unforced teaching and guided
+rule-authoring findings are closed within the tested scope. The guided smoke's
+coordinate-click fallback means keyboard/accessibility coverage is not claimed.
 
 This list separates **completed mechanisms** from what a practically usable
 integrated product still needs. It is not a claim that the goals are met.

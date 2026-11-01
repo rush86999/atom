@@ -8,6 +8,21 @@ Fill in the bracketed fields and reply with the statement for each part. Until
 then, both remain unexecuted and the local engineering continues against
 controlled fixtures.
 
+## Overall completion
+
+Two current-candidate live qualifications remain:
+
+1. **Part A** — Microsoft read-only connection, ingestion and agent retrieval.
+2. **Part B** — one Outlook send with the exact authorized account, recipient,
+   payload/attachment and reconciliation scope.
+
+Hosted deployment and publication are **deferred, not completion gates**.
+The accepted local UI, workbook, deterministic-rule and durable-execution
+evidence is closed; do not repeat those campaigns without a relevant source or
+product change. Failed discretionary-model judgment remains a separate,
+unsupported capability and does not invalidate the qualified deterministic
+taught-policy path.
+
 ---
 
 ## Part A — Microsoft read-only qualification (goals 4 and 5)
@@ -64,18 +79,20 @@ What I need from you:
 | Sending account (signed-in Outlook user id) | `[account]` |
 | One owner-controlled test recipient | `[mailbox]` |
 | Grant | `max_effects=1`, `actions=["outbound"]`, `recipients=[mailbox]`, expiry ≤ 24h |
-| Payload | fixed subject/body, **no attachment**, SHA-256 recorded before dispatch |
+| Payload | fixed subject/body; either **no attachment** or exactly one owner-named file with path and SHA-256. The exact payload SHA-256 is recorded before dispatch. |
+| Reconciliation scope | Sent Items folder and search window, expected exactly one matching row; a repeat resume adds none. |
 | Runtime flags | `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=1` and `ATOM_ASSIGNMENT_ALLOW_STANDING_LIVE_SEND=1` |
 
 Statement requested:
 
 > “I authorize one live Outlook send to `<recipient>` under a one-use grant
-> with the stated payload.”
+> with the exact payload/attachment and reconciliation scope stated above.”
 
-What will be collected: grant id and `1/1 exhausted`, payload SHA-256, provider
-acceptance ref, Sent Items read-back, exactly one Sent Items row on repeat
-resume, no assignment-approval HITL row for the covered send, and no
-token/key/body leakage in logs.
+What will be collected: grant id and `1/1 exhausted`, payload SHA-256 (and the
+authorized attachment hash when one is named), provider acceptance ref, Sent
+Items read-back within the stated reconciliation scope, exactly one Sent Items
+row on repeat resume, no assignment-approval HITL row for the covered send, and
+no token/key/body leakage in logs.
 
 Provider acceptance, Sent Items confirmation and recipient delivery are three
 distinct claims and will be reported separately.
@@ -85,7 +102,8 @@ distinct claims and will be reported separately.
 ## What these requests do not cover
 
 - Hosted deployment or publication (owner-deferred, not a local gap).
-- Any second recipient, attachment, bulk or recurring send.
+- Any second recipient, an additional attachment beyond the one explicitly
+  named, bulk or recurring send.
 - Multi-worker/soak certification.
 - Discretionary model judgment: the deterministic taught-rule path is already
   qualified; model access is optional and would be requested separately only

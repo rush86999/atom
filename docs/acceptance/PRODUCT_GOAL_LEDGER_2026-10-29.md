@@ -53,7 +53,13 @@ reliability.
 - The accepted core and conversation-learning tags remain historical
   identities. This candidate is a successor; it does not move them.
 - Hosted deployment and publication are not unfinished engineering in this
-  ledger; they are explicitly deferred by the owner.
+  ledger; they are explicitly deferred by the owner and are not completion
+  gates.
+- Overall completion awaits only the two current-candidate live
+  qualifications in `EXTERNAL_QUALIFICATION_REQUEST_2026-10-31.md`: Microsoft
+  read-only connection/ingestion/retrieval, and the specifically authorized
+  Outlook send. Accepted local evidence is closed and should not be rerun
+  without a relevant change.
 
 ## Settings BYOK refresh
 
