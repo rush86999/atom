@@ -323,3 +323,14 @@ revision to integrate and which action registrations it consumed.
 attachment reads (binary evidence, never send), generic `connected.*` action
 aliases, vendor/CoA resolution, period/account validation and the live
 qualification request. Focused suite **229 passed**; no live provider call.
+
+**Joint integration candidate (2026-11-01):** branch
+`codex/brennan-joint-20261101` in `/private/tmp/atom-brennan-joint`, HEAD
+`8fc3460e9`. It merges Agent 2 at `a78ddeb7a` with Agent 1 at `bc56472b9` and
+adds the executor mapping from `action_result` to `applied/failed/uncertain`.
+Combined assignment + connected suite: **189 passed**; contract matrix has zero
+issues. The joint controlled campaign computes **362.50** with Agent 1's
+calculator, posts the estimate through `connected.books.create_estimate`,
+reads back 362.50, and creates an Outlook draft without sending. This is a
+controlled candidate, not live qualification. Agent 1 should adopt
+`8fc3460e9`'s executor mapping in its branch (or confirm an equivalent).
