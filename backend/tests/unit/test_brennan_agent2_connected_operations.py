@@ -846,3 +846,124 @@ def test_bill_closed_period_is_refused_without_provider_call(monkeypatch):
     assert result["status"] == "error"
     assert result["action_result"] == "proven_not_applied"
     assert "closed" in result["error"]
+
+
+def test_read_file_receipt_matches_agent1_evidence_shape(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "prices.csv", "version": "v3"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return b"sku,qty\nA,2\n"
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    result = asyncio.run(actions.workdrive_read_file(
+        {"file_id": "file-1", "evidence_kind": "price_rows",
+         "customer_id": "customer-1", "price_basis": "customer_contract",
+         "effective_date": "2026-10-01",
+         "typed_fields": {"currency": "USD", "sku": "A"}},
+        {"user_id": "user-1", "tenant_id": "t1",
+         "workspace_id": "ws-1"}))
+    receipt = result["read_receipt"]
+
+    assert receipt["access"] == "granted"
+    assert receipt["kind"] == "price_rows"
+    assert receipt["customer_id"] == "customer-1"
+    assert receipt["price_basis"] == "customer_contract"
+    assert receipt["effective_date"] == "2026-10-01"
+    assert isinstance(receipt["fields"], dict)
+    assert receipt["fields"]["currency"] == "USD"
+    assert receipt["resource_id"] == "file-1"
+    assert receipt["version"] == "v3"
+    assert receipt["retrieved_at"]
+    assert receipt["evidence"][0]["sha256"]
+
+
+def test_resolve_vendor_is_exact_and_does_not_substring_match(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeBooks:
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_contacts_page(self, token, org, page=1, per_page=200,
+                                    contact_type=None):
+            assert contact_type == "vendor"
+            return ([{"contact_id": "v1", "contact_name": "Acme"},
+                     {"contact_id": "v2", "contact_name": "Acme Holdings"}],
+                    {"has_more": False})
+
+    async def fake_service(ids):
+        return FakeBooks()
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_resolve_vendor(
+        {"name": "acme", "organization_id": "org-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["match_status"] == "resolved"
+    assert [candidate["id"] for candidate in result["candidates"]] == ["v1"]
+    assert result["read_receipt"]["kind"] == "vendor_candidates"
+
+
+def test_resolve_vendor_same_name_different_ids_is_ambiguous(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeBooks:
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_contacts_page(self, token, org, page=1, per_page=200,
+                                    contact_type=None):
+            return ([{"contact_id": "v1", "contact_name": "Acme"},
+                     {"contact_id": "v2", "contact_name": "ACME"}],
+                    {"has_more": False})
+
+    async def fake_service(ids):
+        return FakeBooks()
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_resolve_vendor(
+        {"name": "Acme", "organization_id": "org-1"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["match_status"] == "ambiguous"
+    assert {candidate["id"] for candidate in result["candidates"]} == {
+        "v1", "v2"}
+
+
+def test_list_accounts_returns_exact_ids(monkeypatch):
+    from core import brennan_connected_actions as actions
+
+    class FakeBooks:
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1", "account_name": "Freight",
+                      "account_type": "expense", "account_code": "5100"},
+                     {"account_id": "acct-2", "account_name": "Parts",
+                      "account_type": "expense", "account_code": "5200"}],
+                    {"has_more": False})
+
+    async def fake_service(ids):
+        return FakeBooks()
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_list_accounts(
+        {"organization_id": "org-1", "query": "freight"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["accounts"] == [{
+        "account_id": "acct-1", "name": "Freight",
+        "type": "expense", "code": "5100"}]
+    assert result["read_receipt"]["coverage"] == "complete"

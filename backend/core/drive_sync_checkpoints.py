@@ -438,6 +438,8 @@ async def sync_drive_page(
             "provider": provider,
             "operation": "list_files_page",
             "resource_id": scope,
+            "account_id": provider_workspace_id or drive_id or site_id,
+            "access": "granted",
             "retrieved_at": _now(),
             "coverage": "partial" if has_more else "page_complete",
             "fields": ["id", "name", "type", "size", "modified_at",

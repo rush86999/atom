@@ -22,6 +22,8 @@ actions declare `{"effect":"read"}`; the planner classifies them as
 | `brennan.inventory.check_stock` | `item_id`, optional `organization_id` | observed stock, `read_receipt` |
 | `brennan.books.get_bill` | `organization_id`, `bill_id` | `data`, `read_receipt` |
 | `brennan.books.get_estimate` | `organization_id`, `estimate_id` | `data`, `read_receipt` |
+| `brennan.books.resolve_vendor` | `name`, optional `organization_id` | `match_status` (`resolved`/`ambiguous`/`missing`), exact `candidates`, `read_receipt` |
+| `brennan.books.list_accounts` | `organization_id`, optional `query` | complete `accounts` with exact IDs, `read_receipt` |
 | `brennan.workdrive.sync_page` | `folder_id`, `provider_workspace_id`, `team_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
 | `brennan.onedrive.sync_page` | `folder_id`, `drive_id`, `site_id`, optional `cursor`, `page_size`, `fresh`, `max_rows` | one indexed page, `next_cursor`, `coverage`, durable `checkpoint`, `missing_external_ids` |
 | `brennan.knowledge.sync_status` | `provider` (`zoho_workdrive`/`onedrive`), folder/drive/site identity | `coverage`, `stale`, `age_seconds`, `checkpoint`, `missing_external_ids`, `last_error` |
@@ -90,15 +92,30 @@ Every read returns `status=success` plus:
 {
   "provider": "zoho_books",
   "operation": "get_bill",
+  "account_id": "org-1",
   "resource_id": "bill-1",
   "version": "provider-version-if-any",
   "retrieved_at": "2026-11-01T...",
+  "access": "granted",
   "coverage": "single|paged|partial|bounded|complete",
-  "fields": ["..."],
+  "kind": "bill|customer|price_rows|product|vendor_candidates|...",
+  "customer_id": "optional exact customer/contact id",
+  "fields": {"typed": "values; a dict when the provider record is known"},
+  "rows": [{"sku": "...", "quantity": "...", "unit_price": "..."}],
+  "content": "bounded text when a caller supplies extracted text",
+  "citations": [],
+  "price_basis": "customer_contract|list|supplier_cost|...",
+  "effective_date": "2026-10-01",
   "evidence": [{"kind": "file", "id": "...", "sha256": "..."}],
   "continuation": {"next_cursor": "...", "has_more": true}
 }
 ```
+
+`kind`, `customer_id`, `price_basis`, `effective_date` and `typed_fields` are
+optional caller metadata on the file reads. Agent 1's evidence validator
+consumes `access`, `kind`, `customer_id`, the `fields` dict, `rows`, `content`,
+`resource_id`, `version` and `retrieved_at`; no provider-specific shape is
+required by that validator.
 
 Provider failures return `status=error` with `error_kind` in
 `auth_expired|auth_revoked|auth_unavailable|unauthorized|not_found|rate_limited|

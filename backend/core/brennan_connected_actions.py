@@ -336,20 +336,49 @@ def _bill_readback_conflicts(
 
 
 def _receipt(provider: str, operation: str, *, resource_id: str = "",
-             version: str = "", coverage: str = "", evidence=None,
-             fields=None, continuation=None) -> Dict[str, Any]:
-    return {
+             version: str = "", coverage: Any = "", evidence=None,
+             fields: Any = None, continuation=None,
+             account_id: Optional[str] = None,
+             access: str = "granted", kind: Optional[str] = None,
+             customer_id: Optional[str] = None, rows=None,
+             content: Optional[str] = None, citations=None,
+             price_basis: Optional[str] = None,
+             effective_date: Optional[str] = None) -> Dict[str, Any]:
+    """Read receipt shared with Agent 1's evidence validator.
+
+    ``fields`` accepts the legacy list of field names or a typed dict of
+    values; Agent 1 reads a dict when it is present and otherwise falls back
+    to top-level values.  ``access`` makes an authorized read explicit.
+    """
+    receipt: Dict[str, Any] = {
         "provider": provider,
         "operation": operation,
-        "account": {"workspace_id": None},
+        "account": {"workspace_id": None, "account_id": account_id},
+        "account_id": account_id,
         "resource_id": resource_id,
         "version": version,
         "retrieved_at": _now(),
+        "access": access,
         "coverage": coverage,
-        "fields": fields or [],
+        "fields": fields if fields is not None else [],
         "evidence": evidence or [],
         "continuation": continuation,
     }
+    if kind:
+        receipt["kind"] = kind
+    if customer_id:
+        receipt["customer_id"] = customer_id
+    if rows is not None:
+        receipt["rows"] = rows
+    if content is not None:
+        receipt["content"] = content
+    if citations:
+        receipt["citations"] = list(citations)[:20]
+    if price_basis:
+        receipt["price_basis"] = price_basis
+    if effective_date:
+        receipt["effective_date"] = effective_date
+    return receipt
 
 
 async def _zoho_token(service: Any, ids: Dict[str, str]) -> Optional[str]:
@@ -415,6 +444,9 @@ async def workdrive_list_page(args: Dict[str, Any], context: Dict[str, Any]):
             "zoho_workdrive", "list_files_page",
             resource_id=str(args.get("folder_id") or "root"),
             coverage=str(result.get("coverage") or "partial"),
+            account_id=str(args.get("workspace_id") or ""),
+            kind=args.get("evidence_kind"),
+            customer_id=args.get("customer_id"),
             fields=["id", "name", "type", "version", "modified_at", "size"],
             continuation={"next_cursor": result.get("next_cursor"),
                           "has_more": bool(result.get("has_more"))},
@@ -429,7 +461,12 @@ async def workdrive_list_page(args: Dict[str, Any], context: Dict[str, Any]):
         "type": "object",
         "properties": {"file_id": {"type": "string"},
                        "workspace_id": {"type": "string"},
-                       "max_bytes": {"type": "integer"}},
+                       "max_bytes": {"type": "integer"},
+                       "evidence_kind": {"type": "string"},
+                       "customer_id": {"type": "string"},
+                       "price_basis": {"type": "string"},
+                       "effective_date": {"type": "string"},
+                       "typed_fields": {"type": "object"}},
         "required": ["file_id"],
     },
     effects=[{"effect": "read"}],
@@ -467,6 +504,16 @@ async def workdrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
             "zoho_workdrive", "download_file", resource_id=file_id,
             version=str((meta or {}).get("version") or ""),
             coverage="complete",
+            account_id=str(args.get("workspace_id") or ""),
+            kind=args.get("evidence_kind"),
+            customer_id=args.get("customer_id"),
+            price_basis=args.get("price_basis"),
+            effective_date=args.get("effective_date"),
+            fields=args.get("typed_fields") or {
+                "name": (meta or {}).get("name"),
+                "size": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            },
             evidence=[{"kind": "file", "id": file_id,
                        "sha256": hashlib.sha256(content).hexdigest()}],
         ),
@@ -510,6 +557,9 @@ async def onedrive_list_page(args: Dict[str, Any], context: Dict[str, Any]):
             "onedrive", "list_files_page",
             resource_id=str(args.get("folder_id") or args.get("drive_id") or ""),
             coverage=str(result.get("coverage") or "partial"),
+            account_id=str(args.get("drive_id") or args.get("site_id") or ""),
+            kind=args.get("evidence_kind"),
+            customer_id=args.get("customer_id"),
             fields=["id", "name", "type", "version", "modified_at", "size"],
             continuation={"next_cursor": result.get("next_cursor"),
                           "has_more": bool(result.get("has_more"))},
@@ -523,7 +573,14 @@ async def onedrive_list_page(args: Dict[str, Any], context: Dict[str, Any]):
     parameters_schema={
         "type": "object",
         "properties": {"file_id": {"type": "string"},
-                       "max_bytes": {"type": "integer"}},
+                       "max_bytes": {"type": "integer"},
+                       "drive_id": {"type": "string"},
+                       "site_id": {"type": "string"},
+                       "evidence_kind": {"type": "string"},
+                       "customer_id": {"type": "string"},
+                       "price_basis": {"type": "string"},
+                       "effective_date": {"type": "string"},
+                       "typed_fields": {"type": "object"}},
         "required": ["file_id"],
     },
     effects=[{"effect": "read"}],
@@ -557,6 +614,15 @@ async def onedrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
         "read_receipt": _receipt(
             "onedrive", "download_file_bytes", resource_id=file_id,
             coverage="complete",
+            account_id=str(args.get("drive_id") or args.get("site_id") or ""),
+            kind=args.get("evidence_kind"),
+            customer_id=args.get("customer_id"),
+            price_basis=args.get("price_basis"),
+            effective_date=args.get("effective_date"),
+            fields=args.get("typed_fields") or {
+                "size": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            },
             evidence=[{"kind": "file", "id": file_id,
                        "sha256": hashlib.sha256(content).hexdigest()}],
         ),
@@ -593,7 +659,12 @@ async def crm_get_record(args: Dict[str, Any], context: Dict[str, Any]):
     return {"status": "success", "provider": "zoho_crm", "data": data,
             "read_receipt": _receipt(
                 "zoho_crm", "get_record", resource_id=args["record_id"],
-                coverage="single", fields=list(data) if isinstance(data, dict) else [])}
+                coverage="single",
+                account_id=ids["workspace_id"] or "",
+                kind=args.get("evidence_kind") or "crm_record",
+                customer_id=args.get("customer_id")
+                or (data.get("id") if isinstance(data, dict) else None),
+                fields=data if isinstance(data, dict) else [])}
 
 
 @register_action(
@@ -621,7 +692,10 @@ async def inventory_check_stock(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "zoho_inventory", "check_stock",
                 resource_id=args["item_id"], coverage="observed",
-                fields=["item_id", "stock_on_hand", "available_stock"])}
+                account_id=args.get("organization_id") or "",
+                kind="product",
+                fields=stock if isinstance(stock, dict) else
+                ["item_id", "stock_on_hand", "available_stock"])}
 
 
 @register_action(
@@ -646,7 +720,10 @@ async def books_get_bill(args: Dict[str, Any], context: Dict[str, Any]):
     return {"status": "success", "provider": "zoho_books", "data": data,
             "read_receipt": _receipt(
                 "zoho_books", "get_bill", resource_id=args["bill_id"],
-                coverage="single", fields=list(data) if isinstance(data, dict) else [])}
+                coverage="single",
+                account_id=args["organization_id"],
+                kind="bill",
+                fields=data if isinstance(data, dict) else [])}
 
 
 @register_action(
@@ -740,7 +817,8 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "outlook", "create_draft_email",
                 resource_id=remote_id,
-                coverage="single", fields=["id", "subject", "toRecipients"])}
+                coverage="single", kind="draft",
+                fields=result if isinstance(result, dict) else [])}
 
 
 # Importing this module is enough to register the actions.  Keep the
@@ -782,6 +860,9 @@ async def crm_search_records(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "zoho_crm", "search_records",
                 resource_id=str(args["module"]), coverage="bounded",
+                account_id=ids["workspace_id"] or "",
+                kind=args.get("evidence_kind") or "crm_records",
+                rows=data if isinstance(data, list) else [data],
                 fields=["id", "name", "module", "Modified_Time"])}
 
 
@@ -816,8 +897,11 @@ async def inventory_get_item(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "zoho_inventory", "get_item", resource_id=args["item_id"],
                 coverage="single",
-                fields=["item_id", "sku", "name", "unit", "stock_on_hand",
-                        "available_stock"])}
+                account_id=args.get("organization_id") or "",
+                kind="product",
+                fields=item if isinstance(item, dict) else
+                ["item_id", "sku", "name", "unit", "stock_on_hand",
+                 "available_stock"])}
 
 
 @register_action(
@@ -842,7 +926,9 @@ async def books_get_estimate(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "zoho_books", "get_estimate",
                 resource_id=args["estimate_id"], coverage="single",
-                fields=list(data) if isinstance(data, dict) else [])}
+                account_id=args["organization_id"],
+                kind="estimate",
+                fields=data if isinstance(data, dict) else [])}
 
 
 def _bill_payload(proposal: Dict[str, Any]) -> Dict[str, Any]:
@@ -889,8 +975,10 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
                 "zoho_books", "propose_bill",
                 resource_id=str(result.get("external_id") or ""),
                 coverage="document",
-                fields=["vendor", "currency", "document_date", "lines",
-                        "document_total", "duplicate_key"])}
+                account_id=str((args.get("proposal_input") or {}).get(
+                    "organization_id") or ""),
+                kind="bill_proposal",
+                fields=result)}
 
 
 @register_action(
@@ -1059,8 +1147,8 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
             "read_receipt": _receipt(
                 "zoho_books", "get_bills",
                 resource_id=str(duplicate.get("bill_id") or ""),
-                coverage="complete",
-                fields=["bill_id", "bill_number", "reference_number"]),
+                coverage="complete", account_id=org, kind="bill",
+                fields=duplicate),
         }
 
     try:
@@ -1110,8 +1198,8 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
             "provider_receipt": base_receipt,
             "read_receipt": _receipt(
                 "zoho_books", "get_bill", resource_id=remote_id,
-                coverage="single",
-                fields=list(readback) if isinstance(readback, dict) else []),
+                coverage="single", account_id=org, kind="bill",
+                fields=readback if isinstance(readback, dict) else []),
         }
     return {
         "status": "success",
@@ -1125,9 +1213,8 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
         "data": readback,
         "read_receipt": _receipt(
             "zoho_books", "get_bill", resource_id=remote_id,
-            coverage="single",
-            fields=["bill_id", "bill_number", "reference_number", "total",
-                    "vendor_id", "date", "currency_code"]),
+            coverage="single", account_id=org, kind="bill",
+            fields=readback if isinstance(readback, dict) else []),
     }
 
 
@@ -1246,8 +1333,8 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
             "provider_receipt": base_receipt,
             "read_receipt": _receipt(
                 "zoho_books", "get_estimate", resource_id=remote_id,
-                coverage="single",
-                fields=list(readback) if isinstance(readback, dict) else []),
+                coverage="single", account_id=org, kind="estimate",
+                fields=readback if isinstance(readback, dict) else []),
         }
     return {
         "status": "success",
@@ -1261,9 +1348,8 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         "data": readback,
         "read_receipt": _receipt(
             "zoho_books", "get_estimate", resource_id=remote_id,
-            coverage="single",
-            fields=["estimate_id", "estimate_number", "total",
-                    "customer_id", "date", "currency_code"]),
+            coverage="single", account_id=org, kind="estimate",
+            fields=readback if isinstance(readback, dict) else []),
     }
 
 
@@ -1365,3 +1451,139 @@ async def knowledge_sync_status(args: Dict[str, Any], context: Dict[str, Any]):
                             24 * 60 * 60))
     result["operation"] = "sync_status"
     return result
+
+
+@register_action(
+    "brennan.books.resolve_vendor",
+    description="Resolve a supplier name to exact vendor IDs from the complete vendor list; same-name IDs are ambiguous.",
+    parameters_schema={"type": "object",
+                       "properties": {"name": {"type": "string"},
+                                      "organization_id": {"type": "string"}},
+                       "required": ["name"]},
+    effects=[{"effect": "read"}],
+)
+async def books_resolve_vendor(args: Dict[str, Any], context: Dict[str, Any]):
+    ids = _ids(args, context)
+    name = str(args.get("name") or "").strip()
+    if not name:
+        return _error("zoho_books", "resolve_vendor", "invalid_request",
+                      "name is required.")
+    service = await _books_service(ids)
+    token = await _zoho_token(service, ids)
+    if not token:
+        return _error("zoho_books", "resolve_vendor", "auth_unavailable",
+                      "No Zoho Books token for this user.", reconnect=True)
+    org = str(args.get("organization_id") or "")
+    if not org:
+        try:
+            orgs = await service.get_organizations_strict(token)
+        except Exception as exc:  # noqa: BLE001
+            return _write_failure(
+                "zoho_books", "get_organizations", exc, may_have_landed=False)
+        org = str((orgs[0] if orgs else {}).get("organization_id") or "")
+    if not org:
+        return _error("zoho_books", "resolve_vendor", "auth_unavailable",
+                      "No Zoho Books organization is available.")
+    rows: List[Dict[str, Any]] = []
+    page = 1
+    try:
+        while True:
+            batch, info = await service.get_contacts_page(
+                token, org, page=page, per_page=200, contact_type="vendor")
+            rows.extend(batch)
+            if not info.get("has_more"):
+                break
+            page += 1
+            if page > 50:
+                return _error(
+                    "zoho_books", "resolve_vendor", "unavailable",
+                    "Vendor sweep exceeded its bounded page limit.")
+    except Exception as exc:  # noqa: BLE001
+        return _write_failure(
+            "zoho_books", "get_vendors", exc, may_have_landed=False)
+    wanted = name.casefold()
+    exact = [
+        {"id": str(row.get("contact_id") or row.get("id") or ""),
+         "name": str(row.get("contact_name") or row.get("name") or ""),
+         "email": row.get("email") or "",
+         "currency_code": row.get("currency_code") or ""}
+        for row in rows
+        if str(row.get("contact_name") or row.get("name") or "").strip().casefold()
+        == wanted
+    ]
+    status = ("resolved" if len(exact) == 1
+              else "ambiguous" if len(exact) > 1 else "missing")
+    return {
+        "status": "success",
+        "provider": "zoho_books",
+        "operation": "resolve_vendor",
+        "match_status": status,
+        "candidates": exact,
+        "read_receipt": _receipt(
+            "zoho_books", "get_vendors", resource_id=org,
+            coverage="complete", account_id=org, kind="vendor_candidates",
+            customer_id=None, fields={"requested_name": name,
+                                      "match_status": status,
+                                      "candidate_count": len(exact)},
+        ),
+    }
+
+
+@register_action(
+    "brennan.books.list_accounts",
+    description="List the complete chart of accounts with exact IDs for proposal mapping.",
+    parameters_schema={"type": "object",
+                       "properties": {"organization_id": {"type": "string"},
+                                      "query": {"type": "string"}},
+                       "required": ["organization_id"]},
+    effects=[{"effect": "read"}],
+)
+async def books_list_accounts(args: Dict[str, Any], context: Dict[str, Any]):
+    ids = _ids(args, context)
+    service = await _books_service(ids)
+    token = await _zoho_token(service, ids)
+    if not token:
+        return _error("zoho_books", "list_accounts", "auth_unavailable",
+                      "No Zoho Books token for this user.", reconnect=True)
+    org = str(args["organization_id"])
+    rows: List[Dict[str, Any]] = []
+    page = 1
+    try:
+        while True:
+            batch, info = await service.get_chart_of_accounts_page(
+                token, org, page=page, per_page=200)
+            rows.extend(batch)
+            if not info.get("has_more"):
+                break
+            page += 1
+            if page > 50:
+                return _error(
+                    "zoho_books", "list_accounts", "unavailable",
+                    "Chart of accounts exceeded its bounded page limit.")
+    except Exception as exc:  # noqa: BLE001
+        return _write_failure(
+            "zoho_books", "get_chart_of_accounts", exc,
+            may_have_landed=False)
+    query = str(args.get("query") or "").strip().casefold()
+    if query:
+        rows = [row for row in rows
+                if query in str(row.get("account_name") or row.get("name")
+                                or "").casefold()]
+    accounts = [
+        {"account_id": str(row.get("account_id") or row.get("id") or ""),
+         "name": row.get("account_name") or row.get("name"),
+         "type": row.get("account_type") or row.get("type"),
+         "code": row.get("account_code") or row.get("code")}
+        for row in rows
+    ]
+    return {
+        "status": "success",
+        "provider": "zoho_books",
+        "operation": "list_accounts",
+        "accounts": accounts,
+        "read_receipt": _receipt(
+            "zoho_books", "get_chart_of_accounts", resource_id=org,
+            coverage="complete", account_id=org, kind="chart_of_accounts",
+            fields={"count": len(accounts), "query": query},
+        ),
+    }
