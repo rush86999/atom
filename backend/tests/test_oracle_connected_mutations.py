@@ -72,3 +72,48 @@ def test_connected_readback_receipt_is_required_for_verification():
     result = asyncio.run(validate(
         "connected.books.create_estimate", no_digest))
     assert result is not None and result.verified is False
+
+    for variant in ("missing", "empty"):
+        payload = dict(good)
+        if variant == "missing":
+            payload.pop("verification")
+        else:
+            payload["verification"] = {}
+        result = asyncio.run(validate(
+            "connected.books.create_estimate", payload))
+        assert result is not None and result.verified is False
+
+    disagreement = dict(good)
+    disagreement["provider_receipt"] = {"payload_sha256": "b" * 64}
+    result = asyncio.run(validate(
+        "connected.books.create_estimate", disagreement))
+    assert result is not None and result.verified is False
+
+
+def test_action_registry_consumer_downgrades_a_false_oracle_pass():
+    import uuid
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+    from core.oracle import OracleResult, register_postcondition
+
+    name = f"test.oracle.consumer.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        return {
+            "status": "success", "success": True,
+            "action_result": "applied", "remote_id": "remote-1",
+        }
+
+    async def verifier(ctx):
+        return OracleResult(name, False, "readback missing")
+
+    action_registry.register(name, handler, effects=[{"effect": "create"}])
+    register_postcondition(name)(verifier)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": {}},
+        {"workspace_id": "ws-1", "employee_id": "user-1",
+         "tenant_id": "t1", "run_id": "r1", "assignment_id": "a1"},
+    ))
+    assert result["status"] == "uncertain", result
+    assert result["oracle_verified"] is False
+    assert "readback missing" in result["oracle_evidence"]

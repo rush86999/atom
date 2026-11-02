@@ -108,6 +108,26 @@ def env(tmp_path, monkeypatch):
                 "to": kwargs.get("to_recipients"),
             }
 
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = drafts[-1]
+            return {
+                "id": email_id,
+                "subject": payload.get("subject"),
+                "body": {"content": payload.get("body")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("cc_recipients") or [])
+                ],
+                "bcc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("bcc_recipients") or [])
+                ],
+            }
+
     monkeypatch.setattr(
         "integrations.outlook_service.OutlookService",
         lambda *args, **kwargs: FakeOutlook())

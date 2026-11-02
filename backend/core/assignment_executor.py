@@ -6009,6 +6009,29 @@ async def _action_registry_adapter(
                           "coverage": "partial"}],
         }
     outcome = _action_result_outcome(safe, mutating=mutating)
+    oracle_verified = None
+    oracle_evidence = ""
+    try:
+        from core.oracle import get_postcondition, validate
+
+        if get_postcondition(name) is not None:
+            oracle = await validate(name, {**arguments, **payload})
+            if oracle is not None:
+                oracle_verified = bool(oracle.verified)
+                oracle_evidence = str(oracle.evidence or "")
+                if not oracle_verified and outcome == "applied":
+                    outcome = "uncertain"
+                    payload = {
+                        **payload,
+                        "action_result": "uncertain",
+                        "verification": {
+                            "status": "mismatch",
+                            "missing_fields": [],
+                            "mismatches": ["oracle_postcondition"],
+                        },
+                    }
+    except Exception as exc:  # noqa: BLE001 - oracle must not crash dispatch
+        oracle_evidence = f"oracle unavailable: {type(exc).__name__}"
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
@@ -6029,6 +6052,8 @@ async def _action_registry_adapter(
             "summary": f"registered action {name} completed",
             "data": safe,
             "evidence": [{"kind": "action_registry", "action": name}],
+            "oracle_verified": oracle_verified,
+            "oracle_evidence": oracle_evidence,
             **identity,
         }
     if outcome == "uncertain":
@@ -6036,10 +6061,13 @@ async def _action_registry_adapter(
             "status": "uncertain",
             "reason": (
                 f"registered action {name} reported "
-                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
+                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"
+                + (f"; oracle: {oracle_evidence}" if oracle_evidence else "")),
             "evidence": _bounded(str(result), 500),
             "data": safe,
             "conflicts": payload.get("conflicts") or [],
+            "oracle_verified": oracle_verified,
+            "oracle_evidence": oracle_evidence,
             **identity,
         }
     if outcome == "unavailable":

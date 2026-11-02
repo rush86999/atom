@@ -222,6 +222,26 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
             self.draft = kwargs
             return {"id": "draft-1", "subject": kwargs["subject"]}
 
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = self.draft or {}
+            return {
+                "id": email_id,
+                "subject": payload.get("subject", ""),
+                "body": {"content": payload.get("body", "")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("cc_recipients") or [])
+                ],
+                "bcc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("bcc_recipients") or [])
+                ],
+            }
+
         async def send_email(self, *args, **kwargs):  # pragma: no cover
             self.sent = True
             raise AssertionError("draft action must not send")
@@ -241,6 +261,8 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
     assert service.sent is False
     assert service.draft["subject"] == "Quote"
     assert result["read_receipt"]["provider"] == "outlook"
+    assert result["read_receipt"]["operation"] == "get_email_by_id"
+    assert result["verification"]["status"] == "verified"
 
 
 def _valid_proposal():
@@ -1288,6 +1310,82 @@ def test_executor_outcome_mapping_never_calls_conflict_applied():
     assert action_executor_outcome({"value": 21}) == "applied"
     assert action_executor_outcome({"status": "error",
                                     "error_kind": "auth_expired"}) == "failed"
+
+
+def test_outlook_draft_readback_mismatch_is_conflict_and_never_recreates(monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "draft-wrong", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return {
+                "id": email_id,
+                "subject": "A different subject",
+                "body": {"content": "A different body"},
+                "to_recipients": [{"emailAddress": {
+                    "address": "someone-else@example.invalid"}}],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-wrong-draft"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "draft-wrong"
+    assert result["verification"]["status"] == "mismatch"
+    assert set(result["verification"]["mismatches"]) >= {
+        "subject", "body", "to"}
+    assert calls == {"create": 1, "read": 1}
+
+
+def test_outlook_draft_missing_readback_is_uncertain_and_never_recreates(monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "draft-sparse", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return None
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-sparse-draft"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "draft-sparse"
+    assert result["verification"]["status"] == "incomplete"
+    assert calls == {"create": 1, "read": 1}
 
 
 def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):

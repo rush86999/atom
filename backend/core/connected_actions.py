@@ -209,6 +209,39 @@ def _payload_digest(payload: Dict[str, Any]) -> str:
     return _approval_payload_hash(payload)
 
 
+def _normalize_outlook_draft(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Material fields for a draft request/readback comparison."""
+
+    def addresses(value: Any) -> List[str]:
+        result: List[str] = []
+        for item in value or []:
+            if isinstance(item, str):
+                address = item
+            elif isinstance(item, dict):
+                address = (
+                    (item.get("emailAddress") or {}).get("address")
+                    or item.get("address") or "")
+            else:
+                address = ""
+            if str(address).strip():
+                result.append(str(address).strip().lower())
+        return result
+
+    body = payload.get("body")
+    if isinstance(body, dict):
+        body = body.get("content")
+    return {
+        "subject": str(payload.get("subject") or ""),
+        "body": str(body or "").replace("\r\n", "\n"),
+        "to": addresses(
+            payload.get("toRecipients") or payload.get("to_recipients")),
+        "cc": addresses(
+            payload.get("ccRecipients") or payload.get("cc_recipients")),
+        "bcc": addresses(
+            payload.get("bccRecipients") or payload.get("bcc_recipients")),
+    }
+
+
 def _write_failure(
     provider: str,
     operation: str,
@@ -961,18 +994,105 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
             "provider_receipt": base_receipt,
         }
     remote_id = str((result or {}).get("id") or "")
+    if not remote_id:
+        return {
+            **_error("outlook", "create_draft_email", "provider_error",
+                     "Outlook returned no draft identity; reconciliation is "
+                     "required.",
+                     action_result="uncertain"),
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+        }
+    try:
+        readback = await service.get_email_by_id(
+            ids["user_id"], remote_id, token=token)
+    except Exception as exc:  # noqa: BLE001 - the create may have landed
+        return {
+            **_error("outlook", "create_draft_email", "readback_unavailable",
+                     f"Draft {remote_id} was created but could not be read "
+                     f"back: {type(exc).__name__}.",
+                     action_result="uncertain"),
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+            "verification": {
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+        }
+    if not readback:
+        return {
+            **_error("outlook", "create_draft_email", "readback_unavailable",
+                     f"Draft {remote_id} was created but not returned by "
+                     "independent readback.",
+                     action_result="uncertain"),
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+            "verification": {
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+        }
+    observed = _normalize_outlook_draft(readback)
+    expected = _normalize_outlook_draft({
+        "subject": draft_payload["subject"],
+        "body": {"content": draft_payload["body"]},
+        "toRecipients": [
+            {"emailAddress": {"address": item}}
+            for item in draft_payload["to"]
+        ],
+        "ccRecipients": [
+            {"emailAddress": {"address": item}}
+            for item in draft_payload["cc"]
+        ],
+        "bccRecipients": [
+            {"emailAddress": {"address": item}}
+            for item in draft_payload["bcc"]
+        ],
+    })
+    mismatches = [
+        key for key in ("subject", "body", "to", "cc", "bcc")
+        if observed.get(key) != expected.get(key)
+    ]
+    if mismatches:
+        return {
+            **_error("outlook", "create_draft_email", "readback_mismatch",
+                     "Draft readback does not match the authorized payload.",
+                     action_result="conflict"),
+            "remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": base_receipt,
+            "data": readback,
+            "verification": {
+                "status": "mismatch",
+                "missing_fields": [],
+                "mismatches": mismatches,
+            },
+            "read_receipt": _receipt(
+                "outlook", "get_email_by_id",
+                resource_id=remote_id, coverage="single", kind="draft",
+                fields=readback if isinstance(readback, dict) else []),
+        }
     return {"status": "success", "success": True,
             "action_result": "applied",
             "provider": "outlook", "operation": "create_draft_email",
             "remote_id": remote_id,
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
-            "data": result,
+            "data": readback,
+            "verification": {
+                "status": "verified",
+                "missing_fields": [],
+                "mismatches": [],
+            },
             "read_receipt": _receipt(
-                "outlook", "create_draft_email",
+                "outlook", "get_email_by_id",
                 resource_id=remote_id,
                 coverage="single", kind="draft",
-                fields=result if isinstance(result, dict) else [])}
+                fields=readback if isinstance(readback, dict) else [])}
 
 
 # Importing this module is enough to register the actions.  Keep the

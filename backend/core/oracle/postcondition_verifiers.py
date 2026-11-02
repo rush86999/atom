@@ -65,18 +65,35 @@ async def _verify_connected_mutation(ctx: Dict[str, Any]) -> OracleResult:
         return OracleResult(
             action, False, f"read_receipt.coverage == {coverage!r}")
     verification = ctx.get("verification")
-    if isinstance(verification, dict):
-        status = str(verification.get("status") or "").lower()
-        if status and status not in {"verified", "complete", "applied"}:
-            return OracleResult(
-                action, False,
-                f"verification.status == {status!r}")
+    if not isinstance(verification, dict) or not verification:
+        return OracleResult(
+            action, False, "no explicit verification object")
+    status = str(verification.get("status") or "").lower()
+    if status != "verified":
+        return OracleResult(
+            action, False, f"verification.status == {status!r}, not verified")
+    if verification.get("mismatches"):
+        return OracleResult(
+            action, False, "verification reports mismatches")
+    if verification.get("missing_fields"):
+        return OracleResult(
+            action, False, "verification reports missing fields")
     receipt = ctx.get("provider_receipt")
     receipt = receipt if isinstance(receipt, dict) else {}
-    digest = str(
-        ctx.get("payload_sha256") or receipt.get("payload_sha256") or "")
-    if not digest:
+    top_digest = str(ctx.get("payload_sha256") or "")
+    receipt_digest = str(receipt.get("payload_sha256") or "")
+    if not top_digest or not receipt_digest:
         return OracleResult(action, False, "no payload digest in the receipt")
+    if top_digest != receipt_digest:
+        return OracleResult(
+            action, False,
+            "top-level and provider-receipt payload digests disagree")
+    verification_digest = str(verification.get("payload_sha256") or "")
+    if verification_digest and verification_digest != top_digest:
+        return OracleResult(
+            action, False,
+            "verification payload digest disagrees with the receipt")
+    digest = top_digest
     return OracleResult(
         action, True,
         f"remote {remote_id} read back ({coverage}); "
