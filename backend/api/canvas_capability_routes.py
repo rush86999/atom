@@ -351,6 +351,7 @@ async def capability_derive_answer(
             db, canvas, current_user, clarification_id,
             [item.model_dump() for item in request.answers],
             expected_revision=request.expected_revision,
+            raise_on_refusal=True,
         )
     except CapabilityError as exc:
         return _error(exc)

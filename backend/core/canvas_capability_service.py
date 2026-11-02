@@ -2565,8 +2565,20 @@ def begin_derive_clarification(
     in the canvas, answers are applied through the existing edit operation and
     the same derive operation resumes the calculation.
     """
-    # Close the derive -> open-question race: the snapshot that produced the
-    # missing-value error must still be current when the question is stored.
+    # Close the derive -> open-question race: read the authoritative row
+    # rather than trusting an identity-map object, then CAS the question onto
+    # exactly the snapshot that produced the missing-value error.
+    db.rollback()
+    fresh = (
+        db.query(Canvas)
+        .filter(Canvas.id == canvas.id)
+        .populate_existing()
+        .first()
+    )
+    if fresh is None:
+        raise CapabilityError(
+            "not_found", "Canvas not found.", 404)
+    canvas = fresh
     if current_revision(canvas) != int(expected_revision):
         raise CapabilityError(
             "stale_revision",
@@ -2616,25 +2628,105 @@ def begin_derive_clarification(
         "missing": binding["missing"],
         "question": error.message,
     }
-    content["capability_derive_clarification"] = clarification
-    canvas.content = content
+    new_content = copy.deepcopy(content)
+    new_content["capability_derive_clarification"] = clarification
+    source = _dataset_source(canvas)
+    existing_id = (
+        str(existing.get("id") or "")
+        if isinstance(existing, dict) and existing.get("status") == "open"
+        else ""
+    )
+    if not _content_cas(
+            db, canvas.id,
+            expected_revision=int(expected_revision),
+            expected_manifest=str(manifest_revision_value or ""),
+            clarification_id=existing_id,
+            expected_source_version=str(source_version or ""),
+            expected_source_sha256=str(source.get("sha256") or ""),
+            content=new_content,
+            user_id=str(getattr(user, "id", "") or "")):
+        db.rollback()
+        raise CapabilityError(
+            "concurrent_edit",
+            "Another writer changed the canvas before the clarification could "
+            "be stored; derive again from the current revision.",
+            409,
+        )
+    db.expire(canvas)
     db.commit()
     return clarification
+
+
+def _content_cas(
+    db, canvas_id: str, *, expected_revision: int,
+    expected_manifest: str = "", clarification_id: str = "",
+    expected_source_version: str = "", expected_source_sha256: str = "",
+    content: Dict[str, Any], user_id: str = "",
+) -> bool:
+    """Conditional whole-content update bound to the authoritative revision.
+
+    SQLite does not enforce ``SELECT FOR UPDATE``; a refresh alone still leaves
+    a check-to-write race. This UPDATE is the database compare-and-swap: it
+    matches exactly the revision/manifest/question/source that was validated,
+    and a later writer makes the row count zero instead of being overwritten.
+    """
+    predicates = [
+        Canvas.id == canvas_id,
+        Canvas.content["capability_revision"].as_integer() == int(
+            expected_revision),
+    ]
+    if expected_manifest:
+        predicates.append(
+            Canvas.content["capability_manifest"]["manifest_revision"]
+            .as_string() == str(expected_manifest))
+    if clarification_id:
+        predicates.append(
+            Canvas.content["capability_derive_clarification"]["id"]
+            .as_string() == str(clarification_id))
+    if expected_source_version:
+        predicates.append(
+            Canvas.content["dataset"]["source"]["source_version"]
+            .as_string() == str(expected_source_version))
+    if expected_source_sha256:
+        predicates.append(
+            Canvas.content["dataset"]["source"]["sha256"]
+            .as_string() == str(expected_source_sha256))
+    statement = (
+        update(Canvas)
+        .where(*predicates)
+        .values(
+            content=content,
+            last_edited_by=user_id or None,
+            last_edited_at=_now(),
+        )
+    )
+    with db.no_autoflush:
+        result = db.execute(statement)
+    return int(result.rowcount or 0) == 1
 
 
 def _record_refused_answer(
     db, canvas: Canvas, clarification_id: str,
     answers: Sequence[Dict[str, Any]], reasons: Sequence[str],
     detail: str = "",
-) -> None:
+) -> bool:
     """Keep a refused attempt on the historical question; never edit rows."""
-    content = _canvas_content(canvas)
+    db.rollback()
+    fresh = (
+        db.query(Canvas)
+        .filter(Canvas.id == canvas.id)
+        .populate_existing()
+        .first()
+    )
+    if fresh is None:
+        return False
+    content = _canvas_content(fresh)
     clarification = content.get("capability_derive_clarification")
     if not isinstance(clarification, dict) or str(
             clarification.get("id") or "") != str(clarification_id):
-        return
+        return False
     if clarification.get("status") != "open":
-        return
+        return False
     refused = list(clarification.get("refused_answers") or [])
     refused.append({
         "answers": list(answers),
@@ -2644,12 +2736,27 @@ def _record_refused_answer(
     })
     clarification = dict(clarification)
     clarification["refused_answers"] = refused[-5:]
-    content["capability_derive_clarification"] = clarification
-    canvas.content = content
+    new_content = copy.deepcopy(content)
+    new_content["capability_derive_clarification"] = clarification
+    manifest = get_manifest(fresh)
+    source = _dataset_source(fresh)
+    if not _content_cas(
+            db, fresh.id,
+            expected_revision=current_revision(fresh),
+            expected_manifest=str(manifest.get("manifest_revision") or ""),
+            clarification_id=str(clarification_id),
+            expected_source_version=str(source.get("source_version") or ""),
+            expected_source_sha256=str(source.get("sha256") or ""),
+            content=new_content,
+            user_id=str(getattr(fresh, "last_edited_by", "") or "")):
+        db.rollback()
+        return False
+    db.expire(fresh)
     db.commit()
+    return True
 
 
-def answer_derive_clarification(
+def _answer_derive_clarification_impl(
     db, canvas: Canvas, user: Any, clarification_id: str,
     answers: Sequence[Dict[str, Any]], *,
     expected_revision: Optional[int] = None,
@@ -2662,13 +2769,20 @@ def answer_derive_clarification(
     any edit. A mismatch refuses and records the refused attempt; it never
     changes the replacement source.
     """
+    # End any caller transaction and force an authoritative read. The SQL
+    # CAS below is still required: SQLite ignores FOR UPDATE, and a writer can
+    # commit after this refresh but before our write.
+    db.rollback()
     fresh = (
         db.query(Canvas)
         .filter(Canvas.id == canvas.id)
+        .populate_existing()
         .with_for_update()
         .first()
-        or canvas
     )
+    if fresh is None:
+        raise CapabilityError(
+            "not_found", "Canvas not found.", 404)
     authorize_canvas(db, fresh, user)
     content = _canvas_content(fresh)
     clarification = content.get("capability_derive_clarification")
@@ -2750,6 +2864,10 @@ def answer_derive_clarification(
             f"{current_revision(fresh)}. Nothing was changed.",
             409,
         )
+    validated_revision = current_revision(fresh)
+    validated_manifest = str(
+        current_manifest.get("manifest_revision") or "")
+    validated_source = dict(_dataset_source(fresh))
     missing = list(clarification.get("missing") or [])
     required = {
         (int(item["row"]), str(item["field_id"])): item for item in missing}
@@ -2789,28 +2907,32 @@ def answer_derive_clarification(
         "row": row, "column": field_by_id[field_id]["column"],
         "value": answer["value"],
     } for (row, field_id), answer in supplied.items()]
+    answer_revision = current_revision(fresh)
+    answer_source = _dataset_source(fresh)
+    answer_manifest = str(current_manifest.get("manifest_revision") or "")
     try:
-        # One transaction: the edit, the answered derive and the resolution
-        # all commit together. A failed derive rolls the edit back and leaves
-        # the question open with the refused attempt recorded.
-        edited = edit_operation(
-            db, fresh, user, edits, expected_revision=expected_revision,
-            commit=False)
-        if not edited.get("success"):
-            raise CapabilityError(
-                "answer_readback_mismatch",
-                "The answer was not read back from the authoritative store.",
-                409,
-                edits=edited.get("edits"),
+        # No ORM flush may occur between the edit and the CAS: the database
+        # compare-and-swap is the only canvas write in this transaction.
+        with db.no_autoflush:
+            edited = edit_operation(
+                db, fresh, user, edits, expected_revision=expected_revision,
+                commit=False)
+            if not edited.get("success"):
+                raise CapabilityError(
+                    "answer_readback_mismatch",
+                    "The answer was not read back from the authoritative "
+                    "store.",
+                    409,
+                    edits=edited.get("edits"),
+                )
+            result = derive_operation(
+                db, fresh, user,
+                expected_revision=current_revision(fresh),
+                manifest_revision_value=get_manifest(fresh).get(
+                    "manifest_revision"),
+                source_version=(get_dataset(
+                    fresh).get("source") or {}).get("source_version"),
             )
-        result = derive_operation(
-            db, fresh, user,
-            expected_revision=current_revision(fresh),
-            manifest_revision_value=get_manifest(fresh).get(
-                "manifest_revision"),
-            source_version=(get_dataset(
-                fresh).get("source") or {}).get("source_version"),
-        )
     except CapabilityError as exc:
         db.rollback()
         try:
@@ -2831,19 +2953,66 @@ def answer_derive_clarification(
         "answers_digest": digest,
         "resolved_at": _now().isoformat(),
         "resolved_by": str(getattr(user, "id", "") or ""),
-        "revision": current_revision(fresh),
+        "revision": result.get("revision"),
         "result_digest": result["input_receipt"]["digest"],
     })
     content["capability_derive_clarification"] = clarification
-    fresh.content = content
+    if not _content_cas(
+            db, fresh.id,
+            expected_revision=answer_revision,
+            expected_manifest=answer_manifest,
+            clarification_id=clarification_id,
+            expected_source_version=str(
+                answer_source.get("source_version") or ""),
+            expected_source_sha256=str(answer_source.get("sha256") or ""),
+            content=content,
+            user_id=str(getattr(user, "id", "") or "")):
+        db.rollback()
+        raise CapabilityError(
+            "concurrent_edit",
+            "Another writer changed the canvas after the answer was read; "
+            "the replacement snapshot was left intact. Derive again.",
+            409,
+        )
+    db.expire(fresh)
     db.commit()
     return {
         "success": True,
         "status": "resolved",
         "clarification_id": clarification_id,
         "result": result,
-        "revision": current_revision(fresh),
+        "revision": result.get("revision"),
     }
+
+
+def answer_derive_clarification(
+    db, canvas: Canvas, user: Any, clarification_id: str,
+    answers: Sequence[Dict[str, Any]], *,
+    expected_revision: Optional[int] = None,
+    raise_on_refusal: bool = True,
+) -> Dict[str, Any]:
+    """Answer one question; direct callers get a typed refusal result.
+
+    The public route passes ``raise_on_refusal=True`` so its HTTP boundary
+    remains 409. Direct callers raise by default; a caller that needs to
+    inspect durable state may pass ``False`` and receive the refusal payload.
+    """
+    try:
+        return _answer_derive_clarification_impl(
+            db, canvas, user, clarification_id, answers,
+            expected_revision=expected_revision)
+    except CapabilityError as exc:
+        if raise_on_refusal:
+            raise
+        return {
+            "success": False,
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                **dict(exc.extra or {}),
+            },
+        }
 
 
 def _evidence_index(
@@ -3353,9 +3522,15 @@ def edit_operation(
     expected_revision: Optional[int] = None,
     commit: bool = True,
 ) -> Dict[str, Any]:
+    canvas = _reload_canvas(db, canvas)
     manifest = _require_effective(canvas, "edit")
     _require_approval(canvas, manifest, "edit", user)
     _assert_bound_source_access(db, canvas, user)
+    previous_revision = current_revision(canvas)
+    previous_source_version = str(
+        _dataset_source(canvas).get("source_version") or "")
+    previous_manifest_revision = str(
+        manifest.get("manifest_revision") or "")
     content = _canvas_content(canvas)
     dataset = get_dataset(canvas)
     columns = list(dataset.get("columns") or [])
@@ -3452,9 +3627,17 @@ def edit_operation(
             "source_version": dataset["source"]["source_version"],
         })
     if commit:
-        db.commit()
-    # Read back from the authoritative row, not the in-memory request.
-    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first() or canvas
+        _commit_canvas_content_cas(
+            db, canvas, content,
+            expected_revision=previous_revision,
+            expected_source_version=previous_source_version,
+            expected_manifest_revision=previous_manifest_revision,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+        )
+        # Read back from the authoritative row, not the in-memory request.
+        fresh = _reload_canvas(db, canvas)
+    else:
+        fresh = canvas
     fresh_dataset = get_dataset(fresh)
     fresh_rows = fresh_dataset.get("rows") or []
     fresh_sheet_rows = fresh_dataset.get("sheet_rows") or []
@@ -3568,7 +3751,8 @@ def _reload_canvas(db, canvas: Canvas) -> Canvas:
     """Authoritative read that bypasses the session's identity-map copy.
 
     A stale ORM object is exactly how a lost update happens: validation sees
-    revision N while the database is already at N+1.
+    revision N while the database is already at N+1. This is only the read
+    side; the write side must still use the CAS predicates below.
     """
     if db is None:
         return canvas
@@ -3579,6 +3763,87 @@ def _reload_canvas(db, canvas: Canvas) -> Canvas:
         .one_or_none()
     )
     return fresh or canvas
+
+
+def _canvas_cas_predicates(
+    dialect: str, revision: int, source_version: str,
+    manifest_revision: str,
+):
+    """WHERE-clause predicates for an atomic canvas content write.
+
+    The database evaluates the persisted revision, source version and manifest
+    revision. A writer that lands between our read and our update makes this
+    update match zero rows instead of overwriting the replacement dataset.
+    This is deliberately not an ORM reload or a row lock.
+    """
+    if dialect == "sqlite":
+        return [
+            func.json_extract(
+                Canvas.content, "$.capability_revision") == int(revision),
+            func.json_extract(
+                Canvas.content, "$.dataset.source.source_version")
+            == str(source_version),
+            func.json_extract(
+                Canvas.content,
+                "$.capability_manifest.manifest_revision")
+            == str(manifest_revision),
+        ]
+    if dialect == "postgresql":
+        return [
+            Canvas.content["capability_revision"].astext == str(revision),
+            Canvas.content["dataset"]["source"]["source_version"].astext
+            == str(source_version),
+            Canvas.content["capability_manifest"]["manifest_revision"].astext
+            == str(manifest_revision),
+        ]
+    raise CapabilityError(
+        "cas_unsupported",
+        f"Atomic canvas writes are not implemented for dialect {dialect!r}; "
+        "refusing an unchecked write.",
+        500,
+    )
+
+
+def _commit_canvas_content_cas(
+    db, canvas: Canvas, content: Dict[str, Any], *,
+    expected_revision: int, expected_source_version: str,
+    expected_manifest_revision: str, last_edited_by: Optional[str] = None,
+) -> None:
+    """Commit content only if the persisted snapshot is still the one read.
+
+    The caller's dirty ORM object is expunged before commit so SQLAlchemy
+    cannot flush it as an unconditional primary-key UPDATE. The conditional
+    UPDATE is the only canvas-state write in this transaction.
+    """
+    dialect = db.get_bind().dialect.name
+    predicates = _canvas_cas_predicates(
+        dialect, expected_revision, expected_source_version,
+        expected_manifest_revision)
+    statement = (
+        update(Canvas)
+        .where(Canvas.id == canvas.id, *predicates)
+        .values(
+            content=content,
+            last_edited_by=last_edited_by,
+            last_edited_at=_now(),
+        )
+    )
+    with db.no_autoflush:
+        result = db.execute(statement)
+        if result.rowcount != 1:
+            db.rollback()
+            raise CapabilityError(
+                "concurrent_edit",
+                "Another writer changed the canvas after this request read "
+                "it. The write matched zero rows; the replacement snapshot "
+                "was left intact. Derive again.",
+                409,
+            )
+        # Expire the dirty ORM snapshot instead of flushing it: commit must
+        # not emit an unconditional primary-key UPDATE after the CAS.
+        if canvas in db:
+            db.expire(canvas)
+        db.commit()
 
 
 def _assessment_cas_predicates(

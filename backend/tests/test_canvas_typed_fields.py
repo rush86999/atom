@@ -20,6 +20,7 @@ from sqlalchemy.pool import StaticPool
 from core.auth import get_current_user
 from core.canvas_capability_service import (
     CapabilityError,
+    answer_derive_clarification,
     bind_dataset,
     current_revision,
     derive_operation,
@@ -779,6 +780,95 @@ def test_old_open_clarification_refuses_replacement_source(db, user):
     assert new_question["binding"]["source"]["file_name"] == "b.csv"
 
 
+def test_stale_session_old_answer_cannot_replace_newer_source(db, user):
+    from sqlalchemy.orm import sessionmaker
+
+    canvas = _canvas(db, user, "canvas_lost_update", "Lost update")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "lost-a.csv"})
+    client = _client(db, user)
+    question = client.post(
+        "/api/canvas/canvas_lost_update/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()["clarification"]
+    writer = sessionmaker(bind=db.get_bind(), expire_on_commit=False)()
+    try:
+        replacement = writer.query(Canvas).filter(
+            Canvas.id == canvas.id).one()
+        replacement_result = bind_dataset(
+            writer, replacement, user, ["Item", "Qty", "Price"],
+            [["B", "", "1000.00"]], source={"file_name": "lost-b.csv"})
+        with pytest.raises(CapabilityError) as exc:
+            answer_derive_clarification(
+                db, canvas, user, question["id"],
+                [{"row": 2, "field_id": "quantity", "value": "2"}],
+                expected_revision=first["revision"])
+        assert exc.value.code == "stale_clarification"
+        writer.expire_all()
+        durable = writer.query(Canvas).filter(
+            Canvas.id == canvas.id).one()
+        assert get_dataset(durable)["rows"][0][0] == "B"
+        assert current_revision(durable) == replacement_result["revision"]
+        clarification = durable.content["capability_derive_clarification"]
+        assert clarification["status"] != "resolved"
+    finally:
+        writer.close()
+
+
+def test_writer_after_validation_but_before_cas_wins(db, user, monkeypatch):
+    from sqlalchemy.orm import sessionmaker
+    from core import canvas_capability_service as service
+
+    canvas = _canvas(db, user, "canvas_cas_race", "CAS race")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "race-a.csv"})
+    client = _client(db, user)
+    question = client.post(
+        "/api/canvas/canvas_cas_race/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()["clarification"]
+    original_derive = service.derive_operation
+    writer = sessionmaker(bind=db.get_bind(), expire_on_commit=False)()
+
+    def racing_derive(*args, **kwargs):
+        result = original_derive(*args, **kwargs)
+        replacement = writer.query(Canvas).filter(
+            Canvas.id == canvas.id).one()
+        bind_dataset(
+            writer, replacement, user, ["Item", "Qty", "Price"],
+            [["B", "", "1000.00"]], source={"file_name": "race-b.csv"})
+        return result
+
+    monkeypatch.setattr(service, "derive_operation", racing_derive)
+    try:
+        with pytest.raises(CapabilityError) as exc:
+            answer_derive_clarification(
+                db, canvas, user, question["id"],
+                [{"row": 2, "field_id": "quantity", "value": "2"}],
+                expected_revision=first["revision"])
+        assert exc.value.code == "concurrent_edit"
+        writer.expire_all()
+        durable = writer.query(Canvas).filter(
+            Canvas.id == canvas.id).one()
+        rows = get_dataset(durable)["rows"]
+        assert rows[0][0] == "B"
+        assert rows[0][1] == ""
+        assert durable.content["capability_derive_clarification"][
+            "status"] != "resolved"
+    finally:
+        writer.close()
+
+
 def test_failed_derive_rolls_back_answer_and_keeps_question_open(db, user):
     canvas = _canvas(db, user, "canvas_answer_rollback", "Rollback")
     set_manifest(db, canvas, user, _quote_manifest())
@@ -912,3 +1002,65 @@ def test_answer_refuses_after_manifest_or_edit_change(db, user):
     assert changed["manifest"]["manifest_revision"] != (
         first["manifest"]["manifest_revision"])
     assert get_dataset(canvas)["rows"][0][1] == ""
+
+
+def test_stale_session_answer_cannot_overwrite_replacement_source(db, user):
+    """Two sessions: A's cached question must not write over B's dataset.
+
+    The answer is submitted with the replacement's current revision, so a
+    revision-only check is insufficient. The database CAS must reject the
+    write and a fresh session must still see B.
+    """
+    from sqlalchemy.orm import Session
+
+    canvas = _canvas(db, user, "canvas_stale_session", "Stale session")
+    set_manifest(db, canvas, user, _quote_manifest())
+    bound = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "a.csv"})
+    client = _client(db, user)
+    opened = client.post(
+        "/api/canvas/canvas_stale_session/capability/derive",
+        json={
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    question = opened.json()["clarification"]
+
+    writer = Session(bind=db.get_bind(), expire_on_commit=False)
+    try:
+        replacement = writer.query(Canvas).filter(
+            Canvas.id == canvas.id).one()
+        rebound = bind_dataset(
+            writer, replacement, user, ["Item", "Qty", "Price"],
+            [["B", "", "1000.00"]], source={"file_name": "b.csv"})
+        with pytest.raises(CapabilityError) as exc:
+            from core.canvas_capability_service import (
+                answer_derive_clarification,
+            )
+            answer_derive_clarification(
+                db, canvas, user, question["id"],
+                [{"row": 2, "field_id": "quantity", "value": "2"}],
+                expected_revision=rebound["revision"])
+        assert exc.value.code in {
+            "stale_clarification", "concurrent_edit"}
+        # The writer session is authoritative; B is unchanged.
+        writer.expire_all()
+        durable = writer.query(Canvas).filter(Canvas.id == canvas.id).one()
+        assert get_dataset(durable)["rows"][0][:3] == [
+            "B", "", "1000.00"]
+        assert current_revision(durable) == rebound["revision"]
+
+        # A fresh session sees the same intact replacement, not A's answer.
+        fresh = Session(bind=db.get_bind(), expire_on_commit=False)
+        try:
+            observed = fresh.query(Canvas).filter(
+                Canvas.id == canvas.id).one()
+            assert get_dataset(observed)["rows"][0][:3] == [
+                "B", "", "1000.00"]
+            assert get_dataset(observed)["rows"][0][1] == ""
+        finally:
+            fresh.close()
+    finally:
+        writer.close()
