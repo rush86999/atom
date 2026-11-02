@@ -446,3 +446,17 @@ candidate.
   `docs/acceptance/evidence/brennan_connected_browser_20261101/`.
 - Final tests: joint core **251 passed**; Agent 2 focused **273**; Agent 1
   required **174**. No live provider or send.
+
+**Final executable-transfer and production-browser candidate (2026-11-02):**
+`codex/brennan-joint-review-20261101` at `c442cd9d7`.
+- Integrated the shared executable serialization budget: 79/80/81 rows,
+  byte-exact base64, multibyte content, complete receipts, final calculation,
+  restart, 501-row partial refusal, oversized content, aggregate/key/nested
+  bounds and post-effect uncertainty. Data-transfer boundary controls: **25
+  passed**; joint core **263 passed**.
+- Browser acceptance server now replaces only the provider service; the
+  production `connected.workdrive.read_file` action/parser/coverage/executor
+  run unchanged. Real backend restart PIDs recorded, source v1 -> v2 bound
+  into read receipt and calculated rows, estimate **376.75**, Outlook draft
+  **376.75**, no send. Browser: **14/14 checks passed**.
+- Evidence: `docs/acceptance/evidence/brennan_connected_browser_20261101/`.

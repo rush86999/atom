@@ -9,7 +9,10 @@ This batch closes the reproduced blocking defects:
 2. sparse/wrong estimate and bill readbacks returned zero conflicts;
 3. returned `uncertain` action envelopes were not proven through a real
    assignment using the actual connected handler;
-4. capped/fixed/unsupported pricing rules silently applied only the rate.
+4. capped/fixed/unsupported pricing rules silently applied only the rate;
+5. executable results were silently sliced at diagnostic limits;
+6. the browser acceptance server bypassed the production WorkDrive handler;
+7. row evidence was pinned to a hardcoded `v1` after the source changed.
 
 No live Zoho/Microsoft call, write, refresh or send was performed.
 
@@ -47,6 +50,22 @@ refused with a typed `QuoteInputError`; `_quote_calculate` maps that to a
 commercial effect. Tests cover caps, cap amounts, max discounts, fixed
 amounts, formulas, tiers, unsupported basis/type and unknown fields, plus a
 public-route proof that no action is called.
+
+## Executable data transfer
+
+The executor now separates diagnostic summaries from executable values.
+`_json_safe` preserves `rows`, `items`, `line_items`, `records`, `data`,
+`content_b64`, receipts, evidence and nested verification data exactly within
+one aggregate budget, or raises `ExecutablePayloadTooLarge`. The shared budget
+enforces depth, node count, dictionary/list entries, key length, per-string
+size and aggregate UTF-8 bytes. A read over the budget fails explicitly; a
+mutation that overflows after dispatch raises `ExternalOutcomeUnknown` with
+the remote identity preserved.
+
+Controls cover 79/80/81 rows with byte-exact base64, multibyte text, complete
+receipts, the final calculation using every row, restart persistence, 501-row
+partial coverage blocking calculation, oversized inline content, aggregate
+bytes, oversized keys, nested receipts and post-effect uncertainty.
 
 ## Commercial readback
 
@@ -106,15 +125,18 @@ when line items are supplied.
 
 | Suite | Result |
 |---|---|
-| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **251 passed** |
+| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping + serialization) | **263 passed** |
+| Data-transfer boundary controls (79/80/81, partial, oversized, nested, multibyte, restart) | **25 passed** |
 | Agent 2 focused provider/accounting/readback | **273 passed** |
 | Agent 1 required assignment suite | **174 passed** |
 | Public route quote/source-change/teaching-reassessment journey | **4 passed** |
+| Browser connected journey | **14/14 checks** |
 | Extended assignment/action-registry suite | **334 passed, 4 pre-existing baseline failures** |
 
 The 4 failures are turn-count/LLM-orchestration tests in
 `tests/test_task_lifecycle.py`; they reproduce at baseline `acd86a2aa` without
-this batch.
+this batch. Tests were run with the available `backend/venv314` interpreter;
+the previously used 3.11 venv was no longer present.
 
 ## Browser journey
 
@@ -122,20 +144,25 @@ Installed the documented frontend dependencies (`npm install
 --legacy-peer-deps`) and Playwright Chromium in the review worktree. The
 browser gate `scripts/acceptance/brennan_connected_browser.cjs` runs the real
 Assignments page against the standalone acceptance server (real routes and
-executor, controlled connected providers):
+executor). Only the provider service is replaced with a controlled fake; the
+production `connected.workdrive.read_file` action, CSV parser, coverage checks
+and executor are used unchanged.
 
 1. connected CSV bytes are read and parsed;
 2. the discount qualification clarification is shown;
 3. the page is left and the backend process is restarted;
-4. the connected source bytes change from 50.00 to 55.00 and the read branch is
+4. the real backend process is restarted (old/new PIDs recorded);
+5. the connected source bytes change from 50.00 to 55.00 and the read branch is
    invalidated;
-5. the qualification is answered in the browser;
-6. the corrected quote reaches estimate approval;
-7. the estimate readback is **376.75**;
-8. the Outlook draft body is **376.75**;
-9. reloading shows the completed assignment.
+6. the qualification is answered in the browser;
+7. the production WorkDrive receipt and calculated rows identify **v2** with
+   the v2 SHA-256;
+8. the corrected quote reaches estimate approval;
+9. the estimate readback is **376.75**;
+10. the Outlook draft body is **376.75**;
+11. reloading shows the completed assignment.
 
-Result: **9/9 checks passed**. Evidence:
+Result: **14/14 checks passed**. Evidence:
 `docs/acceptance/evidence/brennan_connected_browser_20261101/`
 (`checks.json`, screenshots, backend logs). No live provider or send was
 used; the controlled Outlook fake refuses `send_email`.
