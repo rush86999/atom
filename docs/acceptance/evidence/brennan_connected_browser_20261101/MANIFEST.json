@@ -112,6 +112,14 @@
     "command": "BRENNAN_BROWSER_OUT=/private/tmp/brennan-browser-final3 node scripts/acceptance/brennan_connected_browser.cjs",
     "draft_total": "376.75",
     "estimated_total": "376.75",
+    "process_identities": {
+      "new_instance_id": "97c43c7e7dcc.63594.1793588724",
+      "new_pid": 63594,
+      "new_source_id": "97c43c7e7dcc",
+      "old_instance_id": "97c43c7e7dcc.63587.1793588721",
+      "old_pid": 63587,
+      "old_source_id": "97c43c7e7dcc"
+    },
     "send_attempts": 0,
     "source_version_expected": "v2 after correction; v1 retained only in prior_results"
   },
@@ -123,12 +131,23 @@
     "tree_clean_at_execution": true,
     "worktree": "/private/tmp/atom-brennan-review"
   },
+  "configuration": {
+    "api": "standalone assignment acceptance server on real routes/executor/sqlite",
+    "authentication": "controlled browser-admin session; acceptance-server dependency override",
+    "clean_source_required": true,
+    "database": "scratch sqlite world/atom.db",
+    "provider_substitution": "only provider services are faked; production registered WorkDrive/OneDrive/Books/Outlook actions and parsers run",
+    "ui": "production Next.js build from the executed source; real Assignments page",
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-connected-browser"
+  },
   "exclusions": [
     "standalone acceptance server, not full-app authentication/profile/navigation",
     "no live Zoho/Microsoft provider call, refresh, write or send",
     "no universal mini-app/canvas runtime claim",
     "evidence commit is docs-only after the executed source head"
   ],
+  "failure_note": "No failures in the frozen clean run. Dirty development runs were rejected by the source-identity assertion and are not acceptance evidence.",
+  "failure_records": [],
   "providers": {
     "books": "controlled fake provider service behind registered connected.books actions",
     "live_provider_calls": 0,
@@ -136,7 +155,29 @@
     "outlook": "controlled fake service; send_email raises and increments send_attempts",
     "workdrive": "production registered connected.workdrive.read_file action and CSV parser; only provider service replaced with controlled bytes/metadata"
   },
-  "schema": "brennan-connected-browser-manifest-1",
+  "request_identities": [
+    {
+      "objective": "Browser connected quote 1793588721969",
+      "run_id": "5fdd95b5-1a5e-42c6-b114-490b712c4dc4",
+      "status": "completed"
+    },
+    {
+      "objective": "Browser control resume 1793588727231",
+      "run_id": "c1b8090e-09fe-4ac5-ada9-83baa9488bf2",
+      "status": "cancelled"
+    },
+    {
+      "objective": "Browser control cancel 1793588727874",
+      "run_id": "3f5c9564-8031-43ad-bd8f-81bb300e3467",
+      "status": "cancelled"
+    },
+    {
+      "objective": "Browser control uncertain 1793588727972",
+      "run_id": "025368b4-406c-4d25-9e2a-6662a5a3d0f5",
+      "status": "completed"
+    }
+  ],
+  "schema": "brennan-connected-browser-manifest-2",
   "source_hashes": {
     "backend/core/assignment_executor.py": "54d69e59e97a990f8ee9197bff74dff7e91f7227407ee9060dcef367d224c8d3",
     "backend/core/commercial_readback.py": "315d0abfc52a314ff9ee040c0b6d4837c2e5f6de53e14b5488f0adcf3a53a851",
@@ -157,8 +198,13 @@
       "result": "279 passed"
     },
     "data_transfer_boundary": {
-      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py /private/tmp/test_verifier_brennan_transfer.py -q",
-      "result": "35 passed"
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py -q",
+      "result": "32 passed",
+      "scope": "checkout-tracked only; the verifier probe is independent and not required for this manifest"
+    },
+    "joint_batch": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_quote_evidence.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/integration/test_brennan_joint_quote_campaign.py -q",
+      "result": "309 passed"
     },
     "joint_core": {
       "command": "pytest tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_assignment_routes.py tests/test_quote_evidence.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_quote_rows.py tests/unit/test_serialization_budget.py tests/unit/test_brennan_bookkeeping_registered.py -q",
