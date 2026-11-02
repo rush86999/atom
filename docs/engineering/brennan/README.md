@@ -6,6 +6,23 @@ These are implementation orders, not claims that the workflows already pass.
 The accepted 111/123 feature milestone remains source-bound. These orders add
 business-process acceptance without changing its denominator or historical evidence.
 
+## Current verification coverage
+
+Use the [whole-product marketing verification plan](../../acceptance/MARKETING_FEATURE_VERIFICATION_PLAN_2026-11-02.md)
+and its [143-claim mapping](../../acceptance/MARKETING_FEATURE_VERIFICATION_PLAN_2026-11-02.json)
+alongside these work orders. The original 123 functional promises remain the
+completion target even where current README wording is narrower. Security,
+compatibility, performance and comparative statements are tracked separately.
+The opening base/date and older implementation notes below are historical;
+they do not supersede current source-bound verifier decisions.
+
+As of November 2, connected business execution is accepted within the controlled
+scope at `6431bcb78`, and typed canvases within local SQLite scope at
+`4859b0ce2477`. Canvas-assignment teaching at `acc22b9283bc` remains withheld on
+four reproduced promotion/authorization/consumption defects. Complete that repair
+batch, then continue the normal full-app journeys and the original open claims;
+do not stop at a new component demonstration or silently retire an omitted claim.
+
 ## Mandatory domain independence
 
 Read the [domain-independent product contract](../DOMAIN_INDEPENDENCE.md).

@@ -460,3 +460,9 @@ candidate.
   into read receipt and calculated rows, estimate **376.75**, Outlook draft
   **376.75**, no send. Browser: **14/14 checks passed**.
 - Evidence: `docs/acceptance/evidence/brennan_connected_browser_20261101/`.
+
+
+**2026-11-02 verifier documentation audit in progress:** additive marketing-feature verification plan + machine-readable 143-claim mapping in docs/acceptance; link from docs/engineering/brennan/README.md. Historical inventories/manifests and runtime files remain unchanged. Purpose: preserve original feature scope beyond the narrower current copy and make every claim/source/consumer boundary visible. Current canvas-assignment teaching repair is still open at acc22b9283bc.
+
+
+**2026-11-02 verifier documentation audit complete:** added docs/acceptance/MARKETING_FEATURE_VERIFICATION_PLAN_2026-11-02.{md,json}; links added to engineering/brennan/README.md. All 143 frozen claim IDs mapped (123 functional + 20 separately tracked), original texts/statuses preserved, owners and consuming/negative boundaries assigned; 12 original open functional claims remain explicit. 102 inventory rows have historical absolute local evidence references: new/reused release claims must resolve committed source/manifests. Validated mapping integrity, relative links and git diff --check. No runtime, accepted manifest, historical inventory, tag or score changed. Current teaching repair remains open; both agents continue their coherent batch.
