@@ -39,9 +39,14 @@ Covered:
 | Suite | Command result |
 |---|---|
 | Joint core | **281 passed** |
-| Data-transfer boundary (79/80/81, partial, oversized, exact limit, backslashes, nested, restart) | **35 passed** |
+| Data-transfer boundary, tracked (79/80/81, partial, oversized, exact limit, backslashes, nested, restart) | **32 passed** |
+| Consolidated batch (all focused files below plus campaign/real-effect) | **309 passed** |
 | Agent 2 focused provider/accounting/readback/bookkeeping | **279 passed** |
 | Agent 1 required assignment suite | **175 passed** |
+
+The independent verifier's focused run (14 controls, including its own
+transfer probe) is recorded separately; this checkout does not depend on the
+external probe file.
 
 Known pre-existing baseline failures: 4 turn-count/LLM-orchestration tests in
 `tests/test_task_lifecycle.py`; they reproduce at baseline `acd86a2aa` and are
