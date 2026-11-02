@@ -61,6 +61,9 @@ def _scratch_environment(ollama_url: str, model: str) -> Path:
         "OLLAMA_CONTEXT_WINDOW": "16384",
         "OLLAMA_MODEL": model,
         "ATOM_GOAL_RUN_ROUTER_PROVIDER_MODEL": f"ollama:{model}",
+        # The alignment sweep is double-gated (never a PR gate). This probe
+        # supplies its own local chat_fn and explicitly enables the gate.
+        "ATOM_ALIGNMENT_SWEEP_ENABLED": "true",
     })
     (tmp / "data").mkdir(parents=True, exist_ok=True)
     return tmp
@@ -464,7 +467,7 @@ async def _run_alignment(
         }
         try:
             text = _run_coroutine_sync(
-                service.generate_response(
+                service.generate(
                     prompt=user,
                     system_instruction=system,
                     temperature=0.0,
