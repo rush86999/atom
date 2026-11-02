@@ -6,6 +6,7 @@ transport; no live provider is contacted.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -111,7 +112,42 @@ CONNECTED = {
     "estimates": [],
     "drafts": [],
     "last_payload": None,
+    "send_attempts": 0,
+    # Fault injection for the recovery journeys. Only the fake provider
+    # services are affected; the registered actions and parsers stay real.
+    "fail_estimate_after_apply": 0,
+    "readback_failures": 0,
 }
+
+# Provider effects survive a backend restart so an uncertainty control can
+# prove "no second create" against the same durable provider world.
+CONNECTED_STATE = SCRATCH / "connected-effect-state.json"
+
+
+def _save_connected_state() -> None:
+    CONNECTED_STATE.write_text(json.dumps({
+        "version": CONNECTED["version"],
+        "bytes_b64": base64.b64encode(CONNECTED["bytes"]).decode("ascii"),
+        "calls": CONNECTED["calls"],
+        "estimates": CONNECTED["estimates"],
+        "drafts": CONNECTED["drafts"],
+        "last_payload": CONNECTED["last_payload"],
+        "send_attempts": CONNECTED["send_attempts"],
+    }))
+
+
+if CONNECTED_STATE.exists():
+    try:
+        _persisted = json.loads(CONNECTED_STATE.read_text())
+        for _key in ("version", "calls", "estimates", "drafts",
+                     "last_payload", "send_attempts"):
+            if _key in _persisted:
+                CONNECTED[_key] = _persisted[_key]
+        if _persisted.get("bytes_b64"):
+            CONNECTED["bytes"] = base64.b64decode(
+                _persisted["bytes_b64"])
+    except (OSError, ValueError):
+        pass
 
 
 class _ControlledWorkDrive:
@@ -154,9 +190,17 @@ class _ControlledBooks:
             "line_items": data["line_items"],
         }
         CONNECTED["estimates"].append(estimate)
+        _save_connected_state()
+        if CONNECTED["fail_estimate_after_apply"] > 0:
+            CONNECTED["fail_estimate_after_apply"] -= 1
+            raise RuntimeError(
+                "controlled disconnect after the estimate landed")
         return estimate
 
     async def get_estimate(self, token, org, estimate_id):
+        if CONNECTED["readback_failures"] > 0:
+            CONNECTED["readback_failures"] -= 1
+            raise RuntimeError("controlled readback connection lost")
         return next(item for item in CONNECTED["estimates"]
                     if item["estimate_id"] == estimate_id)
 
@@ -178,10 +222,13 @@ class _ControlledOutlook:
             "body": kwargs.get("body"),
             "to": kwargs.get("to_recipients"),
         })
+        _save_connected_state()
         return {"id": f"draft-browser-{len(CONNECTED['drafts'])}",
                 "subject": kwargs.get("subject")}
 
     async def send_email(self, *args, **kwargs):  # pragma: no cover
+        CONNECTED["send_attempts"] += 1
+        _save_connected_state()
         self.sent = True
         raise AssertionError("controlled draft must not send")
 
@@ -360,10 +407,13 @@ from pydantic import BaseModel  # noqa: E402
 
 app = FastAPI(title="Assignment browser acceptance")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["http://127.0.0.1:3003",
-                                   "http://localhost:3003",
-                                   "http://127.0.0.1:3004",
-                                   "http://localhost:3004"],
+    CORSMiddleware, allow_origins=[
+        "http://127.0.0.1:3003", "http://localhost:3003",
+        "http://127.0.0.1:3004", "http://localhost:3004",
+        *[origin.strip() for origin in os.getenv(
+            "ATOM_ASSIGNMENT_BROWSER_ORIGINS", "").split(",")
+          if origin.strip()],
+    ],
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(router)
@@ -615,6 +665,24 @@ class ConnectedSourceRequest(BaseModel):
     version: str = "v1"
 
 
+class ConnectedFaultRequest(BaseModel):
+    estimate_fail_after_apply: int = 0
+    readback_failures: int = 0
+
+
+@app.post("/_acceptance/connected/fault")
+def acceptance_connected_fault(body: ConnectedFaultRequest):
+    CONNECTED["fail_estimate_after_apply"] = max(
+        0, int(body.estimate_fail_after_apply))
+    CONNECTED["readback_failures"] = max(0, int(body.readback_failures))
+    return {
+        "ok": True,
+        "estimate_fail_after_apply":
+            CONNECTED["fail_estimate_after_apply"],
+        "readback_failures": CONNECTED["readback_failures"],
+    }
+
+
 @app.post("/_acceptance/connected/source")
 def acceptance_connected_source(body: ConnectedSourceRequest):
     CONNECTED["bytes"] = body.content.encode("utf-8")
@@ -643,6 +711,10 @@ def acceptance_connected_state():
         } for item in CONNECTED["estimates"]],
         "drafts": list(CONNECTED["drafts"]),
         "last_payload": CONNECTED["last_payload"],
+        "send_attempts": CONNECTED["send_attempts"],
+        "estimate_fail_after_apply":
+            CONNECTED["fail_estimate_after_apply"],
+        "readback_failures": CONNECTED["readback_failures"],
     }
 
 

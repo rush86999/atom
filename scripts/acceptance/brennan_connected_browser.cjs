@@ -90,6 +90,7 @@ async function startServer(reset) {
     ATOM_ASSIGNMENT_BROWSER_WORLD: WORLD,
     ATOM_ASSIGNMENT_BROWSER_WORLD_RESET: reset ? "1" : "0",
     ATOM_ASSIGNMENT_BROWSER_PORT: String(PORT),
+    ATOM_ASSIGNMENT_BROWSER_ORIGINS: UI,
     ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS: "1",
     ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS: "1",
     ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT: WORLD,
@@ -141,6 +142,87 @@ async function screenshot(page, name) {
   const file = path.join(OUT, `${name}.png`);
   await page.screenshot({ path: file, fullPage: true });
   return file;
+}
+
+async function startConnectedAssignment(health, label) {
+  const objective = `Browser control ${label} ${Date.now()}`;
+  const ref = `RFQ-CONTROL-${label}-${Date.now()}`;
+  const planResponse = await getJson(
+    `${API}/_acceptance/connected/plan?objective=${encodeURIComponent(objective)}&ref=${encodeURIComponent(ref)}`);
+  if (planResponse.status !== 200) {
+    throw new Error(`control plan failed: ${planResponse.status} ${JSON.stringify(planResponse.body)}`);
+  }
+  const created = await getJson(`${API}/api/assignments`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      objective, agent_id: health.agent_id,
+      sources: [{
+        kind: "document", representation: "file",
+        internal_fixture: true, path: health.document,
+        resource_id: "browser-source",
+      }],
+      proposed_steps: planResponse.body.steps,
+      authorized_actions: ["calculate", "outbound"],
+      deliverables: [{
+        kind: "email_draft", step_id: "email-draft",
+        description: "Quote email",
+        to: ["buyer@example.invalid"],
+        subject: `Quote ${ref}`,
+        body: "Quoted total: ${calculate.value} USD",
+      }],
+      task_context: { audience: "quote-reviewer" },
+    }),
+  });
+  if (created.status !== 200) {
+    throw new Error(`control start failed: ${created.status} ${JSON.stringify(created.body)}`);
+  }
+  return { runId: created.body.run_id, objective, ref };
+}
+
+async function waitForOpenGap(runId, concept) {
+  return waitFor(async () => {
+    const state = await getJson(`${API}/api/assignments/${runId}`);
+    if (state.status !== 200) return null;
+    return (state.body.open_gaps || []).find(
+      (gap) => gap.status === "open" && gap.concept === concept) || null;
+  }, 30000);
+}
+
+async function resolveGap(runId, gap, resolution) {
+  return getJson(
+    `${API}/api/assignments/${runId}/gaps/${gap.question_id}/resolve`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ resolution }),
+    });
+}
+
+async function waitForPreparedApproval(runId, stepId) {
+  return waitFor(async () => {
+    const state = await getJson(`${API}/api/assignments/${runId}`);
+    if (state.status !== 200) return null;
+    const step = (state.body.assignment.steps || []).find(
+      (item) => item.step_id === stepId);
+    const request = (step && step.approval_request) || {};
+    return step && request.hitl_action_id ? step : null;
+  }, 30000);
+}
+
+async function approvalState(runId, stepId) {
+  const state = await getJson(`${API}/api/assignments/${runId}`);
+  return {
+    status: state.body.assignment?.status,
+    step: (state.body.assignment?.steps || []).find(
+      (item) => item.step_id === stepId),
+    steps: state.body.assignment?.steps || [],
+    operations: state.body.operations || [],
+  };
+}
+
+async function connectedState() {
+  return (await getJson(`${API}/_acceptance/connected/state`)).body;
 }
 
 const SOURCE_V1 = [
@@ -305,6 +387,12 @@ async function main() {
     name: "auth_token", value: "browser-acceptance-token",
     domain: "127.0.0.1", path: "/",
   }]);
+  // The Assignments panel waits for a browser token before loading; the
+  // cookie alone is not enough in the current UI.
+  await context.addInitScript(() => {
+    localStorage.setItem("auth_token", "browser-acceptance-token");
+    localStorage.setItem("token", "browser-acceptance-token");
+  });
   const page = await context.newPage();
   const openAssignment = async () => {
     await page.goto(`${UI}/assignments`);
@@ -342,14 +430,12 @@ async function main() {
   const restartedHealth = (await getJson(`${API}/api/health`)).body;
   const oldIdentity = initialState.identity || {};
   const newIdentity = restartedHealth.identity || {};
-  const expectedSourceId = expectedDirty
-    ? null : expectedHead.slice(0, 12);
+  const shortHead = expectedHead.slice(0, 12);
   const sourceMatches = expectedDirty
     ? newIdentity.dirty === true
-      && String(newIdentity.source_id).startsWith(
-        `${expectedHead.slice(0, 12)}-dirty.`)
+      && String(newIdentity.source_id).startsWith(`${shortHead}-dirty.`)
     : newIdentity.dirty === false
-      && newIdentity.source_id === expectedSourceId;
+      && newIdentity.source_id === shortHead;
   const codeIdentityOk =
     newIdentity.revision === expectedHead
     && sourceMatches
@@ -483,8 +569,11 @@ async function main() {
   const draft = finalState.drafts[0] || {};
   record("Outlook draft uses verified corrected total",
          String(draft.body || "").includes("376.75"), draft);
-  record("no send occurred", finalState.drafts.length === 1 &&
-         !String(draft.body || "").toLowerCase().includes("sent"), draft);
+  record("no send occurred", finalState.drafts.length === 1
+         && finalState.send_attempts === 0, {
+           drafts: finalState.drafts.length,
+           send_attempts: finalState.send_attempts,
+         });
   await screenshot(page, "03-completed-draft");
 
   await page.reload();
@@ -492,6 +581,194 @@ async function main() {
   await detail.getByText("completed", { exact: true }).waitFor({
     state: "visible", timeout: 20000 });
   record("completed assignment reopens after reload", true, { run_id: runId });
+
+  // Recovery control: the same resume request from two independent pages
+  // must not bypass approval or duplicate work.
+  const resumeRun = await startConnectedAssignment(health, "resume");
+  const resumeGap = await waitForOpenGap(resumeRun.runId, "discount_scope");
+  await resolveGap(resumeRun.runId, resumeGap, "unlicensed");
+  await waitForPreparedApproval(resumeRun.runId, "estimate");
+  const resumeBefore = await connectedState();
+  const resumePageA = await context.newPage();
+  const resumePageB = await context.newPage();
+  await resumePageA.goto(`${UI}/assignments`);
+  await resumePageB.goto(`${UI}/assignments`);
+  await Promise.all([
+    resumePageA.goto(`${UI}/assignments`),
+    resumePageB.goto(`${UI}/assignments`),
+  ]);
+  const resumeFrom = (controlPage) => controlPage.evaluate(
+    async ({ api, controlRunId }) => {
+      const response = await fetch(
+        `${api}/api/assignments/${controlRunId}/resume`,
+        { method: "POST", headers: {
+          Authorization: "Bearer browser-acceptance-token",
+        } });
+      return { status: response.status, body: await response.json() };
+    }, { api: API, controlRunId: resumeRun.runId });
+  const [resumeA, resumeB] = await Promise.all([
+    resumeFrom(resumePageA), resumeFrom(resumePageB),
+  ]);
+  const resumeAfter = await approvalState(resumeRun.runId, "estimate");
+  const resumeEffects = await connectedState();
+  record("duplicate resume from two pages is a no-op",
+         resumeA.status === 200 && resumeB.status === 200
+         && resumeAfter.step?.status === "awaiting_approval"
+         && resumeEffects.calls === resumeBefore.calls
+         && resumeEffects.estimates.length === resumeBefore.estimates.length,
+         { first_status: resumeA.status, second_status: resumeB.status,
+           step_status: resumeAfter.step?.status,
+           calls: resumeEffects.calls,
+           estimates: resumeEffects.estimates.length });
+  await resumePageA.close();
+  await resumePageB.close();
+  await getJson(`${API}/api/assignments/${resumeRun.runId}/cancel`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason: "duplicate resume control complete" }),
+  });
+
+  // Recovery control: cancellation stays terminal when a late correlated
+  // response arrives, and no provider effect can be revived.
+  const cancelBefore = await connectedState();
+  const cancelRun = await startConnectedAssignment(health, "cancel");
+  const cancelGap = await waitForOpenGap(cancelRun.runId, "discount_scope");
+  const cancelled = await getJson(
+    `${API}/api/assignments/${cancelRun.runId}/cancel`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "late-response control" }),
+    });
+  const lateCorrelation = `late-${Date.now()}`;
+  const lateResponse = await getJson(
+    `${API}/api/assignments/${cancelRun.runId}/responses/${lateCorrelation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        response: "late provider answer",
+        source: "controlled-provider",
+        evidence: "late correlation control",
+      }),
+    });
+  const cancelledResume = await getJson(
+    `${API}/api/assignments/${cancelRun.runId}/resume`, { method: "POST" });
+  const cancelledGap = await resolveGap(
+    cancelRun.runId, cancelGap, "unlicensed");
+  const cancelAfter = await connectedState();
+  record("cancellation refuses a late correlated response",
+         cancelled.status === 200
+         && cancelled.body.assignment.status === "cancelled"
+         && lateResponse.status === 409
+         && cancelledResume.body.assignment?.status === "cancelled"
+         && cancelledGap.status === 409
+         && cancelAfter.calls === cancelBefore.calls
+         && cancelAfter.estimates.length === cancelBefore.estimates.length,
+         { cancelled_status: cancelled.body.assignment.status,
+           late_response_status: lateResponse.status,
+           resume_status: cancelledResume.body.assignment?.status,
+           gap_status: cancelledGap.status,
+           calls: cancelAfter.calls,
+           estimates: cancelAfter.estimates.length });
+
+  // Recovery control: the provider accepts the estimate, then the readback
+  // connection dies. The effect is uncertain; a restart must not resend, the
+  // dependent draft stays blocked, and reconciliation settles the ORIGINAL
+  // object without a second create or a send.
+  const uncertainRun = await startConnectedAssignment(health, "uncertain");
+  const uncertainGap = await waitForOpenGap(
+    uncertainRun.runId, "discount_scope");
+  await resolveGap(uncertainRun.runId, uncertainGap, "unlicensed");
+  await waitForPreparedApproval(uncertainRun.runId, "estimate");
+  const uncertainBefore = await connectedState();
+  const fault = await getJson(`${API}/_acceptance/connected/fault`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ readback_failures: 20 }),
+  });
+  const lostReadback = await getJson(
+    `${API}/api/assignments/${uncertainRun.runId}/approve/estimate`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ note: "lost readback control" }),
+    });
+  const afterLost = await approvalState(uncertainRun.runId, "estimate");
+  const lostEffects = await connectedState();
+  const draftAfterLoss = afterLost.steps.find(
+    (item) => item.step_id === "outlook-draft");
+  record("provider acceptance with lost readback is uncertain",
+         fault.status === 200 && lostReadback.status === 200
+         && afterLost.step?.status === "uncertain"
+         && afterLost.operations.some((operation) => (
+           operation.step_id === "estimate"
+           && operation.status === "uncertain"
+           && operation.needs_reconciliation))
+         && lostEffects.calls === uncertainBefore.calls + 1
+         && lostEffects.estimates.length
+            === uncertainBefore.estimates.length + 1
+         && draftAfterLoss?.status === "pending"
+         && lostEffects.send_attempts === 0,
+         { fault: fault.body,
+           step_status: afterLost.step?.status,
+           draft_status: draftAfterLoss?.status,
+           calls: lostEffects.calls,
+           estimates: lostEffects.estimates.length,
+           send_attempts: lostEffects.send_attempts });
+
+  await stopServer();
+  server = await startServer(false);
+  const restartedRun = await approvalState(uncertainRun.runId, "estimate");
+  const restartedEffects = await connectedState();
+  const restartedDraft = restartedRun.steps.find(
+    (item) => item.step_id === "outlook-draft");
+  record("uncertain job survives restart without a second create",
+         restartedRun.step?.status === "uncertain"
+         && restartedDraft?.status === "pending"
+         && restartedEffects.calls === lostEffects.calls
+         && restartedEffects.estimates.length === lostEffects.estimates.length,
+         { step_status: restartedRun.step?.status,
+           draft_status: restartedDraft?.status,
+           calls: restartedEffects.calls,
+           estimates: restartedEffects.estimates.length });
+
+  const landed = restartedEffects.estimates[
+    restartedEffects.estimates.length - 1];
+  const reconciled = await getJson(
+    `${API}/api/assignments/${uncertainRun.runId}/reconcile/estimate`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        verdict: "applied",
+        evidence: `controlled Books readback shows ${landed.estimate_id} `
+          + `(${landed.reference_number}) persisted once`,
+        evidence_ref: `${API}/_acceptance/connected/state`,
+      }),
+    });
+  const afterReconcile = await approvalState(
+    uncertainRun.runId, "estimate");
+  const reconciledEffects = await connectedState();
+  record("reconciliation settles the original object without a duplicate",
+         reconciled.status === 200
+         && afterReconcile.step?.status === "applied"
+         && reconciledEffects.calls === restartedEffects.calls
+         && reconciledEffects.estimates.length
+            === restartedEffects.estimates.length,
+         { reconciled: reconciled.status,
+           step_status: afterReconcile.step?.status,
+           calls: reconciledEffects.calls,
+           estimates: reconciledEffects.estimates.length,
+           landed: landed.estimate_id });
+
+  await waitForPreparedApproval(uncertainRun.runId, "outlook-draft");
+  await getJson(
+    `${API}/api/assignments/${uncertainRun.runId}/approve/outlook-draft`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ note: "dependent draft after reconciliation" }),
+    });
+  const afterDraft = await approvalState(
+    uncertainRun.runId, "outlook-draft");
+  const finalEffects = await connectedState();
+  record("reconciled uncertainty releases the dependent draft without sending",
+         afterDraft.status === "completed"
+         && finalEffects.drafts.length
+            === reconciledEffects.drafts.length + 1
+         && finalEffects.send_attempts === 0,
+         { status: afterDraft.status,
+           drafts: finalEffects.drafts.length,
+           send_attempts: finalEffects.send_attempts });
 
   await browser.close();
   fs.writeFileSync(path.join(OUT, "checks.json"),
