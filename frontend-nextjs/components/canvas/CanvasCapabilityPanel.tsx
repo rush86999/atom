@@ -117,6 +117,7 @@ export function CanvasCapabilityPanel({
     );
     const [guidedRules, setGuidedRules] = useState<GuidedRule[]>(initialGuided.rules);
     const [ask, setAsk] = useState("");
+    const [artifactKind, setArtifactKind] = useState("");
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
@@ -758,6 +759,20 @@ export function CanvasCapabilityPanel({
                                 >
                                     Derive fields
                                 </Button>
+                                <label className="text-[10px] text-zinc-400">
+                                    Artifact
+                                    <select
+                                        data-testid="capability-artifact-kind"
+                                        value={artifactKind}
+                                        onChange={(e) => setArtifactKind(e.target.value)}
+                                        className="block rounded border border-zinc-200 dark:border-white/10 bg-transparent px-1 py-0.5 text-xs"
+                                    >
+                                        <option value="">none</option>
+                                        <option value="document">document</option>
+                                        <option value="spreadsheet">spreadsheet</option>
+                                        <option value="presentation">presentation</option>
+                                    </select>
+                                </label>
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -769,6 +784,7 @@ export function CanvasCapabilityPanel({
                                         expected_revision: state?.revision,
                                         manifest_revision: state?.manifest?.manifest_revision,
                                         source_version: state?.dataset?.source?.source_version,
+                                        ...(artifactKind ? { deliverable_kind: artifactKind } : {}),
                                     })}
                                 >
                                     Start assignment

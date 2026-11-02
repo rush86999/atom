@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -33,23 +34,26 @@ def login(page, frontend: str, password: str) -> None:
 
 def new_canvas(page, frontend: str, agent_id: str) -> str:
     page.goto(f"{frontend}/canvas", wait_until="domcontentloaded")
-    page.wait_for_timeout(1500)
-    page.get_by_test_id("new-blank-canvas-button").click()
-    page.wait_for_timeout(2500)
-    page.locator(
+    create = page.get_by_test_id("new-blank-canvas-button")
+    create.wait_for(state="visible", timeout=60000)
+    create.click()
+    page.wait_for_url(re.compile(r"/canvas/[^/]+$"), timeout=60000)
+    add_agent = page.locator(
         '[data-testid="add-agent-button"], '
-        '[data-testid="banner-add-agent-button"]').first.click()
+        '[data-testid="banner-add-agent-button"]').first
+    add_agent.wait_for(state="visible", timeout=60000)
+    add_agent.click()
     page.wait_for_timeout(800)
     page.get_by_test_id(
         f"attach-agent-option-{agent_id}").evaluate("el => el.click()")
     page.get_by_test_id("canvas-capability-panel").wait_for(
-        state="attached", timeout=60000)
+        state="visible", timeout=120000)
     return page.url
 
 
 def open_panel(page) -> None:
     panel = page.get_by_test_id("canvas-capability-panel")
-    panel.wait_for(state="attached", timeout=60000)
+    panel.wait_for(state="visible", timeout=120000)
     button = panel.get_by_role("button", name="Data operations")
     if button.count():
         button.click()
@@ -235,6 +239,8 @@ def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, channel="chrome")
         page = browser.new_page(viewport={"width": 1600, "height": 1100})
+        page.set_default_timeout(120000)
+        page.set_default_navigation_timeout(120000)
         errors: list[str] = []
         page.on("pageerror", lambda exc: errors.append(str(exc)[:300]))
         login(page, args.frontend, password)

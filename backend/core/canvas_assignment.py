@@ -19,6 +19,7 @@ from core.assignment_executor import (
 )
 from core.assignment_plan import (
     new_assignment,
+    new_deliverable,
     new_step,
     new_teaching_snapshot,
 )
@@ -449,10 +450,63 @@ async def _canvas_action(inputs: Dict[str, Any], context: Dict[str, Any]):
     }, context)
 
 
+def _receipt_markdown(canvas: Any, receipt: Dict[str, Any],
+                      objective: str,
+                      aggregates: Optional[Dict[str, Any]] = None) -> str:
+    """Render one generic, source-bound quote/service/exception artifact.
+
+    No business-specific template is embedded: the canvas field labels,
+    values, totals and source identity are the document's content.
+    """
+    fields = list(receipt.get("fields") or [])
+    rows = list(receipt.get("rows") or [])
+    aggregates = dict(aggregates or receipt.get("aggregates") or {})
+    source = dict(receipt.get("source") or {})
+    lines = [
+        f"# {canvas.name or canvas.id}",
+        "",
+        f"Objective: {objective}",
+        f"Canvas: {canvas.id}",
+        f"Receipt: {receipt.get('digest')}",
+        f"Source version: {source.get('source_version')}",
+        f"Manifest revision: {receipt.get('manifest_revision')}",
+        "",
+        "## Fields",
+    ]
+    for field in fields:
+        unit = str(field.get("unit") or "")
+        currency = str(field.get("currency") or "")
+        measure = currency or unit
+        lines.append(
+            f"- {field.get('label') or field.get('id')} "
+            f"({field.get('type')}{', ' + measure if measure else ''})")
+    lines.extend(["", "## Rows"])
+    for row in rows:
+        values = row.get("values") if isinstance(row, dict) else {}
+        values = values if isinstance(values, dict) else {}
+        rendered = ", ".join(
+            f"{key}={value}" for key, value in values.items())
+        lines.append(f"- Row {row.get('row')}: {rendered}")
+    lines.extend(["", "## Totals"])
+    for key, value in aggregates.items():
+        lines.append(f"- {key}: {value}")
+    lines.extend(["", "## Provenance", "```json",
+                  json.dumps({
+                      "canvas_id": canvas.id,
+                      "receipt_digest": receipt.get("digest"),
+                      "manifest_revision": receipt.get("manifest_revision"),
+                      "source": source,
+                  }, indent=2, sort_keys=True, default=str),
+                  "```", ""])
+    return "\n".join(lines)
+
+
 def build_canvas_assignment_plan(
     canvas: Any, manifest: Dict[str, Any], receipt: Dict[str, Any],
     *, objective: str, employee_id: str, workspace_id: str, tenant_id: str,
     action_ids: Optional[Sequence[str]] = None, requester_id: str = "",
+    deliverable: Optional[Dict[str, Any]] = None,
+    teaching_snapshot: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build one assignment plan from a server-issued receipt and declarations."""
     from core.canvas_capability_service import (
@@ -485,6 +539,42 @@ def build_canvas_assignment_plan(
         effect="local",
     )
     steps = [receipt_step]
+    deliverables = []
+    if deliverable:
+        kind = str(deliverable.get("kind") or "document").strip().lower()
+        if kind not in {"document", "spreadsheet", "presentation"}:
+            raise ValueError(f"unsupported canvas deliverable kind '{kind}'")
+        artifact_step_id = "artifact"
+        format_spec = dict(
+            (teaching_snapshot or {}).get("output_requirements") or {})
+        artifact_inputs = {
+            "path": str(deliverable.get("path") or ""),
+            "title": str(deliverable.get("title") or objective),
+            "content": _receipt_markdown(
+                canvas, receipt_payload, objective,
+                aggregates=receipt_result.get("aggregates") or {}),
+            "format_spec": format_spec,
+            "deliverable_id": f"del-{kind}",
+        }
+        if kind == "spreadsheet":
+            artifact_inputs["rows"] = [
+                dict((row or {}).get("values") or {})
+                for row in (receipt_payload.get("rows") or [])
+            ]
+        steps.append(new_step(
+            step_id=artifact_step_id,
+            title=f"Create the {kind} artifact",
+            operation_type="present",
+            adapter=f"artifact.{kind}",
+            depends_on=["receipt"],
+            inputs=artifact_inputs,
+            effect="local",
+        ))
+        deliverables.append(new_deliverable(
+            deliverable_id=f"del-{kind}", kind=kind,
+            description=f"{kind} from canvas {canvas.id}",
+            step_id=artifact_step_id,
+        ))
     declared = {
         str(item.get("id") or ""): dict(item)
         for item in (manifest.get("actions") or [])
@@ -555,14 +645,18 @@ def build_canvas_assignment_plan(
         employee_id=employee_id,
         workspace_id=workspace_id,
         tenant_id=tenant_id,
-        teaching_snapshot=new_teaching_snapshot(
+        teaching_snapshot=teaching_snapshot or new_teaching_snapshot(
             revision=f"canvas:{manifest_revision}",
             matched_context={"canvas_id": canvas.id},
         ),
         steps=steps,
+        deliverables=deliverables,
         sources=sources,
-        authorized_actions=["calculate", "outbound"] if selected else [
-            "calculate"],
+        authorized_actions=(
+            ["calculate"]
+            + (["present"] if deliverable else [])
+            + (["outbound"] if selected else [])
+        ),
         provenance={
             "canvas_id": canvas.id,
             "requester_id": str(requester_id or ""),

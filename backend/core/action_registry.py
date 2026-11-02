@@ -1169,13 +1169,18 @@ async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]
     user_id = _context_user_id(context)
     if not user_id:
         return {"success": False, "error": "Authenticated user is required to present markdown"}
-    return await present_markdown(
+    result = await present_markdown(
         user_id=str(user_id),
         content=str(content),
         title=args.get("title"),
         agent_id=(context or {}).get("agent_id"),
         session_id=(context or {}).get("session_id") or args.get("session_id"),
     )
+    if isinstance(result, dict) and result.get("success"):
+        result.setdefault("status", "applied")
+        result.setdefault("action_result", "applied")
+        result.setdefault("remote_id", result.get("canvas_id"))
+    return result
 
 
 @register_action(

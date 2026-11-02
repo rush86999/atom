@@ -7,6 +7,7 @@ service behind the production registered action.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 import json
 import uuid
 from types import SimpleNamespace
@@ -94,6 +95,7 @@ def env(tmp_path, monkeypatch):
         "core.intervention_service.intervention_service.request_intervention",
         fake_request_intervention)
     drafts = []
+    fail_next = {"value": False}
 
     class FakeOutlook:
         async def _get_access_token(self, user_id):
@@ -101,6 +103,10 @@ def env(tmp_path, monkeypatch):
 
         async def create_draft_email(self, **kwargs):
             drafts.append(dict(kwargs))
+            if fail_next["value"]:
+                fail_next["value"] = False
+                raise TimeoutError(
+                    "controlled read timeout after the draft was created")
             return {
                 "id": f"draft-{len(drafts)}",
                 "subject": kwargs.get("subject"),
@@ -125,6 +131,7 @@ def env(tmp_path, monkeypatch):
         yield {
             "db": db, "factory": factory, "user": user, "client": client,
             "drafts": drafts, "agent_id": agent.id,
+            "fail_next": fail_next,
         }
     finally:
         db.close()
@@ -276,6 +283,42 @@ def test_receipt_assignment_executes_one_approved_draft(env):
         created["run_id"], "action-notify",
         approved_by=env["user"].id, note="duplicate approval")
     assert len(env["drafts"]) == 1
+
+
+def test_uncertain_effect_reconciles_with_one_provider_draft(env):
+    """A provider timeout after the write must reconcile, not resend."""
+    env["fail_next"]["value"] = True
+    canvas, bound = _canvas(env, canvas_id="canvas_uncertain")
+    created = _assign(env, canvas, bound)
+    executor = _executor(env)
+    executor.approve_step(
+        created["run_id"], "action-notify",
+        approved_by=env["user"].id, note="approve uncertain action")
+    blocked = asyncio.run(executor.execute(created["run_id"]))
+    action = _step(blocked["assignment"], "action-notify")
+    assert action["status"] == "uncertain", action
+    assert blocked["assignment"]["status"] == "blocked", blocked["assignment"]
+    operations = [
+        item for item in blocked.get("operations", [])
+        if item.get("step_id") == "action-notify"
+    ]
+    assert operations and operations[0]["needs_reconciliation"] is True
+    assert len(env["drafts"]) == 1
+
+    executor.reconcile_step(
+        created["run_id"], "action-notify", "applied",
+        evidence="controlled Outlook readback: draft-1 exists")
+    asyncio.run(executor.execute(created["run_id"]))
+    after = executor.status(created["run_id"])
+    assert after["assignment"]["status"] == "completed", after["assignment"]
+    assert after["assignment"]["steps"][-1]["status"] == "applied"
+    assert len(env["drafts"]) == 1
+    reconciled = [
+        item for item in after.get("operations", [])
+        if item.get("step_id") == "action-notify"
+    ]
+    assert reconciled[0]["status"] == "applied"
+    assert reconciled[0]["needs_reconciliation"] is False
 
 
 def test_canvas_edit_during_approval_blocks_action(env):
@@ -645,3 +688,54 @@ def test_forged_self_consistent_receipt_is_not_accepted(env):
         }))
     assert result["status"] == "failed"
     assert result.get("error_class") == "receipt_not_server_issued"
+
+
+def test_canvas_receipt_assignment_creates_taught_document(env):
+    """The receipt produces a real artifact and consumes promoted teaching."""
+    import docx
+    from core.student_learning_service import deliver_teacher_lesson
+    from core.models import GoalRun
+
+    lesson = deliver_teacher_lesson(
+        env["db"], env["agent_id"],
+        "Use Georgia 18 for quote documents",
+        topic="document format",
+        applies_to=["document"],
+        format_spec={"font_name": "Georgia", "font_size": 18},
+        workspace_id=env["user"].workspace_id,
+    )
+    assert lesson["status"] == "ok", lesson
+    canvas, bound = _canvas(env, canvas_id="canvas_document", actions=False)
+    response = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/assign",
+        json={
+            "objective": "Prepare the customer quote",
+            "agent_id": env["agent_id"],
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+            "deliverable_kind": "document",
+            "deliverable_title": "Customer quote",
+        })
+    assert response.status_code == 200, response.text
+    created = response.json()
+    assert created["assignment"]["status"] == "completed", created
+    db = env["factory"]()
+    try:
+        run = db.query(GoalRun).filter(GoalRun.id == created["run_id"]).one()
+        parameters = run.parameters
+        if not isinstance(parameters, dict):
+            parameters = json.loads(parameters or "{}")
+        assignment = parameters["task_lifecycle"]["assignment"]
+        deliverable = assignment["deliverables"][0]
+        artifact = deliverable["artifact_path"]
+        assert artifact and Path(artifact).is_file()
+        text = "\n".join(p.text for p in docx.Document(artifact).paragraphs)
+        assert "350.00" in text
+        assert "Receipt:" in text
+        snapshot = assignment["teaching_snapshot"]
+        assert snapshot["output_requirements"]["font_name"] == "Georgia"
+        assert snapshot["output_requirements"]["font_size"] == 18
+        assert snapshot["effective_lesson_ids"]
+    finally:
+        db.close()

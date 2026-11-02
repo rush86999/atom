@@ -7,6 +7,9 @@ grant an operation.
 from __future__ import annotations
 
 import logging
+import os
+import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, File, HTTPException, UploadFile
@@ -135,6 +138,8 @@ class CanvasAssignRequest(BaseModel):
     source_version: str
     action_ids: List[str] = []
     conversation_id: Optional[str] = None
+    deliverable_kind: Optional[str] = None
+    deliverable_title: str = ""
 
 
 class TeachingProposalRequest(BaseModel):
@@ -459,12 +464,64 @@ async def capability_assign(
 
         workspace_id = str(current_user.workspace_id or "default")
         tenant_id = str(current_user.tenant_id or "default")
+        deliverable = None
+        teaching_snapshot = None
+        if request.deliverable_kind:
+            kind = str(request.deliverable_kind).strip().lower()
+            if kind not in {"document", "spreadsheet", "presentation"}:
+                raise CapabilityError(
+                    "unsupported_deliverable",
+                    "The canvas artifact kind must be document, spreadsheet "
+                    "or presentation.",
+                    409,
+                )
+            from core.artifact_teaching import resolve_artifact_teaching
+            from core.assignment_plan import new_teaching_snapshot
+            resolved = resolve_artifact_teaching(
+                db, employee_id, kind,
+                task_context={"canvas_id": canvas.id},
+                workspace_id=workspace_id,
+            )
+            teaching_snapshot = new_teaching_snapshot(
+                revision=str(resolved.get("revision") or ""),
+                effective_lesson_ids=[
+                    {"id": item.get("id"),
+                     "revision": item.get("revision") or 1}
+                    for item in (resolved.get("sources") or [])
+                    if isinstance(item, dict) and item.get("id")
+                ],
+                matched_context={"canvas_id": canvas.id},
+                output_requirements=dict(resolved.get("spec") or {}),
+                source_versions={
+                    "canvas": request.source_version,
+                    "manifest": request.manifest_revision,
+                },
+            )
+            extension = {
+                "document": ".docx", "spreadsheet": ".xlsx",
+                "presentation": ".pptx",
+            }[kind]
+            output_root = Path(
+                os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+                or os.getenv("ATOM_OFFICE_DIR")
+                or os.path.join("data", "office", "assignments"))
+            output_root.mkdir(parents=True, exist_ok=True)
+            artifact_path = output_root / (
+                f"canvas-{canvas.id}-{uuid.uuid4().hex[:8]}{extension}")
+            deliverable = {
+                "kind": kind,
+                "path": str(artifact_path),
+                "title": str(
+                    request.deliverable_title or objective),
+            }
         plan = build_canvas_assignment_plan(
             canvas, manifest, receipt,
             objective=objective, employee_id=employee_id,
             workspace_id=workspace_id, tenant_id=tenant_id,
             action_ids=action_ids,
             requester_id=str(current_user.id or ""),
+            deliverable=deliverable,
+            teaching_snapshot=teaching_snapshot,
         )
         runs = GoalRunService(
             workspace_id=workspace_id, tenant_id=tenant_id)

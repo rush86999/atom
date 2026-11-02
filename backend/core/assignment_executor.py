@@ -1785,6 +1785,13 @@ class AssignmentExecutor:
                         operation.get("approval_request") or {}),
                     "uncertainty_reason": operation.get(
                         "uncertainty_reason"),
+                    "remote_id": (
+                        (operation.get("execution") or {}).get("remote_id")),
+                    "provider_ref": (
+                        (operation.get("execution") or {}).get(
+                            "provider_ref")),
+                    "result_summary": (
+                        (operation.get("execution") or {}).get("summary")),
                 }
                 for operation in record.get("operations") or []
             ],
@@ -5543,6 +5550,7 @@ class AssignmentExecutor:
             "substantive": result.get("substantive"),
             "source_version": result.get("source_version"),
             "provider_ref": result.get("provider_ref"),
+            "remote_id": result.get("remote_id"),
             "rows": result.get("rows"),
             "line_items": result.get("line_items"),
             "schema": result.get("schema"),
