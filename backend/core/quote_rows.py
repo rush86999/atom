@@ -19,7 +19,9 @@ MAX_ROWS = 500
 
 
 def _text(value: Any) -> str:
-    return str(value or "").strip()
+    # Preserve zero, False and other falsy executable values as text; only
+    # None/absent is missing. `0 or ""` would turn a zero discount into a gap.
+    return "" if value is None else str(value).strip()
 
 
 def _decimal(value: Any, field: str, row_number: int) -> Decimal:

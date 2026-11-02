@@ -2741,3 +2741,116 @@ def test_unsupported_pricing_rule_refuses_public_plan_and_effect(
     assert response.status_code in (400, 422), response.text
     assert "unsupported" in response.text.lower()
     assert calls == []
+
+
+def test_onedrive_xlsx_public_route_uses_production_parser(
+        route_env, tmp_path, monkeypatch):
+    import io
+    import openpyxl
+    from core import connected_actions
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(["sku", "category", "quantity", "unit", "pack",
+                  "unit_price", "currency", "discount_percent"])
+    sheet.append(["A", "A", 2, "each", 1, "10.00", "USD", 0])
+    sheet.append(["B", "B", 3, "each", 1, "20.00", "USD", 0])
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    content = buffer.getvalue()
+
+    class FakeOneDrive:
+        async def get_access_token_resolution(self, user_id):
+            return "token", {"state": "ok"}
+
+        async def get_file_metadata(self, token, file_id):
+            return {"status": "success",
+                    "data": {"id": file_id, "name": "price-list.xlsx",
+                             "version": "v1"}}
+
+        async def download_file_bytes(self, token, file_id):
+            return content
+
+    async def fake_service(ids):
+        return FakeOneDrive()
+
+    monkeypatch.setattr(connected_actions, "_onedrive_service", fake_service)
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS", "1")
+    source = tmp_path / "agreement.txt"
+    source.write_text("Customer: Acme\n", encoding="utf-8")
+
+    read = new_step(
+        step_id="read", title="Read the OneDrive price workbook",
+        operation_type="retrieve", adapter="action.registry",
+        effect="read_only",
+        inputs={"action": "connected.onedrive.read_file",
+                "arguments": {"file_id": "xlsx-1",
+                              "evidence_kind": "price_rows"}})
+    map_rows = new_step(
+        step_id="map", title="Map workbook rows",
+        operation_type="calculate", adapter="quote.lines_from_rows",
+        depends_on=["read"], effect="local",
+        inputs={
+            "rows": {"$ref": "read.data.rows"},
+            "columns": {
+                "item_id": "sku", "quantity": "quantity", "unit": "unit",
+                "pack_size": "pack", "unit_price": "unit_price",
+                "currency": "currency", "description": "sku",
+                "category": "category", "discount": "discount_percent",
+            },
+            "defaults": {"price_basis": "contract"},
+            "discount_mode": "percent",
+            "discount_authority": "price-list:v1",
+            "source_identity": {
+                "resource_id": {"$ref": "read.data.read_receipt.resource_id"},
+                "version": {"$ref": "read.data.read_receipt.version"},
+                "sha256": {"$ref": "read.data.read_receipt.fields.sha256"},
+            },
+        })
+    calculate = new_step(
+        step_id="calculate", title="Calculate the workbook quote",
+        operation_type="calculate", adapter="quote.calculate",
+        depends_on=["map"], effect="local",
+        inputs={"line_items": {"$ref": "map.line_items"},
+                "currency": "USD", "freight": "0",
+                "tax": {"basis": "none"}, "discount_rules": []})
+    email = new_step(
+        step_id="email-draft", title="Prepare the quote email",
+        operation_type="present", adapter="email.draft",
+        depends_on=["calculate"], effect="local",
+        inputs={"to": ["buyer@example.invalid"], "subject": "Quote",
+                "body": "Total ${calculate.value} USD"})
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote from a OneDrive workbook",
+        "agent_id": _teaching_agent(
+            route_env, "OneDrive employee", "Arial", "quote-reviewer"),
+        "sources": [{
+            "kind": "document", "representation": "file",
+            "internal_fixture": True, "path": str(source),
+            "resource_id": "agreement-1",
+        }],
+        "proposed_steps": [read, map_rows, calculate, email],
+        "authorized_actions": ["retrieve", "calculate", "edit"],
+        "deliverables": [{
+            "kind": "email_draft", "step_id": "email-draft",
+            "description": "Quote email", "to": ["buyer@example.invalid"],
+            "subject": "Quote", "body": "Total ${calculate.value} USD",
+        }],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    assignment = route_env["lifecycle"].get_assignment(run_id)
+    read_step = next(step for step in assignment["steps"]
+                     if step["step_id"] == "read")
+    returned = read_step["result"]["data"]
+    assert returned["read_receipt"]["version"] == "v1"
+    assert returned["read_receipt"]["coverage"] == "complete"
+    assert returned["read_receipt"]["fields"]["sha256"]
+    assert len(returned["rows"]) == 2
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "80.00"
+    assert all(row["source_ref"]["version"] == "v1"
+               for row in calc["result"]["rows"])

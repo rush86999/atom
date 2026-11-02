@@ -767,6 +767,7 @@ async def onedrive_read_file(args: Dict[str, Any], context: Dict[str, Any]):
         "parse_error": (tabular or {}).get("error"),
         "read_receipt": _receipt(
             "onedrive", "download_file_bytes", resource_id=file_id,
+            version=str(meta_data.get("version") or ""),
             coverage="complete",
             account_id=str(args.get("drive_id") or args.get("site_id") or ""),
             kind=args.get("evidence_kind") or ("price_rows" if rows else None),

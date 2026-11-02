@@ -103,3 +103,11 @@ def test_conflicting_supplied_source_reference_is_refused():
             source_identity={"resource_id": "file-1", "version": "v2",
                              "sha256": "abc"})
     assert exc.value.gap["concept"] == "source_identity_conflict"
+
+
+def test_integer_zero_discount_is_not_missing():
+    lines = lines_from_rows(
+        rows=[{"item_id": "A", "quantity": 2, "unit_price": "10.00",
+               "currency": "USD", "discount": 0, "__row": 2}])
+    assert lines[0]["item_id"] == "A"
+    assert "discount_rate" not in lines[0]
