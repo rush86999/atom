@@ -1109,6 +1109,48 @@ def authorize_canvas(db, canvas: Canvas, user: Any) -> None:
         )
 
 
+def authorize_canvas_employee(db, user: Any, agent_id: str):
+    """Resolve the target employee inside the authenticated scope.
+
+    A canvas owner may only teach an employee in the same workspace and
+    tenant. A known foreign id is not permission; the authoritative registry
+    row must still match at proposal, assignment and promotion time.
+    """
+    from core.models import AgentRegistry
+
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == str(agent_id or ""))
+        .first()
+    )
+    if agent is None:
+        raise CapabilityError(
+            "teaching_agent_not_found", "Employee not found.", 404)
+    user_workspace = str(getattr(user, "workspace_id", "") or "default")
+    user_tenant = str(getattr(user, "tenant_id", "") or "default")
+    agent_workspace = str(agent.workspace_id or "default")
+    agent_tenant = str(agent.tenant_id or "default")
+    if agent_workspace != user_workspace or agent_tenant != user_tenant:
+        raise CapabilityError(
+            "teaching_agent_not_found", "Employee not found.", 404)
+    return agent
+
+
+def canvas_teaching_proposal_digest(proposal: Dict[str, Any]) -> str:
+    """Digest the reviewed proposal content and its captured receipt proof."""
+    payload = {
+        "lesson": str(proposal.get("lesson") or ""),
+        "topic": str(proposal.get("topic") or ""),
+        "applies_to": list(proposal.get("applies_to") or []),
+        "format_spec": dict(proposal.get("format_spec") or {}),
+        "conditions": dict(proposal.get("conditions") or {}),
+        "context": dict(proposal.get("context") or {}),
+        "agent_id": str(proposal.get("agent_id") or ""),
+        "provenance": dict(proposal.get("provenance") or {}),
+    }
+    return _sha256_json(payload)
+
+
 def effective_operations(canvas: Canvas, manifest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     manifest = manifest if isinstance(manifest, dict) else get_manifest(canvas)
     declared = set(manifest.get("operations") or [])
@@ -3119,6 +3161,44 @@ def render_canvas_action_arguments(
     return template
 
 
+def _authorize_canvas_teaching_agent(
+    db, user: Any, agent_id: str,
+) -> Any:
+    """Resolve and authorize the target employee from the authoritative DB.
+
+    A known agent id is not permission. The employee must exist in the
+    authenticated user's workspace and tenant; a moved/foreign target is
+    refused before any journal write.
+    """
+    from core.models import AgentRegistry
+
+    agent = db.query(AgentRegistry).filter(
+        AgentRegistry.id == str(agent_id or "")).first()
+    if agent is None:
+        raise CapabilityError(
+            "teaching_employee_not_found", "Employee not found.", 404)
+    workspace_id = str(getattr(user, "workspace_id", "") or "default")
+    tenant_id = str(getattr(user, "tenant_id", "") or "default")
+    if (str(agent.workspace_id or "default") != workspace_id
+            or str(agent.tenant_id or "default") != tenant_id):
+        raise CapabilityError(
+            "teaching_employee_forbidden",
+            "The employee belongs to a different workspace or tenant.", 403)
+    return agent
+
+
+def _proposal_content_digest(proposal: Dict[str, Any]) -> str:
+    return _sha256_json({
+        "lesson": str(proposal.get("lesson") or ""),
+        "topic": str(proposal.get("topic") or ""),
+        "applies_to": list(proposal.get("applies_to") or []),
+        "format_spec": proposal.get("format_spec") or {},
+        "conditions": proposal.get("conditions") or {},
+        "context": proposal.get("context") or {},
+        "agent_id": str(proposal.get("agent_id") or ""),
+    })
+
+
 def propose_canvas_teaching(
     db, canvas: Canvas, user: Any, proposal: Dict[str, Any], *,
     expected_revision: int, manifest_revision_value: str,
@@ -3185,6 +3265,7 @@ def propose_canvas_teaching(
         raise CapabilityError(
             "teaching_agent_required",
             "Bind an employee before proposing teaching.", 409)
+    authorize_canvas_employee(db, user, agent_id)
     format_spec = proposal.get("format_spec") or {}
     conditions = proposal.get("conditions") or {}
     context = proposal.get("context") or {}
@@ -3210,6 +3291,7 @@ def propose_canvas_teaching(
             "canvas_id": fresh.id,
             "receipt_digest": receipt_digest,
             "manifest_revision": manifest.get("manifest_revision"),
+            "policy_revision": policy_revision(manifest),
             "state_revision": current_revision(fresh),
             "source": source,
             "fields": receipt.get("fields") or [],
@@ -3218,6 +3300,7 @@ def propose_canvas_teaching(
         "proposed_by": str(getattr(user, "id", "") or "") or None,
         "proposed_at": _now().isoformat(),
     }
+    record["proposal_digest"] = canvas_teaching_proposal_digest(record)
     content = copy.deepcopy(_canvas_content(fresh))
     proposals = list(content.get("capability_teaching_proposals") or [])
     proposals.append(record)
@@ -3241,11 +3324,16 @@ def promote_canvas_teaching(
     approved: bool, expected_revision: int, manifest_revision_value: str,
     source_version: str, reason: str = "",
 ) -> Dict[str, Any]:
-    """Explicitly promote one proposal into the existing teaching journal."""
+    """Explicitly promote one receipt-bound proposal in one transaction."""
     if not approved:
         raise CapabilityError(
             "approval_required",
             "Teaching promotion requires explicit human approval.", 403)
+    role = str(getattr(user, "role", "") or "").lower()
+    if role not in _APPROVER_ROLES:
+        raise CapabilityError(
+            "teaching_role_forbidden",
+            "Only a workspace supervisor may promote teaching.", 403)
     db.rollback()
     fresh = (
         db.query(Canvas)
@@ -3297,36 +3385,111 @@ def promote_canvas_teaching(
         raise CapabilityError(
             "teaching_proposal_closed",
             "The teaching proposal is no longer open.", 409)
-    from core.student_learning_service import deliver_teacher_lesson
-
+    if proposal.get("proposal_digest") != canvas_teaching_proposal_digest(
+            proposal):
+        raise CapabilityError(
+            "stale_teaching_proposal",
+            "The reviewed proposal content changed after it was proposed; "
+            "create and review a new proposal.",
+            409,
+        )
+    try:
+        target_employee = authorize_canvas_employee(
+            db, user, str(proposal.get("agent_id") or ""))
+    except CapabilityError as exc:
+        raise CapabilityError(
+            "teaching_agent_not_found",
+            "The target employee is not in the authenticated workspace.",
+            exc.status_code,
+        ) from exc
     provenance = dict(proposal.get("provenance") or {})
-    lesson_result = deliver_teacher_lesson(
-        db,
-        str(proposal.get("agent_id") or ""),
-        str(proposal.get("lesson") or ""),
-        topic=str(proposal.get("topic") or "canvas"),
-        teacher_agent_id=str(getattr(user, "id", "") or "human_supervisor"),
-        applies_to=list(proposal.get("applies_to") or []),
-        format_spec=dict(proposal.get("format_spec") or {}),
-        conditions=dict(proposal.get("conditions") or {}),
-        context={
-            **dict(proposal.get("context") or {}),
-            "canvas_provenance": provenance,
-        },
-        workspace_id=str(getattr(user, "workspace_id", "") or ""),
+    try:
+        authoritative = derive_operation(
+            db, fresh, user,
+            expected_revision=current_revision(fresh),
+            manifest_revision_value=str(
+                manifest.get("manifest_revision") or ""),
+            source_version=str(source.get("source_version") or ""),
+        )
+    except CapabilityError as exc:
+        raise CapabilityError(
+            "stale_teaching_proposal",
+            f"The source-bound receipt can no longer be recomputed "
+            f"({exc.code}).",
+            409,
+        ) from exc
+    current_receipt = dict(authoritative.get("input_receipt") or {})
+    current_source = dict(current_receipt.get("source") or {})
+    captured_source = dict(provenance.get("source") or {})
+    reasons: List[str] = []
+    if str(provenance.get("receipt_digest") or "") != str(
+            current_receipt.get("digest") or ""):
+        reasons.append("receipt_digest")
+    if int(provenance.get("state_revision") or -1) != current_revision(fresh):
+        reasons.append("state_revision")
+    if str(provenance.get("manifest_revision") or "") != str(
+            manifest.get("manifest_revision") or ""):
+        reasons.append("manifest_revision")
+    if str(provenance.get("policy_revision") or "") != policy_revision(
+            manifest):
+        reasons.append("policy_revision")
+    for key in ("resource_id", "source_version", "sha256"):
+        if str(captured_source.get(key) or "") != str(
+                current_source.get(key) or ""):
+            reasons.append(f"source.{key}")
+    if str(proposal.get("agent_id") or "") != str(target_employee.id):
+        reasons.append("agent_id")
+    if reasons:
+        raise CapabilityError(
+            "stale_teaching_proposal",
+            "The proposal is bound to a different canvas receipt or target; "
+            "create and review a new proposal.",
+            409,
+            reasons=reasons,
+        )
+    from core.student_learning_service import (
+        deliver_teacher_lesson,
+        get_agent_lessons,
     )
+
+    with db.no_autoflush:
+        lesson_result = deliver_teacher_lesson(
+            db,
+            str(proposal.get("agent_id") or ""),
+            str(proposal.get("lesson") or ""),
+            topic=str(proposal.get("topic") or "canvas"),
+            teacher_agent_id=str(
+                getattr(user, "id", "") or "human_supervisor"),
+            applies_to=list(proposal.get("applies_to") or []),
+            format_spec=dict(proposal.get("format_spec") or {}),
+            conditions=dict(proposal.get("conditions") or {}),
+            context=dict(proposal.get("context") or {}),
+            provenance=provenance,
+            workspace_id=str(getattr(user, "workspace_id", "") or ""),
+            commit=False,
+        )
     status = str(lesson_result.get("status") or "")
     if status not in {"ok", "duplicate"}:
+        db.rollback()
         raise CapabilityError(
             "teaching_promotion_failed",
             f"The teaching journal refused promotion: {status}.", 409)
     entry = lesson_result.get("entry") or {}
+    lesson_id = entry.get("id") if isinstance(entry, dict) else None
+    if not lesson_id and status == "duplicate":
+        for existing in get_agent_lessons(
+                db, str(proposal.get("agent_id") or ""), limit=100):
+            if str(existing.get("lesson") or "").strip() == str(
+                    proposal.get("lesson") or "").strip():
+                lesson_id = existing.get("id")
+                entry = existing
+                break
     proposal.update({
         "status": "promoted",
         "promoted_at": _now().isoformat(),
         "promoted_by": str(getattr(user, "id", "") or "") or None,
         "promotion_reason": str(reason or "")[:500],
-        "lesson_id": entry.get("id") if isinstance(entry, dict) else None,
+        "lesson_id": lesson_id,
         "promotion_duplicate": status == "duplicate",
     })
     proposals[index] = proposal
@@ -3346,10 +3509,9 @@ def promote_canvas_teaching(
         "success": True,
         "status": "promoted",
         "proposal": proposal,
-        "lesson": lesson_result,
+        "lesson": {**lesson_result, "entry": entry, "id": lesson_id},
         "revision": current_revision(fresh),
     }
-
 
 def answer_derive_clarification(
     db, canvas: Canvas, user: Any, clarification_id: str,

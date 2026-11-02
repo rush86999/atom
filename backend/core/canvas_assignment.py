@@ -33,18 +33,52 @@ def _receipt_digest(receipt: Dict[str, Any]) -> str:
     ).encode("utf-8")).hexdigest()
 
 
-def _current_canvas(canvas_id: str):
+def _context_identity(context: Dict[str, Any]) -> Dict[str, str]:
+    provenance = dict(context.get("provenance") or {})
+    return {
+        "user_id": str(
+            provenance.get("requester_id")
+            or context.get("employee_id") or ""),
+        "workspace_id": str(context.get("workspace_id") or "default"),
+        "tenant_id": str(context.get("tenant_id") or "default"),
+    }
+
+
+def _authorized_canvas(canvas_id: str, context: Dict[str, Any]):
+    """Load and authorize the canvas for the AUTHENTICATED requester.
+
+    A known canvas id is not permission, and canvas.created_by is not a
+    substitute for the assignment's authenticated principal.
+    """
+    from types import SimpleNamespace
     from core.database import get_db_session
     from core.models import Canvas
+    from core.canvas_capability_service import CapabilityError, authorize_canvas
 
+    identity = _context_identity(context)
+    if not identity["user_id"]:
+        return None, "The assignment has no authenticated canvas principal."
+    user = SimpleNamespace(
+        id=identity["user_id"], workspace_id=identity["workspace_id"],
+        tenant_id=identity["tenant_id"], role="workspace_admin",
+        is_active=True)
     with get_db_session() as db:
-        canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        canvas = (
+            db.query(Canvas)
+            .populate_existing()
+            .filter(Canvas.id == canvas_id)
+            .first()
+        )
         if canvas is None:
-            return None
-        return canvas
+            return None, "The canvas is no longer available."
+        try:
+            authorize_canvas(db, canvas, user)
+        except CapabilityError as exc:
+            return None, f"Canvas access refused: {exc.code}."
+        return canvas, ""
 
 
-def _recomputed_receipt(canvas_id: str):
+def _recomputed_receipt(canvas_id: str, context: Dict[str, Any]):
     """Recompute the receipt from the authoritative canvas snapshot.
 
     The browser/route value is only a selector. Rows, totals and the digest
@@ -62,6 +96,9 @@ def _recomputed_receipt(canvas_id: str):
         _dataset_source,
     )
 
+    identity = _context_identity(context)
+    if not identity["user_id"]:
+        return None, "The assignment has no authenticated canvas principal."
     with get_db_session() as db:
         canvas = (
             db.query(Canvas)
@@ -74,11 +111,17 @@ def _recomputed_receipt(canvas_id: str):
         manifest = get_manifest(canvas)
         source = _dataset_source(canvas)
         user = SimpleNamespace(
-            id=str(canvas.created_by or ""),
-            workspace_id=str(canvas.workspace_id or "default"),
-            tenant_id=str(canvas.tenant_id or "default"),
+            id=identity["user_id"],
+            workspace_id=identity["workspace_id"],
+            tenant_id=identity["tenant_id"],
             role="workspace_admin", is_active=True,
         )
+        try:
+            from core.canvas_capability_service import authorize_canvas
+
+            authorize_canvas(db, canvas, user)
+        except CapabilityError as exc:
+            return None, f"Canvas access refused: {exc.code}."
         try:
             derived = derive_operation(
                 db, canvas, user,
@@ -168,11 +211,11 @@ async def _canvas_receipt(inputs: Dict[str, Any], context: Dict[str, Any]):
             "message": "The receipt source version is not the accepted one.",
             "evidence": [],
         }
-    current = _current_canvas(canvas_id)
+    current, auth_error = _authorized_canvas(canvas_id, context)
     if current is None:
         return {
             "status": "failed",
-            "message": "The canvas is no longer available.",
+            "message": auth_error or "The canvas is no longer available.",
             "evidence": [],
         }
     state = _canvas_state(current)
@@ -200,7 +243,7 @@ async def _canvas_receipt(inputs: Dict[str, Any], context: Dict[str, Any]):
             "message": "The canvas belongs to a different workspace.",
             "evidence": [],
         }
-    recomputed, recompute_error = _recomputed_receipt(canvas_id)
+    recomputed, recompute_error = _recomputed_receipt(canvas_id, context)
     if recomputed is None:
         return {
             "status": "failed",
@@ -255,11 +298,11 @@ async def _canvas_guard(inputs: Dict[str, Any], context: Dict[str, Any]):
             "message": "The canvas action guard is incomplete.",
             "evidence": [],
         }
-    current = _current_canvas(canvas_id)
+    current, auth_error = _authorized_canvas(canvas_id, context)
     if current is None:
         return {
             "status": "failed",
-            "message": "The canvas is no longer available.",
+            "message": auth_error or "The canvas is no longer available.",
             "evidence": [],
         }
     state = _canvas_state(current)
@@ -340,12 +383,12 @@ async def _canvas_action(inputs: Dict[str, Any], context: Dict[str, Any]):
     canvas_id = str(inputs.get("canvas_id") or "")
     action_id = str(inputs.get("action_id") or "")
     operation = str(inputs.get("operation") or "")
-    current = _current_canvas(canvas_id)
+    current, auth_error = _authorized_canvas(canvas_id, context)
     if current is None:
         return {
             "status": "failed",
-            "message": "The canvas is no longer available.",
-            "error_class": "canvas_not_found",
+            "message": auth_error or "The canvas is no longer available.",
+            "error_class": "canvas_not_authorized",
         }
     state = _canvas_state(current)
     if int(inputs.get("expected_revision") or -1) != state["revision"]:
@@ -403,7 +446,7 @@ async def _canvas_action(inputs: Dict[str, Any], context: Dict[str, Any]):
 def build_canvas_assignment_plan(
     canvas: Any, manifest: Dict[str, Any], receipt: Dict[str, Any],
     *, objective: str, employee_id: str, workspace_id: str, tenant_id: str,
-    action_ids: Optional[Sequence[str]] = None,
+    action_ids: Optional[Sequence[str]] = None, requester_id: str = "",
 ) -> Dict[str, Any]:
     """Build one assignment plan from a server-issued receipt and declarations."""
     from core.canvas_capability_service import (
@@ -516,6 +559,7 @@ def build_canvas_assignment_plan(
             "calculate"],
         provenance={
             "canvas_id": canvas.id,
+            "requester_id": str(requester_id or ""),
             "manifest_revision": manifest_revision,
             "state_revision": revision,
             "receipt_digest": receipt_payload.get("digest"),

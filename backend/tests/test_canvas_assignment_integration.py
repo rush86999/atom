@@ -313,6 +313,186 @@ def test_action_revocation_during_approval_blocks_dispatch(env):
     assert env["drafts"] == []
 
 
+def test_foreign_or_moved_employee_cannot_receive_canvas_teaching(env):
+    from core.student_learning_service import list_agent_lessons
+
+    foreign = AgentRegistry(
+        id="foreign-agent", name="Foreign", category="operations",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="intern", confidence_score=0.5, configuration={},
+        capabilities=[], workspace_id="foreign-ws",
+        tenant_id="foreign-tenant",
+    )
+    env["db"].add(foreign)
+    env["db"].commit()
+    canvas, bound = _canvas(env, canvas_id="canvas_foreign")
+    proposal = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/propose",
+        json={
+            "lesson": "Foreign lesson",
+            "agent_id": "foreign-agent",
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    assert proposal.status_code in (403, 404), proposal.text
+    assert list_agent_lessons(env["db"], "foreign-agent") == []
+
+    owned = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/propose",
+        json={
+            "lesson": "Moved target lesson",
+            "agent_id": env["agent_id"],
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    assert owned.status_code == 200, owned.text
+    proposal_id = owned.json()["proposal"]["id"]
+    agent = env["db"].query(AgentRegistry).filter(
+        AgentRegistry.id == env["agent_id"]).one()
+    agent.workspace_id = "foreign-ws"
+    agent.tenant_id = "foreign-tenant"
+    env["db"].commit()
+    promoted = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/{proposal_id}/promote",
+        json={
+            "approved": True,
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    assert promoted.status_code in (403, 404), promoted.text
+    lessons = list_agent_lessons(env["db"], env["agent_id"])
+    assert not any("Moved target lesson" in json.dumps(item)
+                   for item in lessons)
+
+
+def test_non_supervisor_and_journal_failure_do_not_promote(env, monkeypatch):
+    from core.student_learning_service import list_agent_lessons
+
+    canvas, bound = _canvas(env, canvas_id="canvas_role")
+    proposal = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/propose",
+        json={
+            "lesson": "Role-gated lesson",
+            "agent_id": env["agent_id"],
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        }).json()["proposal"]
+    original_role = env["user"].role
+    env["user"].role = "member"
+    try:
+        refused = env["client"].post(
+            f"/api/canvas/{canvas.id}/capability/teaching/"
+            f"{proposal['id']}/promote",
+            json={
+                "approved": True,
+                "expected_revision": bound["revision"],
+                "manifest_revision": bound["manifest"]["manifest_revision"],
+                "source_version": bound["source"]["source_version"],
+            })
+        assert refused.status_code == 403, refused.text
+    finally:
+        env["user"].role = original_role
+    assert not any("Role-gated lesson" in json.dumps(item)
+                   for item in list_agent_lessons(env["db"], env["agent_id"]))
+
+    def failed_journal(*args, **kwargs):
+        return {"status": "journal_failed", "entry": None}
+
+    monkeypatch.setattr(
+        "core.student_learning_service.deliver_teacher_lesson",
+        failed_journal)
+    failed = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/{proposal['id']}/promote",
+        json={
+            "approved": True,
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    assert failed.status_code == 409, failed.text
+    durable = env["db"].query(Canvas).filter(
+        Canvas.id == canvas.id).one()
+    stored = next(
+        item for item in durable.content[
+            "capability_teaching_proposals"]
+        if item["id"] == proposal["id"])
+    assert stored["status"] == "proposed"
+
+
+def test_promoted_global_lesson_is_consumed_with_full_provenance(env):
+    from core.student_learning_service import get_agent_lessons
+
+    canvas, bound = _canvas(env, canvas_id="canvas_global")
+    receipt = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/derive",
+        json={
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        }).json()
+    proposal = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/propose",
+        json={
+            "lesson": "Global provenance lesson",
+            "agent_id": env["agent_id"],
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        }).json()["proposal"]
+    promoted = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/teaching/"
+        f"{proposal['id']}/promote",
+        json={
+            "approved": True,
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        })
+    assert promoted.status_code == 200, promoted.text
+    lessons = get_agent_lessons(
+        env["db"], env["agent_id"],
+        workspace_id=env["user"].workspace_id, task_context={})
+    matching = [
+        item for item in lessons
+        if "Global provenance lesson" in json.dumps(item)
+    ]
+    assert matching, lessons
+    provenance = matching[0].get("provenance") or {}
+    assert provenance.get("receipt_digest") == (
+        receipt["input_receipt"]["digest"])
+    assert provenance.get("manifest_revision") == (
+        bound["manifest"]["manifest_revision"])
+    assert isinstance(provenance.get("source"), dict)
+
+
+def test_foreign_employee_cannot_start_canvas_assignment(env):
+    foreign = AgentRegistry(
+        id="foreign-assign-agent", name="Foreign Assign",
+        category="operations", module_path="core.generic_agent",
+        class_name="GenericAgent", status="intern",
+        confidence_score=0.5, configuration={}, capabilities=[],
+        workspace_id="foreign-ws", tenant_id="foreign-tenant",
+    )
+    env["db"].add(foreign)
+    env["db"].commit()
+    canvas, bound = _canvas(env, canvas_id="canvas_foreign_assign")
+    response = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/assign",
+        json={
+            "objective": "Foreign assignment",
+            "agent_id": "foreign-assign-agent",
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+            "action_ids": ["notify"],
+        })
+    assert response.status_code in (403, 404), response.text
+
+
 def test_teaching_proposal_requires_explicit_promotion(env):
     from core.student_learning_service import list_agent_lessons
 

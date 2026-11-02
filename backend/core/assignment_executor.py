@@ -4645,6 +4645,8 @@ class AssignmentExecutor:
             "tenant_id": assignment.get("tenant_id"),
             "agent_id": (assignment.get("provenance") or {}).get("agent_id"),
             "employee_id": assignment.get("employee_id"),
+            "provenance": copy.deepcopy(
+                assignment.get("provenance") or {}),
             "objective": assignment.get("objective"),
             "teaching": copy.deepcopy(
                 assignment.get("teaching_snapshot") or {}),

@@ -34,6 +34,7 @@ from core.canvas_capability_service import (
     calculate_operation,
     promote_canvas_teaching,
     propose_canvas_teaching,
+    authorize_canvas_employee,
     current_revision,
     decisions_operation,
     derive_operation,
@@ -448,6 +449,8 @@ async def capability_assign(
             request.agent_id
             or (manifest.get("teaching_binding") or {}).get("agent_id")
             or "").strip()
+        if employee_id:
+            authorize_canvas_employee(db, current_user, employee_id)
         from core.canvas_assignment import build_canvas_assignment_plan
         from core.goals.goal_run_service import GoalRunService
         from core.goals.goal_service import GoalService
@@ -461,6 +464,7 @@ async def capability_assign(
             objective=objective, employee_id=employee_id,
             workspace_id=workspace_id, tenant_id=tenant_id,
             action_ids=action_ids,
+            requester_id=str(current_user.id or ""),
         )
         runs = GoalRunService(
             workspace_id=workspace_id, tenant_id=tenant_id)

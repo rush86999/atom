@@ -991,6 +991,8 @@ def journal_standing_lesson_entry(
     conditions: Optional[Dict[str, Any]] = None,
     context: Optional[Dict[str, Any]] = None,
     workspace_id: Optional[str] = None,
+    commit: bool = True,
+    provenance: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
@@ -1028,6 +1030,8 @@ def journal_standing_lesson_entry(
                 "lesson": text[:2000],
                 "learned_at": datetime.now(timezone.utc).isoformat(),
             }
+            if provenance:
+                entry["provenance"] = dict(provenance)
             # Structured provenance is part of the lesson, not a second
             # store: reference-bound candidates carry their method and
             # resource versions here so work-time application can validate
@@ -1080,7 +1084,8 @@ def journal_standing_lesson_entry(
         config = {**config, "learning": learning}
         agent.configuration = config
         flag_modified(agent, "configuration")
-        db.commit()
+        if commit:
+            db.commit()
         return entry
     except Exception as e:
         logger.debug(f"standing-lesson journal skipped for {agent_id}: {e}")
@@ -1296,6 +1301,8 @@ class StudentLearningService:
         conditions: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
         workspace_id: Optional[str] = None,
+        commit: bool = True,
+        provenance: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Record a teacher-delivered lesson (fast path). ``canvas_context``
         (see build_canvas_context) pins the lesson to the canvas it was
@@ -1334,14 +1341,17 @@ class StudentLearningService:
         ))
         if workspace_id:
             entry["workspace_id"] = str(workspace_id)
-        result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
+        if provenance:
+            entry["provenance"] = dict(provenance)
+        result = self._apply_learning(
+            student, entry, boost=_TEACHER_BOOST, commit=commit)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its
         # topic — it builds mastery so the pedagogy scaffolding withdraws
         # (that is the point of teaching). Best-effort: the journal +
         # confidence above are the contract; mastery tracking must never
         # break lesson intake.
-        if result.get("status") == "ok":
+        if result.get("status") == "ok" and commit:
             try:
                 from core.agent_pedagogy import PedagogicalFramework
 
@@ -1350,6 +1360,7 @@ class StudentLearningService:
                     entry["topic"],
                     positive=True,
                     note=entry["lesson"][:200],
+                    commit=commit,
                 )
             except Exception as e:
                 logger.debug(f"mastery exposure skipped: {e}")
@@ -1528,7 +1539,10 @@ class StudentLearningService:
             return None
         return student
 
-    def _apply_learning(self, student: AgentRegistry, entry: Dict[str, Any], boost: float) -> Dict[str, Any]:
+    def _apply_learning(
+        self, student: AgentRegistry, entry: Dict[str, Any], boost: float,
+        *, commit: bool = True,
+    ) -> Dict[str, Any]:
         from sqlalchemy.orm.attributes import flag_modified
 
         config = student.configuration if isinstance(student.configuration, dict) else {}
@@ -1550,7 +1564,8 @@ class StudentLearningService:
         student.confidence_score = max(old_confidence, min(_CONFIDENCE_CEILING, old_confidence + boost))
         actual_boost = student.confidence_score - old_confidence
 
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
         # Real-time circuit: the hire's confidence just moved (lesson,
         # observation, correction). The trigger path caches maturity +
@@ -1628,6 +1643,8 @@ def deliver_teacher_lesson(
     conditions: Optional[Dict[str, Any]] = None,
     context: Optional[Dict[str, Any]] = None,
     workspace_id: Optional[str] = None,
+    commit: bool = True,
+    provenance: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """One human/mentor-delivered lesson → permanent training, at ANY tier.
 
@@ -1711,6 +1728,8 @@ def deliver_teacher_lesson(
         conditions=conditions,
         context=context,
         workspace_id=workspace_id,
+        commit=commit,
+        provenance=provenance,
     )
     if student_result.get("status") == "ok":
         entry = None
@@ -1720,7 +1739,7 @@ def deliver_teacher_lesson(
         except Exception as e:  # noqa: BLE001
             logger.debug(f"teacher-lesson entry read skipped for {agent_id}: {e}")
 
-        if record_session_lesson:
+        if record_session_lesson and commit:
             # A lesson taught while a training session is ACTIVE also lands in
             # that session's guidance record (best-effort — the journal and
             # confidence above are the contract).
@@ -1758,6 +1777,8 @@ def deliver_teacher_lesson(
         conditions=conditions,
         context=context,
         workspace_id=workspace_id,
+        commit=commit,
+        provenance=provenance,
     )
     if entry is not None:
         return {
