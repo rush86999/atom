@@ -1,5 +1,6 @@
 {
   "artifacts": {
+    "mem07-tests.log": "5c03b2d58bee25735ad1b5b76f880f2c5b636046e7acb18b848655af2831b76d",
     "oracle-team-neighborhood.log": "13656356ce801e948a458078423f39d4f2e58bce825d223b2293ed7a37d5f48b",
     "oracle-team-tests.log": "a223cfbdd443f6effa8a58c4c3bd67c78b06573281d86f548a7859b6efc90054",
     "oracle_registry.json": "2dcf1fab1bb8055cdaa90df5e082161e4822cf1e82e37d67e60f63e7cd300e57",
@@ -8,7 +9,7 @@
   "candidate": {
     "branch": "codex/brennan-canvas-successor-20261101",
     "dirty": false,
-    "executed_source": "6d62855d029acefa9b41520b88a45dcd5ee2e763",
+    "executed_source": "fd4616c257dba5a12e26d775ec3ad73c63f73708",
     "manifest_note": "This evidence commit is docs-only after the executed source; it was not served.",
     "tree_clean_at_execution": true,
     "worktree": "/private/tmp/atom-canvas-successor"
@@ -17,13 +18,24 @@
     "backend/core/oracle/postcondition_verifiers.py",
     "backend/core/org_politics_automation.py",
     "backend/tests/test_org_politics_automation.py",
-    "backend/tests/test_oracle_connected_mutations.py"
+    "backend/tests/test_oracle_connected_mutations.py",
+    "backend/tests/test_memento_candidate_review.py"
   ],
   "claims": [
     "TEAM-05",
-    "ORACLE-01"
+    "ORACLE-01",
+    "MEM-07"
   ],
   "evidence": {
+    "MEM-07": {
+      "entry": "evolution harness / Auto-Dev review API",
+      "logs": [
+        "mem07-tests.log"
+      ],
+      "negative": "approve/reject do not mutate agent configuration; no active behavior change",
+      "persistence": "candidate status persists in the DB across review calls",
+      "positive": "tool-error failure analysis -> pending SkillCandidate; review API lists it"
+    },
     "ORACLE-01": {
       "entry": "core.oracle.postcondition registry; every registered connected mutating action",
       "inventory": "oracle_registry.json",
@@ -52,12 +64,12 @@
     "MINI requires supported Linux/KVM; INT/ROUTE require separate live authorization; ORCH/GOAL/MEM need model/planning work",
     "connected acceptance remains 6431bcb78; historical 111/123 unchanged"
   ],
+  "notes": "Updated for MEM-07 candidate review; earlier TEAM-05/ORACLE-01 controls unchanged.",
   "remaining_open_claims": [
     "ORCH-01",
     "ORCH-02",
     "ORCH-07",
     "GOAL-02",
-    "MEM-07",
     "MINI-03",
     "MINI-04",
     "MINI-05",
@@ -68,6 +80,7 @@
   "source_hashes": {
     "backend/core/oracle/postcondition_verifiers.py": "99a9ea96f89e9d466f38b39aa8b1b6e17a1b635aefc330b5efbc9933e71b8af4",
     "backend/core/org_politics_automation.py": "3b226ee98310ac967da99576f1c3acee6545e5f2faf06f6c19ba6cafdc7c97ab",
+    "backend/tests/test_memento_candidate_review.py": "bacda95ca46290f336bcff9a3b6fecf2cdceb883e1aa79389178c8e81edc2d02",
     "backend/tests/test_oracle_connected_mutations.py": "c123223def81c3e1b465d00447b60b6b71015e1da8ebd9bfb7bebfeb63685a99",
     "backend/tests/test_org_politics_automation.py": "7e553d1570b3d47b49d9f66d1d01bc0edf58011e3f1b010bdfb8563c7f635344"
   },
@@ -75,6 +88,10 @@
     "affected_neighborhood": {
       "command": "TESTING=1 pytest tests/test_org_politics_automation.py tests/test_oracle_connected_mutations.py tests/test_covpush_w36_oracle_vfs.py tests/test_covpush_w77b_graphrag_oracle.py tests/test_covpush_w31_generic_agent.py tests/test_generic_agent.py -q",
       "result": "271 passed"
+    },
+    "mem07": {
+      "command": "TESTING=1 pytest tests/test_memento_candidate_review.py -q",
+      "result": "1 passed"
     },
     "oracle01": {
       "command": "TESTING=1 pytest tests/test_oracle_connected_mutations.py -q",

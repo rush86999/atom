@@ -11,7 +11,7 @@ claim the remaining ten or a new whole-product score.
 |---|---|
 | Worktree | `/private/tmp/atom-canvas-successor` |
 | Branch | `codex/brennan-canvas-successor-20261101` |
-| Executed source | `6d62855d02` |
+| Executed source | `fd4616c25` |
 | Tree at execution | clean (`dirty=false`) |
 | Runtime | local service-level tests, Python 3.14 venv |
 | Browser | not part of this batch; these are service/registry claims |
@@ -47,12 +47,23 @@ Evidence: `team05-tests.log` (21 passed), `oracle-team-neighborhood.log`
 
 Evidence: `oracle-team-tests.log` (23 passed), `oracle_registry.json`.
 
+## MEM-07 — reviewable evolution candidate
+
+- A controlled Memento cycle turns a tool-error failure analysis into a
+  `SkillCandidate` with `validation_status=pending`; the agent configuration is
+  unchanged.
+- The Auto-Dev review API lists the pending candidate; explicit approve changes
+  only the candidate to `validated`, reject to `rejected`; neither mutates the
+  agent. Active application remains the separate existing skill promotion path.
+- Evidence: `mem07-tests.log` (1 passed).
+
 ## Tests
 
 | Scope | Result |
 |---|---|
 | Org-politics automation | **21 passed** |
 | Oracle mutation coverage | **2 passed** |
+| Memento review candidate | **1 passed** |
 | Org/covpush/oracle/generic-agent neighborhood | **271 passed** |
 
 ## Boundaries
@@ -61,8 +72,9 @@ Evidence: `oracle-team-tests.log` (23 passed), `oracle_registry.json`.
 - ORACLE-01 verifies the action's authoritative readback receipt; it does not
   add a second independent provider call for every mutation.
 - No live provider lookup/refresh/write/send.
-- Remaining original claims are still open: ORCH-01/02/07, GOAL-02, MEM-07,
+- Remaining original claims are still open: ORCH-01/02/07, GOAL-02,
   MINI-03/04/05, INT-09, ROUTE-07, plus the remaining ordinary full-app
-  journeys. MINI requires a supported Linux/KVM runtime; INT/ROUTE require
+  journeys. MEM-07 is covered by this batch at the pending-candidate/review
+  boundary; it does not claim autonomous application. MINI requires a supported Linux/KVM runtime; INT/ROUTE require
   separate live authorization; ORCH/GOAL/MEM require model/planning work.
 - Connected acceptance remains `6431bcb78`; historical 111/123 unchanged.

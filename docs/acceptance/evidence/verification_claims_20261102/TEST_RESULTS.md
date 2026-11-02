@@ -1,6 +1,6 @@
 # Verification claims batch 1 — results
 
-Executed source: `6d62855d029acefa9b41520b88a45dcd5ee2e763` (clean).
+Executed source: `fd4616c257dba5a12e26d775ec3ad73c63f73708` (clean).
 
 ## Commands
 
@@ -13,6 +13,10 @@ TESTING=1 pytest tests/test_org_politics_automation.py -q
 TESTING=1 pytest tests/test_oracle_connected_mutations.py -q
 # 2 passed
 
+# MEM-07
+TESTING=1 pytest tests/test_memento_candidate_review.py -q
+# 1 passed
+
 # affected neighborhood
 TESTING=1 pytest tests/test_org_politics_automation.py \
   tests/test_oracle_connected_mutations.py \
@@ -24,7 +28,7 @@ TESTING=1 pytest tests/test_org_politics_automation.py \
 ```
 
 Logs: `team05-tests.log`, `oracle-team-tests.log`,
-`oracle-team-neighborhood.log`.
+`oracle-team-neighborhood.log`, `mem07-tests.log`.
 
 ## TEAM-05 controls
 
@@ -56,6 +60,13 @@ Negative: uncertain outcome, mismatched read receipt, incomplete verification,
 missing payload digest — all refuted.
 
 See `oracle_registry.json`.
+
+## MEM-07 controls
+
+A controlled Memento cycle receives a tool-error failure analysis and creates a
+pending `SkillCandidate`; the agent configuration remains unchanged. The
+Auto-Dev review API lists it; approve moves only the candidate to `validated`,
+reject to `rejected`; neither mutates the agent. See `mem07-tests.log`.
 
 ## Boundaries
 
