@@ -49,6 +49,7 @@ from core.models import (  # noqa: E402
 )
 from core.student_learning_service import deliver_teacher_lesson  # noqa: E402
 from core.task_lifecycle import TaskLifecycle  # noqa: E402
+from core.runtime_identity import get_runtime_identity  # noqa: E402
 
 SCRATCH = prepare_scratch_dir(
     SCRATCH,
@@ -400,10 +401,21 @@ def _outbox_lines():
 def acceptance_state():
     entry = db.query(DatasetEntry).filter(
         DatasetEntry.dataset_name == "scotch_parts_price_list").first()
+    try:
+        import subprocess
+        process_start = subprocess.check_output(
+            ["ps", "-p", str(os.getpid()), "-o", "lstart="],
+            text=True).strip()
+    except Exception:  # noqa: BLE001
+        process_start = ""
     return {
         "ok": True,
         "pid": os.getpid(),
+        "process_start": process_start,
+        "identity": get_runtime_identity().as_dict(),
         "world": str(SCRATCH),
+        "database": str(SCRATCH / "atom.db"),
+        "backend_root": str(ROOT),
         "agent_id": agent.id,
         "dataset_name": entry.dataset_name if entry else None,
         "dataset_version": entry.content_hash if entry else None,

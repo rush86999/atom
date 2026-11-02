@@ -222,3 +222,84 @@ def test_real_connected_estimate_uncertainty_blocks_draft_and_reconciles(
     assert calls["estimate"] == 1
     assert calls["draft"] == 1
     assert outlook.sent is False
+
+
+def test_post_dispatch_serialization_overflow_is_uncertain_and_reconciles(
+        env, monkeypatch):
+    from core.action_registry import action_registry
+
+    calls = []
+    huge = {
+        "status": "success", "action_result": "applied",
+        "remote_id": "remote-big",
+        "content": "x" * 1_700_000,
+        "other": "y" * 1_700_000,
+        "rows": [{"v": "x" * 72} for _ in range(10000)],
+    }
+
+    async def huge_update(args, context):
+        calls.append(dict(args))
+        return dict(huge)
+
+    name = f"test.serialization.executor.{uuid.uuid4().hex[:8]}"
+    action_registry.register(
+        name, huge_update, effects=[{"effect": "create"}])
+    create = new_step(
+        step_id="create", title="Create the oversized commercial record",
+        operation_type="outbound", adapter="action.registry",
+        inputs={"action": name, "arguments": {}},
+        effect="external", approval_required=True,
+        approval_purpose="Create the record",
+    )
+    draft = new_step(
+        step_id="email-draft", title="Prepare the customer email",
+        operation_type="outbound", adapter="email.draft",
+        depends_on=["create"],
+        inputs={"to": ["buyer@example.invalid"],
+                "subject": "Quote", "body": "Quoted total"},
+        effect="local",
+    )
+    plan = new_assignment(
+        objective="Create and draft with an oversized provider result",
+        steps=[create, draft], authorized_actions=["outbound", "edit"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600},
+    )
+    run_id = env["executor"].create_assignment(
+        f"conv-{uuid.uuid4().hex[:8]}", plan["objective"],
+        assignment=plan)["run_id"]
+
+    asyncio.run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "create", approved_by="owner", note="bounded create")
+    after = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    create_step = next(step for step in after["steps"]
+                       if step["step_id"] == "create")
+    draft_step = next(step for step in after["steps"]
+                      if step["step_id"] == "email-draft")
+    assert create_step["status"] == "uncertain"
+    assert draft_step["status"] == "pending"
+    assert len(calls) == 1
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["receipt"]["remote_identity"]["remote_id"] == "remote-big"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    resumed = asyncio.run(restarted.execute(run_id))["assignment"]
+    assert resumed["status"] == "blocked"
+    assert len(calls) == 1
+
+    restarted.reconcile_step(
+        run_id, "create", "applied",
+        evidence="provider readback shows remote-big",
+        evidence_ref="remote-big")
+    completed = asyncio.run(restarted.execute(run_id))["assignment"]
+    draft_step = next(step for step in completed["steps"]
+                      if step["step_id"] == "email-draft")
+    assert draft_step["status"] == "applied"
+    assert len(calls) == 1

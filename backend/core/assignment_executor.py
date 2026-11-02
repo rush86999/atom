@@ -23,6 +23,7 @@ import hashlib
 import inspect
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -333,6 +334,42 @@ class _SerializationBudget:
                 "bytes")
 
 
+#: Persistence stores lifecycle JSON with the stdlib defaults:
+#: ASCII-escaped strings and the default ``", "`` / ``": "`` separators.
+#: Measuring this exact representation makes the bound hard for the bytes
+#: SQLAlchemy actually writes, including escaping and punctuation.
+_PERSISTENCE_JSON_KWARGS = {
+    "ensure_ascii": True,
+    "separators": (", ", ": "),
+    "allow_nan": False,
+}
+
+
+def _check_serialized_size(value: Any) -> None:
+    """Enforce the byte bound on the persisted executable representation.
+
+    The node/text budget catches most payloads, but JSON punctuation, quoting,
+    escaping and separators also consume bytes. A value just under the text
+    budget can still exceed 4 MiB once serialized, so the final transferable
+    form is measured with the persistence encoder. ``iterencode`` stops as
+    soon as the bound is crossed rather than building the whole document.
+    """
+    encoder = json.JSONEncoder(**_PERSISTENCE_JSON_KWARGS)
+    size = 0
+    try:
+        for chunk in encoder.iterencode(value):
+            size += len(chunk.encode("utf-8"))
+            if size > _MAX_EXECUTABLE_BYTES:
+                raise ExecutablePayloadTooLarge(
+                    "serialized executable payload exceeds "
+                    f"{_MAX_EXECUTABLE_BYTES} UTF-8 bytes")
+    except ExecutablePayloadTooLarge:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise ExecutablePayloadTooLarge(
+            f"executable payload is not valid JSON: {exc}") from exc
+
+
 def _json_safe(
     value: Any, *, depth: int = 0, executable: bool = False,
     budget: Optional[_SerializationBudget] = None,
@@ -341,13 +378,23 @@ def _json_safe(
 
     Diagnostics are bounded for lifecycle readability. Executable fields
     (rows, bytes, receipts) are preserved in full or refused explicitly; the
-    aggregate budget counts every key, value and node, not each child
-    independently. A diagnostic limit never changes downstream calculation.
+    aggregate budget counts every key, value and node, and the final
+    serialized UTF-8 JSON is measured before the value can be stored.
     """
-    if budget is not None:
-        executable = True
-    elif executable:
+    finalize = budget is None and executable
+    if finalize:
         budget = _SerializationBudget()
+    result = _json_safe_inner(
+        value, depth=depth, executable=executable, budget=budget)
+    if finalize:
+        _check_serialized_size(result)
+    return result
+
+
+def _json_safe_inner(
+    value: Any, *, depth: int = 0, executable: bool = False,
+    budget: Optional[_SerializationBudget] = None,
+) -> Any:
     if depth > (_MAX_EXECUTABLE_DEPTH if executable else 6):
         if executable:
             raise ExecutablePayloadTooLarge(
@@ -364,7 +411,7 @@ def _json_safe(
                 budget.text(key_text, key=True)
             child_executable = executable or (
                 key_text.strip().lower() in _EXECUTABLE_FIELDS)
-            result[key_text if executable else key_text[:80]] = _json_safe(
+            result[key_text if executable else key_text[:80]] = _json_safe_inner(
                 item, depth=depth + 1, executable=child_executable,
                 budget=budget)
         return result
@@ -380,10 +427,13 @@ def _json_safe(
         for item in list(value)[:limit]:
             if budget:
                 budget.entry()
-            items.append(_json_safe(
+            items.append(_json_safe_inner(
                 item, depth=depth + 1, executable=executable,
                 budget=budget))
         return items
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ExecutablePayloadTooLarge(
+            "executable payload contains a non-finite number")
     if value is None or isinstance(value, (int, float, bool)):
         if budget:
             budget.node()
@@ -5906,22 +5956,31 @@ async def _action_registry_adapter(
         }
 
     try:
-        safe = _json_safe(
-            result, executable=True, budget=_SerializationBudget())
+        safe = _json_safe(result, executable=True)
     except ExecutablePayloadTooLarge as exc:
         if mutating:
             remote = ""
+            provider = operation = None
             if isinstance(result, dict):
                 remote = str(
                     result.get("remote_id") or result.get("provider_ref")
                     or result.get("id") or "")
-            raise ExternalOutcomeUnknown(
-                f"registered action '{name}' returned an oversized executable "
-                f"result after dispatch: {exc}",
-                evidence=_bounded(
+                provider = result.get("provider")
+                operation = result.get("operation")
+            return {
+                "status": "uncertain",
+                "action_result": "uncertain",
+                "reason": (
+                    f"registered action '{name}' returned an oversized "
+                    f"executable result after dispatch: {exc}"),
+                "evidence": _bounded(
                     "serialization refused after external dispatch"
                     + (f"; remote_id={remote}" if remote else ""), 500),
-            ) from exc
+                "remote_id": remote,
+                "provider": provider,
+                "operation": operation,
+                "provider_receipt": ({"remote_id": remote} if remote else {}),
+            }
         return {
             "status": "failed",
             "error_class": "payload_too_large",

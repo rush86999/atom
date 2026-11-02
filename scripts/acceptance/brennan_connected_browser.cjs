@@ -11,6 +11,7 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "../..");
 let playwright;
@@ -221,6 +222,10 @@ async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   server = await startServer(true);
   const oldPid = server.pid;
+  const expectedHead = execSync("git rev-parse HEAD", { cwd: ROOT })
+    .toString().trim();
+  const initialState = (await getJson(
+    `${API}/_acceptance/connected/state`)).body;
   const health = (await getJson(`${API}/api/health`)).body;
   const objective = `Browser connected quote ${Date.now()}`;
   const ref = `RFQ-BROWSER-${Date.now()}`;
@@ -275,6 +280,15 @@ async function main() {
     await detail.waitFor({ state: "visible", timeout: 20000 });
     return detail;
   };
+  const answerTextGaps = async (detail) => {
+    for (let index = 0; index < 5; index += 1) {
+      const inputs = detail.getByLabel("Gap answer");
+      if (await inputs.count() === 0) break;
+      await inputs.first().fill("unlicensed");
+      await detail.getByLabel(/Resolve gap:/).first().click();
+      await page.waitForTimeout(600);
+    }
+  };
 
   let detail = await openAssignment();
   await detail.getByText(/Which qualification applies/i).waitFor({
@@ -290,14 +304,55 @@ async function main() {
          { old_pid: oldPid, new_pid: newPid });
   const restartedState = (await getJson(
     `${API}/_acceptance/connected/state`)).body;
-  record("restarted backend serves source identity",
-         restartedState.version === "v1",
-         restartedState);
+  const oldIdentity = initialState.identity || {};
+  const newIdentity = restartedState.identity || {};
+  const codeIdentityOk =
+    newIdentity.revision === expectedHead
+    && newIdentity.source_id === expectedHead
+    && newIdentity.dirty === false
+    && newIdentity.source_id === oldIdentity.source_id
+    && newIdentity.instance_id !== oldIdentity.instance_id
+    && restartedState.pid === newPid
+    && restartedState.process_start
+    && restartedState.process_start !== initialState.process_start
+    && restartedState.world === initialState.world
+    && restartedState.database === initialState.database;
+  record("restarted backend serves the declared code identity",
+         codeIdentityOk,
+         { expected_head: expectedHead,
+           old_pid: oldPid, new_pid: newPid,
+           old_instance: oldIdentity.instance_id,
+           new_instance: newIdentity.instance_id,
+           old_source_id: oldIdentity.source_id,
+           new_source_id: newIdentity.source_id,
+           dirty: newIdentity.dirty,
+           world: restartedState.world,
+           database: restartedState.database,
+           backend_root: restartedState.backend_root,
+           source_file_version: restartedState.version });
   detail = await openAssignment();
   await detail.getByText(/Which qualification applies/i).waitFor({
     state: "visible", timeout: 20000 });
   record("obligation survives backend restart", true,
          { run_id: runId });
+  await answerTextGaps(detail);
+  await detail.getByText(/Approval required/).first().waitFor({
+    state: "visible", timeout: 20000 });
+  const v1Raw = (await getJson(
+    `${API}/_acceptance/connected/run/${runId}`)).body.assignment;
+  const v1Calc = v1Raw.steps.find((step) => step.step_id === "calculate");
+  const v1Rows = v1Calc.result.rows || [];
+  record("v1 calculation completes before correction",
+         v1Calc.status === "applied"
+         && v1Calc.result.value === "362.50"
+         && v1Rows.length > 0
+         && v1Rows.every((row) => row.source_ref?.version === "v1"),
+         { value: v1Calc.result.value,
+           versions: [...new Set(v1Rows.map(
+             (row) => row.source_ref?.version))] });
+  const v1Screenshot = await screenshot(page, "02-v1-completed-calculation");
+  record("v1 calculation captured before correction", true,
+         { screenshot: v1Screenshot });
 
   // Change the connected source bytes and invalidate the read branch.
   const changed = await getJson(`${API}/_acceptance/connected/source`, {
@@ -316,16 +371,7 @@ async function main() {
   detail = await openAssignment();
   await detail.getByText(/qualification applies|authorized source version changed/i)
     .first().waitFor({ state: "visible", timeout: 20000 });
-  // The source change creates a reassessment obligation; the prior scope
-  // question may still be visible. Answer every text obligation before the
-  // corrected calculation can proceed.
-  for (let index = 0; index < 5; index += 1) {
-    const inputs = detail.getByLabel("Gap answer");
-    if (await inputs.count() === 0) break;
-    await inputs.first().fill("unlicensed");
-    await detail.getByLabel(/Resolve gap:/).first().click();
-    await page.waitForTimeout(600);
-  }
+  await answerTextGaps(detail);
   await detail.getByText(/Approval required/).first().waitFor({
     state: "visible", timeout: 20000 });
   const corrected = await screenshot(page, "02-corrected-quote-approval");
@@ -354,8 +400,8 @@ async function main() {
   const priorRows = (calcStep.prior_results || []).flatMap(
     (item) => item.rows || []);
   record("v1 remains only in historical result",
-         priorRows.length === 0
-         || priorRows.every((row) => row.source_ref?.version === "v1"),
+         priorRows.length > 0
+         && priorRows.every((row) => row.source_ref?.version === "v1"),
          { prior_row_count: priorRows.length,
            versions: [...new Set(priorRows.map(
              (row) => row.source_ref?.version))] });
