@@ -148,6 +148,14 @@ def main() -> int:
         "EX-3,20.00,Closed\n",
         encoding="utf-8",
     )
+    replacement_csv = out / "exception-queue-replacement.csv"
+    replacement_csv.write_text(
+        "Exception,Amount,Status\n"
+        "EX-9,,Open\n"
+        "EX-2,50.00,Open\n"
+        "EX-3,20.00,Closed\n",
+        encoding="utf-8",
+    )
     stale_a_csv = out / "stale-question-a.csv"
     stale_a_csv.write_text(
         "Item,Qty,Price\n"
@@ -314,13 +322,37 @@ def main() -> int:
                 "field_id"] == "amount",
             {"url": queue_url, "status": first_derive["body"].get("status")},
         )
-        answered = answer(page, 2, "amount", "100.00")
+        replacement = bind(page, replacement_csv)
+        refused = answer(page, 2, "amount", "100.00")
         record(
-            "same queue derivation resumes after the answer",
+            "old open question refuses the replacement source",
+            refused["status"] == 409
+            and refused["body"].get("error", {}).get("code")
+            == "stale_clarification"
+            and any("source" in reason
+                    for reason in refused["body"].get("error", {}).get(
+                        "reasons", [])),
+            {"status": refused["status"],
+             "error": refused["body"].get("error")},
+        )
+        renewed = derive(page)
+        record(
+            "replacement source remains unchanged and re-asks for EX-9",
+            replacement["status"] == 200
+            and renewed["body"].get("status") == "clarification"
+            and renewed["body"]["clarification"]["binding"]["missing"][0][
+                "subject"] == "EX-9",
+            {"replacement": replacement["body"].get("row_count"),
+             "question": renewed["body"].get("clarification", {}).get(
+                 "binding", {}).get("missing")},
+        )
+        answered = answer(page, 2, "amount", "30.00")
+        record(
+            "replacement queue derivation resumes after the fresh answer",
             answered["status"] == 200
             and answered["body"].get("status") == "resolved"
             and answered["body"].get("result", {}).get(
-                "aggregates", {}).get("amount") == "170.00",
+                "aggregates", {}).get("amount") == "100.00",
             {"status": answered["body"].get("status"),
              "aggregates": answered["body"].get("result", {}).get(
                  "aggregates")},
@@ -330,7 +362,7 @@ def main() -> int:
             answered["body"].get("result", {}).get("aggregates", {}).get(
                 "exception_id") == 3
             and any(group.get("group") == "Open"
-                    and group.get("value") == "150.00"
+                    and group.get("value") == "80.00"
                     for group in answered["body"].get("result", {}).get(
                         "groups", [])),
             answered["body"].get("result", {}).get("groups"),
