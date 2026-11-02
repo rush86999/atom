@@ -1,0 +1,105 @@
+{
+  "artifacts": {
+    "README.md": "859079babaff88190da8c6167fb1d8abe3b4a59efc22990d7fce501a3524a8af",
+    "TEST_RESULTS.md": "4cc11db17148f8653418fdfdaeeae30e2e6c48c0b589bfbdd00d3f7a706332ab",
+    "assignment-oracle.log": "c39a58c8dbddf4fe2ecfe4df7b9b2fa0b9814b3211d7fc03e10a4cfc3a3bbaa5",
+    "canvas-focused.log": "650bc64e4430930ce8f43e1d7fcba281cb28ffd740af10d8373240ea220b3b14",
+    "connected-readback.log": "66ab3378e8e62de4c312094bb72872831584bd30f6751fd4a5bd7ec368766d58",
+    "frontend-tests.log": "64f4890f1577e977a8841952d48e7f86562bb18429215c4a918fa7c5823a0f4e",
+    "oracle-team-mem-probes.log": "27ab08989ea5b1032669817c1e949b29ed9c89fb650e1449f68ec8c24c497253",
+    "oracle_registry.json": "7e86257ffa73cb84c7c39b1fd82e5e776f89acb4081b779dbad2e0460a990c78",
+    "teaching-neighborhood.log": "b1c67c627a6aff2667aac87a2ad65fb19e14a647cd65cdca918f1530b34ef440",
+    "verifier-oracle-boundaries.py": "375a8c60890f089be683a24d1aa659e939f38a431aab0e6f3033157c2f7529e0",
+    "verifier-oracle-immutable-request.py": "4223e54db7d8368d479dbaa523a349399fb7e7f3492963d546f4e3def80cf5a1",
+    "verifier-oracle-repair-boundaries.py": "ebd3cc19db15254abeec0779ae24469596a36e1111c7ca32f273b84f91d3f7b1"
+  },
+  "candidate": {
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source": "0f9796401",
+    "manifest_note": "This evidence commit is docs-only after the executed source; the executed source was not served.",
+    "previous_source": "45d015fa3",
+    "runtime": "Python 3.14 venv at /Users/rushiparikh/projects/atom/backend/venv314; macOS host; local SQLite/API service tests",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/connected_actions.py",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py",
+    "backend/tests/test_oracle_connected_mutations.py"
+  ],
+  "claims": [
+    "ORACLE-01",
+    "MEM-07",
+    "TEAM-05"
+  ],
+  "coverage_scope": "Six registered connected mutating actions, all covered, plus the existing task/workflow verifiers. This is not a whole-application dispatch/coverage inventory.",
+  "exclusions": [
+    "no browser/UI rerun for this bundle",
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "Outlook and commercial readbacks use production service methods with controlled providers in tests",
+    "MEM-07 closes pending candidate/review, not safe autonomous application",
+    "TEAM-05 remains the controlled deterministic service seam",
+    "ORACLE coverage is the registered mutation inventory above, not every application mutation surface",
+    "historical 111/123 unchanged",
+    "connected acceptance remains 6431bcb78",
+    "typed-canvas acceptance remains 4859b0ce2477",
+    "canvas assignment/teaching acceptance remains a87882526323",
+    "the concurrent full-app remote_id persistence repair remains with its assignment owner"
+  ],
+  "remaining_open_claims": [
+    "ORCH-01",
+    "ORCH-02",
+    "ORCH-07",
+    "GOAL-02",
+    "MINI-03",
+    "MINI-04",
+    "MINI-05",
+    "INT-09",
+    "ROUTE-07"
+  ],
+  "repairs": [
+    "the authorized arguments are deep-copied before any handler invocation or await",
+    "canonical provider digest and operation/provider/organization/target binding are computed from the frozen snapshot",
+    "the handler receives a separate deep copy so top-level and nested mutations cannot change expectations",
+    "a supplied digest that disagrees with the canonical frozen digest refuses before dispatch",
+    "a known connected binding that cannot be constructed refuses before dispatch",
+    "returned fields cannot overwrite the frozen _oracle_expected_* values",
+    "a handler that rewrites body, nested recipient, subject, operation or organization becomes uncertain; the original request is unchanged; restart does not resend and reconciliation settles the original operation"
+  ],
+  "schema": "atom-verification-claims-oracle-frozen-request-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "d8a77098a48e8354a9bc780461de2e0539f38c7b279e44b44b6e03950e13836b",
+    "backend/core/connected_actions.py": "9989dae0b388265580e8dede83f21067a18849cd0b8197dc1b3cca5677fef1fe",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py": "f2df3d1904578f05c97b3b96ed4b258ac8460821fb016b2ed40c12d7a821d1b6",
+    "backend/tests/test_oracle_connected_mutations.py": "3dc96d06e7241d2e17591636987405f14f96d831f0549128c72a22841495269c"
+  },
+  "test_total": 678,
+  "tests": {
+    "assignment_oracle": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py tests/core/test_oracle_and_two_tier_confidence.py tests/unit/test_serialization_budget.py tests/test_covpush_w31_generic_agent.py -q",
+      "result": "217 passed"
+    },
+    "canvas_focused": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_canvas_assessment_routes.py tests/test_canvas_assessment_clarification_routes.py tests/test_canvas_assessment_deterministic.py tests/test_canvas_assessment_concurrency.py tests/test_canvas_connected_binding.py tests/test_api_canvas_routes.py tests/test_canvas_crud.py tests/test_canvas_fork.py tests/test_canvas_assignment_integration.py -q",
+      "result": "127 passed"
+    },
+    "connected_readback": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/unit/test_brennan_agent2_connected_operations.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/test_canvas_assignment_integration.py -q",
+      "result": "78 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand --silent",
+      "result": "7 passed"
+    },
+    "oracle_team_mem_probes": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_oracle_connected_mutations.py tests/test_org_politics_automation.py tests/test_memento_candidate_review.py /private/tmp/test_verifier_oracle_boundaries.py /private/tmp/test_verifier_oracle_repair_boundaries.py /private/tmp/test_verifier_oracle_immutable_request.py -q",
+      "result": "46 passed"
+    },
+    "teaching_neighborhood": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_chat_teaching.py tests/test_chat_teaching_route.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py tests/test_canvas_training_context.py tests/test_artifact_teaching_context.py tests/test_cross_canvas_learning.py tests/test_covpush_w64_continuous_learning.py -q",
+      "result": "203 passed"
+    }
+  }
+}

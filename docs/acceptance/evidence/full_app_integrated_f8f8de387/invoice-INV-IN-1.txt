@@ -1,0 +1,11 @@
+SUPPLIER INVOICE
+Vendor: Acme
+Invoice Number: INV-IN-1
+Date: 2026-11-01
+Due Date: 2026-12-01
+Currency: USD
+Tax: 0.00
+Payment: 50.00 EFT-1
+Total: 120.00
+Line: Parts | 100.00 | Parts
+Line: Freight | 20.00 | Freight

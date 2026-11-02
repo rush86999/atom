@@ -1686,6 +1686,34 @@ What is your next step?"""
             logger.debug(f"oracle stamp skipped for {tool_name}: {e}")
             return result
 
+    def _record_tool_failure(
+        self, tool_name: str, error: Any, context: Dict = None,
+    ) -> bool:
+        """Record a tool failure as canonical evolution feedstock.
+
+        The durable signal rides on the running AgentExecution; episode
+        finalization merges it, downgrades a nominal success to partial and
+        emits the TaskEvent that ReflectionEngine/Memento consume. This hook
+        never creates a second candidate store and never mutates code.
+        """
+        try:
+            from core.auto_dev.tool_error_signals import record_tool_error
+
+            service, _, action = str(tool_name).rpartition(".")
+            ctx = context or {}
+            return record_tool_error(
+                agent_id=getattr(self, "id", None),
+                service=service or str(tool_name),
+                action=action or "call",
+                error_detail=str(error),
+                execution_id=ctx.get("execution_id"),
+                tenant_id=str(ctx.get("tenant_id") or "default"),
+                run_id=ctx.get("run_id"),
+                operation_id=ctx.get("operation_id"),
+            )
+        except Exception:  # never break the tool result path
+            return False
+
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
         """Auditing wrapper around every tool invocation (R84c).
 
@@ -1702,19 +1730,7 @@ What is your next step?"""
                 tool_name, args, context, step_callback, pre_approved
             )
         except Exception as tool_err:
-            try:
-                from core.agent_evolution_candidates import (
-                    capture_tool_failure,
-                )
-                capture_tool_failure(
-                    agent_id=getattr(self, "id", None),
-                    tool_name=tool_name,
-                    error=tool_err,
-                    workspace_id=getattr(self, "workspace_id", None),
-                    tenant_id=getattr(self, "tenant_id", None),
-                )
-            except Exception:  # noqa: BLE001 — capture never breaks the call
-                pass
+            self._record_tool_failure(tool_name, tool_err, context)
             try:
                 from core.agent_action_audit import log_agent_action
                 log_agent_action(
@@ -1734,19 +1750,7 @@ What is your next step?"""
 
         _is_err = isinstance(result, str) and "error" in result.lower()
         if _is_err:
-            try:
-                from core.agent_evolution_candidates import (
-                    capture_tool_failure,
-                )
-                capture_tool_failure(
-                    agent_id=getattr(self, "id", None),
-                    tool_name=tool_name,
-                    error=result,
-                    workspace_id=getattr(self, "workspace_id", None),
-                    tenant_id=getattr(self, "tenant_id", None),
-                )
-            except Exception:  # noqa: BLE001 — capture never breaks the call
-                pass
+            self._record_tool_failure(tool_name, result, context)
         try:
             from core.agent_action_audit import log_agent_action
             log_agent_action(

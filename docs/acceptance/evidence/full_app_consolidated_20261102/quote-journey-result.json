@@ -1,0 +1,215 @@
+{
+  "schema": "atom-full-app-quote-journey-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "promoted document lesson is explicit and source-bound",
+      "ok": true,
+      "detail": {
+        "proposal": 200,
+        "promote": 200
+      }
+    },
+    {
+      "name": "quote receipt starts an ordinary assignment",
+      "ok": true,
+      "detail": {
+        "run_id": "122a8387-56b3-4e94-9324-1830a313d175",
+        "status": "waiting"
+      }
+    },
+    {
+      "name": "real backend restart preserves the prepared action",
+      "ok": true,
+      "detail": {
+        "old_backend_pid": 78405,
+        "new_backend_pid": 79036,
+        "old_frontend_pid": 78465,
+        "new_frontend_pid": 79056
+      }
+    },
+    {
+      "name": "prepared action survives restart without dispatch",
+      "ok": true,
+      "detail": {
+        "pending_steps": [
+          {
+            "step_id": "action-publish",
+            "status": "awaiting_approval"
+          }
+        ],
+        "before_restart": {
+          "operation_id": "442a74d6-2dfe-4bf5-a4bf-b2ad740f4987",
+          "payload_sha256": "5c44a7f4af94e2189ee1df667f7d5b35f24dc9a6f2e6d1f73d1b03df2628ea2a",
+          "status": "awaiting_approval",
+          "remote_id": null
+        },
+        "after_restart": {
+          "operation_id": "442a74d6-2dfe-4bf5-a4bf-b2ad740f4987",
+          "payload_sha256": "5c44a7f4af94e2189ee1df667f7d5b35f24dc9a6f2e6d1f73d1b03df2628ea2a",
+          "status": "awaiting_approval",
+          "remote_id": null
+        },
+        "assignment_status": "waiting"
+      }
+    },
+    {
+      "name": "quote assignment completes after action approval",
+      "ok": true,
+      "detail": {
+        "status": "completed",
+        "steps": [
+          "receipt",
+          "artifact",
+          "guard-publish",
+          "action-publish"
+        ]
+      }
+    },
+    {
+      "name": "quote document artifact is attached",
+      "ok": true,
+      "detail": [
+        {
+          "deliverable_id": "del-document",
+          "kind": "document",
+          "description": "document from canvas 3c65d2b0-788e-48c7-80cb-c9842829c537",
+          "required": true,
+          "step_id": "artifact",
+          "status": "applied",
+          "artifact_revision": "bb80c677d7423690",
+          "artifact_path": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102/data/assignments/canvas-3c65d2b0-788e-48c7-80cb-c9842829c537-e3f7ea6d.docx",
+          "sha256": "bb80c677d74236906a8ad5463f8184c6ed397798d32952c02ccf9b6485ba4919"
+        }
+      ]
+    },
+    {
+      "name": "quote document contains the server total and provenance",
+      "ok": true,
+      "detail": {
+        "bytes": 37252
+      }
+    },
+    {
+      "name": "quote document consumes the promoted lesson",
+      "ok": true,
+      "detail": {
+        "font": "Georgia",
+        "size_pt": 18.0
+      }
+    },
+    {
+      "name": "declared registered action has readback evidence",
+      "ok": true,
+      "detail": {
+        "step": [
+          {
+            "step_id": "action-publish",
+            "title": "Execute declared action publish",
+            "operation_type": "outbound",
+            "adapter": "canvas.action",
+            "depends_on": [
+              "guard-publish"
+            ],
+            "required": true,
+            "effect": "external",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "442a74d6-2dfe-4bf5-a4bf-b2ad740f4987",
+            "attempts": 0,
+            "result_summary": "registered action canvas.present_markdown completed",
+            "result_value": null,
+            "result_unit": null,
+            "result_measure": null,
+            "prior_result_count": 0,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {
+              "payload_sha256": "5c44a7f4af94e2189ee1df667f7d5b35f24dc9a6f2e6d1f73d1b03df2628ea2a",
+              "artifact_revision": null,
+              "authorization_revision": "0d163b741fb8a703bf7ec94eb5fff4f0",
+              "hitl_action_id": "4dd54b38-f68a-4ad9-9e43-b39d7cb7a6c6",
+              "purpose": "Execute canvas action publish through the registered provider boundary"
+            },
+            "standing_authority_receipt": {},
+            "failure": {}
+          }
+        ],
+        "remote_id": "0c327289-abca-4182-ae4c-1e6838d9e019"
+      }
+    },
+    {
+      "name": "duplicate continuation does not dispatch the action again",
+      "ok": true,
+      "detail": {
+        "approve_status": 404,
+        "before_remote": "0c327289-abca-4182-ae4c-1e6838d9e019",
+        "after_remote": "0c327289-abca-4182-ae4c-1e6838d9e019",
+        "audit_count_before_duplicate": 1,
+        "audit_count_after_duplicate": 1
+      }
+    },
+    {
+      "name": "source change produces a new server receipt",
+      "ok": true,
+      "detail": {
+        "row_count": 2,
+        "aggregates": {
+          "line_total": "450.00"
+        }
+      }
+    },
+    {
+      "name": "old source receipt is refused after the change",
+      "ok": true,
+      "detail": {
+        "status": 409,
+        "error": "stale_revision"
+      }
+    },
+    {
+      "name": "service proposal completes with a document artifact",
+      "ok": true,
+      "detail": {
+        "status": "completed"
+      }
+    },
+    {
+      "name": "service document carries the CAD total and lesson",
+      "ok": true,
+      "detail": {
+        "bytes": 37248,
+        "font": "Georgia",
+        "size_pt": 18.0
+      }
+    },
+    {
+      "name": "exception queue completes with a document artifact",
+      "ok": true,
+      "detail": {
+        "status": "completed"
+      }
+    },
+    {
+      "name": "exception document carries the counts and lesson",
+      "ok": true,
+      "detail": {
+        "bytes": 37233,
+        "font": "Georgia",
+        "size_pt": 18.0
+      }
+    },
+    {
+      "name": "cancelled action assignment is terminal",
+      "ok": true,
+      "detail": {
+        "status": 200
+      }
+    }
+  ],
+  "quote_canvas": "http://127.0.0.1:3142/canvas/3c65d2b0-788e-48c7-80cb-c9842829c537",
+  "service_canvas": "http://127.0.0.1:3142/canvas/bd8cb0a7-6667-4d3c-b34d-7c18fda5f8ce",
+  "queue_canvas": "http://127.0.0.1:3142/canvas/859d161f-4eb3-492f-9f96-d0496ddf739e"
+}

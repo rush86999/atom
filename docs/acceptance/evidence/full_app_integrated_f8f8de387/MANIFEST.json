@@ -1,0 +1,154 @@
+{
+  "artifacts": {
+    "README.md": "00dc5fdf0cbf11cb60606da15c3086cb2eae796e80aa119d7f99d7bab0bbee69",
+    "TEST_RESULTS.md": "ce514c7b7269dd1495a5f9b0d8f1e25f543c55e88d9d6d9f53f1823335eb48d3",
+    "backend-tests.log": "30cc7d52eda00ac88aff5759509e1eba7000e78250be912a1227aeb483d9c45a",
+    "bookkeeping-journey.log": "e4adf20fc6ac9712ccc4d5db16ce3ab519ca4dc04381628af0380472ef36704b",
+    "bookkeeping-result.json": "1cbfdd5a4c6d26812ad34ea9f4151e605bfe3eb51b6f1d229dc4bda44b572dad",
+    "books-state.json": "5504c94fdc435fb8f8614933678b905bd2723455b34fcc9b1756b6eb6c0320d6",
+    "frontend-tests.log": "a319cbea9a3be03f0a355b62cccb0fcf8cfb818ce7237b963ece87ac3bc3234a",
+    "invoice-INV-IN-1.txt": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6",
+    "oracle-registry.txt": "68c4616ff217021d3edf0973d48be839570c23e870a5663e97c0b56a57117c56",
+    "queue-document.docx": "5a2224e7ef615ec1247dedc5180b70cd81fb08d98e2c36f75faefdd61632b3d2",
+    "queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+    "quote-changed.csv": "2bf5e0039f8e4dab21ad738dc10708179573dc38328a5dbb2af8ede8d4a3742b",
+    "quote-document.docx": "47d6ddce888f7b8452fef2722e08ae6f8baa39f93af6d5407481c264ac6ed6bd",
+    "quote-journey-result.json": "2d66727bc41280d1c8646fb1885a694d7e32ae556b88ea24f8c3bbcf5d867cb7",
+    "quote-journey.log": "3c6b208bc4407a12266369b62f38401e0170d1fe35ba647fc9b209e6d960e966",
+    "quote-journey.png": "a4998033e2b209321c4017425f1c800dd0b964f4788471992a71d1229ffb96b0",
+    "quote.csv": "4db47c8c4d1030e5f2011605e881dbe2536ecaefa120bb7baabda2cc21d4134f",
+    "service-document.docx": "2039cf364bdb98c81c13970c88ac065e716f0449dca349bd8619b7aaf642dca7",
+    "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "dirty": false,
+    "executed_source": "f8f8de387bfb8979bf9e2d17779f71b53bcb982d",
+    "integration_commits": [
+      "b049c0761 merge accepted connected-oracle protections with taught artifacts",
+      "55fff94f2 canonical Memento candidate lifecycle",
+      "2ebcf9353 effect counter and pending identity across restart",
+      "2b5db4b98 action-registry isolation between tests",
+      "f8f8de387 shared local postconditions and invoice-to-Books journey"
+    ],
+    "manifest_note": "This evidence commit is docs-only after the executed source; the executed source was not served after the evidence commit.",
+    "runtime_identity_bookkeeping": "source_id=f8f8de387bfb revision=f8f8de387bfb dirty=False (0 modified, 0 untracked)",
+    "runtime_identity_quote": "source_id=f8f8de387bfb revision=f8f8de387bfb dirty=False (0 modified, 0 untracked)",
+    "supersedes": "2b5db4b98 consolidated bundle",
+    "transport": "controlled canvas action and controlled Zoho Books ledger; no live provider",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-full-app",
+    "worlds": {
+      "bookkeeping": {
+        "api_port": 8099,
+        "frontend_port": 3140,
+        "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-bookkeeping-integrated-f8f8de387"
+      },
+      "quote": {
+        "api_port": 8096,
+        "frontend_port": 3137,
+        "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102"
+      }
+    }
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/api/document_ingestion_routes.py",
+    "backend/core/action_registry.py",
+    "backend/core/assignment_controlled_books.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_resources.py",
+    "backend/core/connected_actions.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/core/task_lifecycle.py",
+    "backend/main_api_app.py",
+    "backend/tests/test_canvas_present_actions.py",
+    "backend/tests/test_oracle_effect_families.py",
+    "scripts/acceptance/full_app_bookkeeping_journey.py"
+  ],
+  "claims": [
+    "normal-full-app-quote-service-exception-journey",
+    "invoice-to-books-controlled-journey",
+    "shared-local-effect-family-postconditions",
+    "one-evolution-candidate-lifecycle"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "controlled canvas action and controlled Zoho Books ledger only",
+    "827 HTTP mutation declarations are not proven reachable writes",
+    "no whole-app ORACLE-01 closure",
+    "TEAM-05 real LLM sweep transport remains separate",
+    "MEM-07 approval/apply and later consumption remain separate",
+    "no 24-hour soak, multi-worker, model-quality or live-provider claim",
+    "historical 111/123 unchanged",
+    "connected acceptance remains 6431bcb78",
+    "typed-canvas acceptance remains 4859b0ce2477",
+    "canvas assignment/teaching acceptance remains a87882526323",
+    "earlier evidence bundles remain unchanged"
+  ],
+  "journeys": {
+    "invoice_to_books": {
+      "books_state": "books-state.json",
+      "effect_counts": {
+        "creates": 1,
+        "readbacks": 1
+      },
+      "invoice": "invoice-INV-IN-1.txt",
+      "log": "bookkeeping-journey.log",
+      "result": "12/12 passed",
+      "result_file": "bookkeeping-result.json"
+    },
+    "quote_service_exception": {
+      "documents": [
+        "quote-document.docx",
+        "service-document.docx",
+        "queue-document.docx"
+      ],
+      "log": "quote-journey.log",
+      "result": "17/17 passed",
+      "result_file": "quote-journey-result.json"
+    }
+  },
+  "oracle": {
+    "external_covered": 6,
+    "external_mutations": 6,
+    "http_mutation_declarations": 827,
+    "inventory": "oracle-whole-app-inventory/inventory.json",
+    "loaded_verifiers": 16,
+    "local_covered": 9,
+    "local_mutations": 9,
+    "provider_write_methods": 311,
+    "registered_actions": 90,
+    "registry_file": "oracle-registry.txt",
+    "whole_app_closure": false
+  },
+  "schema": "atom-full-app-integrated-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "1731b93daa488529a5210bea14a93cd118c82d65fec64d9dea8e8369e080b398",
+    "backend/api/document_ingestion_routes.py": "693798765536b03b6ec630ecbf39c2d102e4f5042f2c9cff823869ecc035d135",
+    "backend/core/action_registry.py": "58cb26365831cd9937d856a48a66543d9912370f1dba902e5edacc8cab425410",
+    "backend/core/assignment_controlled_books.py": "b31862e0d7444aff9d334bb16fdb5931c4fb5568d2661a80843fae87b614bbca",
+    "backend/core/assignment_executor.py": "0ba6d0d8a3f00b82d4bba335c280ce318e307503d155629cf0365826b8f443ab",
+    "backend/core/assignment_resources.py": "15c08a4196a4002334eacfbf7db5842f23d88b5a2b883573491cce7876ccc5e4",
+    "backend/core/connected_actions.py": "cbae857f1d26331dfc4e6c681571b3b78f88b521876468069b0ef4553cb495b9",
+    "backend/core/oracle/postcondition_verifiers.py": "12708ce5ec41cd0d6820c7717eb96d792c6f9b24297ac25bb7fa603d8336a0fa",
+    "backend/core/task_lifecycle.py": "b18a192ebac476aa4f110c36c332b8402cd1f6a9ba56ee8ee7682c29b1c52e7b",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_canvas_present_actions.py": "1a43134888972050ee63d2267734056b37c4ae891aac4298823e4f36a6ba90a4",
+    "backend/tests/test_oracle_effect_families.py": "922899e58f28d5e4a145912f7e6143a7ad842d84b20069b8b4fef182e6255a20",
+    "scripts/acceptance/full_app_bookkeeping_journey.py": "183bca67c3bcf011bb3a440cb3722d5626254caa26d0ecbd9dbd7ab216154ef9"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_combined": {
+      "command": "TESTING=1 PYTHONPATH=backend pytest <17 files> -q",
+      "log": "backend-tests.log",
+      "result": "269 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest CanvasCapabilityRules CanvasCapabilityDerive CanvasCapabilityAssessment --runInBand --silent",
+      "log": "frontend-tests.log",
+      "result": "7 passed"
+    }
+  }
+}

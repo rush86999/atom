@@ -1,0 +1,1403 @@
+{
+  "coverage": {
+    "external_mutation_covered": 6,
+    "external_mutation_total": 6,
+    "external_mutation_uncovered": [],
+    "local_mutation_covered": 9,
+    "local_mutation_total": 9,
+    "local_mutation_uncovered": [],
+    "oracle_verifiers": [
+      "brennan.books.create_bill",
+      "brennan.books.create_estimate",
+      "brennan.outlook.create_draft",
+      "canvas.present_chart",
+      "canvas.present_markdown",
+      "canvas.restore_version",
+      "canvas.update",
+      "connected.books.create_bill",
+      "connected.books.create_estimate",
+      "connected.outlook.create_draft",
+      "goal_runs.start",
+      "goals.create",
+      "goals.decompose",
+      "goals.evaluate",
+      "tasks.create",
+      "trigger_workflow"
+    ]
+  },
+  "gaps": [
+    "External provider mutations are limited to six connected estimate/bill/draft action names; no other provider write action is registered or oracle-covered.",
+    "Local durable-state mutations through goals/goal_runs/canvas have at most the existing task/workflow verifiers; canvas update, present, restore and goal-run state changes are not independently postcondition-verified.",
+    "HTTP mutation routes are overwhelmingly outside the registered action registry; their correctness is covered, if at all, by route/service tests rather than the oracle.",
+    "Provider adapters expose many write methods; only a small subset is reachable through registered, verified actions."
+  ],
+  "generated_at": "2026-11-02T19:40:37.929592+00:00",
+  "http_mutation_routes": {
+    "by_file": {
+      "/private/tmp/atom-full-app/backend/api/a2a_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/ab_testing.py": 5,
+      "/private/tmp/atom-full-app/backend/api/admin/budget_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/admin/business_facts_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/admin/cache_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/admin/jit_verification_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/api/admin/skill_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/admin_routes.py": 14,
+      "/private/tmp/atom-full-app/backend/api/admin_runtime_settings_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/agent_control_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/agent_coordination_routes.py": 7,
+      "/private/tmp/atom-full-app/backend/api/agent_governance_routes.py": 7,
+      "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/api/agent_marketplace_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py": 9,
+      "/private/tmp/atom-full-app/backend/api/agent_onboarding_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/agent_routes.py": 12,
+      "/private/tmp/atom-full-app/backend/api/agent_status_endpoints.py": 4,
+      "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/api/ai_workflows_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/analytics_dashboard_endpoints.py": 3,
+      "/private/tmp/atom-full-app/backend/api/analytics_dashboard_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/apar_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/api/approvals_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/artifact_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/assignment_routes.py": 11,
+      "/private/tmp/atom-full-app/backend/api/auth_2fa_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/auth_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/autodev_review_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/autonomy_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/background_agent_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/board_comment_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/board_decompose_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/board_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/api/bpe_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/browser_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/api/byok_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/api/canvas_capability_routes.py": 16,
+      "/private/tmp/atom-full-app/backend/api/canvas_coding_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/canvas_docs_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/canvas_email_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/api/canvas_pdf_routes.py": 18,
+      "/private/tmp/atom-full-app/backend/api/canvas_recording_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/canvas_routes.py": 17,
+      "/private/tmp/atom-full-app/backend/api/canvas_sheets_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/canvas_skill_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/canvas_terminal_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/connection_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/conversation_learning_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/api/custom_components.py": 5,
+      "/private/tmp/atom-full-app/backend/api/data_ingestion_routes.py": 9,
+      "/private/tmp/atom-full-app/backend/api/debug_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/api/decision_automation_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/deeplinks.py": 2,
+      "/private/tmp/atom-full-app/backend/api/device_capabilities.py": 6,
+      "/private/tmp/atom-full-app/backend/api/document_ingestion_routes.py": 7,
+      "/private/tmp/atom-full-app/backend/api/document_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/dynamic_options_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/enterprise_auth_endpoints.py": 4,
+      "/private/tmp/atom-full-app/backend/api/entity_type_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/episode_routes.py": 13,
+      "/private/tmp/atom-full-app/backend/api/evolution_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/experience_marketplace_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/feedback_batch.py": 3,
+      "/private/tmp/atom-full-app/backend/api/feedback_enhanced.py": 1,
+      "/private/tmp/atom-full-app/backend/api/financial_ops_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/financial_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/fleet_router_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/gatekeeper_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/gateway_key_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/goal_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/goal_run_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/api/graphrag_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/health_monitoring_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/installation_profile_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/integration_dashboard_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/integration_status_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/integrations/memory_backfill_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/intelligence_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/learn_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/learning_plan_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/line_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/llm_oauth_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/marketing_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/mcp_client_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/mcp_server_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/meeting_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/memory_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/messaging_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/api/messenger_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/mini_app_routes.py": 18,
+      "/private/tmp/atom-full-app/backend/api/mobile_workflows.py": 2,
+      "/private/tmp/atom-full-app/backend/api/monitoring_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/api/nav_stub_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/notification_settings_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/notifications_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/oauth_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/office_routes.py": 11,
+      "/private/tmp/atom-full-app/backend/api/onboarding_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/ontology_draft_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/ontology_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/openai_gateway_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/operational_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/operations_api.py": 1,
+      "/private/tmp/atom-full-app/backend/api/org_politics_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/playbook_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/project_health_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/project_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/protection_api.py": 1,
+      "/private/tmp/atom-full-app/backend/api/reasoning_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/reconciliation_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/recording_review_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/routes/federation_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/routes/ingestion_crud_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/routes/local_model_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/discord_webhooks.py": 1,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/ingestion_webhooks.py": 7,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/monitoring.py": 2,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/shopify_webhooks.py": 1,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/slack_webhooks.py": 1,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/teams_webhooks.py": 1,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/twilio_webhooks.py": 2,
+      "/private/tmp/atom-full-app/backend/api/routes/webhooks/whatsapp_webhooks.py": 1,
+      "/private/tmp/atom-full-app/backend/api/rpc_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/satellite_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/scim_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/shell_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/skill_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/social_media_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/sso_oidc_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/stage_router_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/supervised_queue_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/supervision_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/time_travel_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/api/trust_calibration_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/user_activity_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/user_management_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/api/user_templates_endpoints.py": 6,
+      "/private/tmp/atom-full-app/backend/api/webhook_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/api/workflow_debugging.py": 10,
+      "/private/tmp/atom-full-app/backend/api/workflow_template_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/api/workflow_versioning_endpoints.py": 6,
+      "/private/tmp/atom-full-app/backend/api/workspace_context_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/api/workspace_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/api/zoho_workdrive_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/integrations/ai_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/airtable_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/asana_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/atom_communication_apps_lancedb_integration.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/atom_communication_memory_api.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/atom_communication_memory_production_api.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/atom_communication_memory_webhooks.py": 6,
+      "/private/tmp/atom-full-app/backend/integrations/bamboohr_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/bitbucket_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/box_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/bridge/external_integration_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/calendly_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/chat_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/deepgram_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/discord_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/dropbox_routes.py": 11,
+      "/private/tmp/atom-full-app/backend/integrations/email_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/figma_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/freshdesk_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/gdrive_journey_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/github_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/gitlab_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/gmail_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/google_chat_enhanced_api_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/google_drive_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/hubspot_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/intercom_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/jira_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/line_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/linear_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/linkedin_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/mailchimp_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/matrix_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/mcp_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/messenger_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/microsoft365_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/integrations/monday_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/notion_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/obsidian_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/onedrive_journey_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/onedrive_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/openclaw_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_routes.py": 14,
+      "/private/tmp/atom-full-app/backend/integrations/pdf_processing/pdf_memory_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/pdf_processing/pdf_ocr_routes.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/plaid_routes.py": 7,
+      "/private/tmp/atom-full-app/backend/integrations/quickbooks_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/salesforce_routes.py": 6,
+      "/private/tmp/atom-full-app/backend/integrations/shopify_routes.py": 7,
+      "/private/tmp/atom-full-app/backend/integrations/shopify_webhooks.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/signal_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/slack_routes.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/tableau_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/teams_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/telegram_routes.py": 10,
+      "/private/tmp/atom-full-app/backend/integrations/trello_routes.py": 12,
+      "/private/tmp/atom-full-app/backend/integrations/twilio_routes.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/twitter_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_fastapi_routes.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/workflow_approval_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/workflow_automation_routes.py": 9,
+      "/private/tmp/atom-full-app/backend/integrations/xero_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zendesk_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_forms_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoom_routes.py": 1
+    },
+    "by_method": {
+      "DELETE": 61,
+      "PATCH": 15,
+      "POST": 711,
+      "PUT": 40
+    },
+    "high_risk_sample": [
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ab_testing.py",
+        "function": "create_test",
+        "method": "POST",
+        "route": "/create"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ab_testing.py",
+        "function": "start_test",
+        "method": "POST",
+        "route": "/{test_id}/start"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ab_testing.py",
+        "function": "complete_test",
+        "method": "POST",
+        "route": "/{test_id}/complete"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/budget_routes.py",
+        "function": "update_tenant_budget",
+        "method": "PUT",
+        "route": "/{tenant_id}/budget"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/business_facts_routes.py",
+        "function": "create_fact",
+        "method": "POST",
+        "route": ""
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/business_facts_routes.py",
+        "function": "update_fact",
+        "method": "PUT",
+        "route": "/{fact_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/business_facts_routes.py",
+        "function": "delete_fact",
+        "method": "DELETE",
+        "route": "/{fact_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/business_facts_routes.py",
+        "function": "upload_and_extract",
+        "method": "POST",
+        "route": "/upload"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/jit_verification_routes.py",
+        "function": "start_worker",
+        "method": "POST",
+        "route": "/worker/start"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin/skill_routes.py",
+        "function": "create_new_skill",
+        "method": "POST",
+        "route": "/"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "create_admin_user",
+        "method": "POST",
+        "route": "/users"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "update_admin_user",
+        "method": "PATCH",
+        "route": "/users/{admin_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "delete_admin_user",
+        "method": "DELETE",
+        "route": "/users/{admin_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "update_admin_last_login",
+        "method": "PATCH",
+        "route": "/users/{admin_id}/last-login"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "create_admin_role",
+        "method": "POST",
+        "route": "/roles"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "update_admin_role",
+        "method": "PATCH",
+        "route": "/roles/{role_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "delete_admin_role",
+        "method": "DELETE",
+        "route": "/roles/{role_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "trigger_websocket_reconnect",
+        "method": "POST",
+        "route": "/websocket/reconnect"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_routes.py",
+        "function": "retry_failed_rating_upload",
+        "method": "POST",
+        "route": "/ratings/failed-uploads/{failed_id}/retry"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/admin_runtime_settings_routes.py",
+        "function": "update_setting",
+        "method": "PUT",
+        "route": "/{key}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_control_routes.py",
+        "function": "start_atom",
+        "method": "POST",
+        "route": "/start"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_control_routes.py",
+        "function": "restart_atom",
+        "method": "POST",
+        "route": "/restart"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_control_routes.py",
+        "function": "execute_atom_command",
+        "method": "POST",
+        "route": "/execute"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_coordination_routes.py",
+        "function": "complete_agent_handoff",
+        "method": "POST",
+        "route": "/handoffs/{handoff_id}/complete"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_governance_routes.py",
+        "function": "submit_workflow_for_approval",
+        "method": "POST",
+        "route": "/submit-for-approval"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_governance_routes.py",
+        "function": "submit_agent_feedback",
+        "method": "POST",
+        "route": "/feedback"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_governance_routes.py",
+        "function": "approve_workflow",
+        "method": "POST",
+        "route": "/approve/{approval_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "start_operation",
+        "method": "POST",
+        "route": "/operation/start"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "update_operation",
+        "method": "PUT",
+        "route": "/operation/{operation_id}/update"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "complete_operation",
+        "method": "POST",
+        "route": "/operation/{operation_id}/complete"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "present_error",
+        "method": "POST",
+        "route": "/error/present"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "create_permission_request",
+        "method": "POST",
+        "route": "/request/permission"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_guidance_routes.py",
+        "function": "create_decision_request",
+        "method": "POST",
+        "route": "/request/decision"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "start_training_round",
+        "method": "POST",
+        "route": "/training/start"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "approve_training_proposal",
+        "method": "POST",
+        "route": "/training/proposals/{proposal_id}/approve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "complete_training_session",
+        "method": "POST",
+        "route": "/training/sessions/{session_id}/complete"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "update_training_guidance",
+        "method": "PATCH",
+        "route": "/training/sessions/{session_id}/guidance"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "update_agent_teaching_point",
+        "method": "PATCH",
+        "route": "/agents/{agent_id}/teaching-points/{point_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "delete_agent_teaching_point",
+        "method": "DELETE",
+        "route": "/agents/{agent_id}/teaching-points/{point_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_maturity_routes.py",
+        "function": "approve_action_proposal",
+        "method": "POST",
+        "route": "/proposals/{proposal_id}/approve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_onboarding_routes.py",
+        "function": "create_guided_agent",
+        "method": "POST",
+        "route": "/guided"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "delete_agent",
+        "method": "DELETE",
+        "route": "/{agent_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "run_agent",
+        "method": "POST",
+        "route": "/{agent_id}/run"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "update_agent",
+        "method": "PATCH",
+        "route": "/{agent_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "submit_agent_feedback",
+        "method": "POST",
+        "route": "/{agent_id}/feedback"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "execute_atom",
+        "method": "POST",
+        "route": "/atom/execute"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_routes.py",
+        "function": "create_custom_agent",
+        "method": "POST",
+        "route": "/custom"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_status_endpoints.py",
+        "function": "update_task_status",
+        "method": "POST",
+        "route": "/agent/task/{task_id}/update"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_status_endpoints.py",
+        "function": "create_task",
+        "method": "POST",
+        "route": "/agent/task"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/agent_status_endpoints.py",
+        "function": "delete_task",
+        "method": "DELETE",
+        "route": "/agent/task/{task_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py",
+        "function": "update_transaction",
+        "method": "PUT",
+        "route": "/transactions/{transaction_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py",
+        "function": "delete_transaction",
+        "method": "DELETE",
+        "route": "/transactions/{transaction_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py",
+        "function": "post_transaction",
+        "method": "POST",
+        "route": "/post/{transaction_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py",
+        "function": "auto_post_high_confidence",
+        "method": "POST",
+        "route": "/auto-post"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_accounting_routes.py",
+        "function": "run_scenario",
+        "method": "POST",
+        "route": "/scenario"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/ai_workflows_routes.py",
+        "function": "complete_text",
+        "method": "POST",
+        "route": "/complete"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/analytics_dashboard_endpoints.py",
+        "function": "create_alert",
+        "method": "POST",
+        "route": "/api/analytics/alerts"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/analytics_dashboard_endpoints.py",
+        "function": "update_alert",
+        "method": "PUT",
+        "route": "/api/analytics/alerts/{alert_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/analytics_dashboard_endpoints.py",
+        "function": "delete_alert",
+        "method": "DELETE",
+        "route": "/api/analytics/alerts/{alert_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/apar_routes.py",
+        "function": "approve_ap_invoice",
+        "method": "POST",
+        "route": "/ap/{invoice_id}/approve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/apar_routes.py",
+        "function": "send_ar_invoice",
+        "method": "POST",
+        "route": "/ar/{invoice_id}/send"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/apar_routes.py",
+        "function": "send_reminder",
+        "method": "POST",
+        "route": "/ar/{invoice_id}/remind"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/artifact_routes.py",
+        "function": "save_artifact",
+        "method": "POST",
+        "route": "/"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/artifact_routes.py",
+        "function": "update_artifact",
+        "method": "POST",
+        "route": "/update"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "start_assignment",
+        "method": "POST",
+        "route": ""
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "retry_assignment_step",
+        "method": "POST",
+        "route": "/{run_id}/retry/{step_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "resume_assignment",
+        "method": "POST",
+        "route": "/{run_id}/resume"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "reassess_assignment",
+        "method": "POST",
+        "route": "/{run_id}/reassess"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "invalidate_assignment_step",
+        "method": "POST",
+        "route": "/{run_id}/invalidate/{step_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "cancel_assignment",
+        "method": "POST",
+        "route": "/{run_id}/cancel"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "record_assignment_response",
+        "method": "POST",
+        "route": "/{run_id}/responses/{correlation_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "resolve_assignment_gap",
+        "method": "POST",
+        "route": "/{run_id}/gaps/{question_id}/resolve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "correct_assignment_mapping",
+        "method": "POST",
+        "route": "/{run_id}/mappings/correct"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "approve_assignment_step",
+        "method": "POST",
+        "route": "/{run_id}/approve/{step_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/assignment_routes.py",
+        "function": "reconcile_assignment_step",
+        "method": "POST",
+        "route": "/{run_id}/reconcile/{step_id}"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/auth_routes.py",
+        "function": "refresh_mobile_token",
+        "method": "POST",
+        "route": "/mobile/refresh"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/auth_routes.py",
+        "function": "delete_mobile_device",
+        "method": "DELETE",
+        "route": "/mobile/device"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/autodev_review_routes.py",
+        "function": "approve_skill_candidate",
+        "method": "POST",
+        "route": "/skills/{candidate_id}/approve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/autodev_review_routes.py",
+        "function": "approve_tool_mutation",
+        "method": "POST",
+        "route": "/mutations/{mutation_id}/approve"
+      },
+      {
+        "file": "/private/tmp/atom-full-app/backend/api/background_agent_routes.py",
+        "function": "start_background_agent",
+        "method": "POST",
+        "route": "/{agent_id}/start"
+      }
+    ],
+    "high_risk_total": 366,
+    "total": 827
+  },
+  "next_verifiers": [
+    "canvas.update / canvas.restore_version: compare persisted content revision/hash against the authorized mutation and reject stale or different-object writes.",
+    "canvas.present_markdown / canvas.present_chart: verify the audit record and returned canvas identity, not only the broadcast.",
+    "goals.create / goal_runs.start: verify the persisted goal/run identity and state before dependent work continues.",
+    "goals.decompose / goals.evaluate: verify the persisted plan or evaluation revision and its source/goal binding.",
+    "Provider send/connect/disconnect/refresh routes: require explicit operation identity and authoritative readback before claiming success."
+  ],
+  "provider_write_methods": {
+    "by_file": {
+      "/private/tmp/atom-full-app/backend/integrations/adapters/asana_adapter.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/hubspot_adapter.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/line_adapter.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/messenger_adapter.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/notion_adapter.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/signal_adapter.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/adapters/slack_adapter.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/airtable_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/asana_real_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/asana_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py": 6,
+      "/private/tmp/atom-full-app/backend/integrations/atom_communication_ingestion_pipeline.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/atom_discord_integration.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_security_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_unified_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/atom_hubspot_integration_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/atom_projects_memory_pipeline.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/atom_quickbooks_integration_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/atom_sales_memory_pipeline.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/atom_teams_integration.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/atom_whatsapp_integration.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/atom_zendesk_integration_service.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/atom_zoom_integration.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/auth_handler_dropbox.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/auth_handler_salesforce.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/auth_handler_zoom.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/bamboohr_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/bitbucket_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/box_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/bridge/node_bridge_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/bytewax_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/calendly_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/deepgram_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/discord_enhanced_service.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/discord_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/document_logic_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/dropbox_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/ecommerce_unified_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/email_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/figma_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/freshdesk_service.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/github_integration.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/github_service.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/gitlab_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/gmail_service.py": 6,
+      "/private/tmp/atom-full-app/backend/integrations/google_calendar_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/google_chat_enhanced_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/google_drive_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/hubspot_routes.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/hubspot_service.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/intercom_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/jira_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/line_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/linear_service.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/linkedin_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/mailchimp_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/marketing_unified_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/matrix_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/mcp_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/messenger_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/meta_business_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/microsoft365_service.py": 10,
+      "/private/tmp/atom-full-app/backend/integrations/monday_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/notion_service.py": 9,
+      "/private/tmp/atom-full-app/backend/integrations/obsidian_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/okta_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/onedrive_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/openclaw_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_calendar_service.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_integration.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_realtime.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_service.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/outlook_service_enhanced.py": 4,
+      "/private/tmp/atom-full-app/backend/integrations/pdf_processing/pdf_memory_integration.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/plaid_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/quickbooks_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/salesforce_core_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/salesforce_service.py": 11,
+      "/private/tmp/atom-full-app/backend/integrations/sendgrid_routes.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/shopify_service.py": 7,
+      "/private/tmp/atom-full-app/backend/integrations/signal_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/slack_enhanced_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/slack_service_unified.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/slack_workflow_automation.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/slack_workflow_engine.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/tableau_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/teams_enhanced_service.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/teams_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/trello_service.py": 8,
+      "/private/tmp/atom-full-app/backend/integrations/twilio_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/twitter_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/webex_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_business_integration.py": 3,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_database_optimization_final.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_database_setup.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_performance_benchmark.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/whatsapp_production_test.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/workday_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/workspace_sync_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/xero_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zendesk_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_books_service.py": 9,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_crm_service.py": 5,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_flow_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_forms_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_inventory_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_mail_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_projects_service.py": 2,
+      "/private/tmp/atom-full-app/backend/integrations/zoho_workdrive_service.py": 1,
+      "/private/tmp/atom-full-app/backend/integrations/zoom_service.py": 3
+    },
+    "sample": [
+      {
+        "class": "AsanaAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/asana_adapter.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "HubSpotAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/hubspot_adapter.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "LineAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/line_adapter.py",
+        "method": "send_message"
+      },
+      {
+        "class": "LineAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/line_adapter.py",
+        "method": "send_messages"
+      },
+      {
+        "class": "LineAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/line_adapter.py",
+        "method": "send_quick_reply"
+      },
+      {
+        "class": "LineAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/line_adapter.py",
+        "method": "send_template_message"
+      },
+      {
+        "class": "MessengerAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/messenger_adapter.py",
+        "method": "send_message"
+      },
+      {
+        "class": "MessengerAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/messenger_adapter.py",
+        "method": "send_attachment"
+      },
+      {
+        "class": "NotionAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/notion_adapter.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "SignalAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/signal_adapter.py",
+        "method": "send_message"
+      },
+      {
+        "class": "SignalAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/signal_adapter.py",
+        "method": "send_receipt"
+      },
+      {
+        "class": "SlackAdapter",
+        "file": "/private/tmp/atom-full-app/backend/integrations/adapters/slack_adapter.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "AirtableService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/airtable_service.py",
+        "method": "create_record"
+      },
+      {
+        "class": "AirtableService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/airtable_service.py",
+        "method": "update_record"
+      },
+      {
+        "class": "AirtableService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/airtable_service.py",
+        "method": "delete_record"
+      },
+      {
+        "class": "AirtableService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/airtable_service.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "AsanaRealService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_real_service.py",
+        "method": "create_task"
+      },
+      {
+        "class": "AsanaRealService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_real_service.py",
+        "method": "update_task"
+      },
+      {
+        "class": "AsanaRealService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_real_service.py",
+        "method": "delete_task"
+      },
+      {
+        "class": "AsanaRealService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_real_service.py",
+        "method": "create_project"
+      },
+      {
+        "class": "AsanaService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_service.py",
+        "method": "create_task"
+      },
+      {
+        "class": "AsanaService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_service.py",
+        "method": "update_task"
+      },
+      {
+        "class": "AsanaService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_service.py",
+        "method": "execute_operation"
+      },
+      {
+        "class": "AsanaService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/asana_service.py",
+        "method": "create_project"
+      },
+      {
+        "class": "AtomAIIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "send_intelligent_message"
+      },
+      {
+        "class": "AtomAIIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "create_intelligent_workflow"
+      },
+      {
+        "class": "AtomAIIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "start_ai_conversation"
+      },
+      {
+        "class": "AIConversationManager",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "start_conversation"
+      },
+      {
+        "class": "IntelligentSearchManager",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "update_search_index"
+      },
+      {
+        "class": "WorkflowIntelligenceManager",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_ai_integration.py",
+        "method": "start_monitoring"
+      },
+      {
+        "class": "CommunicationIngestionPipeline",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_communication_ingestion_pipeline.py",
+        "method": "start_outlook_poller"
+      },
+      {
+        "class": "CommunicationIngestionPipeline",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_communication_ingestion_pipeline.py",
+        "method": "start_poller"
+      },
+      {
+        "class": "CommunicationIngestionPipeline",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_communication_ingestion_pipeline.py",
+        "method": "start_real_time_stream"
+      },
+      {
+        "class": "AtomDiscordIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_discord_integration.py",
+        "method": "send_unified_message"
+      },
+      {
+        "class": "AtomDiscordIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_discord_integration.py",
+        "method": "create_unified_workflow"
+      },
+      {
+        "class": "AtomEnterpriseSecurityService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_security_service.py",
+        "method": "create_security_policy"
+      },
+      {
+        "class": "AtomEnterpriseUnifiedService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_unified_service.py",
+        "method": "create_enterprise_workflow"
+      },
+      {
+        "class": "AtomEnterpriseUnifiedService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_unified_service.py",
+        "method": "execute_enterprise_workflow"
+      },
+      {
+        "class": "AtomEnterpriseUnifiedService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_unified_service.py",
+        "method": "create_security_automation"
+      },
+      {
+        "class": "AtomEnterpriseUnifiedService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_enterprise_unified_service.py",
+        "method": "create_compliance_automation"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "send_unified_message"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "create_unified_workflow"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "refresh_access_token"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "send_card"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "update_card"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "create_space"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "send_message"
+      },
+      {
+        "class": "AtomGoogleChatIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_google_chat_integration.py",
+        "method": "upload_file"
+      },
+      {
+        "class": "AtomHubSpotIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_hubspot_integration_service.py",
+        "method": "create_contact"
+      },
+      {
+        "class": "AtomHubSpotIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_hubspot_integration_service.py",
+        "method": "create_campaign"
+      },
+      {
+        "class": "ProjectsMemoryPipeline",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_projects_memory_pipeline.py",
+        "method": "run_pipeline"
+      },
+      {
+        "class": "AtomQuickBooksIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_quickbooks_integration_service.py",
+        "method": "create_invoice"
+      },
+      {
+        "class": "AtomQuickBooksIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_quickbooks_integration_service.py",
+        "method": "create_payment"
+      },
+      {
+        "class": "AtomQuickBooksIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_quickbooks_integration_service.py",
+        "method": "create_expense"
+      },
+      {
+        "class": "AtomQuickBooksIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_quickbooks_integration_service.py",
+        "method": "create_customer"
+      },
+      {
+        "class": "SalesMemoryPipeline",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_sales_memory_pipeline.py",
+        "method": "run_pipeline"
+      },
+      {
+        "class": "AtomTeamsIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_teams_integration.py",
+        "method": "send_unified_message"
+      },
+      {
+        "class": "AtomTeamsIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_teams_integration.py",
+        "method": "create_unified_workflow"
+      },
+      {
+        "class": "AtomTelegramIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py",
+        "method": "send_message_with_keyboard"
+      },
+      {
+        "class": "AtomTelegramIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py",
+        "method": "send_chat_action"
+      },
+      {
+        "class": "AtomTelegramIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py",
+        "method": "send_intelligent_message"
+      },
+      {
+        "class": "AtomTelegramIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py",
+        "method": "send_photo"
+      },
+      {
+        "class": "AtomTelegramIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_telegram_integration.py",
+        "method": "send_poll"
+      },
+      {
+        "class": "AtomWhatsAppIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_whatsapp_integration.py",
+        "method": "send_intelligent_message"
+      },
+      {
+        "class": "AtomWorkflowAutomationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py",
+        "method": "create_automation"
+      },
+      {
+        "class": "AtomWorkflowAutomationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py",
+        "method": "execute_automation"
+      },
+      {
+        "class": "AtomWorkflowAutomationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py",
+        "method": "create_security_automation"
+      },
+      {
+        "class": "AtomWorkflowAutomationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py",
+        "method": "create_compliance_automation"
+      },
+      {
+        "class": "AtomWorkflowAutomationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_workflow_automation_service.py",
+        "method": "create_integration_automation"
+      },
+      {
+        "class": "AtomZendeskIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_zendesk_integration_service.py",
+        "method": "create_ticket"
+      },
+      {
+        "class": "AtomZendeskIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_zendesk_integration_service.py",
+        "method": "update_ticket"
+      },
+      {
+        "class": "AtomZendeskIntegrationService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_zendesk_integration_service.py",
+        "method": "create_ticket_comment"
+      },
+      {
+        "class": "AtomZoomIntegration",
+        "file": "/private/tmp/atom-full-app/backend/integrations/atom_zoom_integration.py",
+        "method": "send_intelligent_message"
+      },
+      {
+        "class": "DropboxAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_dropbox.py",
+        "method": "refresh_access_token"
+      },
+      {
+        "class": "DropboxAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_dropbox.py",
+        "method": "revoke_token"
+      },
+      {
+        "class": "SalesforceAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_salesforce.py",
+        "method": "refresh_access_token"
+      },
+      {
+        "class": "SalesforceAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_salesforce.py",
+        "method": "revoke_token"
+      },
+      {
+        "class": "ZoomAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_zoom.py",
+        "method": "refresh_access_token"
+      },
+      {
+        "class": "ZoomAuthHandler",
+        "file": "/private/tmp/atom-full-app/backend/integrations/auth_handler_zoom.py",
+        "method": "revoke_token"
+      },
+      {
+        "class": "BambooHRService",
+        "file": "/private/tmp/atom-full-app/backend/integrations/bamboohr_service.py",
+        "method": "create_employee"
+      }
+    ],
+    "total": 311
+  },
+  "registered_actions": {
+    "external_mutation": [
+      {
+        "action": "brennan.books.create_bill",
+        "classification": "external_mutation",
+        "description": "Post an authorized, reviewed bill proposal and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "brennan.books.create_estimate",
+        "classification": "external_mutation",
+        "description": "Post an authorized quote estimate and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "brennan.outlook.create_draft",
+        "classification": "external_mutation",
+        "description": "Create an Outlook draft only. Never sends; sending requires separate authority.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.books.create_bill",
+        "classification": "external_mutation",
+        "description": "Post an authorized, reviewed bill proposal and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.books.create_estimate",
+        "classification": "external_mutation",
+        "description": "Post an authorized quote estimate and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.outlook.create_draft",
+        "classification": "external_mutation",
+        "description": "Create an Outlook draft only. Never sends; sending requires separate authority.",
+        "effects": [
+          "create"
+        ],
+        "verifier_registered": true
+      }
+    ],
+    "local_mutation": [
+      {
+        "action": "canvas.present_chart",
+        "classification": "local_mutation",
+        "description": "Present a chart (line_chart, bar_chart, pie_chart) to the user's canvas surface as a live visualization card. Use this when the user asks to SEE/plot/chart/display data visually \u2014 ",
+        "effects": [],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.present_markdown",
+        "classification": "local_mutation",
+        "description": "Present markdown-formatted content to the user's canvas surface as a live card. Use when the user asks to show/display/put content on the canvas rather than for an inline chat repl",
+        "effects": [],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.restore_version",
+        "classification": "local_mutation",
+        "description": "Revert a canvas to an earlier version by its audit_id (from canvas.list_versions). The restore is appended as a new version \u2014 nothing is lost, the pre-restore state stays in histor",
+        "effects": [],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.update",
+        "classification": "local_mutation",
+        "description": "Update the content of an existing canvas.",
+        "effects": [],
+        "verifier_registered": true
+      },
+      {
+        "action": "goal_runs.start",
+        "classification": "local_mutation",
+        "description": "Start a LONG-RUNNING goal run: a durable execution in which this agent works a persisted goal across multiple steps, canvases and waits (email replies, timers, human checkpoints), ",
+        "effects": [
+          "goal_run_started"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goals.create",
+        "classification": "local_mutation",
+        "description": "Create a persisted goal with machine-checkable success criteria. Use together with goals.evaluate; the goal_id can be passed as context.goal_id to make an agent run terminate when ",
+        "effects": [
+          "goal_created"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goals.decompose",
+        "classification": "local_mutation",
+        "description": "HTN-decompose a goal into a dependency-validated subtask plan (reusable workflow-template methods; parallel execution groups included).",
+        "effects": [
+          "plan_produced"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goals.evaluate",
+        "classification": "local_mutation",
+        "description": "Evaluate a persisted goal's success criteria against the current graph/board/state; updates progress and status (achieved/at_risk).",
+        "effects": [
+          "goal_evaluated"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "tasks.create",
+        "classification": "local_mutation",
+        "description": "Create a task (Kanban board item).",
+        "effects": [],
+        "verifier_registered": true
+      }
+    ],
+    "read_or_other_count": 75,
+    "total": 90
+  },
+  "schema": "atom-oracle-whole-app-mutation-surface-1",
+  "scope": "Static inventory of registered action classes, mutating HTTP routes and provider-adapter write methods. It is not a qualification run and does not prove every route is reachable or externally effectful.",
+  "source": "f8f8de387"
+}

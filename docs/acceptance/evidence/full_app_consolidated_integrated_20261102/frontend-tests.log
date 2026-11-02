@@ -1,0 +1,30 @@
+PASS components/canvas/__tests__/CanvasCapabilityDerive.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/CanvasCapabilityRules.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 3 passed, 3 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        2.15 s, estimated 3 s
+Ran all test suites matching components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx|components/canvas/__tests__/CanvasCapabilityDerive.test.tsx|components/canvas/__tests__/CanvasCapabilityRules.test.tsx.

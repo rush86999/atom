@@ -158,12 +158,65 @@ def resolve_assignment_source(
             )
         return _internal_source(reference, user)
 
+    expected_version = str(reference.get("source_version") or "").strip()
+    document_id = str(
+        reference.get("document_id") or reference.get("ingested_document_id")
+        or "").strip()
+    if document_id:
+        workspace_id = _effective_workspace(user)
+        if not workspace_id:
+            raise AssignmentResourceError(
+                "workspace_scope_required",
+                "The authenticated principal has no workspace scope.",
+                status=403)
+        from core.models import IngestedDocument
+        row = db.query(IngestedDocument).filter(
+            IngestedDocument.id == document_id,
+            IngestedDocument.workspace_id == workspace_id,
+        ).first()
+        if row is None:
+            raise AssignmentResourceError(
+                "resource_not_found",
+                "No uploaded document matches that identity in this "
+                "workspace.", status=404)
+        freshness = str(row.freshness_status or "fresh").lower()
+        if freshness in ("removed", "superseded", "outdated", "stale"):
+            raise AssignmentResourceError(
+                "stale_source_version",
+                f"The uploaded document is {freshness}; it cannot authorize "
+                "new work.", status=409)
+        version = str(row.source_content_hash or row.external_id or "")
+        if expected_version and version != expected_version:
+            raise AssignmentResourceError(
+                "stale_source_version",
+                f"Requested version '{expected_version}' is not the current "
+                f"document version '{version[:12]}'.",
+                status=409)
+        return {
+            "kind": "document",
+            "document_id": row.id,
+            "resource_id": row.id,
+            "file_name": row.file_name,
+            "file_type": row.file_type,
+            "source": row.integration_id or "upload",
+            "external_id": row.external_id,
+            "source_version": version,
+            "workspace_id": row.workspace_id,
+            "tenant_id": row.tenant_id,
+            "representation": "document_text",
+            "coverage": {
+                "known": True,
+                "freshness": freshness,
+                "file_size_bytes": row.file_size_bytes,
+            },
+            "preview": str(row.content_preview or "")[:500],
+        }
+
     dataset_name = str(reference.get("dataset_name")
                        or reference.get("catalog_ref") or "").strip()
     source = str(reference.get("source") or "").strip()
     external_id = str(reference.get("external_id") or "").strip()
     sheet_name = str(reference.get("sheet") or "").strip()
-    expected_version = str(reference.get("source_version") or "").strip()
     if not dataset_name and not (source and external_id):
         raise AssignmentResourceError(
             "resource_reference_required",

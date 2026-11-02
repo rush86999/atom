@@ -13,6 +13,7 @@ Now includes governance integration with:
 Refactored to use standardized decorators and service factory.
 """
 
+import hashlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import uuid
@@ -23,6 +24,7 @@ from core.canvas_type_registry import canvas_type_registry
 from core.chat_session_context import audit_agent_id, audit_session_id
 from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, CanvasAudit
+from core.presentation_material import material_sha256, presentation_material
 
 from core.structured_logger import get_logger
 from core.websockets import manager as ws_manager
@@ -60,7 +62,8 @@ async def _create_canvas_audit(
     component_name: Optional[str] = None,
     action: str = "present",
     governance_check_passed: Optional[bool] = None,
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = None,
+    tenant_id: str = "default",
 ) -> Optional[CanvasAudit]:
     """
     Create a canvas audit entry for tracking.
@@ -87,7 +90,7 @@ async def _create_canvas_audit(
     try:
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            tenant_id="default",
+            tenant_id=tenant_id or "default",
             # Chat-context attribution (same as canvas_crud_tool): when the
             # action runs inside a chat turn, the audit row attributes to
             # that turn's session/agent so training episodes capture it.
@@ -121,6 +124,9 @@ async def present_chart(
     title: str = None,
     agent_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
     **kwargs
 ):
     """
@@ -203,10 +209,15 @@ async def present_chart(
             }
         )
 
-        # Create audit entry
+        # Create audit entry. The full chart values and operation identity are
+        # the postcondition authority; point count/type are diagnostic only.
+        audit = None
         if FeatureFlags.should_enforce_governance('canvas'):
+            material = presentation_material(
+                "canvas.present_chart",
+                {"chart_type": chart_type, "data": data})
             with get_db_session() as db:
-                await _create_canvas_audit(
+                audit = await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
@@ -218,15 +229,20 @@ async def present_chart(
                     component_name=chart_type,
                     action="present",
                     governance_check_passed=governance_check["allowed"] if governance_check else None,
+                    tenant_id=tenant_id or "default",
                     metadata={
                         "title": title,
                         "data_points": len(data),
                         "chart_type": chart_type,
                         "session_id": session_id,
-                        # BUG-127: Persist the actual chart data array so
-                        # read_canvas can restore the chart on reload.
+                        "data": data,
                         "content": data,
-                        "chart_config": {"type": chart_type, "title": title}
+                        "chart_config": {"type": chart_type, "title": title},
+                        "material": material,
+                        "material_sha256": material_sha256(material),
+                        "operation_id": operation_id,
+                        "workspace_id": workspace_id,
+                        "tenant_id": tenant_id or "default",
                     }
                 )
 
@@ -251,6 +267,7 @@ async def present_chart(
             "success": True,
             "chart_type": chart_type,
             "canvas_id": canvas_id,
+            "audit_id": str(audit.id) if audit is not None else None,
             "agent_id": agent.id if agent else None
         }
 
@@ -359,7 +376,10 @@ async def present_markdown(
     content: str,
     title: str = None,
     agent_id: Optional[str] = None,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
 ):
     """
     Send markdown content to the frontend canvas with governance integration.
@@ -435,10 +455,14 @@ async def present_markdown(
             }
         )
 
-        # Create audit entry
+        # Create audit entry. The material digest and operation identity are
+        # the postcondition authority; title/length are diagnostic only.
+        audit = None
         if FeatureFlags.should_enforce_governance('canvas'):
+            material = presentation_material(
+                "canvas.present_markdown", {"content": content})
             with get_db_session() as db:
-                await _create_canvas_audit(
+                audit = await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
@@ -449,7 +473,20 @@ async def present_markdown(
                     component_name=None,
                     action="present",
                     governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    metadata={"title": title, "content_length": len(content), "session_id": session_id}
+                    tenant_id=tenant_id or "default",
+                    metadata={
+                        "title": title,
+                        "content": str(content),
+                        "content_length": len(content),
+                        "content_sha256": hashlib.sha256(
+                            str(content).encode("utf-8")).hexdigest(),
+                        "material": material,
+                        "material_sha256": material_sha256(material),
+                        "operation_id": operation_id,
+                        "workspace_id": workspace_id,
+                        "tenant_id": tenant_id or "default",
+                        "session_id": session_id,
+                    }
                 )
 
                 if agent_execution:
@@ -470,6 +507,7 @@ async def present_markdown(
         return {
             "success": True,
             "canvas_id": canvas_id,
+            "audit_id": str(audit.id) if audit is not None else None,
             "agent_id": agent.id if agent else None
         }
 

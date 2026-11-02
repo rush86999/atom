@@ -400,12 +400,17 @@ def _notify_cooldown_active(key: str) -> bool:
 # ── Certification pass ──────────────────────────────────────────────────────
 
 
-def certify(db: Any) -> Dict[str, Any]:
-    """One certification pass. Returns applied/queued/revoked lists."""
+def certify(db: Any, chat_fn=None) -> Dict[str, Any]:
+    """One certification pass. Returns applied/queued/revoked lists.
+
+    ``chat_fn`` is the controlled seam for the alignment judge; production
+    callers omit it and use the configured reasoning model. The nightly worker
+    remains the only automatic caller.
+    """
     out: Dict[str, Any] = {"applied": [], "queued": [], "revoked": [],
                            "notified": []}
     readiness = telemetry_readiness(db)
-    sweep = alignment_verdict()
+    sweep = alignment_verdict(chat_fn=chat_fn)
 
     # 1. Automatic revocation (every non-off mode; consent never required).
     revoke_reasons: List[str] = []
@@ -559,13 +564,13 @@ def apply_pending_decision(db: Any, flag_key: str, approve: bool) -> Dict[str, A
     return {"flag_key": flag_key, "state": row.state}
 
 
-def run_auto_certification() -> Dict[str, Any]:
+def run_auto_certification(chat_fn=None) -> Dict[str, Any]:
     """One full pass with its own session (loop + run-now entry point)."""
     try:
         from core.database import get_db_session
 
         with get_db_session() as db:
-            return certify(db)
+            return certify(db, chat_fn=chat_fn)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"org-politics auto-certification failed: {e}")
         return {"error": str(e)}

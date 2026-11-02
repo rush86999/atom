@@ -114,6 +114,26 @@ def env(tmp_path, monkeypatch):
                 "to": kwargs.get("to_recipients"),
             }
 
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = drafts[-1]
+            return {
+                "id": email_id,
+                "subject": payload.get("subject"),
+                "body": {"content": payload.get("body")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("cc_recipients") or [])
+                ],
+                "bcc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("bcc_recipients") or [])
+                ],
+            }
+
     monkeypatch.setattr(
         "integrations.outlook_service.OutlookService",
         lambda *args, **kwargs: FakeOutlook())
@@ -324,16 +344,14 @@ def test_uncertain_effect_reconciles_with_one_provider_draft(env):
 def test_refuted_postcondition_blocks_instead_of_claiming_applied(
         env, monkeypatch):
     """An independent refutation beats a tool's own success envelope."""
-    async def refuted(name, *, remote_id, result, context):
-        return {
-            "action": name,
-            "verified": False,
-            "claim_verified": True,
-            "evidence": "system-of-record readback found no effect",
-        }
+    from core.oracle import OracleResult
 
-    monkeypatch.setattr(
-        "core.assignment_executor._registered_action_oracle_verdict", refuted)
+    async def refuted(action, context=None):
+        return OracleResult(
+            action=action, verified=False,
+            evidence="system-of-record readback found no effect")
+
+    monkeypatch.setattr("core.oracle.validate", refuted)
     canvas, bound = _canvas(env, canvas_id="canvas_refuted")
     created = _assign(env, canvas, bound)
     executor = _executor(env)

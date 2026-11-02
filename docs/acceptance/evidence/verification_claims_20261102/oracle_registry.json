@@ -1,0 +1,70 @@
+{
+  "covered": true,
+  "mutating_actions": [
+    {
+      "action": "brennan.books.create_bill",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "brennan.books.create_estimate",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "brennan.outlook.create_draft",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.books.create_bill",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.books.create_estimate",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.outlook.create_draft",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    }
+  ],
+  "oracle_verifiers": [
+    "brennan.books.create_bill",
+    "brennan.books.create_estimate",
+    "brennan.outlook.create_draft",
+    "connected.books.create_bill",
+    "connected.books.create_estimate",
+    "connected.outlook.create_draft",
+    "tasks.create",
+    "trigger_workflow"
+  ],
+  "schema": "atom-oracle-mutation-inventory-1"
+}

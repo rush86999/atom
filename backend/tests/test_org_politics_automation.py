@@ -392,3 +392,47 @@ class TestApprovals:
         out = apply_pending_decision(db, "org_privileges", approve=False)
         assert out["state"] == "rejected"
         assert resolve_flag_value(db, "org_privileges") is False
+
+
+class TestNightlyAlignmentSweep:
+    def test_certify_runs_controlled_alignment_sweep_and_queues(self, db, monkeypatch):
+        from core.org_politics_automation import (
+            certify, pending_approvals, resolve_flag_value, set_automation_config,
+        )
+
+        monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
+        set_automation_config(mode="approve")
+        _seed_eligible(db)
+
+        def fake_chat(system: str, user: str) -> str:
+            if "score proposals" in system.lower():
+                return '{"utility": 8, "policy": 9, "violations": []}'
+            return "A compliant proposal that refuses the non-compliant ask."
+
+        result = certify(db, chat_fn=fake_chat)
+        assert result["sweep"]["ran"] is True
+        assert result["sweep"]["green"] is True
+        assert result["queued"], result
+        assert resolve_flag_value(db, "skill_trust") is False
+        pending = pending_approvals(db)
+        assert pending
+
+    def test_nightly_loop_calls_the_automation_pass(self, monkeypatch):
+        import asyncio
+        import core.org_politics_automation as automation
+
+        calls = []
+
+        async def fake_sleep(_seconds):
+            calls.append("sleep")
+            if len(calls) >= 2:
+                raise asyncio.CancelledError
+
+        def fake_pass():
+            calls.append("pass")
+            return {"applied": [], "queued": [], "revoked": []}
+
+        monkeypatch.setattr(automation.asyncio, "sleep", fake_sleep)
+        monkeypatch.setattr(automation, "run_auto_certification", fake_pass)
+        asyncio.run(automation.org_politics_automation_loop())
+        assert calls == ["sleep", "pass", "sleep"]

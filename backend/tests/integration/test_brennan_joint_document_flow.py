@@ -219,7 +219,22 @@ def test_runtime_quote_reaches_verified_estimate_and_draft(env, monkeypatch):
 
         async def create_draft_email(self, **kwargs):
             calls["draft"] += 1
+            self.draft = kwargs
             return {"id": "draft-doc-1", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = getattr(self, "draft", {}) or {}
+            return {
+                "id": email_id,
+                "subject": payload.get("subject", ""),
+                "body": {"content": payload.get("body", "")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
 
         async def send_email(self, *args, **kwargs):  # pragma: no cover
             self.sent = True
@@ -416,7 +431,22 @@ def test_one_assignment_consumes_bytes_calculates_and_drafts(env, monkeypatch):
         async def create_draft_email(self, **kwargs):
             calls["draft"] += 1
             captured["draft"] = kwargs
+            self.draft = kwargs
             return {"id": "draft-one-1", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = captured.get("draft") or {}
+            return {
+                "id": email_id,
+                "subject": payload.get("subject", ""),
+                "body": {"content": payload.get("body", "")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
 
         async def send_email(self, *args, **kwargs):  # pragma: no cover
             self.sent = True

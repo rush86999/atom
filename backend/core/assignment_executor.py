@@ -5761,11 +5761,24 @@ class AssignmentExecutor:
 
 _MUTATING_ACTION_EFFECTS = {
     "write", "create", "update", "delete", "send", "execute",
-    "graph_updated", "record_created",
+    "graph_updated", "record_created", "record_updated", "record_deleted",
+    "goal_created", "goal_run_started", "goal_evaluated",
+}
+# ``plan_produced`` (goals.decompose) is pure plan-shape output, not a durable
+# mutation: it must not be counted as persisted execution proof.
+
+# Registered actions that mutate local durable state without declaring an
+# effect family in their registration metadata.  Keep this list aligned with
+# the local postcondition families in core.oracle.postcondition_verifiers.
+_LOCAL_MUTATING_ACTIONS = {
+    "canvas.present_chart", "canvas.present_markdown", "canvas.restore_version",
+    "canvas.update", "tasks.create", "goals.create", "goals.evaluate",
+    "goal_runs.start",
 }
 
 
 def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
+    name = str(getattr(action, "name", "") or "")
     effects = [
         str(item.get("effect") or "").strip().lower()
         for item in (getattr(action, "effects", None) or [])
@@ -5773,6 +5786,8 @@ def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
     ]
     step_effect = str((context.get("step") or {}).get("effect") or "")
     if step_effect == "external":
+        return True
+    if name in _LOCAL_MUTATING_ACTIONS:
         return True
     return any(effect in _MUTATING_ACTION_EFFECTS for effect in effects)
 
@@ -5885,34 +5900,6 @@ def _action_result_outcome(result: Any, *, mutating: bool) -> str:
     return "uncertain"
 
 
-async def _registered_action_oracle_verdict(
-    name: str, *, remote_id: str, result: Any,
-    context: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    """Independently re-derive an applied mutation, when a verifier exists.
-
-    Only registered high-risk actions are checked. A missing verifier leaves
-    the action's own explicit envelope in charge; a refutation (including an
-    unreadable system of record) is returned to the caller as uncertain.
-    """
-    from core.oracle import (
-        get_postcondition,
-        oracle_verifier_enabled,
-        validate,
-    )
-
-    if not oracle_verifier_enabled() or get_postcondition(name) is None:
-        return None
-    verdict = await validate(name, {
-        "action": name,
-        "canvas_id": remote_id,
-        "remote_id": remote_id,
-        "result": result,
-        "context": context,
-    })
-    return verdict.to_dict() if verdict is not None else None
-
-
 @register_assignment_adapter(
     "action.registry",
     description="Dispatch one registered action through the shared registry",
@@ -5944,6 +5931,63 @@ async def _action_registry_adapter(
             "message": f"registered action '{name}' is not available",
             "error_class": "action_not_registered",
         }
+    # Freeze the authorized request before any handler runs.  The handler gets
+    # a separate deep copy, so in-place edits (including nested lists) cannot
+    # change the expected payload, operation, organization or target.
+    try:
+        authorized_arguments = copy.deepcopy(arguments)
+        dispatch_arguments = copy.deepcopy(authorized_arguments)
+    except Exception as exc:  # noqa: BLE001 - refuse before dispatch
+        return {
+            "status": "failed",
+            "message": (
+                "the authorized request could not be frozen before dispatch: "
+                f"{type(exc).__name__}"),
+            "error_class": "request_snapshot_unavailable",
+        }
+    known_connected = name.endswith(
+        ("books.create_bill", "books.create_estimate",
+         "outlook.create_draft"))
+    expected_binding: Dict[str, str] = {}
+    try:
+        from core.connected_actions import oracle_request_binding
+
+        expected_binding = oracle_request_binding(name, authorized_arguments)
+    except Exception as exc:  # noqa: BLE001 - malformed binding is a refusal
+        if known_connected:
+            return {
+                "status": "failed",
+                "message": (
+                    "the authorized request binding could not be constructed "
+                    f"before dispatch: {type(exc).__name__}"),
+                "error_class": "payload_binding_unavailable",
+            }
+    canonical_digest = str(
+        expected_binding.get("payload_sha256") or "")
+    supplied_digest = str(
+        authorized_arguments.get("payload_sha256") or "")
+    if known_connected:
+        if not canonical_digest:
+            return {
+                "status": "failed",
+                "message": (
+                    "the connected mutation has no canonical request digest; "
+                    "refusing before dispatch"),
+                "error_class": "payload_binding_unavailable",
+            }
+        if supplied_digest and supplied_digest != canonical_digest:
+            return {
+                "status": "failed",
+                "message": (
+                    "the supplied payload digest does not match the frozen "
+                    "authorized request"),
+                "error_class": "payload_binding_mismatch",
+                "evidence": [{
+                    "kind": "request_binding",
+                    "expected": canonical_digest,
+                    "supplied": supplied_digest,
+                }],
+            }
     execution_context = {
         "workspace_id": context.get("workspace_id"),
         "user_id": context.get("employee_id"),
@@ -5953,6 +5997,8 @@ async def _action_registry_adapter(
         "tenant_id": context.get("tenant_id"),
         "task_revision": (context.get("task_revision") or {}).get(
             "revision"),
+        "operation_id": str(
+            (context.get("step") or {}).get("operation_id") or ""),
     }
     failures = action.check_preconditions(execution_context)
     if failures:
@@ -5962,10 +6008,69 @@ async def _action_registry_adapter(
             "error_class": "precondition_failed",
             "evidence": failures,
         }
+    # Freeze the complete authorized presentation material BEFORE any
+    # handler runs. Missing material is a pre-dispatch refusal, never an
+    # applied presentation with a title/count fallback.
+    expected_presentation_material = None
+    expected_material_sha256 = ""
+    if name in ("canvas.present_markdown", "canvas.present_chart"):
+        from core.presentation_material import (
+            material_sha256,
+            presentation_material,
+        )
+        try:
+            expected_presentation_material = presentation_material(
+                name, authorized_arguments)
+        except Exception as exc:  # noqa: BLE001 - refuse before effect
+            return {
+                "status": "failed",
+                "message": (
+                    "the authorized presentation material could not be "
+                    f"normalized before dispatch: {type(exc).__name__}"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        if expected_presentation_material is None:
+            return {
+                "status": "failed",
+                "message": (
+                    "the canvas presentation has no complete authorized "
+                    "material to verify; refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        material = expected_presentation_material or {}
+        if material.get("kind") == "markdown" and not str(
+                material.get("content") or "").strip():
+            return {
+                "status": "failed",
+                "message": (
+                    "the markdown presentation has no authorized content; "
+                    "refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        if material.get("kind") == "chart" and (
+                not str(material.get("chart_type") or "").strip()
+                or not isinstance(material.get("data"), list)):
+            return {
+                "status": "failed",
+                "message": (
+                    "the chart presentation has no authorized type/data; "
+                    "refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        expected_material_sha256 = material_sha256(
+            expected_presentation_material)
+        if not expected_material_sha256:
+            return {
+                "status": "failed",
+                "message": (
+                    "the canvas presentation has no complete authorized "
+                    "material to verify; refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
     mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
-            name, arguments, execution_context)
+            name, dispatch_arguments, execution_context)
     except ExternalOutcomeUnknown:
         # A provider action that may have applied must reconcile through the
         # shared operation record; it is never downgraded to a plain failure.
@@ -6045,6 +6150,158 @@ async def _action_registry_adapter(
                           "coverage": "partial"}],
         }
     outcome = _action_result_outcome(safe, mutating=mutating)
+    oracle_verified = None
+    oracle_evidence = ""
+    oracle_failed_closed = False
+    expected_digest = canonical_digest or supplied_digest
+    executor_operation_id = str(
+        (context.get("step") or {}).get("operation_id") or "")
+    expected_operation = str(
+        expected_binding.get("operation_id")
+        or authorized_arguments.get("operation_id")
+        or executor_operation_id or "")
+    expected_organization = str(
+        expected_binding.get("organization_id")
+        or authorized_arguments.get("organization_id") or "")
+    expected_provider = str(expected_binding.get("provider") or "")
+    expected_target = str(expected_binding.get("target") or "")
+    expected_tenant_id = str(
+        authorized_arguments.get("tenant_id")
+        or context.get("tenant_id") or "")
+    expected_canvas_id = str(
+        authorized_arguments.get("canvas_id") or "")
+    expected_restore_audit_id = (
+        str(authorized_arguments.get("audit_id") or "")
+        if name == "canvas.restore_version" else "")
+    expected_canvas_content_sha256 = ""
+    if name == "canvas.update" and "content" in authorized_arguments:
+        try:
+            expected_canvas_content_sha256 = _approval_payload_hash(
+                authorized_arguments.get("content"))
+        except Exception:  # noqa: BLE001 - verifier falls back to content
+            expected_canvas_content_sha256 = ""
+    expected_goal_id = str(
+        authorized_arguments.get("goal_id") or "")
+    expected_goal_title = (
+        str(authorized_arguments.get("title") or "")
+        if name == "goals.create" else "")
+    expected_workspace_id = str(
+        authorized_arguments.get("workspace_id")
+        or context.get("workspace_id") or "")
+    expected_agent_id = str(
+        authorized_arguments.get("agent_id")
+        or context.get("agent_id") or "")
+    expected_chart_type = (
+        str(authorized_arguments.get("chart_type")
+            or authorized_arguments.get("type") or "")
+        if name == "canvas.present_chart" else "")
+    expected_data_points = None
+    if name == "canvas.present_chart":
+        chart_data = authorized_arguments.get("data")
+        if chart_data is None and isinstance(
+                authorized_arguments.get("chart"), dict):
+            chart_data = authorized_arguments["chart"].get("data")
+        if isinstance(chart_data, list):
+            expected_data_points = len(chart_data)
+    expected_present_title = (
+        str(authorized_arguments.get("title") or "")
+        if name in ("canvas.present_chart", "canvas.present_markdown")
+        else "")
+    expected_task_title = (
+        str(authorized_arguments.get("title") or "")
+        if name == "tasks.create" else "")
+    expected_board_id = (
+        str(authorized_arguments.get("board_id") or "")
+        if name == "tasks.create" else "")
+    oracle_context = {
+        **authorized_arguments,
+        **payload,
+        "_oracle_expected_payload_sha256": expected_digest,
+        "_oracle_expected_operation_id": expected_operation,
+        "_oracle_expected_organization_id": expected_organization,
+        "_oracle_expected_provider": expected_provider,
+        "_oracle_expected_target": expected_target,
+        "_oracle_expected_canvas_id": expected_canvas_id,
+        "_oracle_expected_restore_audit_id": expected_restore_audit_id,
+        "_oracle_expected_canvas_content_sha256": (
+            expected_canvas_content_sha256),
+        "_oracle_expected_material_sha256": expected_material_sha256,
+        "_oracle_expected_material": expected_presentation_material,
+        "_oracle_expected_tenant_id": expected_tenant_id,
+        "_oracle_expected_goal_id": expected_goal_id,
+        "_oracle_expected_goal_title": expected_goal_title,
+        "_oracle_expected_workspace_id": expected_workspace_id,
+        "_oracle_expected_agent_id": expected_agent_id,
+        "_oracle_expected_chart_type": expected_chart_type,
+        "_oracle_expected_data_points": expected_data_points,
+        "_oracle_expected_title": expected_present_title,
+        "_oracle_expected_task_title": expected_task_title,
+        "_oracle_expected_board_id": expected_board_id,
+    }
+    oracle_db = context.get("db") or context.get("session")
+    if oracle_db is not None:
+        oracle_context.setdefault("db", oracle_db)
+    try:
+        from core.oracle import get_postcondition, validate
+
+        if get_postcondition(name) is not None:
+            oracle = await validate(name, oracle_context)
+            if oracle is None:
+                oracle_verified = False
+                oracle_evidence = "oracle returned no verdict"
+                oracle_failed_closed = True
+            else:
+                oracle_verified = bool(oracle.verified)
+                oracle_evidence = str(oracle.evidence or "")
+                if not oracle_verified:
+                    oracle_failed_closed = True
+        # A mutating effect already dispatched without a usable verdict is
+        # uncertain, never a proven success and never eligible for automatic
+        # resend.
+        if mutating and outcome == "applied" and oracle_failed_closed:
+            outcome = "uncertain"
+            payload = {
+                **payload,
+                "action_result": "uncertain",
+                "verification": {
+                    "status": "incomplete",
+                    "missing_fields": ["oracle_verdict"],
+                    "mismatches": ["oracle_postcondition"],
+                },
+            }
+    except Exception as exc:  # noqa: BLE001 - oracle must not crash dispatch
+        oracle_verified = False
+        oracle_evidence = f"oracle unavailable: {type(exc).__name__}"
+        if mutating and outcome == "applied":
+            outcome = "uncertain"
+            payload = {
+                **payload,
+                "action_result": "uncertain",
+                "verification": {
+                    "status": "incomplete",
+                    "missing_fields": ["oracle_verdict"],
+                    "mismatches": ["oracle_error"],
+                },
+            }
+    # A local mutation may return only ``success: True`` (no self-reported
+    # applied label). When the independent postcondition verifier confirms the
+    # persisted effect, the oracle is authoritative and the envelope can be
+    # applied. Without a verified verdict the conservative uncertain outcome
+    # remains.
+    if (oracle_verified is True and outcome == "uncertain"
+            and payload.get("success") is True
+            and not payload.get("error")
+            and not payload.get("error_kind")):
+        outcome = "applied"
+        payload = {
+            **payload,
+            "action_result": "applied",
+            "verification": {
+                "status": "verified",
+                "missing_fields": [],
+                "mismatches": [],
+            },
+        }
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
@@ -6059,32 +6316,14 @@ async def _action_registry_adapter(
         "provider_receipt": payload.get("provider_receipt"),
         "verification": payload.get("verification"),
     }
-    if outcome == "applied" and mutating:
-        verdict = await _registered_action_oracle_verdict(
-            name, remote_id=remote_id, result=safe,
-            context=execution_context)
-        if verdict is not None and not verdict.get("verified"):
-            return {
-                "status": "uncertain",
-                "action_result": "uncertain",
-                "reason": (
-                    f"postcondition oracle refuted {name}: "
-                    f"{verdict.get('evidence') or 'no evidence'}"),
-                "evidence": verdict,
-                "remote_id": remote_id or None,
-                "provider_ref": provider_ref or None,
-                "data": safe,
-                "provider": payload.get("provider"),
-                "operation": payload.get("operation"),
-                "payload_sha256": payload.get("payload_sha256"),
-                "provider_receipt": payload.get("provider_receipt"),
-            }
     if outcome == "applied":
         return {
             "status": "applied",
             "summary": f"registered action {name} completed",
             "data": safe,
             "evidence": [{"kind": "action_registry", "action": name}],
+            "oracle_verified": oracle_verified,
+            "oracle_evidence": oracle_evidence,
             **identity,
         }
     if outcome == "uncertain":
@@ -6092,10 +6331,13 @@ async def _action_registry_adapter(
             "status": "uncertain",
             "reason": (
                 f"registered action {name} reported "
-                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
+                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"
+                + (f"; oracle: {oracle_evidence}" if oracle_evidence else "")),
             "evidence": _bounded(str(result), 500),
             "data": safe,
             "conflicts": payload.get("conflicts") or [],
+            "oracle_verified": oracle_verified,
+            "oracle_evidence": oracle_evidence,
             **identity,
         }
     if outcome == "unavailable":

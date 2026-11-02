@@ -1,0 +1,123 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 10:47:48 [    INFO] MCP Service initialized
+
+tests/unit/test_serialization_budget.py::test_aggregate_executable_payload_exceeds_shared_byte_budget 
+-------------------------------- live log setup --------------------------------
+2026-11-02 10:47:48 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 10:47:48 [    INFO] EscalationManager initialized
+2026-11-02 10:47:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 10:47:48 [    INFO] EscalationManager initialized
+2026-11-02 10:47:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 10:47:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 10:47:48 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/unit/test_serialization_budget.py::test_oversized_dictionary_key_refuses PASSED [  6%]
+tests/unit/test_serialization_budget.py::test_multibyte_content_is_counted_in_persisted_json_bytes PASSED [ 10%]
+tests/unit/test_serialization_budget.py::test_multibyte_keys_count_as_their_persisted_json_representation PASSED [ 13%]
+tests/unit/test_serialization_budget.py::test_many_short_values_cross_the_serialized_boundary PASSED [ 17%]
+tests/unit/test_serialization_budget.py::test_post_effect_serialization_overflow_is_uncertain_not_failed PASSED [ 20%]
+tests/unit/test_serialization_budget.py::test_nested_provider_receipts_are_preserved_exactly PASSED [ 24%]
+tests/unit/test_serialization_budget.py::test_serialized_json_overhead_cannot_exceed_the_byte_budget PASSED [ 27%]
+tests/unit/test_serialization_budget.py::test_non_finite_numbers_are_refused_explicitly PASSED [ 31%]
+tests/unit/test_serialization_budget.py::test_read_action_serialized_overflow_is_explicit_failure PASSED [ 34%]
+tests/unit/test_serialization_budget.py::test_mutation_serialized_overflow_preserves_uncertain_effect PASSED [ 37%]
+tests/unit/test_serialization_budget.py::test_exact_serialized_limit_is_accepted_and_plus_one_is_refused PASSED [ 41%]
+tests/unit/test_serialization_budget.py::test_backslashes_count_as_their_json_representation PASSED [ 44%]
+tests/unit/test_serialization_budget.py::test_quotes_controls_escapes_and_multibyte_keys_round_trip PASSED [ 48%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_register_action_sync_and_async PASSED [ 51%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_no_floor PASSED [ 55%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_unknown PASSED [ 58%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_floor_without_maturity PASSED [ 62%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_below_floor PASSED [ 65%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_above_floor PASSED [ 68%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_step_act_dispatches_sync_and_async PASSED [ 72%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_step_act_custom_action_error PASSED [ 75%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_measure_success_rate_exception_returns_none PASSED [ 79%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_measure_success_rate_metrics PASSED [ 82%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:49 [    INFO] Agent Test Agent (agent-123) starting task: do it
+2026-11-02 10:47:49 [    INFO] EscalationManager initialized
+2026-11-02 10:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 10:47:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 10:47:49 [    INFO] LanceDBHandler initialized. ID: 4968772176. LANCEDB_AVAILABLE: True
+2026-11-02 10:47:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 10:47:49 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 10:47:49 [    INFO] LanceDB connected successfully
+2026-11-02 10:47:49 [ WARNING] Stuck-detector halted agent Test Agent at step 3 (parallel batch)
+2026-11-02 10:47:49 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 86%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:49 [    INFO] Agent Test Agent (agent-123) starting task: do it
+2026-11-02 10:47:49 [    INFO] EscalationManager initialized
+2026-11-02 10:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 10:47:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 10:47:49 [    INFO] LanceDBHandler initialized. ID: 4970167056. LANCEDB_AVAILABLE: True
+2026-11-02 10:47:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 10:47:49 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 10:47:49 [    INFO] LanceDB connected successfully
+2026-11-02 10:47:49 [ WARNING] Stuck-detector halted agent Test Agent at step 3 (parallel batch)
+2026-11-02 10:47:49 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+2026-11-02 10:47:49 [    INFO] EscalationManager initialized
+2026-11-02 10:47:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 10:47:49 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 10:47:49 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+PASSED                                                                   [ 89%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_timed_out_message_hits_oracle_path PASSED [ 93%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_timeout_error_type_hits_oracle_path PASSED [ 96%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_oracle_timeout_postcondition_met PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 58 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts
+  /private/tmp/atom-canvas-successor/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts
+  /private/tmp/atom-canvas-successor/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 29 passed, 72 warnings in 19.36s =======================

@@ -50,7 +50,10 @@ class TestPresentChartHandler:
                 {"chart_type": "bar", "data": [{"x": "A", "y": 5}], "title": "Demo"},
                 {"user_id": "u1", "session_id": "s1", "agent_id": "a1"},
             )
-        assert result == {"success": True}
+        assert result["success"] is True
+        assert result["status"] == "applied"
+        assert result["action_result"] == "applied"
+        assert "remote_id" in result
         tool.assert_awaited_once_with(
             user_id="u1",
             chart_type="bar",
@@ -58,6 +61,9 @@ class TestPresentChartHandler:
             title="Demo",
             agent_id="a1",
             session_id="s1",
+            operation_id=None,
+            workspace_id=None,
+            tenant_id=None,
         )
 
     @pytest.mark.asyncio
@@ -75,7 +81,10 @@ class TestPresentChartHandler:
                            "categories": ["Alpha", "Beta"], "values": [5, 3]}},
                 {"user_id": "u1", "session_id": "s1"},
             )
-        assert result == {"success": True}
+        assert result["success"] is True
+        assert result["status"] == "applied"
+        assert result["action_result"] == "applied"
+        assert "remote_id" in result
         kwargs = tool.await_args.kwargs
         assert kwargs["chart_type"] == "bar_chart"
         assert kwargs["data"] == [{"x": "Alpha", "y": 5}, {"x": "Beta", "y": 3}]
@@ -110,9 +119,14 @@ class TestPresentMarkdownHandler:
                 {"content": "# hi", "title": "t"},
                 {"user_id": "u1", "session_id": "s1"},
             )
-        assert result == {"success": True}
+        assert result["success"] is True
+        assert result["status"] == "applied"
+        assert result["action_result"] == "applied"
+        assert "remote_id" in result
         tool.assert_awaited_once_with(
-            user_id="u1", content="# hi", title="t", agent_id=None, session_id="s1",
+            user_id="u1", content="# hi", title="t", agent_id=None,
+            session_id="s1", operation_id=None, workspace_id=None,
+            tenant_id=None,
         )
 
     @pytest.mark.asyncio

@@ -1,0 +1,67 @@
+{
+  "all_registered_mutating_actions_covered": true,
+  "commercial_readback": "core.commercial_readback.bind_remote_identity requires the observed object id to match the create response before material fields count.",
+  "consumer": "core.assignment_executor._action_registry_adapter passes authorized request digest/operation/provider/organization/target separately; a refuted, missing, None or errored verdict downgrades a dispatched mutation to uncertain and retains remote identity.",
+  "coverage_scope": "Registered action-registry mutation classes only. This is not a whole-application dispatch inventory; ORACLE-01 marketing closure still requires the full dispatch/coverage inventory in the verification plan.",
+  "covered_count": 6,
+  "draft_readback": "core.connected_actions.outlook_create_draft independently calls get_email_by_id; missing identity/material fields are incomplete, a different object id or material mismatch is conflict, and no second draft is created.",
+  "mutating_actions": [
+    {
+      "action": "brennan.books.create_bill",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    },
+    {
+      "action": "brennan.books.create_estimate",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    },
+    {
+      "action": "brennan.outlook.create_draft",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    },
+    {
+      "action": "connected.books.create_bill",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    },
+    {
+      "action": "connected.books.create_estimate",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    },
+    {
+      "action": "connected.outlook.create_draft",
+      "effects": [
+        "create"
+      ],
+      "verifier_registered": true
+    }
+  ],
+  "mutating_count": 6,
+  "oracle_verifiers": [
+    "brennan.books.create_bill",
+    "brennan.books.create_estimate",
+    "brennan.outlook.create_draft",
+    "connected.books.create_bill",
+    "connected.books.create_estimate",
+    "connected.outlook.create_draft",
+    "tasks.create",
+    "trigger_workflow"
+  ],
+  "registered_actions_total": 90,
+  "request_binding": "core.connected_actions.oracle_request_binding derives the expected provider material digest, provider, operation, organization and target from the authorized arguments using the same canonical payload builders the action uses before dispatch.",
+  "schema": "atom-oracle-mutation-inventory-3",
+  "source": "45d015fa3"
+}

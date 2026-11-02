@@ -1,0 +1,306 @@
+{
+ "schema": "atom-full-app-consolidated-integrated-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "f8f8de387bfb8979bf9e2d17779f71b53bcb982d",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "frontend_build_id": "4LIiyOI205pK5RCpBKH87",
+  "runtime_identity": "INFO:core.runtime_identity:runtime identity: source_id=f8f8de387bfb revision=f8f8de387bfb dirty=False (0 modified, 0 untracked)",
+  "supersedes": "docs/acceptance/evidence/full_app_consolidated_20261102/ (frozen at 2b5db4b98 before the effect-family/bookkeeping commit)",
+  "integration_commits": [
+   "b049c0761 merge accepted connected-oracle line (6d62855d0..0f9796401, inventory 95454de7a)",
+   "55fff94f2 replace duplicate HITL evolution path with canonical Memento lifecycle",
+   "2ebcf9353 effect counter + pending identity across restart + service/queue document controls",
+   "2b5db4b98 isolate test-registered actions",
+   "f8f8de387 effect-family verifiers, controlled Books transport, invoice-to-Books journey"
+  ]
+ },
+ "runtime": {
+  "world": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102",
+  "world_origin": "copy of the durable full-app-quote-20261102 world; no reseed",
+  "backend": {
+   "url": "http://127.0.0.1:8101",
+   "source_id": "f8f8de387bfb",
+   "dirty": false,
+   "health": "ok"
+  },
+  "frontend": {
+   "url": "http://127.0.0.1:3142",
+   "build_id": "4LIiyOI205pK5RCpBKH87",
+   "http_status": 307
+  },
+  "acceptance_env": [
+   "ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS=1",
+   "ATOM_BOOKS_CONTROLLED_TRANSPORT=1",
+   "ATOM_BOOKS_CONTROLLED_STATE=<world>/books-state.json"
+  ]
+ },
+ "journeys": {
+  "quote_service_exception": {
+   "command": "scripts/acceptance/full_app_quote_journey.py --frontend http://127.0.0.1:3142 --api http://127.0.0.1:8101 ...",
+   "status": "passed",
+   "checks_passed": 17,
+   "checks_total": 17,
+   "checks": [
+    {
+     "name": "promoted document lesson is explicit and source-bound",
+     "ok": true
+    },
+    {
+     "name": "quote receipt starts an ordinary assignment",
+     "ok": true
+    },
+    {
+     "name": "real backend restart preserves the prepared action",
+     "ok": true
+    },
+    {
+     "name": "prepared action survives restart without dispatch",
+     "ok": true
+    },
+    {
+     "name": "quote assignment completes after action approval",
+     "ok": true
+    },
+    {
+     "name": "quote document artifact is attached",
+     "ok": true
+    },
+    {
+     "name": "quote document contains the server total and provenance",
+     "ok": true
+    },
+    {
+     "name": "quote document consumes the promoted lesson",
+     "ok": true
+    },
+    {
+     "name": "declared registered action has readback evidence",
+     "ok": true
+    },
+    {
+     "name": "duplicate continuation does not dispatch the action again",
+     "ok": true
+    },
+    {
+     "name": "source change produces a new server receipt",
+     "ok": true
+    },
+    {
+     "name": "old source receipt is refused after the change",
+     "ok": true
+    },
+    {
+     "name": "service proposal completes with a document artifact",
+     "ok": true
+    },
+    {
+     "name": "service document carries the CAD total and lesson",
+     "ok": true
+    },
+    {
+     "name": "exception queue completes with a document artifact",
+     "ok": true
+    },
+    {
+     "name": "exception document carries the counts and lesson",
+     "ok": true
+    },
+    {
+     "name": "cancelled action assignment is terminal",
+     "ok": true
+    }
+   ]
+  },
+  "invoice_to_books": {
+   "command": "scripts/acceptance/full_app_bookkeeping_journey.py --api http://127.0.0.1:8101 --world <world> ...",
+   "status": "passed",
+   "checks_passed": 12,
+   "checks_total": 12,
+   "checks": [
+    {
+     "name": "invoice bytes parse through the normal document route",
+     "ok": true
+    },
+    {
+     "name": "invoice facts are extracted from the returned bytes",
+     "ok": true
+    },
+    {
+     "name": "normal assignment starts from the invoice facts",
+     "ok": true
+    },
+    {
+     "name": "vendor, CoA and balanced proposal resolve before approval",
+     "ok": true
+    },
+    {
+     "name": "proposal is exact, balanced and not yet posted",
+     "ok": true
+    },
+    {
+     "name": "real backend restart preserves the pending approval",
+     "ok": true
+    },
+    {
+     "name": "reopened assignment still awaits the same approval",
+     "ok": true
+    },
+    {
+     "name": "approval is accepted once",
+     "ok": true
+    },
+    {
+     "name": "one registered Books create completes with readback",
+     "ok": true
+    },
+    {
+     "name": "provider effect count is exactly one",
+     "ok": true
+    },
+    {
+     "name": "duplicate continuation is refused without a second effect",
+     "ok": true
+    },
+    {
+     "name": "same invoice is refused as a duplicate without a second create",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "effect_counts": {
+  "quote": {
+   "action_remote_id": "d398c22a-88e4-47eb-94ee-359832d5b7b4",
+   "audit_rows_before_duplicate": 1,
+   "audit_rows_after_duplicate": 1,
+   "duplicate_approval_status": 404,
+   "documents": {
+    "quote": {
+     "sha256": "f7ad5d271db54067170e4f5fe1e7a78f65b0ee3991db6f0bf64be03a1aee6da6",
+     "total": "350.00"
+    },
+    "service": {
+     "sha256": "5223416e458b3b6f56125d8862522f496c44d712516ef95ffbaa06aca48049d8",
+     "total": "630.00 CAD"
+    },
+    "queue": {
+     "sha256": "a4b235fb53f022dfd36b0aa07f057a92bac40305e21a5bd26848bfcfa10a660e",
+     "total": "3 / 170.00"
+    }
+   },
+   "font": "Georgia 18 for all three"
+  },
+  "books": {
+   "creates": 1,
+   "readbacks": 1,
+   "duplicate_creates_after_second_assignment": 1,
+   "duplicate_step_status": "failed",
+   "verification": "verified"
+  },
+  "restart": "pending operation identity preserved; no dispatch until approval"
+ },
+ "oracle": {
+  "registry_union": [
+   "brennan.books.create_bill",
+   "brennan.books.create_estimate",
+   "brennan.outlook.create_draft",
+   "canvas.present_chart",
+   "canvas.present_markdown",
+   "canvas.restore_version",
+   "canvas.update",
+   "connected.books.create_bill",
+   "connected.books.create_estimate",
+   "connected.outlook.create_draft",
+   "goal_runs.start",
+   "goals.create",
+   "goals.decompose",
+   "goals.evaluate",
+   "tasks.create",
+   "trigger_workflow"
+  ],
+  "registry_count": 16,
+  "inventory": {
+   "registered_actions": 90,
+   "external_mutation": 6,
+   "external_covered": 6,
+   "local_mutation": 9,
+   "local_covered": 9,
+   "mutating_http_routes": 827,
+   "provider_write_methods": 311
+  },
+  "one_consumer_contract": "frozen-request block in the assignment adapter; duplicate inner gate removed",
+  "negatives": [
+   "connected readback mismatch/incomplete is uncertain",
+   "canvas_audit missing/mismatch refutes",
+   "proven_not_applied duplicate is failed, not uncertain",
+   "test actions cannot pollute coverage"
+  ]
+ },
+ "tests": {
+  "backend_combined": {
+   "command": "TESTING=1 pytest <27 files> -q",
+   "result": "454 passed",
+   "log": "backend-tests.log"
+  },
+  "frontend_canvas": {
+   "command": "jest CanvasCapabilityAssessment CanvasCapabilityDerive CanvasCapabilityRules --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  },
+  "known_exclusion": {
+   "file": "tests/test_task_lifecycle.py",
+   "result": "4 pre-existing retrieval-revision failures on the accepted successor branch and this source; unrelated, not counted"
+  }
+ },
+ "open_items": [
+  "827 mutating HTTP routes and 311 provider-adapter writes remain outside the registered-action oracle",
+  "TEAM-05 real LLM sweep transport; MEM-07 approval/apply and post-restart consumption",
+  "ORCH/GOAL model-backed work, MINI Linux/KVM, INT/ROUTE live authorization"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/full_app_quote_journey_20261102/",
+  "docs/acceptance/evidence/full_app_batch_20261102/",
+  "docs/acceptance/evidence/claim_progress_20261102/",
+  "docs/acceptance/evidence/oracle_whole_app_inventory_20261102/",
+  "docs/acceptance/evidence/full_app_consolidated_20261102/",
+  "docs/acceptance/evidence/full_app_integrated_f8f8de387/ (owner bundle for the same source)"
+ ],
+ "exclusions": [
+  "no live provider lookup, refresh, write, send, credential, consent or spend",
+  "no database reseed",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "artifacts": {
+  "README.md": "806faa66b4241b79b0411500b42b84890e291c949543174e01437da6c2bcc871",
+  "TEST_RESULTS.md": "6d4542ac68001d670a20b336c781ccbf4230dcb402bf55d0c046e45c47da5627",
+  "audit-row.txt": "59d90aee43a21ab70535671eeb95fa60fc2babbbe041119fd119ba09843a2c66",
+  "backend-health.json": "7cbcecbad40bdf134b3d77a31194d281ad9bbaf6987ed17df8e387693730f846",
+  "backend-tests.log": "9e182502da0e40374541b2a9d00eff7b84e9439f920495fc56adc07c387fe30f",
+  "bookkeeping-result.json": "b4ee1b60cd112d39c6db2c670d35775fb4d495a03721f2315b79f69618806a8d",
+  "bookkeeping.log": "42fe25a9185f282e9c246f39a76e9e8da402bf2b21ad9a5721c51a8f14da2e75",
+  "books-state.json": "5504c94fdc435fb8f8614933678b905bd2723455b34fcc9b1756b6eb6c0320d6",
+  "frontend-build-id.txt": "f7c716b2ada5de014cdf665380e23f1efdad06292f39b45f83ed1d3873d2cc34",
+  "frontend-health.txt": "6d976934be74941fba578b143ba964eded443d10384e3f3d62a1ba7b4d339df8",
+  "frontend-tests.log": "98373352501b9ba40cdb35cf35e094d6be78bcb7d80b9f469f89e54ea407710f",
+  "invoice-INV-IN-1.txt": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6",
+  "oracle-registry.txt": "b2e86f358243ba61207b20ed74bf98a8afbcd6005c4c04c3091cb2c61b731053",
+  "oracle-whole-app-inventory/README.md": "c336db181552f35c5fdbb4acc31b5a5359cc0c54f350b4c6ba86f2db7d3f3838",
+  "oracle-whole-app-inventory/inventory.json": "c90efa859cb0d8b944a7f09e573e0c83603a0940fc0001b8292206e126ef6738",
+  "queue-document.docx": "a4b235fb53f022dfd36b0aa07f057a92bac40305e21a5bd26848bfcfa10a660e",
+  "queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+  "quote-changed.csv": "2bf5e0039f8e4dab21ad738dc10708179573dc38328a5dbb2af8ede8d4a3742b",
+  "quote-document.docx": "f7ad5d271db54067170e4f5fe1e7a78f65b0ee3991db6f0bf64be03a1aee6da6",
+  "quote-journey-result.json": "772addbc23ad5b472c07981ecfd7e21f94552f658340bb5df4fe3045d4d62915",
+  "quote-journey.log": "26b344af5ff9c79be7f1d0e7c3c7f0a217254e70a6f902546934862e777b95c8",
+  "quote-journey.png": "d514075e7bf36ee5482915dc83c250c472105f77b93495f1bf1f42cefd128872",
+  "quote.csv": "4db47c8c4d1030e5f2011605e881dbe2536ecaefa120bb7baabda2cc21d4134f",
+  "runtime-identity.txt": "a3f5c2ff2a5f4d5cb8abfb421e81519b5539c19e64228f498ecbf136a4d75a71",
+  "service-document.docx": "5223416e458b3b6f56125d8862522f496c44d712516ef95ffbaa06aca48049d8",
+  "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+  "world-manifest.json": "91bbff089257cb268b5cb4b4d20b503ea048750d71a59962a1c18c531aa93d0a"
+ }
+}

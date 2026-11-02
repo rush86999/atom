@@ -222,6 +222,26 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
             self.draft = kwargs
             return {"id": "draft-1", "subject": kwargs["subject"]}
 
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = self.draft or {}
+            return {
+                "id": email_id,
+                "subject": payload.get("subject", ""),
+                "body": {"content": payload.get("body", "")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("cc_recipients") or [])
+                ],
+                "bcc_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("bcc_recipients") or [])
+                ],
+            }
+
         async def send_email(self, *args, **kwargs):  # pragma: no cover
             self.sent = True
             raise AssertionError("draft action must not send")
@@ -241,6 +261,12 @@ def test_outlook_draft_action_never_calls_send(monkeypatch):
     assert service.sent is False
     assert service.draft["subject"] == "Quote"
     assert result["read_receipt"]["provider"] == "outlook"
+    assert result["read_receipt"]["operation"] == "get_email_by_id"
+    assert result["verification"]["status"] == "verified"
+    assert result["requested_remote_id"] == "draft-1"
+    assert result["observed_remote_id"] == "draft-1"
+    assert result["read_receipt"]["requested_remote_id"] == "draft-1"
+    assert result["read_receipt"]["observed_remote_id"] == "draft-1"
 
 
 def _valid_proposal():
@@ -1290,6 +1316,210 @@ def test_executor_outcome_mapping_never_calls_conflict_applied():
                                     "error_kind": "auth_expired"}) == "failed"
 
 
+def test_outlook_draft_readback_mismatch_is_conflict_and_never_recreates(monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "draft-wrong", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return {
+                "id": email_id,
+                "subject": "A different subject",
+                "body": {"content": "A different body"},
+                "to_recipients": [{"emailAddress": {
+                    "address": "someone-else@example.invalid"}}],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-wrong-draft"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "draft-wrong"
+    assert result["verification"]["status"] == "mismatch"
+    assert set(result["verification"]["mismatches"]) >= {
+        "subject", "body", "to"}
+    assert calls == {"create": 1, "read": 1}
+
+
+def test_outlook_draft_wrong_remote_object_is_conflict_even_with_matching_content(
+        monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "created-1", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return {
+                "id": "other-object",
+                "subject": "Quote",
+                "body": {"content": "Draft body"},
+                "to_recipients": [{"emailAddress": {
+                    "address": "buyer@example.invalid"}}],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-other-object"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "created-1"
+    assert result["observed_remote_id"] == "other-object"
+    assert result["requested_remote_id"] == "created-1"
+    assert result["verification"]["status"] == "mismatch"
+    assert result["verification"]["mismatches"] == ["remote_id"]
+    assert result["read_receipt"]["resource_id"] == "other-object"
+    assert result["read_receipt"]["observed_remote_id"] == "other-object"
+    assert calls == {"create": 1, "read": 1}
+
+
+def test_outlook_draft_missing_remote_identity_is_incomplete_not_invented(
+        monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "created-no-id", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return {
+                "subject": "Quote",
+                "body": {"content": "Draft body"},
+                "to_recipients": [{"emailAddress": {
+                    "address": "buyer@example.invalid"}}],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-no-read-id"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "created-no-id"
+    assert result["observed_remote_id"] == ""
+    assert result["verification"]["status"] == "incomplete"
+    assert "id" in result["verification"]["missing_fields"]
+    assert result["read_receipt"]["resource_id"] == ""
+    assert result["read_receipt"]["observed_remote_id"] == ""
+    assert result["read_receipt"]["requested_remote_id"] == "created-no-id"
+    assert calls == {"create": 1, "read": 1}
+
+
+def test_outlook_draft_sparse_material_readback_is_incomplete(
+        monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "draft-sparse", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return {"id": email_id, "subject": "Quote"}
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-sparse-fields"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "uncertain"
+    assert result["verification"]["status"] == "incomplete"
+    assert set(result["verification"]["missing_fields"]) >= {
+        "body", "to", "cc", "bcc"}
+    assert calls == {"create": 1, "read": 1}
+
+
+def test_outlook_draft_missing_readback_is_uncertain_and_never_recreates(monkeypatch):
+    from core import connected_actions as actions
+
+    calls = {"create": 0, "read": 0}
+
+    class FakeOutlook:
+        async def _get_access_token(self, user_id):
+            return "token"
+
+        async def create_draft_email(self, **kwargs):
+            calls["create"] += 1
+            return {"id": "draft-sparse", "subject": kwargs["subject"]}
+
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            calls["read"] += 1
+            return None
+
+        async def send_email(self, *args, **kwargs):  # pragma: no cover
+            raise AssertionError("draft action must not send")
+
+    monkeypatch.setattr(
+        "integrations.outlook_service.OutlookService",
+        lambda *a, **k: FakeOutlook())
+    result = asyncio.run(actions.outlook_create_draft(
+        {"to": ["buyer@example.invalid"], "subject": "Quote",
+         "body": "Draft body", "operation_id": "op-sparse-draft"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+    assert result["action_result"] == "uncertain"
+    assert result["remote_id"] == "draft-sparse"
+    assert result["verification"]["status"] == "incomplete"
+    assert calls == {"create": 1, "read": 1}
+
+
 def test_outlook_attachment_read_returns_binary_and_never_sends(monkeypatch):
     from core import connected_actions as actions
 
@@ -1481,6 +1711,116 @@ def _full_estimate_readback(**over):
     }
     value.update(over)
     return value
+
+
+def test_estimate_readback_of_a_different_object_is_conflict_without_recreate(
+        monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_estimates_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False}
+
+        async def create_estimate(self, token, org, data):
+            self.created += 1
+            return {"estimate_id": "est-created"}
+
+        async def get_estimate(self, token, org, estimate_id):
+            self.readbacks += 1
+            return _full_estimate_readback(estimate_id="est-other")
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_estimate(
+        {"organization_id": "org-1", "estimate_data": _full_estimate_data(),
+         "authority_reference": "grant-1", "operation_id": "op-wrong-object"},
+        {"user_id": "u", "tenant_id": "t1"}))
+
+    assert result["status"] == "conflict"
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "est-created"
+    assert result["verification"]["status"] == "mismatch"
+    assert any(item["field"] == "remote_id"
+               for item in result["verification"]["mismatches"])
+    assert service.created == 1
+    assert service.readbacks == 1
+
+
+def test_bill_readback_of_a_different_object_is_conflict_without_recreate(
+        monkeypatch):
+    from core import connected_actions as actions
+
+    class FakeBooks:
+        def __init__(self):
+            self.created = 0
+            self.readbacks = 0
+
+        async def _get_active_token(self, *args, **kwargs):
+            return "token"
+
+        async def get_chart_of_accounts_page(self, token, org, page=1,
+                                             per_page=200):
+            return ([{"account_id": "acct-1"},
+                     {"account_id": "acct-service"}],
+                    {"has_more": False, "page": page})
+
+        async def get_bills_page(self, token, org, page=1, per_page=200):
+            return [], {"has_more": False, "page": page}
+
+        async def create_bill(self, token, org, payload):
+            self.created += 1
+            return {"bill_id": "bill-created"}
+
+        async def get_bill(self, token, org, bill_id):
+            self.readbacks += 1
+            return {
+                "bill_id": "bill-other",
+                "bill_number": "INV-001",
+                "reference_number": "INV-001",
+                "vendor_id": "vendor-1",
+                "date": "2026-10-01",
+                "currency_code": "USD",
+                "total": "120.00",
+                "sub_total": "120.00",
+                "tax_total": "0.00",
+                "discount_total": "0.00",
+                "line_items": [{
+                    "name": "Supplier line", "description": "Parts",
+                    "quantity": "1", "rate": "120.00",
+                    "account_id": "acct-1",
+                }],
+            }
+
+    service = FakeBooks()
+
+    async def fake_service(ids):
+        return service
+
+    monkeypatch.setattr(actions, "_books_service", fake_service)
+    result = asyncio.run(actions.books_create_bill(
+        {"proposal": _valid_proposal(), "authority_reference": "grant-1",
+         "operation_id": "op-bill-wrong-object"},
+        {"user_id": "user-1", "tenant_id": "t1"}))
+
+    assert result["status"] == "conflict"
+    assert result["action_result"] == "conflict"
+    assert result["remote_id"] == "bill-created"
+    assert result["verification"]["status"] == "mismatch"
+    assert any(item["field"] == "remote_id"
+               for item in result["verification"]["mismatches"])
+    assert service.created == 1
+    assert service.readbacks == 1
 
 
 def test_estimate_sparse_readback_is_uncertain_without_second_create(monkeypatch):

@@ -1,0 +1,222 @@
+{
+ "schema": "atom-full-app-consolidated-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "2b5db4b985cada1baf3edc0b554227f44d9b7b2d",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "frontend_build_id": "4LIiyOI205pK5RCpBKH87",
+  "runtime_identity": "INFO:core.runtime_identity:runtime identity: source_id=2b5db4b985ca revision=2b5db4b985ca dirty=False (0 modified, 0 untracked)",
+  "integration_commits": [
+   "b049c0761 merge accepted connected oracle line (6d62855d0..0f9796401, inventory 95454de7a) with taught artifacts",
+   "55fff94f2 replace the duplicate HITL candidate path with the canonical Memento lifecycle",
+   "2ebcf9353 effect counter + pending identity across restart + service/queue document controls",
+   "2b5db4b98 action-registry isolation between tests"
+  ]
+ },
+ "runtime": {
+  "world": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102",
+  "world_origin": "copy of the durable full-app-quote-20261102 world; no reseed",
+  "database": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102/atom.db",
+  "backend": {
+   "url": "http://127.0.0.1:8101",
+   "source_id": "2b5db4b985ca",
+   "dirty": false,
+   "health": "ok"
+  },
+  "frontend": {
+   "url": "http://127.0.0.1:3142",
+   "build_id": "4LIiyOI205pK5RCpBKH87",
+   "http_status": 307
+  }
+ },
+ "journey": {
+  "command": "TESTING=0 PYTHONPATH=$PWD/backend <venv>/python scripts/acceptance/full_app_quote_journey.py --frontend http://127.0.0.1:3142 --api http://127.0.0.1:8101 --password-file <world>/canvas-password.txt --agent-id 5ef8be20-1528-42d2-86e0-5c932c4a45e4 --out-dir /private/tmp/consolidated-clean-run",
+  "status": "passed",
+  "checks_passed": 17,
+  "checks_total": 17,
+  "checks": [
+   {
+    "name": "promoted document lesson is explicit and source-bound",
+    "ok": true
+   },
+   {
+    "name": "quote receipt starts an ordinary assignment",
+    "ok": true
+   },
+   {
+    "name": "real backend restart preserves the prepared action",
+    "ok": true
+   },
+   {
+    "name": "prepared action survives restart without dispatch",
+    "ok": true
+   },
+   {
+    "name": "quote assignment completes after action approval",
+    "ok": true
+   },
+   {
+    "name": "quote document artifact is attached",
+    "ok": true
+   },
+   {
+    "name": "quote document contains the server total and provenance",
+    "ok": true
+   },
+   {
+    "name": "quote document consumes the promoted lesson",
+    "ok": true
+   },
+   {
+    "name": "declared registered action has readback evidence",
+    "ok": true
+   },
+   {
+    "name": "duplicate continuation does not dispatch the action again",
+    "ok": true
+   },
+   {
+    "name": "source change produces a new server receipt",
+    "ok": true
+   },
+   {
+    "name": "old source receipt is refused after the change",
+    "ok": true
+   },
+   {
+    "name": "service proposal completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "service document carries the CAD total and lesson",
+    "ok": true
+   },
+   {
+    "name": "exception queue completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "exception document carries the counts and lesson",
+    "ok": true
+   },
+   {
+    "name": "cancelled action assignment is terminal",
+    "ok": true
+   }
+  ]
+ },
+ "effect_counts": {
+  "canvas_action_dispatches": 1,
+  "action_remote_id": "0c327289-abca-4182-ae4c-1e6838d9e019",
+  "audit_rows_before_duplicate": 1,
+  "audit_rows_after_duplicate": 1,
+  "duplicate_approval_status": 404,
+  "pending_operation_id": "442a74d6-2dfe-4bf5-a4bf-b2ad740f4987",
+  "pending_payload_sha256": "5c44a7f4af94e2189ee1df667f7d5b35f24dc9a6f2e6d1f73d1b03df2628ea2a",
+  "pending_identity_unchanged_across_restart": true,
+  "documents": {
+   "quote": {
+    "sha256": "bb80c677d74236906a8ad5463f8184c6ed397798d32952c02ccf9b6485ba4919",
+    "total": "350.00",
+    "font": "Georgia 18"
+   },
+   "service": {
+    "sha256": "dadc880fa2511a89d73d76742d387052e9c44d8002951369334671cbcd26cf2d",
+    "total": "630.00 CAD",
+    "font": "Georgia 18"
+   },
+   "queue": {
+    "sha256": "b873c87ebb6b216ea7654e11270f46a91d767cc835c18e52e121f0dab3a6c36e",
+    "total": "3 / 170.00",
+    "font": "Georgia 18"
+   }
+  }
+ },
+ "oracle": {
+  "registry_union": [
+   "brennan.books.create_bill",
+   "brennan.books.create_estimate",
+   "brennan.outlook.create_draft",
+   "canvas.present_markdown",
+   "connected.books.create_bill",
+   "connected.books.create_estimate",
+   "connected.outlook.create_draft",
+   "tasks.create",
+   "trigger_workflow"
+  ],
+  "registry_count": 9,
+  "inventory": {
+   "registered_actions": 90,
+   "external_mutation": 6,
+   "external_covered": 6,
+   "local_mutation": 9,
+   "local_covered": 2,
+   "mutating_http_routes": 827,
+   "provider_write_methods": 311
+  },
+  "one_consumer_contract": "assignment adapter frozen-request block; duplicate inner gate removed",
+  "negatives": [
+   "connected readback mismatch/incomplete is uncertain, never applied",
+   "orphan/unknown verification fails closed",
+   "canvas_audit missing/mismatch refutes",
+   "test-registered actions cannot pollute the production coverage invariant"
+  ]
+ },
+ "tests": {
+  "backend_combined": {
+   "command": "TESTING=1 pytest <24 files> -q",
+   "result": "428 passed",
+   "log": "backend-tests.log"
+  },
+  "frontend_canvas": {
+   "command": "jest CanvasCapabilityAssessment CanvasCapabilityDerive CanvasCapabilityRules --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "open_items": [
+  "effect-family verifiers (canvas update/restore/present_chart, goal families) and the controlled Books/invoice journey were in-flight and uncommitted; not part of this source",
+  "whole-app oracle coverage beyond the nine loaded verifiers (827 HTTP mutation routes, 311 provider writes) remains unqualified",
+  "TEAM-05 real LLM sweep transport; MEM-07 approval/apply and post-restart consumption",
+  "ORCH/GOAL model work, MINI Linux/KVM, INT/ROUTE live authorization"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/full_app_quote_journey_20261102/",
+  "docs/acceptance/evidence/full_app_batch_20261102/",
+  "docs/acceptance/evidence/claim_progress_20261102/",
+  "docs/acceptance/evidence/oracle_whole_app_inventory_20261102/"
+ ],
+ "exclusions": [
+  "no live provider lookup, refresh, write, send, credential, consent or spend",
+  "no database reseed; the durable world was copied and relabelled",
+  "no change to the 123-feature denominator or historical 111/123"
+ ],
+ "artifacts": {
+  "README.md": "fa19dc8fe20fc0858856a435818a5c85e09da227db6b8ddd7327ab21ca04bdf8",
+  "TEST_RESULTS.md": "6402b8443ee7616f3b97b3c69885fb11a78d5002c6115d56f0951b1d1467d59b",
+  "audit-row.txt": "12a00dafca4c1e8ad7be2c92b4c1690a3f41e19fb6436c256035b8159575f34f",
+  "backend-health.json": "afb8b9cdd2d307d1233b4cc6c40ecbfc2b5c4c8f179427e6431bd99f0ba90574",
+  "backend-tests.log": "ac4bf76b84207d6f5a8c858f5be8da1462cc06df49fd9e12dc6148297863928a",
+  "frontend-build-id.txt": "f7c716b2ada5de014cdf665380e23f1efdad06292f39b45f83ed1d3873d2cc34",
+  "frontend-health.txt": "6d976934be74941fba578b143ba964eded443d10384e3f3d62a1ba7b4d339df8",
+  "frontend-tests.log": "ea8d19271cbad2ac1870124c30aa8cc3040af59c1e28b9536cd15d65fffea5bb",
+  "oracle-registry.txt": "318790993fa51feed1491dc4a8f514268c3faedd574b97016a25abdad12604b4",
+  "oracle-whole-app-inventory/README.md": "e3e1910a1b02e0db6f253ee8e9b966b39b3ca6caedad7faef5a22eb27412b2cc",
+  "oracle-whole-app-inventory/inventory.json": "30a05d5d10b20d51b87f7e3d8391ff8372f71e0f3b381905569e3923d78d6ec1",
+  "queue-document.docx": "b873c87ebb6b216ea7654e11270f46a91d767cc835c18e52e121f0dab3a6c36e",
+  "queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+  "quote-changed.csv": "2bf5e0039f8e4dab21ad738dc10708179573dc38328a5dbb2af8ede8d4a3742b",
+  "quote-document.docx": "bb80c677d74236906a8ad5463f8184c6ed397798d32952c02ccf9b6485ba4919",
+  "quote-journey-result.json": "0cec9c296f9b9306cb3d2c8c126dfd1cf79bf2535b516b18da255ee61d258494",
+  "quote-journey.log": "64be155c1c525a5744a7441cc4e5fd55090b0be329176c39d506ec9601a63905",
+  "quote-journey.png": "23a9b50afe928539346d3f83562741199d7d26c664227b0cb11a21601498ddd5",
+  "quote.csv": "4db47c8c4d1030e5f2011605e881dbe2536ecaefa120bb7baabda2cc21d4134f",
+  "runtime-identity.txt": "76b3344bf1f58b5e7da6ade1299c71b5d13537e4bea75bc09ae7da4b03e5c3bc",
+  "service-document.docx": "dadc880fa2511a89d73d76742d387052e9c44d8002951369334671cbcd26cf2d",
+  "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+  "world-manifest.json": "e69ffa93995f0d88fe0d370b7e51d33496e9aab9f7b97a918b0d440870db3e93"
+ }
+}

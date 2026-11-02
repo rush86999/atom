@@ -1329,6 +1329,15 @@ try:
         except Exception as exc:  # noqa: BLE001
             startup_logger.warning(
                 f"Controlled assignment transport unavailable: {exc}")
+    if os.getenv("ATOM_BOOKS_CONTROLLED_TRANSPORT") == "1":
+        try:
+            import core.assignment_controlled_books  # noqa: F401
+
+            startup_logger.info(
+                "✓ Controlled Zoho Books transport installed (acceptance)")
+        except Exception as exc:  # noqa: BLE001
+            startup_logger.warning(
+                f"Controlled Zoho Books transport unavailable: {exc}")
     startup_logger.info("✓ FastAPI app instance created")
 
     # Initialize connection leak detector

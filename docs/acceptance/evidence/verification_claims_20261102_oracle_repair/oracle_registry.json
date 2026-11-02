@@ -1,0 +1,73 @@
+{
+  "consumer": "core.assignment_executor._action_registry_adapter downgrades an applied result to uncertain when the verifier refutes it",
+  "covered": true,
+  "draft_readback": "core.connected_actions.outlook_create_draft reads the created draft via get_email_by_id and compares recipients/subject/body",
+  "mutating_actions": [
+    {
+      "action": "brennan.books.create_bill",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "brennan.books.create_estimate",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "brennan.outlook.create_draft",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.books.create_bill",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.books.create_estimate",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    },
+    {
+      "action": "connected.outlook.create_draft",
+      "effects": [
+        {
+          "effect": "create"
+        }
+      ],
+      "verifier": true
+    }
+  ],
+  "oracle_verifiers": [
+    "brennan.books.create_bill",
+    "brennan.books.create_estimate",
+    "brennan.outlook.create_draft",
+    "connected.books.create_bill",
+    "connected.books.create_estimate",
+    "connected.outlook.create_draft",
+    "tasks.create",
+    "trigger_workflow"
+  ],
+  "schema": "atom-oracle-mutation-inventory-2",
+  "source": "6f0acd0bd"
+}

@@ -1,0 +1,11 @@
+{
+  "backend_port": 8101,
+  "created_at": "2026-11-02T14:53:06.128611+00:00",
+  "database": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102/atom.db",
+  "frontend_port": 3142,
+  "last_launched_at": "2026-11-02T19:54:38.158822+00:00",
+  "repo": "/private/tmp/atom-consolidated-clean",
+  "schema": "atom-integrated-local-world-1",
+  "secret_file": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102/.atom-secret",
+  "world": "/private/tmp/atom-consolidated-clean/backend/data/acceptance_worlds/full-app-consolidated-20261102"
+}
