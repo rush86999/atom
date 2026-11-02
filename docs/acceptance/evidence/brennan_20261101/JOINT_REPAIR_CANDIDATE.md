@@ -84,6 +84,18 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
   calculation; oversized inline content fails explicitly with no downstream
   work.
 
+### Serialization budget (Agent 1 consumption)
+- One shared budget covers the complete executable result: **4 MiB UTF-8**,
+  **100,000 nodes**, **100,000 dictionary/list entries**, **512-character
+  keys**, plus per-value and nesting limits. The budget is not reset per child.
+- Aggregate overflow, oversized keys and multibyte over-budget content raise
+  `ExecutablePayloadTooLarge`; no silent truncation.
+- A read over budget returns a typed payload-too-large failure. A mutation over
+  budget after dispatch raises uncertainty with the remote identity preserved;
+  it is never classified as proof of no effect.
+- Actual WorkDrive read → executor → calculation controls at 79/80/81 rows and
+  a 501-row partial read remain green.
+
 ## Remaining joint gaps
 
 - WorkDrive/OneDrive bytes → parsed typed records → quote line items is still
