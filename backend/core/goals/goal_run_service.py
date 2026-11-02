@@ -214,6 +214,10 @@ class GoalRunService:
                 "decision": "ASK_HUMAN",
                 "rationale": (reason or "run stalled")[:2000],
             }
+            # This creates a new pending-decision generation. Bump the same
+            # counter _hold_for_approval uses so a resume that read the old
+            # pending decision cannot claim this one (see resume()'s CAS).
+            run.human_interventions = (run.human_interventions or 0) + 1
             log = list(run.decision_log or [])
             log.append({"ts": _iso(), "kind": "stalled_interrupted",
                         "rationale": (reason or "run stalled")[:2000]})
@@ -781,9 +785,40 @@ class GoalRunService:
         if not pending:
             return {"resumed": False, "reason": "no pending decision"}
 
+        # Claim the exact pending-decision generation with one conditional
+        # UPDATE. Two supervisors (or a retried request) can both read the
+        # same pending decision; only the first may clear it, record an
+        # override, or execute it. human_interventions is the persisted
+        # generation: every writer that installs a new pending decision
+        # increments it (_hold_for_approval / interrupt_stalled). A resume
+        # that loses the race returns before learning/execution, so a
+        # duplicate approval can never run the loop turn twice.
+        from core.models import GoalRun
+        expected_generation = int(run.get("human_interventions") or 0)
+        with self._sessions()() as session:
+            db_run = self._load(session, run_id)
+            if db_run is None or db_run.pending_decision is None:
+                session.rollback()
+                return {"resumed": False, "reason": "no pending decision"}
+            values: Dict[str, Any] = {"pending_decision": None}
+            if db_run.status == "paused_hitl":
+                values["status"] = "waiting" if db_run.waiting_on else "active"
+            updated = session.query(GoalRun).filter(
+                GoalRun.id == run_id,
+                GoalRun.workspace_id == self.workspace_id,
+                GoalRun.pending_decision.isnot(None),
+                GoalRun.human_interventions == expected_generation,
+                GoalRun.status == run.get("status"),
+            ).update(values, synchronize_session=False)
+            if updated != 1:
+                session.rollback()
+                return {"resumed": False, "reason": "no pending decision"}
+            session.commit()
+
         if not approved:
             # The override is a correction (§3.7C) — but a learning-pipeline
-            # failure must never block the supervisor's resume.
+            # failure must never block the supervisor's resume. Recorded only
+            # by the generation-claim winner.
             try:
                 from core.goals.goal_run_learning import record_decision_override
                 record_decision_override(self, run, pending,
@@ -792,13 +827,6 @@ class GoalRunService:
             except Exception as exc:
                 logger.warning(f"goal run {run_id}: override learning "
                                f"recording failed: {exc}")
-        with self._sessions()() as session:
-            db_run = self._load(session, run_id)
-            if db_run:
-                db_run.pending_decision = None
-                if db_run.status == "paused_hitl":
-                    db_run.status = "waiting" if db_run.waiting_on else "active"
-                session.commit()
         self.append_decision(run_id, {
             "kind": "override" if not approved else "approved",
             "decision": pending.get("decision"),
