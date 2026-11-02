@@ -1,0 +1,120 @@
+
+tests/test_reviewed_improvement_apply.py::test_pending_candidate_cannot_be_applied 
+-------------------------------- live log setup --------------------------------
+2026-11-02 15:54:56 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 15:54:56 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 20%]
+tests/test_reviewed_improvement_apply.py::test_validation_alone_changes_nothing PASSED [ 40%]
+tests/test_reviewed_improvement_apply.py::test_apply_writes_typed_skill_and_ordinary_work_consumes_it 
+-------------------------------- live log call ---------------------------------
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] Importing skill from source: raw_content
+2026-11-02 15:54:56 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 15:54:56 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 15:54:56 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 15:54:56 [    INFO] Security scan result: UNKNOWN
+2026-11-02 15:54:56 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 15:54:56 [    INFO] Imported skill 'repair_outlook_search' (id: fd845533-8fa8-4dc7-9566-dcfc9988a59c, status: Untrusted)
+2026-11-02 15:54:56 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] EscalationManager initialized
+2026-11-02 15:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:56 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 60%]
+tests/test_reviewed_improvement_apply.py::test_duplicate_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:57 [    INFO] Importing skill from source: raw_content
+2026-11-02 15:54:57 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 15:54:57 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 15:54:57 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 15:54:57 [    INFO] Security scan result: UNKNOWN
+2026-11-02 15:54:57 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 15:54:57 [    INFO] Imported skill 'repair_outlook_search' (id: e207c4bb-f3c1-41d5-9c6e-a05cbe415ead, status: Untrusted)
+2026-11-02 15:54:57 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 80%]
+tests/test_reviewed_improvement_apply.py::test_route_requires_reviewer_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-02 15:54:57 [ WARNING] Access denied: user viewer-user has role viewer (level 2), required team_lead (level 4)
+2026-11-02 15:54:57 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-viewer_candidate/apply "HTTP/1.1 403 Forbidden"
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:57 [    INFO] EscalationManager initialized
+2026-11-02 15:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:54:57 [   ERROR] Failed to create skill package: Skill 'admin_candidate' already exists
+2026-11-02 15:54:57 [    INFO] Importing skill from source: raw_content
+2026-11-02 15:54:57 [    INFO] Parsed skill 'admin_candidate' (type: prompt_only, packages: 0)
+2026-11-02 15:54:57 [    INFO] Scanning skill 'admin_candidate' (SHA: 02acab77...)
+2026-11-02 15:54:57 [    INFO] LLM scan completed for 'admin_candidate'
+2026-11-02 15:54:57 [    INFO] Security scan result: UNKNOWN
+2026-11-02 15:54:57 [ WARNING] Skill 'admin_candidate' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 15:54:57 [    INFO] Imported skill 'admin_candidate' (id: 280fe554-dd45-4563-a2e6-7217039cd7a1, status: Untrusted)
+2026-11-02 15:54:57 [    INFO] Promoted skill 'admin_candidate' from Untrusted to Active
+2026-11-02 15:54:57 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-admin_candidate/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 passed, 17 warnings in 11.74s ========================

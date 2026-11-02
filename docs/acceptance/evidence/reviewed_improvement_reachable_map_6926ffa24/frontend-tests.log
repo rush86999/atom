@@ -1,0 +1,8 @@
+PASS components/canvas/__tests__/CanvasCapabilityDerive.test.tsx
+PASS components/canvas/__tests__/CanvasCapabilityRules.test.tsx
+PASS components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx
+
+Test Suites: 3 passed, 3 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        2.444 s, estimated 3 s
