@@ -715,3 +715,46 @@ def test_changed_decision_material_after_review_is_stale(
         "changed after review")
     db.close()
     engine.dispose()
+
+
+def test_new_checkpoint_created_during_execution_stays_pending(
+        tmp_path, monkeypatch):
+    """Closing A's row after execution must not close a new checkpoint row."""
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "checkpoint-during-execution.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "reviewed A"})
+    review = _review(held)
+    checkpoint_ids = []
+
+    async def execute(run_id, decision):
+        checkpoint = HITLAction(
+            workspace_id="ws-a", tenant_id="t-a",
+            action_type="goal_run_checkpoint", platform="in_app",
+            params={"run_id": run_id, "step_id": "cp-new"},
+            status=HITLActionStatus.PENDING.value)
+        db.add(checkpoint)
+        db.commit()
+        checkpoint_ids.append(checkpoint.id)
+        return {"run": svc.get_run(run_id)}
+
+    monkeypatch.setattr(svc, "execute_decision", execute)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+    response = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
+    assert response.status_code == 200, response.text
+    assert len(checkpoint_ids) == 1
+    checkpoint = db.query(HITLAction).filter(
+        HITLAction.id == checkpoint_ids[0]).one()
+    assert checkpoint.status == HITLActionStatus.PENDING.value
+    a_row = db.query(HITLAction).filter(
+        HITLAction.id == held["hitl_id"]).one()
+    assert a_row.status == HITLActionStatus.APPROVED.value
+    db.close()
+    engine.dispose()
