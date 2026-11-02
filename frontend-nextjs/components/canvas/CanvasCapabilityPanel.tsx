@@ -758,6 +758,21 @@ export function CanvasCapabilityPanel({
                                 >
                                     Derive fields
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={!effective.has("derive") || busy !== null}
+                                    data-testid="capability-assign"
+                                    onClick={() => call(`/api/canvas/${canvasId}/capability/assign`, {
+                                        objective: ask || `Complete the canvas ${canvasId}`,
+                                        expected_revision: state?.revision,
+                                        manifest_revision: state?.manifest?.manifest_revision,
+                                        source_version: state?.dataset?.source?.source_version,
+                                    })}
+                                >
+                                    Start assignment
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!effective.has("assess") || busy !== null} onClick={() => call(`/api/canvas/${canvasId}/capability/assess`, { ask })} data-testid="capability-assess">
                                     Assess
                                 </Button>
@@ -807,6 +822,12 @@ export function CanvasCapabilityPanel({
                                 {result.manifest_revision && <span>manifest: {result.manifest_revision}</span>}
                                 {result.policy_revision && <span>policy: {result.policy_revision}</span>}
                             </div>
+                            {result.run_id ? (
+                                <div className="mt-1" data-testid="capability-assignment">
+                                    assignment {String(result.run_id).slice(0, 8)} · {result.assignment?.status || "started"} ·{" "}
+                                    <a className="underline" href={`/assignments?run=${encodeURIComponent(result.run_id)}`}>Open</a>
+                                </div>
+                            ) : null}
                             {result.total_values && (
                                 <div className="mt-1 font-mono" data-testid="capability-total">
                                     {Object.entries(result.total_values).map(([k, v]) => (

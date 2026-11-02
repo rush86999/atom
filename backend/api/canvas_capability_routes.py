@@ -32,6 +32,8 @@ from core.canvas_capability_service import (
     answer_derive_clarification,
     begin_derive_clarification,
     calculate_operation,
+    promote_canvas_teaching,
+    propose_canvas_teaching,
     current_revision,
     decisions_operation,
     derive_operation,
@@ -114,6 +116,50 @@ class DeriveAnswerRequest(BaseModel):
 
     expected_revision: int
     answers: List[DeriveAnswer]
+
+
+class CanvasAssignRequest(BaseModel):
+    """Start an assignment from the current server-issued receipt.
+
+    The body carries revisions and optional declared-action IDs only. Rows,
+    totals and action payloads are rebuilt from the authoritative canvas.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    objective: str = ""
+    agent_id: Optional[str] = None
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+    action_ids: List[str] = []
+    conversation_id: Optional[str] = None
+
+
+class TeachingProposalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lesson: str
+    topic: str = "canvas"
+    applies_to: List[str] = []
+    format_spec: Dict[str, Any] = {}
+    conditions: Dict[str, Any] = {}
+    context: Dict[str, Any] = {}
+    agent_id: Optional[str] = None
+    receipt_digest: str = ""
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+
+
+class TeachingPromoteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    approved: bool
+    reason: str = ""
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
 
 
 class EditRequest(BaseModel):
@@ -352,6 +398,131 @@ async def capability_derive_answer(
             [item.model_dump() for item in request.answers],
             expected_revision=request.expected_revision,
             raise_on_refusal=True,
+        )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/assign")
+async def capability_assign(
+    canvas_id: str,
+    request: CanvasAssignRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        manifest = get_manifest(canvas)
+        if not manifest:
+            raise CapabilityError(
+                "not_capability_canvas",
+                "This canvas has no capability manifest.")
+        try:
+            receipt = derive_operation(
+                db, canvas, current_user,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+        except CapabilityError as exc:
+            if exc.code == "missing_required_value":
+                return _error(exc)
+            raise
+        declared = {
+            str(item.get("id") or ""): dict(item)
+            for item in (manifest.get("actions") or [])
+            if isinstance(item, dict)
+        }
+        action_ids = list(request.action_ids or declared.keys())
+        unknown = sorted(set(action_ids) - set(declared))
+        if unknown:
+            raise CapabilityError(
+                "unsupported_action",
+                "The requested action(s) are not declared on this canvas: "
+                + ", ".join(unknown),
+                409,
+            )
+        objective = str(request.objective or "").strip() or (
+            f"Complete the canvas {canvas.name or canvas.id}")
+        employee_id = str(
+            request.agent_id
+            or (manifest.get("teaching_binding") or {}).get("agent_id")
+            or "").strip()
+        from core.canvas_assignment import build_canvas_assignment_plan
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        from core.assignment_executor import AssignmentExecutor
+
+        plan = build_canvas_assignment_plan(
+            canvas, manifest, receipt,
+            objective=objective, employee_id=employee_id,
+            workspace_id=str(current_user.workspace_id or ""),
+            tenant_id=str(current_user.tenant_id or ""),
+            action_ids=action_ids,
+        )
+        workspace_id = str(current_user.workspace_id or "default")
+        tenant_id = str(current_user.tenant_id or "default")
+        runs = GoalRunService(
+            workspace_id=workspace_id, tenant_id=tenant_id)
+        goals = GoalService(
+            workspace_id=workspace_id, tenant_id=tenant_id)
+        executor = AssignmentExecutor(TaskLifecycle(runs, goals))
+        conversation_id = str(
+            request.conversation_id or f"canvas-{canvas.id}")
+        created = executor.create_assignment(
+            conversation_id, objective, assignment=plan)
+        started = await executor.execute(created["run_id"])
+        return {
+            "success": True,
+            "run_id": created["run_id"],
+            "assignment": started.get("assignment") or {},
+            "receipt_digest": receipt["input_receipt"]["digest"],
+            "action_ids": action_ids,
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/teaching/propose")
+async def capability_teaching_propose(
+    canvas_id: str,
+    request: TeachingProposalRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return {
+            "success": True,
+            "proposal": propose_canvas_teaching(
+                db, canvas, current_user, request.model_dump(),
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            ),
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/teaching/{proposal_id}/promote")
+async def capability_teaching_promote(
+    canvas_id: str,
+    proposal_id: str,
+    request: TeachingPromoteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return promote_canvas_teaching(
+            db, canvas, current_user, proposal_id,
+            approved=request.approved,
+            expected_revision=request.expected_revision,
+            manifest_revision_value=request.manifest_revision,
+            source_version=request.source_version,
+            reason=request.reason,
         )
     except CapabilityError as exc:
         return _error(exc)

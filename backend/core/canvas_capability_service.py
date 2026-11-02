@@ -719,6 +719,89 @@ def _normalize_typed_fields(raw_fields: Any) -> List[Dict[str, Any]]:
     return normalized
 
 
+_ACTION_TEMPLATE_RE = re.compile(r"\$\{([^}]+)\}")
+
+
+def _validate_action_arguments(
+    value: Any, field_ids: set, *, depth: int = 0,
+) -> None:
+    """Validate the bounded action-argument template language.
+
+    A manifest can name receipt values, never arbitrary code or a client
+    object. Unknown references refuse at manifest save.
+    """
+    if depth > 6:
+        raise CapabilityError(
+            "invalid_action_arguments",
+            "Action arguments exceed the supported nesting depth.",
+        )
+    if isinstance(value, dict):
+        if len(value) > 40:
+            raise CapabilityError(
+                "invalid_action_arguments",
+                "Action arguments support at most 40 keys per object.",
+            )
+        for key, item in value.items():
+            if not str(key).strip() or len(str(key)) > 120:
+                raise CapabilityError(
+                    "invalid_action_arguments",
+                    "Action argument keys must be non-empty and bounded.",
+                )
+            _validate_action_arguments(item, field_ids, depth=depth + 1)
+        return
+    if isinstance(value, (list, tuple)):
+        if len(value) > 100:
+            raise CapabilityError(
+                "invalid_action_arguments",
+                "Action argument lists support at most 100 entries.",
+            )
+        for item in value:
+            _validate_action_arguments(item, field_ids, depth=depth + 1)
+        return
+    if isinstance(value, str):
+        if len(value) > 2000:
+            raise CapabilityError(
+                "invalid_action_arguments",
+                "Action argument strings must be at most 2000 characters.",
+            )
+        for match in _ACTION_TEMPLATE_RE.finditer(value):
+            reference = match.group(1).strip()
+            builtins = {
+                "objective", "total", "currency", "row_count",
+                "receipt_digest", "manifest_revision", "state_revision",
+                "canvas_id",
+            }
+            if reference in builtins:
+                continue
+            if reference.startswith("field:"):
+                field_id = reference.split(":", 1)[1]
+                if field_id not in field_ids:
+                    raise CapabilityError(
+                        "unsupported_field_reference",
+                        f"Action template names unknown field {field_id!r}.",
+                    )
+                continue
+            if reference.startswith("sum:"):
+                field_id = reference.split(":", 1)[1]
+                if field_id not in field_ids:
+                    raise CapabilityError(
+                        "unsupported_field_reference",
+                        f"Action template names unknown field {field_id!r}.",
+                    )
+                continue
+            raise CapabilityError(
+                "unsupported_template_reference",
+                f"Action template reference {reference!r} is not supported.",
+            )
+        return
+    if value is None or isinstance(value, (bool, int, float)):
+        return
+    raise CapabilityError(
+        "invalid_action_arguments",
+        "Action arguments support JSON objects, lists, scalars and templates.",
+    )
+
+
 def _normalize_typed_actions(
     raw_actions: Any, field_ids: Sequence[str],
 ) -> List[Dict[str, Any]]:
@@ -737,7 +820,10 @@ def _normalize_typed_actions(
         registered = set(action_registry.list_actions())
     except Exception:  # noqa: BLE001
         registered = set()
-    allowed = {"id", "operation", "allowed_fields", "target", "authority"}
+    allowed = {
+        "id", "operation", "allowed_fields", "target", "authority",
+        "arguments",
+    }
     known_fields = set(field_ids)
     normalized: List[Dict[str, Any]] = []
     seen: set = set()
@@ -782,12 +868,20 @@ def _normalize_typed_actions(
                 f"Action {action_id!r} names unknown field(s): "
                 + ", ".join(missing),
             )
+        arguments = raw.get("arguments") or {}
+        if not isinstance(arguments, dict):
+            raise CapabilityError(
+                "invalid_action_arguments",
+                f"Action {action_id!r} arguments must be an object.",
+            )
+        _validate_action_arguments(arguments, known_fields)
         normalized.append({
             "id": action_id,
             "operation": operation,
             "allowed_fields": list(dict.fromkeys(allowed_fields)),
             "target": str(raw.get("target") or "").strip()[:240],
             "authority": str(raw.get("authority") or "").strip()[:240],
+            "arguments": copy.deepcopy(arguments),
         })
         seen.add(action_id)
     return normalized
@@ -931,6 +1025,11 @@ def sanitize_capability_copy(content: Any, new_canvas_id: str) -> Any:
             content.get("capability_manifest"), dict):
         return content
     copied = dict(content)
+    # Clarifications and proposed lessons are private to the source canvas;
+    # a fork copies shape, not unresolved state or review candidates.
+    copied.pop("capability_derive_clarification", None)
+    copied.pop("capability_derive_clarification_history", None)
+    copied.pop("capability_teaching_proposals", None)
     manifest = dict(copied["capability_manifest"])
     manifest["teaching_binding"] = {"agent_id": "", "scope_id": ""}
     manifest["task_policy"] = ""
@@ -2960,6 +3059,295 @@ def _answer_derive_clarification_impl(
         "clarification_id": clarification_id,
         "result": result,
         "revision": result.get("revision"),
+    }
+
+
+def render_canvas_action_arguments(
+    template: Any, result: Dict[str, Any], *, objective: str = "",
+    canvas_id: str = "",
+) -> Any:
+    """Resolve the bounded action-argument templates from a derive result."""
+    receipt = result.get("input_receipt") or {}
+    aggregates = dict(result.get("aggregates") or {})
+    fields = list(result.get("fields") or [])
+    rows = list(result.get("rows") or [])
+    first_row = dict((rows[0] or {}).get("values") or {}) if rows else {}
+    currencies = [
+        str(item.get("currency") or "") for item in fields
+        if item.get("currency")
+    ]
+    total = next(iter(aggregates.values()), "") if aggregates else ""
+    values = {
+        "objective": objective,
+        "total": total,
+        "currency": currencies[0] if currencies else "",
+        "row_count": result.get("row_count") or len(rows),
+        "receipt_digest": receipt.get("digest") or "",
+        "manifest_revision": result.get("manifest_revision") or "",
+        "state_revision": result.get("revision") or "",
+        "canvas_id": canvas_id or result.get("canvas_id") or "",
+    }
+
+    def resolve(reference: str) -> Any:
+        reference = str(reference).strip()
+        if reference in values:
+            return values[reference]
+        if reference.startswith("field:"):
+            return first_row.get(reference.split(":", 1)[1], "")
+        if reference.startswith("sum:"):
+            return aggregates.get(reference.split(":", 1)[1], "")
+        return ""
+
+    if isinstance(template, str):
+        full = _ACTION_TEMPLATE_RE.fullmatch(template.strip())
+        if full:
+            return resolve(full.group(1))
+        return _ACTION_TEMPLATE_RE.sub(
+            lambda match: str(resolve(match.group(1))), template)
+    if isinstance(template, dict):
+        return {
+            str(key): render_canvas_action_arguments(
+                value, result, objective=objective, canvas_id=canvas_id)
+            for key, value in template.items()
+        }
+    if isinstance(template, (list, tuple)):
+        return [
+            render_canvas_action_arguments(
+                item, result, objective=objective, canvas_id=canvas_id)
+            for item in template
+        ]
+    return template
+
+
+def propose_canvas_teaching(
+    db, canvas: Canvas, user: Any, proposal: Dict[str, Any], *,
+    expected_revision: int, manifest_revision_value: str,
+    source_version: str,
+) -> Dict[str, Any]:
+    """Store a shadow teaching proposal with receipt provenance.
+
+    Nothing is promoted here. The proposal is canvas state and cannot change
+    execution authority or the agent's lesson journal until an explicit
+    promotion call.
+    """
+    db.rollback()
+    fresh = (
+        db.query(Canvas)
+        .filter(Canvas.id == canvas.id)
+        .populate_existing()
+        .first()
+    )
+    if fresh is None:
+        raise CapabilityError("not_found", "Canvas not found.", 404)
+    authorize_canvas(db, fresh, user)
+    manifest = get_manifest(fresh)
+    if int(expected_revision) != current_revision(fresh):
+        raise CapabilityError(
+            "stale_revision",
+            "The canvas changed before the teaching proposal was stored.",
+            409,
+        )
+    if str(manifest_revision_value or "") != str(
+            manifest.get("manifest_revision") or ""):
+        raise CapabilityError(
+            "stale_manifest",
+            "The fields or rules changed before the teaching proposal.",
+            409,
+        )
+    source = _dataset_source(fresh)
+    if str(source_version or "") != str(
+            source.get("source_version") or ""):
+        raise CapabilityError(
+            "stale_source",
+            "The source changed before the teaching proposal.", 409)
+    receipt = derive_operation(
+        db, fresh, user,
+        expected_revision=expected_revision,
+        manifest_revision_value=manifest_revision_value,
+        source_version=source_version,
+    )
+    receipt_digest = str(receipt["input_receipt"]["digest"])
+    requested_digest = str(proposal.get("receipt_digest") or "")
+    if requested_digest and requested_digest != receipt_digest:
+        raise CapabilityError(
+            "stale_receipt",
+            "The teaching proposal is bound to a different receipt.", 409)
+    lesson = str(proposal.get("lesson") or "").strip()
+    if not lesson or len(lesson) > 2000:
+        raise CapabilityError(
+            "invalid_teaching_proposal",
+            "A teaching proposal needs a lesson of 1-2000 characters.", 400)
+    agent_id = str(
+        proposal.get("agent_id")
+        or (manifest.get("teaching_binding") or {}).get("agent_id")
+        or "").strip()
+    if not agent_id:
+        raise CapabilityError(
+            "teaching_agent_required",
+            "Bind an employee before proposing teaching.", 409)
+    format_spec = proposal.get("format_spec") or {}
+    conditions = proposal.get("conditions") or {}
+    context = proposal.get("context") or {}
+    if not isinstance(format_spec, dict) or not isinstance(
+            conditions, dict) or not isinstance(context, dict):
+        raise CapabilityError(
+            "invalid_teaching_proposal",
+            "format_spec, conditions and context must be objects.", 400)
+    record = {
+        "id": f"teach-{uuid.uuid4().hex}",
+        "status": "proposed",
+        "lesson": lesson,
+        "topic": str(proposal.get("topic") or "canvas")[:120],
+        "applies_to": [
+            str(item)[:80] for item in (proposal.get("applies_to") or [])
+            if str(item).strip()
+        ][:20],
+        "format_spec": copy.deepcopy(format_spec),
+        "conditions": copy.deepcopy(conditions),
+        "context": copy.deepcopy(context),
+        "agent_id": agent_id,
+        "provenance": {
+            "canvas_id": fresh.id,
+            "receipt_digest": receipt_digest,
+            "manifest_revision": manifest.get("manifest_revision"),
+            "state_revision": current_revision(fresh),
+            "source": source,
+            "fields": receipt.get("fields") or [],
+            "aggregates": receipt.get("aggregates") or {},
+        },
+        "proposed_by": str(getattr(user, "id", "") or "") or None,
+        "proposed_at": _now().isoformat(),
+    }
+    content = copy.deepcopy(_canvas_content(fresh))
+    proposals = list(content.get("capability_teaching_proposals") or [])
+    proposals.append(record)
+    content["capability_teaching_proposals"] = proposals[-20:]
+    try:
+        _commit_canvas_content_cas(
+            db, fresh, content,
+            expected_revision=expected_revision,
+            expected_source_version=source_version,
+            expected_manifest_revision=manifest_revision_value,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+        )
+    except CapabilityError:
+        db.rollback()
+        raise
+    return record
+
+
+def promote_canvas_teaching(
+    db, canvas: Canvas, user: Any, proposal_id: str, *,
+    approved: bool, expected_revision: int, manifest_revision_value: str,
+    source_version: str, reason: str = "",
+) -> Dict[str, Any]:
+    """Explicitly promote one proposal into the existing teaching journal."""
+    if not approved:
+        raise CapabilityError(
+            "approval_required",
+            "Teaching promotion requires explicit human approval.", 403)
+    db.rollback()
+    fresh = (
+        db.query(Canvas)
+        .filter(Canvas.id == canvas.id)
+        .populate_existing()
+        .first()
+    )
+    if fresh is None:
+        raise CapabilityError("not_found", "Canvas not found.", 404)
+    authorize_canvas(db, fresh, user)
+    manifest = get_manifest(fresh)
+    if int(expected_revision) != current_revision(fresh):
+        raise CapabilityError(
+            "stale_revision",
+            "The canvas changed before the teaching promotion.", 409)
+    if str(manifest_revision_value or "") != str(
+            manifest.get("manifest_revision") or ""):
+        raise CapabilityError(
+            "stale_manifest",
+            "The fields or rules changed before the teaching promotion.", 409)
+    source = _dataset_source(fresh)
+    if str(source_version or "") != str(
+            source.get("source_version") or ""):
+        raise CapabilityError(
+            "stale_source",
+            "The source changed before the teaching promotion.", 409)
+    content = copy.deepcopy(_canvas_content(fresh))
+    proposals = [
+        dict(item) for item in (content.get(
+            "capability_teaching_proposals") or [])
+        if isinstance(item, dict)
+    ]
+    index = next(
+        (i for i, item in enumerate(proposals)
+         if str(item.get("id") or "") == str(proposal_id)), None)
+    if index is None:
+        raise CapabilityError(
+            "teaching_proposal_not_found",
+            "The teaching proposal was not found.", 404)
+    proposal = proposals[index]
+    if proposal.get("status") == "promoted":
+        return {
+            "success": True,
+            "status": "already_promoted",
+            "proposal": proposal,
+            "revision": current_revision(fresh),
+        }
+    if proposal.get("status") != "proposed":
+        raise CapabilityError(
+            "teaching_proposal_closed",
+            "The teaching proposal is no longer open.", 409)
+    from core.student_learning_service import deliver_teacher_lesson
+
+    provenance = dict(proposal.get("provenance") or {})
+    lesson_result = deliver_teacher_lesson(
+        db,
+        str(proposal.get("agent_id") or ""),
+        str(proposal.get("lesson") or ""),
+        topic=str(proposal.get("topic") or "canvas"),
+        teacher_agent_id=str(getattr(user, "id", "") or "human_supervisor"),
+        applies_to=list(proposal.get("applies_to") or []),
+        format_spec=dict(proposal.get("format_spec") or {}),
+        conditions=dict(proposal.get("conditions") or {}),
+        context={
+            **dict(proposal.get("context") or {}),
+            "canvas_provenance": provenance,
+        },
+        workspace_id=str(getattr(user, "workspace_id", "") or ""),
+    )
+    status = str(lesson_result.get("status") or "")
+    if status not in {"ok", "duplicate"}:
+        raise CapabilityError(
+            "teaching_promotion_failed",
+            f"The teaching journal refused promotion: {status}.", 409)
+    entry = lesson_result.get("entry") or {}
+    proposal.update({
+        "status": "promoted",
+        "promoted_at": _now().isoformat(),
+        "promoted_by": str(getattr(user, "id", "") or "") or None,
+        "promotion_reason": str(reason or "")[:500],
+        "lesson_id": entry.get("id") if isinstance(entry, dict) else None,
+        "promotion_duplicate": status == "duplicate",
+    })
+    proposals[index] = proposal
+    content["capability_teaching_proposals"] = proposals[-20:]
+    try:
+        _commit_canvas_content_cas(
+            db, fresh, content,
+            expected_revision=expected_revision,
+            expected_source_version=source_version,
+            expected_manifest_revision=manifest_revision_value,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+        )
+    except CapabilityError:
+        db.rollback()
+        raise
+    return {
+        "success": True,
+        "status": "promoted",
+        "proposal": proposal,
+        "lesson": lesson_result,
+        "revision": current_revision(fresh),
     }
 
 

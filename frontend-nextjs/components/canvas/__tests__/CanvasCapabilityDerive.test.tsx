@@ -138,4 +138,29 @@ describe("CanvasCapabilityPanel typed derive", () => {
     });
     await waitFor(() => expect(screen.getByTestId("capability-derive-result")).toHaveTextContent("200.00"));
   });
+
+  it("starts an assignment from the current revisions", async () => {
+    (apiClient.post as jest.Mock).mockResolvedValue({
+      data: {
+        success: true,
+        run_id: "run-canvas-1",
+        receipt_digest: "receipt-digest",
+        assignment: { status: "awaiting_approval" },
+      },
+    });
+    render(<CanvasCapabilityPanel canvasId="canvas-typed-1" />);
+    await waitFor(() => expect(screen.getByTestId("capability-effective")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Data operations/i }));
+    fireEvent.click(await screen.findByTestId("capability-assign"));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(1));
+    const [url, body] = (apiClient.post as jest.Mock).mock.calls[0];
+    expect(url).toBe("/api/canvas/canvas-typed-1/capability/assign");
+    expect(body).toEqual({
+      objective: "Complete the canvas canvas-typed-1",
+      expected_revision: 3,
+      manifest_revision: "manifest-3",
+      source_version: "source-1",
+    });
+    await waitFor(() => expect(screen.getByTestId("capability-assignment")).toHaveTextContent("awaiting_approval"));
+  });
 });

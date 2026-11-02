@@ -419,6 +419,21 @@ def test_registered_action_binding_is_declared_not_authority(db, user):
     assert "outbound" not in saved["operations"]["effective"]
 
 
+def test_unknown_action_template_reference_is_refused(db, user):
+    canvas = _canvas(db, user, "canvas_bad_template", "Bad template")
+    manifest = {
+        **_quote_manifest(),
+        "actions": [{
+            "id": "notify",
+            "operation": "connected.outlook.create_draft",
+            "arguments": {"body": "${mystery}"},
+        }],
+    }
+    with pytest.raises(CapabilityError) as exc:
+        set_manifest(db, canvas, user, manifest)
+    assert exc.value.code == "unsupported_template_reference"
+
+
 def test_fork_keeps_typed_shape_but_drops_action_bindings(db, user):
     from core.canvas_capability_service import sanitize_capability_copy
 
