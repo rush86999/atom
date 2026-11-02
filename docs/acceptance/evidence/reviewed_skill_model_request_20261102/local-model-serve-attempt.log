@@ -1,0 +1,16 @@
+Load at serve attempt:
+18:10  up 22 days, 23:13, 7 users, load averages: 4.23 14.92 18.92
+
+Ollama native request result:
+{
+  "kind": "atom-final-model-response",
+  "served_base_url": "http://127.0.0.1:11437",
+  "endpoint": "/api/chat",
+  "error": "timed out"
+}
+Server log tail:
+time=2026-11-02T18:00:06.430-05:00 level=INFO source=server.go:1350 msg="waiting for llama runner to start responding"
+time=2026-11-02T18:00:06.430-05:00 level=INFO source=server.go:1388 msg="llama runner started in 1.83 seconds"
+[GIN] 2026/11/02 - 18:03:04 | 500 |          3m0s |       127.0.0.1 | POST     "/api/chat"
+
+The exact final request was captured from GenericAgent._react_step. Serving it to the local model timed out/500 under host load; no model-behavior claim is made.

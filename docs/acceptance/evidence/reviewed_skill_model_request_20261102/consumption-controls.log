@@ -1,0 +1,483 @@
+
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_reaches_the_real_agent_prompt 
+-------------------------------- live log setup --------------------------------
+2026-11-02 18:04:05 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 18:04:05 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 18:04:05 [    INFO] EscalationManager initialized
+2026-11-02 18:04:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:05 [    INFO] EscalationManager initialized
+2026-11-02 18:04:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 18:04:05 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Importing skill from source: raw_content
+2026-11-02 18:04:06 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 18:04:06 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 18:04:06 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 18:04:06 [    INFO] Security scan result: UNKNOWN
+2026-11-02 18:04:06 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 18:04:06 [    INFO] Imported skill 'repair_outlook_search' (id: ff9adf2c-2ec8-4bec-9a9f-7c9b1cb1616d, status: Untrusted)
+2026-11-02 18:04:06 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 18:04:06 [    INFO] MCP Service initialized
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 18:04:06 [    INFO] Creating isolated LanceDBHandler for workspace: ws-review at ./data/atom_memory/ws-review
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 18:04:06 [    INFO] LanceDBHandler initialized. ID: 4933232080. LANCEDB_AVAILABLE: True
+2026-11-02 18:04:06 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 20%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_is_consumed_after_a_new_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Importing skill from source: raw_content
+2026-11-02 18:04:06 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 18:04:06 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 18:04:06 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 18:04:06 [    INFO] Security scan result: UNKNOWN
+2026-11-02 18:04:06 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 18:04:06 [    INFO] Imported skill 'repair_outlook_search' (id: 4f225fad-218a-4e1a-a466-8db3c448a644, status: Untrusted)
+2026-11-02 18:04:06 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 18:04:06 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 40%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_does_not_leak_to_another_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Importing skill from source: raw_content
+2026-11-02 18:04:06 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 18:04:06 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 18:04:06 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 18:04:06 [    INFO] Security scan result: UNKNOWN
+2026-11-02 18:04:06 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 18:04:06 [    INFO] Imported skill 'repair_outlook_search' (id: 4545231d-b61a-464a-a5fc-3bd962b85de6, status: Untrusted)
+2026-11-02 18:04:06 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] EscalationManager initialized
+2026-11-02 18:04:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:06 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 60%]
+tests/test_reviewed_skill_agent_consumption.py::test_meta_agent_consumes_the_promoted_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] Importing skill from source: raw_content
+2026-11-02 18:04:07 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 18:04:07 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 18:04:07 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 18:04:07 [    INFO] Security scan result: UNKNOWN
+2026-11-02 18:04:07 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 18:04:07 [    INFO] Imported skill 'repair_outlook_search' (id: 15c1ef2a-666c-453b-bd50-cdcc8a70518d, status: Untrusted)
+2026-11-02 18:04:07 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 80%]
+tests/test_reviewed_skill_agent_consumption.py::test_react_step_final_model_request_contains_the_reviewed_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] Importing skill from source: raw_content
+2026-11-02 18:04:07 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 18:04:07 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 18:04:07 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 18:04:07 [    INFO] Security scan result: UNKNOWN
+2026-11-02 18:04:07 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 18:04:07 [    INFO] Imported skill 'repair_outlook_search' (id: 495ac421-0cf0-4ad7-a468-121c290e04a0, status: Untrusted)
+2026-11-02 18:04:07 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 18:04:07 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 18:04:07 [    INFO] EscalationManager initialized
+2026-11-02 18:04:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 18:04:07 [    INFO] Initializing tool registry...
+2026-11-02 18:04:07 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-02 18:04:07 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-02 18:04:07 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-02 18:04:07 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-02 18:04:07 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-02 18:04:07 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-02 18:04:07 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-02 18:04:07 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-02 18:04:07 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-02 18:04:07 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-02 18:04:07 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-02 18:04:07 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-02 18:04:07 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-02 18:04:07 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-02 18:04:07 [    INFO] Media control tools registered with tool registry
+2026-11-02 18:04:07 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-02 18:04:07 [    INFO] FFmpeg Python library loaded successfully
+2026-11-02 18:04:07 [    INFO] FFmpegService initialized
+2026-11-02 18:04:07 [    INFO] FFmpegTool initialized
+2026-11-02 18:04:07 [    INFO] Registered tool: ffmpeg_edit v1.0.0 (creative)
+2026-11-02 18:04:07 [    INFO] FFmpeg creative tool registered
+2026-11-02 18:04:07 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-02 18:04:07 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-02 18:04:07 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-02 18:04:07 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-02 18:04:07 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] python-hue-v2 library loaded - Hue integration enabled
+2026-11-02 18:04:07 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-02 18:04:07 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-02 18:04:07 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-02 18:04:07 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-02 18:04:07 [    INFO] Tool discovery complete. Discovered 131 new tools. Total tools: 149
+2026-11-02 18:04:07 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-02 18:04:07 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-02 18:04:07 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-02 18:04:07 [   ERROR] No Google Calendar credentials provided
+2026-11-02 18:04:07 [    INFO] CalendarTool initialized
+2026-11-02 18:04:07 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-02 18:04:07 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-02 18:04:07 [    INFO] NotionTool initialized
+2026-11-02 18:04:07 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-02 18:04:07 [    INFO] NotionTool registered with ToolRegistry
+2026-11-02 18:04:07 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-02 18:04:07 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-02 18:04:07 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-02 18:04:07 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-02 18:04:07 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-02 18:04:07 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-02 18:04:07 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-02 18:04:07 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-02 18:04:07 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-02 18:04:07 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-02 18:04:07 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-02 18:04:07 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-02 18:04:07 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-02 18:04:07 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-02 18:04:07 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-02 18:04:07 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-02 18:04:07 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-02 18:04:07 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-02 18:04:07 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-02 18:04:07 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-02 18:04:07 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-02 18:04:07 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-02 18:04:07 [    INFO] Tool registry initialized with 161 tools
+2026-11-02 18:04:07 [    INFO] ✓ Tool Registry integrated with MCP Service
+2026-11-02 18:04:07 [    INFO] Core MCP Service initialized
+2026-11-02 18:04:09 [    INFO] EscalationManager initialized
+2026-11-02 18:04:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:09 [    INFO] EscalationManager initialized
+2026-11-02 18:04:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 18:04:09 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 18:04:09 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 passed, 17 warnings in 22.15s ========================
