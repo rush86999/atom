@@ -1703,6 +1703,19 @@ What is your next step?"""
             )
         except Exception as tool_err:
             try:
+                from core.agent_evolution_candidates import (
+                    capture_tool_failure,
+                )
+                capture_tool_failure(
+                    agent_id=getattr(self, "id", None),
+                    tool_name=tool_name,
+                    error=tool_err,
+                    workspace_id=getattr(self, "workspace_id", None),
+                    tenant_id=getattr(self, "tenant_id", None),
+                )
+            except Exception:  # noqa: BLE001 — capture never breaks the call
+                pass
+            try:
                 from core.agent_action_audit import log_agent_action
                 log_agent_action(
                     action=f"tool:{tool_name}",
@@ -1720,6 +1733,20 @@ What is your next step?"""
             raise
 
         _is_err = isinstance(result, str) and "error" in result.lower()
+        if _is_err:
+            try:
+                from core.agent_evolution_candidates import (
+                    capture_tool_failure,
+                )
+                capture_tool_failure(
+                    agent_id=getattr(self, "id", None),
+                    tool_name=tool_name,
+                    error=result,
+                    workspace_id=getattr(self, "workspace_id", None),
+                    tenant_id=getattr(self, "tenant_id", None),
+                )
+            except Exception:  # noqa: BLE001 — capture never breaks the call
+                pass
         try:
             from core.agent_action_audit import log_agent_action
             log_agent_action(
