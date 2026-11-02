@@ -97,6 +97,20 @@ def test_joint_quote_total_posts_and_drafts_without_sending(monkeypatch):
             self.draft = kwargs
             return {"id": "draft-joint", "subject": kwargs["subject"]}
 
+        async def get_email_by_id(self, user_id, email_id, token=None):
+            payload = self.draft or {}
+            return {
+                "id": email_id,
+                "subject": payload.get("subject", ""),
+                "body": {"content": payload.get("body", "")},
+                "to_recipients": [
+                    {"emailAddress": {"address": item}}
+                    for item in (payload.get("to_recipients") or [])
+                ],
+                "cc_recipients": [],
+                "bcc_recipients": [],
+            }
+
         async def send_email(self, *args, **kwargs):  # pragma: no cover
             self.sent = True
             raise AssertionError("draft action must not send")

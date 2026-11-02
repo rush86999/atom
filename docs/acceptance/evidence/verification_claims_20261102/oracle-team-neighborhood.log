@@ -1,0 +1,1147 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 09:48:15 [    INFO] MCP Service initialized
+
+tests/test_org_politics_automation.py::TestResolvedFlag::test_default_off_without_env_or_actions 
+-------------------------------- live log setup --------------------------------
+2026-11-02 09:48:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:16 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_true_wins_over_revoked_action PASSED [  0%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_false_wins_over_applied_action PASSED [  1%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_applied_action_enables_when_env_unset PASSED [  1%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_unknown_flag_defaults_off PASSED [  1%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_skill_trust_follows_action PASSED [  2%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_env_still_kill_switches PASSED [  2%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_counts_events_and_coi PASSED [  2%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_empty_db_not_flowing PASSED [  3%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_green_sweep PASSED [  3%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_red_sweep_reports_gap PASSED [  4%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_auto_mode_applies_when_eligible 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [  4%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_approve_mode_queues_without_applying 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [  4%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_alignment_run_blocks_escalation PASSED [  5%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_low_telemetry_blocks_escalation PASSED [  5%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_red_sweep_auto_revokes_even_in_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] Org-politics enforcement rolled back: 'skill_trust' was automatically revoked: alignment gap 4.0 > 2.0 (no admin recipient)
+PASSED                                                                   [  5%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_requeue_while_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [  6%]
+tests/test_org_politics_automation.py::TestApprovals::test_pending_and_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [  6%]
+tests/test_org_politics_automation.py::TestApprovals::test_reject_marks_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [  7%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_certify_runs_controlled_alignment_sweep_and_queues 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-02 09:48:16 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [  7%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_nightly_loop_calls_the_automation_pass PASSED [  7%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [  8%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_env_bool_set_truthy PASSED [  8%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_env_bool_set_falsy PASSED [  9%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_env_bool_garbage_falsy PASSED [  9%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_to_dict_with_claim PASSED [  9%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_validate_unknown_action_returns_none PASSED [ 10%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_validate_verifier_exception_returns_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] [Oracle] postcondition check for w36_boom failed: check failed
+PASSED                                                                   [ 10%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_verify_before_retry_disabled_returns_false PASSED [ 11%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_verify_before_retry_met_returns_true PASSED [ 11%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_verify_before_retry_unmet_returns_false PASSED [ 11%]
+tests/test_covpush_w36_oracle_vfs.py::TestOracleCore::test_get_postcondition_missing PASSED [ 12%]
+tests/test_covpush_w36_oracle_vfs.py::TestWorkflowVerifier::test_missing_context PASSED [ 12%]
+tests/test_covpush_w36_oracle_vfs.py::TestWorkflowVerifier::test_workflow_not_in_db PASSED [ 12%]
+tests/test_covpush_w36_oracle_vfs.py::TestWorkflowVerifier::test_workflow_active PASSED [ 13%]
+tests/test_covpush_w36_oracle_vfs.py::TestWorkflowVerifier::test_workflow_inactive PASSED [ 13%]
+tests/test_covpush_w36_oracle_vfs.py::TestWorkflowVerifier::test_db_readback_exception PASSED [ 14%]
+tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_missing_context PASSED [ 14%]
+tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists PASSED [ 14%]
+tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_absent PASSED [ 15%]
+tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_db_readback_exception PASSED [ 15%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_resource_to_dict PASSED [ 15%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_citation_to_dict PASSED [ 16%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_to_line_numbered_empty PASSED [ 16%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_to_line_numbered_basic PASSED [ 16%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_grep_invalid_regex_returns_empty PASSED [ 17%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_grep_ls_failure_returns_empty PASSED [ 17%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_grep_skips_dirs_and_cat_failures PASSED [ 18%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_grep_finds_match_with_line_number PASSED [ 18%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_scan_root_ls_failure PASSED [ 18%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_scan_nested_with_depth_ls_failure PASSED [ 19%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSBase::test_ask_image_default_degrades PASSED [ 19%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSRegistry::test_register_empty_prefix_raises PASSED [ 19%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSRegistry::test_register_slash_prefix_raises PASSED [ 20%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSRegistry::test_resolve_empty_path_returns_none PASSED [ 20%]
+tests/test_covpush_w36_oracle_vfs.py::TestVFSRegistry::test_register_get_resolve_roundtrip 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] [VFS] registered provider for prefix 'w36prov'
+PASSED                                                                   [ 21%]
+tests/test_covpush_w36_oracle_vfs.py::TestKnowledgeVfsConfig::test_env_bool_set PASSED [ 21%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_first_request_becomes_healthy PASSED [ 21%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_rolling_latency_average PASSED [ 22%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_success_uses_existing_latency_when_present PASSED [ 22%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_success_resets_failure_streak PASSED [ 22%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_unhealthy_recovers_after_threshold_successes 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Provider openai recovered to HEALTHY state
+PASSED                                                                   [ 23%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_unhealthy_stays_unhealthy_below_threshold PASSED [ 23%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_degraded_recovers_after_threshold_successes 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Provider openai recovered to HEALTHY state
+PASSED                                                                   [ 23%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_rate_limited_recovers_after_threshold_successes 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Provider openai recovered to HEALTHY state
+PASSED                                                                   [ 24%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_rate_limited_stays_limited_below_threshold PASSED [ 24%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_healthy_stays_healthy_on_success PASSED [ 25%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_data_written_with_ttl PASSED [ 25%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordSuccess::test_default_cache_service_constructed PASSED [ 25%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_first_failure_tracks_counters PASSED [ 26%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_consecutive_failures_mark_unhealthy 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Provider openai marked UNHEALTHY: 5 consecutive failures
+PASSED                                                                   [ 26%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_rate_limited_error_sets_rate_limited PASSED [ 26%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_error_rate_degraded_with_minimum_samples PASSED [ 27%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_error_rate_unhealthy_with_minimum_samples PASSED [ 27%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_no_state_flip_below_minimum_samples PASSED [ 28%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthRecordFailure::test_failure_resets_success_streak PASSED [ 28%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_default_state_for_unknown_provider PASSED [ 28%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_health_state_round_trip PASSED [ 29%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_health_state_unknown_value_falls_back_healthy 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Unknown provider health state 'swapping'; treating as HEALTHY
+PASSED                                                                   [ 29%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_corrupt_json_treated_as_missing PASSED [ 29%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_safe_state_none_returns_healthy PASSED [ 30%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_safe_state_valid_returns_enum PASSED [ 30%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_safe_state_unknown_returns_healthy 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Unknown provider health state 'exploded'; treating as HEALTHY
+PASSED                                                                   [ 30%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_health_metrics_empty_shape PASSED [ 31%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_health_metrics_full_shape PASSED [ 31%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_health_metrics_unknown_state 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Unknown provider health state 'exploded'; treating as HEALTHY
+PASSED                                                                   [ 32%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthReads::test_get_all_health_maps_providers PASSED [ 32%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthPriorityKeying::test_priority_ordering PASSED [ 32%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthPriorityKeying::test_priority_unknown_state_defaults_worst PASSED [ 33%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthPriorityKeying::test_key_prefix PASSED [ 33%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestProviderHealthPriorityKeying::test_enum_values PASSED [ 33%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_table_name PASSED [ 34%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_unique_constraint PASSED [ 34%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_metadata_column_mapping PASSED [ 35%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_hybrid_capabilities_set PASSED [ 35%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_get_hybrid_capabilities_returns_copy PASSED [ 35%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_id_defaults_to_uuid PASSED [ 36%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_sync_capabilities_sets_all_flags PASSED [ 36%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_sync_capabilities_clears_unset_flags PASSED [ 36%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_sync_capabilities_none_caps PASSED [ 37%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_to_dict_full PASSED [ 37%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_to_dict_empty_branches PASSED [ 38%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestRegistryModels::test_repr PASSED [ 38%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_missing_ctx PASSED [ 38%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_missing_db PASSED [ 39%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[active] PASSED [ 39%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[running] PASSED [ 39%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[enabled] PASSED [ 40%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[true] PASSED [ 40%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[Active] PASSED [ 40%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_active_statuses_verified[RUNNING] PASSED [ 41%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_inactive_statuses_unverified[paused] PASSED [ 41%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_inactive_statuses_unverified[archived] PASSED [ 42%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_inactive_statuses_unverified[completed] PASSED [ 42%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_inactive_statuses_unverified[draft] PASSED [ 42%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_inactive_statuses_unverified[] PASSED [ 43%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_status_none_unverified PASSED [ 43%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_workflow_not_in_db PASSED [ 43%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestWorkflowVerifier::test_db_read_back_exception PASSED [ 44%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_missing_ctx PASSED [ 44%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_present PASSED [ 45%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_absent PASSED [ 45%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_db_read_back_exception PASSED [ 45%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_verifiers_registered PASSED [ 46%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_workflow_round_trip PASSED [ 46%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_task_round_trip PASSED [ 46%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_unknown_action_none PASSED [ 47%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationInit::test_pomdp_unavailable_degraded PASSED [ 47%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationInit::test_pomdp_init_failure_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Failed to initialize POMDP consolidation: boom
+PASSED                                                                   [ 47%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationInit::test_pomdp_full_init 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+PASSED                                                                   [ 48%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationInit::test_factory PASSED [ 48%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationInit::test_import_error_sets_pomdp_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] POMDP Memory Framework not available for consolidation service
+PASSED                                                                   [ 49%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSyncEpisodes::test_pomdp_unavailable_zeros 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP not available, skipping episode sync
+PASSED                                                                   [ 49%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSyncEpisodes::test_sync_success_derives_entry_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Synced 2 episodes to POMDP memory for agent agent_1
+PASSED                                                                   [ 49%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSyncEpisodes::test_sync_limit_respected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Synced 1 episodes to POMDP memory for agent agent_1
+PASSED                                                                   [ 50%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSyncEpisodes::test_sync_error_episode_counted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [ WARNING] Failed to sync episode bad: unsupported operand type(s) for /: 'NoneType' and 'int'
+2026-11-02 09:48:16 [    INFO] Synced 1 episodes to POMDP memory for agent agent_1
+PASSED                                                                   [ 50%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationHelpers::test_observation_mapping PASSED [ 50%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationHelpers::test_observation_defaults PASSED [ 51%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationHelpers::test_task_complexity_branches PASSED [ 51%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationHelpers::test_autonomy_level_branches PASSED [ 52%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationCycle::test_already_running_guard 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Consolidation already in progress, skipping
+PASSED                                                                   [ 52%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationCycle::test_agent_path_uses_pomdp_and_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Consolidation cycle completed: {'consolidated': 10, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 1, 'duration_seconds': 0.0001}
+PASSED                                                                   [ 52%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationCycle::test_all_agents_path_skips_pomdp_consolidation 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Full-system consolidation not yet implemented
+2026-11-02 09:48:16 [    INFO] Consolidation cycle completed: {'consolidated': 0, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 0, 'duration_seconds': 6.7e-05}
+PASSED                                                                   [ 53%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationCycle::test_pomdp_unavailable_runs_lifecycle_only 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Consolidation cycle completed: {'consolidated': 3, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 0, 'duration_seconds': 1e-05}
+PASSED                                                                   [ 53%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationCycle::test_exception_resets_in_progress_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+PASSED                                                                   [ 53%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestForgettingCurve::test_pomdp_unavailable_falls_back_to_lifecycle PASSED [ 54%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestForgettingCurve::test_pomdp_unavailable_default_threshold PASSED [ 54%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestForgettingCurve::test_decay_and_skip_other_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Applied forgetting curve to 1 memories, expired 0
+PASSED                                                                   [ 54%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestForgettingCurve::test_low_quality_marked_expired 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Applied forgetting curve to 1 memories, expired 1
+PASSED                                                                   [ 55%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestForgettingCurve::test_recent_memory_untouched 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Applied forgetting curve to 0 memories, expired 0
+PASSED                                                                   [ 55%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestReplayCriticalMemories::test_pomdp_unavailable_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP not available, skipping memory replay
+PASSED                                                                   [ 56%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestReplayCriticalMemories::test_filters_and_replays 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Replayed 1 critical memories for agent agent_1
+PASSED                                                                   [ 56%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestReplayCriticalMemories::test_sorted_by_learning_value_and_limited 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Replayed 2 critical memories for agent agent_1
+PASSED                                                                   [ 56%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_pomdp_unavailable_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP not available, skipping pattern extraction
+PASSED                                                                   [ 57%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_pattern_found_with_metrics 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Extracted 1 patterns for agent agent_1
+PASSED                                                                   [ 57%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_below_min_size_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Extracted 0 patterns for agent agent_1
+PASSED                                                                   [ 57%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_unknown_task_type_and_status_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Extracted 1 patterns for agent agent_1
+PASSED                                                                   [ 58%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_mixed_success_and_intervention_rates 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Extracted 1 patterns for agent agent_1
+PASSED                                                                   [ 58%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExtractPatterns::test_multiple_task_types 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Extracted 2 patterns for agent agent_1
+PASSED                                                                   [ 59%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationStatus::test_status_never_consolidated PASSED [ 59%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestConsolidationStatus::test_status_after_cycle 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] POMDP Memory Consolidation initialized
+2026-11-02 09:48:16 [    INFO] Consolidation cycle completed: {'consolidated': 4, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 0, 'duration_seconds': 4.7e-05}
+PASSED                                                                   [ 59%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExpansionDataclasses::test_expansion_node_eq_hash PASSED [ 60%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExpansionDataclasses::test_expansion_path_add_hop_with_decay PASSED [ 60%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExpansionDataclasses::test_expansion_path_add_hop_default_decay PASSED [ 60%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestExpansionDataclasses::test_enums PASSED [ 61%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_start_node_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Start node n1 not found
+PASSED                                                                   [ 61%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_start_node_in_other_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] Start node n1 not found
+PASSED                                                                   [ 61%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_chain_full_depth 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 4 nodes, reached depth 3
+PASSED                                                                   [ 62%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_cycle_dedup 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 2 nodes, reached depth 1
+PASSED                                                                   [ 62%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_relevance_filter_skips_all 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 1 nodes, reached depth 0
+PASSED                                                                   [ 63%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_max_total_nodes_hard_cap 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Reached max total nodes 2
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 2 nodes, reached depth 1
+PASSED                                                                   [ 63%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_max_nodes_per_hop_truncates 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 4 nodes, reached depth 2
+PASSED                                                                   [ 63%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_branching_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 3 nodes, reached depth 1
+PASSED                                                                   [ 64%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_expand_uses_patched_get_db_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 2 nodes, reached depth 1
+PASSED                                                                   [ 64%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_get_neighbors_both_directions PASSED [ 64%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_get_neighbors_missing_target_skipped PASSED [ 65%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_get_neighbors_none_rel_type_defaults PASSED [ 65%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_get_neighbors_sorted_by_activation_desc PASSED [ 66%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_get_neighbors_top_n PASSED [ 66%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_activation_score_cues PASSED [ 66%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_activation_score_confidence_sources PASSED [ 67%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestMultiHopExpander::test_hop_relevance_math PASSED [ 67%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestEarlyTermination::test_fires_when_average_cannot_survive_next_hop 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 8 nodes, reached depth 3
+PASSED                                                                   [ 67%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestEarlyTermination::test_not_fired_when_average_survives 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 3 nodes, reached depth 2
+PASSED                                                                   [ 68%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestEarlyTermination::test_zero_decay_does_not_crash 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 1 nodes, reached depth 0
+PASSED                                                                   [ 68%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestEarlyTermination::test_early_termination_disabled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Multi-hop expansion: found 2 nodes, reached depth 1
+PASSED                                                                   [ 69%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_factories PASSED [ 69%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_impl_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] SQL multi-hop expansion: found 2 nodes, reached depth 1
+PASSED                                                                   [ 69%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_impl_no_nodes_skips_rel_query 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] SQL multi-hop expansion: found 0 nodes, reached depth 0
+PASSED                                                                   [ 70%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_impl_exception_sets_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [   ERROR] SQL multi-hop expansion failed: sql boom
+PASSED                                                                   [ 70%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_session_none_uses_patched_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] SQL multi-hop expansion: found 0 nodes, reached depth 0
+PASSED                                                                   [ 70%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_max_depth_override 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] SQL multi-hop expansion: found 0 nodes, reached depth 0
+PASSED                                                                   [ 71%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestSQLMultiHopExpander::test_expand_sql_default_max_depth_from_config 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] SQL multi-hop expansion: found 0 nodes, reached depth 0
+PASSED                                                                   [ 71%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDataclasses::test_community_post_init_size PASSED [ 71%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDataclasses::test_hierarchy_defaults PASSED [ 72%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDataclasses::test_detection_result_defaults PASSED [ 72%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDataclasses::test_enums PASSED [ 73%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_uses_networkx_path 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=491.0ms
+PASSED                                                                   [ 73%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_uses_simple_path_when_no_networkx 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.0ms
+PASSED                                                                   [ 73%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_simple_with_networkx_components_and_size_filter PASSED [ 74%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_simple_no_networkx_basic_fallback PASSED [ 74%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_with_networkx_success_path PASSED [ 74%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_with_networkx_import_error_falls_back_to_louvain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] python-leiden not available, using NetworkX Louvain
+PASSED                                                                   [ 75%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_with_nx_louvain_unweighted PASSED [ 75%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_detect_with_nx_louvain_weighted_and_small_skip PASSED [ 76%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_nx_to_igraph_with_weights PASSED [ 76%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_nx_to_igraph_without_weights PASSED [ 76%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_partition_to_result_groups_and_filters PASSED [ 77%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestLeidenAlgorithm::test_factories PASSED [ 77%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_communities_graph_too_small 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 2 nodes, 0 edges
+2026-11-02 09:48:16 [    INFO] Graph too small for community detection: 2 nodes
+PASSED                                                                   [ 77%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_communities_full_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 4 nodes, 6 edges
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.4ms
+2026-11-02 09:48:16 [    INFO] Stored 1 communities for workspace ws-1
+PASSED                                                                   [ 78%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_communities_uses_patched_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 4 nodes, 6 edges
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.3ms
+2026-11-02 09:48:16 [    INFO] Stored 1 communities for workspace ws-1
+PASSED                                                                   [ 78%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_store_false 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 4 nodes, 6 edges
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.2ms
+PASSED                                                                   [ 78%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_build_graph_handles_missing_edge_properties 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 2 nodes, 1 edges
+PASSED                                                                   [ 79%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_build_graph_edge_weight_from_properties 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 2 nodes, 1 edges
+PASSED                                                                   [ 79%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_build_graph_raises_without_networkx PASSED [ 80%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_get_resolution_fixed PASSED [ 80%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_get_resolution_adaptive_density PASSED [ 80%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_get_resolution_adaptive_clamps PASSED [ 81%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_get_resolution_adaptive_empty_and_single PASSED [ 81%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_get_resolution_hierarchical_and_fallthrough PASSED [ 81%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_enrich_communities_with_missing_nodes PASSED [ 82%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_enrich_communities_empty_entity_types PASSED [ 82%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_enrich_communities_description_truncation PASSED [ 83%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_store_communities_clears_old_and_mints_uuids 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Stored 1 communities for workspace ws-1
+PASSED                                                                   [ 83%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_store_communities_summary_fallbacks 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Stored 1 communities for workspace ws-1
+PASSED                                                                   [ 83%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_store_communities_all_empty_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Stored 1 communities for workspace ws-1
+PASSED                                                                   [ 84%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_store_communities_commit_failure_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [   ERROR] Failed to store communities: commit boom
+PASSED                                                                   [ 84%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_hierarchy_disabled PASSED [ 84%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_hierarchy_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 4 nodes, 6 edges
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.2ms
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.2ms
+2026-11-02 09:48:16 [    INFO] Leiden detection: 0 communities, modularity=-0.250, time=0.1ms
+2026-11-02 09:48:16 [    INFO] Stored 2 communities for workspace ws-1
+2026-11-02 09:48:16 [    INFO] Detected hierarchy with 3 levels, 2 total communities
+PASSED                                                                   [ 85%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestCommunityDetectionService::test_detect_hierarchy_uses_patched_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Built graph: 4 nodes, 6 edges
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.2ms
+2026-11-02 09:48:16 [    INFO] Leiden detection: 1 communities, modularity=0.000, time=0.2ms
+2026-11-02 09:48:16 [    INFO] Leiden detection: 0 communities, modularity=-0.250, time=0.1ms
+2026-11-02 09:48:16 [    INFO] Stored 2 communities for workspace ws-1
+2026-11-02 09:48:16 [    INFO] Detected hierarchy with 3 levels, 2 total communities
+PASSED                                                                   [ 85%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestModuleImportPaths::test_community_detection_igraph_import_success_and_restore PASSED [ 85%]
+tests/test_covpush_w77b_graphrag_oracle.py::TestModuleImportPaths::test_community_detection_networkx_import_failure_and_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [ WARNING] NetworkX not available, using simplified community detection
+PASSED                                                                   [ 86%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_register_action_sync_and_async PASSED [ 86%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_no_floor PASSED [ 87%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_unknown PASSED [ 87%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_floor_without_maturity PASSED [ 87%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_below_floor PASSED [ 88%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_custom_action_visible_above_floor PASSED [ 88%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_step_act_dispatches_sync_and_async PASSED [ 88%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_step_act_custom_action_error PASSED [ 89%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_measure_success_rate_exception_returns_none PASSED [ 89%]
+tests/test_covpush_w31_generic_agent.py::TestCustomActions::test_measure_success_rate_metrics PASSED [ 90%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_serial_stuck_detector_halts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Agent Test Agent (agent-123) starting task: do it
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:16 [    INFO] LanceDBHandler initialized. ID: 5015153360. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:16 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:16 [ WARNING] Stuck-detector halted agent Test Agent at step 3 (parallel batch)
+2026-11-02 09:48:16 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 90%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_parallel_stuck_detector_halts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Agent Test Agent (agent-123) starting task: do it
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:16 [    INFO] LanceDBHandler initialized. ID: 5017137104. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:16 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:16 [ WARNING] Stuck-detector halted agent Test Agent at step 3 (parallel batch)
+2026-11-02 09:48:16 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 09:48:16 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+PASSED                                                                   [ 90%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_timed_out_message_hits_oracle_path PASSED [ 91%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_timeout_error_type_hits_oracle_path PASSED [ 91%]
+tests/test_covpush_w31_generic_agent.py::TestStuckDetector::test_oracle_timeout_postcondition_met PASSED [ 91%]
+tests/test_generic_agent.py::TestGenericAgentInit::test_initialization PASSED [ 92%]
+tests/test_generic_agent.py::TestGenericAgentInit::test_initialization_with_vision_enabled PASSED [ 92%]
+tests/test_generic_agent.py::TestGenericAgentInit::test_initialization_with_default_workspace PASSED [ 92%]
+tests/test_generic_agent.py::TestAgentConfiguration::test_system_prompt_from_config PASSED [ 93%]
+tests/test_generic_agent.py::TestAgentConfiguration::test_default_system_prompt PASSED [ 93%]
+tests/test_generic_agent.py::TestAgentConfiguration::test_allowed_tools_configuration PASSED [ 94%]
+tests/test_generic_agent.py::TestAgentConfiguration::test_wildcard_tools PASSED [ 94%]
+tests/test_generic_agent.py::TestAgentExecution::test_execute_simple_task 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:16 [    INFO] Agent Test Agent (agent-123) starting task: Say hello
+2026-11-02 09:48:16 [    INFO] EscalationManager initialized
+2026-11-02 09:48:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:16 [    INFO] LanceDBHandler initialized. ID: 5016532112. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:16 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:17 [    INFO] EscalationManager initialized
+2026-11-02 09:48:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:17 [    INFO] EscalationManager initialized
+2026-11-02 09:48:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:17 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:17 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5109993152'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:17 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:17 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 94%]
+tests/test_generic_agent.py::TestAgentExecution::test_execute_with_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:17 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:17 [    INFO] EscalationManager initialized
+2026-11-02 09:48:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:17 [    INFO] LanceDBHandler initialized. ID: 5110013744. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:17 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:17 [    INFO] EscalationManager initialized
+2026-11-02 09:48:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:17 [    INFO] EscalationManager initialized
+2026-11-02 09:48:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:17 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] Agent Test Agent timed out after 1s
+2026-11-02 09:48:18 [    INFO] Self-Evolution: Generated critique for Agent Test Agent failure.
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5113806336'> (outcome=timeout, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '>' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                                                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 95%]
+tests/test_generic_agent.py::TestAgentExecution::test_execute_with_max_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115200720. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Self-Evolution: Generated critique for Agent Test Agent failure.
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5114315168'> (outcome=max_steps_exceeded, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '>' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                                                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 95%]
+tests/test_generic_agent.py::TestAgentExecution::test_execute_with_step_callback 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5015555344. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5115604208'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 95%]
+tests/test_generic_agent.py::TestToolExecution::test_execute_allowed_tool 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Navigate to example.com
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5109838672. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: 'NoneType' object has no attribute 'query'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 556, in _update_confidence_score
+    agent = self.db.query(AgentRegistry).filter(
+            ^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'query'
+PASSED                                                                   [ 96%]
+tests/test_generic_agent.py::TestToolExecution::test_tool_not_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Take screenshot
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5112323152. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Self-Evolution: Generated critique for Agent Test Agent failure.
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5116559776'> (outcome=max_steps_exceeded, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '>' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                                                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 96%]
+tests/test_generic_agent.py::TestMemoryIntegration::test_recall_experiences 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5112330320. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5117528448'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 97%]
+tests/test_generic_agent.py::TestMemoryIntegration::test_record_experience 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115543632. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5118095248'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 97%]
+tests/test_generic_agent.py::TestVisionCapabilities::test_screenshot_capture_for_vision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Vision Agent (agent-123) starting task: Check the page
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115543632. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5118823456'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 97%]
+tests/test_generic_agent.py::TestReflectionAndCritique::test_generate_critique_on_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115404464. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [   ERROR] Agent execution failed: LLM failed
+2026-11-02 09:48:18 [    INFO] Self-Evolution: Generated critique for Agent Test Agent failure.
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5119353120'> (outcome=failed, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '>' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                                                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 98%]
+tests/test_generic_agent.py::TestGraduationAndSkillPromotion::test_skill_promotion_on_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115406480. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [   ERROR] Agent execution failed: 'MagicMock' object can't be awaited
+2026-11-02 09:48:18 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='mock.__enter__().query().filter().first().agent_id' id='5120537472'> (outcome=failed, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '>' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                                                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 98%]
+tests/test_generic_agent.py::TestTRACEFrameworkMetrics::test_complexity_analysis 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5116465504. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5114705776'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 98%]
+tests/test_generic_agent.py::TestTRACEFrameworkMetrics::test_step_efficiency_metric 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5118995216. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5121817104'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 99%]
+tests/test_generic_agent.py::TestErrorHandling::test_llm_not_available 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Test task
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5118988496. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [    INFO] Created episode None for agent <MagicMock name='get_db_session().__enter__().query().filter().first().agent_id' id='5116988112'> (outcome=success, constitutional_score=1.00)
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: success
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: '<' not supported between instances of 'MagicMock' and 'float'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 572, in _update_confidence_score
+    new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+                ~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'MagicMock' and 'float'
+PASSED                                                                   [ 99%]
+tests/test_generic_agent.py::TestErrorHandling::test_tool_execution_error 
+-------------------------------- live log call ---------------------------------
+2026-11-02 09:48:18 [    INFO] Agent Test Agent (agent-123) starting task: Execute broken tool
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 09:48:18 [    INFO] LanceDBHandler initialized. ID: 5115983168. LANCEDB_AVAILABLE: True
+2026-11-02 09:48:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 09:48:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-canvas-successor/backend/data/atom_memory with storage_options=None
+2026-11-02 09:48:18 [    INFO] LanceDB connected successfully
+2026-11-02 09:48:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] EscalationManager initialized
+2026-11-02 09:48:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 09:48:18 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 09:48:18 [   ERROR] Agent execution failed: 'MagicMock' object can't be awaited
+2026-11-02 09:48:18 [ WARNING] Failed to generate self-critique: 'MagicMock' object can't be awaited
+2026-11-02 09:48:18 [    INFO] Recorded outcome for agent-123: failure
+2026-11-02 09:48:18 [   ERROR] Failed to record governance outcome: 'NoneType' object has no attribute 'query'
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-successor/backend/core/generic_agent.py", line 1950, in _record_execution
+    await gov.record_outcome(
+        self.id, success=success, task_summary=input_text[:200]
+    )
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 1107, in record_outcome
+    self._update_confidence_score(agent_id, positive=success, impact_level="low")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-canvas-successor/backend/core/agent_governance_service.py", line 556, in _update_confidence_score
+    agent = self.db.query(AgentRegistry).filter(
+            ^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'query'
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 542 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w31_generic_agent.py: 2 warnings
+tests/test_generic_agent.py: 15 warnings
+  /private/tmp/atom-canvas-successor/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_covpush_w31_generic_agent.py: 4 warnings
+tests/test_generic_agent.py: 30 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_covpush_w31_generic_agent.py: 2 warnings
+tests/test_generic_agent.py: 15 warnings
+  /private/tmp/atom-canvas-successor/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 271 passed, 616 warnings in 13.81s ======================
