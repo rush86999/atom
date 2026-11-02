@@ -3,7 +3,7 @@
     "name": "assignment starts and pauses on discount qualification",
     "ok": true,
     "detail": {
-      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3",
+      "run_id": "ceabd3dd-dcf1-4d84-97e6-ee250f893e8b",
       "status": "waiting"
     }
   },
@@ -11,28 +11,68 @@
     "name": "real backend process restarted",
     "ok": true,
     "detail": {
-      "old_pid": 56213,
-      "new_pid": 56234
+      "old_pid": 61858,
+      "new_pid": 61867
     }
   },
   {
-    "name": "restarted backend serves source identity",
+    "name": "restarted backend serves the declared code identity",
     "ok": true,
     "detail": {
-      "ok": true,
-      "version": "v1",
-      "bytes": 120,
-      "calls": 0,
-      "estimates": [],
-      "drafts": [],
-      "last_payload": null
+      "expected_head": "650183f74368886cccff283579e62797feb202bf",
+      "expected_dirty": false,
+      "old_pid": 61858,
+      "new_pid": 61867,
+      "old_instance": "650183f74368.61858.1793587988",
+      "new_instance": "650183f74368.61867.1793587991",
+      "old_source_id": "650183f74368",
+      "new_source_id": "650183f74368",
+      "dirty": false,
+      "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-connected-browser",
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-connected-browser/atom.db",
+      "repo_root": "/private/tmp/atom-brennan-review",
+      "backend_root": "/private/tmp/atom-brennan-review/backend"
+    }
+  },
+  {
+    "name": "health and connected routes identify the same instance",
+    "ok": true,
+    "detail": {
+      "health_pid": 61867,
+      "connected_pid": 61867,
+      "health_instance": "650183f74368.61867.1793587991",
+      "connected_instance": "650183f74368.61867.1793587991"
+    }
+  },
+  {
+    "name": "connected provider still serves the pre-change source",
+    "ok": true,
+    "detail": {
+      "version": "v1"
     }
   },
   {
     "name": "obligation survives backend restart",
     "ok": true,
     "detail": {
-      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
+      "run_id": "ceabd3dd-dcf1-4d84-97e6-ee250f893e8b"
+    }
+  },
+  {
+    "name": "v1 calculation completes before correction",
+    "ok": true,
+    "detail": {
+      "value": "362.50",
+      "versions": [
+        "v1"
+      ]
+    }
+  },
+  {
+    "name": "v1 calculation captured before correction",
+    "ok": true,
+    "detail": {
+      "screenshot": "/private/tmp/brennan-browser-evidence-final/02-v1-completed-calculation.png"
     }
   },
   {
@@ -49,14 +89,14 @@
     "ok": true,
     "detail": {
       "status": 200,
-      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
+      "run_id": "ceabd3dd-dcf1-4d84-97e6-ee250f893e8b"
     }
   },
   {
     "name": "corrected continuation reaches estimate approval",
     "ok": true,
     "detail": {
-      "screenshot": "/private/tmp/atom-brennan-review/docs/acceptance/evidence/brennan_connected_browser_20261101/02-corrected-quote-approval.png"
+      "screenshot": "/private/tmp/brennan-browser-evidence-final/02-corrected-quote-approval.png"
     }
   },
   {
@@ -82,8 +122,10 @@
     "name": "v1 remains only in historical result",
     "ok": true,
     "detail": {
-      "prior_row_count": 0,
-      "versions": []
+      "prior_row_count": 2,
+      "versions": [
+        "v1"
+      ]
     }
   },
   {
@@ -92,7 +134,7 @@
     "detail": [
       {
         "estimate_id": "est-browser-1",
-        "reference_number": "RFQ-BROWSER-1793585903059",
+        "reference_number": "RFQ-BROWSER-1793587988609",
         "total": "376.75"
       }
     ]
@@ -101,7 +143,7 @@
     "name": "Outlook draft uses verified corrected total",
     "ok": true,
     "detail": {
-      "subject": "Quote RFQ-BROWSER-1793585903059",
+      "subject": "Quote RFQ-BROWSER-1793587988609",
       "body": "Quoted total: 376.75 USD",
       "to": [
         "buyer@example.invalid"
@@ -112,7 +154,7 @@
     "name": "no send occurred",
     "ok": true,
     "detail": {
-      "subject": "Quote RFQ-BROWSER-1793585903059",
+      "subject": "Quote RFQ-BROWSER-1793587988609",
       "body": "Quoted total: 376.75 USD",
       "to": [
         "buyer@example.invalid"
@@ -123,7 +165,7 @@
     "name": "completed assignment reopens after reload",
     "ok": true,
     "detail": {
-      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
+      "run_id": "ceabd3dd-dcf1-4d84-97e6-ee250f893e8b"
     }
   }
 ]
