@@ -1,0 +1,147 @@
+{
+  "artifacts": {
+    "README.md": "554628d0222accba2493dc1cae8acd4468c1790d7addafda51c9e321c0e61dfc",
+    "TEST_RESULTS.md": "5a61474cfb5d71e717cbef5370721bfc8f4ecd2203f57326eef445bcb8bc937b",
+    "backend-tests.log": "7eee8df17501a304852eae355f2b6858a2b333b83336681ff0d110422da8db58",
+    "bookkeeping-journey.log": "4294a3386f550788ebf4a4f9981631f64bae2f3a36c04b12d99fc57337b7a59e",
+    "bookkeeping-result.json": "f9f7a09ba8ecf6ee4589ba223e535787d3652ff80b75d89c5746c7a9211a9fbb",
+    "books-state.json": "5504c94fdc435fb8f8614933678b905bd2723455b34fcc9b1756b6eb6c0320d6",
+    "frontend-tests.log": "d7b17ddcefc69dafcb82434d96c803934709b4439c22ea63a01633671cb46d39",
+    "invoice-INV-IN-1.txt": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6",
+    "local-present-probe.log": "ad162e9bd879c467b0b6f948ea0d3eba5c8b74e43b7de53f970d652d67400443",
+    "oracle-registry.txt": "68c4616ff217021d3edf0973d48be839570c23e870a5663e97c0b56a57117c56",
+    "queue-document.docx": "b940187011222178a7811388374ed9284b4a4ff6183802c796f925ca9f242bb5",
+    "quote-document.docx": "ae65495b0206d668066ed1bde9bd8fd8941ebe94675683a274abf3b17f6db7f4",
+    "quote-journey-result.json": "c2df1a4ac4ef7624aea55b66801345344de71b96a18ac2f25cc57c08505b39ae",
+    "quote-journey.log": "ed035252f3a3bb0c85fe392244f0ee57ac09ccbc3eaa7cc585a03077557b2fba",
+    "quote-journey.png": "cd2a6d3211c73a6df3a1647d11415a6391004d59a08d269a22b32ebb3f9a0e26",
+    "service-document.docx": "e148adc5f71e850fd046a0ba0b4b8c2862896275802ec8472d528fda7b81722b"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "dirty": false,
+    "executed_source": "0d8767e3ac2494dd7a4b88ffc790f898035e8586",
+    "manifest_note": "This evidence commit is docs-only after the executed source; the executed source was not served after the evidence commit.",
+    "previous_bundle_preserved": "docs/acceptance/evidence/full_app_integrated_f8f8de387",
+    "runtime_identity_bookkeeping": "source_id=0d8767e3ac24 revision=0d8767e3ac24 dirty=False (0 modified, 0 untracked)",
+    "runtime_identity_quote": "source_id=0d8767e3ac24 revision=0d8767e3ac24 dirty=False (0 modified, 0 untracked)",
+    "supersedes_source": "f8f8de387",
+    "transport": "controlled canvas action and controlled Zoho Books ledger; no live provider",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-full-app",
+    "worlds": {
+      "bookkeeping": {
+        "api_port": 8100,
+        "frontend_port": 3146,
+        "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-bookkeeping-presentation-fix"
+      },
+      "quote": {
+        "api_port": 8096,
+        "frontend_port": 3137,
+        "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102"
+      }
+    }
+  },
+  "changed_files": [
+    "backend/core/action_registry.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/core/presentation_material.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_canvas_present_actions.py",
+    "backend/tests/test_oracle_canvas_postcondition.py",
+    "backend/tests/test_oracle_effect_families.py",
+    "backend/tests/test_presentation_binding_controls.py",
+    "backend/tools/canvas_tool.py",
+    "scripts/acceptance/oracle_mutation_surface_inventory.py"
+  ],
+  "claims": [
+    "exact canvas presentation material and operation binding",
+    "normal-full-app-quote-service-exception-journey",
+    "invoice-to-books-controlled-journey",
+    "one-evolution-candidate-lifecycle"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "controlled canvas action and controlled Zoho Books ledger only",
+    "827 HTTP mutation declarations are not proven reachable writes",
+    "no whole-app ORACLE-01 closure",
+    "TEAM-05 real LLM sweep transport remains separate",
+    "MEM-07 approval/apply and later consumption remain separate",
+    "no 24-hour soak, multi-worker, model-quality or live-provider claim",
+    "historical 111/123 unchanged",
+    "connected acceptance remains 6431bcb78",
+    "typed-canvas acceptance remains 4859b0ce2477",
+    "canvas assignment/teaching acceptance remains a87882526323",
+    "the f8f8de387 evidence bundle remains unchanged"
+  ],
+  "identity_chain": "authorized arguments -> frozen material/digest/operation -> action registry -> canvas tool -> CanvasAudit -> returned audit_id -> executor oracle context. Title, component name and point count are diagnostic only.",
+  "journeys": {
+    "invoice_to_books": {
+      "effect_counts": {
+        "creates": 1,
+        "readbacks": 1
+      },
+      "log": "bookkeeping-journey.log",
+      "result": "12/12 passed",
+      "result_file": "bookkeeping-result.json"
+    },
+    "quote_service_exception": {
+      "log": "quote-journey.log",
+      "result": "17/17 passed",
+      "result_file": "quote-journey-result.json"
+    }
+  },
+  "oracle": {
+    "external_covered": 6,
+    "external_mutations": 6,
+    "http_mutation_declarations": 827,
+    "inventory": "oracle-whole-app-inventory/inventory.json",
+    "loaded_verifiers": 16,
+    "local_durable_covered": 8,
+    "local_durable_mutations": 8,
+    "plan_output_note": "goals.decompose is structural plan-output validation, not persisted execution proof.",
+    "plan_output_validators": 1,
+    "provider_write_methods": 311,
+    "registered_actions": 90,
+    "registry_file": "oracle-registry.txt",
+    "whole_app_closure": false
+  },
+  "repaired_false_passes": [
+    "wrong markdown content with matching title is refuted by the frozen material digest",
+    "wrong chart values with matching point count are refuted by the frozen material digest",
+    "a same-content old audit cannot certify a new operation; the verifier requires the exact returned audit id and current operation id"
+  ],
+  "schema": "atom-full-app-presentation-binding-1",
+  "source_hashes": {
+    "backend/core/action_registry.py": "22d72d6a70f3bf7bb5f614da86a1a304a310aba30f18f8bf0532bbb0ee402b74",
+    "backend/core/assignment_executor.py": "2bd51043c1d52da2617329fc687c866394812e4fb929c633f80662d60e859c1f",
+    "backend/core/oracle/postcondition_verifiers.py": "688a53039b24dc0e4ebd2502f14cca19d63328667f5f9bfee01e1838d404c925",
+    "backend/core/presentation_material.py": "6c95648e95c4640612b0d7081b24881241cac0d24df8125ad8765ce87386d2e1",
+    "backend/tests/test_assignment_executor.py": "8c4baa7cab887cca3c66e8ab435d183868daec12308b216023fb8773c4f6f3b7",
+    "backend/tests/test_canvas_present_actions.py": "4550761ffc72c8b4f7213ca3af04cde78ec4de21d452d3fbb1964290cc0097c0",
+    "backend/tests/test_oracle_canvas_postcondition.py": "e377fb20ca976aa92a61b7c3651d8e0b8efa52aedc86a3839ce408beb1b821a6",
+    "backend/tests/test_oracle_effect_families.py": "9b4e8f15887b1a424db3b519566897910efaf44bb6e114611565bd711bf35a08",
+    "backend/tests/test_presentation_binding_controls.py": "d289a1a9dc4e398e3af3a8c2a887c63bb7b29ecf13da7d513bd176a962d5df15",
+    "backend/tools/canvas_tool.py": "18f8245f1deb1346d4c94e6053c2a589c1ed54028ea8e7640fd40f3fa36841eb",
+    "scripts/acceptance/oracle_mutation_surface_inventory.py": "629dff9503d08d071055fa6768d6f00a852ab947f4dc225265b3421da556f4f0"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_combined": {
+      "command": "TESTING=1 PYTHONPATH=backend pytest <18 files> -q",
+      "log": "backend-tests.log",
+      "result": "288 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest CanvasCapabilityRules CanvasCapabilityDerive CanvasCapabilityAssessment --runInBand --silent",
+      "log": "frontend-tests.log",
+      "result": "7 passed"
+    },
+    "local_present_probes": {
+      "command": "pytest /private/tmp/test_verifier_local_present_binding.py -q",
+      "log": "local-present-probe.log",
+      "result": "3 passed"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+PASS promoted document lesson is explicit and source-bound {"proposal": 200, "promote": 200}
+PASS quote receipt starts an ordinary assignment {"run_id": "28fe7012-1511-4115-8182-d5a2305c1a91", "status": "waiting"}
+PASS real backend restart preserves the prepared action {"old_backend_pid": 87251, "new_backend_pid": 87678, "old_frontend_pid": 87264, "new_frontend_pid": 87698}
+PASS prepared action survives restart without dispatch {"pending_steps": [{"step_id": "action-publish", "status": "awaiting_approval"}], "before_restart": {"operation_id": "3fbb4144-9839-4570-8457-23d2a0072c33", "payload_sha256": "859e4a9ce1219f866ecf13e5de4beb5cfe9ea8367c658b8b39b0a037db1a1e5d", "status": "awaiting_approval", "remote_id": null}, "after_restart": {"operation_id": "3fbb4144-9839-4570-8457-23d2a0072c33", "payload_sha256": "859e4a9ce1219f866ecf13e5de4beb5cfe9ea8367c658b8b39b0a037db1a1e5d", "status": "awaiting_approval", "remote_id": null}, "assignment_status": "waiting"}
+PASS quote assignment completes after action approval {"status": "completed", "steps": ["receipt", "artifact", "guard-publish", "action-publish"]}
+PASS quote document artifact is attached [{"deliverable_id": "del-document", "kind": "document", "description": "document from canvas aa559ad1-6922-4544-9f22-d3a259bc3a08", "required": true, "step_id": "artifact", "status": "applied", "artifact_revision": "ae65495b0206d668", "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/data/assignments/canvas-aa559ad1-6922-4544-9f22-d3a259bc3a08-92605957.docx", "sha256": "ae65495b0206d668066ed1bde9bd8fd8941ebe94675683a274abf3b17f6db7f4"}]
+PASS quote document contains the server total and provenance {"bytes": 37252}
+PASS quote document consumes the promoted lesson {"font": "Georgia", "size_pt": 18.0}
+PASS declared registered action has readback evidence {"step": [{"step_id": "action-publish", "title": "Execute declared action publish", "operation_type": "outbound", "adapter": "canvas.action", "depends_on": ["guard-publish"], "required": true, "effect": "external", "status": "applied", "recovery_class": "terminal", "operation_id": "3fbb4144-9839-4570-8457-23d2a0072c33", "attempts": 0, "result_summary": "registered action canvas.present_markdown completed", "result_value": null, "result_unit": null, "result_measure": null, "prior_result_count": 0, "artifact_revision": null, "gap_ids": [], "waiting": {}, "external_response": {}, "approval_reques
+PASS duplicate continuation does not dispatch the action again {"approve_status": 404, "before_remote": "da30ae31-3d2f-4b10-a6cf-60748b5c0318", "after_remote": "da30ae31-3d2f-4b10-a6cf-60748b5c0318", "audit_count_before_duplicate": 1, "audit_count_after_duplicate": 1}
+PASS source change produces a new server receipt {"row_count": 2, "aggregates": {"line_total": "450.00"}}
+PASS old source receipt is refused after the change {"status": 409, "error": "stale_revision"}
+PASS service proposal completes with a document artifact {"status": "completed"}
+PASS service document carries the CAD total and lesson {"bytes": 37250, "font": "Georgia", "size_pt": 18.0}
+PASS exception queue completes with a document artifact {"status": "completed"}
+PASS exception document carries the counts and lesson {"bytes": 37234, "font": "Georgia", "size_pt": 18.0}
+PASS cancelled action assignment is terminal {"status": 200}

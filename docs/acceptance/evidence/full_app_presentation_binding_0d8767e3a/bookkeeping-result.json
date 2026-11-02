@@ -1,0 +1,599 @@
+{
+  "schema": "atom-full-app-bookkeeping-journey-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "invoice bytes parse through the normal document route",
+      "ok": true,
+      "detail": {
+        "method": "fallback",
+        "chars": 213,
+        "document_id": "0d984ba3-bbf6-41ac-9055-593133c042e0"
+      }
+    },
+    {
+      "name": "invoice facts are extracted from the returned bytes",
+      "ok": true,
+      "detail": {
+        "vendor": "Acme",
+        "total": "120.00",
+        "lines": [
+          {
+            "description": "Parts",
+            "amount": "100.00",
+            "account_label": "Parts"
+          },
+          {
+            "description": "Freight",
+            "amount": "20.00",
+            "account_label": "Freight"
+          }
+        ]
+      }
+    },
+    {
+      "name": "normal assignment starts from the invoice facts",
+      "ok": true,
+      "detail": {
+        "run_id": "e0866476-a192-46cb-8c42-ad2fe37efb5a",
+        "status": null
+      }
+    },
+    {
+      "name": "vendor, CoA and balanced proposal resolve before approval",
+      "ok": true,
+      "detail": {
+        "create": "awaiting_approval",
+        "vendor": "applied",
+        "accounts": "applied",
+        "propose": "applied"
+      }
+    },
+    {
+      "name": "proposal is exact, balanced and not yet posted",
+      "ok": true,
+      "detail": {
+        "status": "proposed",
+        "total": "120.00",
+        "duplicate_key": "zoho_books|org-1|bill|INV-IN-1"
+      }
+    },
+    {
+      "name": "real backend restart preserves the pending approval",
+      "ok": true,
+      "detail": {
+        "old_backend_pid": 88008,
+        "new_backend_pid": 88410,
+        "old_frontend_pid": 88030,
+        "new_frontend_pid": 88442
+      }
+    },
+    {
+      "name": "reopened assignment still awaits the same approval",
+      "ok": true,
+      "detail": {
+        "status": "awaiting_approval",
+        "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8"
+      }
+    },
+    {
+      "name": "approval is accepted once",
+      "ok": true,
+      "detail": {
+        "status": "approved",
+        "operation": {
+          "schema_version": 1,
+          "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8",
+          "objective_id": "54747bd0-1552-4289-8d46-525bbcad81f3",
+          "objective_revision": 1,
+          "execution_id": null,
+          "operation_type": "outbound",
+          "requested_change": "Post the approved bill",
+          "idempotency_key": "assignment:asg-506c8d806be24096:create:r1:a1",
+          "parent_operation_id": null,
+          "evidence_revision": null,
+          "status": "approved",
+          "authorization": "pending_approval",
+          "operation_binding": {
+            "binding_version": 1,
+            "action_name": "action.registry",
+            "workspace_id": "default",
+            "account_id": "476a6fcf-54c7-4765-9fc9-2a37d499fb1c",
+            "task_revision": 1,
+            "arguments": {
+              "action": "connected.books.create_bill",
+              "arguments": {
+                "proposal": {
+                  "status": "proposed",
+                  "provider": "zoho_books",
+                  "organization_id": "org-1",
+                  "entity_type": "bill",
+                  "external_id": "INV-IN-1",
+                  "duplicate_key": "zoho_books|org-1|bill|INV-IN-1",
+                  "vendor": {
+                    "id": "vendor-1",
+                    "name": "Acme"
+                  },
+                  "currency": "USD",
+                  "document_date": "2026-11-01",
+                  "due_date": "2026-12-01",
+                  "lines": [
+                    {
+                      "description": "Parts",
+                      "account_id": "acct-1",
+                      "amount": "100.00"
+                    },
+                    {
+                      "description": "Freight",
+                      "account_id": "acct-2",
+                      "amount": "20.00"
+                    }
+                  ],
+                  "line_subtotal": "120.00",
+                  "tax_total": "0.00",
+                  "credit_total": "0.00",
+                  "document_total": "120.00",
+                  "payment": {
+                    "amount": "50.00",
+                    "reference": "EFT-1",
+                    "currency": "USD",
+                    "posted": false,
+                    "note": "payment evidence only; posting a payment is a separate action"
+                  },
+                  "obligations": [],
+                  "requires_authority": true,
+                  "posting": null
+                },
+                "authority_reference": "grant-bookkeeping-1",
+                "operation_id": "op-bookkeeping-1",
+                "period_start": "2026-01-01",
+                "period_end": "2026-12-31",
+                "closed_through": "2026-10-31"
+              }
+            },
+            "artifact_refs": [],
+            "authorization_ref": "Post the reviewed supplier bill",
+            "prerequisite_operation_ids": [
+              "c39ba229-d2d6-47fb-a436-34bfd5274b85"
+            ],
+            "prerequisite_evidence_revisions": []
+          },
+          "binding_sha256": "c8211bda07f72fd38d9b3893125f1ebc28cb7dc7ace29c497c335a865c1ded17",
+          "assignment_id": "asg-506c8d806be24096",
+          "step_id": "create",
+          "plan_revision": 1,
+          "adapter": "action.registry",
+          "effect": "external",
+          "teaching_fingerprint": "a2e3c1551e628b388bed1c18cc5d217e",
+          "authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0",
+          "approval_history": [],
+          "approval_request": {
+            "payload_sha256": "5c88ef89081f5709fa5857d1a4b5d4b1fe6ae746f2dc1e0d8253a458bd4aa91f",
+            "artifact_revision": null,
+            "authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0",
+            "requested_by": "476a6fcf-54c7-4765-9fc9-2a37d499fb1c",
+            "purpose": "Post the reviewed supplier bill",
+            "requested_at": "2026-11-02T20:36:00.902438+00:00"
+          },
+          "approval": {
+            "payload_sha256": "5c88ef89081f5709fa5857d1a4b5d4b1fe6ae746f2dc1e0d8253a458bd4aa91f",
+            "artifact_revision": null,
+            "authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0",
+            "approved_by": "476a6fcf-54c7-4765-9fc9-2a37d499fb1c",
+            "approved_at": "2026-11-02T20:40:13.120788+00:00",
+            "note": "controlled bookkeeping approval"
+          },
+          "approved_payload_sha256": "5c88ef89081f5709fa5857d1a4b5d4b1fe6ae746f2dc1e0d8253a458bd4aa91f",
+          "approved_artifact_revision": null,
+          "approved_authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0"
+        },
+        "assignment": {
+          "run_id": "e0866476-a192-46cb-8c42-ad2fe37efb5a",
+          "assignment": {
+            "assignment_id": "asg-506c8d806be24096",
+            "objective": "Process supplier invoice INV-IN-1 into a reviewed Zoho Books bill",
+            "employee_id": "476a6fcf-54c7-4765-9fc9-2a37d499fb1c",
+            "workspace_id": "default",
+            "plan_revision": 1,
+            "status": "completed",
+            "teaching_revision": "untrained",
+            "teaching_fingerprint": "a2e3c1551e628b388bed1c18cc5d217e",
+            "teaching_history": [],
+            "effective_lesson_ids": [],
+            "mappings": [],
+            "mapping_history": [],
+            "deliverables": [],
+            "sources": [
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "0d984ba3-bbf6-41ac-9055-593133c042e0",
+                  "dataset_name": null,
+                  "source": "manual_upload",
+                  "source_kind": null,
+                  "external_id": "upload_0d984ba3-bbf6-41ac-9055-593133c042e0",
+                  "original_file_name": null,
+                  "representation": "document_text",
+                  "source_version": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "freshness": "fresh",
+                    "file_size_bytes": 213
+                  },
+                  "access_scope": {},
+                  "workspace_id": "default",
+                  "tenant_id": null,
+                  "internal_fixture": false
+                }
+              }
+            ],
+            "authorized_actions": [
+              "calculate",
+              "outbound",
+              "retrieve"
+            ],
+            "standing_authority": null,
+            "budget": {
+              "max_steps": 20,
+              "max_attempts_per_step": 3,
+              "max_wall_seconds": 600.0,
+              "max_cost_usd": 0.0,
+              "deadline": null,
+              "cost_mode": "hard",
+              "soft_limit_authorized_by": null,
+              "reserved_cost_usd": 0.0,
+              "cost_reservations": [],
+              "cost_overrun_usd": 0.0,
+              "cost_violation": null,
+              "soft_limit_exceeded": false,
+              "steps_started": 4,
+              "started_at": "2026-11-02T20:36:00.850903+00:00",
+              "elapsed_seconds": 0.0,
+              "paused_seconds": 252.219,
+              "waiting_since": null,
+              "wait_credits": {},
+              "wait_credits_schema": 1,
+              "active_wait": null,
+              "cost_usd": 0.0,
+              "idle_ledger_schema": 2,
+              "idle_intervals": {
+                "asg-506c8d806be24096:idle:1793651760.909823": {
+                  "started_at": "2026-11-02T20:36:00.909823+00:00",
+                  "ended_at": "2026-11-02T20:40:13.128700+00:00",
+                  "reason": "all runnable branches are waiting",
+                  "closed_by": "approval arrived"
+                }
+              },
+              "idle_open": null,
+              "working_seconds": 0.097,
+              "wall_seconds": 252.316
+            },
+            "steps": [
+              {
+                "step_id": "vendor",
+                "title": "Resolve the supplier identity",
+                "operation_type": "retrieve",
+                "adapter": "action.registry",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "99112b5d-b5bb-4e6c-a7b9-8ada1996cda7",
+                "attempts": 0,
+                "result_summary": "registered action connected.books.resolve_vendor completed",
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "accounts",
+                "title": "Resolve the chart of accounts",
+                "operation_type": "retrieve",
+                "adapter": "action.registry",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "06145c9d-dd42-4a3a-98e1-3251ef193dbd",
+                "attempts": 0,
+                "result_summary": "registered action connected.books.list_accounts completed",
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "propose",
+                "title": "Build the balanced bill proposal",
+                "operation_type": "retrieve",
+                "adapter": "action.registry",
+                "depends_on": [
+                  "vendor",
+                  "accounts"
+                ],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "c39ba229-d2d6-47fb-a436-34bfd5274b85",
+                "attempts": 0,
+                "result_summary": "registered action connected.books.propose_bill completed",
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "create",
+                "title": "Post the approved bill",
+                "operation_type": "outbound",
+                "adapter": "action.registry",
+                "depends_on": [
+                  "propose"
+                ],
+                "required": true,
+                "effect": "external",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8",
+                "attempts": 0,
+                "result_summary": "registered action connected.books.create_bill completed",
+                "result_value": null,
+                "result_unit": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {
+                  "payload_sha256": "5c88ef89081f5709fa5857d1a4b5d4b1fe6ae746f2dc1e0d8253a458bd4aa91f",
+                  "artifact_revision": null,
+                  "authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0",
+                  "hitl_action_id": "d7b38a8d-cc38-488a-ade8-86c7f54172d2",
+                  "purpose": "Post the reviewed supplier bill"
+                },
+                "standing_authority_receipt": {},
+                "failure": {}
+              }
+            ],
+            "created_at": "2026-11-02T20:36:00.843693+00:00",
+            "updated_at": "2026-11-02T20:40:13.157184+00:00",
+            "completed_at": "2026-11-02T20:40:13.157187+00:00",
+            "progress": {
+              "total_steps": 4,
+              "required_steps": 4,
+              "completed_steps": 4,
+              "waiting_steps": 0,
+              "failed_steps": 0,
+              "uncertain_steps": 0,
+              "open_gap_count": 0
+            }
+          },
+          "open_gaps": [],
+          "operations": [
+            {
+              "operation_id": "99112b5d-b5bb-4e6c-a7b9-8ada1996cda7",
+              "step_id": "vendor",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": "",
+              "provider_ref": "",
+              "result_summary": "registered action connected.books.resolve_vendor completed"
+            },
+            {
+              "operation_id": "06145c9d-dd42-4a3a-98e1-3251ef193dbd",
+              "step_id": "accounts",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": "",
+              "provider_ref": "",
+              "result_summary": "registered action connected.books.list_accounts completed"
+            },
+            {
+              "operation_id": "c39ba229-d2d6-47fb-a436-34bfd5274b85",
+              "step_id": "propose",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": "",
+              "provider_ref": "",
+              "result_summary": "registered action connected.books.propose_bill completed"
+            },
+            {
+              "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8",
+              "step_id": "create",
+              "type": "outbound",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {
+                "payload_sha256": "5c88ef89081f5709fa5857d1a4b5d4b1fe6ae746f2dc1e0d8253a458bd4aa91f",
+                "artifact_revision": null,
+                "authorization_revision": "0004e044c5573d1e9cf36a0dfcc37bd0",
+                "requested_by": "476a6fcf-54c7-4765-9fc9-2a37d499fb1c",
+                "purpose": "Post the reviewed supplier bill",
+                "requested_at": "2026-11-02T20:36:00.902438+00:00"
+              },
+              "uncertainty_reason": null,
+              "remote_id": "bill-controlled-1",
+              "provider_ref": "bill-controlled-1",
+              "result_summary": "registered action connected.books.create_bill completed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "one registered Books create completes with readback",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "remote_id": "bill-controlled-1",
+        "verification": {
+          "effect": "observed",
+          "status": "verified",
+          "checked_fields": [
+            "vendor_id",
+            "currency_code",
+            "date",
+            "due_date",
+            "reference_number",
+            "total",
+            "sub_total",
+            "tax_total",
+            "line_items",
+            "line_items[0].quantity",
+            "line_items[0].rate",
+            "line_items[0].account_id",
+            "line_items[1].quantity",
+            "line_items[1].rate",
+            "line_items[1].account_id"
+          ],
+          "missing_fields": [],
+          "mismatches": [],
+          "provider_managed_fields": [
+            "estimate_id",
+            "estimate_number",
+            "bill_id",
+            "bill_number",
+            "line_item_id",
+            "created_time",
+            "created_at",
+            "last_modified_time",
+            "last_modified_at",
+            "updated_at",
+            "total",
+            "sub_total",
+            "tax_total",
+            "discount_total"
+          ],
+          "normalization": {
+            "decimals": "Decimal(str(value)); numeric equality ignores trailing zeros",
+            "dates": "ISO-8601 date (time component and Z are dropped)",
+            "currency": "upper-case ISO code",
+            "identifiers": "exact provider/customer/item ids; no substring matching",
+            "lines": "canonical multiset keyed by stable item identity; order is ignored",
+            "text": "trim and collapse whitespace; case preserved for names/terms",
+            "discount": "explicit percentage or amount; equivalent amount/percent formulas accepted"
+          },
+          "observed_remote_id": "bill-controlled-1",
+          "conflicts": [],
+          "requested_remote_id": "bill-controlled-1"
+        }
+      }
+    },
+    {
+      "name": "provider effect count is exactly one",
+      "ok": true,
+      "detail": {
+        "before": 0,
+        "after": 1,
+        "readbacks": 1
+      }
+    },
+    {
+      "name": "duplicate continuation is refused without a second effect",
+      "ok": true,
+      "detail": {
+        "approve_status": 404,
+        "creates": 1
+      }
+    },
+    {
+      "name": "same invoice is refused as a duplicate without a second create",
+      "ok": true,
+      "detail": {
+        "creates": 1,
+        "step_status": "failed",
+        "message": "registered action connected.books.create_bill did not apply: duplicate"
+      }
+    }
+  ],
+  "invoice": {
+    "path": "invoice-INV-IN-1.txt",
+    "sha256": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6"
+  },
+  "parsed_method": "fallback",
+  "facts": {
+    "vendor": "Acme",
+    "invoice_number": "INV-IN-1",
+    "date": "2026-11-01",
+    "due_date": "2026-12-01",
+    "currency": "USD",
+    "tax": "0.00",
+    "total": "120.00",
+    "lines": [
+      {
+        "description": "Parts",
+        "amount": "100.00",
+        "account_label": "Parts"
+      },
+      {
+        "description": "Freight",
+        "amount": "20.00",
+        "account_label": "Freight"
+      }
+    ],
+    "payment": {
+      "amount": "50.00",
+      "reference": "EFT-1"
+    }
+  },
+  "run_id": "e0866476-a192-46cb-8c42-ad2fe37efb5a",
+  "duplicate_run_id": "d987ab1a-8c18-4c5d-a0c4-d9fcfe2a0014",
+  "document_id": "0d984ba3-bbf6-41ac-9055-593133c042e0",
+  "upload": {
+    "success": true,
+    "data": {
+      "document_id": "0d984ba3-bbf6-41ac-9055-593133c042e0",
+      "file_name": "invoice-INV-IN-1.txt",
+      "size_bytes": 213,
+      "extracted_chars": 213
+    },
+    "timestamp": "2026-11-02T20:36:00.833723+00:00",
+    "message": "Document uploaded and indexed successfully"
+  },
+  "books_state": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-bookkeeping-presentation-fix/books-state.json",
+  "restart": {
+    "old_backend_pid": 88008,
+    "new_backend_pid": 88410,
+    "old_frontend_pid": 88030,
+    "new_frontend_pid": 88442
+  }
+}
