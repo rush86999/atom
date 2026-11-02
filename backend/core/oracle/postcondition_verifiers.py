@@ -36,6 +36,71 @@ async def _verify_workflow_triggered(ctx: Dict[str, Any]) -> OracleResult:
         return OracleResult("trigger_workflow", False, f"DB read-back failed: {e}")
 
 
+async def _verify_connected_mutation(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify a registered connected write's authoritative readback receipt.
+
+    The production action already performs provider readback. The oracle
+    independently checks that the returned receipt is bound to the same remote
+    object, carries a payload digest, and did not report an uncertain,
+    conflict or incomplete verification. It never treats a bare success label
+    as proof.
+    """
+    action = str(ctx.get("_oracle_action") or "connected.mutation")
+    if str(ctx.get("action_result") or "").strip().lower() != "applied":
+        return OracleResult(
+            action, False,
+            f"action_result == {ctx.get('action_result')!r}, not applied")
+    remote_id = str(ctx.get("remote_id") or "").strip()
+    if not remote_id:
+        return OracleResult(action, False, "no remote_id in the result")
+    read_receipt = ctx.get("read_receipt")
+    if not isinstance(read_receipt, dict) or not read_receipt:
+        return OracleResult(action, False, "no authoritative read_receipt")
+    if str(read_receipt.get("resource_id") or "") != remote_id:
+        return OracleResult(
+            action, False,
+            "read_receipt.resource_id does not match remote_id")
+    coverage = str(read_receipt.get("coverage") or "").lower()
+    if coverage not in {"single", "complete"}:
+        return OracleResult(
+            action, False, f"read_receipt.coverage == {coverage!r}")
+    verification = ctx.get("verification")
+    if isinstance(verification, dict):
+        status = str(verification.get("status") or "").lower()
+        if status and status not in {"verified", "complete", "applied"}:
+            return OracleResult(
+                action, False,
+                f"verification.status == {status!r}")
+    receipt = ctx.get("provider_receipt")
+    receipt = receipt if isinstance(receipt, dict) else {}
+    digest = str(
+        ctx.get("payload_sha256") or receipt.get("payload_sha256") or "")
+    if not digest:
+        return OracleResult(action, False, "no payload digest in the receipt")
+    return OracleResult(
+        action, True,
+        f"remote {remote_id} read back ({coverage}); "
+        f"payload {digest[:12]}")
+
+
+def _connected_postcondition(action: str):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        return await _verify_connected_mutation(
+            {**ctx, "_oracle_action": action})
+    return _verify
+
+
+for _action in (
+    "brennan.books.create_bill",
+    "brennan.books.create_estimate",
+    "brennan.outlook.create_draft",
+    "connected.books.create_bill",
+    "connected.books.create_estimate",
+    "connected.outlook.create_draft",
+):
+    register_postcondition(_action)(_connected_postcondition(_action))
+
+
 @register_postcondition("tasks.create")
 async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
     """A created task must persist to the DB (not just be returned by the tool)."""
