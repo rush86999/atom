@@ -191,15 +191,15 @@
       "result": "167 passed"
     },
     "canvas_focused": {
-      "command": "TESTING=1 pytest <canvas focused suite> -q",
+      "command": "TESTING=1 pytest tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_canvas_assessment_routes.py tests/test_canvas_assessment_clarification_routes.py tests/test_canvas_assessment_deterministic.py tests/test_canvas_assessment_concurrency.py tests/test_canvas_connected_binding.py tests/test_api_canvas_routes.py tests/test_canvas_crud.py tests/test_canvas_fork.py tests/test_canvas_assignment_integration.py -q",
       "result": "127 passed"
     },
     "frontend_canvas": {
-      "command": "npx jest <three canvas capability suites> --runInBand",
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand",
       "result": "7 passed"
     },
     "teaching_neighborhood": {
-      "command": "TESTING=1 pytest <chat/conversation/canvas/artifact/cross-canvas teaching suites> -q",
+      "command": "TESTING=1 pytest tests/test_artifact_teaching_context.py tests/test_canvas_training_context.py tests/test_chat_teaching.py tests/test_chat_teaching_route.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py tests/test_covpush_w64_continuous_learning.py tests/test_cross_canvas_learning.py -q",
       "result": "203 passed; 3 pre-existing mock-only failures in test_student_training_service.py excluded"
     },
     "verifier_probes": {
