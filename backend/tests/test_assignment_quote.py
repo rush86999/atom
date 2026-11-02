@@ -363,17 +363,46 @@ def test_unknown_rules_with_equivalent_pricing_need_no_redundant_question():
     assert resolved["rate"] == "0.05"
 
 
-def test_decimal_equivalent_caps_do_not_conflict_or_ask():
-    rules = [
-        {"name": "A", "when": {"category": "B", "customer": "Acme"},
-         "rate": "0.05", "cap": "10"},
-        {"name": "B", "when": {"category": "B", "customer": "Acme"},
-         "rate": "0.050", "cap": "10.00"},
-    ]
-    line = _line("B", category="B", customer="Acme")
-    resolved = _assert_completion_sound(line, rules, {})
-    assert resolved["rate"] == "0.05"
-    assert resolved["cap"] == "10"
+@pytest.mark.parametrize("unsupported", [
+    {"cap": "5.00"},
+    {"cap_amount": "5.00"},
+    {"max_discount": "5.00"},
+    {"fixed_amount": "5.00"},
+    {"amount": "5.00"},
+    {"formula": "rate * 2"},
+    {"tier": "wholesale"},
+    {"basis": "fixed"},
+    {"discount_type": "fixed"},
+])
+def test_unsupported_pricing_semantics_are_rejected_before_arithmetic(
+        unsupported):
+    rule = {"name": "unsupported", "rate": "0.10", **unsupported}
+    line = _line("B", quantity="2", unit_price="100.00", category="B")
+    with pytest.raises(QuoteInputError) as excinfo:
+        resolve_discount_rule(line, [rule])
+    assert "unsupported" in str(excinfo.value).lower()
+    with pytest.raises(QuoteInputError):
+        _calculate(lines=[line], freight="0", discount_rules=[rule])
+
+
+def test_unsupported_rule_maps_to_a_typed_gap_not_a_completed_quote():
+    from core.assignment_quote import _quote_calculate
+
+    inputs = {
+        "line_items": [_line("B", quantity="2", unit_price="100.00",
+                             category="B")],
+        "currency": "USD",
+        "freight": "0",
+        "tax": {"basis": "none"},
+        "discount_rules": [{
+            "name": "capped", "when": {"category": "B"},
+            "rate": "0.10", "cap": "5.00",
+        }],
+    }
+    with pytest.raises(NeedsContext) as excinfo:
+        asyncio.run(_quote_calculate(inputs, {}))
+    assert excinfo.value.gap["concept"] == "quote_input"
+    assert "unsupported" in excinfo.value.gap["reason"].lower()
 
 
 def test_dated_unknown_rule_with_equivalent_pricing_is_not_a_question():

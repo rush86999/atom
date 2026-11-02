@@ -1,0 +1,81 @@
+[
+  {
+    "name": "assignment starts and pauses on discount qualification",
+    "ok": true,
+    "detail": {
+      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f",
+      "status": "waiting"
+    }
+  },
+  {
+    "name": "obligation survives backend restart",
+    "ok": true,
+    "detail": {
+      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+    }
+  },
+  {
+    "name": "connected source changed",
+    "ok": true,
+    "detail": {
+      "ok": true,
+      "version": "v2",
+      "bytes": 119
+    }
+  },
+  {
+    "name": "changed source invalidates read branch",
+    "ok": true,
+    "detail": {
+      "status": 200,
+      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+    }
+  },
+  {
+    "name": "corrected continuation reaches estimate approval",
+    "ok": true,
+    "detail": {
+      "screenshot": "/private/tmp/atom-brennan-review/docs/acceptance/evidence/brennan_connected_browser_20261101/02-corrected-quote-approval.png"
+    }
+  },
+  {
+    "name": "estimate readback uses corrected total",
+    "ok": true,
+    "detail": [
+      {
+        "estimate_id": "est-browser-1",
+        "reference_number": "RFQ-BROWSER-1793577517631",
+        "total": "376.75"
+      }
+    ]
+  },
+  {
+    "name": "Outlook draft uses verified corrected total",
+    "ok": true,
+    "detail": {
+      "subject": "Quote RFQ-BROWSER-1793577517631",
+      "body": "Quoted total: 376.75 USD",
+      "to": [
+        "buyer@example.invalid"
+      ]
+    }
+  },
+  {
+    "name": "no send occurred",
+    "ok": true,
+    "detail": {
+      "subject": "Quote RFQ-BROWSER-1793577517631",
+      "body": "Quoted total: 376.75 USD",
+      "to": [
+        "buyer@example.invalid"
+      ]
+    }
+  },
+  {
+    "name": "completed assignment reopens after reload",
+    "ok": true,
+    "detail": {
+      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+    }
+  }
+]

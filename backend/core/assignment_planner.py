@@ -450,6 +450,19 @@ def plan_assignment(
         calc_step = source_ids[aggregate_index]
     elif line_items:
         calc_step = "calculate"
+        from core.assignment_quote import (
+            QuoteInputError,
+            validate_discount_rules,
+        )
+        selected_rules = (
+            calculation.get("discount_rules")
+            or (teaching.get("output_requirements") or {}).get(
+                "line_discount_rules")
+            or [])
+        try:
+            validate_discount_rules(selected_rules)
+        except QuoteInputError as exc:
+            raise AssignmentPlanError(str(exc)) from exc
         source_evidence = [{
             "resource_id": source.get("resource_id"),
             "dataset_name": source.get("dataset_name"),
@@ -472,11 +485,7 @@ def plan_assignment(
                 "currency": calculation.get("currency"),
                 "freight": calculation.get("freight"),
                 "tax": calculation.get("tax"),
-                "discount_rules": (
-                    calculation.get("discount_rules")
-                    or (teaching.get("output_requirements") or {}).get(
-                        "line_discount_rules")
-                    or []),
+                "discount_rules": selected_rules,
                 "as_of": calculation.get("as_of") or "",
                 "rounding": calculation.get("rounding") or "half_up",
                 "scale": int(calculation.get("scale") or 2),

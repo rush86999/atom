@@ -107,6 +107,53 @@ def _normalize_material(value: Any) -> Any:
     return ("number", format(number.normalize(), "f"))
 
 
+_SUPPORTED_RULE_KEYS = frozenset(_RULE_METADATA_KEYS) | frozenset({
+    "rate", "type", "basis", "discount_type",
+})
+_SUPPORTED_RATE_TYPES = frozenset({"rate", "percent", "percentage"})
+
+
+def validate_discount_rules(rules: Sequence[Dict[str, Any]]) -> None:
+    """Reject pricing semantics this calculator does not implement.
+
+    The arithmetic applies a simple fractional rate.  Caps, fixed amounts,
+    tiers, formulas and unknown material fields are refused explicitly before
+    any selection or calculation; applying only the rate would misprice the
+    line.  This is the explicit safe boundary, not a silent fallback.
+    """
+    for index, raw in enumerate(rules or []):
+        if not isinstance(raw, dict):
+            raise QuoteInputError(
+                f"discount rule {index + 1} must be an object")
+        rule_name = str(raw.get("name") or raw.get("lesson_id")
+                        or f"rule {index + 1}")
+        unknown = sorted(set(raw) - _SUPPORTED_RULE_KEYS)
+        if unknown:
+            raise QuoteInputError(
+                f"discount rule {rule_name!r} uses unsupported material "
+                f"field(s): {', '.join(unknown)}. Only a simple rate is "
+                "implemented.")
+        for field in ("type", "basis", "discount_type"):
+            value = _text(raw.get(field)).lower()
+            if value and value not in _SUPPORTED_RATE_TYPES:
+                raise QuoteInputError(
+                    f"discount rule {rule_name!r} uses unsupported {field} "
+                    f"{value!r}; only a rate discount is implemented.")
+        rate_text = _text(raw.get("rate"))
+        if not rate_text:
+            raise QuoteInputError(
+                f"discount rule {rule_name!r} has no rate")
+        try:
+            rate = Decimal(rate_text)
+        except (InvalidOperation, ValueError) as exc:
+            raise QuoteInputError(
+                f"discount rule {rule_name!r} rate is not numeric") from exc
+        if not rate.is_finite() or rate < 0 or rate > 1:
+            raise QuoteInputError(
+                f"discount rule {rule_name!r} rate must be a fraction "
+                "between 0 and 1")
+
+
 def _pricing_signature(rule: Dict[str, Any]) -> Tuple[Any, ...]:
     """The material commercial result of one rule.
 
@@ -344,6 +391,7 @@ def resolve_discount_rule(
     A decision is returned only when every remaining possibility prices the
     line identically; otherwise the caller receives a durable clarification.
     """
+    validate_discount_rules(rules)
     evaluated: List[Dict[str, Any]] = []
     for raw in rules or []:
         if not isinstance(raw, dict):
@@ -450,6 +498,7 @@ def calculate_line_items(
     """Compute a line-item document total with an exact receipt."""
     if not isinstance(line_items, (list, tuple)) or not line_items:
         raise QuoteInputError("at least one line item is required")
+    validate_discount_rules(discount_rules or [])
     currency = str(currency or "").strip().upper()
     if not currency:
         raise QuoteInputError(

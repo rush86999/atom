@@ -2684,3 +2684,60 @@ def test_quote_same_sku_different_pack_asks_before_arithmetic(
     deliverable = next(step for step in assignment["steps"]
                        if step["step_id"] == "deliverable-1")
     assert deliverable["status"] == "pending"
+
+
+def test_unsupported_pricing_rule_refuses_public_plan_and_effect(
+        route_env, tmp_path):
+    """A cap/fixed rule cannot produce a completed quote or action call."""
+    from core.action_registry import action_registry
+    import uuid
+
+    calls = []
+
+    async def commercial_update(args, context):
+        calls.append(dict(args))
+        return {"status": "applied", "remote_id": "should-not-run"}
+
+    action_name = f"test.pricing.unsupported.{uuid.uuid4().hex[:8]}"
+    action_registry.register(
+        action_name, commercial_update,
+        effects=[{"effect": "create", "object": "estimate"}])
+    agent_id = _teaching_agent(
+        route_env, "Pricing rejection employee", "Arial", "quote-reviewer")
+    agreement = tmp_path / "agreement.txt"
+    agreement.write_text("Customer: Acme\n", encoding="utf-8")
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a quote with an unsupported capped discount",
+        "agent_id": agent_id,
+        "sources": [{
+            "kind": "document", "representation": "file",
+            "internal_fixture": True, "path": str(agreement),
+            "resource_id": "agreement-1",
+        }],
+        "calculation": {
+            "line_items": [{
+                "item_id": "B", "category": "B", "quantity": "2",
+                "unit": "each", "pack_size": "1",
+                "unit_price": "100.00", "price_basis": "contract",
+                "currency": "USD",
+            }],
+            "currency": "USD", "freight": "0",
+            "tax": {"basis": "none"},
+            "discount_rules": [{
+                "name": "capped", "when": {"category": "B"},
+                "rate": "0.10", "cap": "5.00",
+            }],
+        },
+        "actions": [{
+            "action": action_name,
+            "arguments": {"quote_total": "190.00"},
+            "approval_purpose": "Create the quote",
+        }],
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+
+    assert response.status_code in (400, 422), response.text
+    assert "unsupported" in response.text.lower()
+    assert calls == []
