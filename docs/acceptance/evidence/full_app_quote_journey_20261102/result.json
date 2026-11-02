@@ -1,0 +1,177 @@
+{
+  "schema": "atom-full-app-quote-journey-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "promoted document lesson is explicit and source-bound",
+      "ok": true,
+      "detail": {
+        "proposal": 200,
+        "promote": 200
+      }
+    },
+    {
+      "name": "quote receipt starts an ordinary assignment",
+      "ok": true,
+      "detail": {
+        "run_id": "682d2e21-f1b0-493f-89c5-ecb014785987",
+        "status": "waiting"
+      }
+    },
+    {
+      "name": "real backend restart preserves the prepared action",
+      "ok": true,
+      "detail": {
+        "old_backend_pid": 58171,
+        "new_backend_pid": 58897,
+        "old_frontend_pid": 58187,
+        "new_frontend_pid": 58916
+      }
+    },
+    {
+      "name": "prepared action survives restart without dispatch",
+      "ok": true,
+      "detail": {
+        "steps": []
+      }
+    },
+    {
+      "name": "quote assignment completes after action approval",
+      "ok": true,
+      "detail": {
+        "status": "completed",
+        "steps": [
+          "receipt",
+          "artifact",
+          "guard-publish",
+          "action-publish"
+        ]
+      }
+    },
+    {
+      "name": "quote document artifact is attached",
+      "ok": true,
+      "detail": [
+        {
+          "deliverable_id": "del-document",
+          "kind": "document",
+          "description": "document from canvas c54efa7a-7f56-4f16-9d5d-bc54f681c15f",
+          "required": true,
+          "step_id": "artifact",
+          "status": "applied",
+          "artifact_revision": "1cc38db338775f23",
+          "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/data/assignments/canvas-c54efa7a-7f56-4f16-9d5d-bc54f681c15f-394caa52.docx",
+          "sha256": "1cc38db338775f23510a15bd4e297ae2401d1d00726e925cbb4762e1146da495"
+        }
+      ]
+    },
+    {
+      "name": "quote document contains the server total and provenance",
+      "ok": true,
+      "detail": {
+        "bytes": 37252
+      }
+    },
+    {
+      "name": "quote document consumes the promoted lesson",
+      "ok": true,
+      "detail": {
+        "font": "Georgia",
+        "size_pt": 18.0
+      }
+    },
+    {
+      "name": "declared registered action has readback evidence",
+      "ok": true,
+      "detail": {
+        "step": [
+          {
+            "step_id": "action-publish",
+            "title": "Execute declared action publish",
+            "operation_type": "outbound",
+            "adapter": "canvas.action",
+            "depends_on": [
+              "guard-publish"
+            ],
+            "required": true,
+            "effect": "external",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "65aa1cf5-7e1e-4270-8d98-db040c9964f9",
+            "attempts": 0,
+            "result_summary": "registered action canvas.present_markdown completed",
+            "result_value": null,
+            "result_unit": null,
+            "result_measure": null,
+            "prior_result_count": 0,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {
+              "payload_sha256": "ebcf2b740f0da25878ae97b081c79ac6dc56e04fe6026e47d377fa32b8a1207a",
+              "artifact_revision": null,
+              "authorization_revision": "37756060b70e376fc40a485fa336160b",
+              "hitl_action_id": "ba451408-d628-4573-a058-57ae3357a1b9",
+              "purpose": "Execute canvas action publish through the registered provider boundary"
+            },
+            "standing_authority_receipt": {},
+            "failure": {}
+          }
+        ],
+        "remote_id": "e1e5777b-1219-41b2-8102-137198512238"
+      }
+    },
+    {
+      "name": "duplicate continuation does not dispatch the action again",
+      "ok": true,
+      "detail": {
+        "approve_status": 404,
+        "before": "e1e5777b-1219-41b2-8102-137198512238",
+        "after": "e1e5777b-1219-41b2-8102-137198512238"
+      }
+    },
+    {
+      "name": "source change produces a new server receipt",
+      "ok": true,
+      "detail": {
+        "row_count": 2,
+        "aggregates": {
+          "line_total": "450.00"
+        }
+      }
+    },
+    {
+      "name": "old source receipt is refused after the change",
+      "ok": true,
+      "detail": {
+        "status": 409,
+        "error": "stale_revision"
+      }
+    },
+    {
+      "name": "service proposal completes with a document artifact",
+      "ok": true,
+      "detail": {
+        "status": "completed"
+      }
+    },
+    {
+      "name": "exception queue completes with a document artifact",
+      "ok": true,
+      "detail": {
+        "status": "completed"
+      }
+    },
+    {
+      "name": "cancelled action assignment is terminal",
+      "ok": true,
+      "detail": {
+        "status": 200
+      }
+    }
+  ],
+  "quote_canvas": "http://127.0.0.1:3137/canvas/c54efa7a-7f56-4f16-9d5d-bc54f681c15f",
+  "service_canvas": "http://127.0.0.1:3137/canvas/16fe77e1-420f-402e-9af5-269df5e0c1ce",
+  "queue_canvas": "http://127.0.0.1:3137/canvas/62be6e23-bdf5-4b6f-9c1d-1489f7e8b8c6"
+}

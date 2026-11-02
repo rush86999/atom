@@ -6,11 +6,13 @@ transport; no live provider is contacted.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, Dict
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -49,6 +51,7 @@ from core.models import (  # noqa: E402
 )
 from core.student_learning_service import deliver_teacher_lesson  # noqa: E402
 from core.task_lifecycle import TaskLifecycle  # noqa: E402
+from core.runtime_identity import get_runtime_identity  # noqa: E402
 
 SCRATCH = prepare_scratch_dir(
     SCRATCH,
@@ -90,6 +93,153 @@ goals = GoalService(
 lifecycle = TaskLifecycle(runs, goals)
 executor = AssignmentExecutor(lifecycle)
 
+import csv  # noqa: E402
+import io  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Controlled connected providers for the browser journey.
+# The real registered actions run; only the provider services are fakes.
+# ---------------------------------------------------------------------------
+CONNECTED = {
+    "bytes": (
+        "sku,category,quantity,unit,pack,unit_price,currency,"
+        "discount_percent\n"
+        "A,A,2,each,1,100.00,USD,0\n"
+        "B,B,3,each,1,50.00,USD,0\n"
+    ).encode("utf-8"),
+    "version": "v1",
+    "calls": 0,
+    "estimates": [],
+    "drafts": [],
+    "last_payload": None,
+    "send_attempts": 0,
+    # Fault injection for the recovery journeys. Only the fake provider
+    # services are affected; the registered actions and parsers stay real.
+    "fail_estimate_after_apply": 0,
+    "readback_failures": 0,
+}
+
+# Provider effects survive a backend restart so an uncertainty control can
+# prove "no second create" against the same durable provider world.
+CONNECTED_STATE = SCRATCH / "connected-effect-state.json"
+
+
+def _save_connected_state() -> None:
+    CONNECTED_STATE.write_text(json.dumps({
+        "version": CONNECTED["version"],
+        "bytes_b64": base64.b64encode(CONNECTED["bytes"]).decode("ascii"),
+        "calls": CONNECTED["calls"],
+        "estimates": CONNECTED["estimates"],
+        "drafts": CONNECTED["drafts"],
+        "last_payload": CONNECTED["last_payload"],
+        "send_attempts": CONNECTED["send_attempts"],
+    }))
+
+
+if CONNECTED_STATE.exists():
+    try:
+        _persisted = json.loads(CONNECTED_STATE.read_text())
+        for _key in ("version", "calls", "estimates", "drafts",
+                     "last_payload", "send_attempts"):
+            if _key in _persisted:
+                CONNECTED[_key] = _persisted[_key]
+        if _persisted.get("bytes_b64"):
+            CONNECTED["bytes"] = base64.b64decode(
+                _persisted["bytes_b64"])
+    except (OSError, ValueError):
+        pass
+
+
+class _ControlledWorkDrive:
+    async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+        return {"id": file_id, "name": "price-list.csv",
+                "version": CONNECTED["version"],
+                "size": len(CONNECTED["bytes"])}
+
+    async def download_file(self, user_id, file_id, workspace_id=None):
+        return CONNECTED["bytes"]
+
+    async def get_access_token(self, user_id, workspace_id=None):
+        return "controlled-token"
+
+
+async def _controlled_workdrive_service(ids):
+    return _ControlledWorkDrive()
+
+
+class _ControlledBooks:
+    async def _get_active_token(self, *args, **kwargs):
+        return "controlled-token"
+
+    async def get_estimates_page(self, token, org, page=1, per_page=200):
+        return list(CONNECTED["estimates"]), {"has_more": False}
+
+    async def create_estimate(self, token, org, data):
+        CONNECTED["calls"] += 1
+        CONNECTED["last_payload"] = data
+        estimate = {
+            "estimate_id": f"est-browser-{len(CONNECTED['estimates']) + 1}",
+            "estimate_number": f"EST-B{len(CONNECTED['estimates']) + 1}",
+            "customer_id": data["customer_id"],
+            "reference_number": data["reference_number"],
+            "date": data["date"],
+            "currency_code": data["currency_code"],
+            "total": data["total"],
+            "sub_total": data["sub_total"],
+            "tax_total": data["tax_total"],
+            "line_items": data["line_items"],
+        }
+        CONNECTED["estimates"].append(estimate)
+        _save_connected_state()
+        if CONNECTED["fail_estimate_after_apply"] > 0:
+            CONNECTED["fail_estimate_after_apply"] -= 1
+            raise RuntimeError(
+                "controlled disconnect after the estimate landed")
+        return estimate
+
+    async def get_estimate(self, token, org, estimate_id):
+        if CONNECTED["readback_failures"] > 0:
+            CONNECTED["readback_failures"] -= 1
+            raise RuntimeError("controlled readback connection lost")
+        return next(item for item in CONNECTED["estimates"]
+                    if item["estimate_id"] == estimate_id)
+
+
+async def _controlled_books_service(ids):
+    return _ControlledBooks()
+
+
+class _ControlledOutlook:
+    def __init__(self):
+        self.sent = False
+
+    async def _get_access_token(self, user_id):
+        return "controlled-token"
+
+    async def create_draft_email(self, **kwargs):
+        CONNECTED["drafts"].append({
+            "subject": kwargs.get("subject"),
+            "body": kwargs.get("body"),
+            "to": kwargs.get("to_recipients"),
+        })
+        _save_connected_state()
+        return {"id": f"draft-browser-{len(CONNECTED['drafts'])}",
+                "subject": kwargs.get("subject")}
+
+    async def send_email(self, *args, **kwargs):  # pragma: no cover
+        CONNECTED["send_attempts"] += 1
+        _save_connected_state()
+        self.sent = True
+        raise AssertionError("controlled draft must not send")
+
+
+import core.connected_actions as connected_actions  # noqa: E402
+from core.action_registry import action_registry  # noqa: E402
+import integrations.outlook_service as outlook_module  # noqa: E402
+
+connected_actions._books_service = _controlled_books_service
+connected_actions._workdrive_service = _controlled_workdrive_service
+outlook_module.OutlookService = lambda *a, **k: _ControlledOutlook()
 import openpyxl  # noqa: E402
 import docx  # noqa: E402
 
@@ -257,10 +407,13 @@ from pydantic import BaseModel  # noqa: E402
 
 app = FastAPI(title="Assignment browser acceptance")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["http://127.0.0.1:3003",
-                                   "http://localhost:3003",
-                                   "http://127.0.0.1:3004",
-                                   "http://localhost:3004"],
+    CORSMiddleware, allow_origins=[
+        "http://127.0.0.1:3003", "http://localhost:3003",
+        "http://127.0.0.1:3004", "http://localhost:3004",
+        *[origin.strip() for origin in os.getenv(
+            "ATOM_ASSIGNMENT_BROWSER_ORIGINS", "").split(",")
+          if origin.strip()],
+    ],
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(router)
@@ -295,14 +448,31 @@ def _outbox_lines():
     ]
 
 
+def _serving_identity() -> Dict[str, Any]:
+    """The source/tree/world identity served by THIS process.
+
+    The identity is captured once at boot, never re-resolved per request, so
+    a later git commit cannot be mistaken for the code this process loaded.
+    """
+    identity = get_runtime_identity()
+    return {
+        "pid": os.getpid(),
+        "process_start": identity.process_started_at,
+        "identity": identity.as_dict(),
+        "world": str(SCRATCH),
+        "database": str(SCRATCH / "atom.db"),
+        "repo_root": identity.repo_path,
+        "backend_root": identity.backend_path,
+    }
+
+
 @app.get("/_acceptance/state")
 def acceptance_state():
     entry = db.query(DatasetEntry).filter(
         DatasetEntry.dataset_name == "scotch_parts_price_list").first()
     return {
         "ok": True,
-        "pid": os.getpid(),
-        "world": str(SCRATCH),
+        **_serving_identity(),
         "agent_id": agent.id,
         "dataset_name": entry.dataset_name if entry else None,
         "dataset_version": entry.content_hash if entry else None,
@@ -368,10 +538,191 @@ def acceptance_teach_mapping(body: TeachMappingRequest):
     }
 
 
+from core.assignment_plan import new_step  # noqa: E402
+
+
+@app.get("/_acceptance/connected/plan")
+def acceptance_connected_plan(objective: str, ref: str):
+    steps = [
+        new_step(
+            step_id="read", title="Read connected price bytes",
+            operation_type="retrieve", adapter="action.registry",
+            inputs={"action": "connected.workdrive.read_file",
+                    "arguments": {"file_id": "price-file",
+                                  "evidence_kind": "price_rows"}},
+            effect="read_only"),
+        new_step(
+            step_id="map", title="Map parsed rows to quote lines",
+            operation_type="calculate", adapter="quote.lines_from_rows",
+            depends_on=["read"],
+            inputs={
+                "rows": {"$ref": "read.data.rows"},
+                "columns": {
+                    "item_id": "sku", "quantity": "quantity",
+                    "unit": "unit", "pack_size": "pack",
+                    "unit_price": "unit_price", "currency": "currency",
+                    "description": "sku", "category": "category",
+                    "discount": "discount_percent",
+                },
+                "defaults": {"price_basis": "contract"},
+                "discount_mode": "percent",
+                "discount_authority": "price-list:v1",
+                "source_identity": {
+                    "resource_id": {
+                        "$ref": "read.data.read_receipt.resource_id"},
+                    "version": {
+                        "$ref": "read.data.read_receipt.version"},
+                    "sha256": {
+                        "$ref": "read.data.read_receipt.fields.sha256"},
+                },
+            },
+            effect="local"),
+        new_step(
+            step_id="calculate", title="Calculate the quote",
+            operation_type="calculate", adapter="quote.calculate",
+            depends_on=["map"],
+            inputs={
+                "line_items": {"$ref": "map.line_items"},
+                "currency": "USD", "freight": "20.00",
+                "tax": {"basis": "none"},
+                "discount_rules": [
+                    {"lesson_id": "general-b", "revision": 1,
+                     "name": "general B", "when": {"category": "B"},
+                     "rate": "0.05"},
+                    {"lesson_id": "licensed-b", "revision": 1,
+                     "name": "licensed B",
+                     "when": {"category": "B",
+                              "qualification": "licensed"},
+                     "rate": "0.10"},
+                ],
+                "rounding": "half_up", "scale": 2,
+                "rounding_authority": "agreement:round-half-up-2dp",
+                "source_evidence": [{
+                    "resource_id": "price-file",
+                    "source_version": "${read.data.read_receipt.version}",
+                }],
+            },
+            effect="local"),
+        new_step(
+            step_id="email-draft", title="Prepare the quote email body",
+            operation_type="present", adapter="email.draft",
+            depends_on=["calculate"],
+            inputs={"to": ["buyer@example.invalid"],
+                    "subject": f"Quote {ref}",
+                    "body": "Quoted total: ${calculate.value} USD"},
+            effect="local"),
+        new_step(
+            step_id="prepare-lines", title="Prepare provider estimate lines",
+            operation_type="calculate", adapter="quote.estimate_lines",
+            depends_on=["calculate"],
+            inputs={"rows": {"$ref": "calculate.rows"},
+                    "account_map": {"A": "acct-1", "B": "acct-1"}},
+            effect="local"),
+        new_step(
+            step_id="estimate", title="Create the verified estimate",
+            operation_type="outbound", adapter="action.registry",
+            depends_on=["prepare-lines"],
+            inputs={
+                "action": "connected.books.create_estimate",
+                "arguments": {
+                    "organization_id": "org-browser",
+                    "estimate_data": {
+                        "customer_id": "customer-1",
+                        "reference_number": ref,
+                        "date": "2026-11-01", "currency_code": "USD",
+                        "total": "${calculate.value}",
+                        "sub_total": "${calculate.value}",
+                        "tax_total": "0.00",
+                        "line_items": {"$ref": "prepare-lines.line_items"},
+                    },
+                    "authority_reference": "grant-browser-1",
+                    "operation_id": f"op-browser-{ref}",
+                },
+            },
+            effect="external", approval_required=True,
+            approval_purpose="Create the estimate"),
+        new_step(
+            step_id="outlook-draft", title="Create the Outlook draft",
+            operation_type="outbound", adapter="action.registry",
+            depends_on=["estimate", "email-draft"],
+            inputs={
+                "action": "connected.outlook.create_draft",
+                "arguments": {
+                    "to": ["buyer@example.invalid"],
+                    "subject": f"Quote {ref}",
+                    "body": "Quoted total: ${calculate.value} USD",
+                    "operation_id": f"op-draft-{ref}",
+                },
+            },
+            effect="external", approval_required=True,
+            approval_purpose="Create the Outlook draft"),
+    ]
+    return {"ok": True, "objective": objective, "steps": steps}
+
+
+class ConnectedSourceRequest(BaseModel):
+    content: str
+    version: str = "v1"
+
+
+class ConnectedFaultRequest(BaseModel):
+    estimate_fail_after_apply: int = 0
+    readback_failures: int = 0
+
+
+@app.post("/_acceptance/connected/fault")
+def acceptance_connected_fault(body: ConnectedFaultRequest):
+    CONNECTED["fail_estimate_after_apply"] = max(
+        0, int(body.estimate_fail_after_apply))
+    CONNECTED["readback_failures"] = max(0, int(body.readback_failures))
+    return {
+        "ok": True,
+        "estimate_fail_after_apply":
+            CONNECTED["fail_estimate_after_apply"],
+        "readback_failures": CONNECTED["readback_failures"],
+    }
+
+
+@app.post("/_acceptance/connected/source")
+def acceptance_connected_source(body: ConnectedSourceRequest):
+    CONNECTED["bytes"] = body.content.encode("utf-8")
+    CONNECTED["version"] = body.version
+    return {"ok": True, "version": body.version,
+            "bytes": len(CONNECTED["bytes"])}
+
+
+@app.get("/_acceptance/connected/run/{run_id}")
+def acceptance_connected_run(run_id: str):
+    return {"ok": True, "assignment": lifecycle.get_assignment(run_id)}
+
+
+@app.get("/_acceptance/connected/state")
+def acceptance_connected_state():
+    return {
+        "ok": True,
+        **_serving_identity(),
+        "version": CONNECTED["version"],
+        "bytes": len(CONNECTED["bytes"]),
+        "calls": CONNECTED["calls"],
+        "estimates": [{
+            "estimate_id": item["estimate_id"],
+            "reference_number": item["reference_number"],
+            "total": item["total"],
+        } for item in CONNECTED["estimates"]],
+        "drafts": list(CONNECTED["drafts"]),
+        "last_payload": CONNECTED["last_payload"],
+        "send_attempts": CONNECTED["send_attempts"],
+        "estimate_fail_after_apply":
+            CONNECTED["fail_estimate_after_apply"],
+        "readback_failures": CONNECTED["readback_failures"],
+    }
+
+
 @app.get("/api/health")
 def health():
     return {
         "ok": True,
+        **_serving_identity(),
         "agent_id": agent.id,
         "workbook": str(source_workbook),
         "document": str(source_document),

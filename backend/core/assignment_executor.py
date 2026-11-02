@@ -23,6 +23,7 @@ import hashlib
 import inspect
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -57,6 +58,11 @@ AdapterHandler = Callable[[Dict[str, Any], Dict[str, Any]], Any]
 AdapterPreparer = Callable[[Dict[str, Any], Dict[str, Any]], Any]
 
 logger = logging.getLogger(__name__)
+
+#: Budget clock schema. Schema 2 credits assignment-level IDLE intervals
+#: (periods where no branch can progress) instead of summing per-branch
+#: waits. Overlapping waits therefore cannot inflate credited pause time.
+IDLE_LEDGER_SCHEMA = 2
 
 
 class AssignmentError(TaskLifecycleError):
@@ -185,6 +191,22 @@ def _bounded(value: Any, limit: int = 500) -> str:
     return str(value or "")[:limit]
 
 
+def _gap_binding_key(value: Any) -> str:
+    """Stable identity for a durable obligation.
+
+    Legacy gaps have no key and keep the original step/concept dedupe. A
+    line-scoped quote gap carries one so two lines or two missing fields in
+    the same step cannot collapse into a single question.
+    """
+    if not isinstance(value, dict):
+        return ""
+    inputs = value.get("inputs")
+    key = value.get("binding_key")
+    if not key and isinstance(inputs, dict):
+        key = inputs.get("binding_key")
+    return str(key or "").strip()
+
+
 async def _invoke(func: Callable[..., Any], *args: Any) -> Any:
     result = func(*args)
     if inspect.isawaitable(result):
@@ -258,17 +280,181 @@ def _summarize_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return {"summary": "step completed"}
 
 
-def _json_safe(value: Any, *, depth: int = 0) -> Any:
-    if depth > 4:
+class ExecutablePayloadTooLarge(ValueError):
+    """An inline executable value exceeds the supported transfer bound."""
+
+
+#: Fields whose contents are consumed by downstream work. They are never
+#: silently sliced; an oversized value refuses explicitly.
+_EXECUTABLE_FIELDS = frozenset({
+    "rows", "items", "line_items", "records", "data", "payload", "payloads",
+    "content", "content_b64", "documents", "attachments", "evidence",
+    "provider_receipt", "read_receipt", "receipt", "verification", "conflicts",
+})
+_MAX_EXECUTABLE_STRING = 2_000_000
+_MAX_EXECUTABLE_LIST = 10_000
+_MAX_EXECUTABLE_DEPTH = 14
+_MAX_EXECUTABLE_BYTES = 4 * 1024 * 1024
+_MAX_EXECUTABLE_NODES = 100_000
+_MAX_EXECUTABLE_ENTRIES = 100_000
+_MAX_EXECUTABLE_KEY_CHARS = 512
+
+
+class _SerializationBudget:
+    """One budget shared by every node of an executable result."""
+
+    def __init__(self) -> None:
+        self.bytes = 0
+        self.nodes = 0
+        self.entries = 0
+
+    def node(self) -> None:
+        self.nodes += 1
+        if self.nodes > _MAX_EXECUTABLE_NODES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload has more than "
+                f"{_MAX_EXECUTABLE_NODES} nodes")
+
+    def entry(self) -> None:
+        self.entries += 1
+        if self.entries > _MAX_EXECUTABLE_ENTRIES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload has more than "
+                f"{_MAX_EXECUTABLE_ENTRIES} dictionary/list entries")
+
+    def text(self, value: str, *, key: bool = False) -> None:
+        if key and len(value) > _MAX_EXECUTABLE_KEY_CHARS:
+            raise ExecutablePayloadTooLarge(
+                f"executable dictionary key has {len(value)} characters; "
+                f"limit is {_MAX_EXECUTABLE_KEY_CHARS}")
+        self.bytes += len(value.encode("utf-8"))
+        if self.bytes > _MAX_EXECUTABLE_BYTES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload exceeds {_MAX_EXECUTABLE_BYTES} UTF-8 "
+                "bytes")
+
+
+#: Persistence stores lifecycle JSON with the stdlib defaults:
+#: ASCII-escaped strings and the default ``", "`` / ``": "`` separators.
+#: Measuring this exact representation makes the bound hard for the bytes
+#: SQLAlchemy actually writes, including escaping and punctuation.
+_PERSISTENCE_JSON_KWARGS = {
+    "ensure_ascii": True,
+    "separators": (", ", ": "),
+    "allow_nan": False,
+}
+
+
+def _check_serialized_size(value: Any) -> None:
+    """Enforce the byte bound on the persisted executable representation.
+
+    The node/text budget catches most payloads, but JSON punctuation, quoting,
+    escaping and separators also consume bytes. A value just under the text
+    budget can still exceed 4 MiB once serialized, so the final transferable
+    form is measured with the persistence encoder. ``iterencode`` stops as
+    soon as the bound is crossed rather than building the whole document.
+    """
+    encoder = json.JSONEncoder(**_PERSISTENCE_JSON_KWARGS)
+    size = 0
+    try:
+        for chunk in encoder.iterencode(value):
+            size += len(chunk.encode("utf-8"))
+            if size > _MAX_EXECUTABLE_BYTES:
+                raise ExecutablePayloadTooLarge(
+                    "serialized executable payload exceeds "
+                    f"{_MAX_EXECUTABLE_BYTES} UTF-8 bytes")
+    except ExecutablePayloadTooLarge:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise ExecutablePayloadTooLarge(
+            f"executable payload is not valid JSON: {exc}") from exc
+
+
+def _json_safe(
+    value: Any, *, depth: int = 0, executable: bool = False,
+    budget: Optional[_SerializationBudget] = None,
+) -> Any:
+    """Serialize a result, preserving executable data under one budget.
+
+    Diagnostics are bounded for lifecycle readability. Executable fields
+    (rows, bytes, receipts) are preserved in full or refused explicitly; the
+    aggregate budget counts every key, value and node, and the final
+    serialized UTF-8 JSON is measured before the value can be stored.
+    """
+    finalize = budget is None and executable
+    if finalize:
+        budget = _SerializationBudget()
+    result = _json_safe_inner(
+        value, depth=depth, executable=executable, budget=budget)
+    if finalize:
+        _check_serialized_size(result)
+    return result
+
+
+def _json_safe_inner(
+    value: Any, *, depth: int = 0, executable: bool = False,
+    budget: Optional[_SerializationBudget] = None,
+) -> Any:
+    if depth > (_MAX_EXECUTABLE_DEPTH if executable else 6):
+        if executable:
+            raise ExecutablePayloadTooLarge(
+                "executable payload exceeds the supported nesting depth")
         return "…"
     if isinstance(value, dict):
-        return {str(k)[:80]: _json_safe(v, depth=depth + 1)
-                for k, v in list(value.items())[:60]}
+        result: Dict[str, Any] = {}
+        if budget:
+            budget.node()
+        for key, item in value.items():
+            key_text = str(key)
+            if budget:
+                budget.entry()
+                budget.text(key_text, key=True)
+            child_executable = executable or (
+                key_text.strip().lower() in _EXECUTABLE_FIELDS)
+            result[key_text if executable else key_text[:80]] = _json_safe_inner(
+                item, depth=depth + 1, executable=child_executable,
+                budget=budget)
+        return result
     if isinstance(value, (list, tuple)):
-        return [_json_safe(v, depth=depth + 1) for v in list(value)[:80]]
+        if budget:
+            budget.node()
+        if executable and len(value) > _MAX_EXECUTABLE_LIST:
+            raise ExecutablePayloadTooLarge(
+                f"executable list has {len(value)} items; limit is "
+                f"{_MAX_EXECUTABLE_LIST}")
+        limit = len(value) if executable else min(len(value), 80)
+        items = []
+        for item in list(value)[:limit]:
+            if budget:
+                budget.entry()
+            items.append(_json_safe_inner(
+                item, depth=depth + 1, executable=executable,
+                budget=budget))
+        return items
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ExecutablePayloadTooLarge(
+            "executable payload contains a non-finite number")
     if value is None or isinstance(value, (int, float, bool)):
+        if budget:
+            budget.node()
+            budget.text(str(value))
         return value
-    return str(value)[:2000]
+    text = str(value)
+    if budget:
+        budget.node()
+        budget.text(text)
+        if len(text) > _MAX_EXECUTABLE_STRING:
+            raise ExecutablePayloadTooLarge(
+                f"executable string has {len(text)} characters; limit is "
+                f"{_MAX_EXECUTABLE_STRING}")
+        return text
+    if executable:
+        if len(text) > _MAX_EXECUTABLE_STRING:
+            raise ExecutablePayloadTooLarge(
+                f"executable string has {len(text)} characters; limit is "
+                f"{_MAX_EXECUTABLE_STRING}")
+        return text
+    return text[:2000]
 
 
 def _filter_records(
@@ -1555,9 +1741,37 @@ class AssignmentExecutor:
             raise AssignmentError(f"run {run_id} has no assignment plan")
         from core.task_lifecycle import open_unresolved_questions
 
+        projected = assignment_projection(assignment)
+        budget_view = dict(projected.get("budget") or {})
+        started = self._parse_clock(budget_view.get("started_at"))
+        if started is not None:
+            wall = max(0.0, float(self.clock()) - started)
+            working = min(wall, max(
+                0.0, self._effective_wall_elapsed(budget_view)))
+            budget_view["working_seconds"] = round(working, 3)
+            budget_view["paused_seconds"] = round(max(0.0, wall - working), 3)
+            budget_view["wall_seconds"] = round(wall, 3)
+        projected["budget"] = budget_view
+        steps = assignment.get("steps") or []
+        required = [step for step in steps if step.get("required", True)]
+        projected["progress"] = {
+            "total_steps": len(steps),
+            "required_steps": len(required),
+            "completed_steps": sum(
+                1 for step in required
+                if step.get("status") in ("applied", "skipped")),
+            "waiting_steps": sum(
+                1 for step in steps
+                if step.get("status") in ("waiting", "awaiting_approval")),
+            "failed_steps": sum(
+                1 for step in steps if step.get("status") == "failed"),
+            "uncertain_steps": sum(
+                1 for step in steps if step.get("status") == "uncertain"),
+            "open_gap_count": len(open_unresolved_questions(record)),
+        }
         return {
             "run_id": run_id,
-            "assignment": assignment_projection(assignment),
+            "assignment": projected,
             "open_gaps": open_unresolved_questions(record),
             "operations": [
                 {
@@ -1571,6 +1785,13 @@ class AssignmentExecutor:
                         operation.get("approval_request") or {}),
                     "uncertainty_reason": operation.get(
                         "uncertainty_reason"),
+                    "remote_id": (
+                        (operation.get("execution") or {}).get("remote_id")),
+                    "provider_ref": (
+                        (operation.get("execution") or {}).get(
+                            "provider_ref")),
+                    "result_summary": (
+                        (operation.get("execution") or {}).get("summary")),
                 }
                 for operation in record.get("operations") or []
             ],
@@ -1640,25 +1861,52 @@ class AssignmentExecutor:
                     run_id, assignment, "assignment started")
                 record = self.lifecycle.get_task(run_id) or record
 
-            # An approved operation whose step still says awaiting_approval
-            # is ready to run. The sync above keeps them aligned.
-            waiting_step = self._first_waiting_step(assignment)
-            if waiting_step is not None:
+            assignment = self._ensure_idle_ledger(assignment)
+            assignment = self._checkpoint_idle(assignment)
+            if self._deadline_exceeded(assignment):
+                assignment = self._expire_assignment_deadline(assignment)
+                self._persist_assignment(
+                    run_id, assignment, "assignment business deadline passed")
+                self._set_run_status(run_id, "blocked")
+                return self.status(run_id)
+
+            # Try eligible waiting/approval steps. A wait that is NOT yet
+            # eligible must not return early: an independent branch whose
+            # dependencies are satisfied can still do useful work.
+            progress = False
+            for waiting_step in self._waiting_steps(assignment):
                 resumed = await self._resume_waiting_step(
                     run_id, record, assignment, waiting_step)
                 if resumed:
                     steps_run += 1
-                    continue
-                self._persist_assignment(
-                    run_id, assignment, "assignment waiting")
-                return self.status(run_id)
+                    progress = True
+                    break
+            if progress:
+                continue
 
+            # Re-read: a resumed step above may have changed the plan.
+            record = self.lifecycle.get_task(run_id) or record
+            assignment = self._sync_assignment(record, assignment)
+            assignment = self._ensure_idle_ledger(assignment)
+            assignment = self._checkpoint_idle(assignment)
             readiness = ready_steps(assignment)
             if not readiness:
-                self._persist_assignment(
-                    run_id, assignment, "assignment stopped: no ready step")
+                if self._waiting_steps(assignment):
+                    assignment = self._open_idle(
+                        assignment,
+                        reason="all runnable branches are waiting")
+                    self._persist_assignment(
+                        run_id, assignment, "assignment waiting")
+                else:
+                    self._persist_assignment(
+                        run_id, assignment,
+                        "assignment stopped: no ready step")
                 return self.status(run_id)
 
+            # Work can progress: any open idle interval ends now, before the
+            # next operation starts charging working time.
+            assignment = self._close_idle(
+                assignment, reason="ready work resumed")
             step = readiness[0]
             if not self._budget_allows(assignment, step):
                 assignment = self._block_step(
@@ -2050,6 +2298,120 @@ class AssignmentExecutor:
         result = self.lifecycle.mutate_assignment(
             run_id, compute, rationale=f"invalidate {step_id}: {reason}")
         return {"status": "invalidated", **result}
+
+    def reassess_teaching(
+        self,
+        run_id: str,
+        teaching_snapshot: Dict[str, Any],
+        *,
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        """Adopt corrected teaching and invalidate only dependent work.
+
+        Active work keeps its historical results and artifacts in
+        ``prior_results``; steps whose behavior can depend on teaching (and
+        their descendants) become pending under a NEW plan revision. Source
+        reads and independent branches are preserved.
+        """
+        sensitive = {
+            "quote.calculate", "formula.calculate", "artifact.document",
+            "artifact.spreadsheet", "artifact.presentation", "email.draft",
+            "action.registry", "assignment.controlled_outbox",
+            "email.send_outlook", "external.research",
+        }
+        record = self.lifecycle.get_task(run_id)
+        if record is None:
+            raise AssignmentError(f"no task record on run {run_id}")
+        assignment = record.get("assignment") or {}
+        running = [step.get("step_id") for step in assignment.get("steps") or []
+                   if step.get("status") == "running"]
+        if running:
+            raise AssignmentError(
+                "reassessment cannot invalidate work while steps are running: "
+                + ", ".join(str(item) for item in running))
+
+        def compute(record, current):
+            roots = [
+                step["step_id"] for step in current.get("steps") or []
+                if str(step.get("adapter") or "") in sensitive
+            ]
+            affected = downstream_step_ids(current, roots) if roots else []
+            new_plan = copy.deepcopy(current)
+            previous = copy.deepcopy(current.get("teaching_snapshot") or {})
+            new_plan["plan_revision"] = int(
+                current.get("plan_revision") or 1) + 1
+            new_plan["teaching_snapshot"] = copy.deepcopy(teaching_snapshot)
+            requirements = dict(
+                (teaching_snapshot or {}).get("output_requirements") or {})
+            for step in new_plan.get("steps") or []:
+                adapter = str(step.get("adapter") or "")
+                inputs = dict(step.get("inputs") or {})
+                if adapter == "quote.calculate":
+                    inputs["discount_rules"] = list(
+                        requirements.get("line_discount_rules") or [])
+                    step["inputs"] = inputs
+                elif adapter.startswith("artifact."):
+                    inputs["format_spec"] = dict(requirements)
+                    step["inputs"] = inputs
+            history = list(new_plan.get("teaching_history") or [])
+            if previous:
+                history.append({
+                    "revision": previous.get("revision"),
+                    "fingerprint": previous.get("fingerprint"),
+                    "replaced_by": teaching_snapshot.get("revision"),
+                    "reason": _bounded(reason, 300),
+                    "at": _utc_now_iso(),
+                })
+            new_plan["teaching_history"] = history[-20:]
+            for item in new_plan.get("steps") or []:
+                if item.get("step_id") not in affected:
+                    continue
+                prior = item.get("prior_results") or []
+                if item.get("result") is not None or item.get(
+                        "artifact_revision"):
+                    prior.append({
+                        "plan_revision": current.get("plan_revision"),
+                        "status": item.get("status"),
+                        "result": copy.deepcopy(item.get("result")),
+                        "artifact_revision": item.get("artifact_revision"),
+                        "reason": _bounded(reason, 300),
+                    })
+                item["prior_results"] = prior[-10:]
+                item["status"] = "pending"
+                item["operation_id"] = None
+                item["result"] = None
+                item["artifact_revision"] = None
+                item["failure"] = None
+                item["waiting"] = None
+                item["approval_request"] = None
+                item["standing_authority_receipt"] = None
+                item["gap_ids"] = []
+                item["updated_at"] = _utc_now_iso()
+            new_plan["status"] = "planned"
+            new_plan["completed_at"] = None
+            new_plan["last_transition"] = {
+                "kind": "reassess_teaching",
+                "reason": _bounded(reason, 500),
+                "previous_revision": previous.get("revision"),
+                "revision": teaching_snapshot.get("revision"),
+                "affected_steps": affected,
+                "at": _utc_now_iso(),
+            }
+            new_plan["updated_at"] = _utc_now_iso()
+            return new_plan, {
+                "previous_revision": previous.get("revision"),
+                "revision": teaching_snapshot.get("revision"),
+                "affected_steps": affected,
+                "preserved_steps": [
+                    step["step_id"] for step in new_plan.get("steps") or []
+                    if step["step_id"] not in affected
+                ],
+            }
+
+        result = self.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale=f"reassess teaching: {reason or 'explicit reassessment'}")
+        return {"status": "reassessed", **result}
 
     # --------------------------------------------------------------- gaps
 
@@ -3230,6 +3592,26 @@ class AssignmentExecutor:
     ) -> Dict[str, Any]:
         artifact = result.get("artifact") if isinstance(
             result.get("artifact"), dict) else {}
+        remote_id = str(
+            result.get("remote_id") or result.get("provider_ref") or "")
+        provider_ref = str(
+            result.get("provider_ref") or remote_id)
+        provider_receipt = result.get("provider_receipt")
+        verification = result.get("verification")
+        conflicts = result.get("conflicts")
+        remote_identity = {
+            "provider": result.get("provider"),
+            "operation": result.get("operation"),
+            "remote_id": remote_id,
+            "provider_ref": provider_ref,
+            "payload_sha256": result.get("payload_sha256"),
+            "provider_receipt": _json_safe(provider_receipt),
+            "verification": _json_safe(verification),
+            "conflicts": _json_safe(conflicts or []),
+        }
+        if not any(value not in (None, "", [], {}) for value in
+                   remote_identity.values()):
+            remote_identity = None
         return {
             "receipt_version": 1,
             "operation_id": operation.get("operation_id"),
@@ -3257,8 +3639,10 @@ class AssignmentExecutor:
             else None,
             "outbound": {
                 "provider_state": result.get("provider_state"),
-                "provider_ref": result.get("provider_ref"),
+                "provider_ref": provider_ref or None,
+                "remote_id": remote_id or None,
             } if step.get("effect") == "external" else None,
+            "remote_identity": remote_identity,
             "readback": {
                 "revision": artifact.get("revision"),
                 "sha256": artifact.get("sha256"),
@@ -3448,6 +3832,152 @@ class AssignmentExecutor:
                 return step
         return None
 
+    def _waiting_steps(self, assignment: Dict[str, Any]) -> List[Dict[str, Any]]:
+        return [
+            step for step in assignment.get("steps") or []
+            if step.get("status") in ("waiting", "awaiting_approval")
+        ]
+
+    # ------------------------------------------------------ idle clock
+    # Assignment time is charged only while at least one branch can make
+    # progress. Waiting branches are not charged individually: the interval
+    # is credited once, at the assignment level, so two overlapping waits do
+    # not add up (and can never exceed wall time).
+
+    def _ensure_idle_ledger(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Upgrade a legacy per-wait budget to the idle-interval ledger.
+
+        The old ``paused_seconds`` value remains the starting total. An open
+        legacy wait is carried into an open idle interval so a restart does
+        not lose or double-count it.
+        """
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA:
+            return assignment
+        budget["idle_ledger_schema"] = IDLE_LEDGER_SCHEMA
+        budget["idle_intervals"] = dict(budget.get("idle_intervals") or {})
+        budget["paused_seconds"] = float(budget.get("paused_seconds") or 0.0)
+        legacy_wait = budget.get("waiting_since")
+        if legacy_wait and not budget.get("idle_open"):
+            credits = budget.get("wait_credits") or {}
+            already_credited = any(
+                isinstance(item, dict)
+                and str(item.get("started_at") or "") == str(legacy_wait)
+                for item in credits.values())
+            # Legacy rows can still carry the open-wait timestamp after the
+            # interval was added to paused_seconds. Do not invent a second
+            # credit for it.
+            ambiguous_legacy = (
+                float(budget.get("paused_seconds") or 0.0) > 0
+                and not budget.get("active_wait"))
+            if not already_credited and not ambiguous_legacy:
+                budget["idle_open"] = {
+                    "id": f"migrated:{legacy_wait}",
+                    "started_at": str(legacy_wait),
+                    "reason": "migrated open wait",
+                }
+        budget["waiting_since"] = None
+        budget["active_wait"] = None
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _checkpoint_idle(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Materialize elapsed open-idle time into ``paused_seconds``.
+
+        Keeping the live interval start at the checkpoint keeps persisted
+        ``paused_seconds`` meaningful to ordinary readers while
+        ``_effective_wall_elapsed`` still accounts for the short tail since
+        the last checkpoint.
+        """
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            return assignment
+        opened = dict(budget.get("idle_open") or {})
+        if not opened:
+            return assignment
+        started = self._parse_clock(opened.get("started_at"))
+        now = float(self.clock())
+        if started is None or now <= started:
+            return assignment
+        opened.setdefault("first_started_at", opened.get("started_at"))
+        budget["paused_seconds"] = (
+            float(budget.get("paused_seconds") or 0.0) + (now - started))
+        opened["started_at"] = self._clock_iso(now)
+        opened["checkpointed_at"] = _utc_now_iso()
+        budget["idle_open"] = opened
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _open_idle(
+        self, assignment: Dict[str, Any], *, reason: str,
+    ) -> Dict[str, Any]:
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            assignment = self._ensure_idle_ledger(assignment)
+            budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_open"):
+            return assignment
+        now = float(self.clock())
+        budget["idle_open"] = {
+            "id": f"{assignment.get('assignment_id')}:idle:{now}",
+            "started_at": self._clock_iso(now),
+            "reason": _bounded(reason, 300),
+        }
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    def _close_idle(
+        self, assignment: Dict[str, Any], *, reason: str,
+    ) -> Dict[str, Any]:
+        budget = dict(assignment.get("budget") or {})
+        if budget.get("idle_ledger_schema") != IDLE_LEDGER_SCHEMA:
+            return assignment
+        opened = dict(budget.get("idle_open") or {})
+        if not opened:
+            return assignment
+        now = float(self.clock())
+        started = self._parse_clock(opened.get("started_at"))
+        if started is not None and now > started:
+            budget["paused_seconds"] = (
+                float(budget.get("paused_seconds") or 0.0) + (now - started))
+        first_started = opened.get("first_started_at") or opened.get("started_at")
+        intervals = dict(budget.get("idle_intervals") or {})
+        interval_id = str(opened.get("id") or "open")
+        intervals[interval_id] = {
+            "started_at": first_started,
+            "ended_at": self._clock_iso(now),
+            "reason": opened.get("reason"),
+            "closed_by": _bounded(reason, 300),
+        }
+        # Bound the audit ledger while keeping the latest intervals.
+        if len(intervals) > 200:
+            intervals = dict(list(intervals.items())[-200:])
+        budget["idle_intervals"] = intervals
+        budget["idle_open"] = None
+        updated = copy.deepcopy(assignment)
+        updated["budget"] = budget
+        return updated
+
+    @staticmethod
+    def _parse_clock(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        try:
+            return datetime.fromisoformat(str(value)).timestamp()
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _clock_iso(ts: float) -> str:
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
+
     def _sync_assignment(
         self, record: Dict[str, Any], assignment: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -3586,15 +4116,19 @@ class AssignmentExecutor:
             self._clear_active_wait(budget, wait_id)
             return False
         seconds = end_ts - start_ts
+        idle_authoritative = (
+            budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA)
         credits[wait_id] = {
-            "seconds": seconds,
+            "seconds": 0.0 if idle_authoritative else seconds,
             "started_at": str(started_at),
             "ended_at": str(ended_at),
+            "idle_ledger_authoritative": idle_authoritative,
         }
         budget["wait_credits"] = credits
         budget["wait_credits_schema"] = 1
-        budget["paused_seconds"] = (
-            float(budget.get("paused_seconds") or 0.0) + seconds)
+        if not idle_authoritative:
+            budget["paused_seconds"] = (
+                float(budget.get("paused_seconds") or 0.0) + seconds)
         self._clear_active_wait(budget, wait_id)
         return True
 
@@ -3614,6 +4148,13 @@ class AssignmentExecutor:
             started_at = datetime.fromisoformat(str(started)).timestamp()
         except (TypeError, ValueError):
             return 0.0
+        if budget.get("idle_ledger_schema") == IDLE_LEDGER_SCHEMA:
+            paused = float(budget.get("paused_seconds") or 0.0)
+            opened = budget.get("idle_open") or {}
+            started_idle = self._parse_clock(opened.get("started_at"))
+            if started_idle is not None:
+                paused += max(0.0, float(self.clock()) - started_idle)
+            return max(0.0, (self.clock() - started_at) - paused)
         paused = float(budget.get("paused_seconds") or 0.0)
         waiting_since = budget.get("waiting_since")
         if waiting_since:
@@ -3644,6 +4185,43 @@ class AssignmentExecutor:
             except (TypeError, ValueError):
                 pass
         return max(0.0, (self.clock() - started_at) - paused)
+
+    def _deadline_exceeded(self, assignment: Dict[str, Any]) -> bool:
+        deadline = (assignment.get("budget") or {}).get("deadline")
+        if not deadline:
+            return False
+        try:
+            return float(self.clock()) >= datetime.fromisoformat(
+                str(deadline)).timestamp()
+        except (TypeError, ValueError):
+            return False
+
+    def _expire_assignment_deadline(
+        self, assignment: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """A business deadline is absolute: waits/restarts never extend it."""
+        updated = copy.deepcopy(assignment)
+        for step in updated.get("steps") or []:
+            if step.get("status") in (
+                    "applied", "skipped", "cancelled", "superseded"):
+                continue
+            step["status"] = "failed"
+            step["failure"] = {
+                "reason": "assignment_deadline_exceeded",
+                "message": "The absolute business deadline for this "
+                           "assignment has passed.",
+            }
+            step["waiting"] = None
+            step["updated_at"] = _utc_now_iso()
+        updated["status"] = "blocked"
+        updated["completed_at"] = None
+        updated["updated_at"] = _utc_now_iso()
+        updated["last_transition"] = {
+            "kind": "deadline_exceeded",
+            "deadline": (updated.get("budget") or {}).get("deadline"),
+            "at": _utc_now_iso(),
+        }
+        return updated
 
     def _budget_allows(
         self, assignment: Dict[str, Any], step: Dict[str, Any],
@@ -3841,7 +4419,14 @@ class AssignmentExecutor:
                 run_id, compute,
                 rationale=(
                     f"settle cost for {step.get('step_id')} ({outcome})"))
-            return result.get("assignment") or assignment
+            settled = result.get("assignment") or {}
+            # Preserve the caller's plan state (another branch may have moved
+            # while the cost ledger was read). Only the budget is reconciled
+            # from the CAS write.
+            updated = copy.deepcopy(assignment)
+            if settled.get("budget") is not None:
+                updated["budget"] = copy.deepcopy(settled["budget"])
+            return updated
         except Exception as exc:  # noqa: BLE001 — accounting is observable
             logger.error(
                 "assignment %s: cost settlement failed for %s: %s",
@@ -4020,12 +4605,22 @@ class AssignmentExecutor:
             prepared = {
                 "payload": {
                     "adapter": step.get("adapter"),
-                    "inputs": _json_safe(inputs),
-                    "depends_on_results": {
-                        dep: _json_safe(
-                            (step_by_id(assignment, dep) or {}).get("result"))
-                        for dep in (step.get("depends_on") or [])
-                    },
+                    "inputs": _json_safe(inputs, depth=0),
+                    "dependency_results": [{
+                        "step_id": dep,
+                        "artifact_revision": (
+                            (step_by_id(assignment, dep) or {}).get(
+                                "artifact_revision")),
+                        "value": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("value")),
+                        "unit": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("unit")),
+                        "summary": _json_safe(
+                            ((step_by_id(assignment, dep) or {}).get(
+                                "result") or {}).get("summary")),
+                    } for dep in (step.get("depends_on") or [])],
                 },
                 "artifact_revision": step.get("artifact_revision"),
             }
@@ -4057,6 +4652,8 @@ class AssignmentExecutor:
             "tenant_id": assignment.get("tenant_id"),
             "agent_id": (assignment.get("provenance") or {}).get("agent_id"),
             "employee_id": assignment.get("employee_id"),
+            "provenance": copy.deepcopy(
+                assignment.get("provenance") or {}),
             "objective": assignment.get("objective"),
             "teaching": copy.deepcopy(
                 assignment.get("teaching_snapshot") or {}),
@@ -4112,6 +4709,8 @@ class AssignmentExecutor:
             operation = _operation_by_id(record, operation_id) if operation_id else None
             if not operation or operation.get("status") != "approved":
                 return False
+            assignment = self._close_idle(
+                assignment, reason="approval arrived")
             # Approved: the executor re-prepares and verifies the payload
             # before running, so changed content cannot ride an old approval.
             updated = self._mark_step(assignment, step["step_id"], {
@@ -4124,6 +4723,8 @@ class AssignmentExecutor:
             return True
         if not self._resolve_waiting(record, step):
             return False
+        assignment = self._close_idle(
+            assignment, reason="external wait resolved")
         operation_id = (
             step.get("wait_operation_id")
             or _operation_id_for_step(record, step))
@@ -4812,6 +5413,31 @@ class AssignmentExecutor:
             assignment = self._settle_step_cost(
                 assignment, run_id, step, operation_id, cost_bound,
                 "uncertain")
+            # Preserve everything the provider did report -- especially a
+            # readback-conflict remote identity -- so reconciliation settles
+            # the ORIGINAL operation rather than guessing or resending.
+            uncertain_execution = _json_safe({
+                "status": "uncertain",
+                "summary": _bounded(result.get("summary") or "", 500),
+                "evidence": result.get("evidence") or [],
+                "data": result.get("data"),
+                "provider_ref": result.get("provider_ref"),
+                "remote_id": result.get("remote_id"),
+                "provider": result.get("provider"),
+                "operation": result.get("operation"),
+                "provider_receipt": result.get("provider_receipt"),
+                "payload_sha256": result.get("payload_sha256"),
+                "verification": result.get("verification"),
+                "conflicts": result.get("conflicts") or [],
+                "at": _utc_now_iso(),
+            })
+            try:
+                self.lifecycle.attach_operation_field(
+                    run_id, operation_id, "execution", uncertain_execution)
+            except Exception as exc:  # noqa: BLE001 — receipt still records
+                logger.warning(
+                    "assignment %s: uncertain execution attach failed: %s",
+                    run_id, exc)
             self.lifecycle.record_uncertain_outcome(
                 run_id, operation_id,
                 reason=_bounded(result.get("reason") or "provider outcome "
@@ -4832,6 +5458,35 @@ class AssignmentExecutor:
                 "updated_at": _utc_now_iso()})
             self._persist_assignment(
                 run_id, assignment, "external outcome uncertain")
+            return
+        if outcome == "unavailable":
+            # A read that could not be performed is a failure, not an empty
+            # result: never complete the step or fabricate data for it.
+            assignment = self._settle_step_cost(
+                assignment, run_id, step, operation_id, cost_bound,
+                "failed_before_effect")
+            try:
+                self.lifecycle.transition_operation(
+                    run_id, operation_id, "failed")
+            except TaskLifecycleError:
+                pass
+            error_class = _bounded(
+                result.get("error_class") or "source_unavailable", 120)
+            self._attach_receipt(
+                run_id, operation, step, result,
+                observed_status="unavailable",
+                error_class=error_class)
+            assignment = self._mark_step(assignment, step["step_id"], {
+                "status": "failed",
+                "failure": {
+                    "reason": "source_unavailable",
+                    "message": _bounded(
+                        result.get("message")
+                        or "the requested source was unavailable", 500),
+                },
+                "updated_at": _utc_now_iso()})
+            self._persist_assignment(
+                run_id, assignment, "source unavailable")
             return
         if outcome == "skipped":
             assignment = self._settle_step_cost(
@@ -4885,6 +5540,7 @@ class AssignmentExecutor:
             "grouping_dimension": result.get("grouping_dimension"),
             "values": result.get("values"),
             "subtotals": result.get("subtotals"),
+            "calculation_receipt": result.get("calculation_receipt"),
             "source": result.get("source"),
             "source_label": result.get("source_label"),
             "formulas": result.get("formulas"),
@@ -4894,7 +5550,9 @@ class AssignmentExecutor:
             "substantive": result.get("substantive"),
             "source_version": result.get("source_version"),
             "provider_ref": result.get("provider_ref"),
+            "remote_id": result.get("remote_id"),
             "rows": result.get("rows"),
+            "line_items": result.get("line_items"),
             "schema": result.get("schema"),
             "text": result.get("text"),
             "decision": result.get("decision"),
@@ -4956,6 +5614,7 @@ class AssignmentExecutor:
             "resume_on": "answer",
             "since": _utc_now_iso(),
         }
+        binding_key = _gap_binding_key(gap)
         existing = [
             question for question in
             (record.get("task_revision") or {}).get("unresolved") or []
@@ -4964,6 +5623,7 @@ class AssignmentExecutor:
             and question.get("step_id") == step.get("step_id")
             and str(question.get("concept") or "")
             == str(gap.get("concept") or "")
+            and _gap_binding_key(question) == binding_key
         ]
         if existing:
             question_id = existing[0]["question_id"]
@@ -4985,6 +5645,7 @@ class AssignmentExecutor:
                 "resolver": gap.get("resolver") or "",
                 "step_id": step.get("step_id"),
                 "waiting": waiting,
+                "binding_key": binding_key,
             }
             self.lifecycle.apply_transition(run_id, {
                 "kind": "record_unresolved",
@@ -4999,7 +5660,8 @@ class AssignmentExecutor:
                 if (item.get("status") == "open"
                         and item.get("step_id") == step.get("step_id")
                         and str(item.get("concept") or "")
-                        == str(gap.get("concept") or "")):
+                        == str(gap.get("concept") or "")
+                        and _gap_binding_key(item) == binding_key):
                     question_id = item["question_id"]
             question_id = question_id or str(gap.get("question_id") or "")
 
@@ -5097,6 +5759,160 @@ class AssignmentExecutor:
 # ---------------------------------------------------------------------------
 
 
+_MUTATING_ACTION_EFFECTS = {
+    "write", "create", "update", "delete", "send", "execute",
+    "graph_updated", "record_created",
+}
+
+
+def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
+    effects = [
+        str(item.get("effect") or "").strip().lower()
+        for item in (getattr(action, "effects", None) or [])
+        if isinstance(item, dict)
+    ]
+    step_effect = str((context.get("step") or {}).get("effect") or "")
+    if step_effect == "external":
+        return True
+    return any(effect in _MUTATING_ACTION_EFFECTS for effect in effects)
+
+
+def _action_result_outcome(result: Any, *, mutating: bool) -> str:
+    """Classify a returned action envelope without inventing an outcome.
+
+    Returns ``applied``, ``failed`` (trusted proof of no effect),
+    ``uncertain`` (effect may have landed) or ``unavailable`` (a read could
+    not be performed). A malformed or internally contradictory mutation is
+    uncertain: an absent remote id is not proof that nothing landed.
+    """
+    if not isinstance(result, dict):
+        return "uncertain" if mutating else "unavailable"
+
+    action_result = str(result.get("action_result") or "").strip().lower()
+    status = str(result.get("status") or "").strip().lower()
+    success = result.get("success")
+    verification = result.get("verification") if isinstance(
+        result.get("verification"), dict) else {}
+    verification_status = str(
+        verification.get("status") or "").strip().lower()
+    verified_flag = verification.get("verified")
+    has_error = bool(result.get("error") or result.get("error_kind"))
+
+    success_status = {"success", "applied", "completed", "ok", "settled"}
+    failure_status = {
+        "failed", "error", "refused", "rejected", "duplicate",
+        "not_applied", "proven_not_applied",
+    }
+    uncertain_status = {"uncertain", "conflict", "unknown", "pending"}
+    unavailable_status = {"unavailable"}
+    verified_status = {"verified", "complete", "applied", "success", "ok"}
+    failed_verification = {
+        "failed", "not_applied", "proven_not_applied", "mismatch",
+        "conflict", "incomplete", "unavailable", "unknown",
+    }
+
+    # Contradictions are never resolved in favour of "nothing happened".
+    contradictory = False
+    if action_result == "applied" and (
+            status in failure_status | uncertain_status | unavailable_status
+            or success is False
+            or verification_status in failed_verification
+            or verified_flag is False):
+        contradictory = True
+    if action_result in ("proven_not_applied", "not_applied") and (
+            status in success_status
+            or success is True
+            or verification_status in verified_status):
+        contradictory = True
+    if status in success_status and (
+            action_result in failure_status | uncertain_status
+            | unavailable_status
+            or success is False
+            or verification_status in {
+                "failed", "not_applied", "mismatch", "conflict",
+                "incomplete", "unavailable"}
+            or verified_flag is False):
+        contradictory = True
+    if status in failure_status and action_result == "applied":
+        contradictory = True
+    if success is True and has_error:
+        contradictory = True
+    if success is False and status in success_status:
+        contradictory = True
+    if contradictory:
+        if not mutating and "unavailable" in {
+                action_result, status, verification_status}:
+            return "unavailable"
+        return "uncertain" if mutating else "failed"
+
+    if action_result:
+        if action_result == "applied":
+            return "applied"
+        if action_result in ("proven_not_applied", "not_applied"):
+            return "failed"
+        if action_result in ("uncertain", "conflict", "unknown"):
+            return "uncertain"
+        if action_result in unavailable_status:
+            return "uncertain" if mutating else "unavailable"
+        return "uncertain" if mutating else "failed"
+
+    if verification_status:
+        if verification_status in ("conflict", "mismatch"):
+            return "uncertain"
+        if verification_status in ("failed", "not_applied",
+                                   "proven_not_applied"):
+            return "uncertain" if mutating else "failed"
+        if verification_status in ("incomplete", "unavailable", "unknown"):
+            return "uncertain" if mutating else "unavailable"
+        if verified_flag is False:
+            return "uncertain" if mutating else "failed"
+
+    if status in ("conflict", "uncertain", "unknown", "pending"):
+        return "uncertain"
+    if status in unavailable_status:
+        return "uncertain" if mutating else "unavailable"
+    if status in success_status:
+        return "applied"
+    if status in failure_status:
+        # A bare failure status is not proof that an outbound mutation did
+        # not land; only the explicit action_result proof can say that.
+        return "uncertain" if mutating else "failed"
+    if success is False or has_error:
+        return "uncertain" if mutating else "failed"
+    if not mutating:
+        # Legacy read actions return a bare payload with no status.
+        return "applied" if result else "unavailable"
+    return "uncertain"
+
+
+async def _registered_action_oracle_verdict(
+    name: str, *, remote_id: str, result: Any,
+    context: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Independently re-derive an applied mutation, when a verifier exists.
+
+    Only registered high-risk actions are checked. A missing verifier leaves
+    the action's own explicit envelope in charge; a refutation (including an
+    unreadable system of record) is returned to the caller as uncertain.
+    """
+    from core.oracle import (
+        get_postcondition,
+        oracle_verifier_enabled,
+        validate,
+    )
+
+    if not oracle_verifier_enabled() or get_postcondition(name) is None:
+        return None
+    verdict = await validate(name, {
+        "action": name,
+        "canvas_id": remote_id,
+        "remote_id": remote_id,
+        "result": result,
+        "context": context,
+    })
+    return verdict.to_dict() if verdict is not None else None
+
+
 @register_assignment_adapter(
     "action.registry",
     description="Dispatch one registered action through the shared registry",
@@ -5146,20 +5962,163 @@ async def _action_registry_adapter(
             "error_class": "precondition_failed",
             "evidence": failures,
         }
+    mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
             name, arguments, execution_context)
-    except Exception as exc:  # noqa: BLE001 — receipt keeps the failure
+    except ExternalOutcomeUnknown:
+        # A provider action that may have applied must reconcile through the
+        # shared operation record; it is never downgraded to a plain failure.
+        raise
+    except ExternalOutcomeNotApplied as exc:
+        return {
+            "status": "failed",
+            "message": _bounded(str(exc), 500),
+            "error_class": "proven_not_applied",
+        }
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — classify by effect possibility
+        if mutating:
+            # The handler was invoked; an ordinary runtime/parse error does
+            # not prove the provider rejected the effect.
+            raise ExternalOutcomeUnknown(
+                f"registered action {name} raised {type(exc).__name__} "
+                f"after dispatch; effect may have landed",
+                evidence=_bounded(f"{type(exc).__name__}: {exc}", 500),
+            ) from exc
         return {
             "status": "failed",
             "message": _bounded(str(exc), 500),
             "error_class": "action_dispatch_error",
         }
+
+    try:
+        safe = _json_safe(result, executable=True)
+    except ExecutablePayloadTooLarge as exc:
+        if mutating:
+            remote = ""
+            provider = operation = None
+            if isinstance(result, dict):
+                remote = str(
+                    result.get("remote_id") or result.get("provider_ref")
+                    or result.get("id") or "")
+                provider = result.get("provider")
+                operation = result.get("operation")
+            return {
+                "status": "uncertain",
+                "action_result": "uncertain",
+                "reason": (
+                    f"registered action '{name}' returned an oversized "
+                    f"executable result after dispatch: {exc}"),
+                "evidence": _bounded(
+                    "serialization refused after external dispatch"
+                    + (f"; remote_id={remote}" if remote else ""), 500),
+                "remote_id": remote,
+                "provider": provider,
+                "operation": operation,
+                "provider_receipt": ({"remote_id": remote} if remote else {}),
+            }
+        return {
+            "status": "failed",
+            "error_class": "payload_too_large",
+            "message": str(exc),
+        }
+    payload = safe if isinstance(safe, dict) else {"data": safe}
+    read_receipt = payload.get("read_receipt") if isinstance(
+        payload.get("read_receipt"), dict) else {}
+    receipt_fields = read_receipt.get("fields") if isinstance(
+        read_receipt.get("fields"), dict) else {}
+    if not mutating and (
+            receipt_fields.get("truncated") is True
+            or str(read_receipt.get("coverage") or "").lower() in (
+                "partial", "bounded", "truncated")):
+        return {
+            "status": "partial",
+            "error_class": "partial_coverage",
+            "message": (
+                f"registered read action '{name}' returned partial coverage; "
+                "full-population work is blocked until the complete source is "
+                "available"),
+            "data": safe,
+            "evidence": [{"kind": "action_registry", "action": name,
+                          "coverage": "partial"}],
+        }
+    outcome = _action_result_outcome(safe, mutating=mutating)
+    remote_id = str(
+        payload.get("remote_id") or payload.get("provider_ref")
+        or payload.get("id") or "")
+    provider_ref = str(
+        payload.get("provider_ref") or remote_id)
+    identity = {
+        "provider": payload.get("provider"),
+        "operation": payload.get("operation"),
+        "remote_id": remote_id,
+        "provider_ref": provider_ref,
+        "payload_sha256": payload.get("payload_sha256"),
+        "provider_receipt": payload.get("provider_receipt"),
+        "verification": payload.get("verification"),
+    }
+    if outcome == "applied" and mutating:
+        verdict = await _registered_action_oracle_verdict(
+            name, remote_id=remote_id, result=safe,
+            context=execution_context)
+        if verdict is not None and not verdict.get("verified"):
+            return {
+                "status": "uncertain",
+                "action_result": "uncertain",
+                "reason": (
+                    f"postcondition oracle refuted {name}: "
+                    f"{verdict.get('evidence') or 'no evidence'}"),
+                "evidence": verdict,
+                "remote_id": remote_id or None,
+                "provider_ref": provider_ref or None,
+                "data": safe,
+                "provider": payload.get("provider"),
+                "operation": payload.get("operation"),
+                "payload_sha256": payload.get("payload_sha256"),
+                "provider_receipt": payload.get("provider_receipt"),
+            }
+    if outcome == "applied":
+        return {
+            "status": "applied",
+            "summary": f"registered action {name} completed",
+            "data": safe,
+            "evidence": [{"kind": "action_registry", "action": name}],
+            **identity,
+        }
+    if outcome == "uncertain":
+        return {
+            "status": "uncertain",
+            "reason": (
+                f"registered action {name} reported "
+                f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
+            "evidence": _bounded(str(result), 500),
+            "data": safe,
+            "conflicts": payload.get("conflicts") or [],
+            **identity,
+        }
+    if outcome == "unavailable":
+        return {
+            "status": "unavailable",
+            "message": (
+                f"registered action {name} could not read the requested "
+                "source"),
+            "error_class": str(
+                payload.get("error_kind") or "source_unavailable"),
+            "evidence": _bounded(str(result), 500),
+            "data": safe,
+            **identity,
+        }
     return {
-        "status": "applied",
-        "summary": f"registered action {name} completed",
+        "status": "failed",
+        "message": (
+            f"registered action {name} did not apply: "
+            f"{payload.get('error') or payload.get('status') or 'refused'}"),
+        "error_class": str(
+            payload.get("error_kind") or "proven_not_applied"),
         "data": _json_safe(result),
-        "evidence": [{"kind": "action_registry", "action": name}],
+        **identity,
     }
 
 
@@ -6531,3 +7490,10 @@ default_adapter_registry.register(
     metadata={"effect": "external", "required_actions": ["outbound"],
               "requires_approval": True,
               "allow_standing_authorization": False})
+
+# Importing the line-item calculator registers ``quote.calculate`` on the
+# default registry. It is imported last to avoid a module-initialization
+# cycle; registries cloned after this point carry the adapter.
+import core.assignment_quote  # noqa: E402,F401
+import core.quote_rows  # noqa: E402,F401
+import core.canvas_assignment  # noqa: E402,F401

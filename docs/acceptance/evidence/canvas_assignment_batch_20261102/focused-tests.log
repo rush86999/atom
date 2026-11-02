@@ -1,0 +1,859 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 08:24:26 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 08:24:27 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+2026-11-02 08:24:27 [    INFO] ================================================================================
+2026-11-02 08:24:27 [    INFO] ATOM PLATFORM API STARTUP
+2026-11-02 08:24:27 [    INFO] ================================================================================
+2026-11-02 08:24:27 [    INFO] Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+2026-11-02 08:24:27 [    INFO] Working directory: /private/tmp/atom-canvas-successor/backend
+2026-11-02 08:24:27 [    INFO] Python path: ['/private/tmp/atom-canvas-successor', '/private/tmp/atom-canvas-successor/backend', '/private/tmp/atom-canvas-successor/backend']...
+2026-11-02 08:24:27 [    INFO] ✓ uvicorn imported
+2026-11-02 08:24:27 [    INFO] ✓ Standard library imports successful
+2026-11-02 08:24:27 [    INFO] ✓ dotenv imported
+2026-11-02 08:24:27 [    INFO] ✓ sqlalchemy.orm and exceptions imported
+2026-11-02 08:24:27 [    INFO] ✓ core.models imported
+2026-11-02 08:24:27 [    INFO] ✓ core.models_registration imported
+2026-11-02 08:24:27 [    INFO] ✓ core.cache.RedisCacheService imported
+2026-11-02 08:24:27 [    INFO] ✓ core.database imported
+2026-11-02 08:24:27 [ WARNING] Failed to import quota_manager: No module named 'core.quota_manager'
+2026-11-02 08:24:27 [    INFO] ✓ FastAPI imports successful
+2026-11-02 08:24:27 [    INFO] EscalationManager initialized
+2026-11-02 08:24:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:27 [    INFO] EscalationManager initialized
+2026-11-02 08:24:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 08:24:27 [    INFO] MCP Service initialized
+2026-11-02 08:24:27 [    INFO] EscalationManager initialized
+2026-11-02 08:24:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:27 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-02 08:24:27 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-02 08:24:27 [    INFO] EscalationManager initialized
+2026-11-02 08:24:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:27 [    INFO] Webhook processor initialized and callback registered
+2026-11-02 08:24:27 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-02 08:24:27 [    INFO] No token storage file found, starting empty
+2026-11-02 08:24:27 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-02 08:24:27 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-02 08:24:27 [    INFO] ATOM Discord Integration initialized
+2026-11-02 08:24:27 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-02 08:24:27 [    INFO] EscalationManager initialized
+2026-11-02 08:24:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 08:24:27 [    INFO] LanceDBHandler initialized. ID: 4993897232. LANCEDB_AVAILABLE: True
+2026-11-02 08:24:27 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-02 08:24:27 [    INFO] Telegram Integration initialized
+2026-11-02 08:24:27 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-02 08:24:27 [    INFO] ATOM AI Integration initialized
+2026-11-02 08:24:27 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-02 08:24:27 [    INFO] Enterprise Security Service initialized
+2026-11-02 08:24:27 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-02 08:24:27 [    INFO] Enterprise Unified Service initialized
+2026-11-02 08:24:27 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-02 08:24:27 [    INFO] Google Chat Enhanced Service initialized
+2026-11-02 08:24:27 [    INFO] ATOM Google Chat Integration initialized
+2026-11-02 08:24:27 [    INFO] Teams Enhanced Service initialized
+2026-11-02 08:24:27 [    INFO] ATOM Teams Integration initialized
+2026-11-02 08:24:27 [    INFO] Workflow Automation Service initialized
+2026-11-02 08:24:27 [    INFO] WhatsApp Integration initialized
+2026-11-02 08:24:27 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-02 08:24:27 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-02 08:24:27 [    INFO] Google Chat Enhanced Service initialized
+2026-11-02 08:24:27 [ WARNING] Marketing service not available
+2026-11-02 08:24:27 [ WARNING] Meta Business service not available
+2026-11-02 08:24:27 [ WARNING] OpenClaw service not available
+2026-11-02 08:24:27 [    INFO] Slack Enhanced Service initialized
+2026-11-02 08:24:27 [    INFO] Teams Enhanced Service initialized
+2026-11-02 08:24:27 [ WARNING] Redis unavailable - webhook ingestion will process synchronously
+2026-11-02 08:24:27 [    INFO] OutlookEnhancedService initialized
+2026-11-02 08:24:27 [ WARNING] No .env file found in any expected location. Realizing on system env vars.
+2026-11-02 08:24:27 [    INFO] Startup API key check
+2026-11-02 08:24:27 [    INFO] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-11-02 08:24:27 [    INFO] Creating FastAPI application...
+2026-11-02 08:24:27 [    INFO] ✓ FastAPI app instance created
+2026-11-02 08:24:27 [ WARNING] Connection leak detector not available: No module named 'core.connection_leak_detector'
+2026-11-02 08:24:27 [    INFO] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+2026-11-02 08:24:27 [    INFO] ⊘ Test mode detected: Loading only critical integrations for security tests
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: auth
+2026-11-02 08:24:27 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded auth
+2026-11-02 08:24:27 [    INFO]   ✓ auth (critical for tests, prefix: root)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: oauth
+2026-11-02 08:24:27 [    INFO] Loading integration: oauth (api.oauth_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded oauth
+2026-11-02 08:24:27 [    INFO]   ✓ oauth (critical for tests, prefix: root)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: whatsapp
+2026-11-02 08:24:27 [    INFO] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded whatsapp
+2026-11-02 08:24:27 [    INFO]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: microsoft365
+2026-11-02 08:24:27 [    INFO] Loading integration: microsoft365 (integrations.microsoft365_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded microsoft365
+2026-11-02 08:24:27 [    INFO]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: outlook
+2026-11-02 08:24:27 [    INFO] Loading integration: outlook (integrations.outlook_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded outlook
+2026-11-02 08:24:27 [    INFO]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: twilio
+2026-11-02 08:24:27 [    INFO] Loading integration: twilio (integrations.twilio_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded twilio
+2026-11-02 08:24:27 [    INFO]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: notion
+2026-11-02 08:24:27 [    INFO] Loading integration: notion (integrations.notion_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded notion
+2026-11-02 08:24:27 [    INFO]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: mailchimp
+2026-11-02 08:24:27 [    INFO] Loading integration: mailchimp (integrations.mailchimp_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded mailchimp
+2026-11-02 08:24:27 [    INFO]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: zoho_crm
+2026-11-02 08:24:27 [ WARNING] Unknown integration: zoho_crm
+2026-11-02 08:24:27 [ WARNING]   ✗ zoho_crm could not be loaded
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: zoho_projects
+2026-11-02 08:24:27 [ WARNING] Unknown integration: zoho_projects
+2026-11-02 08:24:27 [ WARNING]   ✗ zoho_projects could not be loaded
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: zoho_workdrive
+2026-11-02 08:24:27 [    INFO] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded zoho_workdrive
+2026-11-02 08:24:27 [    INFO]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: salesforce
+2026-11-02 08:24:27 [    INFO] Loading integration: salesforce (integrations.salesforce_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded salesforce
+2026-11-02 08:24:27 [    INFO]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: pipedrive
+2026-11-02 08:24:27 [ WARNING] Unknown integration: pipedrive
+2026-11-02 08:24:27 [ WARNING]   ✗ pipedrive could not be loaded
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: freshsales
+2026-11-02 08:24:27 [ WARNING] Unknown integration: freshsales
+2026-11-02 08:24:27 [ WARNING]   ✗ freshsales could not be loaded
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: asana
+2026-11-02 08:24:27 [    INFO] Loading integration: asana (integrations.asana_routes)
+2026-11-02 08:24:27 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-02 08:24:27 [    INFO] ✓ Loaded asana
+2026-11-02 08:24:27 [    INFO]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: monday
+2026-11-02 08:24:27 [    INFO] Loading integration: monday (integrations.monday_routes)
+2026-11-02 08:24:27 [    INFO] ✓ Loaded monday
+2026-11-02 08:24:27 [    INFO]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+2026-11-02 08:24:27 [    INFO] DEBUG: Processing critical integration: bigcommerce
+2026-11-02 08:24:27 [ WARNING] Unknown integration: bigcommerce
+2026-11-02 08:24:27 [ WARNING]   ✗ bigcommerce could not be loaded
+2026-11-02 08:24:27 [    INFO]   Other integrations will load on-demand.
+2026-11-02 08:24:27 [    INFO] ✓ Agent audit trail mounted at /api/audit
+2026-11-02 08:24:27 [    INFO] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+2026-11-02 08:24:27 [    INFO] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+2026-11-02 08:24:27 [    INFO] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+2026-11-02 08:24:27 [    INFO] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+2026-11-02 08:24:28 [    INFO] ✓ Mini-apps router mounted at /api/mini-apps
+2026-11-02 08:24:28 [    INFO] ✓ Automation Settings mounted at /api/v1/settings/automations
+2026-11-02 08:24:28 [    INFO] ✓ Finance Live API mounted at /api/atom/finance/live
+2026-11-02 08:24:28 [    INFO] ✓ Projects Live API mounted at /api/atom/projects/live
+2026-11-02 08:24:28 [    INFO] ✓ Sales Live API mounted at /api/atom/sales/live
+2026-11-02 08:24:28 [    INFO] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+2026-11-02 08:24:28 [    INFO] Loading Core API Routes...
+2026-11-02 08:24:28 [    INFO] ✓ OAuth Status and Authorization Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Telegram Chat Routes Loaded
+2026-11-02 08:24:28 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-02 08:24:28 [    INFO] ✓ Slack Chat Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+2026-11-02 08:24:28 [    INFO] ✓ Operations Routes Loaded at /api/operations
+2026-11-02 08:24:28 [    INFO] ✓ Tools Routes Loaded at /api/tools
+2026-11-02 08:24:28 [ WARNING] LINE adapter not configured or httpx not available
+2026-11-02 08:24:28 [    INFO] ✓ LINE Routes Loaded at /api/line (auth-gated)
+2026-11-02 08:24:28 [    INFO] ✅ Desktop authentication routes enabled (secure API keys)
+2026-11-02 08:24:28 [    INFO] ✅ Deep linking system enabled
+2026-11-02 08:24:28 [    INFO] ✅ Debug tenant check system enabled
+2026-11-02 08:24:28 [    INFO] ✓ Analytics Engine Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Workflow Import/Export Routes Loaded
+2026-11-02 08:24:28 [ WARNING] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+2026-11-02 08:24:28 [    INFO] ✓ JIT Verification & Admin Governance Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Workspace Context Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Governance Manual Fact Entry Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Queue Monitoring Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Auto-Dev Review Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Canvas Skill Integration Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Business Facts Routes Loaded
+2026-11-02 08:24:28 [ WARNING] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+2026-11-02 08:24:28 [    INFO] ✓ Migration Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Embedding Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Tenant Management Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Federation Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Local Model Routes Loaded (/api/local-models)
+2026-11-02 08:24:28 [ WARNING] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+2026-11-02 08:24:28 [    INFO] ✓ Skill Management & Execution Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Learn Routes Loaded (workflow→skill distillation)
+2026-11-02 08:24:28 [    INFO] ✓ Admin Skill & Evolution Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Workflow UI Endpoints Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Time-Travel Endpoints Loaded
+2026-11-02 08:24:28 [ WARNING] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+2026-11-02 08:24:28 [    INFO] ✓ Messaging OAuth (BYOK) Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+2026-11-02 08:24:28 [    INFO] ✓ Shopify REST routes loaded
+2026-11-02 08:24:28 [    INFO] Configured ingestion for whatsapp
+2026-11-02 08:24:28 [    INFO] Configured ingestion for slack
+2026-11-02 08:24:28 [    INFO] Configured ingestion for email
+2026-11-02 08:24:28 [    INFO] Configured ingestion for telegram
+2026-11-02 08:24:28 [    INFO] Configured ingestion for discord
+2026-11-02 08:24:28 [    INFO] Configured ingestion for sms
+2026-11-02 08:24:28 [    INFO] Configured ingestion for calls
+2026-11-02 08:24:28 [    INFO] Configured ingestion for microsoft_teams
+2026-11-02 08:24:28 [    INFO] Configured ingestion for zoom
+2026-11-02 08:24:28 [    INFO] Configured ingestion for notion
+2026-11-02 08:24:28 [    INFO] Configured ingestion for linear
+2026-11-02 08:24:28 [    INFO] Configured ingestion for outlook
+2026-11-02 08:24:28 [    INFO] Configured ingestion for gmail
+2026-11-02 08:24:28 [    INFO] Configured ingestion for salesforce
+2026-11-02 08:24:28 [    INFO] Configured ingestion for asana
+2026-11-02 08:24:28 [    INFO] Configured ingestion for dropbox
+2026-11-02 08:24:28 [    INFO] Configured ingestion for box
+2026-11-02 08:24:28 [    INFO] Configured ingestion for tableau
+2026-11-02 08:24:28 [    INFO] Configured ingestion for zoho
+2026-11-02 08:24:28 [    INFO] Configured ingestion for xero
+2026-11-02 08:24:28 [    INFO] Configured ingestion for quickbooks
+2026-11-02 08:24:28 [ WARNING] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-02 08:24:28 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-02 08:24:28 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'
+2026-11-02 08:24:28 [    INFO] HubSpot Integration Service initialized
+2026-11-02 08:24:28 [ WARNING] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-02 08:24:28 [    INFO] Loading Slack webhooks...
+2026-11-02 08:24:28 [    INFO] ✓ Slack webhooks loaded
+2026-11-02 08:24:28 [    INFO] Loading Shopify webhooks...
+2026-11-02 08:24:28 [    INFO] ✓ Shopify webhooks loaded
+2026-11-02 08:24:28 [    INFO] Loading Twilio webhooks...
+2026-11-02 08:24:28 [    INFO] ✓ Twilio webhooks loaded
+2026-11-02 08:24:28 [    INFO] ✓ Standardized Webhook Endpoints Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Admin Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ 2FA Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+2026-11-02 08:24:28 [    INFO] ✓ ACP bridge mounted at /acp/ws
+2026-11-02 08:24:28 [    INFO] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+2026-11-02 08:24:28 [    INFO] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+2026-11-02 08:24:28 [    INFO] ✓ SCIM v2 mounted at /api/scim/v2
+2026-11-02 08:24:28 [    INFO] ✓ Observability mounted at /api/observability
+2026-11-02 08:24:28 [    INFO] ✓ BambooHR integration mounted at /api/bamboohr
+2026-11-02 08:24:28 [    INFO] ✓ Twitter/X integration mounted at /api/twitter
+2026-11-02 08:24:28 [    INFO] ✓ MCP Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Availability Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Proposal Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Supervision-Learning Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Integrations Catalog Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Dynamic Options Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Webhook Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Universal Auth Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Meta Compliance Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Consolidated Hardened WhatsApp Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ External Integration Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Connection Management Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Integration Status Routes Loaded
+2026-11-02 08:24:28 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-02 08:24:28 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-02 08:24:28 [    INFO] EscalationManager initialized
+2026-11-02 08:24:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:28 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 08:24:28 [    INFO] EscalationManager initialized
+2026-11-02 08:24:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:28 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 08:24:28 [    INFO] Slack Enhanced Service initialized
+2026-11-02 08:24:28 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 08:24:28 [    INFO] EscalationManager initialized
+2026-11-02 08:24:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:28 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 08:24:28 [    INFO] EscalationManager initialized
+2026-11-02 08:24:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:28 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 08:24:28 [    INFO] Slack Enhanced Service initialized
+2026-11-02 08:24:28 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 08:24:28 [    INFO] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+2026-11-02 08:24:28 [    INFO] ✓ Agent Governance Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+2026-11-02 08:24:28 [    INFO] ✓ Durable Assignment Routes Loaded (/api/assignments)
+2026-11-02 08:24:28 [    INFO] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+2026-11-02 08:24:28 [    INFO] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+2026-11-02 08:24:28 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 08:24:28 [    INFO] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+2026-11-02 08:24:28 [    INFO] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+2026-11-02 08:24:28 [    INFO] ✓ Protection API Routes Loaded (Skill Scanner)
+2026-11-02 08:24:28 [    INFO] ✓ User Preference Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Canvas Terminal Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Browser Automation Routes Loaded
+2026-11-02 08:24:28 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-02 08:24:28 [    INFO] ✓ Device Capabilities Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Canvas Recording Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Autonomy Routes Loaded (action HITL policy)
+2026-11-02 08:24:28 [    INFO] ✓ Meeting Routes Loaded (attendance tracking)
+2026-11-02 08:24:28 [    INFO] ✓ Custom Components Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+2026-11-02 08:24:28 [    INFO] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+2026-11-02 08:24:28 [    INFO] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+2026-11-02 08:24:28 [    INFO] ✓ Installation Profile Routes Loaded (/api/installation)
+2026-11-02 08:24:28 [    INFO] ✓ Playbook Routes Loaded (/api/playbooks)
+2026-11-02 08:24:28 [    INFO] ✓ Goal Run Routes Loaded (/api/goal-runs)
+2026-11-02 08:24:28 [    INFO] ✓ Goal Routes Loaded (/api/goals)
+2026-11-02 08:24:28 [    INFO] ✓ Usage Analytics Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Health Monitoring Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ System Status aggregate mounted at /api/status
+2026-11-02 08:24:28 [    INFO] ✓ Product profile mounted at /api/product/profile
+2026-11-02 08:24:28 [    INFO] ✓ Service registry mounted at /api/services/registry
+2026-11-02 08:24:28 [    INFO] ✓ Ported Features (Canvas/Agent) Processing Complete
+2026-11-02 08:24:28 [    INFO] ✓ Governance Analytics & Remediation Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Memory Routes Loaded
+2026-11-02 08:24:28 [    INFO] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+2026-11-02 08:24:28 [    INFO] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+2026-11-02 08:24:29 [    INFO] ✓ Document & Data Ingestion Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Experience Marketplace Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Test Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ AI Workflows Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Background Agent Routes Loaded
+2026-11-02 08:24:29 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-02 08:24:29 [    INFO] EscalationManager initialized
+2026-11-02 08:24:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 08:24:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 08:24:29 [    INFO] LanceDBHandler initialized. ID: 5303617248. LANCEDB_AVAILABLE: True
+2026-11-02 08:24:29 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-02 08:24:29 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 08:24:29 [ WARNING] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-02 08:24:29 [    INFO] ✓ Integration Data Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Integration & Service Health Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Historical Sync Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Worker Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Component Marketplace Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Agent Coordination Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ OpenClaw Skill Integration Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ OpenClaw Scan Integration Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ OpenClaw Governance Integration Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Skill Composition Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+2026-11-02 08:24:29 [    INFO] ✓ Scheduler Routes Loaded (QStash Ready)
+2026-11-02 08:24:29 [    INFO] ✓ Desktop Bridge Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Satellite Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Mobile Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Invitation Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Support Ticketing Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Bug Triage Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Communication Hub Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Universal Communication Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Admin Retention Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Billing Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Public Pricing Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Social Media Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Audit Log Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Shell Security Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+2026-11-02 08:24:29 [    INFO] ✓ BYOK API Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ LLM Gateway Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ MCP Server Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ SSO API Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Feature Flag Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Sandbox Execution Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ External API Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Entity Type Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Entity Query Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Entity Linking Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Ingestion CRUD Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Entity Skill Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Agent Integration Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Meta Agent Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Admin Integration Catalog Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Domain Marketplace Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Agent-Domain Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Domain-Aware Graduation Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Capability Matrix Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Learning & Adaptation Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Stage Router Management Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Learning Router Management Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Admin Runtime Settings Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ BPE Workspace Admin Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Fleet Router Management Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Decision Plane Management Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Decision Automation Loop Scheduled (mode=off)
+2026-11-02 08:24:29 [    INFO] ✓ Org-Politics Management Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+2026-11-02 08:24:29 [    INFO] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+2026-11-02 08:24:29 [    INFO] ✓ Ontology Draft Automation Routes Loaded
+2026-11-02 08:24:29 [    INFO] ✓ Core Routes Loaded Successfully
+2026-11-02 08:24:29 [    INFO] ✓ Microsoft 365 Routes Loaded (isolated)
+2026-11-02 08:24:29 [    INFO] ✅ Debug endpoints enabled
+
+tests/test_canvas_typed_fields.py::test_three_typed_canvases_derive_server_totals 
+-------------------------------- live log setup --------------------------------
+2026-11-02 08:24:29 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_canvas_typed_fields.py::test_unknown_widget_action_field_and_unit_are_refused PASSED [  1%]
+tests/test_canvas_typed_fields.py::test_missing_required_value_is_targeted_and_zero_is_not_missing PASSED [  2%]
+tests/test_canvas_typed_fields.py::test_forged_total_column_and_unknown_request_field_cannot_change_total PASSED [  3%]
+tests/test_canvas_typed_fields.py::test_stale_revision_manifest_source_and_edit_refuse PASSED [  4%]
+tests/test_canvas_typed_fields.py::test_duplicate_derive_is_stable_and_restart_preserves_receipt PASSED [  4%]
+tests/test_canvas_typed_fields.py::test_cross_workspace_reader_is_refused PASSED [  5%]
+tests/test_canvas_typed_fields.py::test_registered_action_binding_is_declared_not_authority PASSED [  6%]
+tests/test_canvas_typed_fields.py::test_unknown_action_template_reference_is_refused PASSED [  7%]
+tests/test_canvas_typed_fields.py::test_fork_keeps_typed_shape_but_drops_action_bindings PASSED [  8%]
+tests/test_canvas_typed_fields.py::test_unknown_action_field_is_refused PASSED [  9%]
+tests/test_canvas_typed_fields.py::test_derive_route_rejects_forged_total_and_accepts_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 422 Unprocessable Entity"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_canvas_typed_fields.py::test_missing_value_clarification_resumes_the_same_derive 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-448be0d75e58457ba652751eefb6bb2a/answer "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-448be0d75e58457ba652751eefb6bb2a/answer "HTTP/1.1 200 OK"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-448be0d75e58457ba652751eefb6bb2a/answer "HTTP/1.1 200 OK"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-448be0d75e58457ba652751eefb6bb2a/answer "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-448be0d75e58457ba652751eefb6bb2a/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/test_canvas_typed_fields.py::test_typed_string_and_receipt_limits_refuse_without_partial_total PASSED [ 11%]
+tests/test_canvas_typed_fields.py::test_declared_custom_code_runtime_is_refused_without_host_fallback PASSED [ 12%]
+tests/test_canvas_typed_fields.py::test_mixed_currency_and_hidden_currency_are_refused_at_manifest PASSED [ 13%]
+tests/test_canvas_typed_fields.py::test_same_currency_addition_and_rate_multiplication_are_accepted PASSED [ 13%]
+tests/test_canvas_typed_fields.py::test_old_open_clarification_refuses_replacement_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive/derive-90f1972158a74d77939ce931735c5d36/answer "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_canvas_typed_fields.py::test_stale_session_old_answer_cannot_replace_newer_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_lost_update/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_canvas_typed_fields.py::test_writer_after_validation_but_before_cas_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_cas_race/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_canvas_typed_fields.py::test_failed_derive_rolls_back_answer_and_keeps_question_open 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive/derive-7df82329390241c2aa782cdc92da2371/answer "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 17%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_an_edit_with_a_new_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive/derive-29e1236545ab491ba3049343613fbde4/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 18%]
+tests/test_canvas_typed_fields.py::test_open_question_resolves_after_a_fresh_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive/derive-6e0a60e94f744466a96f61d9b4467438/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_manifest_or_edit_change 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive/derive-19415b1b1e1840e2aa5329f8686c0f39/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_canvas_typed_fields.py::test_stale_session_answer_cannot_overwrite_replacement_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:33 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_stale_session/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_canvas_capability_service.py::test_unknown_adapter_cannot_acquire_write_operations PASSED [ 21%]
+tests/test_canvas_capability_service.py::test_client_declared_permissions_cannot_widen_server_authority PASSED [ 22%]
+tests/test_canvas_capability_service.py::test_wrong_workspace_cannot_read_or_mutate PASSED [ 22%]
+tests/test_canvas_capability_service.py::test_stale_revision_cannot_overwrite_newer_state PASSED [ 23%]
+tests/test_canvas_capability_service.py::test_ambiguous_subject_mapping_clarifies PASSED [ 24%]
+tests/test_canvas_capability_service.py::test_changed_teaching_changes_policy_revision PASSED [ 25%]
+tests/test_canvas_capability_service.py::test_unsupported_formula_cannot_return_a_total PASSED [ 26%]
+tests/test_canvas_capability_service.py::test_total_uses_full_dataset_not_display_page PASSED [ 27%]
+tests/test_canvas_capability_service.py::test_repeated_edit_is_an_honest_noop PASSED [ 27%]
+tests/test_canvas_capability_service.py::test_manifest_and_binding_survive_new_session PASSED [ 28%]
+tests/test_canvas_capability_service.py::test_assessment_is_certified_from_authoritative_rows PASSED [ 29%]
+tests/test_canvas_capability_service.py::test_export_is_a_real_xlsx_with_readback PASSED [ 30%]
+tests/test_canvas_capability_service.py::test_edit_requires_an_explicit_revision PASSED [ 31%]
+tests/test_canvas_capability_service.py::test_manifest_revision_is_stable_across_resave PASSED [ 31%]
+tests/test_canvas_capability_service.py::test_client_file_sha_is_not_trusted_for_json_binding PASSED [ 32%]
+tests/test_canvas_capability_service.py::test_export_numeric_measure_is_numeric_and_formula_text_is_not_live PASSED [ 33%]
+tests/test_canvas_capability_service.py::test_fork_copy_drops_private_teaching_and_source_binding PASSED [ 34%]
+tests/test_canvas_capability_service.py::test_two_different_user_canvases_share_supported_operations PASSED [ 35%]
+tests/test_canvas_assessment_routes.py::test_exact_assessment_approval_and_drift_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:35 [    INFO] EscalationManager initialized
+2026-11-02 08:24:35 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-11-02 08:24:35 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-11-02 08:24:35 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:35 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-3691f7c74b8c/approve "HTTP/1.1 200 OK"
+2026-11-02 08:24:35 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 200 OK"
+2026-11-02 08:24:35 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/authorization "HTTP/1.1 200 OK"
+2026-11-02 08:24:35 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:35 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-3691f7c74b8c/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_canvas_assessment_routes.py::test_unsupported_approval_fails_the_qualification_gate PASSED [ 36%]
+tests/test_canvas_assessment_routes.py::test_route_clarification_resumes_and_invalidates_prior_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:36 [    INFO] EscalationManager initialized
+2026-11-02 08:24:36 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-11-02 08:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-11-02 08:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-cfc58d63d4ec/approve "HTTP/1.1 200 OK"
+2026-11-02 08:24:36 [    INFO] EscalationManager initialized
+2026-11-02 08:24:36 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-11-02 08:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_route_1/capability/assess/canvas-canvas_route_1-cfc58d63d4ec/clarify "HTTP/1.1 200 OK"
+2026-11-02 08:24:36 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas_route_1/capability/decisions "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_canvas_assessment_clarification_routes.py::test_clarify_route_consumes_saved_answers_into_generation 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:36 [    INFO] EscalationManager initialized
+2026-11-02 08:24:36 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-11-02 08:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-11-02 08:24:36 [    INFO] EscalationManager initialized
+2026-11-02 08:24:36 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-11-02 08:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess/canvas-canvas_clarify_route_1-19759e8431b7/clarify "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_canvas_assessment_deterministic.py::test_deterministic_rules_certify_without_a_model PASSED [ 39%]
+tests/test_canvas_assessment_deterministic.py::test_deterministic_manifest_requires_review_fallback PASSED [ 40%]
+tests/test_canvas_assessment_deterministic.py::test_deterministic_rule_change_invalidates_the_assessment PASSED [ 40%]
+tests/test_canvas_assessment_concurrency.py::test_two_session_interleaving_refuses_stale_approval PASSED [ 41%]
+tests/test_canvas_assessment_concurrency.py::test_conditional_update_matches_zero_rows_after_concurrent_write PASSED [ 42%]
+tests/test_canvas_assessment_concurrency.py::test_reassessment_between_review_and_approval_requires_fresh_review PASSED [ 43%]
+tests/test_canvas_assessment_concurrency.py::test_stale_session_consumption_is_refused_after_canvas_change PASSED [ 44%]
+tests/test_canvas_assessment_concurrency.py::test_unchanged_approval_survives_reload PASSED [ 45%]
+tests/test_canvas_assessment_concurrency.py::test_two_simultaneous_approvals_produce_one_transition PASSED [ 45%]
+tests/test_canvas_assessment_concurrency.py::test_repeat_approval_is_idempotent PASSED [ 46%]
+tests/test_canvas_connected_binding.py::test_scoped_lookup_refuses_missing_workspace PASSED [ 47%]
+tests/test_canvas_connected_binding.py::test_grant_state_distinguishes_revoked_from_disconnected PASSED [ 48%]
+tests/test_canvas_connected_binding.py::test_connected_bind_preserves_snapshot_and_upstream_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 12bf964cd154)
+PASSED                                                                   [ 49%]
+tests/test_canvas_connected_binding.py::test_connected_refresh_rebinds_and_invalidates_reuse 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 12bf964cd154)
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 2ebacdbd2a78)
+PASSED                                                                   [ 50%]
+tests/test_canvas_connected_binding.py::test_connected_assessment_is_bounded_and_names_unassessed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 12bf964cd154)
+PASSED                                                                   [ 50%]
+tests/test_canvas_connected_binding.py::test_connected_negatives_are_distinguishable 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 12bf964cd154)
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of other.xlsx (hash 12bf964cd154)
+PASSED                                                                   [ 51%]
+tests/test_canvas_connected_binding.py::test_client_paths_hashes_and_rows_are_rejected_by_the_request_model PASSED [ 52%]
+tests/test_canvas_connected_binding.py::test_duplicate_subjects_cannot_be_assessed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:41 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 9d74fcd094ca)
+PASSED                                                                   [ 53%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitNoAgent::test_submit_form_without_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitNoAgent::test_submit_form_without_agent_skips_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_autonomous_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_supervised_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_intern_agent_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] API Error: GOVERNANCE_DENIED - INTERN requires approval for submit_form
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 57%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_student_agent_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] API Error: GOVERNANCE_DENIED - STUDENT cannot submit forms
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 58%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitOriginatingExecution::test_submit_with_originating_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitOriginatingExecution::test_submit_without_agent_id_skips_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitValidation::test_submit_empty_canvas_id_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitValidation::test_submit_empty_form_data_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitValidation::test_submit_malformed_form_data_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 63%]
+tests/test_api_canvas_routes.py::TestCanvasExecutionLifecycle::test_submission_execution_marked_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_api_canvas_routes.py::TestCanvasExecutionLifecycle::test_governance_outcome_recorded 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitErrors::test_database_connection_failure_handled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitErrors::test_websocket_broadcast_failure_doesnt_block_submission 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitErrors::test_execution_completion_failure_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] API Error: GOVERNANCE_DENIED - Agent blocked
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 67%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_with_nonexistent_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_with_agent_id_and_originating_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_with_originating_execution_no_agent_id 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_empty_form_data 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_single_field_form_data 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_nested_form_data 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submission_completion_exception_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:42 [ WARNING] JWT validation skipped: invalid token format
+2026-11-02 08:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_tool_exists PASSED [ 73%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_update_canvas_tool_exists PASSED [ 74%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_tool_exists PASSED [ 75%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_list_canvases_tool_exists PASSED [ 76%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_not_found PASSED [ 77%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_not_found PASSED [ 77%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_read_endpoint_exists PASSED [ 78%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_delete_endpoint_exists PASSED [ 79%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_list_endpoint_exists PASSED [ 80%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_has_canvas_type PASSED [ 81%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_canvas_type_default_none PASSED [ 81%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_has_canvas_snapshots_in_metadata PASSED [ 82%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_captures_canvas_by_session PASSED [ 83%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_skips_trailing_send_event_row PASSED [ 84%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_still_falls_back_for_legacy_canvas PASSED [ 85%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_appends_row_and_makes_canvas_listed_again 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] Restored deleted canvas cv-64f8f0b5
+PASSED                                                                   [ 86%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_carries_pre_delete_content 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] Restored deleted canvas cv-a581c9f2
+PASSED                                                                   [ 86%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_rejects_non_deleted_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-02 08:24:44 [    INFO] Restored deleted canvas cv-cd0c2fe8
+PASSED                                                                   [ 87%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_is_owner_only PASSED [ 88%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_restore_beats_same_second_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] Restored deleted canvas cv-b34750f4
+PASSED                                                                   [ 89%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_delete_beats_same_second_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] Restored deleted canvas cv-7a67d98e
+2026-11-02 08:24:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-02 08:24:44 [    INFO] Deleted canvas cv-7a67d98e
+PASSED                                                                   [ 90%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_creates_independent_copy 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-c3bf9399-915c-48ad-9dfd-55d617507e6c/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_copies_audit_trail_content_not_stale_row 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-3516d513-8f18-4813-941a-20d66f3293da/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_carries_no_audit_history_beyond_fork_row 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-89eeaca1-a724-487d-b5e5-bfd27ff67ae9/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_carries_no_context_artifacts_or_recordings 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-6d724da0-21d2-4079-819d-7d35888a5225/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_does_not_modify_source_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-cbc56782-9f38-41bb-848e-db0baa5d0105/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_sanitizes_component_config 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-32e9aeca-3217-48a8-8601-18f4237499d0/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/cv-cf302f9c-2682-4ba6-b8b6-f299be2abf59/fork "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 95%]
+tests/test_canvas_assignment_integration.py::test_receipt_assignment_executes_one_approved_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:44 [    INFO] runtime identity: source_id=acc22b9283bc revision=acc22b9283bc dirty=False (0 modified, 0 untracked)
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_assignment/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_canvas_assignment_integration.py::test_canvas_edit_during_approval_blocks_action 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_corrected/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_canvas_assignment_integration.py::test_action_revocation_during_approval_blocks_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_revoked/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_canvas_assignment_integration.py::test_teaching_proposal_requires_explicit_promotion 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 409 Conflict"
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-72f959608bf44cfc8391a88c30a7de19/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 08:24:45 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-72f959608bf44cfc8391a88c30a7de19/promote "HTTP/1.1 200 OK"
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-72f959608bf44cfc8391a88c30a7de19/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_canvas_assignment_integration.py::test_forged_self_consistent_receipt_is_not_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 08:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_forged_receipt/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-canvas-successor/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-canvas-successor/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-canvas-successor/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-canvas-successor/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-canvas-successor/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 244 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_api_canvas_routes.py: 24 warnings
+tests/test_canvas_crud.py: 8 warnings
+tests/test_canvas_fork.py: 7 warnings
+  /private/tmp/atom-canvas-successor/backend/tests/conftest.py:489: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_api_canvas_routes.py: 10 warnings
+  /private/tmp/atom-canvas-successor/backend/tests/test_api_canvas_routes.py:181: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_supervised_agent
+  /private/tmp/atom-canvas-successor/backend/tests/test_api_canvas_routes.py:200: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_intern_agent_blocked
+  /private/tmp/atom-canvas-successor/backend/tests/test_api_canvas_routes.py:219: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_api_canvas_routes.py::TestCanvasSubmitWithAgent::test_submit_form_with_student_agent_blocked
+  /private/tmp/atom-canvas-successor/backend/tests/test_api_canvas_routes.py:238: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_api_canvas_routes.py::TestCanvasSubmitOriginatingExecution::test_submit_with_originating_execution
+tests/test_api_canvas_routes.py::TestCanvasSubmitOriginatingExecution::test_submit_without_agent_id_skips_governance
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_with_agent_id_and_originating_execution
+tests/test_api_canvas_routes.py::TestCanvasSubmitEdgeCases::test_submit_with_originating_execution_no_agent_id
+  /private/tmp/atom-canvas-successor/backend/tests/test_api_canvas_routes.py:257: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    started_at=datetime.utcnow()
+
+tests/test_canvas_fork.py::TestCanvasFork::test_fork_copies_audit_trail_content_not_stale_row
+  /private/tmp/atom-canvas-successor/backend/tests/test_canvas_fork.py:300: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow() + timedelta(minutes=5),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 122 passed, 316 warnings in 33.52s ======================

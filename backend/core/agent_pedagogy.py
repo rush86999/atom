@@ -161,6 +161,8 @@ class PedagogicalFramework:
         topic: str,
         positive: bool,
         note: Optional[str] = None,
+        *,
+        commit: bool = True,
     ) -> Dict[str, Any]:
         """Record one exposure (success or mistake) for a topic.
 
@@ -194,7 +196,10 @@ class PedagogicalFramework:
         config["pedagogy"] = pedagogy
         agent.configuration = config
         flag_modified(agent, "configuration")
-        self.db.commit()
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
 
         return {
             "topic": topic,

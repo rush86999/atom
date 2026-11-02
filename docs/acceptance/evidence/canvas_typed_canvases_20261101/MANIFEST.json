@@ -1,0 +1,162 @@
+{
+  "artifacts": {
+    "backend-health.json": "c8e5c802c6524f6aefea983193404372b5f201bd808bdddf7366c2ac32a5251e",
+    "exception-queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+    "exception-queue.png": "3dd8987460738facbea8b7805ff351b414417efcf318413fe1aa9554c4d72485",
+    "frontend-health.json": "5df235aa8b30e54a84b1496136bf5838d71a65b7cda1ba8061dbf9d0eca2374d",
+    "industrial-quote.csv": "7c97d46957efbf355832a1f726ced1992adffec495cf5208cbefcce8b5e1f04f",
+    "industrial-quote.png": "c19ec05dc17257103e006411aded9800ba992f6fbc3fb470082f2be8cff2d7fc",
+    "result.json": "cacdc11809053ebf9ef71c0f31916728131f56b7e987738e6779d525e5ad5aa0",
+    "service-proposal.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+    "service-proposal.png": "998146e0e9592add3438f185b215e413c6542649f762af8c61f151aa9eddb302",
+    "world.json": "4dacae66b564212b485b4271e394e095524c2f2c497d8838a136b64030c1d206"
+  },
+  "browser": {
+    "canvas_urls": {
+      "exception_queue": "http://127.0.0.1:3131/canvas/61f3f829-5812-4b53-acaa-61c54266d555",
+      "industrial_quote": "http://127.0.0.1:3131/canvas/4af5ea08-06c0-49b0-9f51-8a2b59654b38",
+      "service_proposal": "http://127.0.0.1:3131/canvas/2b03b812-db4b-4b8c-9f3a-9ba814e36c81"
+    },
+    "checks": [
+      {
+        "name": "industrial quote created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "industrial quote derives server total 350.00 USD",
+        "ok": true
+      },
+      {
+        "name": "industrial quote exposes table view and derive operation",
+        "ok": true
+      },
+      {
+        "name": "industrial quote fields and revision survive reload",
+        "ok": true
+      },
+      {
+        "name": "service proposal created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives server total 630.00 CAD",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives in CAD through the same panel",
+        "ok": true
+      },
+      {
+        "name": "exception queue created with a targeted missing amount",
+        "ok": true
+      },
+      {
+        "name": "same queue derivation resumes after the answer",
+        "ok": true
+      },
+      {
+        "name": "exception queue counts and groups by status",
+        "ok": true
+      },
+      {
+        "name": "exception queue exposes derive and selection, not a sales quote",
+        "ok": true
+      },
+      {
+        "name": "exception queue history and fields survive reload",
+        "ok": true
+      },
+      {
+        "name": "no browser page errors",
+        "ok": true
+      }
+    ],
+    "checks_passed": 13,
+    "checks_total": 13,
+    "command": "TESTING=0 PYTHONPATH=$PWD/backend /Users/rushiparikh/projects/atom/backend/venv314/bin/python scripts/acceptance/canvas_typed_canvases_local.py --frontend http://127.0.0.1:3131 --password-file <world>/canvas-password.txt --agent-id <agent> --out-dir <evidence>",
+    "expected_totals": {
+      "exception_queue": "170.00 USD / 3 exceptions",
+      "industrial_quote": "350.00 USD",
+      "service_proposal": "630.00 CAD"
+    },
+    "page_errors": []
+  },
+  "candidate": {
+    "base": "9b39c35b7",
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source_head": "5ebe361aa13fadf28bcee9808fd1ddb7c80c0227",
+    "manifest_note": "This manifest commit is docs-only after the executed source; it was not served.",
+    "tree_clean_at_execution": true,
+    "untracked_artifact_note": "The original submission listed frontend-build-id.txt and run.log, but both were ignored by Git. They are omitted from this historical manifest; the repaired bundle tracks equivalent artifacts. No screenshot or result was relabelled.",
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/api/canvas_capability_routes.py",
+    "backend/core/canvas_capability_service.py",
+    "backend/tests/test_canvas_typed_fields.py",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx",
+    "frontend-nextjs/components/canvas/__tests__/CanvasCapabilityDerive.test.tsx",
+    "scripts/acceptance/canvas_typed_canvases_local.py"
+  ],
+  "exclusions": [
+    "isolated local world and production frontend build, not hosted deployment/publication",
+    "no live external provider call, refresh, write or send",
+    "canvas action declarations are validated but not executed; connected effects remain assignment-owned",
+    "derive clarification is canvas-state and reuses the edit operation, not assignment-task resume",
+    "derived expressions are limited to + - * / with declared scale/rounding",
+    "no independent unfamiliar-user utility study",
+    "no universal mini-app/runtime claim from three canvases"
+  ],
+  "runtime": {
+    "backend": {
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-final/atom.db",
+      "dirty": false,
+      "instance_id": "5ebe361aa13f.71559.1793592397",
+      "pid": 71559,
+      "revision": "5ebe361aa13fadf28bcee9808fd1ddb7c80c0227",
+      "source_id": "5ebe361aa13f",
+      "url": "http://127.0.0.1:8091"
+    },
+    "frontend": {
+      "build_id": "8ekSj7KLz89t9mn-dO1A0",
+      "service": "atom-frontend",
+      "status": "healthy",
+      "url": "http://127.0.0.1:3131"
+    },
+    "world": {
+      "backend_port": 8091,
+      "created_at": "2026-11-02T04:06:31.672963+00:00",
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-final/atom.db",
+      "frontend_port": 3131,
+      "last_launched_at": "2026-11-02T04:06:31.672963+00:00",
+      "repo": "/private/tmp/atom-canvas-successor",
+      "schema": "atom-integrated-local-world-1",
+      "secret_file": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-final/.atom-secret",
+      "world": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-final"
+    }
+  },
+  "schema": "atom-canvas-typed-three-1",
+  "source_hashes": {
+    "backend/api/canvas_capability_routes.py": "3d10abc36a2218aede7795c3a7e10191ba853a605fb88297a193336a0cec26ac",
+    "backend/core/canvas_capability_service.py": "f0ebbb88cfa1cf041ad2a5750bc231e6966746d39dbf30b94ef6cdc1c7c3dcda",
+    "backend/tests/test_canvas_typed_fields.py": "3c2913aeace82046bfcf6c2036326ffe0539b4a65e2d3bb6b69ee42d831b224f",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "982b58e0cacf92c8d460edf7e5a3355028299e7a43876ab7b124d680ce3c0c75",
+    "frontend-nextjs/components/canvas/__tests__/CanvasCapabilityDerive.test.tsx": "13580ce227726f8b22116ac781b9339ab80d399d72a2d2d4d99a0b492fcaefce",
+    "scripts/acceptance/canvas_typed_canvases_local.py": "f8e77cba705121d48ec3c942d80ca2d9d770ac7de452fce3a599795dea00269b"
+  },
+  "tests": {
+    "canvas_focused": {
+      "command": "TESTING=1 pytest tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_canvas_assessment_routes.py tests/test_canvas_assessment_clarification_routes.py tests/test_canvas_assessment_deterministic.py tests/test_canvas_assessment_concurrency.py tests/test_canvas_connected_binding.py tests/test_api_canvas_routes.py tests/test_canvas_crud.py tests/test_canvas_fork.py -q",
+      "result": "106 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand",
+      "result": "6 passed"
+    },
+    "typed_canvas": {
+      "command": "TESTING=1 pytest tests/test_canvas_typed_fields.py -q",
+      "result": "14 passed"
+    }
+  }
+}

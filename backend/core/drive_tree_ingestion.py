@@ -395,6 +395,20 @@ class IntegrationMemoryIndexer:
             logger.warning(f"structure walk failed for {integration_id}: {walk_err}")
             return {"success": False, "error": f"Listing failed: {walk_err}"}
 
+        return await self.index_rows(integration_id, rows, max_rows=max_rows)
+
+    async def index_rows(
+        self,
+        integration_id: str,
+        rows: List[Dict[str, Any]],
+        max_rows: int = MAX_INDEX_ROWS,
+    ) -> Dict[str, Any]:
+        """Write normalized structure rows into the shared documents store.
+
+        Used by both the one-shot ``index_structure`` adapter path and the
+        durable paged drive sync, so a page written after a restart has the
+        same identity, provenance and idempotency as the first page.
+        """
         handler = self._handler()
         if handler is None:
             return {"success": False, "error": "Memory handler unavailable"}
@@ -454,6 +468,64 @@ class IntegrationMemoryIndexer:
             "counts": counts,
             "truncated": len(rows) > max_rows,
             "ingested_at": now_iso,
+        }
+
+    async def tombstone_rows(
+        self,
+        integration_id: str,
+        external_ids: List[str],
+        reason: str = "removed_from_provider",
+    ) -> Dict[str, Any]:
+        """Remove provider-deleted rows from retrieval while keeping a marker.
+
+        The original provider object remains the audit record.  The search
+        index row is replaced with ``freshness_status='removed'`` so existing
+        retrieval filters (which require ``fresh``) stop serving it.
+        """
+        handler = self._handler()
+        if handler is None:
+            return {"success": False, "error": "Memory handler unavailable"}
+        marked = 0
+        errors = []
+        for external_id in external_ids or []:
+            identity = str(external_id or "").strip()
+            if not identity:
+                continue
+            doc_id = f"idx_{integration_id}_{identity}"[:200]
+            try:
+                handler.delete_documents_by_id("documents", doc_id)
+            except Exception as exc:  # noqa: BLE001 - old row may not exist
+                logger.debug("tombstone delete skipped for %s: %s", doc_id, exc)
+            try:
+                success = await _write_document(
+                    handler,
+                    table_name="documents",
+                    text=(f"[{integration_id}:removed] {identity} — "
+                          "the provider no longer lists this item"),
+                    source=f"{integration_id}-index:removed:{identity}",
+                    metadata={
+                        "integration_id": integration_id,
+                        "external_id": identity,
+                        "source_type": "integration_index_tombstone",
+                        "removal_reason": reason,
+                        "pg_document_id": doc_id,
+                    },
+                    user_id="system",
+                    doc_id=doc_id,
+                    extra_columns={
+                        "freshness_status": "removed",
+                        "source_modified_at": datetime.now(timezone.utc),
+                        "source_url": f"{integration_id}:removed:{identity}",
+                    },
+                )
+                if success:
+                    marked += 1
+            except Exception as exc:  # noqa: BLE001
+                errors.append({"external_id": identity, "error": str(exc)[:200]})
+        return {
+            "success": not errors,
+            "tombstoned": marked,
+            "errors": errors,
         }
 
     async def list_structure(

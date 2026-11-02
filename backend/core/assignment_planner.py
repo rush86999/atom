@@ -17,6 +17,8 @@ import os
 from typing import Any, Dict, List, Optional, Sequence
 
 from core.assignment_executor import default_adapter_registry
+import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
+import core.quote_rows  # noqa: F401,E402  (registers quote.lines_from_rows)
 from core.assignment_resources import resource_binding
 from core.assignment_plan import (
     ASSIGNMENT_SCHEMA_VERSION,
@@ -44,6 +46,69 @@ _SOURCE_ADAPTERS = {
     "workbook": "workbook.read",
     "document": "document.read",
 }
+
+_MUTATING_ACTION_EFFECTS = {
+    "write", "create", "update", "delete", "send", "execute",
+    "graph_updated", "record_created",
+}
+
+
+def _registered_action_effect(action: Any) -> str:
+    effects = [str(item.get("effect") or "")
+               for item in (getattr(action, "effects", None) or [])
+               if isinstance(item, dict)]
+    return "external" if any(
+        effect.lower() in _MUTATING_ACTION_EFFECTS for effect in effects
+    ) else ("read_only" if effects else "external")
+
+
+def _action_steps(
+    actions: Sequence[Dict[str, Any]],
+    *,
+    depends_on: Sequence[str],
+) -> List[Dict[str, Any]]:
+    """Create registered-action steps without inventing an action name."""
+    from core.action_registry import action_registry
+
+    steps: List[Dict[str, Any]] = []
+    for index, raw in enumerate(actions or []):
+        spec = dict(raw or {})
+        name = str(spec.get("action") or "").strip()
+        action = action_registry.get_action(name)
+        if action is None:
+            raise AssignmentPlanError(
+                f"registered action '{name or '(missing)'}' is not available")
+        effect = _registered_action_effect(action)
+        step_id = str(spec.get("step_id") or f"action-{index + 1}")
+        arguments = spec.get("arguments")
+        if arguments is None:
+            arguments = {}
+        if not isinstance(arguments, dict):
+            raise AssignmentPlanError(
+                f"registered action '{name}' arguments must be a mapping")
+        step = new_step(
+            step_id=step_id,
+            title=str(spec.get("title") or f"Run {name}"),
+            operation_type="outbound" if effect == "external" else "retrieve",
+            adapter="action.registry",
+            depends_on=list(depends_on),
+            inputs={
+                "action": name,
+                "arguments": arguments,
+                "target": dict(spec.get("target") or {}),
+                "permitted_fields": list(spec.get("permitted_fields") or []),
+                "expected_version": spec.get("expected_version"),
+            },
+            effect=effect,
+            approval_required=bool(
+                spec.get("approval_required", effect == "external")),
+            approval_purpose=str(
+                spec.get("approval_purpose")
+                or f"Apply the registered action '{name}'"),
+        )
+        steps.append(step)
+    return steps
+
 
 
 class AssignmentPlanError(TaskLifecycleError):
@@ -286,6 +351,7 @@ def plan_assignment(
     deliverables: Optional[Sequence[Dict[str, Any]]] = None,
     calculation: Optional[Dict[str, Any]] = None,
     outbound: Optional[Dict[str, Any]] = None,
+    actions: Optional[Sequence[Dict[str, Any]]] = None,
     wait: Optional[Dict[str, Any]] = None,
     teaching_snapshot: Optional[Dict[str, Any]] = None,
     authorized_actions: Optional[Sequence[str]] = None,
@@ -296,6 +362,7 @@ def plan_assignment(
     transport_adapter: Optional[str] = None,
     provenance: Optional[Dict[str, Any]] = None,
     proposed_steps: Optional[Sequence[Dict[str, Any]]] = None,
+    evidence_reads: Optional[Sequence[Dict[str, Any]]] = None,
     standing_authority: Optional[Dict[str, Any]] = None,
     budget: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
@@ -305,10 +372,17 @@ def plan_assignment(
     aggregate: Optional[Dict[str, Any]] = None
     if calculation and isinstance(calculation.get("aggregate"), dict):
         aggregate = dict(calculation["aggregate"])
-        if calculation.get("expression"):
+        if calculation.get("expression") or calculation.get("line_items"):
             raise AssignmentPlanError(
-                "a calculation cannot be both an expression and a connected "
-                "aggregate")
+                "a calculation cannot be both an expression/line-item "
+                "calculation and a connected aggregate")
+    line_items = (
+        list(calculation.get("line_items") or [])
+        if calculation and isinstance(calculation.get("line_items"), list)
+        else [])
+    if line_items and calculation.get("expression"):
+        raise AssignmentPlanError(
+            "a calculation cannot be both an expression and line items")
     aggregate_index = 0
     if aggregate is not None:
         aggregate_index = max(0, int(calculation.get("source_index") or 0))
@@ -329,6 +403,25 @@ def plan_assignment(
         for index, source in enumerate(sources or [])
     ]
     source_ids = [step["step_id"] for step in source_steps]
+    read_steps: List[Dict[str, Any]] = []
+    read_ids: List[str] = []
+    for index, raw in enumerate(evidence_reads or []):
+        item = dict(raw)
+        step_id = str(item.get("step_id") or f"evidence-{index + 1}")
+        adapter = str(item.get("adapter") or "action.registry")
+        inputs = item.get("inputs")
+        if not isinstance(inputs, dict):
+            inputs = {
+                "action": item.get("action"),
+                "arguments": dict(item.get("arguments") or {}),
+            }
+        read_steps.append(new_step(
+            step_id=step_id,
+            title=str(item.get("title") or f"Read evidence {index + 1}"),
+            operation_type="retrieve", adapter=adapter,
+            inputs=inputs, effect="read_only",
+        ))
+        read_ids.append(step_id)
     wait_step: Optional[str] = None
     wait_steps: List[Dict[str, Any]] = []
     if wait:
@@ -355,6 +448,53 @@ def plan_assignment(
     calc_steps: List[Dict[str, Any]] = []
     if aggregate is not None:
         calc_step = source_ids[aggregate_index]
+    elif line_items:
+        calc_step = "calculate"
+        from core.assignment_quote import (
+            QuoteInputError,
+            validate_discount_rules,
+        )
+        selected_rules = (
+            calculation.get("discount_rules")
+            or (teaching.get("output_requirements") or {}).get(
+                "line_discount_rules")
+            or [])
+        try:
+            validate_discount_rules(selected_rules)
+        except QuoteInputError as exc:
+            raise AssignmentPlanError(str(exc)) from exc
+        source_evidence = [{
+            "resource_id": source.get("resource_id"),
+            "dataset_name": source.get("dataset_name"),
+            "source": source.get("source"),
+            "external_id": source.get("external_id"),
+            "source_version": source.get("source_version"),
+            "sheet": source.get("sheet"),
+            "coverage": dict(source.get("coverage") or {}),
+        } for source in (sources or []) if isinstance(source, dict)]
+        calc_steps = [new_step(
+            step_id=calc_step,
+            title="Calculate the requested line items",
+            operation_type="calculate",
+            adapter="quote.calculate",
+            depends_on=(
+                source_ids + read_ids
+                + ([wait_step] if wait_step else [])),
+            inputs={
+                "line_items": line_items,
+                "currency": calculation.get("currency"),
+                "freight": calculation.get("freight"),
+                "tax": calculation.get("tax"),
+                "discount_rules": selected_rules,
+                "as_of": calculation.get("as_of") or "",
+                "rounding": calculation.get("rounding") or "half_up",
+                "scale": int(calculation.get("scale") or 2),
+                "rounding_authority": calculation.get(
+                    "rounding_authority") or "currency_minor_unit",
+                "source_evidence": source_evidence,
+            },
+            effect="local",
+        )]
     elif calculation and calculation.get("expression"):
         calc_step = "calculate"
         calc_steps = [new_step(
@@ -372,22 +512,26 @@ def plan_assignment(
             },
             effect="local",
         )]
-    if calculation and not calculation.get("expression") and aggregate is None:
+    if (calculation and not calculation.get("expression")
+            and not line_items and aggregate is None):
         raise AssignmentPlanError(
-            "a calculation requires an explicit expression or a validated "
-            "aggregate; a method gap cannot be invented")
+            "a calculation requires an explicit expression, line items or a "
+            "validated aggregate; a method gap cannot be invented")
 
     deliverable_steps: List[Dict[str, Any]] = []
     deliverable_records: List[Dict[str, Any]] = []
-    base_deps = source_ids + ([wait_step] if wait_step else []) + (
-        [calc_step] if calc_step else [])
-    for index, raw in enumerate(deliverables or []):
+    base_deps = (source_ids + read_ids
+                 + ([wait_step] if wait_step else [])
+                 + ([calc_step] if calc_step else []))
+
+    def _build_deliverable(index: int, raw: Dict[str, Any],
+                           depends_on: Sequence[str]) -> None:
         deliverable = dict(raw)
         kind = str(deliverable.get("kind") or "").strip().lower()
         steps = _deliverable_step(
             deliverable,
             index=index + 1,
-            depends_on=base_deps,
+            depends_on=list(depends_on),
             teaching=teaching,
             objective=objective,
             calculation_step=calc_step,
@@ -405,6 +549,23 @@ def plan_assignment(
             step_id=steps[0]["step_id"],
         ))
 
+    # Documents/spreadsheets are prepared before registered commercial
+    # actions; the email draft then follows the accepted update.
+    for index, raw in enumerate(deliverables or []):
+        if str((raw or {}).get("kind") or "").strip().lower() == "email_draft":
+            continue
+        _build_deliverable(index, raw, base_deps)
+    document_step_ids = [step["step_id"] for step in deliverable_steps]
+    action_steps = _action_steps(
+        actions or [], depends_on=list(base_deps) + document_step_ids)
+    action_step_ids = [step["step_id"] for step in action_steps]
+    for index, raw in enumerate(deliverables or []):
+        if str((raw or {}).get("kind") or "").strip().lower() != "email_draft":
+            continue
+        _build_deliverable(
+            index, raw,
+            list(base_deps) + action_step_ids)
+
     send_steps: List[Dict[str, Any]] = []
     if outbound:
         outbound_payload = dict(outbound)
@@ -413,7 +574,7 @@ def plan_assignment(
         send_steps = [_send_step(
             outbound_payload, step_id="send",
             depends_on=list(base_deps) + [
-                step["step_id"] for step in deliverable_steps],
+                step["step_id"] for step in deliverable_steps] + action_step_ids,
             draft_step=next((
                 step["step_id"] for step in deliverable_steps
                 if step["adapter"] == "email.draft"), None),
@@ -436,9 +597,11 @@ def plan_assignment(
         wait_steps = []
         calc_steps = []
         deliverable_steps = []
+        action_steps = []
         send_steps = []
     else:
-        steps = source_steps + wait_steps + calc_steps + deliverable_steps + send_steps
+        steps = (read_steps + source_steps + wait_steps + calc_steps
+                 + deliverable_steps + action_steps + send_steps)
 
     if standing_authority and "outbound" in (
             standing_authority.get("actions") or []):
@@ -586,7 +749,9 @@ def validate_proposed_plan(
             raise AssignmentPlanError(
                 f"external step {step['step_id']} requires approval")
         if step.get("operation_type") == "outbound" and step.get(
-                "effect") == "external" and not (
+                "effect") == "external" and step.get(
+                "adapter") in ("email.send_outlook",
+                               "assignment.controlled_outbox") and not (
                 (step.get("inputs") or {}).get("to")):
             raise AssignmentPlanError(
                 f"outbound step {step['step_id']} requires a recipient")

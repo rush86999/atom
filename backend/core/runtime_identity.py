@@ -61,9 +61,12 @@ class RuntimeIdentity:
     dirty_paths: List[str] = field(default_factory=list)
     untracked_paths: List[str] = field(default_factory=list)
     captured_at: str = ""
+    process_started_at: str = ""
     started_monotonic: float = 0.0
     pid: int = 0
     port: Optional[int] = None
+    repo_path: str = ""
+    backend_path: str = ""
     error: Optional[str] = None
 
     def as_dict(self) -> Dict[str, Any]:
@@ -76,8 +79,11 @@ class RuntimeIdentity:
             "dirty_paths": self.dirty_paths[:40],
             "untracked_paths": self.untracked_paths[:40],
             "captured_at": self.captured_at,
+            "process_started_at": self.process_started_at,
             "pid": self.pid,
             "port": self.port,
+            "repo_path": self.repo_path,
+            "backend_path": self.backend_path,
             "error": self.error,
         }
 
@@ -129,6 +135,9 @@ def capture_runtime_identity(cwd: Optional[str] = None) -> RuntimeIdentity:
     repo_dir = os.path.dirname(backend_dir)
     started = time.monotonic()
     now = datetime.now(timezone.utc).isoformat()
+    process_started_at = datetime.fromtimestamp(
+        time.time() - time.monotonic() + started,
+        timezone.utc).isoformat()
     port: Optional[int] = None
     try:
         import sys
@@ -179,9 +188,12 @@ def capture_runtime_identity(cwd: Optional[str] = None) -> RuntimeIdentity:
         dirty_paths=sorted(dirty_paths),
         untracked_paths=sorted(untracked_paths),
         captured_at=now,
+        process_started_at=process_started_at,
         started_monotonic=started,
         pid=os.getpid(),
         port=port,
+        repo_path=repo_dir,
+        backend_path=backend_dir,
         error=error,
     )
     logger.info(

@@ -7,6 +7,9 @@ grant an operation.
 from __future__ import annotations
 
 import logging
+import os
+import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, File, HTTPException, UploadFile
@@ -29,9 +32,15 @@ from core.canvas_capability_service import (
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
+    answer_derive_clarification,
+    begin_derive_clarification,
     calculate_operation,
+    promote_canvas_teaching,
+    propose_canvas_teaching,
+    authorize_canvas_employee,
     current_revision,
     decisions_operation,
+    derive_operation,
     edit_operation,
     effective_operations,
     export_operation,
@@ -82,6 +91,81 @@ class BindConnectedRequest(BaseModel):
 class AskRequest(BaseModel):
     ask: str = ""
     max_subjects: Optional[int] = None
+
+
+class DeriveRequest(BaseModel):
+    """No values and no total: derive reads the authoritative canvas snapshot.
+
+    ``extra='forbid'`` means a browser-supplied total, hidden field or
+    read-only widget value is rejected before the service is called.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+
+
+class DeriveAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    row: int
+    field_id: str
+    value: Any
+
+
+class DeriveAnswerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int
+    answers: List[DeriveAnswer]
+
+
+class CanvasAssignRequest(BaseModel):
+    """Start an assignment from the current server-issued receipt.
+
+    The body carries revisions and optional declared-action IDs only. Rows,
+    totals and action payloads are rebuilt from the authoritative canvas.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    objective: str = ""
+    agent_id: Optional[str] = None
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+    action_ids: List[str] = []
+    conversation_id: Optional[str] = None
+    deliverable_kind: Optional[str] = None
+    deliverable_title: str = ""
+
+
+class TeachingProposalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lesson: str
+    topic: str = "canvas"
+    applies_to: List[str] = []
+    format_spec: Dict[str, Any] = {}
+    conditions: Dict[str, Any] = {}
+    context: Dict[str, Any] = {}
+    agent_id: Optional[str] = None
+    receipt_digest: str = ""
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+
+
+class TeachingPromoteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    approved: bool
+    reason: str = ""
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
 
 
 class EditRequest(BaseModel):
@@ -265,6 +349,241 @@ async def capability_calculate(
     try:
         canvas = _canvas(db, canvas_id, current_user)
         return calculate_operation(db, canvas, current_user, request.ask)
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/derive")
+async def capability_derive(
+    canvas_id: str,
+    request: DeriveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        try:
+            return derive_operation(
+                db, canvas, current_user,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+        except CapabilityError as exc:
+            if exc.code != "missing_required_value":
+                raise
+            clarification = begin_derive_clarification(
+                db, canvas, current_user, exc,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+            return {
+                "success": True,
+                "operation": "derive",
+                "status": "clarification",
+                "clarification": clarification,
+                "revision": current_revision(canvas),
+            }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/derive/{clarification_id}/answer")
+async def capability_derive_answer(
+    canvas_id: str,
+    clarification_id: str,
+    request: DeriveAnswerRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return answer_derive_clarification(
+            db, canvas, current_user, clarification_id,
+            [item.model_dump() for item in request.answers],
+            expected_revision=request.expected_revision,
+            raise_on_refusal=True,
+        )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/assign")
+async def capability_assign(
+    canvas_id: str,
+    request: CanvasAssignRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        manifest = get_manifest(canvas)
+        if not manifest:
+            raise CapabilityError(
+                "not_capability_canvas",
+                "This canvas has no capability manifest.")
+        try:
+            receipt = derive_operation(
+                db, canvas, current_user,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+        except CapabilityError as exc:
+            if exc.code == "missing_required_value":
+                return _error(exc)
+            raise
+        declared = {
+            str(item.get("id") or ""): dict(item)
+            for item in (manifest.get("actions") or [])
+            if isinstance(item, dict)
+        }
+        action_ids = list(request.action_ids or declared.keys())
+        unknown = sorted(set(action_ids) - set(declared))
+        if unknown:
+            raise CapabilityError(
+                "unsupported_action",
+                "The requested action(s) are not declared on this canvas: "
+                + ", ".join(unknown),
+                409,
+            )
+        objective = str(request.objective or "").strip() or (
+            f"Complete the canvas {canvas.name or canvas.id}")
+        employee_id = str(
+            request.agent_id
+            or (manifest.get("teaching_binding") or {}).get("agent_id")
+            or "").strip()
+        if employee_id:
+            authorize_canvas_employee(db, current_user, employee_id)
+        from core.canvas_assignment import build_canvas_assignment_plan
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        from core.assignment_executor import AssignmentExecutor
+
+        workspace_id = str(current_user.workspace_id or "default")
+        tenant_id = str(current_user.tenant_id or "default")
+        deliverable = None
+        teaching_snapshot = None
+        if request.deliverable_kind:
+            kind = str(request.deliverable_kind).strip().lower()
+            if kind not in {"document", "spreadsheet", "presentation"}:
+                raise CapabilityError(
+                    "unsupported_deliverable",
+                    "The canvas artifact kind must be document, spreadsheet "
+                    "or presentation.",
+                    409,
+                )
+            from core.artifact_teaching import resolve_artifact_teaching
+            from core.assignment_plan import new_teaching_snapshot
+            resolved = resolve_artifact_teaching(
+                db, employee_id, kind,
+                task_context={"canvas_id": canvas.id},
+                workspace_id=workspace_id,
+            )
+            teaching_snapshot = new_teaching_snapshot(
+                revision=str(resolved.get("revision") or ""),
+                effective_lesson_ids=[
+                    {"id": item.get("id"),
+                     "revision": item.get("revision") or 1}
+                    for item in (resolved.get("sources") or [])
+                    if isinstance(item, dict) and item.get("id")
+                ],
+                matched_context={"canvas_id": canvas.id},
+                output_requirements=dict(resolved.get("spec") or {}),
+                source_versions={
+                    "canvas": request.source_version,
+                    "manifest": request.manifest_revision,
+                },
+            )
+            extension = {
+                "document": ".docx", "spreadsheet": ".xlsx",
+                "presentation": ".pptx",
+            }[kind]
+            output_root = Path(
+                os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+                or os.getenv("ATOM_OFFICE_DIR")
+                or os.path.join("data", "office", "assignments"))
+            output_root.mkdir(parents=True, exist_ok=True)
+            artifact_path = output_root / (
+                f"canvas-{canvas.id}-{uuid.uuid4().hex[:8]}{extension}")
+            deliverable = {
+                "kind": kind,
+                "path": str(artifact_path),
+                "title": str(
+                    request.deliverable_title or objective),
+            }
+        plan = build_canvas_assignment_plan(
+            canvas, manifest, receipt,
+            objective=objective, employee_id=employee_id,
+            workspace_id=workspace_id, tenant_id=tenant_id,
+            action_ids=action_ids,
+            requester_id=str(current_user.id or ""),
+            deliverable=deliverable,
+            teaching_snapshot=teaching_snapshot,
+        )
+        runs = GoalRunService(
+            workspace_id=workspace_id, tenant_id=tenant_id)
+        goals = GoalService(
+            workspace_id=workspace_id, tenant_id=tenant_id)
+        executor = AssignmentExecutor(TaskLifecycle(runs, goals))
+        conversation_id = str(
+            request.conversation_id or f"canvas-{canvas.id}")
+        created = executor.create_assignment(
+            conversation_id, objective, assignment=plan)
+        started = await executor.execute(created["run_id"])
+        return {
+            "success": True,
+            "run_id": created["run_id"],
+            "assignment": started.get("assignment") or {},
+            "receipt_digest": receipt["input_receipt"]["digest"],
+            "action_ids": action_ids,
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/teaching/propose")
+async def capability_teaching_propose(
+    canvas_id: str,
+    request: TeachingProposalRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return {
+            "success": True,
+            "proposal": propose_canvas_teaching(
+                db, canvas, current_user, request.model_dump(),
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            ),
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/teaching/{proposal_id}/promote")
+async def capability_teaching_promote(
+    canvas_id: str,
+    proposal_id: str,
+    request: TeachingPromoteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return promote_canvas_teaching(
+            db, canvas, current_user, proposal_id,
+            approved=request.approved,
+            expected_revision=request.expected_revision,
+            manifest_revision_value=request.manifest_revision,
+            source_version=request.source_version,
+            reason=request.reason,
+        )
     except CapabilityError as exc:
         return _error(exc)
 

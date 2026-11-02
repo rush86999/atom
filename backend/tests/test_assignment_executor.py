@@ -7,6 +7,7 @@ schemas and permissions differ. All storage is a scratch sqlite database.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import os
 import uuid
@@ -30,6 +31,7 @@ from core.assignment_executor import (
     WaitingForExternal,
     default_adapter_registry,
 )
+import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
 from core.assignment_plan import (
     new_assignment,
     new_deliverable,
@@ -2343,6 +2345,10 @@ def _force_budget_failure(
             budget["paused_seconds"] = paused
         budget.pop("active_wait", None)
         budget.pop("waiting_since", None)
+        # These tests construct pre-idle-ledger budgets on purpose.
+        budget.pop("idle_ledger_schema", None)
+        budget.pop("idle_open", None)
+        budget.pop("idle_intervals", None)
         if schema:
             budget["wait_credits_schema"] = 1
             budget.setdefault("wait_credits", {})
@@ -2439,6 +2445,11 @@ def test_each_new_wait_interval_is_credited_once(env):
     budget["wait_credits_schema"] = 1
     budget["wait_credits"] = {}
     budget["paused_seconds"] = 0.0
+    # Direct legacy credit semantics; executor-owned budgets use the idle
+    # interval ledger instead.
+    budget.pop("idle_ledger_schema", None)
+    budget.pop("idle_open", None)
+    budget.pop("idle_intervals", None)
     start = datetime.now(timezone.utc)
     first_start = (start - timedelta(seconds=200)).isoformat()
     first_end = (start - timedelta(seconds=100)).isoformat()
@@ -2455,6 +2466,299 @@ def test_each_new_wait_interval_is_credited_once(env):
         ended_at=second_end) is True
     assert 149.0 <= budget["paused_seconds"] <= 151.0
     assert set(budget["wait_credits"]) == {"wait-a", "wait-b"}
+
+
+def test_independent_ready_branch_runs_while_first_branch_waits(env):
+    """A waiting supplier branch must not stop an independent ready branch.
+
+    The executor used to return as soon as it saw ANY waiting step, even
+    when a different branch had all dependencies satisfied. Supplier B's
+    work is independent of Supplier A's external reply and must run in the
+    same pass.
+    """
+    suffix = uuid.uuid4().hex[:8]
+    waiting_adapter = f"test.waiting_supplier.{suffix}"
+    ready_adapter = f"test.ready_supplier.{suffix}"
+    calls = {"ready": 0}
+
+    async def supplier_a(inputs, context):
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "supplier A",
+            "correlation_id": f"corr-a-{suffix}",
+            "resume_on": "response",
+            "detail": "supplier A has not replied",
+        })
+
+    async def supplier_b(inputs, context):
+        calls["ready"] += 1
+        return {"status": "applied", "summary": "supplier B priced"}
+
+    env["registry"].register(waiting_adapter, supplier_a)
+    env["registry"].register(ready_adapter, supplier_b)
+    steps = [
+        new_step(
+            step_id="supplier_a", title="Wait for supplier A",
+            operation_type="retrieve", adapter=waiting_adapter,
+            effect="read_only"),
+        new_step(
+            step_id="supplier_b", title="Read supplier B",
+            operation_type="retrieve", adapter=ready_adapter,
+            effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Independent supplier branches", steps=steps,
+        teaching=_teaching())
+    _run(env["executor"].execute(run_id))
+
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls["ready"] == 1
+    assert step_by_id(assignment, "supplier_b")["status"] == "applied"
+    assert step_by_id(assignment, "supplier_a")["status"] == "waiting"
+    assert assignment["status"] == "waiting"
+
+    # The completed independent branch is durable: another execute pass does
+    # not repeat its work and still reports the remaining wait.
+    _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls["ready"] == 1
+    assert step_by_id(assignment, "supplier_a")["status"] == "waiting"
+
+
+def test_idle_budget_unions_overlapping_waits_across_restart(env):
+    """The 40/40/10/10 timeline credits 50s working and 50s paused.
+
+    Work 0-40, all branches blocked 40-80, work 80-90, all branches blocked
+    90-100. Two overlapping supplier waits at 90 must not be summed. The
+    budget is read after a real executor replacement (restart) and after
+    concurrent responses.
+    """
+    base = 1_700_000_000.0
+    clock = [base]
+    suffix = uuid.uuid4().hex[:8]
+    calls = {"work0": 0, "resume": 0}
+
+    async def work_zero_to_forty(inputs, context):
+        calls["work0"] += 1
+        clock[0] = base + 40
+        return {"status": "applied", "summary": "prepared"}
+
+    async def wait_supplier_a(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier A reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier A", "correlation_id": f"corr-a-{suffix}",
+            "resume_on": "response", "detail": "supplier A reply"})
+
+    async def work_eighty_to_ninety(inputs, context):
+        calls["resume"] += 1
+        clock[0] = base + 90
+        return {"status": "applied", "summary": "continued"}
+
+    async def wait_supplier_b(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier B reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier B", "correlation_id": f"corr-b-{suffix}",
+            "resume_on": "response", "detail": "supplier B reply"})
+
+    async def wait_supplier_c(inputs, context):
+        if (context.get("step") or {}).get("external_response"):
+            return {"status": "applied", "summary": "supplier C reply used"}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier C", "correlation_id": f"corr-c-{suffix}",
+            "resume_on": "response", "detail": "supplier C reply"})
+
+    for name, handler in (
+            (f"test.clock.work0.{suffix}", work_zero_to_forty),
+            (f"test.clock.wait_a.{suffix}", wait_supplier_a),
+            (f"test.clock.resume.{suffix}", work_eighty_to_ninety),
+            (f"test.clock.wait_b.{suffix}", wait_supplier_b),
+            (f"test.clock.wait_c.{suffix}", wait_supplier_c)):
+        env["registry"].register(name, handler)
+
+    def step(step_id, adapter, depends_on=None):
+        return new_step(
+            step_id=step_id, title=step_id, operation_type="retrieve",
+            adapter=adapter, effect="read_only",
+            depends_on=depends_on or [])
+
+    steps = [
+        step("work0", f"test.clock.work0.{suffix}"),
+        step("wait_a", f"test.clock.wait_a.{suffix}", ["work0"]),
+        step("resume", f"test.clock.resume.{suffix}", ["wait_a"]),
+        step("wait_b", f"test.clock.wait_b.{suffix}", ["resume"]),
+        step("wait_c", f"test.clock.wait_c.{suffix}", ["resume"]),
+    ]
+    run_id, _ = _create(
+        env, objective="Idle budget timeline", steps=steps,
+        teaching=_teaching(),
+        budget={"max_steps": 40, "max_attempts_per_step": 3,
+                "max_wall_seconds": 900})
+
+    def set_started_at(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        budget["started_at"] = datetime.fromtimestamp(
+            base, tz=timezone.utc).isoformat()
+        assignment["budget"] = budget
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, set_started_at, rationale="test: fixed clock origin")
+
+    executor = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    _run(executor.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == {"work0": 1, "resume": 0}
+    assert assignment["budget"]["paused_seconds"] == 0.0
+    assert step_by_id(assignment, "wait_a")["status"] == "waiting"
+    assert assignment["budget"].get("idle_open")
+
+    # 40-80: nobody can progress; the reply arrives at 80.
+    clock[0] = base + 80
+    assert executor.record_external_response(
+        run_id, f"corr-a-{suffix}", response="supplier A replied",
+        source="email")["status"] == "resumed"
+    _run(executor.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == {"work0": 1, "resume": 1}
+    assert 39.9 <= assignment["budget"]["paused_seconds"] <= 40.1
+    assert step_by_id(assignment, "resume")["status"] == "applied"
+
+    # 90-100: both branch waits overlap. Restart the executor first so the
+    # open interval is recovered from durable state rather than memory.
+    assert step_by_id(assignment, "wait_b")["status"] == "waiting"
+    assert step_by_id(assignment, "wait_c")["status"] == "waiting"
+    restarted = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    clock[0] = base + 100
+    _run(restarted.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert 49.9 <= budget["paused_seconds"] <= 50.1
+    assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
+    status = restarted.status(run_id)
+    assert 49.9 <= status["assignment"]["budget"]["working_seconds"] <= 50.1
+    assert 49.9 <= status["assignment"]["budget"]["paused_seconds"] <= 50.1
+    assert status["assignment"]["progress"]["waiting_steps"] == 2
+
+    # Concurrent replies for the two outstanding waits must resolve once
+    # each without adding another idle interval.
+    def reply(correlation):
+        return restarted.record_external_response(
+            run_id, correlation, response=f"{correlation} replied",
+            source="email")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(
+            reply, [f"corr-b-{suffix}", f"corr-c-{suffix}"]))
+    assert sorted(item["status"] for item in results) == ["resumed", "resumed"]
+    _run(restarted.execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    budget = assignment["budget"]
+    assert step_by_id(assignment, "wait_b")["status"] == "applied"
+    assert step_by_id(assignment, "wait_c")["status"] == "applied"
+    assert 49.9 <= budget["paused_seconds"] <= 50.1
+    assert 49.9 <= restarted._effective_wall_elapsed(budget) <= 50.1
+    assert budget.get("idle_intervals") is not None
+
+
+def test_legacy_open_wait_migration_does_not_invent_a_second_credit(env):
+    executor = env["executor"]
+    base = {
+        "assignment_id": "asg-legacy",
+        "steps": [],
+        "budget": {
+            "started_at": "2026-11-01T00:00:00+00:00",
+            "paused_seconds": 100.0,
+            "waiting_since": "2026-11-01T00:00:30+00:00",
+            "active_wait": None,
+        },
+    }
+    migrated = executor._ensure_idle_ledger(base)["budget"]
+    assert migrated["idle_ledger_schema"] == 2
+    assert migrated["paused_seconds"] == 100.0
+    assert migrated.get("idle_open") is None
+
+    live = copy.deepcopy(base)
+    live["budget"]["active_wait"] = {
+        "id": "wait-live", "started_at": "2026-11-01T00:00:30+00:00"}
+    migrated = executor._ensure_idle_ledger(live)["budget"]
+    assert migrated["idle_open"]["started_at"].startswith(
+        "2026-11-01T00:00:30")
+
+
+def test_absolute_deadline_expires_through_wait_and_restart(env):
+    base = 1_700_000_000.0
+    clock = [base]
+    suffix = uuid.uuid4().hex[:8]
+
+    async def work(inputs, context):
+        clock[0] = base + 40
+        return {"status": "applied", "summary": "prepared"}
+
+    async def wait(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "correlation_id": f"deadline-{suffix}",
+            "resume_on": "response", "party": "supplier"})
+
+    env["registry"].register(f"test.deadline.work.{suffix}", work)
+    env["registry"].register(f"test.deadline.wait.{suffix}", wait)
+    run_id, _ = _create(
+        env, objective="Deadline control",
+        steps=[
+            new_step(step_id="work", title="Work", operation_type="retrieve",
+                     adapter=f"test.deadline.work.{suffix}",
+                     effect="read_only"),
+            new_step(step_id="wait", title="Wait", operation_type="retrieve",
+                     adapter=f"test.deadline.wait.{suffix}",
+                     effect="read_only", depends_on=["work"]),
+        ],
+        teaching=_teaching(),
+        budget={"max_steps": 10, "max_attempts_per_step": 3,
+                "max_wall_seconds": 900,
+                "deadline": datetime.fromtimestamp(
+                    base + 50, tz=timezone.utc).isoformat()})
+
+    def set_start(record, assignment):
+        assignment["budget"]["started_at"] = datetime.fromtimestamp(
+            base, tz=timezone.utc).isoformat()
+        return assignment, {}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, set_start, rationale="test: clock origin")
+    executor = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    _run(executor.execute(run_id))
+    assert step_by_id(env["lifecycle"].get_assignment(run_id),
+                      "wait")["status"] == "waiting"
+
+    clock[0] = base + 60
+    shadow = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    result = _run(shadow.execute(run_id))
+    assert result["assignment"]["status"] == "blocked"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "failed"
+    assert wait_step["failure"]["reason"] == "assignment_deadline_exceeded"
+    late = shadow.record_external_response(
+        run_id, f"deadline-{suffix}", response="late reply")
+    assert late["status"] == "unmatched"
+
+    clock[0] = base + 120
+    restarted = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"], clock=lambda: clock[0])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "blocked"
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")["failure"]["reason"]         == "assignment_deadline_exceeded"
 
 
 def test_concurrent_retries_credit_a_legacy_wait_once(env):
@@ -2625,6 +2929,9 @@ def test_restart_while_waiting_credits_the_interval_once(env):
         budget["waiting_since"] = wait_start
         budget["wait_credits_schema"] = 1
         budget["wait_credits"] = {}
+        budget.pop("idle_ledger_schema", None)
+        budget.pop("idle_open", None)
+        budget.pop("idle_intervals", None)
         budget["active_wait"] = {
             "id": "restart-wait", "step_id": "wait",
             "started_at": wait_start,
@@ -2647,3 +2954,792 @@ def test_restart_while_waiting_credits_the_interval_once(env):
     assert restarted._effective_wall_elapsed(budget) < 5.0
     assert budget["active_wait"] is None
     assert budget.get("waiting_since") is None
+
+
+def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
+    from core.quote_evidence import (
+        derive_quote_requirements,
+        plan_quote_assignment,
+        validate_quote_evidence,
+    )
+    import openpyxl
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    workbook_path = tmp / "quote_inputs.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Items"
+    sheet.append(["SKU", "Qty", "Unit Price", "Discount Percent", "Category",
+                  "Unit", "Pack"])
+    sheet.append(["A", 2, 100.00, 0, "A", "each", "1"])
+    sheet.append(["B", 3, 50.00, 5, "B", "each", "1"])
+    workbook.save(workbook_path)
+
+    customer = {
+        "provider": "crm", "resource_id": "cust-1", "version": "v1",
+        "kind": "customer", "record_type": "customer",
+        "customer_id": "cust-1", "customer_name": "Example Customer",
+        "access": "granted"}
+    agreement = {
+        "provider": "workdrive", "resource_id": "agreement-1", "version": "v3",
+        "kind": "pricing_agreement", "customer_id": "cust-1",
+        "price_basis": "customer_contract", "effective_date": "2026-10-01",
+        "access": "granted",
+        "fields": {
+            "currency": "USD", "effective_date": "2026-10-01",
+            "discount_policy": "5% on category B", "freight": "20.00",
+            "tax_treatment": "none", "delivery_terms": "FOB destination",
+            "validity": "30 days",
+        },
+        "citations": [{"sheet": "Terms", "row": 2}],
+    }
+    rows = {
+        "provider": "onedrive", "resource_id": "rows-1", "version": "rev-7",
+        "kind": "price_rows", "access": "granted",
+        "citations": [{"sheet": "Items", "row": 2},
+                      {"sheet": "Items", "row": 3}],
+        "rows": [
+            {"sku": "A", "quantity": "2", "unit": "each", "pack": "1",
+             "unit_price": "100.00", "currency": "USD",
+             "discount_percent": "0", "category": "A",
+             "citation": {"sheet": "Items", "row": 2}},
+            {"sku": "B", "quantity": "3", "unit": "each", "pack": "1",
+             "unit_price": "50.00", "currency": "USD",
+             "discount_percent": "5", "category": "B",
+             "citation": {"sheet": "Items", "row": 3}},
+        ],
+    }
+    from core.action_registry import action_registry
+
+    async def read_customer(args, context):
+        return {"data": {"customer_id": "cust-1", "name": "Example Customer"},
+                "read_receipt": {"provider": "zoho_crm",
+                                 "resource_id": "crm-cust-1",
+                                 "coverage": "complete"}}
+
+    action_registry.register(
+        "test.quote.customer", read_customer, effects=[{"effect": "read"}])
+    requirements = derive_quote_requirements(
+        "Prepare a customer quote", requested={"customer_id": "cust-1"})
+    validation = validate_quote_evidence(
+        requirements, [customer, rows, agreement],
+        requested={"customer_id": "cust-1"})
+    assert validation["status"] == "ready", validation
+    planned = plan_quote_assignment(
+        objective="Prepare a customer quote", validation=validation,
+        source={
+            "kind": "workbook", "representation": "xlsx",
+            "resource_id": "quote-workbook", "internal_fixture": True,
+            "path": str(workbook_path), "sheet": "Items",
+            "columns": ["SKU", "Qty", "Unit Price", "Discount Percent",
+                        "Category", "Unit", "Pack"],
+        },
+        teaching=_teaching(), workspace_id="ws_assign",
+        tenant_id="tenant_assign", employee_id="user-1",
+        evidence_reads=[{
+            "step_id": "read-customer",
+            "action": "test.quote.customer",
+            "arguments": {"record_id": "cust-1"},
+        }],
+        document_path=str(tmp / "quote.docx"),
+        email_draft_path=str(tmp / "quote-draft.eml"),
+        email_to=["customer@example.invalid"], subject="Customer quote")
+    assert planned["status"] == "ready", planned
+    plan = planned["plan"]
+    run_id = env["executor"].create_assignment(
+        "conv-quote", "Prepare a customer quote", assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    document = docx.Document(str(tmp / "quote.docx"))
+    text = "\n".join(p.text for p in document.paragraphs)
+    assert "362.50" in text, text
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["result"]["calculation_receipt"]["total"] == "362.50"
+    read_customer_step = step_by_id(assignment, "read-customer")
+    assert read_customer_step["status"] == "applied"
+    assert read_customer_step["result"]["data"]["read_receipt"][
+        "provider"] == "zoho_crm"
+    assert proof["quote_evidence"]["status"] == "ready" if (
+        proof := assignment.get("provenance")) else False
+    draft = step_by_id(assignment, "email-draft")
+    assert draft["status"] == "applied"
+    assert "362.50" in str(draft["result"].get("body") or
+                           draft["result"].get("draft") or "")
+
+
+def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: hours/rates, different vocabulary and currency.
+
+    The shared executor and line-item calculator carry no Brennan or quote
+    vocabulary; only the typed line items and teaching differ.
+    """
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    scope = tmp / "service-scope.txt"
+    scope.write_text("Service scope: four consulting hours and two trips.\n")
+    plan = plan_assignment(
+        objective="Prepare a service proposal",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "service-scope", "internal_fixture": True,
+            "path": str(scope),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "service-proposal.docx"),
+            "title": "Service proposal",
+        }],
+        calculation={
+            "line_items": [
+                {"item_id": "consulting-hours", "quantity": "4",
+                 "unit": "hour", "pack_size": "1", "unit_price": "120.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+                {"item_id": "travel", "quantity": "2", "unit": "trip",
+                 "pack_size": "1", "unit_price": "75.00",
+                 "price_basis": "rate", "currency": "CAD",
+                 "category": "service"},
+            ],
+            "currency": "CAD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "service"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-service", "Prepare a service proposal",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "630.00"
+    text = "\n".join(
+        p.text for p in docx.Document(
+            str(tmp / "service-proposal.docx")).paragraphs)
+    assert "630.00" in text
+
+
+def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
+    """Portability control: an expense-policy assessment, not a quote."""
+    from core.assignment_planner import plan_assignment
+
+    tmp = env["tmp"]
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    policy = tmp / "expense-policy.txt"
+    policy.write_text("Expense limit: 200.00. Claimed: 250.00.\n")
+    plan = plan_assignment(
+        objective="Assess the expense claim against policy",
+        sources=[{
+            "kind": "document", "representation": "file",
+            "resource_id": "expense-policy", "internal_fixture": True,
+            "path": str(policy),
+        }],
+        deliverables=[{
+            "kind": "document", "path": str(tmp / "expense-review.docx"),
+            "title": "Expense review",
+        }],
+        calculation={
+            "expression": "claimed - limit",
+            "bindings": {"claimed": "250.00", "limit": "200.00"},
+            "output_unit": "CAD",
+        },
+        teaching_snapshot=_teaching(),
+        authorized_actions=["retrieve", "calculate", "present"],
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        provenance={"profile": "expense-policy"},
+    )
+    run_id = env["executor"].create_assignment(
+        "conv-expense", "Assess the expense claim against policy",
+        assignment=plan)["run_id"]
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "50.00"
+    text = "\n".join(p.text for p in docx.Document(
+        str(tmp / "expense-review.docx")).paragraphs)
+    assert "50.00" in text
+
+
+def _discount_clarification_steps():
+    rules = [
+        {"name": "general", "rate": "0.05"},
+        {"lesson_id": "licensed", "revision": 1,
+         "name": "licensed customer",
+         "when": {"qualification": "licensed"}, "rate": "0.10"},
+    ]
+    return [
+        new_step(
+            step_id="calculate",
+            title="Calculate the line items",
+            operation_type="calculate",
+            adapter="quote.calculate",
+            inputs={
+                "line_items": [{
+                    "item_id": "B",
+                    "quantity": "1",
+                    "unit": "each",
+                    "pack_size": "1",
+                    "unit_price": "100.00",
+                    "price_basis": "contract",
+                    "currency": "USD",
+                    "category": "B",
+                    "source_ref": {
+                        "resource_id": "price-list",
+                        "source_version": "v1",
+                    },
+                }],
+                "currency": "USD",
+                "freight": "0",
+                "tax": {"basis": "none"},
+                "discount_rules": rules,
+                "as_of": "2026-11-01",
+                "rounding": "half_up",
+                "scale": 2,
+                "rounding_authority": "customer agreement",
+                "source_evidence": [{
+                    "resource_id": "price-list",
+                    "source_version": "v1",
+                }],
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="deliverable-1",
+            title="Render the quote",
+            operation_type="present",
+            adapter="artifact.document",
+            depends_on=["calculate"],
+            inputs={
+                "path": "",
+                "title": "Customer quote",
+                "content": (
+                    "## Summary\n\nTotal: ${calculate.value} "
+                    "${calculate.unit}"),
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="email-draft",
+            title="Prepare the quote email",
+            operation_type="outbound",
+            adapter="email.draft",
+            depends_on=["deliverable-1"],
+            inputs={
+                "to": ["customer@example.invalid"],
+                "subject": "Customer quote",
+                "body": "Total ${calculate.value} ${calculate.unit}",
+            },
+            effect="local",
+        ),
+    ]
+
+
+def test_discount_clarification_is_durable_and_resumes_the_same_work(
+        env, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = _discount_clarification_steps()
+    steps[1]["inputs"]["path"] = str(env["tmp"] / "quote.docx")
+    objective = "Prepare the Acme quote with the governing discount"
+    run_id, _plan = _create(
+        env, objective=objective, steps=steps, teaching=_teaching(),
+        authorized_actions=["calculate", "present", "edit"])
+    initial_question = {}
+
+    first = _run(env["executor"].execute(run_id))
+    assert first["assignment"]["status"] == "waiting", first
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert assignment["objective"] == objective
+    calc = step_by_id(assignment, "calculate")
+    assert calc["status"] == "waiting"
+    assert calc.get("result") is None
+    assert step_by_id(assignment, "deliverable-1")["status"] == "pending"
+    assert step_by_id(assignment, "email-draft")["status"] == "pending"
+    assert not (env["tmp"] / "quote.docx").exists()
+
+    record = env["lifecycle"].get_task(run_id)
+    gap = next(item for item in record["task_revision"]["unresolved"]
+               if item["status"] == "open")
+    initial_question = gap
+    binding = gap["inputs"]["quote_discount"]
+    assert gap["concept"] == "discount_scope"
+    assert binding["line_item_id"] == "B"
+    assert binding["missing_fields"] == ["qualification"]
+    assert binding["teaching_revision"] == "teach-r1"
+    assert [rule["lesson_id"] for rule in binding["candidate_rules"]] == [
+        None, "licensed"]
+    assert binding["candidate_rules"][1]["revision"] == 1
+    assert binding["accepted_context"]["category"] == "B"
+    assert binding["accepted_context"]["currency"] == "USD"
+    assert binding["assignment_id"] == assignment["assignment_id"]
+    assert any(item["source_version"] == "v1"
+               for item in binding["source_versions"])
+    assignment_id = assignment["assignment_id"]
+
+    # Restart while the obligation is open: same question, no calculation.
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "waiting", again
+    still_open = [
+        item for item in
+        (env["lifecycle"].get_task(run_id)["task_revision"]["unresolved"])
+        if item["status"] == "open"]
+    assert [item["question_id"] for item in still_open] == [
+        initial_question["question_id"]]
+    assert env["lifecycle"].get_assignment(run_id)["assignment_id"] == (
+        assignment_id)
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "calculate").get(
+            "result") is None
+
+    first_answer = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed",
+        resolved_by="pricing owner", evidence="accepted customer agreement")
+    duplicate = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed",
+        resolved_by="pricing owner", evidence="accepted customer agreement")
+    assert first_answer["status"] == "resolved"
+    assert duplicate["status"] == "already_resolved"
+
+    completed = _run(restarted.execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert assignment["objective"] == objective
+    assert assignment["assignment_id"] == assignment_id
+    calc = step_by_id(assignment, "calculate")
+    assert calc["result"]["value"] == "90.00"
+    assert calc["result"]["rows"][0]["discount_rule"]["lesson_id"] == (
+        "licensed")
+    attempts_after_resolution = calc["attempts"]
+    assert step_by_id(assignment, "deliverable-1")["status"] == "applied"
+    assert step_by_id(assignment, "email-draft")["status"] == "applied"
+    assert (env["tmp"] / "quote.docx").exists()
+
+    # A repeated confirmation does not reopen or re-run the work.
+    operations = len(env["lifecycle"].get_task(run_id)["operations"])
+    duplicate_again = restarted.resolve_gap(
+        run_id, initial_question["question_id"], resolution="licensed")
+    assert duplicate_again["status"] == "already_resolved"
+    settled = _run(restarted.execute(run_id))
+    assert settled["assignment"]["status"] == "completed"
+    assert len(env["lifecycle"].get_task(run_id)["operations"]) == operations
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "calculate")[
+            "attempts"] == attempts_after_resolution
+
+
+def test_uncertain_action_envelope_blocks_dependents_until_reconciled(
+        env, monkeypatch):
+    """A returned uncertain envelope is not an applied provider effect.
+
+    The controlled action stands in for the real connected estimate handler;
+    it returns the exact ``uncertain`` result envelope rather than raising.
+    """
+    from core.action_registry import action_registry
+
+    suffix = uuid.uuid4().hex[:8]
+    create_name = f"test.estimate.uncertain.{suffix}"
+    send_name = f"test.outlook.send.{suffix}"
+    create_calls = []
+    send_calls = []
+
+    async def create_estimate(args, context):
+        create_calls.append({
+            "args": copy.deepcopy(args),
+            "run_id": context.get("run_id"),
+            "assignment_id": context.get("assignment_id"),
+        })
+        return {
+            "status": "uncertain",
+            "action_result": "uncertain",
+            "verification": {"status": "incomplete"},
+            "remote_id": "est-77",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
+            "payload_sha256": "payload-sha-77",
+            "provider_receipt": {
+                "operation_id": "provider-op-77",
+                "remote_id": "est-77",
+            },
+            "data": {"estimate_id": "est-77", "total": "362.50"},
+            "conflicts": [],
+        }
+
+    async def send_draft(args, context):
+        send_calls.append(dict(args))
+        return {
+            "status": "applied",
+            "action_result": "applied",
+            "verification": {"status": "complete"},
+            "remote_id": "msg-1",
+            "provider_ref": "msg-1",
+            "provider_state": "sent",
+        }
+
+    action_registry.register(
+        create_name, create_estimate,
+        effects=[{"effect": "create", "object": "estimate"}])
+    action_registry.register(
+        send_name, send_draft, effects=[{"effect": "send"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = [
+        new_step(
+            step_id="create-estimate",
+            title="Create the estimate",
+            operation_type="outbound",
+            adapter="action.registry",
+            inputs={
+                "action": create_name,
+                "arguments": {"estimate_data": {"total": "362.50"}},
+            },
+            effect="external",
+            approval_required=True,
+            approval_purpose="Create the estimate in the accounting system",
+        ),
+        new_step(
+            step_id="email-draft",
+            title="Prepare the customer email",
+            operation_type="outbound",
+            adapter="email.draft",
+            depends_on=["create-estimate"],
+            inputs={
+                "to": ["customer@example.invalid"],
+                "subject": "Your estimate",
+                "body": "The estimate is attached.",
+            },
+            effect="local",
+        ),
+        new_step(
+            step_id="send-draft",
+            title="Send the customer email",
+            operation_type="outbound",
+            adapter="action.registry",
+            depends_on=["email-draft"],
+            inputs={
+                "action": send_name,
+                "arguments": {"to": ["customer@example.invalid"]},
+            },
+            effect="external",
+            approval_required=True,
+            approval_purpose="Send the prepared customer email",
+        ),
+    ]
+    run_id, _ = _create(
+        env, objective="Create and send the customer estimate", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound", "edit"])
+
+    started = _run(env["executor"].execute(run_id))
+    assert started["assignment"]["status"] == "waiting", started
+    assert create_calls == []
+    assert env["executor"].approve_step(
+        run_id, "create-estimate", approved_by="owner")["status"] == (
+            "approved")
+
+    uncertain = _run(env["executor"].execute(run_id))
+    assert uncertain["assignment"]["status"] == "blocked", uncertain
+    assert len(create_calls) == 1
+    assignment = env["lifecycle"].get_assignment(run_id)
+    create_step = step_by_id(assignment, "create-estimate")
+    assert create_step["status"] == "uncertain"
+    assert step_by_id(assignment, "email-draft")["status"] == "pending"
+    assert step_by_id(assignment, "send-draft")["status"] == "pending"
+    assert send_calls == []
+
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["needs_reconciliation"] is True
+    assert operation["receipt"]["observed_status"] == "uncertain"
+    assert operation["receipt"]["reconciliation_required"] is True
+    assert operation["receipt"]["remote_identity"]["remote_id"] == "est-77"
+    assert operation["receipt"]["outbound"]["remote_id"] == "est-77"
+    assert operation["execution"]["remote_id"] == "est-77"
+    assert operation["execution"]["data"]["remote_id"] == "est-77"
+
+    # Restart/resume while uncertain: no second provider effect.
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    resumed = _run(restarted.execute(run_id))
+    assert resumed["assignment"]["status"] == "blocked", resumed
+    assert len(create_calls) == 1
+    assert send_calls == []
+
+    reconciled = restarted.reconcile_step(
+        run_id, "create-estimate", "applied",
+        evidence="provider readback shows estimate est-77",
+        evidence_ref="provider-op-77")
+    assert reconciled["verdict"] == "applied"
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "applied"
+    assert operation["needs_reconciliation"] is False
+    assert operation["reconciliation"]["evidence_ref"] == "provider-op-77"
+
+    # The verified operation now permits the dependent draft. It is a NEW
+    # operation for the draft step, never a resend of the estimate.
+    after = _run(restarted.execute(run_id))
+    assert after["assignment"]["status"] == "waiting", after
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "email-draft")["status"] == "applied"
+    assert step_by_id(assignment, "send-draft")["status"] == (
+        "awaiting_approval")
+    assert len(create_calls) == 1
+    assert send_calls == []
+
+    assert restarted.approve_step(
+        run_id, "send-draft", approved_by="owner")["status"] == "approved"
+    completed = _run(restarted.execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(create_calls) == 1
+    assert len(send_calls) == 1
+
+
+@pytest.mark.parametrize("result,effects,step_effect,expected", [
+    (
+        {"status": "success", "action_result": "applied",
+         "verification": {"status": "complete"}, "remote_id": "rec-1"},
+        [{"effect": "create"}], "external", "applied",
+    ),
+    (
+        {"status": "error", "action_result": "proven_not_applied",
+         "error_kind": "invalid_request"},
+        [{"effect": "create"}], "external", "failed",
+    ),
+    (
+        {"status": "uncertain", "action_result": "uncertain",
+         "verification": {"status": "incomplete"}},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "conflict", "action_result": "conflict",
+         "remote_id": "est-9", "conflicts": ["total changed"]},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "error", "action_result": "unavailable",
+         "error_kind": "auth_expired"},
+        [{"effect": "read"}], "read_only", "unavailable",
+    ),
+    (
+        {"status": "success", "verification": {"status": "unavailable"}},
+        [{"effect": "read"}], "read_only", "unavailable",
+    ),
+    (
+        {"status": "success", "action_result": "proven_not_applied"},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"status": "failed", "error": "handler failed"},
+        [{"effect": "create"}], "external", "uncertain",
+    ),
+    (
+        {"value": 21, "source": "approved-read"},
+        [{"effect": "read"}], "read_only", "applied",
+    ),
+])
+def test_action_result_envelope_outcomes(
+        result, effects, step_effect, expected, env):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = f"test.envelope.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def handler(args, context):
+        calls.append(context.get("assignment_id"))
+        return result
+
+    action_registry.register(name, handler, effects=effects)
+    dispatched = _run(_action_registry_adapter(
+        {"action": name, "arguments": {}},
+        {"assignment_id": "assignment-1", "step": {"effect": step_effect}}))
+    assert dispatched["status"] == expected
+    assert len(calls) == 1
+    if expected in ("uncertain", "failed"):
+        assert dispatched.get("data") == result
+    if expected == "uncertain" and result.get("remote_id"):
+        assert dispatched["remote_id"] == result["remote_id"]
+
+
+def test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure(env):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = f"test.mutation.raises.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        raise RuntimeError("provider response could not be parsed")
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    with pytest.raises(ExternalOutcomeUnknown) as excinfo:
+        _run(_action_registry_adapter(
+            {"action": name, "arguments": {}},
+            {"assignment_id": "assignment-1",
+             "step": {"effect": "external"}}))
+    assert "effect may have landed" in str(excinfo.value)
+
+
+def test_trusted_proof_of_no_effect_is_before_effect_failure(env):
+    from core.action_registry import action_registry
+
+    name = f"test.no.effect.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        return {
+            "status": "error",
+            "action_result": "proven_not_applied",
+            "error_kind": "invalid_request",
+            "error": "the provider rejected the payload before creating it",
+        }
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    steps = [new_step(
+        step_id="action", title="Apply the action",
+        operation_type="outbound", adapter="action.registry",
+        inputs={"action": name, "arguments": {}},
+        effect="external", approval_required=True,
+        approval_purpose="Apply the controlled action")]
+    run_id, _ = _create(
+        env, objective="Trusted no effect", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "action", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "failed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    step = step_by_id(assignment, "action")
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "failed"
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == step["operation_id"])
+    assert operation["status"] == "failed"
+    assert operation["receipt"]["observed_status"] == "failed_before_effect"
+    assert operation["receipt"]["reconciliation_required"] is False
+
+
+def test_unavailable_read_is_reported_without_fabricated_data(env):
+    from core.action_registry import action_registry
+
+    name = f"test.unavailable.read.{uuid.uuid4().hex[:8]}"
+
+    async def handler(args, context):
+        return {
+            "status": "error",
+            "action_result": "unavailable",
+            "error_kind": "auth_expired",
+            "error": "the source authorization expired",
+        }
+
+    action_registry.register(name, handler, effects=[{"effect": "read"}])
+    steps = [new_step(
+        step_id="read", title="Read the source",
+        operation_type="retrieve", adapter="action.registry",
+        inputs={"action": name, "arguments": {}},
+        effect="read_only")]
+    run_id, _ = _create(
+        env, objective="Unavailable source", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve"])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "failed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    step = step_by_id(assignment, "read")
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "source_unavailable"
+    assert step.get("result") is None
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == step["operation_id"])
+    assert operation["status"] == "failed"
+    assert operation["receipt"]["observed_status"] == "unavailable"
+    assert operation.get("execution") is None
+
+
+def test_readback_conflict_preserves_remote_identity_and_blocks_dependents(
+        env, monkeypatch):
+    from core.action_registry import action_registry
+
+    name = f"test.estimate.conflict.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def handler(args, context):
+        calls.append(dict(args))
+        return {
+            "status": "conflict",
+            "action_result": "conflict",
+            "verification": {"status": "conflict"},
+            "remote_id": "est-91",
+            "provider": "zoho_books",
+            "operation": "create_estimate",
+            "data": {"estimate_id": "est-91", "total": "500.00"},
+            "conflicts": ["total changed: authorized 362.50, readback 500.00"],
+        }
+
+    action_registry.register(
+        name, handler, effects=[{"effect": "create"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps = [
+        new_step(
+            step_id="create", title="Create the estimate",
+            operation_type="outbound", adapter="action.registry",
+            inputs={"action": name, "arguments": {}},
+            effect="external", approval_required=True,
+            approval_purpose="Create the estimate"),
+        new_step(
+            step_id="draft", title="Prepare the email",
+            operation_type="outbound", adapter="email.draft",
+            depends_on=["create"],
+            inputs={"to": ["customer@example.invalid"],
+                    "subject": "Estimate", "body": "See attached."},
+            effect="local"),
+    ]
+    run_id, _ = _create(
+        env, objective="Conflict control", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound", "edit"])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "create", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "blocked", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    create_step = step_by_id(assignment, "create")
+    assert create_step["status"] == "uncertain"
+    assert step_by_id(assignment, "draft")["status"] == "pending"
+    assert len(calls) == 1
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == create_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["receipt"]["remote_identity"]["remote_id"] == "est-91"
+    assert operation["receipt"]["remote_identity"]["conflicts"] == [
+        "total changed: authorized 362.50, readback 500.00"]
+    assert operation["execution"]["remote_id"] == "est-91"
+    assert operation["execution"]["data"]["remote_id"] == "est-91"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    again = _run(restarted.execute(run_id))
+    assert again["assignment"]["status"] == "blocked", again
+    assert len(calls) == 1
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "draft")["status"] == (
+            "pending")

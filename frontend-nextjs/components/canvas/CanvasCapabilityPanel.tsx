@@ -117,6 +117,7 @@ export function CanvasCapabilityPanel({
     );
     const [guidedRules, setGuidedRules] = useState<GuidedRule[]>(initialGuided.rules);
     const [ask, setAsk] = useState("");
+    const [artifactKind, setArtifactKind] = useState("");
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export function CanvasCapabilityPanel({
     const [editColumn, setEditColumn] = useState("");
     const [editValue, setEditValue] = useState("");
     const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+    const [deriveAnswers, setDeriveAnswers] = useState<Record<string, string>>({});
     const [decisions, setDecisions] = useState<Record<string, string> | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -411,6 +413,41 @@ export function CanvasCapabilityPanel({
         }
     };
 
+    const submitDeriveAnswers = async () => {
+        const clarification = result?.clarification;
+        if (!clarification?.id) return;
+        const answers = (clarification.missing || []).map((item: any) => ({
+            row: item.row,
+            field_id: item.field_id,
+            value: deriveAnswers[`${item.row}:${item.field_id}`] ?? "",
+        }));
+        if (answers.some((item: any) => String(item.value).trim() === "")) {
+            setError("Answer every missing row/field before resuming");
+            return;
+        }
+        setBusy("derive-answer");
+        setError(null);
+        try {
+            const res = await apiClient.post(
+                `/api/canvas/${canvasId}/capability/derive/${encodeURIComponent(clarification.id)}/answer`,
+                { expected_revision: state?.revision, answers },
+            );
+            if (res.data?.success === false) {
+                throw new Error(res.data?.error?.message || "Clarification refused");
+            }
+            if (res.data?.result) {
+                setResult(res.data.result);
+            } else {
+                setResult(res.data);
+            }
+            setDeriveAnswers({});
+        } catch (e: any) {
+            setError(e?.response?.data?.error?.message || e?.message || "Clarification failed");
+        } finally {
+            setBusy(null);
+        }
+    };
+
     const useDecisions = async () => {
         setBusy("decisions");
         setError(null);
@@ -679,6 +716,19 @@ export function CanvasCapabilityPanel({
                             </details>
                         </div>
                         <div className="space-y-2">
+                            {Array.isArray(state?.manifest?.fields) && state.manifest.fields.length > 0 ? (
+                                <div className="rounded border border-zinc-200 dark:border-white/10 p-1.5 text-[10px]" data-testid="capability-typed-fields">
+                                    <div className="font-medium text-zinc-500">Typed fields (server-computed)</div>
+                                    {state.manifest.fields.map((field: any) => (
+                                        <div key={field.id} className="mt-0.5 font-mono text-zinc-500">
+                                            {field.id} · {field.type}
+                                            {field.unit ? ` · ${field.unit}` : ""}
+                                            {field.currency ? ` · ${field.currency}` : ""}
+                                            {field.derived ? ` · = ${field.derived}` : ""}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
                             <div className="text-[10px] uppercase tracking-wider text-zinc-400">Ask / operate</div>
                             <textarea
                                 value={ask}
@@ -694,6 +744,50 @@ export function CanvasCapabilityPanel({
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!effective.has("calculate") || busy !== null} onClick={() => call(`/api/canvas/${canvasId}/capability/calculate`, { ask })} data-testid="capability-calculate">
                                     Calculate
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={!effective.has("derive") || busy !== null}
+                                    data-testid="capability-derive"
+                                    onClick={() => call(`/api/canvas/${canvasId}/capability/derive`, {
+                                        expected_revision: state?.revision,
+                                        manifest_revision: state?.manifest?.manifest_revision,
+                                        source_version: state?.dataset?.source?.source_version,
+                                    })}
+                                >
+                                    Derive fields
+                                </Button>
+                                <label className="text-[10px] text-zinc-400">
+                                    Artifact
+                                    <select
+                                        data-testid="capability-artifact-kind"
+                                        value={artifactKind}
+                                        onChange={(e) => setArtifactKind(e.target.value)}
+                                        className="block rounded border border-zinc-200 dark:border-white/10 bg-transparent px-1 py-0.5 text-xs"
+                                    >
+                                        <option value="">none</option>
+                                        <option value="document">document</option>
+                                        <option value="spreadsheet">spreadsheet</option>
+                                        <option value="presentation">presentation</option>
+                                    </select>
+                                </label>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={!effective.has("derive") || busy !== null}
+                                    data-testid="capability-assign"
+                                    onClick={() => call(`/api/canvas/${canvasId}/capability/assign`, {
+                                        objective: ask || `Complete the canvas ${canvasId}`,
+                                        expected_revision: state?.revision,
+                                        manifest_revision: state?.manifest?.manifest_revision,
+                                        source_version: state?.dataset?.source?.source_version,
+                                        ...(artifactKind ? { deliverable_kind: artifactKind } : {}),
+                                    })}
+                                >
+                                    Start assignment
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!effective.has("assess") || busy !== null} onClick={() => call(`/api/canvas/${canvasId}/capability/assess`, { ask })} data-testid="capability-assess">
                                     Assess
@@ -744,11 +838,70 @@ export function CanvasCapabilityPanel({
                                 {result.manifest_revision && <span>manifest: {result.manifest_revision}</span>}
                                 {result.policy_revision && <span>policy: {result.policy_revision}</span>}
                             </div>
+                            {result.run_id ? (
+                                <div className="mt-1" data-testid="capability-assignment">
+                                    assignment {String(result.run_id).slice(0, 8)} · {result.assignment?.status || "started"} ·{" "}
+                                    <a className="underline" href={`/assignments?run=${encodeURIComponent(result.run_id)}`}>Open</a>
+                                </div>
+                            ) : null}
                             {result.total_values && (
                                 <div className="mt-1 font-mono" data-testid="capability-total">
                                     {Object.entries(result.total_values).map(([k, v]) => (
                                         <div key={k}>{k === "(unstated)" ? "" : `${k} `}total: {String(v)}</div>
                                     ))}
+                                </div>
+                            )}
+                            {result.operation === "derive" && (
+                                <div className="mt-1 font-mono" data-testid="capability-derive-result">
+                                    {Object.entries(result.aggregates || {}).map(([field, value]) => (
+                                        <div key={field}>{field}: {String(value)}</div>
+                                    ))}
+                                    {result.input_receipt?.digest ? (
+                                        <div className="text-zinc-500">receipt: {String(result.input_receipt.digest).slice(0, 12)} · rows: {result.row_count}</div>
+                                    ) : null}
+                                    {result.status === "clarification" && result.clarification ? (
+                                        <div className="mt-1 rounded border border-amber-300 bg-amber-50 p-2" data-testid="capability-derive-clarification">
+                                            <p className="font-medium">Targeted value required</p>
+                                            {(result.clarification.missing || []).map((item: any) => {
+                                                const key = `${item.row}:${item.field_id}`;
+                                                return (
+                                                    <label key={key} className="mt-1 block text-[11px]">
+                                                        Row {item.row}: {item.label || item.field_id}
+                                                        <input
+                                                            value={deriveAnswers[key] ?? ""}
+                                                            onChange={(e) => setDeriveAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                                                            className="mt-0.5 w-full rounded border px-1.5 py-0.5"
+                                                            aria-label={`Derive answer ${item.row} ${item.field_id}`}
+                                                            data-testid={`capability-derive-answer-${item.row}-${item.field_id}`}
+                                                        />
+                                                    </label>
+                                                );
+                                            })}
+                                            <Button
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                disabled={busy !== null}
+                                                data-testid="capability-derive-answer-submit"
+                                                onClick={submitDeriveAnswers}
+                                            >
+                                                Submit answers and resume
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                    {!!result.groups?.length && (
+                                        <table className="mt-1 border-collapse">
+                                            <thead><tr><th className="border px-2 py-0.5 text-left">Field</th><th className="border px-2 py-0.5 text-left">Group</th><th className="border px-2 py-0.5 text-left">Value</th></tr></thead>
+                                            <tbody>
+                                                {result.groups.map((group: any, index: number) => (
+                                                    <tr key={index}>
+                                                        <td className="border px-2 py-0.5">{group.field_id}</td>
+                                                        <td className="border px-2 py-0.5">{group.group}</td>
+                                                        <td className="border px-2 py-0.5">{String(group.value)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
                                 </div>
                             )}
                             {!!result.gaps?.length && <div className="text-amber-600 mt-1">gaps: {result.gaps.length} (no certified total)</div>}

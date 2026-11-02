@@ -1169,13 +1169,18 @@ async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]
     user_id = _context_user_id(context)
     if not user_id:
         return {"success": False, "error": "Authenticated user is required to present markdown"}
-    return await present_markdown(
+    result = await present_markdown(
         user_id=str(user_id),
         content=str(content),
         title=args.get("title"),
         agent_id=(context or {}).get("agent_id"),
         session_id=(context or {}).get("session_id") or args.get("session_id"),
     )
+    if isinstance(result, dict) and result.get("success"):
+        result.setdefault("status", "applied")
+        result.setdefault("action_result", "applied")
+        result.setdefault("remote_id", result.get("canvas_id"))
+    return result
 
 
 @register_action(
@@ -2337,3 +2342,13 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         "undeclared_relations_in_use": onto.undeclared_relations_in_use(
             context.get("workspace_id", "default")),
     }
+
+
+# Connected business actions (provider reads + draft/write actions).
+# Imported after the decorator/registry are defined; provider imports inside
+# the module are lazy so this does not load every integration at startup.
+try:  # pragma: no cover - import wiring
+    from core import connected_actions as _connected_actions  # noqa: F401
+except Exception as _connected_import_error:  # noqa: BLE001
+    logger.warning("Connected actions not registered: %s",
+                   _connected_import_error)

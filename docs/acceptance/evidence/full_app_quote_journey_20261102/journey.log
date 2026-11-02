@@ -1,0 +1,15 @@
+PASS promoted document lesson is explicit and source-bound {"proposal": 200, "promote": 200}
+PASS quote receipt starts an ordinary assignment {"run_id": "682d2e21-f1b0-493f-89c5-ecb014785987", "status": "waiting"}
+PASS real backend restart preserves the prepared action {"old_backend_pid": 58171, "new_backend_pid": 58897, "old_frontend_pid": 58187, "new_frontend_pid": 58916}
+PASS prepared action survives restart without dispatch {"steps": []}
+PASS quote assignment completes after action approval {"status": "completed", "steps": ["receipt", "artifact", "guard-publish", "action-publish"]}
+PASS quote document artifact is attached [{"deliverable_id": "del-document", "kind": "document", "description": "document from canvas c54efa7a-7f56-4f16-9d5d-bc54f681c15f", "required": true, "step_id": "artifact", "status": "applied", "artifact_revision": "1cc38db338775f23", "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/data/assignments/canvas-c54efa7a-7f56-4f16-9d5d-bc54f681c15f-394caa52.docx", "sha256": "1cc38db338775f23510a15bd4e297ae2401d1d00726e925cbb4762e1146da495"}]
+PASS quote document contains the server total and provenance {"bytes": 37252}
+PASS quote document consumes the promoted lesson {"font": "Georgia", "size_pt": 18.0}
+PASS declared registered action has readback evidence {"step": [{"step_id": "action-publish", "title": "Execute declared action publish", "operation_type": "outbound", "adapter": "canvas.action", "depends_on": ["guard-publish"], "required": true, "effect": "external", "status": "applied", "recovery_class": "terminal", "operation_id": "65aa1cf5-7e1e-4270-8d98-db040c9964f9", "attempts": 0, "result_summary": "registered action canvas.present_markdown completed", "result_value": null, "result_unit": null, "result_measure": null, "prior_result_count": 0, "artifact_revision": null, "gap_ids": [], "waiting": {}, "external_response": {}, "approval_reques
+PASS duplicate continuation does not dispatch the action again {"approve_status": 404, "before": "e1e5777b-1219-41b2-8102-137198512238", "after": "e1e5777b-1219-41b2-8102-137198512238"}
+PASS source change produces a new server receipt {"row_count": 2, "aggregates": {"line_total": "450.00"}}
+PASS old source receipt is refused after the change {"status": 409, "error": "stale_revision"}
+PASS service proposal completes with a document artifact {"status": "completed"}
+PASS exception queue completes with a document artifact {"status": "completed"}
+PASS cancelled action assignment is terminal {"status": 200}

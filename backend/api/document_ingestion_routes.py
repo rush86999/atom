@@ -672,6 +672,18 @@ class StructureIndexRequest(BaseModel):
     max_rows: Optional[int] = None
 
 
+class DriveSyncPageRequest(BaseModel):
+    workspace_id: Optional[str] = None
+    folder_id: Optional[str] = None
+    drive_id: Optional[str] = None
+    site_id: Optional[str] = None
+    provider_workspace_id: Optional[str] = None
+    team_id: Optional[str] = None
+    cursor: Optional[str] = None
+    page_size: Optional[int] = 100
+    fresh: bool = False
+
+
 @router.get("/integrations")
 async def list_indexable_integrations(
     current_user: User = Depends(get_current_user),
@@ -716,4 +728,70 @@ async def index_integration_structure(
         int(result.get("rows_written") or 0),
         True,
     )
+    return result
+
+
+def _drive_tenant(current_user: User) -> str:
+    return str(getattr(current_user, "tenant_id", "") or "default")
+
+
+@router.get("/integrations/{integration_id}/sync-status")
+async def get_drive_sync_status(
+    integration_id: str,
+    current_user: User = Depends(get_current_user),
+    workspace_id: Optional[str] = None,
+    folder_id: Optional[str] = None,
+    drive_id: Optional[str] = None,
+    site_id: Optional[str] = None,
+    provider_workspace_id: Optional[str] = None,
+    max_age_seconds: Optional[int] = None,
+):
+    """Durable drive-sync coverage: cursor, completeness, staleness, revocation."""
+    if integration_id not in ("zoho_workdrive", "onedrive"):
+        raise HTTPException(status_code=400,
+                            detail="sync-status supports zoho_workdrive and onedrive")
+    from core.drive_sync_checkpoints import checkpoint_scope, coverage_status
+
+    ws = workspace_id or get_workspace_id(current_user)
+    scope = checkpoint_scope(
+        integration_id, folder_id=folder_id, drive_id=drive_id,
+        site_id=site_id, provider_workspace_id=provider_workspace_id)
+    return coverage_status(
+        integration_id, scope, workspace_id=ws,
+        tenant_id=_drive_tenant(current_user),
+        max_age_seconds=int(max_age_seconds or 24 * 60 * 60))
+
+
+@router.post("/integrations/{integration_id}/sync-page")
+async def sync_drive_page_route(
+    integration_id: str,
+    request: DriveSyncPageRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Read and index one bounded page, persisting the restart checkpoint."""
+    if integration_id not in ("zoho_workdrive", "onedrive"):
+        raise HTTPException(status_code=400,
+                            detail="sync-page supports zoho_workdrive and onedrive")
+    from core.drive_sync_checkpoints import sync_drive_page
+
+    ws = request.workspace_id or get_workspace_id(current_user)
+    result = await sync_drive_page(
+        provider=integration_id,
+        user_id=str(current_user.id),
+        workspace_id=ws,
+        tenant_id=_drive_tenant(current_user),
+        folder_id=request.folder_id,
+        drive_id=request.drive_id,
+        site_id=request.site_id,
+        provider_workspace_id=request.provider_workspace_id,
+        team_id=request.team_id,
+        cursor=request.cursor,
+        page_size=int(request.page_size or 100),
+        fresh=bool(request.fresh),
+    )
+    if result.get("status") != "success":
+        raise HTTPException(status_code=503, detail=result)
+    record_ingestion_feedback(
+        current_user, integration_id,
+        int(result.get("rows_written") or 0), True)
     return result

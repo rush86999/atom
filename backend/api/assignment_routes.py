@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from core.auth import User, get_current_user
 from core.assignment_planner import (
     AssignmentPlanError,
+    _registered_action_effect,
     plan_assignment,
     validate_proposed_plan,
 )
@@ -92,6 +93,15 @@ class AssignmentMappingCorrection(BaseModel):
     source_version: str = ""
 
 
+class AssignmentReassessment(BaseModel):
+    reason: str = ""
+    task_context: Dict[str, Any] = {}
+
+
+class AssignmentInvalidation(BaseModel):
+    reason: str = "authorized evidence changed"
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -110,10 +120,12 @@ class AssignmentStart(BaseModel):
     deliverables: List[Dict[str, Any]] = []
     calculation: Optional[Dict[str, Any]] = None
     outbound: Optional[Dict[str, Any]] = None
+    actions: List[Dict[str, Any]] = []
     wait: Optional[Dict[str, Any]] = None
     task_context: Dict[str, Any] = {}
     transport: Optional[str] = None
     proposed_steps: Optional[List[Dict[str, Any]]] = None
+    authorized_actions: List[str] = []
     standing_authority: Optional[Dict[str, Any]] = None
     budget: Optional[Dict[str, Any]] = None
 
@@ -470,6 +482,10 @@ async def start_assignment(
     accepted_actions = ["retrieve"]
     if body.calculation:
         accepted_actions.append("calculate")
+    for action_name in body.authorized_actions:
+        action_name = str(action_name or "").strip()
+        if action_name and action_name not in accepted_actions:
+            accepted_actions.append(action_name)
     if body.deliverables:
         accepted_actions.append("present")
     for index, raw in enumerate(body.deliverables):
@@ -536,6 +552,20 @@ async def start_assignment(
             current_user, kind=kind, title=title,
             assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
         deliverables.append(deliverable)
+    if body.actions:
+        from core.action_registry import action_registry
+
+        for spec in body.actions:
+            name = str((spec or {}).get("action") or "").strip()
+            action = action_registry.get_action(name)
+            if action is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"registered action '{name}' is not available")
+            required = ("outbound" if _registered_action_effect(action)
+                        == "external" else "retrieve")
+            if required not in accepted_actions:
+                accepted_actions.append(required)
     if body.outbound:
         accepted_actions.append("outbound")
         if not str((body.outbound or {}).get("body") or "").strip(
@@ -580,6 +610,7 @@ async def start_assignment(
             deliverables=deliverables,
             calculation=body.calculation,
             outbound=body.outbound,
+            actions=body.actions,
             wait=body.wait,
             standing_authority=standing_authority,
             budget=body.budget,
@@ -643,6 +674,8 @@ async def list_assignments(
         record = TaskLifecycle(svc).get_task(run.get("id"))
         if record is None or record.get("assignment") is None:
             continue
+        steps = record["assignment"].get("steps") or []
+        required = [step for step in steps if step.get("required", True)]
         results.append({
             "run_id": run.get("id"),
             "status": run.get("status"),
@@ -653,9 +686,19 @@ async def list_assignments(
                 "plan_revision": record["assignment"].get("plan_revision"),
                 "current_action": next((
                     step.get("title")
-                    for step in record["assignment"].get("steps") or []
+                    for step in steps
                     if step.get("status") in (
                         "running", "waiting", "awaiting_approval")), None),
+                "progress": {
+                    "completed_steps": sum(
+                        1 for step in required
+                        if step.get("status") in ("applied", "skipped")),
+                    "required_steps": len(required),
+                    "waiting_steps": sum(
+                        1 for step in steps
+                        if step.get("status") in (
+                            "waiting", "awaiting_approval")),
+                },
             },
         })
     return results
@@ -789,6 +832,87 @@ async def resume_assignment(
         return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/{run_id}/reassess")
+async def reassess_assignment(
+    run_id: str,
+    body: AssignmentReassessment,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Explicitly adopt corrected teaching for active work.
+
+    Historical results/artifacts stay in the assignment's prior_results.
+    Only teaching-dependent steps and their descendants are reopened under a
+    new plan revision; current access/authority is rechecked on execution.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    assignment = executor.lifecycle.get_assignment(run_id) or {}
+    provenance = assignment.get("provenance") or {}
+    agent_id = str(provenance.get("agent_id") or "") or None
+    task_context = dict(
+        (assignment.get("teaching_snapshot") or {}).get(
+            "matched_context") or {})
+    task_context.update(dict(body.task_context or {}))
+    output_types: List[str] = []
+    for item in assignment.get("deliverables") or []:
+        mapped = {
+            "document": "document", "spreadsheet": "spreadsheet",
+            "presentation": "presentation", "email_draft": "email",
+            "email": "email",
+        }.get(str(item.get("kind") or ""))
+        if mapped and mapped not in output_types:
+            output_types.append(mapped)
+    if not output_types:
+        output_types = ["document"]
+    recipients = [
+        str(item) for item in (
+            (assignment.get("provenance") or {}).get("email_to") or [])
+        if str(item).strip()]
+    try:
+        teaching = _teaching_snapshot_for_start(
+            db,
+            agent_id=agent_id,
+            workspace_id=current_user.workspace_id or "default",
+            output_types=output_types,
+            task_context=task_context,
+            recipient=recipients[0] if recipients else None,
+            task_scope=str(task_context.get("task_scope") or "") or None,
+            now=datetime.now(timezone.utc).isoformat(),
+        )
+        result = executor.reassess_teaching(
+            run_id, teaching,
+            reason=body.reason or "explicit reassessment")
+        status = await executor.execute(run_id, max_steps=12)
+    except (AssignmentPlanError, TaskLifecycleError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
+
+
+@router.post("/{run_id}/invalidate/{step_id}")
+async def invalidate_assignment_step(
+    run_id: str,
+    step_id: str,
+    body: AssignmentInvalidation,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Explicitly reopen one branch after its evidence changed.
+
+    Prior results/artifacts remain in the audit history. The step and every
+    descendant run under a new plan revision, so old approvals/payloads do
+    not ride the changed evidence.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        result = executor.invalidate_step(
+            run_id, step_id, reason=body.reason or "evidence changed")
+        status = await executor.execute(run_id, max_steps=12)
+    except TaskLifecycleError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
 
 
 @router.post("/{run_id}/cancel")

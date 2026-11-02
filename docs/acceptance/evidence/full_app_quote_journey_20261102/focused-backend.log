@@ -1,0 +1,336 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 12:02:14 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_canvas_assignment_integration.py::test_receipt_assignment_executes_one_approved_draft 
+-------------------------------- live log setup --------------------------------
+2026-11-02 12:02:15 [    INFO] EscalationManager initialized
+2026-11-02 12:02:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 12:02:15 [    INFO] EscalationManager initialized
+2026-11-02 12:02:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 12:02:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 12:02:15 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:15 [    INFO] runtime identity: source_id=6f697cd9d642 revision=6f697cd9d642 dirty=False (0 modified, 0 untracked)
+2026-11-02 12:02:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_assignment/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_canvas_assignment_integration.py::test_uncertain_effect_reconciles_with_one_provider_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_uncertain/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_canvas_assignment_integration.py::test_canvas_edit_during_approval_blocks_action 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_corrected/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_canvas_assignment_integration.py::test_action_revocation_during_approval_blocks_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_revoked/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_canvas_assignment_integration.py::test_foreign_or_moved_employee_cannot_receive_canvas_teaching 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 404 Not Found"
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/teach-e60ed5022e0e487a945e539c6cae3890/promote "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  3%]
+tests/test_canvas_assignment_integration.py::test_non_supervisor_and_journal_failure_do_not_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-c601812856d84312baa3d7385118647b/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-c601812856d84312baa3d7385118647b/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_canvas_assignment_integration.py::test_promoted_global_lesson_is_consumed_with_full_provenance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:02:16 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/teach-7bb87f5e2b8c4d92a0c52a1069c3b95f/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_canvas_assignment_integration.py::test_foreign_employee_cannot_start_canvas_assignment 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_assign/capability/assign "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/test_canvas_assignment_integration.py::test_canvas_consumers_reject_a_foreign_assignment_principal 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_principal/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_canvas_assignment_integration.py::test_teaching_proposal_requires_explicit_promotion 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 409 Conflict"
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-5eece0b151524a13b7c971344930d7e0/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 12:02:17 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-5eece0b151524a13b7c971344930d7e0/promote "HTTP/1.1 200 OK"
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-5eece0b151524a13b7c971344930d7e0/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_canvas_assignment_integration.py::test_forged_self_consistent_receipt_is_not_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_forged_receipt/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_canvas_assignment_integration.py::test_canvas_receipt_assignment_creates_taught_document 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:17 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:02:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_document/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_canvas_typed_fields.py::test_three_typed_canvases_derive_server_totals PASSED [  9%]
+tests/test_canvas_typed_fields.py::test_unknown_widget_action_field_and_unit_are_refused PASSED [ 10%]
+tests/test_canvas_typed_fields.py::test_missing_required_value_is_targeted_and_zero_is_not_missing PASSED [ 10%]
+tests/test_canvas_typed_fields.py::test_forged_total_column_and_unknown_request_field_cannot_change_total PASSED [ 11%]
+tests/test_canvas_typed_fields.py::test_stale_revision_manifest_source_and_edit_refuse PASSED [ 12%]
+tests/test_canvas_typed_fields.py::test_duplicate_derive_is_stable_and_restart_preserves_receipt PASSED [ 12%]
+tests/test_canvas_typed_fields.py::test_cross_workspace_reader_is_refused PASSED [ 13%]
+tests/test_canvas_typed_fields.py::test_registered_action_binding_is_declared_not_authority PASSED [ 14%]
+tests/test_canvas_typed_fields.py::test_unknown_action_template_reference_is_refused PASSED [ 15%]
+tests/test_canvas_typed_fields.py::test_fork_keeps_typed_shape_but_drops_action_bindings PASSED [ 15%]
+tests/test_canvas_typed_fields.py::test_unknown_action_field_is_refused PASSED [ 16%]
+tests/test_canvas_typed_fields.py::test_derive_route_rejects_forged_total_and_accepts_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 422 Unprocessable Entity"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_canvas_typed_fields.py::test_missing_value_clarification_resumes_the_same_derive 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-67f35fd2e2bb45eb8f6c4975a701494f/answer "HTTP/1.1 409 Conflict"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-67f35fd2e2bb45eb8f6c4975a701494f/answer "HTTP/1.1 200 OK"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-67f35fd2e2bb45eb8f6c4975a701494f/answer "HTTP/1.1 200 OK"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-67f35fd2e2bb45eb8f6c4975a701494f/answer "HTTP/1.1 409 Conflict"
+2026-11-02 12:02:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-67f35fd2e2bb45eb8f6c4975a701494f/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_canvas_typed_fields.py::test_typed_string_and_receipt_limits_refuse_without_partial_total PASSED [ 18%]
+tests/test_canvas_typed_fields.py::test_declared_custom_code_runtime_is_refused_without_host_fallback PASSED [ 19%]
+tests/test_canvas_typed_fields.py::test_mixed_currency_and_hidden_currency_are_refused_at_manifest PASSED [ 20%]
+tests/test_canvas_typed_fields.py::test_same_currency_addition_and_rate_multiplication_are_accepted PASSED [ 20%]
+tests/test_canvas_typed_fields.py::test_old_open_clarification_refuses_replacement_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive/derive-d128a4e9b64b496abf5d12d6a07972fa/answer "HTTP/1.1 409 Conflict"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_canvas_typed_fields.py::test_stale_session_old_answer_cannot_replace_newer_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_lost_update/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_canvas_typed_fields.py::test_writer_after_validation_but_before_cas_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_cas_race/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_canvas_typed_fields.py::test_failed_derive_rolls_back_answer_and_keeps_question_open 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive/derive-24acc8db3b5f4e27b05cfda526f7e89f/answer "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 23%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_an_edit_with_a_new_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive/derive-b68caef7913f48f68611565d2a3730a1/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 24%]
+tests/test_canvas_typed_fields.py::test_open_question_resolves_after_a_fresh_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive/derive-e0d67bb9ec5b42b0a11814fe517b47bc/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_manifest_or_edit_change 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:02:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive/derive-16cc855d41cc4900b5ca0a970845ded2/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_canvas_typed_fields.py::test_stale_session_answer_cannot_overwrite_replacement_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_stale_session/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_canvas_capability_service.py::test_unknown_adapter_cannot_acquire_write_operations PASSED [ 27%]
+tests/test_canvas_capability_service.py::test_client_declared_permissions_cannot_widen_server_authority PASSED [ 28%]
+tests/test_canvas_capability_service.py::test_wrong_workspace_cannot_read_or_mutate PASSED [ 28%]
+tests/test_canvas_capability_service.py::test_stale_revision_cannot_overwrite_newer_state PASSED [ 29%]
+tests/test_canvas_capability_service.py::test_ambiguous_subject_mapping_clarifies PASSED [ 30%]
+tests/test_canvas_capability_service.py::test_changed_teaching_changes_policy_revision PASSED [ 30%]
+tests/test_canvas_capability_service.py::test_unsupported_formula_cannot_return_a_total PASSED [ 31%]
+tests/test_canvas_capability_service.py::test_total_uses_full_dataset_not_display_page PASSED [ 32%]
+tests/test_canvas_capability_service.py::test_repeated_edit_is_an_honest_noop PASSED [ 33%]
+tests/test_canvas_capability_service.py::test_manifest_and_binding_survive_new_session PASSED [ 33%]
+tests/test_canvas_capability_service.py::test_assessment_is_certified_from_authoritative_rows PASSED [ 34%]
+tests/test_canvas_capability_service.py::test_export_is_a_real_xlsx_with_readback PASSED [ 35%]
+tests/test_canvas_capability_service.py::test_edit_requires_an_explicit_revision PASSED [ 35%]
+tests/test_canvas_capability_service.py::test_manifest_revision_is_stable_across_resave PASSED [ 36%]
+tests/test_canvas_capability_service.py::test_client_file_sha_is_not_trusted_for_json_binding PASSED [ 37%]
+tests/test_canvas_capability_service.py::test_export_numeric_measure_is_numeric_and_formula_text_is_not_live PASSED [ 38%]
+tests/test_canvas_capability_service.py::test_fork_copy_drops_private_teaching_and_source_binding PASSED [ 38%]
+tests/test_canvas_capability_service.py::test_two_different_user_canvases_share_supported_operations PASSED [ 39%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 40%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 41%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 41%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 42%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 43%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 43%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 44%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 45%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 46%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 46%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 47%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 48%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 48%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 49%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 50%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 51%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 51%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 52%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 53%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 53%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 54%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 55%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 56%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 56%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 57%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 58%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 58%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 59%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 60%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 61%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 61%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 62%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 63%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 64%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 64%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 65%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 66%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 66%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 67%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 68%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:26 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('e78a31aa-a79c-496c-8393-80a48086a309', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "2699c744-b820-4238-bc70-beef23ee650e", "assignment_id": "asg-bd537df7a5fd4141", "step_id": "send", "operation_id": "79465bfd-14ed-4d2c-90 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "0bd9894928b92f53bfc34ac9fac6bfb4", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 69%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:26 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('c586b251-2605-4824-b48a-8de920ee42b4', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "9e287ed4-9672-4866-9f2f-bc7b2cbedee3", "assignment_id": "asg-0bf9a3c0d83b441b", "step_id": "send", "operation_id": "c59995ae-dbf9-4a34-ad ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "3b508243931811a27cdd617f761976db", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 69%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:27 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('cc14ed6b-80c9-4b66-a37f-c853b78d0fcc', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "3032e936-21af-4be9-b31d-31a2f3feec65", "assignment_id": "asg-e5c714b903944a6b", "step_id": "send", "operation_id": "a1fa69e3-d1ae-49a9-a9 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "486ff3e0fd35d1ab1e9baefe2b44a7f7", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:27 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('6090e2dc-395f-4fb8-a5b5-649bc1ce3ecb', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "152cf6b4-f24e-4b68-81a1-dfb60cc06e22", "assignment_id": "asg-705201214a24495d", "step_id": "send", "operation_id": "9c52f73d-17ed-44e5-b5 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "f8ecd1b430ec21da183d27a404be09bb", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 71%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:27 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('698386de-da2b-4c10-99dd-f961089b4a18', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "cc8a03c3-0d16-42fe-8b60-7c48613897bf", "assignment_id": "asg-6d2b4ab991d54b75", "step_id": "send", "operation_id": "0935989b-5919-4010-87 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "a696af8db23fca5377e07a77ab617dc6", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 71%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 72%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 73%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 74%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 74%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 75%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 76%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 76%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 77%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 78%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 79%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 79%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 80%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 81%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 82%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 82%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 83%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 84%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 84%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 85%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 86%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 87%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 87%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 88%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 89%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:29 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('3c834596-f77e-4197-b2f4-333b45a017b3', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "5a21dddd-4178-4796-a074-de387b607f79", "assignment_id": "asg-286ef461becc42f5", "step_id": "create-estimate", "operation_id": "c80ba3b1-1 ... (117 characters truncated) ... rtifact_revision": null, "authorization_revision": "5b607d4ffac87d8646557c2c04033eff", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate in the accounting system', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-02 12:02:29 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('ddc27dbb-3702-41b2-8cbf-10b9dec6de58', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "5a21dddd-4178-4796-a074-de387b607f79", "assignment_id": "asg-286ef461becc42f5", "step_id": "send-draft", "operation_id": "6bc79f7f-96de-4 ... (116 characters truncated) ... act_revision": null, "authorization_revision": "5b607d4ffac87d8646557c2c04033eff", "workspace_id": "ws_assign", "summary": "Send the customer email"}', None, 'null', 'pending', 'Send the prepared customer email', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 89%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-applied] PASSED [ 90%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 91%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 92%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 92%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 93%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 94%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 94%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 95%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 96%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 97%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 97%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:29 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('413ee944-9fc0-4515-8b67-0169d30ece37', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "9f74390a-58e8-4663-a5c5-348e746f7a94", "assignment_id": "asg-c3f52cec33604ac0", "step_id": "action", "operation_id": "b500072c-35eb-43b3- ... (105 characters truncated) ...  "artifact_revision": null, "authorization_revision": "a036d3797a52cd8e10f60c6157b2740f", "workspace_id": "ws_assign", "summary": "Apply the action"}', None, 'null', 'pending', 'Apply the controlled action', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 98%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 99%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:02:29 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+[SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('9019035e-4285-4f71-9960-2ab5fd035441', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "fba07c7c-a237-446b-afca-588f57b4de45", "assignment_id": "asg-af0c12e9d31340bd", "step_id": "create", "operation_id": "675286a8-b370-4f51- ... (108 characters truncated) ... rtifact_revision": null, "authorization_revision": "52b8d331ff19e47f83e745baf281e864", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 278 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 139 passed, 285 warnings in 24.63s ======================

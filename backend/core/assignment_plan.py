@@ -510,6 +510,8 @@ def new_assignment(
                 (budget or {}).get("max_wall_seconds") or 3600.0)),
             "max_cost_usd": max(0.0, float(
                 (budget or {}).get("max_cost_usd") or 0.0)),
+            "deadline": str(
+                (budget or {}).get("deadline") or "").strip() or None,
             "cost_mode": cost_mode,
             "soft_limit_authorized_by": soft_limit_by or None,
             "reserved_cost_usd": 0.0,
@@ -823,6 +825,8 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             (assignment.get("teaching_snapshot") or {}).get("revision")),
         "teaching_fingerprint": (
             (assignment.get("teaching_snapshot") or {}).get("fingerprint")),
+        "teaching_history": copy.deepcopy(
+            assignment.get("teaching_history") or []),
         "effective_lesson_ids": [
             {
                 "id": str(item.get("id") or ""),

@@ -295,9 +295,62 @@ class Microsoft365Service(IntegrationService):
                 
                 if response.status == 204:
                     return {"status": "success", "data": None}
-                    
+
+                # A binary endpoint has no JSON body.  Decoding it as JSON was
+                # the "Microsoft file bytes vs JSON" defect: /content replies
+                # with a 302 to a pre-authenticated CDN URL and then raw file
+                # bytes.  Keep the byte path on its own helper so generic JSON
+                # calls stay unchanged.
+                content_type = response.headers.get("Content-Type", "")
+                if content_type and (
+                    "application/json" not in content_type
+                    and "text/" not in content_type
+                ):
+                    raw = await response.read()
+                    return {
+                        "status": "success",
+                        "data": {
+                            "content_b64": __import__("base64").b64encode(raw).decode("ascii"),
+                            "size": len(raw),
+                            "content_type": content_type,
+                        },
+                        "media_type": "application/octet-stream",
+                    }
+
                 data = await response.json()
                 return {"status": "success", "data": data}
+
+    async def _make_graph_bytes_request(
+        self, url: str, token: str,
+    ) -> Dict[str, Any]:
+        """Fetch raw bytes from Graph (``/content`` endpoints).
+
+        Graph redirects ``/content`` to a pre-authenticated CDN URL; aiohttp
+        follows redirects by default.  The result is file evidence
+        (``content_b64`` + size + content type), never a JSON decode.
+        """
+        import aiohttp
+
+        headers = {"Authorization": f"Bearer {token}"}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status >= 400:
+                    text = await response.text()
+                    return {
+                        "status": "error",
+                        "code": response.status,
+                        "message": text[:500],
+                    }
+                raw = await response.read()
+                return {
+                    "status": "success",
+                    "data": {
+                        "content_b64": __import__("base64").b64encode(raw).decode("ascii"),
+                        "size": len(raw),
+                        "content_type": response.headers.get("Content-Type", ""),
+                    },
+                    "media_type": "application/octet-stream",
+                }
 
     async def execute_onedrive_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute OneDrive/SharePoint action.
@@ -323,10 +376,15 @@ class Microsoft365Service(IntegrationService):
 
             elif action == "get_content":
                 path = params.get("path")
-                if not path:
-                    return {"status": "error", "message": "get_content requires 'path' parameter"}
-                url = f"{self.base_url}/me/drive/root:/{path}:/content"
-                return await self._make_graph_request("GET", url, token)
+                file_id = params.get("item_id")
+                if not path and not file_id:
+                    return {"status": "error", "message": "get_content requires 'path' or 'item_id' parameter"}
+                url = (
+                    f"{self.base_url}/me/drive/items/{file_id}/content"
+                    if file_id
+                    else f"{self.base_url}/me/drive/root:/{path}:/content"
+                )
+                return await self._make_graph_bytes_request(url, token)
 
             elif action == "upload":
                 path = params.get("path")

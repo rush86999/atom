@@ -1,0 +1,91 @@
+{
+  "artifacts": {
+    "README.md": "8f7c24ceb53fae99d4dcba9dcb6c2dc85d5b020a261042984d5f53f5512038f6",
+    "TEST_RESULTS.md": "0e2cbe10146f1f468fc369fbbcdc01754e01be8200c9362587446cf7b6db5a69",
+    "focused-backend.log": "19da2e1e82576be53396e34eb486367e5107c720a52f6b7852019f898a60a874",
+    "frontend.log": "63e33709b587a20f7592980082dfecdc776a2086098bd5ec0c89da8105529a95",
+    "journey.log": "559cb088d100b37495c504ca053404a2eace687f022089f7273b61091f465b56",
+    "quote-document.bin": "1cc38db338775f23510a15bd4e297ae2401d1d00726e925cbb4762e1146da495",
+    "quote-journey.png": "8984de2cfa583e60816056b19c524692e62b85170e2403940bace8b587ec7a19",
+    "result.json": "6995ef44c266fc0ac7825a1f2a5d51e63327dd56a67488157185b4dfeda84a0d"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "dirty": false,
+    "executed_source": "6f697cd9d",
+    "manifest_note": "This evidence commit is docs-only after the executed source; the executed source was not served after the evidence commit.",
+    "ports": {
+      "api": 8096,
+      "frontend": 3137
+    },
+    "runtime_identity": "source_id=6f697cd9d642 revision=6f697cd9d642 dirty=False (0 modified, 0 untracked)",
+    "transport": "controlled canvas action; no live provider",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-full-app",
+    "world": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102"
+  },
+  "changed_files": [
+    "backend/api/canvas_capability_routes.py",
+    "backend/core/action_registry.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/canvas_assignment.py",
+    "backend/tests/test_canvas_assignment_integration.py",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx",
+    "scripts/acceptance/canvas_typed_canvases_local.py",
+    "scripts/acceptance/full_app_quote_journey.py"
+  ],
+  "claims": [
+    "normal-full-app-quote-service-exception-journey"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "the supplier-invoice-to-Zoho-Books bookkeeping loop is not covered by this journey",
+    "whole-app ORACLE mutation-surface coverage remains open",
+    "historical 111/123 unchanged",
+    "connected acceptance remains 6431bcb78",
+    "typed-canvas acceptance remains 4859b0ce2477",
+    "canvas assignment/teaching acceptance remains a87882526323"
+  ],
+  "journey": {
+    "checks_passed": 15,
+    "checks_total": 15,
+    "command": "python scripts/acceptance/full_app_quote_journey.py --frontend http://127.0.0.1:3137 --api http://127.0.0.1:8096 --password-file <world>/canvas-password.txt --agent-id 5ef8be20-1528-42d2-86e0-5c932c4a45e4 --out-dir <world>/evidence/journey-clean-6f697cd9d",
+    "result": "passed"
+  },
+  "related_surfaces": [
+    "canvas receipt assignment with downloaded artifact",
+    "promoted document lesson consumed by later work",
+    "declared registered action with readback remote id",
+    "duplicate continuation does not dispatch again",
+    "source change refuses the stale receipt",
+    "service proposal and non-sales exception queue variants",
+    "cancellation is terminal",
+    "real backend restart preserves prepared work"
+  ],
+  "repairs": [
+    "persist execution.remote_id for applied operations and expose it in assignment API operations",
+    "wait for canvas navigation and capability-panel visibility instead of fixed sleeps",
+    "journey waits for the panel visible before opening it"
+  ],
+  "schema": "atom-full-app-quote-journey-1",
+  "source_hashes": {
+    "backend/api/canvas_capability_routes.py": "ce206fb06c712667af5b75627fe5568b1e06455ad36f17388920f4434f907ba6",
+    "backend/core/action_registry.py": "f3a17faa904674135beb34c9b8ff98ccf1125f5884ab93f8787f41f8825962ec",
+    "backend/core/assignment_executor.py": "16592e566d29dc07e7cd0ceedff551bab6303f391a3fdfc317aee5f0b2e4fd8b",
+    "backend/core/canvas_assignment.py": "8493962c13e3ea3e7b04bfdefeab44c4843bcf4d11bd9b504e2863b11974a545",
+    "backend/tests/test_canvas_assignment_integration.py": "6d15316ab51898541e63243c9925b2cb636dd6573b403e49a03d61a15c1515d0",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "ac9ac639d15bd0f700d8325e789e5b83f917bb0fcf2d993fc2b3e23cee4f1885",
+    "scripts/acceptance/canvas_typed_canvases_local.py": "b275b22457187ffcdb631a747febb06a42558d7d759ba42d0eae8fb6c53a4286",
+    "scripts/acceptance/full_app_quote_journey.py": "d3c13c0105b492a79930374fc7194a3626c245e4e178e15c923137dcda6bd209"
+  },
+  "tests": {
+    "focused_backend": {
+      "command": "TESTING=1 PYTHONPATH=backend pytest tests/test_canvas_assignment_integration.py tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_assignment_executor.py -q",
+      "result": "139 passed"
+    },
+    "frontend": {
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand --silent",
+      "result": "7 passed"
+    }
+  }
+}

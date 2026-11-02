@@ -1,0 +1,30 @@
+{
+  "slice": "teaching-correction-reassessment",
+  "controlled": true,
+  "before_teaching_revision": "ad411eabd27d37a2",
+  "after_teaching_revision": "830584c1e04463dd",
+  "old_plan_revision": 1,
+  "new_plan_revision": 2,
+  "teaching_history": [
+    {
+      "revision": "ad411eabd27d37a2",
+      "fingerprint": "86853f20116c27c59b60c1c30431b192",
+      "replaced_by": "830584c1e04463dd",
+      "reason": "pricing owner corrected the exception",
+      "at": "2026-11-01T21:57:21.548981+00:00"
+    }
+  ],
+  "affected_steps": [
+    "calculate",
+    "deliverable-1"
+  ],
+  "preserved_steps": [
+    "source-1",
+    "source-2"
+  ],
+  "before_total": "362.50",
+  "after_total": "355.00",
+  "new_work_total": "355.00",
+  "stored_artifact": "/private/tmp/atom-brennan-agent1/docs/acceptance/evidence/brennan_agent1/teaching-correction/acme-quote-corrected.docx",
+  "artifact_revision": "f45a26b35069ccac"
+}

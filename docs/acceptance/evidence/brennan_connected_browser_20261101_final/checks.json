@@ -1,0 +1,244 @@
+[
+  {
+    "name": "occupied acceptance port is refused, not reused",
+    "ok": true,
+    "detail": {
+      "message": "port 8093 is already occupied; refusing to reuse an unknown server"
+    }
+  },
+  {
+    "name": "assignment starts and pauses on discount qualification",
+    "ok": true,
+    "detail": {
+      "run_id": "b5572d45-bf4a-47b5-9041-9ae1fe3dfe0e",
+      "status": "waiting"
+    }
+  },
+  {
+    "name": "real backend process restarted",
+    "ok": true,
+    "detail": {
+      "old_pid": 65639,
+      "new_pid": 65660
+    }
+  },
+  {
+    "name": "restarted backend serves the declared code identity",
+    "ok": true,
+    "detail": {
+      "expected_head": "6431bcb7857fd43dffc1ed685fffe47044669e5c",
+      "expected_dirty": false,
+      "old_pid": 65639,
+      "new_pid": 65660,
+      "old_instance": "6431bcb7857f.65639.1793589579",
+      "new_instance": "6431bcb7857f.65660.1793589582",
+      "old_source_id": "6431bcb7857f",
+      "new_source_id": "6431bcb7857f",
+      "dirty": false,
+      "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-clean-world",
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-clean-world/atom.db",
+      "repo_root": "/private/tmp/atom-brennan-clean",
+      "backend_root": "/private/tmp/atom-brennan-clean/backend"
+    }
+  },
+  {
+    "name": "health and connected routes identify the same instance",
+    "ok": true,
+    "detail": {
+      "health_pid": 65660,
+      "connected_pid": 65660,
+      "health_instance": "6431bcb7857f.65660.1793589582",
+      "connected_instance": "6431bcb7857f.65660.1793589582"
+    }
+  },
+  {
+    "name": "connected provider still serves the pre-change source",
+    "ok": true,
+    "detail": {
+      "version": "v1"
+    }
+  },
+  {
+    "name": "obligation survives backend restart",
+    "ok": true,
+    "detail": {
+      "run_id": "b5572d45-bf4a-47b5-9041-9ae1fe3dfe0e"
+    }
+  },
+  {
+    "name": "v1 calculation completes before correction",
+    "ok": true,
+    "detail": {
+      "value": "362.50",
+      "versions": [
+        "v1"
+      ]
+    }
+  },
+  {
+    "name": "v1 calculation captured before correction",
+    "ok": true,
+    "detail": {
+      "screenshot": "/private/tmp/brennan-clean-evidence/02-v1-completed-calculation.png"
+    }
+  },
+  {
+    "name": "connected source changed",
+    "ok": true,
+    "detail": {
+      "ok": true,
+      "version": "v2",
+      "bytes": 119
+    }
+  },
+  {
+    "name": "changed source invalidates read branch",
+    "ok": true,
+    "detail": {
+      "status": 200,
+      "run_id": "b5572d45-bf4a-47b5-9041-9ae1fe3dfe0e"
+    }
+  },
+  {
+    "name": "corrected continuation reaches estimate approval",
+    "ok": true,
+    "detail": {
+      "screenshot": "/private/tmp/brennan-clean-evidence/02-corrected-quote-approval.png"
+    }
+  },
+  {
+    "name": "production WorkDrive receipt identifies v2",
+    "ok": true,
+    "detail": {
+      "version": "v2",
+      "sha256": "b3e6adebe9d8a3827e5ceeadf53a86081d9db3220d069228659de61eb802606f",
+      "coverage": "complete"
+    }
+  },
+  {
+    "name": "corrected calculation rows use v2 source identity",
+    "ok": true,
+    "detail": {
+      "row_count": 2,
+      "versions": [
+        "v2"
+      ]
+    }
+  },
+  {
+    "name": "v1 remains only in historical result",
+    "ok": true,
+    "detail": {
+      "prior_row_count": 2,
+      "versions": [
+        "v1"
+      ]
+    }
+  },
+  {
+    "name": "estimate readback uses corrected total",
+    "ok": true,
+    "detail": [
+      {
+        "estimate_id": "est-browser-1",
+        "reference_number": "RFQ-BROWSER-1793589579686",
+        "total": "376.75"
+      }
+    ]
+  },
+  {
+    "name": "Outlook draft uses verified corrected total",
+    "ok": true,
+    "detail": {
+      "subject": "Quote RFQ-BROWSER-1793589579686",
+      "body": "Quoted total: 376.75 USD",
+      "to": [
+        "buyer@example.invalid"
+      ]
+    }
+  },
+  {
+    "name": "no send occurred",
+    "ok": true,
+    "detail": {
+      "drafts": 1,
+      "send_attempts": 0
+    }
+  },
+  {
+    "name": "completed assignment reopens after reload",
+    "ok": true,
+    "detail": {
+      "run_id": "b5572d45-bf4a-47b5-9041-9ae1fe3dfe0e"
+    }
+  },
+  {
+    "name": "duplicate resume from two pages is a no-op",
+    "ok": true,
+    "detail": {
+      "first_status": 200,
+      "second_status": 200,
+      "step_status": "awaiting_approval",
+      "calls": 1,
+      "estimates": 1
+    }
+  },
+  {
+    "name": "cancellation refuses a late correlated response",
+    "ok": true,
+    "detail": {
+      "cancelled_status": "cancelled",
+      "late_response_status": 409,
+      "resume_status": "cancelled",
+      "gap_status": 409,
+      "calls": 1,
+      "estimates": 1
+    }
+  },
+  {
+    "name": "provider acceptance with lost readback is uncertain",
+    "ok": true,
+    "detail": {
+      "fault": {
+        "ok": true,
+        "estimate_fail_after_apply": 0,
+        "readback_failures": 20
+      },
+      "step_status": "uncertain",
+      "draft_status": "pending",
+      "calls": 2,
+      "estimates": 2,
+      "send_attempts": 0
+    }
+  },
+  {
+    "name": "uncertain job survives restart without a second create",
+    "ok": true,
+    "detail": {
+      "step_status": "uncertain",
+      "draft_status": "pending",
+      "calls": 2,
+      "estimates": 2
+    }
+  },
+  {
+    "name": "reconciliation settles the original object without a duplicate",
+    "ok": true,
+    "detail": {
+      "reconciled": 200,
+      "step_status": "applied",
+      "calls": 2,
+      "estimates": 2,
+      "landed": "est-browser-2"
+    }
+  },
+  {
+    "name": "reconciled uncertainty releases the dependent draft without sending",
+    "ok": true,
+    "detail": {
+      "status": "completed",
+      "drafts": 2,
+      "send_attempts": 0
+    }
+  }
+]

@@ -1,0 +1,265 @@
+{
+  "artifacts": {
+    "01-qualification-before-restart.png": "e8b5af26d1e6fa1abb9b714a9ebe4d0ed2bb7e633f0d430494ef9484ecba989f",
+    "02-corrected-quote-approval.png": "bad087d0092386d6f87615a12e133b6d9b71f5efd4b82815d36292365c1ad271",
+    "02-v1-completed-calculation.png": "734c37d1c42cd9a3b11f7cb4c6b93b1f5f6a68de6293038acb20510d3f78d6db",
+    "03-completed-draft.png": "5db9d62e41e7e3b4924c01106bff8d69b70c1d946710476d569a00b1ddb9cc41",
+    "backend-reset.log": "b72afbf5602014aad4a0455734cf3c9c93716f88b5a5cf9656f3012b6022372e",
+    "backend-restart.log": "873c507e472e6f4f73abff096af9ec884a27e7460ccc6a03f7d589c8827176ec",
+    "checks.json": "70533c5da999136e1e98f2cef66eee894faebe4f515b08dfddda2c2e660ab7be"
+  },
+  "browser": {
+    "checks": [
+      {
+        "name": "occupied acceptance port is refused, not reused",
+        "ok": true
+      },
+      {
+        "name": "assignment starts and pauses on discount qualification",
+        "ok": true
+      },
+      {
+        "name": "real backend process restarted",
+        "ok": true
+      },
+      {
+        "name": "restarted backend serves the declared code identity",
+        "ok": true
+      },
+      {
+        "name": "health and connected routes identify the same instance",
+        "ok": true
+      },
+      {
+        "name": "connected provider still serves the pre-change source",
+        "ok": true
+      },
+      {
+        "name": "obligation survives backend restart",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation completes before correction",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation captured before correction",
+        "ok": true
+      },
+      {
+        "name": "connected source changed",
+        "ok": true
+      },
+      {
+        "name": "changed source invalidates read branch",
+        "ok": true
+      },
+      {
+        "name": "corrected continuation reaches estimate approval",
+        "ok": true
+      },
+      {
+        "name": "production WorkDrive receipt identifies v2",
+        "ok": true
+      },
+      {
+        "name": "corrected calculation rows use v2 source identity",
+        "ok": true
+      },
+      {
+        "name": "v1 remains only in historical result",
+        "ok": true
+      },
+      {
+        "name": "estimate readback uses corrected total",
+        "ok": true
+      },
+      {
+        "name": "Outlook draft uses verified corrected total",
+        "ok": true
+      },
+      {
+        "name": "no send occurred",
+        "ok": true
+      },
+      {
+        "name": "completed assignment reopens after reload",
+        "ok": true
+      },
+      {
+        "name": "duplicate resume from two pages is a no-op",
+        "ok": true
+      },
+      {
+        "name": "cancellation refuses a late correlated response",
+        "ok": true
+      },
+      {
+        "name": "provider acceptance with lost readback is uncertain",
+        "ok": true
+      },
+      {
+        "name": "uncertain job survives restart without a second create",
+        "ok": true
+      },
+      {
+        "name": "reconciliation settles the original object without a duplicate",
+        "ok": true
+      },
+      {
+        "name": "reconciled uncertainty releases the dependent draft without sending",
+        "ok": true
+      }
+    ],
+    "checks_passed": 25,
+    "checks_total": 25,
+    "command": "BRENNAN_BROWSER_OUT=/private/tmp/brennan-browser-evidence-25 node scripts/acceptance/brennan_connected_browser.cjs",
+    "draft_total": "376.75",
+    "estimated_total": "376.75",
+    "process_identities": {
+      "new_instance_id": "6431bcb7857f.65066.1793589324",
+      "new_pid": 65066,
+      "new_source_id": "6431bcb7857f",
+      "old_instance_id": "6431bcb7857f.65057.1793589321",
+      "old_pid": 65057,
+      "old_source_id": "6431bcb7857f"
+    },
+    "screenshot_path_note": "checks.json records the scratch output paths used during execution; the same images and logs are committed in this directory.",
+    "send_attempts": 0,
+    "source_version_expected": "v2 after correction; v1 retained only in prior_results"
+  },
+  "candidate": {
+    "artifact_evidence_commit": "f8a55adf9",
+    "base_candidate": "c442cd9d7eeba44e17feada5e452c0c46fc9be13",
+    "branch": "codex/brennan-joint-review-20261101",
+    "dirty": false,
+    "executed_source_head": "6431bcb7857fd43dffc1ed685fffe47044669e5c",
+    "manifest_note": "The manifest commit is docs-only after the executed source and artifact commits; it was not served.",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-brennan-review"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/connected_actions.py",
+    "backend/core/quote_rows.py",
+    "backend/core/runtime_identity.py",
+    "backend/scripts/assignment_browser_acceptance_server.py",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/unit/test_brennan_bookkeeping_registered.py",
+    "backend/tests/unit/test_quote_rows.py",
+    "backend/tests/unit/test_serialization_budget.py",
+    "scripts/acceptance/brennan_connected_browser.cjs"
+  ],
+  "exclusions": [
+    "standalone acceptance server, not full-app authentication/profile/navigation proof",
+    "no live Zoho/Microsoft provider lookup, refresh, write or send",
+    "no universal mini-app/canvas runtime claim",
+    "executed source and artifact commits are distinct from this docs-only manifest commit",
+    "historical 111/123 milestone scope unchanged; this is additional business-workflow qualification"
+  ],
+  "providers": {
+    "books": "controlled fake provider service behind registered connected.books actions",
+    "live_provider_calls": 0,
+    "onedrive": "production registered connected.onedrive.read_file action and XLSX parser via public route",
+    "outlook": "controlled fake service; send_email raises and increments send_attempts",
+    "workdrive": "production registered connected.workdrive.read_file action and CSV parser; controlled provider transport only"
+  },
+  "scenarios": [
+    {
+      "scenario": "unsupported pricing semantics (caps, fixed, tiers, formulas, unknown fields)",
+      "verdict": "pass - public route 422 before arithmetic; no action runs"
+    },
+    {
+      "scenario": "persisted serialized byte budget",
+      "verdict": "pass - exactly 4,194,304 bytes accepted; +1, backslashes, quotes, controls, multibyte and nested receipts refused"
+    },
+    {
+      "scenario": "read overflow and descendant blocking",
+      "verdict": "pass - typed failure; no descendant effect"
+    },
+    {
+      "scenario": "post-dispatch mutation overflow",
+      "verdict": "pass - uncertain with original operation/remote identity; restart adds no effect; reconciliation settles the original and releases the draft"
+    },
+    {
+      "scenario": "complete row population and provenance",
+      "verdict": "pass - 79/80/81 rows and byte-exact base64; 501-row partial source blocks calculation; oversized inline content refuses; restart persists"
+    },
+    {
+      "scenario": "production WorkDrive browser path",
+      "verdict": "pass - registered action/CSV parser/executor run; only provider service faked"
+    },
+    {
+      "scenario": "OneDrive XLSX public assignment route",
+      "verdict": "pass - production registered action/parser, receipt version/hash/coverage"
+    },
+    {
+      "scenario": "connected browser journey",
+      "verdict": "pass - 25/25 checks, v1 362.50 prior, v2 376.75, full readback, draft, zero sends, reload"
+    },
+    {
+      "scenario": "recovery siblings",
+      "verdict": "pass - duplicate resume no-op; cancellation refuses late correlation; lost readback uncertain across restart; no second create; reconciliation releases draft"
+    },
+    {
+      "scenario": "registered bookkeeping controls",
+      "verdict": "pass - happy path, missing/ambiguous vendor, closed period, changed payload, incomplete sweep, incomplete/mismatched readback"
+    },
+    {
+      "scenario": "missing and ambiguous qualification through public route",
+      "verdict": "pass - scope gap resolves 90.00; unrecognized conflict resolution buys no arithmetic and re-asks"
+    },
+    {
+      "scenario": "non-sales expense reconciliation portability",
+      "verdict": "pass - same public route, miles/nights, 260.40 USD, document artifact"
+    },
+    {
+      "scenario": "occupied acceptance port",
+      "verdict": "pass - runner refuses to reuse an unknown server"
+    }
+  ],
+  "schema": "brennan-connected-batch-manifest-2",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "54d69e59e97a990f8ee9197bff74dff7e91f7227407ee9060dcef367d224c8d3",
+    "backend/core/commercial_readback.py": "315d0abfc52a314ff9ee040c0b6d4837c2e5f6de53e14b5488f0adcf3a53a851",
+    "backend/core/connected_actions.py": "515b7a56f3747491d791eb1208c35eedfe0867ac2cdaf711588c974a7abfc0ef",
+    "backend/core/quote_rows.py": "9026b46f012437ad063df1fe6aca7a3328c4c3a510c04616f02b1449d4772de4",
+    "backend/core/runtime_identity.py": "29310fe56c85ed5fec3e623caedac9165d6adcd4dcf144dad30e0425f60080f3",
+    "backend/scripts/assignment_browser_acceptance_server.py": "ef5d58b094d6314b0410e5023231e35797861e767f0d8c0af583b7386e2b1e66",
+    "backend/tests/integration/test_brennan_joint_document_flow.py": "e8c140aab824174325180907dcc3c03c249b5864fbc5a994f0ed4579de2077e2",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py": "76b0ba70bae348a0a4319b1033d57f16a73ae085c00674d47ee9da1af15dcee8",
+    "backend/tests/test_assignment_routes.py": "6294cb7cd099dda425b797c9c772119676f80f863dc92921a162059cb671b5d5",
+    "backend/tests/unit/test_brennan_bookkeeping_registered.py": "dbb28878b22c67282468460c720710b1ebffd539b1ccdb348549488d2b18f02c",
+    "backend/tests/unit/test_quote_rows.py": "a7d5b71f67821af16296677f7f1d766cb380442bf941152a579e8cdd83b4b110",
+    "backend/tests/unit/test_serialization_budget.py": "afc016f9cfeaf4d9231d64c11b9f9678abcca33431dce7e9ea9e72e6feb8975f",
+    "scripts/acceptance/brennan_connected_browser.cjs": "f247dd487281fad5d20e88b0082b4107ee61fdb9b342d71e04b8322323d26f2e"
+  },
+  "tests": {
+    "agent1_required": {
+      "command": "pytest tests/test_assignment_quote.py tests/test_assignment_executor.py tests/test_assignment_routes.py tests/test_quote_evidence.py -q",
+      "result": "178 passed"
+    },
+    "agent2_focused": {
+      "command": "pytest tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/unit/test_brennan_accounting_sync_semantics.py tests/test_covpush_w97_zoho_books.py tests/test_covpush_w97_zoho_crm.py tests/test_covpush_w38_zoho_workdrive.py tests/test_covpush_w102_onedrive_routes.py tests/test_covpush_w109_accounting_docs.py tests/test_covpush_w74a_accounting2.py::TestAIDocumentProcessor -q",
+      "result": "279 passed"
+    },
+    "data_transfer_boundary": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py -q",
+      "result": "32 passed",
+      "scope": "checkout-tracked only; the verifier probe is independent and not required for this manifest"
+    },
+    "joint_batch": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_quote_evidence.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/integration/test_brennan_joint_quote_campaign.py -q",
+      "result": "312 passed"
+    },
+    "joint_core": {
+      "command": "pytest tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_assignment_routes.py tests/test_quote_evidence.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_quote_rows.py tests/unit/test_serialization_budget.py tests/unit/test_brennan_bookkeeping_registered.py -q",
+      "result": "284 passed"
+    },
+    "known_baseline_failures": {
+      "command": "tests/test_task_lifecycle.py turn-count/LLM-orchestration cases",
+      "result": "4 pre-existing failures reproduce at baseline acd86a2aa; not counted as passes"
+    }
+  }
+}

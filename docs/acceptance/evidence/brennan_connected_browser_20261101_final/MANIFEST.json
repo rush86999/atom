@@ -1,0 +1,222 @@
+{
+  "artifacts": {
+    "01-qualification-before-restart.png": "5f308b58070ea7d8dadda888220ca3510809230fc9e3349bdf4cf0c90f6d2004",
+    "02-corrected-quote-approval.png": "2ef859a198f7e37c3dec617b1691e9683c85f781a7b600fbb85fe2000665e93b",
+    "02-v1-completed-calculation.png": "98f58fe3f2d3d291315bdaadf94f392c832bbf6e05b72bf5183b8b0b35997626",
+    "03-completed-draft.png": "41ef3d886605a8203c376bad21c15c1623dc5d6015c1b960dde3806edac402ee",
+    "backend-reset.log": "be40e0fe1cc07b9a3a7a5e68ad114c97921a4b4d25812b944112977d1bdf1108",
+    "backend-restart.log": "d3b711be803ed44b5aab0d8020d851a10666d9aed8d34532e52663ef2a1134c4",
+    "checks.json": "53c26662c8c04353c5c20ecd6746d9205606efb6a0e676c73bbd991775f472cf"
+  },
+  "browser": {
+    "checks": [
+      {
+        "name": "occupied acceptance port is refused, not reused",
+        "ok": true
+      },
+      {
+        "name": "assignment starts and pauses on discount qualification",
+        "ok": true
+      },
+      {
+        "name": "real backend process restarted",
+        "ok": true
+      },
+      {
+        "name": "restarted backend serves the declared code identity",
+        "ok": true
+      },
+      {
+        "name": "health and connected routes identify the same instance",
+        "ok": true
+      },
+      {
+        "name": "connected provider still serves the pre-change source",
+        "ok": true
+      },
+      {
+        "name": "obligation survives backend restart",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation completes before correction",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation captured before correction",
+        "ok": true
+      },
+      {
+        "name": "connected source changed",
+        "ok": true
+      },
+      {
+        "name": "changed source invalidates read branch",
+        "ok": true
+      },
+      {
+        "name": "corrected continuation reaches estimate approval",
+        "ok": true
+      },
+      {
+        "name": "production WorkDrive receipt identifies v2",
+        "ok": true
+      },
+      {
+        "name": "corrected calculation rows use v2 source identity",
+        "ok": true
+      },
+      {
+        "name": "v1 remains only in historical result",
+        "ok": true
+      },
+      {
+        "name": "estimate readback uses corrected total",
+        "ok": true
+      },
+      {
+        "name": "Outlook draft uses verified corrected total",
+        "ok": true
+      },
+      {
+        "name": "no send occurred",
+        "ok": true
+      },
+      {
+        "name": "completed assignment reopens after reload",
+        "ok": true
+      },
+      {
+        "name": "duplicate resume from two pages is a no-op",
+        "ok": true
+      },
+      {
+        "name": "cancellation refuses a late correlated response",
+        "ok": true
+      },
+      {
+        "name": "provider acceptance with lost readback is uncertain",
+        "ok": true
+      },
+      {
+        "name": "uncertain job survives restart without a second create",
+        "ok": true
+      },
+      {
+        "name": "reconciliation settles the original object without a duplicate",
+        "ok": true
+      },
+      {
+        "name": "reconciled uncertainty releases the dependent draft without sending",
+        "ok": true
+      }
+    ],
+    "checks_passed": 25,
+    "checks_total": 25,
+    "command": "BRENNAN_REQUIRE_CLEAN=1 BRENNAN_UI_BASE=http://127.0.0.1:3013 BRENNAN_API_BASE=http://127.0.0.1:8093 BRENNAN_BROWSER_WORLD=<world> BRENNAN_BROWSER_OUT=<dir> node scripts/acceptance/brennan_connected_browser.cjs",
+    "draft_total": "376.75",
+    "estimated_total": "376.75",
+    "process_identities": {
+      "new_instance_id": "6431bcb7857f.65660.1793589582",
+      "new_pid": 65660,
+      "new_source_id": "6431bcb7857f",
+      "old_instance_id": "6431bcb7857f.65639.1793589579",
+      "old_pid": 65639,
+      "old_source_id": "6431bcb7857f"
+    },
+    "send_attempts": 0,
+    "source_version_expected": "v2 after correction; v1 retained only in prior_results"
+  },
+  "candidate": {
+    "branch": "codex/brennan-joint-review-20261101",
+    "evidence_commit": "6b5045723 (25-check artifacts and manifest; backend logs added in 50aa20836)",
+    "executed_source_head": "6431bcb7857fd43dffc1ed685fffe47044669e5c",
+    "manifest_commit": "6b5045723",
+    "logs_commit": "50aa20836",
+    "manifest_note": "Docs-only updates after the evidence commit bind this canonical manifest and retain its backend logs; the served code remains 6431bcb78.",
+    "review_worktree": "/private/tmp/atom-brennan-review",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-brennan-clean (detached clean checkout of the branch tip)"
+  },
+  "configuration": {
+    "api": "standalone assignment acceptance server on real routes/executor/sqlite at 127.0.0.1:8093",
+    "authentication": "controlled browser-admin session with cookie and localStorage token",
+    "clean_source_required": true,
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-clean-world/atom.db",
+    "provider_substitution": "only provider services are faked; production registered WorkDrive/OneDrive/Books/Outlook actions and parsers run",
+    "python": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "ui": "production Next.js build from the executed source; real Assignments page on 127.0.0.1:3013",
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-clean-world"
+  },
+  "exclusions": [
+    "standalone acceptance server, not full-app authentication/profile/navigation",
+    "no live Zoho/Microsoft provider call, refresh, write or send",
+    "no universal mini-app/canvas runtime claim",
+    "evidence is docs-only after the executed source head",
+    "historical 111/123 milestone unchanged"
+  ],
+  "failure_note": "No failures in the frozen clean run. Earlier dirty/24-check attempts are preserved separately and are not acceptance evidence.",
+  "failure_records": [],
+  "providers": {
+    "books": "controlled fake service behind registered connected.books actions",
+    "live_provider_calls": 0,
+    "onedrive": "production registered connected.onedrive.read_file action and XLSX parser covered by public-route control",
+    "outlook": "controlled fake service; send_email increments send_attempts and raises",
+    "workdrive": "production registered connected.workdrive.read_file action and CSV parser; only provider service replaced with controlled bytes/metadata"
+  },
+  "request_identities": [
+    {
+      "objective": "Browser connected quote 1793589579685",
+      "run_id": "b5572d45-bf4a-47b5-9041-9ae1fe3dfe0e",
+      "status": "completed"
+    },
+    {
+      "objective": "Browser control resume 1793589584694",
+      "run_id": "92373ac6-a5af-4844-8f86-e3d4fff7225f",
+      "status": "cancelled"
+    },
+    {
+      "objective": "Browser control cancel 1793589585272",
+      "run_id": "d31c1d1e-4dc6-4045-b75e-4259107fd0a6",
+      "status": "cancelled"
+    },
+    {
+      "objective": "Browser control uncertain 1793589585366",
+      "run_id": "4aa122eb-8b1b-4b68-834a-49ff3d4f911a",
+      "status": "completed"
+    }
+  ],
+  "schema": "brennan-connected-browser-manifest-3",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "54d69e59e97a990f8ee9197bff74dff7e91f7227407ee9060dcef367d224c8d3",
+    "backend/core/commercial_readback.py": "315d0abfc52a314ff9ee040c0b6d4837c2e5f6de53e14b5488f0adcf3a53a851",
+    "backend/core/connected_actions.py": "515b7a56f3747491d791eb1208c35eedfe0867ac2cdaf711588c974a7abfc0ef",
+    "backend/core/quote_rows.py": "9026b46f012437ad063df1fe6aca7a3328c4c3a510c04616f02b1449d4772de4",
+    "backend/scripts/assignment_browser_acceptance_server.py": "ef5d58b094d6314b0410e5023231e35797861e767f0d8c0af583b7386e2b1e66",
+    "backend/tests/integration/test_brennan_joint_document_flow.py": "e8c140aab824174325180907dcc3c03c249b5864fbc5a994f0ed4579de2077e2",
+    "backend/tests/unit/test_serialization_budget.py": "afc016f9cfeaf4d9231d64c11b9f9678abcca33431dce7e9ea9e72e6feb8975f",
+    "scripts/acceptance/brennan_connected_browser.cjs": "f247dd487281fad5d20e88b0082b4107ee61fdb9b342d71e04b8322323d26f2e"
+  },
+  "tests": {
+    "agent1_required": {
+      "command": "pytest tests/test_assignment_quote.py tests/test_assignment_executor.py tests/test_assignment_routes.py tests/test_quote_evidence.py -q",
+      "result": "178 passed"
+    },
+    "agent2_focused": {
+      "command": "pytest tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/unit/test_brennan_accounting_sync_semantics.py tests/test_covpush_w97_zoho_books.py tests/test_covpush_w97_zoho_crm.py tests/test_covpush_w38_zoho_workdrive.py tests/test_covpush_w102_onedrive_routes.py tests/test_covpush_w109_accounting_docs.py tests/test_covpush_w74a_accounting2.py::TestAIDocumentProcessor -q",
+      "result": "279 passed"
+    },
+    "data_transfer_boundary": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py -q",
+      "result": "32 passed"
+    },
+    "joint_batch": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_quote_evidence.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/integration/test_brennan_joint_quote_campaign.py -q",
+      "result": "312 passed"
+    },
+    "joint_core": {
+      "command": "pytest tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_assignment_routes.py tests/test_quote_evidence.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_quote_rows.py tests/unit/test_serialization_budget.py tests/unit/test_brennan_bookkeeping_registered.py -q",
+      "result": "284 passed"
+    }
+  }
+}

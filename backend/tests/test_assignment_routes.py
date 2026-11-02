@@ -2041,3 +2041,1009 @@ def test_cancel_clears_mapping_wait_and_refuses_gap_and_reply(route_env):
     assert _outbox_empty()
     assert env["executor"].status(run_id)["assignment"]["status"] == (
         "cancelled")
+
+
+def test_quote_journey_uses_sources_and_taught_line_discount(
+        route_env, tmp_path, monkeypatch):
+    """Multi-source quote with a taught exception yields the 362.50 fixture.
+
+    Independent expected arithmetic:
+      A 2 x 100.00            = 200.00
+      B 3 x 50.00, 5% on B    = 142.50
+      freight                 =  20.00
+      explicit no tax         =   0.00
+      total                   = 362.50
+    """
+    import docx
+    from core.student_learning_service import deliver_teacher_lesson
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agreement = tmp_path / "brennan-customer-agreement.docx"
+    document = docx.Document()
+    document.add_paragraph("Customer: Acme Fabrication")
+    document.add_paragraph("Agreement: AF-2026")
+    document.add_paragraph(
+        "Taught exception: category B lines carry a 5% contract discount.")
+    document.save(agreement)
+
+    agent_id = _teaching_agent(
+        route_env, "Quote employee", "Arial", "quote-reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Apply the customer agreement discount exception",
+        topic="quote discount", applies_to=["document"],
+        format_spec={
+            "font_name": "Arial",
+            "line_discount_rules": [{
+                "lesson_id": "quote-category-b",
+                "revision": 1,
+                "name": "category B contract discount",
+                "when": {"category": "B"},
+                "rate": "0.05",
+            }],
+        },
+        context={"audience": "quote-reviewer"}, workspace_id="ws-1")
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare the Acme quote using the governing agreement",
+        "agent_id": agent_id,
+        "sources": [
+            {
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+            },
+            {"kind": "document", "path": str(agreement)},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "A", "category": "A", "quantity": "2",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "100.00", "price_basis": "contract",
+                 "currency": "USD"},
+                {"item_id": "B", "category": "B", "quantity": "3",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "50.00", "price_basis": "contract",
+                 "currency": "USD"},
+            ],
+            "currency": "USD",
+            "freight": "20.00",
+            "tax": {"basis": "none"},
+            "rounding": "half_up",
+            "scale": 2,
+            "rounding_authority": "customer agreement AF-2026",
+        },
+        "deliverables": [{"kind": "document", "description": "Acme quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    receipt = calc["result"]["calculation_receipt"]
+    assert receipt["subtotal"] == "342.50"
+    assert receipt["total"] == "362.50"
+    assert receipt["tax"]["basis"] == "none"
+    assert receipt["rounding_authority"] == "customer agreement AF-2026"
+    assert receipt["discount_rules"][0]["lesson_id"] == "quote-category-b"
+    assert [row["discount_rate"] for row in calc["result"]["rows"]] == [
+        "0", "0.05"]
+
+    deliverable = next(item for item in assignment["deliverables"]
+                       if item["kind"] == "document")
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            deliverable["artifact_path"]).paragraphs)
+    for table in docx.Document(deliverable["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "362.50" in text, text
+    assert "scotch-parts.xlsx" in text, text
+    assert "brennan-customer-agreement.docx" in text, text
+
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "controlled-quote-journey",
+            "controlled": True,
+            "live_connected": False,
+            "objective": "Prepare the Acme quote using the governing agreement",
+            "run_id": body["run_id"],
+            "assignment_id": assignment["assignment_id"],
+            "plan_revision": assignment["plan_revision"],
+            "teaching_revision": body.get("teaching_revision"),
+            "teaching_fingerprint": assignment.get("teaching_fingerprint"),
+            "sources": internal.get("sources") or [],
+            "calculation_receipt": receipt,
+            "calculation_rows": calc["result"]["rows"],
+            "expected_total_independent": "362.50",
+            "artifact_path": deliverable["artifact_path"],
+            "stored_artifact": stored,
+            "artifact_sha256": deliverable.get("sha256"),
+            "artifact_text": text,
+            "status_after_build": assignment["status"],
+        }
+        with open(os.path.join(
+                evidence_dir, "quote_journey.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
+
+def test_service_proposal_route_uses_the_same_assignment_api(
+        route_env, tmp_path, monkeypatch):
+    """Portability: hours/rates/CAD through the public route, no quote lesson.
+
+    Independent arithmetic: 4 x 120.00 + 2 x 75.00 = 630.00 CAD.
+    """
+    import docx
+
+    scope = tmp_path / "service-scope.txt"
+    scope.write_text(
+        "Service scope: four consulting hours and two site trips.\n")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a service proposal for the site visit",
+        "sources": [{"kind": "document", "path": str(scope)}],
+        "calculation": {
+            "line_items": [
+                {"item_id": "consulting-hours", "quantity": "4",
+                 "unit": "hour", "pack_size": "1", "unit_price": "120.00",
+                 "price_basis": "rate", "currency": "CAD"},
+                {"item_id": "site-trips", "quantity": "2", "unit": "trip",
+                 "pack_size": "1", "unit_price": "75.00",
+                 "price_basis": "rate", "currency": "CAD"},
+            ],
+            "currency": "CAD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "service rate card",
+        },
+        "deliverables": [{"kind": "document",
+                          "description": "Service proposal"}],
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "630.00"
+    assert calc["result"]["calculation_receipt"]["currency"] == "CAD"
+    deliverable = next(item for item in assignment["deliverables"]
+                       if item["kind"] == "document")
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            deliverable["artifact_path"]).paragraphs)
+    for table in docx.Document(deliverable["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "630.00" in text, text
+    assert "consulting-hours" in text or "Service" in text
+
+
+def _start_quote(route_env, tmp_path, monkeypatch, agent_id, *, customer="Acme",
+                 actions=None, email_draft=False):
+    import docx
+
+    if route_env["db"].query(DatasetEntry).filter(
+            DatasetEntry.id == "scotch-entry").first() is None:
+        _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agreement = tmp_path / f"{customer.lower()}-agreement.docx"
+    document = docx.Document()
+    document.add_paragraph(f"Customer: {customer}")
+    document.add_paragraph("Agreement: AF-2026")
+    document.save(agreement)
+    return route_env["client"].post("/api/assignments", json={
+        "objective": f"Prepare the {customer} quote",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+            {"kind": "document", "path": str(agreement)},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "A", "category": "A", "quantity": "2",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "100.00", "price_basis": "contract",
+                 "currency": "USD"},
+                {"item_id": "B", "category": "B", "quantity": "3",
+                 "unit": "each", "pack_size": "1",
+                 "unit_price": "50.00", "price_basis": "contract",
+                 "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "20.00",
+            "tax": {"basis": "none"}, "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement AF-2026",
+        },
+        "actions": list(actions or []),
+        "deliverables": (
+            [{"kind": "document", "description": "Quote"}]
+            + ([{"kind": "email_draft", "step_id": "email-draft",
+                 "description": "Quote email",
+                 "to": ["buyer@example.invalid"],
+                 "subject": "Acme quote"}] if email_draft else [])),
+        "task_context": {"audience": "quote-reviewer"},
+    })
+
+
+def _quote_lesson(route_env, agent_id, rate, name):
+    from core.student_learning_service import deliver_teacher_lesson
+
+    deliver_teacher_lesson(
+        route_env["db"], agent_id, name,
+        topic="quote discount", applies_to=["document"],
+        format_spec={
+            "font_name": "Arial",
+            "line_discount_rules": [{
+                "lesson_id": "quote-category-b",
+                "revision": 1,
+                "name": name,
+                "when": {"category": "B"},
+                "rate": rate,
+            }],
+        },
+        context={"audience": "quote-reviewer"}, workspace_id="ws-1")
+
+
+def test_teaching_correction_preserves_snapshot_and_reassessment_invalidates(
+        route_env, tmp_path, monkeypatch):
+    from core.student_learning_service import (
+        list_agent_lessons, update_teaching_point,
+    )
+
+    agent_id = _teaching_agent(
+        route_env, "Correctable quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    first = _start_quote(route_env, tmp_path, monkeypatch, agent_id)
+    assert first.status_code == 200, first.text
+    first_body = first.json()
+    assert first_body["assignment"]["assignment"]["status"] == "completed"
+    run_id = first_body["run_id"]
+    before = route_env["lifecycle"].get_assignment(run_id)
+    before_calc = next(step for step in before["steps"]
+                       if step["step_id"] == "calculate")
+    assert before_calc["result"]["value"] == "362.50"
+    before_revision = before["teaching_snapshot"]["revision"]
+
+    point = next(
+        item for item in list_agent_lessons(route_env["db"], agent_id)
+        if item.get("topic") == "quote discount")
+    corrected = update_teaching_point(
+        route_env["db"], agent_id, point["id"],
+        text="Use the corrected 10% category B exception",
+        format_spec={"line_discount_rules": [{
+            "lesson_id": "quote-category-b", "revision": 2,
+            "name": "10% category B", "when": {"category": "B"},
+            "rate": "0.10"}]})
+    assert corrected["status"] == "ok", corrected
+
+    # Active/completed work keeps its accepted snapshot.
+    retained = route_env["lifecycle"].get_assignment(run_id)
+    assert retained["teaching_snapshot"]["revision"] == before_revision
+    assert retained["steps"][-1]["status"] in ("applied", "pending")
+    assert next(step for step in retained["steps"]
+                if step["step_id"] == "calculate"
+                )["result"]["value"] == "362.50"
+
+    # New work adopts the correction.
+    second = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Acme Two")
+    assert second.status_code == 200, second.text
+    second_body = second.json()
+    assert second_body["assignment"]["assignment"]["status"] == "completed"
+    second_calc = next(
+        step for step in route_env["lifecycle"].get_assignment(
+            second_body["run_id"])["steps"]
+        if step["step_id"] == "calculate")
+    assert second_calc["result"]["value"] == "355.00", second_calc["result"]
+
+    # Explicit reassessment adopts the correction for the old job and
+    # invalidates its derived calculation/deliverable, preserving prior work.
+    reassessed = route_env["client"].post(
+        f"/api/assignments/{run_id}/reassess",
+        json={"reason": "pricing owner corrected the exception"})
+    assert reassessed.status_code == 200, reassessed.text
+    body = reassessed.json()
+    assert body["status"] == "reassessed"
+    assert "calculate" in body["affected_steps"]
+    assert "source-1" in body["preserved_steps"]
+    after = route_env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == retained["plan_revision"] + 1
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "applied"
+    assert calc["result"]["value"] == "355.00"
+    assert calc["prior_results"], calc
+    assert calc["prior_results"][-1]["result"]["value"] == "362.50"
+    assert after["teaching_snapshot"]["revision"] != before_revision
+    assert after["teaching_history"], after
+    assert after["teaching_history"][-1]["revision"] == before_revision
+    deliverable = next(item for item in after["deliverables"]
+                       if item["kind"] == "document")
+    assert deliverable["artifact_path"].endswith(".docx")
+    assert deliverable["status"] == "applied"
+
+    evidence_dir = os.getenv("ATOM_BRENNAN_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored = os.path.join(evidence_dir, "acme-quote-corrected.docx")
+        shutil.copy2(deliverable["artifact_path"], stored)
+        payload = {
+            "slice": "teaching-correction-reassessment",
+            "controlled": True,
+            "before_teaching_revision": before_revision,
+            "after_teaching_revision": after["teaching_snapshot"]["revision"],
+            "old_plan_revision": retained["plan_revision"],
+            "new_plan_revision": after["plan_revision"],
+            "teaching_history": after.get("teaching_history") or [],
+            "affected_steps": body["affected_steps"],
+            "preserved_steps": body["preserved_steps"],
+            "before_total": calc["prior_results"][-1]["result"]["value"],
+            "after_total": calc["result"]["value"],
+            "new_work_total": second_calc["result"]["value"],
+            "stored_artifact": stored,
+            "artifact_revision": deliverable.get("artifact_revision"),
+        }
+        with open(os.path.join(
+                evidence_dir, "teaching_correction.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
+
+def test_quote_controlled_commercial_update_duplicate_and_uncertain(
+        route_env, tmp_path, monkeypatch):
+    """Document -> registered commercial update -> email draft.
+
+    The controlled action stands in for Agent 2's Zoho write; the executor
+    operation id is the idempotency identity. A lost provider response is
+    uncertain and must reconcile without a second call.
+    """
+    from core.action_registry import action_registry
+    from core.assignment_executor import ExternalOutcomeUnknown
+
+    action_name = f"test.quote.update.{uuid.uuid4().hex[:8]}"
+    calls = []
+
+    async def controlled_update(args, context):
+        calls.append({"args": dict(args), "run_id": context.get("run_id"),
+                      "operation": context.get("assignment_id")})
+        if args.get("mode") == "uncertain":
+            raise ExternalOutcomeUnknown(
+                "provider accepted the update then lost the response",
+                "controlled-readback:deal-1:v2")
+        return {
+            "status": "applied",
+            "record_id": "deal-1",
+            "version": "v2",
+            "readback": {
+                "record_id": "deal-1",
+                "quote_total": args.get("quote_total"),
+                "version": "v2",
+            },
+        }
+
+    action_registry.register(
+        action_name, controlled_update,
+        description="Controlled commercial record update",
+        effects=[{"effect": "record_created", "object": "deal"}])
+
+    agent_id = _teaching_agent(
+        route_env, "Commercial quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+
+    def update_spec(**overrides):
+        spec = {
+            "step_id": "commercial-update",
+            "action": action_name,
+            "title": "Create the Zoho commercial record",
+            "arguments": {"quote_total": "362.50", "deal": "deal-1"},
+            "target": {"record_id": "deal-1"},
+            "permitted_fields": ["quote_total", "validity"],
+            "expected_version": "v1",
+            "approval_purpose": "Create the quote in Zoho",
+        }
+        spec.update(overrides)
+        return spec
+
+    started = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id,
+        actions=[update_spec()], email_draft=True)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    action_step = next(step for step in assignment["steps"]
+                       if step["step_id"] == "commercial-update")
+    assert action_step["status"] == "awaiting_approval", action_step
+    assert action_step["depends_on"] == ["source-1", "source-2",
+                                         "calculate", "deliverable-1"]
+    draft_step = next(step for step in assignment["steps"]
+                      if step["step_id"] == "email-draft")
+    assert "commercial-update" in draft_step["depends_on"]
+    assert calls == []
+
+    approved = route_env["client"].post(
+        f"/api/assignments/{run_id}/approve/commercial-update",
+        json={"note": "bounded commercial update"})
+    assert approved.status_code == 200, approved.text
+    completed = approved.json()["assignment"]
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(calls) == 1, calls
+    internal_completed = route_env["lifecycle"].get_assignment(run_id)
+    updated = next(step for step in internal_completed["steps"]
+                   if step["step_id"] == "commercial-update")
+    assert updated["result"]["data"]["readback"]["record_id"] == "deal-1"
+    draft = next(step for step in internal_completed["steps"]
+                 if step["step_id"] == "email-draft")
+    assert draft["status"] == "applied"
+    assert "362.50" in str(draft["result"].get("draft") or
+                           draft["result"].get("body") or "")
+
+    # Duplicate resume/approval replay must not repeat the effect.
+    again = route_env["client"].post(
+        f"/api/assignments/{run_id}/resume", json={})
+    assert again.status_code == 200, again.text
+    assert len(calls) == 1, calls
+
+    # Uncertain provider outcome: one call, marked uncertain, reconciled
+    # against the existing operation without a resend.
+    uncertain = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Acme Uncertain",
+        actions=[update_spec(arguments={"quote_total": "362.50",
+                                        "deal": "deal-1",
+                                        "mode": "uncertain"})])
+    assert uncertain.status_code == 200, uncertain.text
+    uncertain_run = uncertain.json()["run_id"]
+    approved = route_env["client"].post(
+        f"/api/assignments/{uncertain_run}/approve/commercial-update",
+        json={"note": "bounded commercial update"})
+    assert approved.status_code == 200, approved.text
+    status = route_env["client"].get(
+        f"/api/assignments/{uncertain_run}").json()
+    assert status["assignment"]["status"] == "blocked", status
+    uncertain_step = next(step for step in status["assignment"]["steps"]
+                          if step["step_id"] == "commercial-update")
+    assert uncertain_step["status"] == "uncertain"
+    assert len(calls) == 2, calls
+
+    reconciled = route_env["client"].post(
+        f"/api/assignments/{uncertain_run}/reconcile/commercial-update",
+        json={"verdict": "applied",
+              "evidence": "provider readback shows deal-1 at v2",
+              "evidence_ref": "controlled-readback:deal-1:v2"})
+    assert reconciled.status_code == 200, reconciled.text
+    assert len(calls) == 2, calls
+
+    # Cancellation before approval: no late event revives the commercial
+    # effect, and no provider call occurs.
+    cancelled = _start_quote(
+        route_env, tmp_path, monkeypatch, agent_id, customer="Acme Cancel",
+        actions=[update_spec(step_id="commercial-update")])
+    assert cancelled.status_code == 200, cancelled.text
+    cancelled_run = cancelled.json()["run_id"]
+    before_cancel_calls = len(calls)
+    stopped = route_env["client"].post(
+        f"/api/assignments/{cancelled_run}/cancel",
+        json={"reason": "customer withdrew the RFQ"})
+    assert stopped.status_code == 200, stopped.text
+    assert stopped.json()["assignment"]["status"] == "cancelled"
+    late = route_env["client"].post(
+        f"/api/assignments/{cancelled_run}/approve/commercial-update",
+        json={"note": "late approval"})
+    assert late.status_code in (404, 409), late.text
+    assert len(calls) == before_cancel_calls
+
+
+def test_quote_missing_tax_is_a_typed_clarification_not_zero(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Clarifying quote employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a quote with an unstated tax treatment",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+        ],
+        "calculation": {
+            "line_items": [{
+                "item_id": "A", "category": "A", "quantity": "1",
+                "unit": "each", "pack_size": "1", "unit_price": "10.00",
+                "price_basis": "contract", "currency": "USD"}],
+            "currency": "USD", "freight": "0",
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement",
+        },
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "waiting", body
+    gaps = body["assignment"]["open_gaps"]
+    assert any(gap.get("concept") == "quote_input" for gap in gaps), gaps
+    tax_question = next(
+        gap for gap in gaps if gap.get("concept") == "quote_input")
+    assert "tax" in tax_question["question"].lower()
+    calc = next(step for step in body["assignment"]["assignment"]["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+
+
+def test_source_revision_change_invalidates_dependent_artifact(
+        route_env, tmp_path, monkeypatch):
+    import pandas as pd
+
+    agent_id = _teaching_agent(
+        route_env, "Source change employee", "Arial", "quote-reviewer")
+    _quote_lesson(route_env, agent_id, "0.05", "5% category B")
+    started = _start_quote(route_env, tmp_path, monkeypatch, agent_id)
+    assert started.status_code == 200, started.text
+    body = started.json()
+    run_id = body["run_id"]
+    before = route_env["lifecycle"].get_assignment(run_id)
+    before_doc = next(item for item in before["deliverables"]
+                      if item["kind"] == "document")
+    assert before_doc["status"] == "applied"
+    before_revision = before_doc["artifact_revision"]
+
+    # The authorized source is revised while the job is retained.
+    parquet = tmp_path / "sheet_datasets" / "scotch-parts.parquet"
+    frame = pd.read_parquet(parquet)
+    frame.loc[0, "Description"] = "Changed Scotch A"
+    frame.to_parquet(parquet, index=False)
+
+    invalidated = route_env["client"].post(
+        f"/api/assignments/{run_id}/invalidate/source-1",
+        json={"reason": "authorized source revision changed"})
+    assert invalidated.status_code == 200, invalidated.text
+    result = invalidated.json()
+    assert "source-1" in result["affected_steps"]
+    status = result["assignment"]
+    assert status["assignment"]["status"] == "completed", status
+    after = route_env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == before["plan_revision"] + 1
+    source_step = next(step for step in after["steps"]
+                       if step["step_id"] == "source-1")
+    assert source_step["status"] == "applied"
+    before_rows = next(step for step in before["steps"]
+                       if step["step_id"] == "source-1")["result"]["rows"]
+    assert source_step["result"]["rows"] != before_rows
+    after_doc = next(item for item in after["deliverables"]
+                     if item["kind"] == "document")
+    assert after_doc["status"] == "applied"
+    assert after_doc["artifact_revision"] != before_revision
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "362.50"
+    assert calc["prior_results"], calc
+    deliverable_step = next(step for step in after["steps"]
+                            if step["step_id"] == "deliverable-1")
+    assert deliverable_step["prior_results"], deliverable_step
+    text = "\n".join(
+        paragraph.text for paragraph in __import__("docx").Document(
+            after_doc["artifact_path"]).paragraphs)
+    for table in __import__("docx").Document(
+            after_doc["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "Changed Scotch A" in text, text
+
+
+def test_quote_same_sku_different_pack_asks_before_arithmetic(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Ambiguity quote employee", "Arial", "quote-reviewer")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote the ambiguous SKU",
+        "agent_id": agent_id,
+        "sources": [
+            {"kind": "workbook",
+             "dataset_name": "scotch_parts_price_list",
+             "sheet": "US$ SCOTCH PARTS"},
+        ],
+        "calculation": {
+            "line_items": [
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "each", "pack_size": "10", "unit_price": "10.00",
+                 "price_basis": "contract", "currency": "USD"},
+                {"item_id": "SKU-1", "category": "A", "quantity": "1",
+                 "unit": "case", "pack_size": "25", "unit_price": "20.00",
+                 "price_basis": "contract", "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement",
+        },
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "packaging_identity")
+    assert "SKU-1" in gap["question"]
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+    deliverable = next(step for step in assignment["steps"]
+                       if step["step_id"] == "deliverable-1")
+    assert deliverable["status"] == "pending"
+
+
+def test_unsupported_pricing_rule_refuses_public_plan_and_effect(
+        route_env, tmp_path):
+    """A cap/fixed rule cannot produce a completed quote or action call."""
+    from core.action_registry import action_registry
+    import uuid
+
+    calls = []
+
+    async def commercial_update(args, context):
+        calls.append(dict(args))
+        return {"status": "applied", "remote_id": "should-not-run"}
+
+    action_name = f"test.pricing.unsupported.{uuid.uuid4().hex[:8]}"
+    action_registry.register(
+        action_name, commercial_update,
+        effects=[{"effect": "create", "object": "estimate"}])
+    agent_id = _teaching_agent(
+        route_env, "Pricing rejection employee", "Arial", "quote-reviewer")
+    agreement = tmp_path / "agreement.txt"
+    agreement.write_text("Customer: Acme\n", encoding="utf-8")
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a quote with an unsupported capped discount",
+        "agent_id": agent_id,
+        "sources": [{
+            "kind": "document", "representation": "file",
+            "internal_fixture": True, "path": str(agreement),
+            "resource_id": "agreement-1",
+        }],
+        "calculation": {
+            "line_items": [{
+                "item_id": "B", "category": "B", "quantity": "2",
+                "unit": "each", "pack_size": "1",
+                "unit_price": "100.00", "price_basis": "contract",
+                "currency": "USD",
+            }],
+            "currency": "USD", "freight": "0",
+            "tax": {"basis": "none"},
+            "discount_rules": [{
+                "name": "capped", "when": {"category": "B"},
+                "rate": "0.10", "cap": "5.00",
+            }],
+        },
+        "actions": [{
+            "action": action_name,
+            "arguments": {"quote_total": "190.00"},
+            "approval_purpose": "Create the quote",
+        }],
+        "deliverables": [{"kind": "document", "description": "Quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+
+    assert response.status_code in (400, 422), response.text
+    assert "unsupported" in response.text.lower()
+    assert calls == []
+
+
+def test_onedrive_xlsx_public_route_uses_production_parser(
+        route_env, tmp_path, monkeypatch):
+    import io
+    import openpyxl
+    from core import connected_actions
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(["sku", "category", "quantity", "unit", "pack",
+                  "unit_price", "currency", "discount_percent"])
+    sheet.append(["A", "A", 2, "each", 1, "10.00", "USD", 0])
+    sheet.append(["B", "B", 3, "each", 1, "20.00", "USD", 0])
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    content = buffer.getvalue()
+
+    class FakeOneDrive:
+        async def get_access_token_resolution(self, user_id):
+            return "token", {"state": "ok"}
+
+        async def get_file_metadata(self, token, file_id):
+            return {"status": "success",
+                    "data": {"id": file_id, "name": "price-list.xlsx",
+                             "version": "v1"}}
+
+        async def download_file_bytes(self, token, file_id):
+            return content
+
+    async def fake_service(ids):
+        return FakeOneDrive()
+
+    monkeypatch.setattr(connected_actions, "_onedrive_service", fake_service)
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS", "1")
+    source = tmp_path / "agreement.txt"
+    source.write_text("Customer: Acme\n", encoding="utf-8")
+
+    read = new_step(
+        step_id="read", title="Read the OneDrive price workbook",
+        operation_type="retrieve", adapter="action.registry",
+        effect="read_only",
+        inputs={"action": "connected.onedrive.read_file",
+                "arguments": {"file_id": "xlsx-1",
+                              "evidence_kind": "price_rows"}})
+    map_rows = new_step(
+        step_id="map", title="Map workbook rows",
+        operation_type="calculate", adapter="quote.lines_from_rows",
+        depends_on=["read"], effect="local",
+        inputs={
+            "rows": {"$ref": "read.data.rows"},
+            "columns": {
+                "item_id": "sku", "quantity": "quantity", "unit": "unit",
+                "pack_size": "pack", "unit_price": "unit_price",
+                "currency": "currency", "description": "sku",
+                "category": "category", "discount": "discount_percent",
+            },
+            "defaults": {"price_basis": "contract"},
+            "discount_mode": "percent",
+            "discount_authority": "price-list:v1",
+            "source_identity": {
+                "resource_id": {"$ref": "read.data.read_receipt.resource_id"},
+                "version": {"$ref": "read.data.read_receipt.version"},
+                "sha256": {"$ref": "read.data.read_receipt.fields.sha256"},
+            },
+        })
+    calculate = new_step(
+        step_id="calculate", title="Calculate the workbook quote",
+        operation_type="calculate", adapter="quote.calculate",
+        depends_on=["map"], effect="local",
+        inputs={"line_items": {"$ref": "map.line_items"},
+                "currency": "USD", "freight": "0",
+                "tax": {"basis": "none"}, "discount_rules": []})
+    email = new_step(
+        step_id="email-draft", title="Prepare the quote email",
+        operation_type="present", adapter="email.draft",
+        depends_on=["calculate"], effect="local",
+        inputs={"to": ["buyer@example.invalid"], "subject": "Quote",
+                "body": "Total ${calculate.value} USD"})
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote from a OneDrive workbook",
+        "agent_id": _teaching_agent(
+            route_env, "OneDrive employee", "Arial", "quote-reviewer"),
+        "sources": [{
+            "kind": "document", "representation": "file",
+            "internal_fixture": True, "path": str(source),
+            "resource_id": "agreement-1",
+        }],
+        "proposed_steps": [read, map_rows, calculate, email],
+        "authorized_actions": ["retrieve", "calculate", "edit"],
+        "deliverables": [{
+            "kind": "email_draft", "step_id": "email-draft",
+            "description": "Quote email", "to": ["buyer@example.invalid"],
+            "subject": "Quote", "body": "Total ${calculate.value} USD",
+        }],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    assignment = route_env["lifecycle"].get_assignment(run_id)
+    read_step = next(step for step in assignment["steps"]
+                     if step["step_id"] == "read")
+    returned = read_step["result"]["data"]
+    assert returned["read_receipt"]["version"] == "v1"
+    assert returned["read_receipt"]["coverage"] == "complete"
+    assert returned["read_receipt"]["fields"]["sha256"]
+    assert len(returned["rows"]) == 2
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "80.00"
+    assert all(row["source_ref"]["version"] == "v1"
+               for row in calc["result"]["rows"])
+
+
+def _qualified_discount_quote(route_env, tmp_path, *, label, rules):
+    scope = tmp_path / f"{label}.txt"
+    scope.write_text("Customer: Acme\\nQualification: pending\\n")
+    return route_env["client"].post("/api/assignments", json={
+        "objective": f"Qualify the {label} line",
+        "sources": [{"kind": "document", "path": str(scope)}],
+        "calculation": {
+            "line_items": [{
+                "item_id": "B", "category": "B", "quantity": "1",
+                "unit": "each", "pack_size": "1", "unit_price": "100.00",
+                "price_basis": "contract", "currency": "USD"}],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "discount_rules": rules,
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement AF-2026",
+        },
+        "deliverables": [{"kind": "document",
+                          "description": "Qualified quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+
+
+def test_quote_missing_qualification_waits_and_resolves_through_route(
+        route_env, tmp_path):
+    """Missing qualification is a public-route gap, not an assumed answer.
+
+    Independent arithmetic: 1 x 100.00 less the licensed 10% = 90.00.
+    """
+    rules = [
+        {"lesson_id": "general-b", "revision": 1, "name": "general B",
+         "when": {"category": "B"}, "rate": "0.05"},
+        {"lesson_id": "licensed-b", "revision": 1, "name": "licensed B",
+         "when": {"category": "B", "qualification": "licensed"},
+         "rate": "0.10"},
+    ]
+    response = _qualified_discount_quote(
+        route_env, tmp_path, label="licensed", rules=rules)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    run_id = body["run_id"]
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "discount_scope")
+    assert "qualification" in gap["question"].lower(), gap
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+
+    resolved = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed",
+              "resolved_by": "pricing owner",
+              "evidence": "accepted customer qualification: licensed"})
+    assert resolved.status_code == 200, resolved.text
+    completed = resolved.json()["assignment"]
+    assert completed["status"] == "completed", completed
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "90.00"
+    assert calc["result"]["rows"][0]["discount_rate"] == "0.10"
+    assert calc["result"]["rows"][0]["discount_rule"]["lesson_id"] == (
+        "licensed-b")
+    assert calc["result"]["calculation_receipt"]["rounding_authority"] == (
+        "agreement AF-2026")
+
+    replay = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed"})
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "already_resolved"
+    conflict = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "unlicensed"})
+    assert conflict.status_code == 409, conflict.text
+    assert "different answer" in conflict.text.lower()
+    durable = route_env["lifecycle"].get_assignment(run_id)
+    assert next(step for step in durable["steps"]
+                if step["step_id"] == "calculate"
+                )["result"]["value"] == "90.00"
+
+
+def test_quote_ambiguous_discount_refuses_unrecognized_resolution(
+        route_env, tmp_path):
+    """Equally specific rules conflict; an unknown answer buys no arithmetic."""
+    rules = [
+        {"lesson_id": "five", "revision": 1, "name": "five percent",
+         "when": {"category": "B"}, "rate": "0.05"},
+        {"lesson_id": "ten", "revision": 1, "name": "ten percent",
+         "when": {"category": "B"}, "rate": "0.10"},
+    ]
+    response = _qualified_discount_quote(
+        route_env, tmp_path, label="conflict", rules=rules)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    run_id = body["run_id"]
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "discount_rule_conflict")
+    calc = next(step for step in body["assignment"]["assignment"]["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result_value"] is None
+
+    refused = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "the cheaper one"})
+    assert refused.status_code == 200, refused.text
+    after = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result"] is None
+    # A refused candidate answer returns the rejection record, not a run
+    # projection; read the durable gap state from the assignment route.
+    durable_state = route_env["client"].get(
+        f"/api/assignments/{run_id}")
+    assert durable_state.status_code == 200, durable_state.text
+    open_gaps = durable_state.json()["open_gaps"]
+    replacement = next(item for item in open_gaps
+                       if item.get("concept") == "discount_rule_conflict")
+    assert replacement["question_id"] != gap["question_id"]
+
+    accepted = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{replacement['question_id']}/resolve",
+        json={"resolution": "ten percent"})
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["assignment"]["status"] == "completed"
+    calc = next(step for step in route_env["lifecycle"].get_assignment(
+        run_id)["steps"] if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "90.00"
+
+
+def test_expense_reconciliation_uses_the_same_assignment_route(
+        route_env, tmp_path):
+    """Non-sales portability: miles/nights, no quote lesson or discount.
+
+    Independent arithmetic: 120 x 0.67 + 1 x 180.00 = 260.40 USD.
+    """
+    import docx
+
+    policy = tmp_path / "travel-policy.txt"
+    policy.write_text(
+        "Travel policy 2026: mileage 0.67 USD per mile; lodging 180.00 "
+        "USD per night.\n")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Reconcile the submitted travel expenses",
+        "sources": [{"kind": "document", "path": str(policy)}],
+        "calculation": {
+            "line_items": [
+                {"item_id": "mileage", "quantity": "120", "unit": "mile",
+                 "pack_size": "1", "unit_price": "0.67",
+                 "price_basis": "rate", "currency": "USD"},
+                {"item_id": "lodging", "quantity": "1", "unit": "night",
+                 "pack_size": "1", "unit_price": "180.00",
+                 "price_basis": "rate", "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "travel policy 2026",
+            "discount_rules": [],
+        },
+        "deliverables": [{"kind": "document",
+                          "description": "Expense reconciliation"}],
+        "task_context": {"audience": "finance reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "260.40"
+    assert calc["result"]["measure"] == "quote_total"
+    receipt = calc["result"]["calculation_receipt"]
+    assert receipt["currency"] == "USD"
+    assert receipt["total"] == "260.40"
+    assert len(receipt["line_evidence"]) == 2
+    assert {row["item_id"] for row in calc["result"]["rows"]} == {
+        "mileage", "lodging"}
+    deliverable = next(item for item in assignment["deliverables"]
+                       if item["kind"] == "document")
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            deliverable["artifact_path"]).paragraphs)
+    for table in docx.Document(deliverable["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "260.40" in text, text
+    assert "mileage" in text and "lodging" in text, text

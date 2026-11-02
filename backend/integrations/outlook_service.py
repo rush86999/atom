@@ -274,6 +274,9 @@ class OutlookService(IntegrationService):
         # callers (the search_emails KQL ladder) abort immediately on
         # auth-class failures instead of burning every rung.
         self.last_graph_status: Optional[int] = None
+        # Typed failure from the last attachment read.  A missing grant or a
+        # Graph error must not look like an email with zero attachments.
+        self.last_error: Optional[Dict[str, Any]] = None
 
     async def _get_connection_scope(self, user_id: str) -> Optional[str]:
         """The consent grant's scope string for this user's active Outlook
@@ -1394,10 +1397,31 @@ class OutlookService(IntegrationService):
             logger.error(f"Error deleting email: {e}")
             return False
 
+    def _attachment_failure(self, operation: str, message: str) -> Dict[str, Any]:
+        status = self.last_graph_status
+        if status == 401:
+            kind = "auth_expired"
+        elif status == 403:
+            kind = "unauthorized"
+        else:
+            kind = "provider_error"
+        self.last_error = {
+            "status": "error",
+            "success": False,
+            "provider": "outlook",
+            "operation": operation,
+            "error_kind": kind,
+            "error": message,
+            "retryable": False,
+            "requires_reconnect": kind in ("auth_expired", "auth_unavailable"),
+        }
+        return self.last_error
+
     async def get_attachment_content(
         self, user_id: str, message_id: str, attachment_id: str, token: Optional[str] = None
     ) -> Optional[bytes]:
         """Fetch attachment content for an email"""
+        self.last_error = None
         try:
             endpoint = f"/me/messages/{message_id}/attachments/{attachment_id}"
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -1410,9 +1434,13 @@ class OutlookService(IntegrationService):
             logger.error(
                 f"Failed to fetch content for attachment {attachment_id} in message {message_id}"
             )
+            self._attachment_failure(
+                "get_attachment_content",
+                f"attachment {attachment_id} returned no content")
             return None
         except Exception as e:
             logger.error(f"Error getting attachment content: {e}")
+            self._attachment_failure("get_attachment_content", str(e)[:300])
             return None
 
     async def get_attachment_metadata(
@@ -1421,6 +1449,7 @@ class OutlookService(IntegrationService):
         """Attachment metadata normalized to the same schema as
         GmailService.get_attachment_metadata (id/name/size/contentType) —
         core.ingestion_pipeline's attachment branch dispatches on these names."""
+        self.last_error = None
         try:
             endpoint = (
                 f"/me/messages/{message_id}/attachments"
@@ -1428,6 +1457,9 @@ class OutlookService(IntegrationService):
             )
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
             if not result:
+                self._attachment_failure(
+                    "get_attachment_metadata",
+                    "the message attachment list could not be read")
                 return []
             return [
                 {
@@ -1442,6 +1474,7 @@ class OutlookService(IntegrationService):
             ]
         except Exception as e:
             logger.error(f"Error getting attachment metadata for message {message_id}: {e}")
+            self._attachment_failure("get_attachment_metadata", str(e)[:300])
             return []
 
     async def download_attachment(

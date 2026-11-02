@@ -77,6 +77,16 @@ export interface AssignmentDetail {
     authorized_actions: string[];
     standing_authority?: Record<string, any> | null;
     budget: Record<string, unknown>;
+    progress?: {
+      total_steps: number;
+      required_steps: number;
+      completed_steps: number;
+      waiting_steps: number;
+      failed_steps: number;
+      uncertain_steps: number;
+      open_gap_count: number;
+    };
+    teaching_history?: Array<Record<string, unknown>>;
     steps: AssignmentStep[];
     created_at: string | null;
     updated_at: string | null;
@@ -95,6 +105,11 @@ export interface AssignmentSummary {
     state: string;
     plan_revision: number;
     current_action: string | null;
+    progress?: {
+      completed_steps: number;
+      required_steps: number;
+      waiting_steps: number;
+    };
   };
 }
 
@@ -158,6 +173,7 @@ export async function createAssignment(payload: {
   deliverables: Record<string, unknown>[];
   calculation?: Record<string, unknown>;
   outbound?: Record<string, unknown>;
+  actions?: Record<string, unknown>[];
   wait?: Record<string, unknown>;
   task_context?: Record<string, unknown>;
   transport?: string;
@@ -184,6 +200,17 @@ export async function getAssignment(runId: string): Promise<AssignmentDetail> {
 export async function resumeAssignment(runId: string): Promise<AssignmentDetail> {
   const { data } = await apiClient.post<AssignmentDetail>(
     `/api/assignments/${encodeURIComponent(runId)}/resume`
+  );
+  return data;
+}
+
+export async function reassessAssignment(
+  runId: string,
+  reason = "explicit reassessment"
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/reassess`,
+    { reason }
   );
   return data;
 }

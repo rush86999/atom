@@ -1,0 +1,123 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 12:32:37 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_oracle_canvas_postcondition.py::test_audit_row_verifies_the_presented_canvas
+-------------------------------- live log setup --------------------------------
+2026-11-02 12:32:37 [    INFO] EscalationManager initialized
+2026-11-02 12:32:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 12:32:37 [    INFO] EscalationManager initialized
+2026-11-02 12:32:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 12:32:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 12:32:37 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  5%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 11%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 17%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 23%]
+tests/test_canvas_assignment_integration.py::test_receipt_assignment_executes_one_approved_draft
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:38 [    INFO] runtime identity: source_id=ad8069b2a373 revision=ad8069b2a373 dirty=False (0 modified, 0 untracked)
+2026-11-02 12:32:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_assignment/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_canvas_assignment_integration.py::test_uncertain_effect_reconciles_with_one_provider_draft
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_uncertain/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_assignment_integration.py::test_refuted_postcondition_blocks_instead_of_claiming_applied
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_refuted/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_canvas_assignment_integration.py::test_canvas_edit_during_approval_blocks_action
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_corrected/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_canvas_assignment_integration.py::test_action_revocation_during_approval_blocks_dispatch
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_revoked/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_canvas_assignment_integration.py::test_foreign_or_moved_employee_cannot_receive_canvas_teaching
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 404 Not Found"
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/teach-8d50a99181ef4bc0b36a0e6372c268b5/promote "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 58%]
+tests/test_canvas_assignment_integration.py::test_non_supervisor_and_journal_failure_do_not_promote
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-62171de2ac1e4a0da3de4a4fab21ab7f/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-62171de2ac1e4a0da3de4a4fab21ab7f/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 64%]
+tests/test_canvas_assignment_integration.py::test_promoted_global_lesson_is_consumed_with_full_provenance
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:32:39 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/teach-713b050f0c78407bac81ad572f5b2309/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_canvas_assignment_integration.py::test_foreign_employee_cannot_start_canvas_assignment
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_assign/capability/assign "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 76%]
+tests/test_canvas_assignment_integration.py::test_canvas_consumers_reject_a_foreign_assignment_principal
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_principal/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_canvas_assignment_integration.py::test_teaching_proposal_requires_explicit_promotion
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 409 Conflict"
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-f33e087d1c4a46ed8b7ef7f95cec8407/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 12:32:40 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-f33e087d1c4a46ed8b7ef7f95cec8407/promote "HTTP/1.1 200 OK"
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-f33e087d1c4a46ed8b7ef7f95cec8407/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_canvas_assignment_integration.py::test_forged_self_consistent_receipt_is_not_accepted
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_forged_receipt/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_canvas_assignment_integration.py::test_canvas_receipt_assignment_creates_taught_document
+-------------------------------- live log call ---------------------------------
+2026-11-02 12:32:40 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 12:32:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_document/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 34 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 17 passed, 41 warnings in 13.62s =======================
