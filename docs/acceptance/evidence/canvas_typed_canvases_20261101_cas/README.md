@@ -33,8 +33,8 @@ The answer path now:
    PostgreSQL uses JSON `astext` predicates; an unsupported dialect refuses
    rather than writing unchecked. Zero matching rows raises
    `concurrent_edit` and leaves the newer snapshot intact.
-5. expunges the dirty ORM object before commit so SQLAlchemy cannot emit an
-   unconditional primary-key UPDATE after the CAS.
+5. expires the dirty ORM object's attributes before commit so SQLAlchemy
+   cannot emit an unconditional primary-key UPDATE after the CAS.
 
 The same conditional write protects the open-question writer, the
 refused-attempt writer, dataset binding, manifest changes and ordinary edits.
