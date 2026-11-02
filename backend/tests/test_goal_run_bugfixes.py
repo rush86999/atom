@@ -27,6 +27,15 @@ from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_run_executors import GoalRunExecutors
 
 
+def _reviewed_resume(svc, run_id, **kwargs):
+    reviewed = svc.get_run(run_id)["pending_decision"]
+    return asyncio.run(svc.resume(
+        run_id,
+        expected_decision_id=reviewed["decision_id"],
+        expected_decision_binding=reviewed["decision_binding"],
+        **kwargs))
+
+
 @pytest.fixture()
 def backend(tmp_path, monkeypatch):
     # Terminal notifications/learning are fire-and-forget in prod; silence
@@ -143,7 +152,7 @@ def test_approving_replan_budget_hold_replays_replan(backend):
     assert out["held"] is True
     assert svc.get_run(rid)["pending_decision"]["decision"] == "ASK_HUMAN"
 
-    resumed = asyncio.run(svc.resume(rid, approved=True, reviewer="sup"))
+    resumed = _reviewed_resume(svc, rid, approved=True, reviewer="sup")
     assert resumed["resumed"] is True
     run = svc.get_run(rid)
     assert run["pending_decision"] is None
@@ -161,7 +170,7 @@ def test_approving_major_replan_hold_applies_replan(backend):
     assert out["held"] is True
     assert "major replan" in (out.get("reason") or "")
 
-    asyncio.run(svc.resume(rid, approved=True, reviewer="sup"))
+    _reviewed_resume(svc, rid, approved=True, reviewer="sup")
     run = svc.get_run(rid)
     assert [s["id"] for s in run["plan"]] == ["fresh-1"]
     assert run["replan_count"] == 1
@@ -177,7 +186,7 @@ def test_approving_wait_ceiling_hold_sets_wait(backend):
                              "confidence": 0.95})
     assert out["held"] is True
 
-    asyncio.run(svc.resume(rid, approved=True, reviewer="sup"))
+    _reviewed_resume(svc, rid, approved=True, reviewer="sup")
     run = svc.get_run(rid)
     assert run["status"] == "waiting"
     assert run["waiting_on"]["event"] == "email_reply"
@@ -192,6 +201,6 @@ def test_approving_failed_done_marks_achieved(backend):
     assert out["held"] is True
     assert "criteria" in (out.get("reason") or "")
 
-    resumed = asyncio.run(svc.resume(rid, approved=True, reviewer="sup"))
+    resumed = _reviewed_resume(svc, rid, approved=True, reviewer="sup")
     assert resumed["resumed"] is True
     assert svc.get_run(rid)["status"] == "achieved"

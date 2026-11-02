@@ -198,7 +198,12 @@ class TestStaleActiveSweep:
                    for d in run["decision_log"])
 
         # recoverable through the normal resume flow
-        resumed = asyncio.run(_svc(env).resume(run_id, approved=True))
+        svc = _svc(env)
+        reviewed = svc.get_run(run_id)["pending_decision"]
+        resumed = asyncio.run(svc.resume(
+            run_id, approved=True,
+            expected_decision_id=reviewed["decision_id"],
+            expected_decision_binding=reviewed["decision_binding"]))
         assert resumed["resumed"] is True
         assert _svc(env).get_run(run_id)["status"] == "active"
 

@@ -676,6 +676,28 @@ async def decide_hitl_action(
             message=f"Action {action_id} already resolved as {action.status}"
         )
 
+    # Validate the exact reviewed goal decision BEFORE this route mutates the
+    # HITL row. A stale approval must not mark a newer decision's row (or its
+    # own row) approved without executing the reviewed material.
+    from core.hitl_resume import preflight_hitl_decision
+
+    preflight = preflight_hitl_decision(
+        action_id, req.modified_params, action=action)
+    if not preflight.get("valid", True):
+        reason = preflight.get("reason") or "stale_decision_review"
+        raise router.error_response(
+            "DECISION_REVIEW_REQUIRED" if reason == "decision_review_required"
+            else "STALE_DECISION_REVIEW",
+            preflight.get("message") or (
+                "Refresh the run and review the current pending decision "
+                "before approving it."),
+            details={
+                "reason": reason,
+                "current_decision_id": preflight.get("current_decision_id"),
+            },
+            status_code=409,
+        )
+
     if req.decision.lower() == "approved":
         action.status = HITLActionStatus.APPROVED.value
         # Supervisor modification: the resumed action runs with these params

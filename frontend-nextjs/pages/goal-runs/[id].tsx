@@ -273,6 +273,15 @@ export default function GoalRunDetailPage() {
     if (!run) return null;
 
     const pending = run.pending_decision;
+    // The exact reviewed binding for the public approval. The backend refuses
+    // an unbound/stale approval instead of applying it to a newer decision.
+    const pendingReview = pending
+        ? {
+            decision_id: pending.decision_id,
+            decision_generation: pending.decision_generation,
+            decision_binding: pending.decision_binding,
+        }
+        : null;
     const terminal = ["achieved", "failed", "cancelled"].includes(run.status);
     const pendingCheckpointHitl = run.status === "waiting" &&
         (run.waiting_on as { event?: string; match?: { hitl_id?: string } } | null)?.event === "human_checkpoint"
@@ -389,13 +398,13 @@ export default function GoalRunDetailPage() {
                                 />
                                 <div className="flex gap-2">
                                     <Button size="sm" disabled={busy}
-                                            onClick={() => void act(() => resumeGoalRun(run.id, true), "Approved — the run continues")}>
+                                            onClick={() => void act(() => resumeGoalRun(run.id, true, undefined, undefined, pendingReview), "Approved — the run continues")}>
                                         <Check className="h-4 w-4" /> Approve
                                     </Button>
                                     <Button size="sm" variant="destructive" disabled={busy}
                                             data-testid="override-with-guidance"
                                             onClick={() => void act(
-                                                () => resumeGoalRun(run.id, false, guidance, guidanceScope),
+                                                () => resumeGoalRun(run.id, false, guidance, guidanceScope, pendingReview),
                                                 "Overridden — your guidance became the agent's instant lesson",
                                             ).then(loadLessons)}>
                                         <X className="h-4 w-4" /> Override with guidance

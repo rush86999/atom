@@ -103,6 +103,13 @@ def _hold(svc, run_id, decision=None):
         reason="test checkpoint")
 
 
+def _review(held):
+    return {
+        "decision_id": held["decision_id"],
+        "decision_binding": held["decision_binding"],
+    }
+
+
 def _client(db, user):
     app = FastAPI()
     app.include_router(goal_run_router)
@@ -215,10 +222,13 @@ def test_duplicate_resume_executes_once_and_keeps_first_reviewer(
     monkeypatch.setattr(
         goal_run_executors.GoalRunExecutors, "execute", _execute)
 
+    review = _review(held)
     first = _client(db_session, lead_a).post(
-        f"/api/goal-runs/{run_id}/resume", json={"approved": True})
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
     second = _client(db_session, second_lead).post(
-        f"/api/goal-runs/{run_id}/resume", json={"approved": True})
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
 
     assert first.status_code == 200, first.text
     assert first.json()["resumed"] is True
@@ -280,7 +290,8 @@ def test_two_simultaneous_resumes_execute_one_turn(tmp_path, monkeypatch):
     run_id = creator.create_run(
         "goal-family", role="sales", plan=PLAN)["id"]
     creator.transition(run_id, "active")
-    _hold(creator, run_id)
+    held = _hold(creator, run_id)
+    review = _review(held)
     state["race"] = True
 
     results = []
@@ -290,7 +301,10 @@ def test_two_simultaneous_resumes_execute_one_turn(tmp_path, monkeypatch):
             workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
         try:
             results.append(asyncio.run(
-                svc.resume(run_id, approved=True, reviewer=reviewer)))
+                svc.resume(
+                    run_id, approved=True, reviewer=reviewer,
+                    expected_decision_id=review["decision_id"],
+                    expected_decision_binding=review["decision_binding"])))
         except Exception as exc:  # noqa: BLE001 - surfaced in assertion
             results.append({"error": f"{type(exc).__name__}: {exc}"})
 
@@ -336,7 +350,9 @@ def test_stale_resume_snapshot_cannot_claim_newer_pending(
         workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
     run_id = writer.create_run("goal-family", role="sales", plan=PLAN)["id"]
     writer.transition(run_id, "active")
-    _hold(writer, run_id, {"decision": "ADVANCE", "rationale": "old"})
+    held = _hold(writer, run_id,
+                 {"decision": "ADVANCE", "rationale": "old"})
+    review = _review(held)
     stale_snapshot = writer.get_run(run_id)
     old_generation = stale_snapshot["human_interventions"]
 
@@ -357,7 +373,9 @@ def test_stale_resume_snapshot_cannot_claim_newer_pending(
     stale = StaleService(
         workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
     out = asyncio.run(stale.resume(
-        run_id, approved=True, reviewer="lead-a"))
+        run_id, approved=True, reviewer="lead-a",
+        expected_decision_id=review["decision_id"],
+        expected_decision_binding=review["decision_binding"]))
 
     assert out["resumed"] is False
     assert calls["executor"] == 0
@@ -387,7 +405,8 @@ def test_fresh_session_resumes_persisted_pending_once(tmp_path, monkeypatch):
         workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
     run_id = first.create_run("goal-family", role="sales", plan=PLAN)["id"]
     first.transition(run_id, "active")
-    _hold(first, run_id)
+    held = _hold(first, run_id)
+    review = _review(held)
 
     # Fresh process-like boundary: no shared session/identity map.
     second = GoalRunService(
@@ -395,7 +414,9 @@ def test_fresh_session_resumes_persisted_pending_once(tmp_path, monkeypatch):
     pending = second.get_run(run_id)
     assert pending["pending_decision"]["decision"] == "ADVANCE"
     assert asyncio.run(second.resume(
-        run_id, approved=True, reviewer="lead-b"))["resumed"] is True
+        run_id, approved=True, reviewer="lead-b",
+        expected_decision_id=review["decision_id"],
+        expected_decision_binding=review["decision_binding"]))["resumed"] is True
 
     third = GoalRunService(
         workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
@@ -404,7 +425,9 @@ def test_fresh_session_resumes_persisted_pending_once(tmp_path, monkeypatch):
     assert len([d for d in after["decision_log"]
                 if d.get("kind") == "approved"]) == 1
     assert asyncio.run(third.resume(
-        run_id, approved=True, reviewer="lead-a"))["resumed"] is False
+        run_id, approved=True, reviewer="lead-a",
+        expected_decision_id=review["decision_id"],
+        expected_decision_binding=review["decision_binding"]))["resumed"] is False
     assert calls["executor"] == 1
     engine.dispose()
 
@@ -491,4 +514,170 @@ def test_goal_action_duplicate_active_run_is_refused(tmp_path, monkeypatch):
     assert "already has run" in second["error"]
     with factory() as session:
         assert session.query(GoalRun).count() == 1
+    engine.dispose()
+
+
+def _file_client(tmp_path, name="route-replay.db"):
+    engine = _file_engine(tmp_path, name)
+    User.__table__.create(engine, checkfirst=True)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    _add_goal(factory)
+    db = factory()
+    user = User(
+        id="lead-a", email="lead-a@example.invalid", first_name="Lead",
+        last_name="A", role=UserRole.TEAM_LEAD.value, status="active",
+        workspace_id="ws-a", tenant_id="t-a")
+    db.add(user)
+    db.commit()
+    svc = GoalRunService(
+        workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
+    return engine, factory, db, user, svc
+
+
+def _execute_counter(monkeypatch, svc, on_first=None):
+    calls = []
+
+    async def execute(run_id, decision):
+        calls.append(decision)
+        if on_first and len(calls) == 1:
+            on_first()
+        return {"run": svc.get_run(run_id)}
+
+    monkeypatch.setattr(svc, "execute_decision", execute)
+    return calls
+
+
+def test_public_resume_replay_cannot_execute_a_newer_pending_decision(
+        tmp_path, monkeypatch):
+    """A's exact HTTP request replayed after A opens B must fail closed."""
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "http-replay-binding.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=[])["id"]
+    svc.transition(run_id, "active")
+    held_a = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "Reviewed decision A"})
+    review_a = _review(held_a)
+
+    def create_b():
+        _hold(svc, run_id, {
+            "decision": "REPLAN",
+            "new_plan": [{"id": "new", "title": "Unreviewed replacement"}],
+            "rationale": "New decision B"})
+
+    calls = _execute_counter(monkeypatch, svc, on_first=create_b)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+    request = {"approved": True, **review_a}
+
+    first = client.post(f"/api/goal-runs/{run_id}/resume", json=request)
+    assert first.status_code == 200, first.text
+    assert first.json()["resumed"] is True
+    assert svc.get_run(run_id)["pending_decision"]["rationale"] == (
+        "New decision B")
+
+    replay = client.post(f"/api/goal-runs/{run_id}/resume", json=request)
+    assert replay.status_code == 409, replay.text
+    assert replay.json()["detail"]["error"] == "stale_decision_review"
+    assert len(calls) == 1
+    current = svc.get_run(run_id)
+    assert current["pending_decision"]["rationale"] == "New decision B"
+    b_row = (
+        db.query(HITLAction)
+        .filter(HITLAction.status == HITLActionStatus.PENDING.value,
+                HITLAction.action_type == "goal_run_decision")
+        .all())
+    assert any((row.params or {}).get("decision", {}).get(
+        "rationale") == "New decision B" for row in b_row)
+    db.close()
+    engine.dispose()
+
+
+def test_public_resume_without_review_binding_is_refused(
+        tmp_path, monkeypatch):
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "unbound-resume.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=[])["id"]
+    svc.transition(run_id, "active")
+    held = _hold(
+        svc, run_id, {"decision": "ADVANCE", "rationale": "review me"})
+    calls = _execute_counter(monkeypatch, svc)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+
+    response = client.post(
+        f"/api/goal-runs/{run_id}/resume", json={"approved": True})
+    assert response.status_code == 409
+    assert response.json()["detail"]["error"] == "decision_review_required"
+    assert calls == []
+    assert svc.get_run(run_id)["pending_decision"]["rationale"] == "review me"
+    hitl = db.query(HITLAction).filter(
+        HITLAction.id == held["hitl_id"]).one()
+    assert hitl.status == HITLActionStatus.PENDING.value
+    db.close()
+    engine.dispose()
+
+
+def test_changed_plan_after_review_is_stale(
+        tmp_path, monkeypatch):
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "changed-plan.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "reviewed plan"})
+    review = _review(held)
+    held_hitl = db.query(HITLAction).filter(
+        HITLAction.id == held["hitl_id"]).one()
+    svc.set_plan(run_id, [{"id": "other", "kind": "canvas_work",
+                           "title": "Changed after review"}])
+    calls = _execute_counter(monkeypatch, svc)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+
+    response = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == "stale_decision_review"
+    assert calls == []
+    assert svc.get_run(run_id)["pending_decision"] is not None
+    db.refresh(held_hitl)
+    assert held_hitl.status == HITLActionStatus.PENDING.value
+    db.close()
+    engine.dispose()
+
+
+def test_duplicate_rejection_of_one_reviewed_decision_is_noop(
+        tmp_path, monkeypatch):
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "duplicate-rejection.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "reject me"})
+    review = _review(held)
+    calls = _execute_counter(monkeypatch, svc)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+    request = {"approved": False, "guidance": "try another approach",
+               **review}
+
+    first = client.post(f"/api/goal-runs/{run_id}/resume", json=request)
+    second = client.post(f"/api/goal-runs/{run_id}/resume", json=request)
+    assert first.status_code == 200, first.text
+    assert first.json()["resumed"] is True
+    assert second.status_code == 409 or second.json().get("resumed") is False
+    assert calls == []
+    overrides = [d for d in svc.get_decisions(run_id)
+                 if d.get("kind") == "override"]
+    assert len(overrides) == 1
+    db.close()
     engine.dispose()

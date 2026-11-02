@@ -16,7 +16,12 @@ def _action(**overrides):
         "workspace_id": "default",
         "tenant_id": "default",
         "action_type": "goal_run_decision",
-        "params": {"run_id": "run-1", "decision": {"decision": "ASK_HUMAN"}},
+        "params": {"run_id": "run-1", "decision": {
+            "decision": "ASK_HUMAN",
+            "decision_id": "dec-1",
+            "decision_generation": 1,
+            "decision_binding": "bind-1",
+        }},
         "reason": "needs a human",
     }
     base.update(overrides)
@@ -30,9 +35,13 @@ def test_goal_run_decision_approval_resumes(monkeypatch):
         def __init__(self, workspace_id, tenant_id):
             calls["bound"] = (workspace_id, tenant_id)
 
-        async def resume(self, run_id, approved, reviewer, guidance):
+        async def resume(self, run_id, approved, reviewer, guidance,
+                         expected_decision_id=None,
+                         expected_decision_binding=None):
             calls.update(run_id=run_id, approved=approved, reviewer=reviewer,
-                         guidance=guidance)
+                         guidance=guidance,
+                         expected_decision_id=expected_decision_id,
+                         expected_decision_binding=expected_decision_binding)
             return {"resumed": True, "approved": approved,
                     "run": {"id": run_id, "status": "active"}}
 
@@ -52,6 +61,8 @@ def test_goal_run_decision_approval_resumes(monkeypatch):
         "approved": True,
         "reviewer": "admin-1",
         "guidance": "go ahead",
+        "expected_decision_id": "dec-1",
+        "expected_decision_binding": "bind-1",
     }
 
 
@@ -166,3 +177,124 @@ def test_non_durable_action_is_not_claimed(monkeypatch):
         "hitl-1", approved=True))
     assert result["handled"] is False
     assert "durable waiter" in result["reason"]
+
+
+def test_goal_run_legacy_unbound_action_is_refused(monkeypatch):
+    """A legacy HITL row without a reviewed decision binding must not resume."""
+    calls = {}
+
+    class FakeService:
+        def __init__(self, workspace_id, tenant_id):
+            calls["constructed"] = True
+
+        async def resume(self, *args, **kwargs):  # pragma: no cover
+            calls["resume"] = True
+            return {"resumed": True}
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+        params={"run_id": "run-1", "decision": {"decision": "ASK_HUMAN"}}))
+    monkeypatch.setattr(
+        "core.goals.goal_run_service.GoalRunService", FakeService)
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=True, reviewer_id="admin-1"))
+
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["stale_review"] is True
+    assert result["reason"] == "decision_review_required"
+    assert "resume" not in calls
+
+
+def test_goal_run_stale_action_returns_refresh_required(monkeypatch):
+    calls = {}
+
+    class FakeService:
+        def __init__(self, workspace_id, tenant_id):
+            pass
+
+        async def resume(self, run_id, approved, reviewer, guidance,
+                         expected_decision_id=None,
+                         expected_decision_binding=None):
+            calls.update(
+                run_id=run_id,
+                expected_decision_id=expected_decision_id,
+                expected_decision_binding=expected_decision_binding)
+            return {"resumed": False, "stale_review": True,
+                    "reason": "stale_decision_review",
+                    "current_decision_id": "dec-2"}
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+        params={"run_id": "run-1", "decision": {
+            "decision": "ADVANCE",
+            "decision_id": "dec-1",
+            "decision_generation": 1,
+            "decision_binding": "bind-1",
+        }}))
+    monkeypatch.setattr(
+        "core.goals.goal_run_service.GoalRunService", FakeService)
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=True, reviewer_id="admin-1"))
+
+    assert result["resumed"] is False
+    assert result["stale_review"] is True
+    assert result["current_decision_id"] == "dec-2"
+    assert calls["expected_decision_id"] == "dec-1"
+    assert calls["expected_decision_binding"] == "bind-1"
+
+
+def test_preflight_goal_decision_rejects_stale_review(monkeypatch):
+    action = _action(params={"run_id": "run-1", "decision": {
+        "decision": "ADVANCE",
+        "decision_id": "dec-a",
+        "decision_generation": 1,
+        "decision_binding": "bind-a",
+    }})
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: action)
+
+    class FakeService:
+        def __init__(self, workspace_id, tenant_id):
+            pass
+
+        def get_run(self, run_id):
+            return {
+                "id": run_id, "workspace_id": "default",
+                "tenant_id": "default", "status": "paused_hitl",
+                "human_interventions": 2,
+                "pending_decision": {
+                    "decision": "REPLAN",
+                    "rationale": "newer",
+                    "decision_id": "dec-b",
+                    "decision_generation": 2,
+                    "decision_binding": "bind-b",
+                },
+            }
+
+    monkeypatch.setattr(
+        "core.goals.goal_run_service.GoalRunService", FakeService)
+    out = hitl_resume.preflight_hitl_decision("hitl-1")
+    assert out["valid"] is False
+    assert out["reason"] == "stale_decision_review"
+    assert out["current_decision_id"] == "dec-b"
+
+
+def test_preflight_goal_decision_rejects_decision_rewrite(monkeypatch):
+    action = _action(params={"run_id": "run-1", "decision": {
+        "decision": "ADVANCE",
+        "decision_id": "dec-a",
+        "decision_generation": 1,
+        "decision_binding": "bind-a",
+    }})
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: action)
+    out = hitl_resume.preflight_hitl_decision(
+        "hitl-1", {"decision": {"decision": "REPLAN"}})
+    assert out["valid"] is False
+    assert out["reason"] == "decision_review_required"
+
+
+def test_preflight_non_goal_action_is_unaffected(monkeypatch):
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+        action_type="send_email",
+        params={"to": "x@y.example", "subject": "hi"}))
+    assert hitl_resume.preflight_hitl_decision("hitl-1")["valid"] is True

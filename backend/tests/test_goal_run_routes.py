@@ -139,8 +139,12 @@ def test_advance_and_resume_flow(supervisor_env, monkeypatch):
     emp = _make_client(supervisor_env, "gr-emp")
     assert emp.post(f"/api/goal-runs/{run_id}/resume",
                     json={"approved": True}).status_code == 403
-    resumed = client.post(f"/api/goal-runs/{run_id}/resume",
-                          json={"approved": True}).json()
+    reviewed = created["run"]["pending_decision"]
+    resumed = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True,
+              "decision_id": reviewed["decision_id"],
+              "decision_binding": reviewed["decision_binding"]}).json()
     assert resumed["resumed"] is True
     assert resumed["decision"] in ("ADVANCE", "ASK_HUMAN")
 

@@ -176,7 +176,11 @@ class TestDecisionLoop:
         assert svc.get_run(rid)["status"] == "paused_hitl"
         assert svc.get_run(rid)["pending_decision"]["decision"] == "ADVANCE"
         # resume executes the exact held decision
-        executed = asyncio.run(svc.resume(rid, approved=True, reviewer="sup"))
+        reviewed = svc.get_run(rid)["pending_decision"]
+        executed = asyncio.run(svc.resume(
+            rid, approved=True, reviewer="sup",
+            expected_decision_id=reviewed["decision_id"],
+            expected_decision_binding=reviewed["decision_binding"]))
         assert executed["decision"] == "ADVANCE"
 
     def test_training_mode_checkpoint_passes_through_human_checkpoints(self, backend):

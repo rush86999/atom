@@ -109,7 +109,11 @@ def _simultaneous(factory):
         run_id = creator.create_run(
             "goal-probe", role="sales", plan=PLAN)["id"]
         creator.transition(run_id, "active")
-        _hold(creator, run_id, "simultaneous")
+        held = _hold(creator, run_id, "simultaneous")
+        review = {
+            "decision_id": held["decision_id"],
+            "decision_binding": held["decision_binding"],
+        }
         state["race"] = True
         results = []
 
@@ -118,8 +122,10 @@ def _simultaneous(factory):
                 workspace_id="ws-probe", tenant_id="t-probe",
                 session_factory=factory)
             try:
-                results.append(asyncio.run(
-                    svc.resume(run_id, approved=True, reviewer=reviewer)))
+                results.append(asyncio.run(svc.resume(
+                    run_id, approved=True, reviewer=reviewer,
+                    expected_decision_id=review["decision_id"],
+                    expected_decision_binding=review["decision_binding"])))
             except Exception as exc:  # noqa: BLE001
                 results.append({"error": f"{type(exc).__name__}: {exc}"})
 
@@ -165,7 +171,11 @@ def _stale(factory):
         run_id = writer.create_run(
             "goal-probe", role="sales", plan=PLAN)["id"]
         writer.transition(run_id, "active")
-        _hold(writer, run_id, "old")
+        held = _hold(writer, run_id, "old")
+        review = {
+            "decision_id": held["decision_id"],
+            "decision_binding": held["decision_binding"],
+        }
         old_snapshot = writer.get_run(run_id)
         old_generation = old_snapshot["human_interventions"]
 
@@ -184,7 +194,9 @@ def _stale(factory):
             workspace_id="ws-probe", tenant_id="t-probe",
             session_factory=factory)
         out = asyncio.run(stale.resume(
-            run_id, approved=True, reviewer="stale-reviewer"))
+            run_id, approved=True, reviewer="stale-reviewer",
+            expected_decision_id=review["decision_id"],
+            expected_decision_binding=review["decision_binding"]))
         current = writer.get_run(run_id)
         return {
             "run_id": run_id,

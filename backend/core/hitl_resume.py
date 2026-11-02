@@ -45,6 +45,82 @@ def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
         }
 
 
+def _action_field(action: Any, name: str, default: Any = None) -> Any:
+    if isinstance(action, dict):
+        return action.get(name, default)
+    return getattr(action, name, default)
+
+
+def preflight_hitl_decision(
+    action_id: str,
+    modified_params: Optional[Dict[str, Any]] = None,
+    *,
+    action: Any = None,
+) -> Dict[str, Any]:
+    """Validate a goal-decision approval BEFORE any HITL state changes.
+
+    The approvals queue marks the row approved/rejected before the resume
+    bridge runs. For a held goal decision that would be a state change under
+    an unvalidated binding. This preflight checks the exact reviewed decision
+    generation/material against the authoritative run; non-goal/checkpoint
+    actions need no extra check here. Routes pass the action row they already
+    loaded so this check uses the same session/transaction boundary.
+    """
+    if action is None:
+        action = _load_action(action_id)
+    if action is None:
+        return {"valid": False, "reason": "action_not_found"}
+    if _action_field(action, "action_type") != "goal_run_decision":
+        return {"valid": True}
+
+    modified = modified_params or {}
+    if any(key in modified for key in (
+            "decision", "decision_id", "decision_binding",
+            "decision_generation")):
+        # A modified decision is not the material the human reviewed.
+        return {
+            "valid": False,
+            "reason": "decision_review_required",
+            "message": "A goal decision's reviewed payload cannot be "
+                       "rewritten during approval; reject and re-plan instead.",
+        }
+
+    params = _action_field(action, "params") or {}
+    run_id = str(params.get("run_id") or "")
+    decision = params.get("decision")
+    if not isinstance(decision, dict):
+        decision = {}
+    expected_decision_id = str(decision.get("decision_id") or "")
+    expected_decision_binding = str(decision.get("decision_binding") or "")
+    if not expected_decision_id or not expected_decision_binding:
+        return {"valid": False, "reason": "decision_review_required"}
+    if not run_id:
+        return {"valid": False, "reason": "run_not_found"}
+
+    from core.goals.goal_run_binding import validate_pending_decision
+    from core.goals.goal_run_service import GoalRunService
+
+    svc = GoalRunService(
+        workspace_id=_action_field(action, "workspace_id") or "default",
+        tenant_id=_action_field(action, "tenant_id") or "default",
+    )
+    run = svc.get_run(run_id)
+    if not run:
+        return {"valid": False, "reason": "run_not_found"}
+    pending = run.get("pending_decision")
+    if not pending:
+        return {"valid": False, "reason": "no_pending_decision"}
+    valid, reason = validate_pending_decision(
+        run, pending,
+        expected_decision_id=expected_decision_id,
+        expected_decision_binding=expected_decision_binding)
+    return {
+        "valid": valid,
+        "reason": reason,
+        "current_decision_id": pending.get("decision_id"),
+    }
+
+
 async def _resume_goal_run(action: Dict[str, Any], approved: bool,
                            reviewer_id: Optional[str],
                            guidance: Optional[str]) -> Dict[str, Any]:
@@ -86,11 +162,26 @@ async def _resume_goal_run(action: Dict[str, Any], approved: bool,
         return {"handled": True, "resumed": True, "kind": "checkpoint",
                 "loop": loop}
 
+    decision = params.get("decision")
+    if not isinstance(decision, dict):
+        decision = {}
+    expected_decision_id = str(decision.get("decision_id") or "")
+    expected_decision_binding = str(decision.get("decision_binding") or "")
+    if not expected_decision_id or not expected_decision_binding:
+        return {
+            "handled": True,
+            "kind": "decision",
+            "resumed": False,
+            "stale_review": True,
+            "reason": "decision_review_required",
+        }
     result = await svc.resume(
         run_id,
         approved=approved,
         reviewer=reviewer_id,
         guidance=guidance or action.get("reason"),
+        expected_decision_id=expected_decision_id,
+        expected_decision_binding=expected_decision_binding,
     )
     return {"handled": True, "kind": "decision", **result}
 

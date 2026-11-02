@@ -142,6 +142,12 @@ class ResumeBody(BaseModel):
     # applies to all of this agent's work) or "goal" (true only for THIS run's
     # goal). See core/student_learning_service lesson scope.
     guidance_scope: Optional[str] = None
+    # The EXACT pending decision the human reviewed. Both fields are exposed
+    # on the run's pending_decision. A legacy client that sends only
+    # {"approved": true} is refused with refresh-required rather than
+    # approving whichever decision happens to be current.
+    decision_id: Optional[str] = None
+    decision_binding: Optional[str] = None
 
 
 class ModeBody(BaseModel):
@@ -350,9 +356,21 @@ async def resume_goal_run(
         raise router.not_found_error("GoalRun", run_id)
     _require_run_access(db, current_user, run)
 
+    if not payload.decision_id or not payload.decision_binding:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "decision_review_required",
+                "message": (
+                    "Refresh the run and review the current pending decision "
+                    "before approving it."),
+            },
+        )
+
     # Snapshot the exact approval rows this decision owns BEFORE the loop
     # turn runs. Closing "all pending rows for this run" afterwards could
-    # close a NEW checkpoint row created by the executed step.
+    # close a NEW checkpoint row created by the executed step; a different
+    # decision's row must remain pending with its own reviewer/history.
     pending_hitl_ids = [
         action.id for action in (
             db.query(HITLAction)
@@ -362,6 +380,11 @@ async def resume_goal_run(
             )
             .all())
         if (action.params or {}).get("run_id") == run_id
+        and (
+            ((action.params or {}).get("decision") or {})
+            if isinstance((action.params or {}).get("decision"), dict)
+            else {}
+        ).get("decision_id") == payload.decision_id
     ]
 
     try:
@@ -369,9 +392,23 @@ async def resume_goal_run(
             run_id, approved=payload.approved,
             reviewer=str(current_user.id),
             guidance=payload.guidance,
-            guidance_scope=payload.guidance_scope)
+            guidance_scope=payload.guidance_scope,
+            expected_decision_id=payload.decision_id,
+            expected_decision_binding=payload.decision_binding)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+    if result.get("stale_review"):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "stale_decision_review",
+                "message": (
+                    "The pending decision changed after it was reviewed. "
+                    "Refresh the run and review the current decision."),
+                "current_decision_id": result.get("current_decision_id"),
+            },
+        )
 
     # Close only those exact rows, and only after the service won the
     # pending-generation claim. A duplicate resume gets resumed=False and

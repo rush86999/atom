@@ -76,6 +76,14 @@ export interface DecisionEntry {
   confidence?: number;
   hitl_id?: string;
   reviewer?: string;
+  /**
+   * Exact reviewed pending-decision identity/binding. A public approval must
+   * echo these; the backend refuses an unbound or stale approval rather than
+   * applying it to whatever decision happens to be current.
+   */
+  decision_id?: string;
+  decision_generation?: number;
+  decision_binding?: string;
 }
 
 export interface GoalRun {
@@ -256,11 +264,18 @@ export async function getGoalRunCanvases(id: string): Promise<GoalRunCanvas[]> {
   return (body.canvases ?? []) as GoalRunCanvas[];
 }
 
+export interface PendingDecisionBinding {
+  decision_id?: string;
+  decision_generation?: number;
+  decision_binding?: string;
+}
+
 export async function resumeGoalRun(
   id: string,
   approved: boolean,
   guidance?: string,
   guidanceScope?: 'global' | 'goal',
+  reviewed?: PendingDecisionBinding | null,
 ): Promise<void> {
   const res = await fetchJson(`/api/goal-runs/${id}/resume`, {
     method: 'POST',
@@ -271,9 +286,34 @@ export async function resumeGoalRun(
       // Scope of the correction when it becomes a lesson: this goal only, or
       // all of this agent's work. Omitted = the backend default (global).
       ...(guidanceScope ? { guidance_scope: guidanceScope } : {}),
+      // The exact pending decision this page reviewed. A stale/missing
+      // binding is a 409 refresh-required refusal, never approval of a newer
+      // unreviewed decision.
+      ...(reviewed?.decision_id
+        ? { decision_id: reviewed.decision_id }
+        : {}),
+      ...(reviewed?.decision_binding
+        ? { decision_binding: reviewed.decision_binding }
+        : {}),
     }),
   });
-  if (!res.ok) throw new Error(`Failed to resume goal run (${res.status})`);
+  if (!res.ok) {
+    let message = `Failed to resume goal run (${res.status})`;
+    try {
+      const body = await res.json();
+      const detail = body?.detail;
+      if (detail && typeof detail === 'object') {
+        if (detail.error === 'stale_decision_review') {
+          message = 'The pending decision changed after it was reviewed. Refresh the run and review the current decision.';
+        } else if (detail.error === 'decision_review_required') {
+          message = 'Refresh the run and review the current pending decision before approving it.';
+        }
+      }
+    } catch {
+      /* keep the status fallback */
+    }
+    throw new Error(message);
+  }
 }
 
 /**

@@ -261,7 +261,11 @@ class TestHITLHold:
             assert hitl.status == HITLActionStatus.PENDING.value
             assert hitl.params["run_id"] == rid
 
-        resumed = asyncio.run(svc.resume(rid, approved=True, reviewer="sup-1"))
+        reviewed = svc.get_run(rid)["pending_decision"]
+        resumed = asyncio.run(svc.resume(
+            rid, approved=True, reviewer="sup-1",
+            expected_decision_id=reviewed["decision_id"],
+            expected_decision_binding=reviewed["decision_binding"]))
         assert resumed["resumed"] is True
         assert resumed["decision"] == "ADVANCE"
         assert resumed["result"]["canvas_id"]
@@ -274,8 +278,12 @@ class TestHITLHold:
         svc._hold_for_approval(rid, {"decision": "REPLAN",
                                      "rationale": "pivot"},
                                reason="ask human")
-        out = asyncio.run(svc.resume(rid, approved=False, reviewer="sup-1",
-                                     guidance="stay on plan, revise the quote instead"))
+        reviewed = svc.get_run(rid)["pending_decision"]
+        out = asyncio.run(svc.resume(
+            rid, approved=False, reviewer="sup-1",
+            guidance="stay on plan, revise the quote instead",
+            expected_decision_id=reviewed["decision_id"],
+            expected_decision_binding=reviewed["decision_binding"]))
         assert out["resumed"] is True and out["approved"] is False
         log = svc.get_decisions(rid)
         assert log[-1]["kind"] == "override"

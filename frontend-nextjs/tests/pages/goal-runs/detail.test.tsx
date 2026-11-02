@@ -365,7 +365,13 @@ describe("GoalRun detail — coaching", () => {
   it("sends the override's lesson scope with the resume call", async () => {
     getGoalRun.mockResolvedValue(run({
       status: "active",
-      pending_decision: { decision: "ASK_HUMAN", rationale: "unclear pricing" } as any,
+      pending_decision: {
+        decision: "ASK_HUMAN",
+        rationale: "unclear pricing",
+        decision_id: "dec-1",
+        decision_generation: 1,
+        decision_binding: "bind-1",
+      } as any,
     }));
     render(<GoalRunDetailPage />);
     await waitFor(() => screen.getByTestId("guidance-input"));
@@ -380,6 +386,11 @@ describe("GoalRun detail — coaching", () => {
 
     await waitFor(() => expect(resumeGoalRun).toHaveBeenCalledWith(
       "run-1", false, "check the FX rate first", "goal",
+      {
+        decision_id: "dec-1",
+        decision_generation: 1,
+        decision_binding: "bind-1",
+      },
     ));
   });
 });
