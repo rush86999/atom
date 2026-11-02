@@ -1,0 +1,44 @@
+{
+  "bills": {
+    "INV-IN-1": {
+      "bill_id": "bill-controlled-1",
+      "bill_number": "INV-IN-1",
+      "currency_code": "USD",
+      "date": "2026-11-01",
+      "due_date": "2026-12-01",
+      "line_items": [
+        {
+          "account_id": "acct-1",
+          "description": "Parts",
+          "name": "Parts",
+          "quantity": "1",
+          "rate": "100.00"
+        },
+        {
+          "account_id": "acct-2",
+          "description": "Freight",
+          "name": "Freight",
+          "quantity": "1",
+          "rate": "20.00"
+        }
+      ],
+      "notes": "Prepared by Atom bookkeeping proposal",
+      "organization_id": "org-1",
+      "reference_number": "INV-IN-1",
+      "vendor_id": "vendor-1"
+    }
+  },
+  "calls": [
+    {
+      "bill_id": "bill-controlled-1",
+      "external_id": "INV-IN-1",
+      "operation": "create_bill"
+    },
+    {
+      "bill_id": "bill-controlled-1",
+      "operation": "get_bill"
+    }
+  ],
+  "creates": 1,
+  "readbacks": 1
+}
