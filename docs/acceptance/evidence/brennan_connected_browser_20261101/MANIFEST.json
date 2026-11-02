@@ -1,0 +1,168 @@
+{
+  "artifacts": {
+    "01-qualification-before-restart.png": "06df6df70624a85e79013f4fb5947598d7cf296a78dff64ac884ad29abdaf269",
+    "02-corrected-quote-approval.png": "d0d7a6f1b3063ee91f7ca84c8983576cb730161b1b7bb69c4552b0716eed833b",
+    "02-v1-completed-calculation.png": "5d6aa59dcd5c133e14dea60dc85b9ced48bd962303828e2a8df5c2d3e14071a1",
+    "03-completed-draft.png": "d425530569660a5557fe2e5230b17be6a774d26885e6cff6d17ddf961c05a205",
+    "backend-reset.log": "b72afbf5602014aad4a0455734cf3c9c93716f88b5a5cf9656f3012b6022372e",
+    "backend-restart.log": "873c507e472e6f4f73abff096af9ec884a27e7460ccc6a03f7d589c8827176ec",
+    "checks.json": "ee557309add4b5c6569bb8520ed08d2a94e7fa37b49e8f141c36cd51d5dbb3a0"
+  },
+  "browser": {
+    "checks": [
+      {
+        "name": "assignment starts and pauses on discount qualification",
+        "ok": true
+      },
+      {
+        "name": "real backend process restarted",
+        "ok": true
+      },
+      {
+        "name": "restarted backend serves the declared code identity",
+        "ok": true
+      },
+      {
+        "name": "health and connected routes identify the same instance",
+        "ok": true
+      },
+      {
+        "name": "connected provider still serves the pre-change source",
+        "ok": true
+      },
+      {
+        "name": "obligation survives backend restart",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation completes before correction",
+        "ok": true
+      },
+      {
+        "name": "v1 calculation captured before correction",
+        "ok": true
+      },
+      {
+        "name": "connected source changed",
+        "ok": true
+      },
+      {
+        "name": "changed source invalidates read branch",
+        "ok": true
+      },
+      {
+        "name": "corrected continuation reaches estimate approval",
+        "ok": true
+      },
+      {
+        "name": "production WorkDrive receipt identifies v2",
+        "ok": true
+      },
+      {
+        "name": "corrected calculation rows use v2 source identity",
+        "ok": true
+      },
+      {
+        "name": "v1 remains only in historical result",
+        "ok": true
+      },
+      {
+        "name": "estimate readback uses corrected total",
+        "ok": true
+      },
+      {
+        "name": "Outlook draft uses verified corrected total",
+        "ok": true
+      },
+      {
+        "name": "no send occurred",
+        "ok": true
+      },
+      {
+        "name": "completed assignment reopens after reload",
+        "ok": true
+      },
+      {
+        "name": "duplicate resume from two pages is a no-op",
+        "ok": true
+      },
+      {
+        "name": "cancellation refuses a late correlated response",
+        "ok": true
+      },
+      {
+        "name": "provider acceptance with lost readback is uncertain",
+        "ok": true
+      },
+      {
+        "name": "uncertain job survives restart without a second create",
+        "ok": true
+      },
+      {
+        "name": "reconciliation settles the original object without a duplicate",
+        "ok": true
+      },
+      {
+        "name": "reconciled uncertainty releases the dependent draft without sending",
+        "ok": true
+      }
+    ],
+    "checks_passed": 24,
+    "checks_total": 24,
+    "command": "BRENNAN_BROWSER_OUT=/private/tmp/brennan-browser-final3 node scripts/acceptance/brennan_connected_browser.cjs",
+    "draft_total": "376.75",
+    "estimated_total": "376.75",
+    "send_attempts": 0,
+    "source_version_expected": "v2 after correction; v1 retained only in prior_results"
+  },
+  "candidate": {
+    "branch": "codex/brennan-joint-review-20261101",
+    "dirty": false,
+    "evidence_commit": "8b03e8083",
+    "executed_source_head": "97c43c7e7dcc61e517095f91595942241ba2ea60",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-brennan-review"
+  },
+  "exclusions": [
+    "standalone acceptance server, not full-app authentication/profile/navigation",
+    "no live Zoho/Microsoft provider call, refresh, write or send",
+    "no universal mini-app/canvas runtime claim",
+    "evidence commit is docs-only after the executed source head"
+  ],
+  "providers": {
+    "books": "controlled fake provider service behind registered connected.books actions",
+    "live_provider_calls": 0,
+    "onedrive": "production registered connected.onedrive.read_file action and XLSX parser covered by public-route control",
+    "outlook": "controlled fake service; send_email raises and increments send_attempts",
+    "workdrive": "production registered connected.workdrive.read_file action and CSV parser; only provider service replaced with controlled bytes/metadata"
+  },
+  "schema": "brennan-connected-browser-manifest-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "54d69e59e97a990f8ee9197bff74dff7e91f7227407ee9060dcef367d224c8d3",
+    "backend/core/commercial_readback.py": "315d0abfc52a314ff9ee040c0b6d4837c2e5f6de53e14b5488f0adcf3a53a851",
+    "backend/core/connected_actions.py": "515b7a56f3747491d791eb1208c35eedfe0867ac2cdaf711588c974a7abfc0ef",
+    "backend/core/quote_rows.py": "9026b46f012437ad063df1fe6aca7a3328c4c3a510c04616f02b1449d4772de4",
+    "backend/scripts/assignment_browser_acceptance_server.py": "ef5d58b094d6314b0410e5023231e35797861e767f0d8c0af583b7386e2b1e66",
+    "backend/tests/integration/test_brennan_joint_document_flow.py": "e8c140aab824174325180907dcc3c03c249b5864fbc5a994f0ed4579de2077e2",
+    "backend/tests/unit/test_serialization_budget.py": "afc016f9cfeaf4d9231d64c11b9f9678abcca33431dce7e9ea9e72e6feb8975f",
+    "scripts/acceptance/brennan_connected_browser.cjs": "d41e5e1266a3fc821c4d4761e7d6a7a09f287023d08b2996b654621df27441a5"
+  },
+  "tests": {
+    "agent1_required": {
+      "command": "pytest tests/test_assignment_quote.py tests/test_assignment_executor.py tests/test_assignment_routes.py tests/test_quote_evidence.py -q",
+      "result": "175 passed"
+    },
+    "agent2_focused": {
+      "command": "pytest tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_bookkeeping_proposal.py tests/unit/test_brennan_bookkeeping_registered.py tests/unit/test_brennan_drive_sync_checkpoints.py tests/unit/test_brennan_accounting_sync_semantics.py tests/test_covpush_w97_zoho_books.py tests/test_covpush_w97_zoho_crm.py tests/test_covpush_w38_zoho_workdrive.py tests/test_covpush_w102_onedrive_routes.py tests/test_covpush_w109_accounting_docs.py tests/test_covpush_w74a_accounting2.py::TestAIDocumentProcessor -q",
+      "result": "279 passed"
+    },
+    "data_transfer_boundary": {
+      "command": "pytest tests/unit/test_serialization_budget.py tests/unit/test_quote_rows.py tests/integration/test_brennan_joint_document_flow.py /private/tmp/test_verifier_brennan_transfer.py -q",
+      "result": "35 passed"
+    },
+    "joint_core": {
+      "command": "pytest tests/test_assignment_executor.py tests/test_assignment_quote.py tests/test_assignment_routes.py tests/test_quote_evidence.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/unit/test_brennan_commercial_readback.py tests/unit/test_brennan_agent2_connected_operations.py tests/unit/test_quote_rows.py tests/unit/test_serialization_budget.py tests/unit/test_brennan_bookkeeping_registered.py -q",
+      "result": "281 passed"
+    }
+  }
+}
