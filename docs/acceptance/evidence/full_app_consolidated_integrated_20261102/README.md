@@ -7,6 +7,12 @@ at `2b5db4b98` before the other agent's effect-family and bookkeeping commit
 landed. Both bundles are preserved; this one is bound to the true integrated
 source.
 
+It is the integrator's verification superset of the owner's
+`full_app_integrated_f8f8de387/` bundle for the **same** source: it adds the
+454-test combined matrix, the actual `canvas_audit` duplicate counter, and the
+pending-operation/payload identity comparison across restart. Both manifests
+are tracked and hash-clean.
+
 ## Executed source
 
 | Item | Value |

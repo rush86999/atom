@@ -266,7 +266,8 @@
   "docs/acceptance/evidence/full_app_batch_20261102/",
   "docs/acceptance/evidence/claim_progress_20261102/",
   "docs/acceptance/evidence/oracle_whole_app_inventory_20261102/",
-  "docs/acceptance/evidence/full_app_consolidated_20261102/"
+  "docs/acceptance/evidence/full_app_consolidated_20261102/",
+  "docs/acceptance/evidence/full_app_integrated_f8f8de387/ (owner bundle for the same source)"
  ],
  "exclusions": [
   "no live provider lookup, refresh, write, send, credential, consent or spend",
@@ -274,7 +275,7 @@
   "no change to 123 denominator or historical 111/123"
  ],
  "artifacts": {
-  "README.md": "9ecae56eca6b13927e93e7a9db51a7726145945df5f93f0e02c5ab25aa354771",
+  "README.md": "806faa66b4241b79b0411500b42b84890e291c949543174e01437da6c2bcc871",
   "TEST_RESULTS.md": "6d4542ac68001d670a20b336c781ccbf4230dcb402bf55d0c046e45c47da5627",
   "audit-row.txt": "59d90aee43a21ab70535671eeb95fa60fc2babbbe041119fd119ba09843a2c66",
   "backend-health.json": "7cbcecbad40bdf134b3d77a31194d281ad9bbaf6987ed17df8e387693730f846",
