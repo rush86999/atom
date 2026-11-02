@@ -28,6 +28,8 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
+from core.auto_dev.models import SkillCandidate
+
 SKILL_APPLY_SCHEMA = "atom-reviewed-skill-apply-1"
 REVIEW_SCHEMA = "atom-reviewed-skill-review-1"
 
@@ -116,6 +118,10 @@ def mark_reviewed(
     workspace_id: str,
 ) -> Dict[str, Any]:
     """Record the exact reviewed snapshot. Does not apply or promote."""
+    if candidate.validation_status in ("applying", "promoted"):
+        raise ValueError(
+            "candidate_state_conflict: a newer application already owns "
+            "this candidate")
     existing = candidate.validation_result if isinstance(
         candidate.validation_result, dict) else {}
     review = review_binding(
@@ -133,6 +139,32 @@ def _review_snapshot(candidate: Any) -> Dict[str, Any]:
     review = result.get("review") if isinstance(
         result.get("review"), dict) else {}
     return review
+def review_revision(candidate: Any) -> int:
+    try:
+        return int(_review_snapshot(candidate).get("review_revision") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def review_revision_predicate(db: Session, revision: int):
+    """DB predicate for the exact review revision; fail closed if unsupported."""
+    from sqlalchemy import func, or_
+
+    bind = db.get_bind()
+    dialect = getattr(getattr(bind, "dialect", None), "name", "")
+    value = int(revision)
+    if dialect == "sqlite":
+        extracted = func.json_extract(
+            SkillCandidate.validation_result, "$.review.review_revision")
+        return or_(extracted.is_(None), extracted == 0) if value == 0 \
+            else extracted == value
+    if dialect in ("postgresql", "postgres"):
+        expression = SkillCandidate.validation_result[
+            "review"]["review_revision"].as_integer()
+        return or_(expression.is_(None), expression == 0) if value == 0 \
+            else expression == value
+    raise ValueError(
+        f"review_revision_predicate_unsupported: dialect {dialect!r}")
 
 
 def _default_builder():
@@ -213,6 +245,8 @@ def _applied_result(candidate: Any) -> Dict[str, Any]:
         "already_applied": True,
         "skill_id": applied.get("skill_id"),
         "package_path": applied.get("package_path"),
+        "review_revision": applied.get("review_revision"),
+        "review_digest": applied.get("review_digest"),
         "candidate_id": str(candidate.id),
     }
 
@@ -269,11 +303,37 @@ async def apply_reviewed_skill(
         raise ValueError(
             f"candidate_not_reviewed: status is {current.validation_status!r}")
 
+    # Recheck the CURRENT employee, not the route's earlier read: a move after
+    # authorization must not redirect the application into another workspace.
+    from sqlalchemy import and_, exists
+    from core.models import AgentRegistry
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == current.agent_id)
+        .populate_existing()
+        .first()
+    )
+    if (agent is None or str(agent.tenant_id) != str(tenant_id)
+            or str(agent.workspace_id) != str(workspace_id)):
+        raise ValueError(
+            "workspace_mismatch: target employee moved or is no longer in "
+            "the reviewed workspace")
+
+    reviewed_revision = review_revision(current)
     claimed = (
         db.query(type(current))
-        .filter(type(current).id == candidate_id,
-                type(current).tenant_id == tenant_id,
-                type(current).validation_status == "validated")
+        .filter(
+            type(current).id == candidate_id,
+            type(current).tenant_id == tenant_id,
+            type(current).validation_status == "validated",
+            type(current).validated_at == current.validated_at,
+            review_revision_predicate(db, reviewed_revision),
+            exists().where(and_(
+                AgentRegistry.id == type(current).agent_id,
+                AgentRegistry.tenant_id == str(tenant_id),
+                AgentRegistry.workspace_id == str(workspace_id),
+            )),
+        )
         .update({"validation_status": "applying"},
                 synchronize_session=False)
     )
@@ -287,17 +347,21 @@ async def apply_reviewed_skill(
             .first()
         )
         if fresh is not None and fresh.validation_status == "promoted":
-            return _applied_result(fresh)
+            applied = _applied_result(fresh)
+            if (applied.get("review_revision") == reviewed_revision
+                    and applied.get("review_digest") == expected_digest):
+                return applied
         raise ValueError(
-            "candidate_state_conflict: another review/application won")
+            "candidate_state_conflict: the reviewed revision changed before "
+            "the claim; reload and review again")
     db.flush()
 
     from core.skill_registry_service import SkillRegistryService
 
     builder = builder or _default_builder()
     registry = registry or SkillRegistryService(db)
-    review_revision = int(review.get("review_revision") or 1)
-    safe_name = f"{_safe_name(current.skill_name)}_r{review_revision}"
+    claimed_revision = reviewed_revision
+    safe_name = f"{_safe_name(current.skill_name)}_r{claimed_revision}"
     markdown = _skill_markdown(current)
     final_dir = _package_dir(builder, tenant_id, safe_name)
     created = False
@@ -372,15 +436,40 @@ async def apply_reviewed_skill(
             "package_path": str(package_path),
             "applied_at": datetime.now(timezone.utc).isoformat(),
             "generated_code_applied": False,
-            "review_revision": review_revision,
+            "review_revision": claimed_revision,
             "review_digest": review.get("digest"),
         }
-        current.validation_status = "promoted"
-        current.promoted_at = datetime.now(timezone.utc)
-        current.validation_result = {
-            **(current.validation_result or {}),
+        authoritative = (
+            db.query(type(candidate))
+            .filter(type(candidate).id == candidate_id)
+            .populate_existing()
+            .one()
+        )
+        merged = {
+            **(authoritative.validation_result or {}),
             "applied": applied,
         }
+        promoted = (
+            db.query(type(candidate))
+            .filter(
+                type(candidate).id == candidate_id,
+                type(candidate).tenant_id == tenant_id,
+                type(candidate).validation_status == "applying",
+                review_revision_predicate(db, reviewed_revision),
+            )
+            .update(
+                {
+                    "validation_status": "promoted",
+                    "promoted_at": datetime.now(timezone.utc),
+                    "validation_result": merged,
+                },
+                synchronize_session=False,
+            )
+        )
+        if promoted != 1:
+            raise ValueError(
+                "candidate_state_conflict: the claimed review revision "
+                "changed before promotion")
         db.commit()
         return {
             **applied,

@@ -36,7 +36,12 @@ from core.models import (
     User,
     UserRole,
 )
-from core.reviewed_improvement import apply_reviewed_skill, mark_reviewed
+from core.reviewed_improvement import (
+    apply_reviewed_skill,
+    review_binding,
+    review_revision,
+    review_revision_predicate,
+)
 from core.security.rbac import require_role, role_level
 
 logger = logging.getLogger(__name__)
@@ -158,21 +163,50 @@ async def approve_skill_candidate(
     candidate = db.query(SkillCandidate).filter(
         SkillCandidate.id == candidate_id,
         SkillCandidate.tenant_id == str(tenant.id),
-    ).first()
+    ).populate_existing().first()
     agent = _candidate_agent(db, tenant, current_user, candidate)
-    if candidate.validation_status == "promoted":
+    if candidate.validation_status in ("applying", "promoted"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="candidate is already promoted")
-    review = mark_reviewed(
-        candidate, reviewer_id=str(current_user.id),
-        tenant_id=str(tenant.id),
-        workspace_id=str(agent.workspace_id))
+            detail="candidate is already being applied or promoted")
+    revision = review_revision(candidate)
+    review = review_binding(
+        candidate, tenant_id=str(tenant.id),
+        workspace_id=str(agent.workspace_id),
+        agent_id=str(agent.id), reviewer_id=str(current_user.id),
+        review_revision=revision + 1)
+    updated = (
+        db.query(SkillCandidate)
+        .filter(
+            SkillCandidate.id == candidate_id,
+            SkillCandidate.tenant_id == str(tenant.id),
+            SkillCandidate.validation_status.in_(["pending", "validated"]),
+            review_revision_predicate(db, revision),
+        )
+        .update(
+            {
+                "validation_status": "validated",
+                "validated_at": datetime.now(timezone.utc),
+                "validation_result": {
+                    **(candidate.validation_result or {}),
+                    "review": review,
+                },
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "candidate changed while reviewing; reload and review the "
+                "current snapshot"))
     db.commit()
     return router.success_response(
         data={
             "id": candidate_id,
-            "status": candidate.validation_status,
+            "status": "validated",
             "review_digest": review["digest"],
             "review_revision": review["review_revision"],
         },
@@ -238,9 +272,30 @@ async def reject_skill_candidate(
     candidate = db.query(SkillCandidate).filter(
         SkillCandidate.id == candidate_id,
         SkillCandidate.tenant_id == str(tenant.id),
-    ).first()
+    ).populate_existing().first()
     _candidate_agent(db, tenant, current_user, candidate)
-    candidate.validation_status = "rejected"
+    if candidate.validation_status in ("applying", "promoted"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="candidate is already being applied or promoted")
+    updated = (
+        db.query(SkillCandidate)
+        .filter(
+            SkillCandidate.id == candidate_id,
+            SkillCandidate.tenant_id == str(tenant.id),
+            SkillCandidate.validation_status.in_(["pending", "validated"]),
+            review_revision_predicate(db, review_revision(candidate)),
+        )
+        .update(
+            {"validation_status": "rejected"},
+            synchronize_session=False,
+        )
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="candidate changed while rejecting; reload")
     db.commit()
     return router.success_response(
         data={"id": candidate_id, "status": "rejected"},
