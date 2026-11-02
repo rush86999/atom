@@ -102,3 +102,10 @@ async def verify_before_retry(action: str, context: Optional[Dict[str, Any]] = N
         return False
     result = await validate(action, context)
     return result is not None and result.verified
+
+
+# Import the built-in verifiers when the oracle package is imported.  Callers
+# that only import ``core.oracle`` (the executor consumer, generic agent, API
+# startup) must not see an empty registry simply because no test imported the
+# registration module first.
+from . import postcondition_verifiers as _postcondition_verifiers  # noqa: E402,F401

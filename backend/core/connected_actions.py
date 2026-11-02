@@ -24,6 +24,7 @@ from typing import Any, Callable, Dict, Optional
 
 from core.action_registry import action_registry, register_action
 from core.commercial_readback import (
+    bind_remote_identity,
     verify_bill_readback,
     verify_estimate_readback,
 )
@@ -240,6 +241,102 @@ def _normalize_outlook_draft(payload: Dict[str, Any]) -> Dict[str, Any]:
         "bcc": addresses(
             payload.get("bccRecipients") or payload.get("bcc_recipients")),
     }
+
+
+def _draft_payload(args: Dict[str, Any]) -> Dict[str, Any]:
+    """The exact material draft payload whose digest is authorized."""
+    return {
+        "to": list(args.get("to") or []),
+        "cc": list(args.get("cc") or []),
+        "bcc": list(args.get("bcc") or []),
+        "subject": str(args.get("subject") or ""),
+        "body": str(args.get("body") or ""),
+    }
+
+
+def _outlook_missing_fields(readback: Dict[str, Any]) -> List[str]:
+    """Fields whose absence makes a verified draft comparison impossible."""
+    missing: List[str] = []
+    if "subject" not in readback or readback.get("subject") is None:
+        missing.append("subject")
+    body = readback.get("body")
+    if "body" not in readback or body is None:
+        missing.append("body")
+    elif isinstance(body, dict) and "content" not in body:
+        missing.append("body")
+    for field, aliases in (
+        ("to", ("toRecipients", "to_recipients")),
+        ("cc", ("ccRecipients", "cc_recipients")),
+        ("bcc", ("bccRecipients", "bcc_recipients")),
+    ):
+        if not any(alias in readback for alias in aliases):
+            missing.append(field)
+    return missing
+
+
+def _draft_read_receipt(
+    readback: Dict[str, Any], *, requested_id: str, observed_id: str,
+) -> Dict[str, Any]:
+    """Build a read receipt without inventing the observed remote identity."""
+    receipt = _receipt(
+        "outlook", "get_email_by_id", resource_id=observed_id,
+        coverage="single", kind="draft",
+        fields=readback if isinstance(readback, dict) else [])
+    receipt["requested_remote_id"] = requested_id
+    receipt["observed_remote_id"] = observed_id
+    return receipt
+
+
+def oracle_request_binding(
+    action: str, arguments: Dict[str, Any],
+) -> Dict[str, str]:
+    """Expected request binding for a connected mutation.
+
+    These values come from the authorized request, never from the returned
+    action envelope.  The provider material digest is computed with the same
+    canonical payload builders the action uses before dispatch.
+    """
+    name = str(action or "")
+    args = arguments if isinstance(arguments, dict) else {}
+    binding = {
+        "provider": "",
+        "operation_id": str(args.get("operation_id") or ""),
+        "organization_id": "",
+        "target": "",
+        "payload_sha256": "",
+    }
+    try:
+        if name.endswith("books.create_estimate"):
+            data = _normalize_estimate_data(args.get("estimate_data") or {})
+            binding.update({
+                "provider": "zoho_books",
+                "organization_id": str(args.get("organization_id") or ""),
+                "target": str(data.get("reference_number") or ""),
+                "payload_sha256": _payload_digest(data),
+            })
+        elif name.endswith("books.create_bill"):
+            proposal = args.get("proposal") or {}
+            payload = _bill_payload(proposal)
+            binding.update({
+                "provider": "zoho_books",
+                "organization_id": str(
+                    proposal.get("organization_id")
+                    or args.get("organization_id") or ""),
+                "target": str(
+                    proposal.get("external_id")
+                    or payload.get("reference_number") or ""),
+                "payload_sha256": _payload_digest(payload),
+            })
+        elif name.endswith("outlook.create_draft"):
+            payload = _draft_payload(args)
+            binding.update({
+                "provider": "outlook",
+                "target": str(payload.get("subject") or ""),
+                "payload_sha256": _payload_digest(payload),
+            })
+    except Exception:  # noqa: BLE001 - malformed arguments stay unbound
+        return binding
+    return binding
 
 
 def _write_failure(
@@ -936,13 +1033,7 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
         return _error("outlook", "create_draft_email", "invalid_request",
                       "A durable operation_id is required.",
                       action_result="proven_not_applied")
-    draft_payload = {
-        "to": list(args.get("to") or []),
-        "cc": list(args.get("cc") or []),
-        "bcc": list(args.get("bcc") or []),
-        "subject": str(args.get("subject") or ""),
-        "body": str(args.get("body") or ""),
-    }
+    draft_payload = _draft_payload(args)
     payload_sha256 = _payload_digest(draft_payload)
     supplied_digest = str(args.get("payload_sha256") or "")
     base_receipt = {
@@ -1003,6 +1094,7 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
             "payload_sha256": payload_sha256,
             "provider_receipt": base_receipt,
         }
+    created_receipt = {**base_receipt, "created_remote_id": remote_id}
     try:
         readback = await service.get_email_by_id(
             ids["user_id"], remote_id, token=token)
@@ -1013,28 +1105,76 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
                      f"back: {type(exc).__name__}.",
                      action_result="uncertain"),
             "remote_id": remote_id,
+            "observed_remote_id": "",
+            "requested_remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "provider_receipt": base_receipt,
+            "provider_receipt": created_receipt,
             "verification": {
                 "status": "incomplete",
                 "missing_fields": ["readback"],
                 "mismatches": [],
             },
         }
-    if not readback:
+    if not isinstance(readback, dict) or not readback:
         return {
             **_error("outlook", "create_draft_email", "readback_unavailable",
                      f"Draft {remote_id} was created but not returned by "
                      "independent readback.",
                      action_result="uncertain"),
             "remote_id": remote_id,
+            "observed_remote_id": "",
+            "requested_remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "provider_receipt": base_receipt,
+            "provider_receipt": created_receipt,
             "verification": {
                 "status": "incomplete",
                 "missing_fields": ["readback"],
                 "mismatches": [],
             },
+        }
+    observed_id = str(readback.get("id") or "")
+    missing_fields = _outlook_missing_fields(readback)
+    if not observed_id:
+        missing_fields.insert(0, "id")
+    if missing_fields:
+        return {
+            **_error("outlook", "create_draft_email", "readback_incomplete",
+                     "Draft readback lacks a complete remote identity or "
+                     "material fields; reconcile the same draft without a "
+                     "second create.",
+                     action_result="uncertain"),
+            "remote_id": remote_id,
+            "observed_remote_id": observed_id,
+            "requested_remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": created_receipt,
+            "data": readback,
+            "verification": {
+                "status": "incomplete",
+                "missing_fields": missing_fields,
+                "mismatches": [],
+            },
+            "read_receipt": _draft_read_receipt(
+                readback, requested_id=remote_id, observed_id=observed_id),
+        }
+    if observed_id != remote_id:
+        return {
+            **_error("outlook", "create_draft_email", "readback_object_mismatch",
+                     "Draft readback returned a different remote object.",
+                     action_result="conflict"),
+            "remote_id": remote_id,
+            "observed_remote_id": observed_id,
+            "requested_remote_id": remote_id,
+            "payload_sha256": payload_sha256,
+            "provider_receipt": created_receipt,
+            "data": readback,
+            "verification": {
+                "status": "mismatch",
+                "missing_fields": [],
+                "mismatches": ["remote_id"],
+            },
+            "read_receipt": _draft_read_receipt(
+                readback, requested_id=remote_id, observed_id=observed_id),
         }
     observed = _normalize_outlook_draft(readback)
     expected = _normalize_outlook_draft({
@@ -1063,36 +1203,35 @@ async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
                      "Draft readback does not match the authorized payload.",
                      action_result="conflict"),
             "remote_id": remote_id,
+            "observed_remote_id": observed_id,
+            "requested_remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "provider_receipt": base_receipt,
+            "provider_receipt": created_receipt,
             "data": readback,
             "verification": {
                 "status": "mismatch",
                 "missing_fields": [],
                 "mismatches": mismatches,
             },
-            "read_receipt": _receipt(
-                "outlook", "get_email_by_id",
-                resource_id=remote_id, coverage="single", kind="draft",
-                fields=readback if isinstance(readback, dict) else []),
+            "read_receipt": _draft_read_receipt(
+                readback, requested_id=remote_id, observed_id=observed_id),
         }
     return {"status": "success", "success": True,
             "action_result": "applied",
             "provider": "outlook", "operation": "create_draft_email",
             "remote_id": remote_id,
+            "observed_remote_id": observed_id,
+            "requested_remote_id": remote_id,
             "payload_sha256": payload_sha256,
-            "provider_receipt": base_receipt,
+            "provider_receipt": created_receipt,
             "data": readback,
             "verification": {
                 "status": "verified",
                 "missing_fields": [],
                 "mismatches": [],
             },
-            "read_receipt": _receipt(
-                "outlook", "get_email_by_id",
-                resource_id=remote_id,
-                coverage="single", kind="draft",
-                fields=readback if isinstance(readback, dict) else [])}
+            "read_receipt": _draft_read_receipt(
+                readback, requested_id=remote_id, observed_id=observed_id)}
 
 
 # Importing this module is enough to register the actions.  Keep the
@@ -1453,8 +1592,10 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
         }
     readback, verification, readback_error, attempts = await _readback_with_retry(
         lambda: service.get_bill(token, org, remote_id),
-        lambda data: verify_bill_readback(
-            proposal, payload, data, organization_id=org))
+        lambda data: bind_remote_identity(
+            verify_bill_readback(
+                proposal, payload, data, organization_id=org),
+            remote_id))
     receipt = {**base_receipt, "readback_attempts": attempts,
                "observed_remote_id": remote_id}
     if readback_error is not None and not verification:
@@ -1695,8 +1836,10 @@ async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):
         }
     readback, verification, readback_error, attempts = await _readback_with_retry(
         lambda: service.get_estimate(token, org, remote_id),
-        lambda data: verify_estimate_readback(
-            estimate_data, data, organization_id=org))
+        lambda data: bind_remote_identity(
+            verify_estimate_readback(
+                estimate_data, data, organization_id=org),
+            remote_id))
     receipt = {**base_receipt, "readback_attempts": attempts,
                "observed_remote_id": remote_id}
     if readback_error is not None and not verification:

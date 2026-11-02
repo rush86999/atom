@@ -379,6 +379,35 @@ def _finish(report: Dict[str, Any], readback: Dict[str, Any]) -> Dict[str, Any]:
     return report
 
 
+def bind_remote_identity(
+    report: Dict[str, Any], requested_remote_id: str,
+) -> Dict[str, Any]:
+    """Bind a readback report to the exact object the create returned.
+
+    A report can contain the right material fields but belong to a different
+    provider object.  The requested id is the create response id; the observed
+    id comes from the readback itself.  Missing identity is incomplete and a
+    different identity is a mismatch; neither is proof that the create did not
+    land.
+    """
+    requested = str(requested_remote_id or "").strip()
+    observed = str(report.get("observed_remote_id") or "").strip()
+    if not observed:
+        _add_missing(report, "remote_id")
+    elif requested and observed != requested:
+        _add_mismatch(report, "remote_id", requested, observed)
+    if report["mismatches"]:
+        report["status"] = "mismatch"
+    elif report["missing_fields"]:
+        report["status"] = "incomplete"
+    else:
+        report["status"] = "verified"
+    report["conflicts"] = [
+        item["message"] for item in report["mismatches"]]
+    report["requested_remote_id"] = requested
+    return report
+
+
 def verify_estimate_readback(
     estimate_data: Dict[str, Any], readback: Dict[str, Any],
     *, organization_id: str = "",

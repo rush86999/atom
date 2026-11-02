@@ -6011,27 +6011,80 @@ async def _action_registry_adapter(
     outcome = _action_result_outcome(safe, mutating=mutating)
     oracle_verified = None
     oracle_evidence = ""
+    oracle_failed_closed = False
+    expected_digest = str(arguments.get("payload_sha256") or "")
+    expected_operation = str(arguments.get("operation_id") or "")
+    expected_organization = str(arguments.get("organization_id") or "")
+    expected_provider = ""
+    expected_target = ""
+    try:
+        from core.connected_actions import oracle_request_binding
+
+        binding = oracle_request_binding(name, arguments)
+        expected_digest = expected_digest or str(
+            binding.get("payload_sha256") or "")
+        expected_operation = str(
+            binding.get("operation_id") or expected_operation)
+        expected_organization = str(
+            binding.get("organization_id") or expected_organization)
+        expected_provider = str(binding.get("provider") or "")
+        expected_target = str(binding.get("target") or "")
+    except Exception:  # noqa: BLE001 - unregistered actions stay unbound
+        pass
+    oracle_context = {
+        **arguments,
+        **payload,
+        "_oracle_expected_payload_sha256": expected_digest,
+        "_oracle_expected_operation_id": expected_operation,
+        "_oracle_expected_organization_id": expected_organization,
+        "_oracle_expected_provider": expected_provider,
+        "_oracle_expected_target": expected_target,
+    }
+    oracle_db = context.get("db") or context.get("session")
+    if oracle_db is not None:
+        oracle_context.setdefault("db", oracle_db)
     try:
         from core.oracle import get_postcondition, validate
 
         if get_postcondition(name) is not None:
-            oracle = await validate(name, {**arguments, **payload})
-            if oracle is not None:
+            oracle = await validate(name, oracle_context)
+            if oracle is None:
+                oracle_verified = False
+                oracle_evidence = "oracle returned no verdict"
+                oracle_failed_closed = True
+            else:
                 oracle_verified = bool(oracle.verified)
                 oracle_evidence = str(oracle.evidence or "")
-                if not oracle_verified and outcome == "applied":
-                    outcome = "uncertain"
-                    payload = {
-                        **payload,
-                        "action_result": "uncertain",
-                        "verification": {
-                            "status": "mismatch",
-                            "missing_fields": [],
-                            "mismatches": ["oracle_postcondition"],
-                        },
-                    }
+                if not oracle_verified:
+                    oracle_failed_closed = True
+        # A mutating effect already dispatched without a usable verdict is
+        # uncertain, never a proven success and never eligible for automatic
+        # resend.
+        if mutating and outcome == "applied" and oracle_failed_closed:
+            outcome = "uncertain"
+            payload = {
+                **payload,
+                "action_result": "uncertain",
+                "verification": {
+                    "status": "incomplete",
+                    "missing_fields": ["oracle_verdict"],
+                    "mismatches": ["oracle_postcondition"],
+                },
+            }
     except Exception as exc:  # noqa: BLE001 - oracle must not crash dispatch
+        oracle_verified = False
         oracle_evidence = f"oracle unavailable: {type(exc).__name__}"
+        if mutating and outcome == "applied":
+            outcome = "uncertain"
+            payload = {
+                **payload,
+                "action_result": "uncertain",
+                "verification": {
+                    "status": "incomplete",
+                    "missing_fields": ["oracle_verdict"],
+                    "mismatches": ["oracle_error"],
+                },
+            }
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
