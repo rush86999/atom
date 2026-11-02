@@ -1,0 +1,190 @@
+[
+  {
+    "name": "assignment starts and pauses on discount qualification",
+    "ok": true,
+    "detail": {
+      "run_id": "ba920324-2e70-4fba-9427-7150e0d9b22f",
+      "status": "waiting"
+    }
+  },
+  {
+    "name": "real backend process restarted",
+    "ok": true,
+    "detail": {
+      "old_pid": 58944,
+      "new_pid": 58956
+    }
+  },
+  {
+    "name": "restarted backend serves source identity",
+    "ok": true,
+    "detail": {
+      "ok": true,
+      "version": "v1",
+      "bytes": 120,
+      "calls": 0,
+      "estimates": [],
+      "drafts": [],
+      "last_payload": null,
+      "fail_estimate_after_apply": 0
+    }
+  },
+  {
+    "name": "obligation survives backend restart",
+    "ok": true,
+    "detail": {
+      "run_id": "ba920324-2e70-4fba-9427-7150e0d9b22f"
+    }
+  },
+  {
+    "name": "connected source changed",
+    "ok": true,
+    "detail": {
+      "ok": true,
+      "version": "v2",
+      "bytes": 119
+    }
+  },
+  {
+    "name": "changed source invalidates read branch",
+    "ok": true,
+    "detail": {
+      "status": 200,
+      "run_id": "ba920324-2e70-4fba-9427-7150e0d9b22f"
+    }
+  },
+  {
+    "name": "corrected continuation reaches estimate approval",
+    "ok": true,
+    "detail": {
+      "screenshot": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/joint-r2/docs/acceptance/evidence/brennan_connected_browser_20261101_r2/02-corrected-quote-approval.png"
+    }
+  },
+  {
+    "name": "production WorkDrive receipt identifies v2",
+    "ok": true,
+    "detail": {
+      "version": "v2",
+      "sha256": "b3e6adebe9d8a3827e5ceeadf53a86081d9db3220d069228659de61eb802606f",
+      "coverage": "complete"
+    }
+  },
+  {
+    "name": "corrected calculation rows use v2 source identity",
+    "ok": true,
+    "detail": {
+      "row_count": 2,
+      "versions": [
+        "v2"
+      ]
+    }
+  },
+  {
+    "name": "v1 remains only in historical result",
+    "ok": true,
+    "detail": {
+      "prior_read_versions": [
+        "v1"
+      ],
+      "current_read_version": "v2",
+      "prior_row_count": 0,
+      "prior_row_versions": []
+    }
+  },
+  {
+    "name": "estimate readback uses corrected total",
+    "ok": true,
+    "detail": [
+      {
+        "estimate_id": "est-browser-1",
+        "reference_number": "RFQ-BROWSER-1793586931100",
+        "total": "376.75"
+      }
+    ]
+  },
+  {
+    "name": "Outlook draft uses verified corrected total",
+    "ok": true,
+    "detail": {
+      "subject": "Quote RFQ-BROWSER-1793586931100",
+      "body": "Quoted total: 376.75 USD",
+      "to": [
+        "buyer@example.invalid"
+      ]
+    }
+  },
+  {
+    "name": "no send occurred",
+    "ok": true,
+    "detail": {
+      "subject": "Quote RFQ-BROWSER-1793586931100",
+      "body": "Quoted total: 376.75 USD",
+      "to": [
+        "buyer@example.invalid"
+      ]
+    }
+  },
+  {
+    "name": "completed assignment reopens after reload",
+    "ok": true,
+    "detail": {
+      "run_id": "ba920324-2e70-4fba-9427-7150e0d9b22f"
+    }
+  },
+  {
+    "name": "duplicate resume after completion is a no-op",
+    "ok": true,
+    "detail": {
+      "status": "completed",
+      "estimates": 1,
+      "drafts": 1
+    }
+  },
+  {
+    "name": "cancellation is terminal and creates no effect",
+    "ok": true,
+    "detail": {
+      "cancelled_status": "cancelled",
+      "resume_status": "cancelled",
+      "gap_status": 409,
+      "estimates": 1,
+      "drafts": 1
+    }
+  },
+  {
+    "name": "duplicate resume while approval is pending is a no-op",
+    "ok": true,
+    "detail": {
+      "step_status": "awaiting_approval",
+      "estimates": 1,
+      "calls": 1
+    }
+  },
+  {
+    "name": "lost provider response is uncertain, not failed",
+    "ok": true,
+    "detail": {
+      "fault": {
+        "ok": true,
+        "estimate_fail_after_apply": 1
+      },
+      "approved": 200,
+      "step_status": "uncertain",
+      "estimate_delta": 1,
+      "needs_reconciliation": [
+        true
+      ]
+    }
+  },
+  {
+    "name": "reconciliation settles the original effect without a duplicate",
+    "ok": true,
+    "detail": {
+      "reconciled": 200,
+      "step_status": "applied",
+      "estimates": 2,
+      "calls": 2,
+      "landed": "est-browser-2"
+    }
+  }
+]

@@ -30,12 +30,41 @@ def test_oversized_dictionary_key_refuses():
     assert "key" in str(exc.value).lower()
 
 
-def test_multibyte_content_is_counted_in_utf8_bytes():
-    # 2.1M chars of é is >4 MiB; a 1M-character value is ~2 MiB and fits.
+def test_multibyte_content_is_counted_in_persisted_json_bytes():
+    # é is ASCII-escaped by the persistence encoder (six bytes each).
     with pytest.raises(ExecutablePayloadTooLarge):
         _json_safe({"content": "é" * 2_100_000}, executable=True)
-    safe = _json_safe({"content": "é" * 1_000_000}, executable=True)
-    assert safe["content"] == "é" * 1_000_000
+    safe = _json_safe({"content": "é" * 500_000}, executable=True)
+    assert safe["content"] == "é" * 500_000
+
+
+def test_exact_serialized_limit_and_limit_plus_one():
+    import json
+
+    from core.assignment_executor import (
+        _MAX_EXECUTABLE_BYTES, _PERSISTENCE_JSON_KWARGS,
+        _enforce_serialized_budget,
+    )
+
+    empty = json.dumps({"content": ""}, **_PERSISTENCE_JSON_KWARGS).encode()
+    exact = {"content": "x" * (_MAX_EXECUTABLE_BYTES - len(empty))}
+    assert len(json.dumps(exact, **_PERSISTENCE_JSON_KWARGS).encode()) == (
+        _MAX_EXECUTABLE_BYTES)
+    _enforce_serialized_budget(exact)
+    exact["content"] += "x"
+    with pytest.raises(ExecutablePayloadTooLarge):
+        _enforce_serialized_budget(exact)
+
+
+def test_backslash_quote_and_control_escaping_count_toward_limit():
+    # Raw characters under the old estimate exceed the serialized limit.
+    with pytest.raises(ExecutablePayloadTooLarge):
+        _json_safe({"a": "\\" * 2_000_000, "b": "\\" * 200_000},
+                   executable=True)
+    with pytest.raises(ExecutablePayloadTooLarge):
+        _json_safe({"quotes": '"' * 2_100_000}, executable=True)
+    with pytest.raises(ExecutablePayloadTooLarge):
+        _json_safe({"control": "\x01" * 700_000}, executable=True)
 
 
 def test_post_effect_serialization_overflow_is_uncertain_not_failed():

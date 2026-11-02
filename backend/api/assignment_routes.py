@@ -126,6 +126,7 @@ class AssignmentStart(BaseModel):
     transport: Optional[str] = None
     evidence_reads: List[Dict[str, Any]] = []
     proposed_steps: Optional[List[Dict[str, Any]]] = None
+    authorized_actions: List[str] = []
     standing_authority: Optional[Dict[str, Any]] = None
     budget: Optional[Dict[str, Any]] = None
 
@@ -482,6 +483,10 @@ async def start_assignment(
     accepted_actions = ["retrieve"]
     if body.calculation:
         accepted_actions.append("calculate")
+    for action_name in body.authorized_actions:
+        action_name = str(action_name or "").strip()
+        if action_name and action_name not in accepted_actions:
+            accepted_actions.append(action_name)
     if body.deliverables:
         accepted_actions.append("present")
     for index, raw in enumerate(body.deliverables):

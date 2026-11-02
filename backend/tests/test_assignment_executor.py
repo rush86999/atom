@@ -3070,6 +3070,62 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
                            draft["result"].get("draft") or "")
 
 
+def test_mapped_line_items_are_persisted_for_downstream_refs(env):
+    """A map step's executable output must survive in the operation record.
+
+    The connected browser plan references ``map.line_items``. Dropping that
+    field from the persisted execution made the calculate step resolve an
+    empty list and wait for missing evidence after a successful map.
+    """
+    captured = {}
+
+    async def map_rows(inputs, context):
+        return {
+            "status": "applied",
+            "summary": "mapped 2 lines",
+            "line_items": [
+                {"item_id": "A", "quantity": "2", "unit_price": "100.00"},
+                {"item_id": "B", "quantity": "3", "unit_price": "50.00"},
+            ],
+        }
+
+    async def consume_lines(inputs, context):
+        captured.update(inputs)
+        return {
+            "status": "applied",
+            "summary": "consumed mapped lines",
+            "value": str(len(inputs.get("line_items") or [])),
+        }
+
+    env["registry"].register("test.map_rows", map_rows)
+    env["registry"].register("test.consume_lines", consume_lines)
+    steps = [
+        new_step(
+            step_id="map", title="Map rows to lines",
+            operation_type="calculate", adapter="test.map_rows",
+            effect="local"),
+        new_step(
+            step_id="consume", title="Consume mapped lines",
+            operation_type="calculate", adapter="test.consume_lines",
+            depends_on=["map"],
+            inputs={"line_items": {"$ref": "map.line_items"}},
+            effect="local"),
+    ]
+    run_id, _ = _create(
+        env, objective="Map connected rows", steps=steps,
+        teaching=_teaching(), authorized_actions=["calculate"])
+
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assert captured["line_items"] == [
+        {"item_id": "A", "quantity": "2", "unit_price": "100.00"},
+        {"item_id": "B", "quantity": "3", "unit_price": "50.00"},
+    ]
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "map")["result"]["line_items"] == (
+        captured["line_items"])
+
+
 def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
     """Portability control: hours/rates, different vocabulary and currency.
 

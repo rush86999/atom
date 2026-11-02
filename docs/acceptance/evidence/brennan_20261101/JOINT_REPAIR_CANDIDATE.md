@@ -1,7 +1,8 @@
 # Joint repair candidate — pricing, outcome mapping, readback
 
-Status: focused implementation + component/joint controls. Not verifier
-acceptance; no live provider action. Historical 111/123 remains unchanged.
+Status: focused implementation + component/joint controls + connected browser
+journey. Not verifier acceptance; no live provider action. Historical 111/123
+remains unchanged.
 
 ## Candidate
 
@@ -68,7 +69,8 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
 
 | Suite | Result |
 |---|---|
-| Joint route/executor/quote/evidence + commercial readback + Agent 2 connected/checkpoint/bookkeeping + joint campaigns | **258 passed** |
+| Joint route/executor/quote/evidence + commercial readback + Agent 2 connected/checkpoint/bookkeeping + quote rows + joint campaigns | **285 passed** |
+| Connected browser journey (real Assignments page, backend restart, changed source, v1/v2 history, estimate readback, Outlook draft) | **19/19 checks** |
 | Retrieval selector | 8/8; selection/sufficiency 1.0; mean 0.045ms (selector only, not end-to-end ingestion/provider latency) |
 
 ### Executable data transfer (Agent 1 consumption)
@@ -85,11 +87,16 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
   work.
 
 ### Serialization budget (Agent 1 consumption)
-- One shared budget covers the complete executable result: **4 MiB UTF-8**,
+- One shared traversal budget covers the complete executable result:
   **100,000 nodes**, **100,000 dictionary/list entries**, **512-character
   keys**, plus per-value and nesting limits. The budget is not reset per child.
-- Aggregate overflow, oversized keys and multibyte over-budget content raise
-  `ExecutablePayloadTooLarge`; no silent truncation.
+- The accepted result must also serialize to at most **4,194,304 UTF-8 bytes**
+  using the same JSON settings as persistence (`ensure_ascii=True`, default
+  separators). That representation counts escaping (backslash, quote, control
+  characters) and punctuation, not raw text characters.
+- Boundary controls at exact limit, limit+1, backslash, quote, control
+  character and multibyte content: the exact limit is accepted; every
+  over-limit result raises `ExecutablePayloadTooLarge`.
 - A read over budget returns a typed payload-too-large failure. A mutation over
   budget after dispatch raises uncertainty with the remote identity preserved;
   it is never classified as proof of no effect.
@@ -97,16 +104,37 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
   a 501-row partial read remain green.
 
 ### Public assignment connected-data path
-- `POST /api/assignments` now accepts `evidence_reads` and resolves a read
-  result reference in `calculation.line_items`.
+- `POST /api/assignments` accepts `evidence_reads` and resolves a read result
+  reference in `calculation.line_items`; proposed browser plans can declare
+  the actions their steps require via `authorized_actions`.
 - Control: actual registered `connected.workdrive.read_file` returns 81 CSV
   rows; the public assignment reads them, maps them into `quote.calculate`,
   completes at **81.00**, and preserves the complete/non-truncated read
   receipt.
 
+### Connected browser journey
+- Runs against the production registered `connected.workdrive.read_file`
+  action and parser; only the provider services are faked.
+- Checks (19/19): assignment pauses on discount qualification; the real
+  backend process restarts (old PID vs new PID); the obligation survives;
+  changed connected bytes invalidate the read branch; corrected rows cite
+  **v2** with a complete WorkDrive receipt while **v1** remains only in
+  `prior_results`; estimate readback is **376.75**; the Outlook draft uses
+  **376.75** and no send occurs; the completed assignment reopens after
+  reload; duplicate resume creates no second effect (terminal and pending
+  approval); cancellation is terminal and cannot be revived; a lost provider
+  response is `uncertain` with `needs_reconciliation`, and reconciling it as
+  `applied` settles the original effect without a second create.
+- Evidence: `docs/acceptance/evidence/brennan_connected_browser_20261101_r2/`
+  (`checks.json` and screenshots). Source identity (v2 sha256) and effect
+  counts are recorded in `checks.json`.
+
 ## Remaining joint gaps
 
-- WorkDrive/OneDrive bytes → parsed typed records → quote line items is still
-  not wired through the public assignment; connected reads are contract-level.
-- Quote-specific browser close/restart/source-change journey is not yet run.
-- No live provider credentials/actions; Outlook draft only.
+- Overall connected-business acceptance remains open: the focused suites and
+  connected browser gate pass on this candidate, but the combined bundle has
+  not been independently accepted.
+- No live provider credentials or sends; connected calls use controlled
+  provider services. Historical 111/123 remains unchanged.
+- Selector latency is reported separately and is not end-to-end ingestion or
+  provider latency.

@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from core.assignment_executor import default_adapter_registry
 import core.assignment_quote  # noqa: F401,E402  (registers quote.calculate)
+import core.quote_rows  # noqa: F401,E402  (registers quote.lines_from_rows)
 from core.assignment_resources import resource_binding
 from core.assignment_plan import (
     ASSIGNMENT_SCHEMA_VERSION,

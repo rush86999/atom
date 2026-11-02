@@ -333,7 +333,7 @@ class _SerializationBudget:
                 "bytes")
 
 
-def _json_safe(
+def _json_safe_node(
     value: Any, *, depth: int = 0, executable: bool = False,
     budget: Optional[_SerializationBudget] = None,
 ) -> Any:
@@ -364,7 +364,7 @@ def _json_safe(
                 budget.text(key_text, key=True)
             child_executable = executable or (
                 key_text.strip().lower() in _EXECUTABLE_FIELDS)
-            result[key_text if executable else key_text[:80]] = _json_safe(
+            result[key_text if executable else key_text[:80]] = _json_safe_node(
                 item, depth=depth + 1, executable=child_executable,
                 budget=budget)
         return result
@@ -380,7 +380,7 @@ def _json_safe(
         for item in list(value)[:limit]:
             if budget:
                 budget.entry()
-            items.append(_json_safe(
+            items.append(_json_safe_node(
                 item, depth=depth + 1, executable=executable,
                 budget=budget))
         return items
@@ -405,6 +405,42 @@ def _json_safe(
                 f"{_MAX_EXECUTABLE_STRING}")
         return text
     return text[:2000]
+
+
+#: Same JSON settings SQLAlchemy uses for lifecycle JSON (ASCII-escaped,
+#: default separators). Counting this representation, not raw characters,
+#: makes the budget a hard bound on the persisted payload.
+_PERSISTENCE_JSON_KWARGS = {
+    "ensure_ascii": True,
+    "separators": (", ", ": "),
+    "default": str,
+}
+
+
+def _serialized_executable_bytes(value: Any) -> int:
+    return len(json.dumps(value, **_PERSISTENCE_JSON_KWARGS).encode("utf-8"))
+
+
+def _enforce_serialized_budget(value: Any) -> None:
+    size = _serialized_executable_bytes(value)
+    if size > _MAX_EXECUTABLE_BYTES:
+        raise ExecutablePayloadTooLarge(
+            f"executable payload serializes to {size} UTF-8 bytes; limit is "
+            f"{_MAX_EXECUTABLE_BYTES}")
+
+
+def _json_safe(
+    value: Any, *, depth: int = 0, executable: bool = False,
+    budget: Optional[_SerializationBudget] = None,
+) -> Any:
+    root = bool(executable and budget is None)
+    if root:
+        budget = _SerializationBudget()
+    result = _json_safe_node(
+        value, depth=depth, executable=executable, budget=budget)
+    if root:
+        _enforce_serialized_budget(result)
+    return result
 
 
 def _filter_records(
@@ -5501,6 +5537,7 @@ class AssignmentExecutor:
             "decision": result.get("decision"),
             "draft": result.get("draft"),
             "data": result.get("data"),
+            "line_items": result.get("line_items"),
             "at": _utc_now_iso(),
         })
         current_op = _operation_by_id(
@@ -5909,8 +5946,7 @@ async def _action_registry_adapter(
         }
 
     try:
-        safe = _json_safe(
-            result, executable=True, budget=_SerializationBudget())
+        safe = _json_safe(result, executable=True)
     except ExecutablePayloadTooLarge as exc:
         if mutating:
             remote = ""
