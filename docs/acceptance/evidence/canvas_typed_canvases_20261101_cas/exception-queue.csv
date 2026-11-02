@@ -1,0 +1,4 @@
+Exception,Amount,Status
+EX-1,,Open
+EX-2,50.00,Open
+EX-3,20.00,Closed
