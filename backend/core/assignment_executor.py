@@ -5908,6 +5908,63 @@ async def _action_registry_adapter(
             "message": f"registered action '{name}' is not available",
             "error_class": "action_not_registered",
         }
+    # Freeze the authorized request before any handler runs.  The handler gets
+    # a separate deep copy, so in-place edits (including nested lists) cannot
+    # change the expected payload, operation, organization or target.
+    try:
+        authorized_arguments = copy.deepcopy(arguments)
+        dispatch_arguments = copy.deepcopy(authorized_arguments)
+    except Exception as exc:  # noqa: BLE001 - refuse before dispatch
+        return {
+            "status": "failed",
+            "message": (
+                "the authorized request could not be frozen before dispatch: "
+                f"{type(exc).__name__}"),
+            "error_class": "request_snapshot_unavailable",
+        }
+    known_connected = name.endswith(
+        ("books.create_bill", "books.create_estimate",
+         "outlook.create_draft"))
+    expected_binding: Dict[str, str] = {}
+    try:
+        from core.connected_actions import oracle_request_binding
+
+        expected_binding = oracle_request_binding(name, authorized_arguments)
+    except Exception as exc:  # noqa: BLE001 - malformed binding is a refusal
+        if known_connected:
+            return {
+                "status": "failed",
+                "message": (
+                    "the authorized request binding could not be constructed "
+                    f"before dispatch: {type(exc).__name__}"),
+                "error_class": "payload_binding_unavailable",
+            }
+    canonical_digest = str(
+        expected_binding.get("payload_sha256") or "")
+    supplied_digest = str(
+        authorized_arguments.get("payload_sha256") or "")
+    if known_connected:
+        if not canonical_digest:
+            return {
+                "status": "failed",
+                "message": (
+                    "the connected mutation has no canonical request digest; "
+                    "refusing before dispatch"),
+                "error_class": "payload_binding_unavailable",
+            }
+        if supplied_digest and supplied_digest != canonical_digest:
+            return {
+                "status": "failed",
+                "message": (
+                    "the supplied payload digest does not match the frozen "
+                    "authorized request"),
+                "error_class": "payload_binding_mismatch",
+                "evidence": [{
+                    "kind": "request_binding",
+                    "expected": canonical_digest,
+                    "supplied": supplied_digest,
+                }],
+            }
     execution_context = {
         "workspace_id": context.get("workspace_id"),
         "user_id": context.get("employee_id"),
@@ -5929,7 +5986,7 @@ async def _action_registry_adapter(
     mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
-            name, arguments, execution_context)
+            name, dispatch_arguments, execution_context)
     except ExternalOutcomeUnknown:
         # A provider action that may have applied must reconcile through the
         # shared operation record; it is never downgraded to a plain failure.
@@ -6012,27 +6069,17 @@ async def _action_registry_adapter(
     oracle_verified = None
     oracle_evidence = ""
     oracle_failed_closed = False
-    expected_digest = str(arguments.get("payload_sha256") or "")
-    expected_operation = str(arguments.get("operation_id") or "")
-    expected_organization = str(arguments.get("organization_id") or "")
-    expected_provider = ""
-    expected_target = ""
-    try:
-        from core.connected_actions import oracle_request_binding
-
-        binding = oracle_request_binding(name, arguments)
-        expected_digest = expected_digest or str(
-            binding.get("payload_sha256") or "")
-        expected_operation = str(
-            binding.get("operation_id") or expected_operation)
-        expected_organization = str(
-            binding.get("organization_id") or expected_organization)
-        expected_provider = str(binding.get("provider") or "")
-        expected_target = str(binding.get("target") or "")
-    except Exception:  # noqa: BLE001 - unregistered actions stay unbound
-        pass
+    expected_digest = canonical_digest or supplied_digest
+    expected_operation = str(
+        expected_binding.get("operation_id")
+        or authorized_arguments.get("operation_id") or "")
+    expected_organization = str(
+        expected_binding.get("organization_id")
+        or authorized_arguments.get("organization_id") or "")
+    expected_provider = str(expected_binding.get("provider") or "")
+    expected_target = str(expected_binding.get("target") or "")
     oracle_context = {
-        **arguments,
+        **authorized_arguments,
         **payload,
         "_oracle_expected_payload_sha256": expected_digest,
         "_oracle_expected_operation_id": expected_operation,

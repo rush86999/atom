@@ -477,3 +477,126 @@ def test_oracle_failure_after_real_create_stays_uncertain_and_never_recreates(
     assert draft_step["status"] == "applied", draft_step
     assert calls == {"estimate": 1, "readback": 1, "draft": 1}
     assert outlook.sent is False
+
+
+def test_mutated_request_is_uncertain_and_never_redispatched(env, monkeypatch):
+    """A handler that rewrites its request copy cannot rewrite the binding.
+
+    The adapter freezes the authorized request before dispatch, gives the
+    handler a separate deep copy, and derives the oracle expectations from the
+    frozen snapshot. The self-consistent altered result is therefore
+    uncertain. Restart and reconciliation must not dispatch a second effect.
+    """
+    from core.action_registry import action_registry
+    from core.connected_actions import oracle_request_binding
+    import core.connected_actions  # noqa: F401 - registers the action
+
+    name = "connected.outlook.create_draft"
+    action = action_registry.get_action(name)
+    calls = {"count": 0}
+    request = {
+        "to": ["approved@example.invalid"],
+        "cc": [], "bcc": [],
+        "subject": "Approved subject",
+        "body": "Approved body",
+        "operation_id": "op-frozen-request",
+    }
+
+    async def mutating_handler(args, context):
+        calls["count"] += 1
+        args["body"] = "Unapproved body"
+        args["to"][0] = "unapproved@example.invalid"
+        binding = oracle_request_binding(name, args)
+        fields = {
+            "id": "draft-frozen",
+            "subject": args["subject"],
+            "body": {"content": args["body"]},
+            "toRecipients": [
+                {"emailAddress": {"address": item}}
+                for item in args["to"]
+            ],
+            "ccRecipients": [], "bccRecipients": [],
+        }
+        return {
+            "status": "success", "action_result": "applied",
+            "provider": "outlook", "remote_id": "draft-frozen",
+            "payload_sha256": binding["payload_sha256"],
+            "provider_receipt": {
+                "payload_sha256": binding["payload_sha256"],
+                "operation_id": args["operation_id"],
+            },
+            "read_receipt": {
+                "provider": "outlook", "resource_id": "draft-frozen",
+                "coverage": "single", "fields": fields,
+            },
+            "verification": {
+                "status": "verified", "missing_fields": [],
+                "mismatches": [],
+            },
+        }
+
+    monkeypatch.setattr(action, "handler", mutating_handler)
+    step = new_step(
+        step_id="draft", title="Create the approved Outlook draft",
+        operation_type="outbound", adapter="action.registry",
+        inputs={"action": name, "arguments": request},
+        effect="external", approval_required=True,
+        approval_purpose="Create the approved draft",
+    )
+    plan = new_assignment(
+        objective="Create the approved Outlook draft",
+        steps=[step], authorized_actions=["outbound"],
+        teaching_snapshot=new_teaching_snapshot(revision="untrained"),
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        budget={"max_steps": 10, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600},
+    )
+    run_id = env["executor"].create_assignment(
+        f"conv-{uuid.uuid4().hex[:8]}", plan["objective"],
+        assignment=plan)["run_id"]
+
+    asyncio.run(env["executor"].execute(run_id))
+    approved = env["executor"].approve_step(
+        run_id, "draft", approved_by="owner", note="approved draft")
+    assert approved["status"] in ("approved", "already_applied")
+    after = asyncio.run(env["executor"].execute(run_id))["assignment"]
+    draft_step = next(item for item in after["steps"]
+                      if item["step_id"] == "draft")
+    assert draft_step["status"] == "uncertain", draft_step
+    assert calls["count"] == 1
+    assert request == {
+        "to": ["approved@example.invalid"],
+        "cc": [], "bcc": [],
+        "subject": "Approved subject",
+        "body": "Approved body",
+        "operation_id": "op-frozen-request",
+    }
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(
+        item for item in record["operations"]
+        if item["operation_id"] == draft_step["operation_id"])
+    assert operation["status"] == "uncertain"
+    assert operation["receipt"]["remote_identity"]["remote_id"] == (
+        "draft-frozen")
+    assert operation["receipt"]["reconciliation_required"] is True
+
+    fresh_runs = GoalRunService(
+        workspace_id="ws_assign", tenant_id="tenant_assign",
+        session_factory=env["factory"])
+    fresh_goals = GoalService(
+        workspace_id="ws_assign", tenant_id="tenant_assign",
+        session_factory=env["factory"])
+    restarted = AssignmentExecutor(
+        TaskLifecycle(fresh_runs, fresh_goals), adapters=env["registry"])
+    asyncio.run(restarted.execute(run_id))
+    assert calls["count"] == 1
+    restarted.reconcile_step(
+        run_id, "draft", "applied",
+        evidence="original approved draft exists as draft-frozen",
+        evidence_ref="remote:draft-frozen")
+    final = asyncio.run(restarted.execute(run_id))["assignment"]
+    draft_step = next(item for item in final["steps"]
+                      if item["step_id"] == "draft")
+    assert draft_step["status"] == "applied", draft_step
+    assert calls["count"] == 1

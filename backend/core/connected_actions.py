@@ -287,6 +287,13 @@ def _draft_read_receipt(
     return receipt
 
 
+def is_connected_mutation(action: str) -> bool:
+    """True for connected write classes that require a frozen request binding."""
+    return str(action or "").endswith(
+        ("books.create_bill", "books.create_estimate",
+         "outlook.create_draft"))
+
+
 def oracle_request_binding(
     action: str, arguments: Dict[str, Any],
 ) -> Dict[str, str]:
