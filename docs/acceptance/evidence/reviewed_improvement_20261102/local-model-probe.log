@@ -1,0 +1,12 @@
+OLLAMA_MODELS=/Volumes/Seagate Portable Drive/ollama/models
+
+$ curl -sS --max-time 5 http://127.0.0.1:11434/api/tags
+{"error":"mkdir /Volumes/Seagate Portable Drive: permission denied: ensure path elements are traversable"}
+
+$ ls -ld "/Volumes/Seagate Portable Drive"
+ls: /Volumes/Seagate Portable Drive: No such file or directory
+
+$ mount | grep -i seagate
+<no Seagate mount>
+
+No model call attempted: the declared local model store is unavailable; no live provider is authorized.
