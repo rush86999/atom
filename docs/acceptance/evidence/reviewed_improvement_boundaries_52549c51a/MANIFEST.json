@@ -1,0 +1,120 @@
+{
+  "artifacts": {
+    "README.md": "bd08e66334eab7c7cfd83019e3f34209ae4a0670a464fdf4f65172fc3d78e005",
+    "TEST_RESULTS.md": "4a52ff668c2e1689d7022b5662514895de63771607eaff4b7890c0e9b754e667",
+    "backend-tests.log": "4c2496e9bc677b18a02e788dda49ed8e78d62fd47b10f464245d9e998c9371a1",
+    "boundary-controls.log": "2d1af788b2127d68ad75b17fe9b0a01eb3045657317d3951d82ba9e79f671ac9",
+    "frontend-tests.log": "14c3e1a108f857fdc918d7d16e9509de841f68087fbc95acdf7b5240f4d130b2",
+    "local-model-pin-probe.log": "19b7e6196e97a2ee1614dfd16dacdf4b8ac84826602ddee6f727110b24a80bc3",
+    "local-model-tags.json": "120915fa985e2488e1379953d09c3d0049268767585a8297695c0e53ba6c25f0",
+    "reachable_mutation_map/README.md": "a36149ec76491d7d742aced85bfd01fad82b35f322a2107ba41301a264349db9",
+    "reachable_mutation_map/reachable_mutation_map.json": "a993e1ae40236f85e941f1e4a15899838b77ba0bca88985a594d4cdbc428203f",
+    "reviewed-improvement.log": "e180d9776c7a70c452d8d8f95aa9198ce6cc51bbb626c43856f1368e6165dfc9"
+  },
+  "boundary_repairs": {
+    "changed_material": "review material+scope digest mismatch -> fresh review",
+    "failed_apply": "DB rollback; no Active registry row; created package removed",
+    "moved_employee": "403 before service; no foreign workspace redirect",
+    "stale_second_session": "authoritative reload + conditional claim; same skill id",
+    "viewer_approve": "403; pending unchanged"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "dirty": false,
+    "executed_source": "52549c51a217b2cdc7200ca64f96389b83dcfb05",
+    "local_model_port": "127.0.0.1:11435",
+    "local_model_store": "/Users/rushiparikh/.ollama/models-local",
+    "manifest_note": "This evidence commit is docs-only after the executed source.",
+    "map_api": "http://127.0.0.1:8100/api/v1/openapi.json",
+    "runtime_identity": "source_id=52549c51a217",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/autodev_review_routes.py",
+    "backend/core/reviewed_improvement.py",
+    "backend/core/skill_registry_service.py",
+    "backend/tests/test_memento_candidate_review.py",
+    "backend/tests/test_reviewed_improvement_apply.py",
+    "backend/tests/test_reviewed_improvement_boundaries.py",
+    "backend/tests/test_covpush_canvasroutes.py",
+    "scripts/acceptance/reachable_mutation_map.py"
+  ],
+  "claims": [
+    "reviewer authority on approve/reject/apply",
+    "moved/foreign employee re-authorization",
+    "atomic reviewed-skill application",
+    "stale-session/revision idempotency",
+    "changed-material fresh-review binding",
+    "local llama3.1:8b availability",
+    "reachable mutation-family map"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "local model probe is availability evidence, not planning-quality qualification",
+    "reachable map is discovery evidence, not runtime coverage proof",
+    "no whole-app ORACLE-01 closure",
+    "failed discretionary-judgment verdict remains",
+    "historical 111/123 unchanged",
+    "accepted source 0d8767e3a and older bundles remain unchanged"
+  ],
+  "local_model": {
+    "model": "llama3.1:8b",
+    "pin": "ollama/llama3.1:8b",
+    "quantization": "Q4_K_M",
+    "scope": "availability/pin probe only; not planning/model-quality qualification",
+    "served_model": "llama3.1:8b",
+    "served_provider": "ollama",
+    "size_bytes": 4920753328,
+    "status": "passed"
+  },
+  "reachable_map": {
+    "bypass_candidates": 693,
+    "dispatch_counts": {
+      "assignment_executor": 16,
+      "direct_canvas_service": 69,
+      "direct_goal_service": 9,
+      "direct_or_unknown": 530,
+      "direct_provider_service": 168,
+      "oracle_consumer": 4,
+      "shared_action_registry": 25
+    },
+    "inventory": "reachable_mutation_map/reachable_mutation_map.json",
+    "mutation_shaped": 821,
+    "openapi_paths": 1605
+  },
+  "schema": "atom-reviewed-improvement-boundaries-1",
+  "source_hashes": {
+    "backend/api/autodev_review_routes.py": "95a99c14820e7d8c22e3d7427805b48bf36e3742cee6f68d3948ff288440ce64",
+    "backend/core/reviewed_improvement.py": "0ccc449b47e9f48eb4c8038e25590e45c704265ec461515bbf773481883bdaf0",
+    "backend/core/skill_registry_service.py": "397985f4dc85f70cdf5edcc575876aff5c8052f16336a969fdfc6e4f17661ebc",
+    "backend/tests/test_covpush_canvasroutes.py": "95c6841276fb6049675b460e08674a14ca25db6e224bd33ad0dcdf36b33f4ce6",
+    "backend/tests/test_memento_candidate_review.py": "e3a1735ea558589cf0951a02f78467aaf1b4974303d0675b1923151e3f92a1d5",
+    "backend/tests/test_reviewed_improvement_apply.py": "6b9ef2488094b21cd8bfec8827d90fb5610587c90d01928cee046147ed3fa643",
+    "backend/tests/test_reviewed_improvement_boundaries.py": "7777b3c413b27a61c2bcde6e8f502a6d8d92814093ccf8e44e88d12aef701d48",
+    "scripts/acceptance/reachable_mutation_map.py": "3eeb1c3d56fe80f37088e61dc06f3721a3b5ec9fb8819f9a417107f2b10e8efd"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_combined": {
+      "command": "pytest <16 files/classes including probes> -q",
+      "log": "backend-tests.log",
+      "result": "158 passed"
+    },
+    "boundary_probes": {
+      "command": "pytest tests/test_reviewed_improvement_boundaries.py -q",
+      "log": "boundary-controls.log",
+      "result": "5 passed"
+    },
+    "frontend_canvas": {
+      "command": "jest three canvas suites --runInBand --silent",
+      "log": "frontend-tests.log",
+      "result": "7 passed"
+    },
+    "reviewed_positive": {
+      "command": "pytest tests/test_reviewed_improvement_apply.py -q",
+      "log": "reviewed-improvement.log",
+      "result": "5 passed"
+    }
+  }
+}
