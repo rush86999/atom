@@ -493,6 +493,38 @@ def test_foreign_employee_cannot_start_canvas_assignment(env):
     assert response.status_code in (403, 404), response.text
 
 
+def test_canvas_consumers_reject_a_foreign_assignment_principal(env):
+    from core.canvas_assignment import _canvas_receipt
+
+    canvas, bound = _canvas(env, canvas_id="canvas_foreign_principal")
+    receipt = env["client"].post(
+        f"/api/canvas/{canvas.id}/capability/derive",
+        json={
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        }).json()
+    failed = asyncio.run(_canvas_receipt(
+        {
+            "canvas_id": canvas.id,
+            "receipt": receipt["input_receipt"],
+            "expected_revision": bound["revision"],
+            "manifest_revision": bound["manifest"]["manifest_revision"],
+            "source_version": bound["source"]["source_version"],
+        },
+        {
+            "workspace_id": "foreign-ws",
+            "tenant_id": "foreign-tenant",
+            "provenance": {"requester_id": "foreign-user"},
+        },
+    ))
+    assert failed["status"] == "failed"
+    assert (
+        "refused" in failed["message"].lower()
+        or "different tenant" in failed["message"].lower()
+    )
+
+
 def test_teaching_proposal_requires_explicit_promotion(env):
     from core.student_learning_service import list_agent_lessons
 

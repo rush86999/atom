@@ -71,6 +71,9 @@ def _authorized_canvas(canvas_id: str, context: Dict[str, Any]):
         )
         if canvas is None:
             return None, "The canvas is no longer available."
+        if (identity["tenant_id"] and canvas.tenant_id
+                and identity["tenant_id"] != str(canvas.tenant_id)):
+            return None, "The canvas belongs to a different tenant."
         try:
             authorize_canvas(db, canvas, user)
         except CapabilityError as exc:
@@ -110,6 +113,9 @@ def _recomputed_receipt(canvas_id: str, context: Dict[str, Any]):
             return None, "The canvas is no longer available."
         manifest = get_manifest(canvas)
         source = _dataset_source(canvas)
+        if (identity["tenant_id"] and canvas.tenant_id
+                and identity["tenant_id"] != str(canvas.tenant_id)):
+            return None, "The canvas belongs to a different tenant."
         user = SimpleNamespace(
             id=identity["user_id"],
             workspace_id=identity["workspace_id"],
