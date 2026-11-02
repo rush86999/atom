@@ -1173,9 +1173,13 @@ def _init_capability(
 
 def set_manifest(db, canvas: Canvas, user: Any, manifest: Dict[str, Any]) -> Dict[str, Any]:
     clean = validate_manifest(manifest)
-    content = _init_capability(canvas, clean)
-    canvas.last_edited_by = str(getattr(user, "id", "") or "") or None
-    canvas.last_edited_at = _now()
+    previous_revision = current_revision(canvas)
+    previous_source = _dataset_source(canvas)
+    previous_manifest = str(
+        get_manifest(canvas).get("manifest_revision") or "")
+    content = copy.deepcopy(_canvas_content(canvas))
+    content["capability_manifest"] = clean
+    content.setdefault("capability_revision", previous_revision)
     # A changed teaching policy invalidates reusable assessments: there is no
     # stored assessment cache, so the new revision simply cannot be reused
     # under the old policy hash. Record both for the receipt.
@@ -1184,13 +1188,25 @@ def set_manifest(db, canvas: Canvas, user: Any, manifest: Dict[str, Any]) -> Dic
         "policy_revision": policy_revision(clean),
         "operations": clean["operations"],
     })
-    db.commit()
+    try:
+        _commit_canvas_content_cas(
+            db, canvas, content,
+            expected_revision=previous_revision,
+            expected_source_version=str(
+                previous_source.get("source_version") or ""),
+            expected_manifest_revision=previous_manifest,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+        )
+    except CapabilityError:
+        db.rollback()
+        raise
+    fresh = _reload_canvas(db, canvas)
     return {
         "success": True,
         "manifest": clean,
-        "operations": effective_operations(canvas, clean),
+        "operations": effective_operations(fresh, clean),
         "policy_revision": policy_revision(clean),
-        "revision": current_revision(canvas),
+        "revision": current_revision(fresh),
     }
 
 
@@ -1233,6 +1249,7 @@ def _persist_dataset(
     title: Optional[str] = None,
     verified_file_sha256: Optional[str] = None,
     sheet_rows: Optional[Sequence[int]] = None,
+    manifest_override: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Store one authoritative dataset snapshot on the canvas.
 
@@ -1241,6 +1258,14 @@ def _persist_dataset(
     snapshot is always the local resource; connected callers add a separate
     ``upstream`` block that this function never rewrites.
     """
+    previous_revision = current_revision(canvas)
+    previous_source = _dataset_source(canvas)
+    previous_manifest = get_manifest(canvas) or default_manifest()
+    previous_manifest_revision = str(
+        previous_manifest.get("manifest_revision") or "")
+    manifest_override = (
+        copy.deepcopy(manifest_override)
+        if isinstance(manifest_override, dict) else None)
     clean_columns = [str(c).strip() for c in columns]
     if not clean_columns or any(not c for c in clean_columns):
         raise CapabilityError("invalid_dataset", "Columns must be non-empty strings.")
@@ -1298,8 +1323,8 @@ def _persist_dataset(
         {"supported": False, "upstream_mutated": False, "performed": False},
     )
 
-    content = _canvas_content(canvas)
-    manifest = get_manifest(canvas) or default_manifest()
+    content = copy.deepcopy(_canvas_content(canvas))
+    manifest = manifest_override or copy.deepcopy(previous_manifest)
     dataset = {
         "columns": clean_columns,
         "rows": clean_rows,
@@ -1309,31 +1334,40 @@ def _persist_dataset(
     if clean_sheet_rows is not None:
         dataset["sheet_rows"] = clean_sheet_rows
     content["dataset"] = dataset
-    content["capability_revision"] = current_revision(canvas) + 1
+    content["capability_revision"] = previous_revision + 1
     manifest.setdefault("data_binding", {})
     manifest["data_binding"]["resource_id"] = source["resource_id"]
     manifest["data_binding"]["source_version"] = source["source_version"]
-    if title:
-        canvas.name = title
     clean_manifest = validate_manifest(manifest)
-    canvas.content = _init_capability(canvas, clean_manifest, content)
-    canvas.last_edited_by = str(getattr(user, "id", "") or "") or None
-    canvas.last_edited_at = _now()
+    content["capability_manifest"] = clean_manifest
     _audit(db, canvas, user, "capability_bind", {
         "columns": clean_columns,
         "row_count": len(clean_rows),
         "source": source,
         "revision": content["capability_revision"],
     })
-    db.commit()
+    try:
+        _commit_canvas_content_cas(
+            db, canvas, content,
+            expected_revision=previous_revision,
+            expected_source_version=str(
+                previous_source.get("source_version") or ""),
+            expected_manifest_revision=previous_manifest_revision,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+            name=title,
+        )
+    except CapabilityError:
+        db.rollback()
+        raise
+    fresh = _reload_canvas(db, canvas)
     return {
         "success": True,
         "columns": clean_columns,
         "row_count": len(clean_rows),
         "source": source,
-        "revision": content["capability_revision"],
+        "revision": current_revision(fresh),
         "manifest": clean_manifest,
-        "operations": effective_operations(canvas, clean_manifest),
+        "operations": effective_operations(fresh, clean_manifest),
     }
 
 
@@ -1738,13 +1772,11 @@ def bind_connected_dataset(
         "source_version": actual_version,
     })
     manifest["data_binding"] = binding
-    content = _canvas_content(canvas)
-    content["capability_manifest"] = validate_manifest(manifest)
-    canvas.content = content
 
     result = _persist_dataset(
         db, canvas, user, physical_columns, rows,
         source=source_meta, title=snapshot_label, sheet_rows=sheet_rows,
+        manifest_override=validate_manifest(manifest),
     )
     result["upstream"] = upstream
     result["snapshot"] = result["source"].get("snapshot") or {}
@@ -2630,79 +2662,24 @@ def begin_derive_clarification(
     }
     new_content = copy.deepcopy(content)
     new_content["capability_derive_clarification"] = clarification
-    source = _dataset_source(canvas)
     existing_id = (
         str(existing.get("id") or "")
         if isinstance(existing, dict) and existing.get("status") == "open"
         else ""
     )
-    if not _content_cas(
-            db, canvas.id,
+    try:
+        _commit_canvas_content_cas(
+            db, canvas, new_content,
             expected_revision=int(expected_revision),
-            expected_manifest=str(manifest_revision_value or ""),
-            clarification_id=existing_id,
             expected_source_version=str(source_version or ""),
-            expected_source_sha256=str(source.get("sha256") or ""),
-            content=new_content,
-            user_id=str(getattr(user, "id", "") or "")):
+            expected_manifest_revision=str(manifest_revision_value or ""),
+            clarification_id=existing_id,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
+        )
+    except CapabilityError:
         db.rollback()
-        raise CapabilityError(
-            "concurrent_edit",
-            "Another writer changed the canvas before the clarification could "
-            "be stored; derive again from the current revision.",
-            409,
-        )
-    db.expire(canvas)
-    db.commit()
+        raise
     return clarification
-
-
-def _content_cas(
-    db, canvas_id: str, *, expected_revision: int,
-    expected_manifest: str = "", clarification_id: str = "",
-    expected_source_version: str = "", expected_source_sha256: str = "",
-    content: Dict[str, Any], user_id: str = "",
-) -> bool:
-    """Conditional whole-content update bound to the authoritative revision.
-
-    SQLite does not enforce ``SELECT FOR UPDATE``; a refresh alone still leaves
-    a check-to-write race. This UPDATE is the database compare-and-swap: it
-    matches exactly the revision/manifest/question/source that was validated,
-    and a later writer makes the row count zero instead of being overwritten.
-    """
-    predicates = [
-        Canvas.id == canvas_id,
-        Canvas.content["capability_revision"].as_integer() == int(
-            expected_revision),
-    ]
-    if expected_manifest:
-        predicates.append(
-            Canvas.content["capability_manifest"]["manifest_revision"]
-            .as_string() == str(expected_manifest))
-    if clarification_id:
-        predicates.append(
-            Canvas.content["capability_derive_clarification"]["id"]
-            .as_string() == str(clarification_id))
-    if expected_source_version:
-        predicates.append(
-            Canvas.content["dataset"]["source"]["source_version"]
-            .as_string() == str(expected_source_version))
-    if expected_source_sha256:
-        predicates.append(
-            Canvas.content["dataset"]["source"]["sha256"]
-            .as_string() == str(expected_source_sha256))
-    statement = (
-        update(Canvas)
-        .where(*predicates)
-        .values(
-            content=content,
-            last_edited_by=user_id or None,
-            last_edited_at=_now(),
-        )
-    )
-    with db.no_autoflush:
-        result = db.execute(statement)
-    return int(result.rowcount or 0) == 1
 
 
 def _record_refused_answer(
@@ -2740,19 +2717,20 @@ def _record_refused_answer(
     new_content["capability_derive_clarification"] = clarification
     manifest = get_manifest(fresh)
     source = _dataset_source(fresh)
-    if not _content_cas(
-            db, fresh.id,
+    try:
+        _commit_canvas_content_cas(
+            db, fresh, new_content,
             expected_revision=current_revision(fresh),
-            expected_manifest=str(manifest.get("manifest_revision") or ""),
-            clarification_id=str(clarification_id),
             expected_source_version=str(source.get("source_version") or ""),
-            expected_source_sha256=str(source.get("sha256") or ""),
-            content=new_content,
-            user_id=str(getattr(fresh, "last_edited_by", "") or "")):
+            expected_manifest_revision=str(
+                manifest.get("manifest_revision") or ""),
+            clarification_id=str(clarification_id),
+            last_edited_by=str(getattr(fresh, "last_edited_by", "") or "")
+            or None,
+        )
+    except CapabilityError:
         db.rollback()
         return False
-    db.expire(fresh)
-    db.commit()
     return True
 
 
@@ -2957,25 +2935,25 @@ def _answer_derive_clarification_impl(
         "result_digest": result["input_receipt"]["digest"],
     })
     content["capability_derive_clarification"] = clarification
-    if not _content_cas(
-            db, fresh.id,
+    try:
+        _commit_canvas_content_cas(
+            db, fresh, content,
             expected_revision=answer_revision,
-            expected_manifest=answer_manifest,
-            clarification_id=clarification_id,
             expected_source_version=str(
                 answer_source.get("source_version") or ""),
-            expected_source_sha256=str(answer_source.get("sha256") or ""),
-            content=content,
-            user_id=str(getattr(user, "id", "") or "")):
-        db.rollback()
-        raise CapabilityError(
-            "concurrent_edit",
-            "Another writer changed the canvas after the answer was read; "
-            "the replacement snapshot was left intact. Derive again.",
-            409,
+            expected_manifest_revision=answer_manifest,
+            clarification_id=clarification_id,
+            last_edited_by=str(getattr(user, "id", "") or "") or None,
         )
-    db.expire(fresh)
-    db.commit()
+    except CapabilityError as exc:
+        db.rollback()
+        try:
+            _record_refused_answer(
+                db, fresh, clarification_id, normalized,
+                [exc.code], detail=exc.message)
+        except Exception:  # noqa: BLE001
+            db.rollback()
+        raise
     return {
         "success": True,
         "status": "resolved",
@@ -3767,7 +3745,7 @@ def _reload_canvas(db, canvas: Canvas) -> Canvas:
 
 def _canvas_cas_predicates(
     dialect: str, revision: int, source_version: str,
-    manifest_revision: str,
+    manifest_revision: str, clarification_id: str = "",
 ):
     """WHERE-clause predicates for an atomic canvas content write.
 
@@ -3777,25 +3755,49 @@ def _canvas_cas_predicates(
     This is deliberately not an ORM reload or a row lock.
     """
     if dialect == "sqlite":
-        return [
-            func.json_extract(
-                Canvas.content, "$.capability_revision") == int(revision),
-            func.json_extract(
-                Canvas.content, "$.dataset.source.source_version")
-            == str(source_version),
-            func.json_extract(
-                Canvas.content,
-                "$.capability_manifest.manifest_revision")
-            == str(manifest_revision),
+        predicates = [
+            func.coalesce(
+                func.json_extract(
+                    Canvas.content, "$.capability_revision"), 0)
+            == int(revision),
         ]
+        if source_version:
+            predicates.append(
+                func.json_extract(
+                    Canvas.content, "$.dataset.source.source_version")
+                == str(source_version))
+        if manifest_revision:
+            predicates.append(
+                func.json_extract(
+                    Canvas.content,
+                    "$.capability_manifest.manifest_revision")
+                == str(manifest_revision))
+        if clarification_id:
+            predicates.append(
+                func.json_extract(
+                    Canvas.content,
+                    "$.capability_derive_clarification.id")
+                == str(clarification_id))
+        return predicates
     if dialect == "postgresql":
-        return [
-            Canvas.content["capability_revision"].astext == str(revision),
-            Canvas.content["dataset"]["source"]["source_version"].astext
-            == str(source_version),
-            Canvas.content["capability_manifest"]["manifest_revision"].astext
-            == str(manifest_revision),
+        predicates = [
+            func.coalesce(
+                Canvas.content["capability_revision"].astext, "0")
+            == str(revision),
         ]
+        if source_version:
+            predicates.append(
+                Canvas.content["dataset"]["source"]["source_version"].astext
+                == str(source_version))
+        if manifest_revision:
+            predicates.append(
+                Canvas.content["capability_manifest"][
+                    "manifest_revision"].astext == str(manifest_revision))
+        if clarification_id:
+            predicates.append(
+                Canvas.content["capability_derive_clarification"][
+                    "id"].astext == str(clarification_id))
+        return predicates
     raise CapabilityError(
         "cas_unsupported",
         f"Atomic canvas writes are not implemented for dialect {dialect!r}; "
@@ -3806,8 +3808,9 @@ def _canvas_cas_predicates(
 
 def _commit_canvas_content_cas(
     db, canvas: Canvas, content: Dict[str, Any], *,
-    expected_revision: int, expected_source_version: str,
-    expected_manifest_revision: str, last_edited_by: Optional[str] = None,
+    expected_revision: int, expected_source_version: str = "",
+    expected_manifest_revision: str = "", clarification_id: str = "",
+    last_edited_by: Optional[str] = None, name: Optional[str] = None,
 ) -> None:
     """Commit content only if the persisted snapshot is still the one read.
 
@@ -3818,15 +3821,18 @@ def _commit_canvas_content_cas(
     dialect = db.get_bind().dialect.name
     predicates = _canvas_cas_predicates(
         dialect, expected_revision, expected_source_version,
-        expected_manifest_revision)
+        expected_manifest_revision, clarification_id)
+    values: Dict[str, Any] = {
+        "content": content,
+        "last_edited_by": last_edited_by,
+        "last_edited_at": _now(),
+    }
+    if name:
+        values["name"] = name
     statement = (
         update(Canvas)
         .where(Canvas.id == canvas.id, *predicates)
-        .values(
-            content=content,
-            last_edited_by=last_edited_by,
-            last_edited_at=_now(),
-        )
+        .values(**values)
     )
     with db.no_autoflush:
         result = db.execute(statement)
