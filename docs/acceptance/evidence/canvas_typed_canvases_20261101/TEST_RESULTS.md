@@ -1,6 +1,6 @@
 # Typed three-canvas successor — results
 
-Executed source: `fa77cc2abf45ea17d3ab3ee8a07b9496a81c082c` (clean).
+Executed source: `5ebe361aa13fadf28bcee9808fd1ddb7c80c0227` (clean).
 Branch: `codex/brennan-canvas-successor-20261101`.
 This manifest commit is docs-only and was not served.
 
@@ -35,15 +35,15 @@ cation, answers `100.00`, and resumes the same derivation to `170.00`.
 
 | Scope | Result |
 |---|---|
-| `tests/test_canvas_typed_fields.py` | **13 passed** |
-| Canvas capability/assessment/routes/crud/fork suite | **105 passed** |
+| `tests/test_canvas_typed_fields.py` | **14 passed** |
+| Canvas capability/assessment/routes/crud/fork suite | **106 passed** |
 | Frontend canvas capability suites | **6 passed** |
 
 ## Runtime identity
 
-- Backend: pid `70749`, source `fa77cc2abf45`, instance
-  `fa77cc2abf45.70749.1793591895`, clean, SQLite world
-  `canvas-successor-20261101-clean`.
+- Backend: pid `71559`, source `5ebe361aa13f`, instance
+  `5ebe361aa13f.71559.1793592397`, clean, SQLite world
+  `canvas-successor-20261101-final`.
 - Frontend: production build `8ekSj7KLz89t9mn-dO1A0`, service `atom-frontend`,
   healthy.
 - World and health snapshots: `world.json`, `backend-health.json`,

@@ -2,11 +2,11 @@
   "schema": "atom-canvas-typed-canvases-local-1",
   "status": "passed",
   "frontend": "http://127.0.0.1:3131",
-  "agent_id": "837c90e0-16c6-4e77-a410-21271b187172",
+  "agent_id": "c8281b53-571e-4b61-a8aa-86b1a7d96d9c",
   "canvas_urls": {
-    "industrial_quote": "http://127.0.0.1:3131/canvas/0c6b6918-8c49-4f6f-827e-e4c7a4737c2b",
-    "service_proposal": "http://127.0.0.1:3131/canvas/61d08fe4-7e1d-4927-9447-44df2f4c409d",
-    "exception_queue": "http://127.0.0.1:3131/canvas/f8e910eb-be83-4597-b2c4-d4602acb08ed"
+    "industrial_quote": "http://127.0.0.1:3131/canvas/4af5ea08-06c0-49b0-9f51-8a2b59654b38",
+    "service_proposal": "http://127.0.0.1:3131/canvas/2b03b812-db4b-4b8c-9f3a-9ba814e36c81",
+    "exception_queue": "http://127.0.0.1:3131/canvas/61f3f829-5812-4b53-acaa-61c54266d555"
   },
   "manifests": {
     "industrial_quote": {
@@ -169,7 +169,7 @@
       "name": "industrial quote created and bound through the UI",
       "ok": true,
       "detail": {
-        "url": "http://127.0.0.1:3131/canvas/0c6b6918-8c49-4f6f-827e-e4c7a4737c2b",
+        "url": "http://127.0.0.1:3131/canvas/4af5ea08-06c0-49b0-9f51-8a2b59654b38",
         "bind": 2
       }
     },
@@ -196,7 +196,7 @@
       "name": "service proposal created and bound through the UI",
       "ok": true,
       "detail": {
-        "url": "http://127.0.0.1:3131/canvas/61d08fe4-7e1d-4927-9447-44df2f4c409d",
+        "url": "http://127.0.0.1:3131/canvas/2b03b812-db4b-4b8c-9f3a-9ba814e36c81",
         "bind": 2
       }
     },
@@ -218,7 +218,7 @@
       "name": "exception queue created with a targeted missing amount",
       "ok": true,
       "detail": {
-        "url": "http://127.0.0.1:3131/canvas/f8e910eb-be83-4597-b2c4-d4602acb08ed",
+        "url": "http://127.0.0.1:3131/canvas/61f3f829-5812-4b53-acaa-61c54266d555",
         "status": "clarification"
       }
     },
@@ -280,9 +280,9 @@
     }
   ],
   "artifacts": {
-    "industrial_quote.png": "e78b5b5d35efe070be6ff7708d955270243c853547e3be15ed547a5f08b40b2e",
-    "service_proposal.png": "f48aae0108f0f3892d3657c1064cc2e2c25d7d5ea765d68eb85b44987d30abb3",
-    "exception_queue.png": "b2f774c0f6cd34d888704be8b1e38a6a719a6a258ae27ba05cc5ebdb8dbd73d0"
+    "industrial_quote.png": "c19ec05dc17257103e006411aded9800ba992f6fbc3fb470082f2be8cff2d7fc",
+    "service_proposal.png": "998146e0e9592add3438f185b215e413c6542649f762af8c61f151aa9eddb302",
+    "exception_queue.png": "3dd8987460738facbea8b7805ff351b414417efcf318413fe1aa9554c4d72485"
   },
   "page_errors": []
 }

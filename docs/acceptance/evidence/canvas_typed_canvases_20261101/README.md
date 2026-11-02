@@ -11,10 +11,10 @@ scope is unchanged. No live provider lookup, refresh, write or send occurred.
 | Worktree | `/private/tmp/atom-canvas-successor` |
 | Branch | `codex/brennan-canvas-successor-20261101` |
 | Base | `9b39c35b7` (connected-batch docs head) |
-| Executed source head | `fa77cc2abf45ea17d3ab3ee8a07b9496a81c082c` |
+| Executed source head | `5ebe361aa13fadf28bcee9808fd1ddb7c80c0227` |
 | Tree at execution | clean (`dirty=false`) |
-| Backend identity | pid `70749`, source `fa77cc2abf45`, instance `fa77cc2abf45.70749.1793591895` |
-| World | isolated local world `canvas-successor-20261101-clean` |
+| Backend identity | pid `71559`, source `5ebe361aa13f`, instance `5ebe361aa13f.71559.1793592397` |
+| World | isolated local world `canvas-successor-20261101-final` |
 | Frontend | production build on `127.0.0.1:3131`, build id `8ekSj7KLz89t9mn-dO1A0` |
 | Backend | `127.0.0.1:8091`, real routes/executor/sqlite |
 
@@ -58,7 +58,9 @@ Browser result: **13/13 checks passed**, no page errors.
   resumes the same derivation; duplicate answers are idempotent; conflicting
   answers refuse.
 - Stale state revision, manifest revision or source version refuses before
-  arithmetic.
+  arithmetic; a resolved clarification becomes stale after a later edit.
+- Typed strings and the complete derive receipt have explicit byte/character
+  limits; overflow refuses rather than truncating or returning a partial total.
 - Cross-workspace direct access refuses (403).
 - Reload preserves fields, history and revisions.
 - Fork keeps typed shape but drops action bindings/authority references.
@@ -69,8 +71,8 @@ Browser result: **13/13 checks passed**, no page errors.
 
 | Scope | Result |
 |---|---|
-| `tests/test_canvas_typed_fields.py` | **13 passed** |
-| Canvas capability/assessment/route/crud/fork focused suite | **105 passed** |
+| `tests/test_canvas_typed_fields.py` | **14 passed** |
+| Canvas capability/assessment/route/crud/fork focused suite | **106 passed** |
 | Frontend `CanvasCapabilityRules`, `CanvasCapabilityAssessment`, `CanvasCapabilityDerive` | **6 passed** |
 | Browser typed three-canvas journey | **13/13 checks** |
 
