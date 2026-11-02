@@ -431,3 +431,18 @@ Agent 1 `0aebf372e` and Agent 2 `7a006c147`. Joint core suite is **241 passed**.
 
 **Candidate documentation sync:** review candidate now `e01efb49d`; the
 connected-read handoff reflects the hardened executor outcome classifier.
+
+**Final focused repair candidate (2026-11-01):**
+`codex/brennan-joint-review-20261101` at `51715ce15` is the sole review
+candidate.
+- Cap/fixed/tier/formula/unsupported-basis and unknown material pricing fields
+  are rejected before arithmetic; public route refuses the plan and no action
+  runs.
+- Frontend dependencies and Playwright Chromium installed in the review
+  worktree; the real Assignments page ran the connected bytes -> clarification
+  -> leave -> backend restart -> changed source -> corrected continuation ->
+  verified 376.75 estimate -> Outlook draft (376.75) journey. **9/9 browser
+  checks passed**; evidence in
+  `docs/acceptance/evidence/brennan_connected_browser_20261101/`.
+- Final tests: joint core **251 passed**; Agent 2 focused **273**; Agent 1
+  required **174**. No live provider or send.

@@ -3,12 +3,13 @@
 Single review candidate: `codex/brennan-joint-review-20261101` in
 `/private/tmp/atom-brennan-review`.
 
-This batch closes the three reproduced blocking defects:
+This batch closes the reproduced blocking defects:
 
 1. a missing discount qualification selected the general discount;
 2. sparse/wrong estimate and bill readbacks returned zero conflicts;
 3. returned `uncertain` action envelopes were not proven through a real
-   assignment using the actual connected handler.
+   assignment using the actual connected handler;
+4. capped/fixed/unsupported pricing rules silently applied only the rate.
 
 No live Zoho/Microsoft call, write, refresh or send was performed.
 
@@ -35,6 +36,17 @@ No live Zoho/Microsoft call, write, refresh or send was performed.
 - Answers resume the same work; duplicate answers do not reopen it; restart
   preserves the question; changed teaching/source refuses stale answers.
 - Completion-based test oracle enumerates fully specified completions.
+
+## Unsupported pricing semantics
+
+The calculator now validates every discount rule before selection or
+arithmetic. A simple fractional rate is implemented. Caps, fixed amounts,
+tiers, formulas, unsupported bases/types and unknown material fields are
+refused with a typed `QuoteInputError`; `_quote_calculate` maps that to a
+`quote_input` gap and the public assignment route rejects the plan before any
+commercial effect. Tests cover caps, cap amounts, max discounts, fixed
+amounts, formulas, tiers, unsupported basis/type and unknown fields, plus a
+public-route proof that no action is called.
 
 ## Commercial readback
 
@@ -94,9 +106,9 @@ when line items are supplied.
 
 | Suite | Result |
 |---|---|
-| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **241 passed** |
+| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **251 passed** |
 | Agent 2 focused provider/accounting/readback | **273 passed** |
-| Agent 1 required assignment suite | **164 passed** |
+| Agent 1 required assignment suite | **174 passed** |
 | Public route quote/source-change/teaching-reassessment journey | **4 passed** |
 | Extended assignment/action-registry suite | **334 passed, 4 pre-existing baseline failures** |
 
@@ -104,9 +116,26 @@ The 4 failures are turn-count/LLM-orchestration tests in
 `tests/test_task_lifecycle.py`; they reproduce at baseline `acd86a2aa` without
 this batch.
 
-## Browser boundary
+## Browser journey
 
-`frontend-nextjs/node_modules` is absent in this environment, so the browser
-journey could not be executed. The public assignment API route tests were run
-instead for quote, source revision invalidation and teaching reassessment.
-This is recorded as an environment limitation, not a browser pass.
+Installed the documented frontend dependencies (`npm install
+--legacy-peer-deps`) and Playwright Chromium in the review worktree. The
+browser gate `scripts/acceptance/brennan_connected_browser.cjs` runs the real
+Assignments page against the standalone acceptance server (real routes and
+executor, controlled connected providers):
+
+1. connected CSV bytes are read and parsed;
+2. the discount qualification clarification is shown;
+3. the page is left and the backend process is restarted;
+4. the connected source bytes change from 50.00 to 55.00 and the read branch is
+   invalidated;
+5. the qualification is answered in the browser;
+6. the corrected quote reaches estimate approval;
+7. the estimate readback is **376.75**;
+8. the Outlook draft body is **376.75**;
+9. reloading shows the completed assignment.
+
+Result: **9/9 checks passed**. Evidence:
+`docs/acceptance/evidence/brennan_connected_browser_20261101/`
+(`checks.json`, screenshots, backend logs). No live provider or send was
+used; the controlled Outlook fake refuses `send_email`.
