@@ -125,8 +125,8 @@ when line items are supplied.
 
 | Suite | Result |
 |---|---|
-| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping + serialization) | **262 passed** |
-| Data-transfer boundary controls (79/80/81, partial, oversized, nested, multibyte, restart) | **24 passed** |
+| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping + serialization) | **263 passed** |
+| Data-transfer boundary controls (79/80/81, partial, oversized, nested, multibyte, restart) | **25 passed** |
 | Agent 2 focused provider/accounting/readback | **273 passed** |
 | Agent 1 required assignment suite | **174 passed** |
 | Public route quote/source-change/teaching-reassessment journey | **4 passed** |
