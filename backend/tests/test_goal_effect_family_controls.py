@@ -681,3 +681,37 @@ def test_duplicate_rejection_of_one_reviewed_decision_is_noop(
     assert len(overrides) == 1
     db.close()
     engine.dispose()
+
+
+def test_changed_decision_material_after_review_is_stale(
+        tmp_path, monkeypatch):
+    from api import goal_run_routes as routes
+    from core.models import GoalRun
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "changed-decision.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "reviewed rationale"})
+    review = _review(held)
+
+    row = db.query(GoalRun).filter(GoalRun.id == run_id).one()
+    mutated = dict(row.pending_decision or {})
+    mutated["rationale"] = "changed after review"
+    row.pending_decision = mutated
+    db.commit()
+
+    calls = _execute_counter(monkeypatch, svc)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+    response = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == "stale_decision_review"
+    assert calls == []
+    assert svc.get_run(run_id)["pending_decision"]["rationale"] == (
+        "changed after review")
+    db.close()
+    engine.dispose()
