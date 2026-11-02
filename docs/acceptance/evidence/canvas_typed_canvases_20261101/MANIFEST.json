@@ -3,12 +3,10 @@
     "backend-health.json": "c8e5c802c6524f6aefea983193404372b5f201bd808bdddf7366c2ac32a5251e",
     "exception-queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
     "exception-queue.png": "3dd8987460738facbea8b7805ff351b414417efcf318413fe1aa9554c4d72485",
-    "frontend-build-id.txt": "bb179b68b7c4504485ae61363c7d8d2e9cc1cd83d2da19e128a9d7ab268bb9e1",
     "frontend-health.json": "5df235aa8b30e54a84b1496136bf5838d71a65b7cda1ba8061dbf9d0eca2374d",
     "industrial-quote.csv": "7c97d46957efbf355832a1f726ced1992adffec495cf5208cbefcce8b5e1f04f",
     "industrial-quote.png": "c19ec05dc17257103e006411aded9800ba992f6fbc3fb470082f2be8cff2d7fc",
     "result.json": "cacdc11809053ebf9ef71c0f31916728131f56b7e987738e6779d525e5ad5aa0",
-    "run.log": "2ca43d53e39970733d6858c7a4e1882973329897c9bd900c347fa26d4a54fae6",
     "service-proposal.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
     "service-proposal.png": "998146e0e9592add3438f185b215e413c6542649f762af8c61f151aa9eddb302",
     "world.json": "4dacae66b564212b485b4271e394e095524c2f2c497d8838a136b64030c1d206"
@@ -90,6 +88,7 @@
     "executed_source_head": "5ebe361aa13fadf28bcee9808fd1ddb7c80c0227",
     "manifest_note": "This manifest commit is docs-only after the executed source; it was not served.",
     "tree_clean_at_execution": true,
+    "untracked_artifact_note": "The original submission listed frontend-build-id.txt and run.log, but both were ignored by Git. They are omitted from this historical manifest; the repaired bundle tracks equivalent artifacts. No screenshot or result was relabelled.",
     "worktree": "/private/tmp/atom-canvas-successor"
   },
   "changed_files": [
