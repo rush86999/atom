@@ -161,3 +161,10 @@ Submit one source-bound bundle with independent arithmetic, evidence references,
 lesson revisions, exact payload/artifact hashes and effect counts. Explain every
 controlled boundary. Start the next assigned task after each pass rather than
 pausing for another preparation report. Independent verifier acceptance is required.
+
+## User-created canvas extension
+
+Apply the [user-authored canvas contract](../USER_AUTHORED_CANVASES.md).
+New canvases must provide validated, revision-bound values for execution and
+explicit scoped learning through existing mechanisms. The current blocking
+pricing/outcome/readback repairs precede expansion of those runtime surfaces.

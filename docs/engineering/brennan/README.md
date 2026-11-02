@@ -103,3 +103,10 @@ references in commits. Useful established patterns include
 [Graph change tracking](https://learn.microsoft.com/en-us/graph/delta-query-overview)
 and [durable effect idempotency](https://docs.aws.amazon.com/durable-execution/patterns/best-practices/idempotency/).
 These patterns guide existing mechanisms; they do not require adding another engine.
+
+## User-created canvas extension
+
+Apply the [user-authored canvas contract](../USER_AUTHORED_CANVASES.md).
+New canvases must provide validated, revision-bound values for execution and
+explicit scoped learning through existing mechanisms. The current blocking
+pricing/outcome/readback repairs precede expansion of those runtime surfaces.

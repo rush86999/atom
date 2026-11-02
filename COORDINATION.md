@@ -251,3 +251,140 @@ waiting, changed-revision invalidation, ambiguity, cancellation and duplicate
 resume remain open. The substantive model-quality assessment remains blocked
 on authorized model access. Not a release declaration.
 
+
+---
+
+## Session: Brennan Agent 2 — connected knowledge and accounting (2026-11-01)
+
+**Branch/worktree:** `codex/brennan-knowledge-accounting-20261101` in
+`/private/tmp/atom-brennan-agent2`, based on `587fbc251`.
+
+**Goal:** provider contracts, WorkDrive/OneDrive knowledge, Zoho Books
+bookkeeping and authoritative writeback for the Brennan business acceptance.
+The accepted tags and the 123-claim denominator are unchanged.
+
+**Owned in this session (do not refactor in parallel without a note):**
+
+- `backend/core/provider_contract_matrix.py`, `backend/integrations/provider_errors.py`
+- `backend/integrations/zoho_books_service.py`, `zoho_crm_service.py`,
+  `zoho_inventory_service.py`, `zoho_workdrive_service.py`,
+  `onedrive_service.py`, `microsoft365_service.py`,
+  `universal_integration_service.py`
+- `backend/core/brennan_connected_actions.py` (action registrations),
+  `backend/core/drive_sync_checkpoints.py`,
+  `backend/core/drive_tree_ingestion.py` (index_rows refactor)
+- `backend/accounting/bookkeeping_proposal.py`, `sync_manager.py`,
+  `document_processor.py`
+- `backend/api/document_ingestion_routes.py` (drive sync status/page routes)
+- tests under `backend/tests/unit/test_brennan_*` and the affected legacy
+  accounting/provider tests
+- `docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md`
+
+**Handoff for Agent 1:** the action names, schemas, receipt shape,
+write-result vocabulary and executor-consumption requirement are in
+`docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md` (copied into this
+checkout). Key request: `_action_registry_adapter` must map the action's
+`action_result` (`applied|proven_not_applied|uncertain|conflict|unavailable`)
+into the executor outcome instead of wrapping every return as `applied`.
+
+**Verified in the Agent 2 branch:** provider contract matrix has zero issues;
+focused provider/connected/accounting suite **223 passed**. The quote fixture
+`A 2x100 + B 3x50 less 5% on B + freight 20, no tax` is exercised as
+`362.50` in the estimate HTTP end-to-end test. Concurrent same-bill calls
+produce one provider effect; changed remote readback is `conflict`; revoked
+sweep is `proven_not_applied`; drive page restart resumes from the persisted
+cursor and reports remote deletions without deleting memory.
+
+**Boundaries:** no live Zoho/Microsoft token, read, refresh, write or send was
+used. All verification is controlled/fixture-based. The prior one-use Outlook
+send authorization remains exhausted.
+
+**Status:** continuing Agent 2 work; awaiting Agent 1's branch handoff for the
+joint Outlook RFQ → knowledge → quote → wait/restart → authorized Zoho update
+→ Outlook draft campaign.
+
+**Integration request for Agent 1 (2026-11-01, after `1ec6b8c37`):** the
+executor's `_action_registry_adapter` still wraps every action return as
+`status=applied`. Connected writes now return
+`action_result=applied|proven_not_applied|uncertain|conflict|unavailable`;
+use `core.brennan_connected_actions.action_executor_outcome(result)` so a
+duplicate/validation refusal fails, and a changed readback or lost
+confirmation becomes `uncertain` instead of a false completion. The exact
+snippet is in `docs/engineering/brennan/AGENT_2_CONNECTED_READ_HANDOFF.md`.
+
+**Agent 1 handoff received in shared history:** `1ec6b8c37` (commercial-update
+actions, live progress, quote campaign), `a64a985c8` (retrieval evaluation),
+`257da4862` (service-domain portability through the public assignment route).
+Agent 2 still needs the branch handoff note/commit that says which executor
+revision to integrate and which action registrations it consumed.
+
+**Agent 2 latest HEAD (2026-11-01):** `a78ddeb7a` on
+`codex/brennan-knowledge-accounting-20261101`. Added Outlook invoice/receipt
+attachment reads (binary evidence, never send), generic `connected.*` action
+aliases, vendor/CoA resolution, period/account validation and the live
+qualification request. Focused suite **229 passed**; no live provider call.
+
+**Joint integration candidate (2026-11-01):** branch
+`codex/brennan-joint-20261101` in `/private/tmp/atom-brennan-joint`, HEAD
+`8fc3460e9`. It merges Agent 2 at `a78ddeb7a` with Agent 1 at `bc56472b9` and
+adds the executor mapping from `action_result` to `applied/failed/uncertain`.
+Combined assignment + connected suite: **189 passed**; contract matrix has zero
+issues. The joint controlled campaign computes **362.50** with Agent 1's
+calculator, posts the estimate through `connected.books.create_estimate`,
+reads back 362.50, and creates an Outlook draft without sending. This is a
+controlled candidate, not live qualification. Agent 1 should adopt
+`8fc3460e9`'s executor mapping in its branch (or confirm an equivalent).
+
+**Joint candidate updated (2026-11-01):** `/private/tmp/atom-brennan-joint`
+HEAD `2db65a034` merges Agent 2 `00b1a95ec` (tombstones for provider-deleted
+rows, bare-read outcome mapping) with Agent 1 `bc56472b9`. Combined suite:
+**190 passed**. Agent 2 branch standalone focused suite: **230 passed**.
+
+**Agent 2 response to Agent 1 (2026-11-01):**
+`/private/tmp/brennan-brief/AGENT2_RESPONSE.md`. Canonical quote record is the
+Zoho Books estimate; connected actions, typed receipt fields, tabular row
+evidence, outcome mapping and the controlled joint test are specified there.
+The joint branch now includes the latest Agent 2 tabular-evidence sync;
+combined suite **192 passed**.
+
+**Final joint integration (2026-11-01):** `/private/tmp/atom-brennan-joint`
+HEAD `4b2c61aa9` merges Agent 1 final `acd86a2aa` with Agent 2 `baeca20db`
+(plus the executor outcome mapping and joint campaign test). Combined
+assignment + connected suite: **197 passed**. Extended affected assignment
+suite + joint campaign: **289 passed**. Provider contract matrix: zero issues.
+This is the reviewable controlled candidate; live qualification still needs
+the account/token request in `AGENT_2_LIVE_QUALIFICATION_REQUEST.md`.
+
+**Joint candidate final sync (2026-11-01):** HEAD `6cea89476`.
+Includes Agent 2 canonical `core/connected_actions.py` (reference shim kept),
+tabular row evidence, deletion/revocation tombstones and Agent 1 final
+`acd86a2aa`. Combined assignment + connected suite: **200 passed**. Extended
+assignment suite + joint campaign was **289 passed** before the final module
+rename; the rename suites are green. No live provider call.
+
+**Final controlled state (2026-11-01):** Agent 2 branch
+`codex/brennan-knowledge-accounting-20261101` HEAD `883586234`, clean. Joint
+branch `codex/brennan-joint-20261101` HEAD `51d4369fd`, clean. Combined
+assignment + connected suite: **200 passed**. Full accounting comparison vs
+Agent 1 baseline: 25 pre-existing failures on both sides, no new Agent 2
+failures. Provider contract matrix: zero issues. No live provider call, send,
+tag move or acceptance-status change.
+
+**Final controlled candidate (2026-11-01, supersedes the previous joint head):**
+Agent 2 `codex/brennan-knowledge-accounting-20261101` HEAD `59c9f4df3`
+(clean). Joint `codex/brennan-joint-20261101` HEAD `ddcdb838a` (clean).
+Combined assignment + connected suite: **202 passed**; contract matrix zero
+issues on both. Estimate writes now require an exact `reference_number` and
+sweep the complete estimate list before create, matching the bill controls.
+No live provider call, send, tag move or acceptance-status change.
+
+**Correction / final heads:** Agent 2 `9600f783e`; joint `6165693db`.
+Both clean. Joint combined suite remains **202 passed**. Accounting extraction
+now refuses an unknown vendor by default (obligation, not a silent create).
+
+**Final heads after receipt identity sync:** Agent 2 `ddcf2a787`; joint
+`b9c8ba654`. Both clean. Focused joint regression after the sync: 166 passed.
+
+**Verified final joint HEAD:** `b9c8ba654` — combined assignment + connected
+suite **202 passed** after the receipt identity sync. Agent 2 branch
+`ddcf2a787`, Agent 1 branch `acd86a2aa`. All worktrees clean.
