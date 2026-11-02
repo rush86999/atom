@@ -27,8 +27,10 @@ from typing import Any, Dict, Iterable, List, Tuple
 EXTERNAL_EFFECTS = {
     "create", "update", "delete", "write", "send", "execute",
 }
+PLAN_OUTPUT_EFFECTS = {"plan_produced"}
+PLAN_OUTPUT_ACTIONS = {"goals.decompose"}
 LOCAL_EFFECTS = {
-    "goal_created", "goal_run_started", "plan_produced", "goal_evaluated",
+    "goal_created", "goal_run_started", "goal_evaluated",
     "record_created", "graph_updated", "record_updated", "record_deleted",
 }
 LOCAL_MUTATING_ACTIONS = {
@@ -76,6 +78,8 @@ def _registered_actions() -> Dict[str, Any]:
         lower = {kind.lower() for kind in kinds}
         if lower & EXTERNAL_EFFECTS:
             classification = "external_mutation"
+        elif lower & PLAN_OUTPUT_EFFECTS or name in PLAN_OUTPUT_ACTIONS:
+            classification = "plan_output_validation"
         elif lower & LOCAL_EFFECTS or name in LOCAL_MUTATING_ACTIONS:
             classification = "local_mutation"
         else:
@@ -197,8 +201,12 @@ def main() -> int:
                 if row["classification"] == "external_mutation"]
     local = [row for row in registered["actions"]
              if row["classification"] == "local_mutation"]
+    plan_output = [row for row in registered["actions"]
+                   if row["classification"] == "plan_output_validation"]
     external_covered = [row for row in external if row["verifier_registered"]]
     local_covered = [row for row in local if row["verifier_registered"]]
+    plan_output_covered = [
+        row for row in plan_output if row["verifier_registered"]]
 
     payload = {
         "schema": "atom-oracle-whole-app-mutation-surface-1",
@@ -213,6 +221,7 @@ def main() -> int:
             "total": registered["total"],
             "external_mutation": external,
             "local_mutation": local,
+            "plan_output_validation": plan_output,
             "read_or_other_count": sum(
                 1 for row in registered["actions"]
                 if row["classification"] == "read_or_other"),
@@ -228,6 +237,11 @@ def main() -> int:
             "local_mutation_uncovered": [
                 row["action"] for row in local
                 if not row["verifier_registered"]],
+            "plan_output_total": len(plan_output),
+            "plan_output_covered": len(plan_output_covered),
+            "plan_output_note": (
+                "goals.decompose is structural plan-output validation; it "
+                "does not prove a persisted execution or mutation."),
             "oracle_verifiers": registered["verifiers"],
         },
         "http_mutation_routes": {
@@ -246,10 +260,10 @@ def main() -> int:
             "External provider mutations are limited to six connected "
             "estimate/bill/draft action names; no other provider write action "
             "is registered or oracle-covered.",
-            "Local durable-state mutations through goals/goal_runs/canvas have "
-            "at most the existing task/workflow verifiers; canvas update, "
-            "present, restore and goal-run state changes are not independently "
-            "postcondition-verified.",
+            "All eight registered local durable-state mutation classes now "
+            "have shared effect-family postconditions. goals.decompose is "
+            "classified separately as structural plan-output validation, not "
+            "persisted execution proof.",
             "HTTP mutation routes are overwhelmingly outside the registered "
             "action registry; their correctness is covered, if at all, by "
             "route/service tests rather than the oracle.",
@@ -257,18 +271,15 @@ def main() -> int:
             "is reachable through registered, verified actions.",
         ],
         "next_verifiers": [
-            "canvas.update / canvas.restore_version: compare persisted content "
-            "revision/hash against the authorized mutation and reject stale or "
-            "different-object writes.",
-            "canvas.present_markdown / canvas.present_chart: verify the audit "
-            "record and returned canvas identity, not only the broadcast.",
-            "goals.create / goal_runs.start: verify the persisted goal/run "
-            "identity and state before dependent work continues.",
-            "goals.decompose / goals.evaluate: verify the persisted plan or "
-            "evaluation revision and its source/goal binding.",
+            "Map the 827 mutation-shaped HTTP declarations to actually "
+            "reachable write consumers; group them by effect family instead "
+            "of adding a bespoke checker per route.",
             "Provider send/connect/disconnect/refresh routes: require explicit "
             "operation identity and authoritative readback before claiming "
             "success.",
+            "Plan-output validation remains structural; add persistence "
+            "postconditions only where the action actually persists a plan "
+            "or evaluation.",
         ],
     }
     (out / "inventory.json").write_text(
@@ -290,6 +301,9 @@ def main() -> int:
         f"({len(external_covered)} covered)",
         f"- Local durable-state mutation actions: **{len(local)}** "
         f"({len(local_covered)} covered)",
+        f"- Plan-output validators: **{len(plan_output)}** "
+        f"({len(plan_output_covered)} covered; structural, not persisted "
+        "execution proof)",
         f"- Read/other actions: **{payload['registered_actions']['read_or_other_count']}**",
         "",
         "## HTTP and provider surfaces",
@@ -336,6 +350,8 @@ def main() -> int:
         "external_covered": len(external_covered),
         "local_mutation": len(local),
         "local_covered": len(local_covered),
+        "plan_output": len(plan_output),
+        "plan_output_covered": len(plan_output_covered),
         "http_mutation_routes": len(routes),
         "high_risk_routes": len(high_risk),
         "provider_write_methods": len(writes),

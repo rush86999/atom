@@ -61,6 +61,9 @@ class TestPresentChartHandler:
             title="Demo",
             agent_id="a1",
             session_id="s1",
+            operation_id=None,
+            workspace_id=None,
+            tenant_id=None,
         )
 
     @pytest.mark.asyncio
@@ -121,7 +124,9 @@ class TestPresentMarkdownHandler:
         assert result["action_result"] == "applied"
         assert "remote_id" in result
         tool.assert_awaited_once_with(
-            user_id="u1", content="# hi", title="t", agent_id=None, session_id="s1",
+            user_id="u1", content="# hi", title="t", agent_id=None,
+            session_id="s1", operation_id=None, workspace_id=None,
+            tenant_id=None,
         )
 
     @pytest.mark.asyncio

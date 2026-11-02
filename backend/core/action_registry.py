@@ -1148,6 +1148,10 @@ async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -
         title=title,
         agent_id=(context or {}).get("agent_id"),
         session_id=(context or {}).get("session_id") or args.get("session_id"),
+        operation_id=(
+            args.get("operation_id") or (context or {}).get("operation_id")),
+        workspace_id=(context or {}).get("workspace_id"),
+        tenant_id=(context or {}).get("tenant_id"),
     )
     if isinstance(result, dict) and result.get("success"):
         result.setdefault("status", "applied")
@@ -1180,6 +1184,10 @@ async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]
         title=args.get("title"),
         agent_id=(context or {}).get("agent_id"),
         session_id=(context or {}).get("session_id") or args.get("session_id"),
+        operation_id=(
+            args.get("operation_id") or (context or {}).get("operation_id")),
+        workspace_id=(context or {}).get("workspace_id"),
+        tenant_id=(context or {}).get("tenant_id"),
     )
     if isinstance(result, dict) and result.get("success"):
         result.setdefault("status", "applied")

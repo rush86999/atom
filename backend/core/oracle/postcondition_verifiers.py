@@ -325,17 +325,32 @@ def _canvas_present_postcondition(component_type: str):
         canvas_id = str(
             ctx.get("_oracle_expected_canvas_id")
             or ctx.get("canvas_id") or ctx.get("remote_id") or "").strip()
+        audit_id = str(ctx.get("audit_id") or "").strip()
+        expected_material_digest = str(
+            ctx.get("_oracle_expected_material_sha256") or "").strip()
+        expected_operation = str(
+            ctx.get("_oracle_expected_operation_id") or "").strip()
         if not canvas_id:
             return OracleResult(action, False, "missing canvas_id")
+        if not audit_id:
+            return OracleResult(
+                action, False,
+                "no audit_id from the current presentation invocation")
+        if not expected_material_digest:
+            return OracleResult(
+                action, False,
+                "no frozen material digest for the presentation")
+        if not expected_operation:
+            return OracleResult(
+                action, False,
+                "no frozen operation identity for the presentation")
 
         def _read(session):
             from core.models import CanvasAudit
-            from sqlalchemy import desc
             return (
                 session.query(CanvasAudit)
-                .filter(CanvasAudit.canvas_id == canvas_id)
-                .order_by(desc(CanvasAudit.created_at),
-                          desc(CanvasAudit.id))
+                .filter(CanvasAudit.id == audit_id,
+                        CanvasAudit.canvas_id == canvas_id)
                 .first()
             )
 
@@ -344,43 +359,57 @@ def _canvas_present_postcondition(component_type: str):
             if row is None:
                 return OracleResult(
                     action, False,
-                    f"no canvas_audit row for canvas {canvas_id}")
+                    f"canvas_audit {audit_id[:12]} not found for canvas "
+                    f"{canvas_id}")
             details = row.details_json or {}
             if isinstance(details, str):
                 details = json.loads(details)
-            observed_component = str(
-                (details or {}).get("component_type") or "")
-            verified = (
-                str(row.action_type or "") == "present"
-                and observed_component == component_type
-            )
-            if component_type == "chart":
-                expected_chart = str(
-                    ctx.get("_oracle_expected_chart_type")
-                    or ctx.get("chart_type") or ctx.get("type") or "")
-                observed_chart = str(
-                    (details or {}).get("chart_type")
-                    or ((details or {}).get("chart_config") or {}).get("type")
-                    or "")
-                if expected_chart:
-                    verified = verified and observed_chart == expected_chart
-                expected_points = ctx.get("_oracle_expected_data_points")
-                if expected_points is not None:
-                    verified = (
-                        verified
-                        and (details or {}).get("data_points") == expected_points
-                    )
-            else:
-                expected_title = str(
-                    ctx.get("_oracle_expected_title") or "")
-                observed_title = str((details or {}).get("title") or "")
-                if expected_title:
-                    verified = verified and observed_title == expected_title
+            details = details if isinstance(details, dict) else {}
+            observed_component = str(details.get("component_type") or "")
+            observed_operation = str(details.get("operation_id") or "")
+            observed_digest = str(details.get("material_sha256") or "")
+            observed_material = details.get("material")
+            from core.presentation_material import material_sha256
+            computed_digest = (
+                material_sha256(observed_material)
+                if isinstance(observed_material, dict) else "")
+            expected_workspace = str(
+                ctx.get("_oracle_expected_workspace_id") or "")
+            expected_tenant = str(
+                ctx.get("_oracle_expected_tenant_id") or "")
+            observed_workspace = str(details.get("workspace_id") or "")
+            observed_tenant = str(
+                details.get("tenant_id") or row.tenant_id or "")
+            reasons = []
+            if str(row.action_type or "") != "present":
+                reasons.append(f"action_type={row.action_type!r}")
+            if observed_component != component_type:
+                reasons.append(f"component_type={observed_component!r}")
+            if observed_operation != expected_operation:
+                reasons.append(
+                    f"operation_id={observed_operation!r}, expected "
+                    f"{expected_operation!r}")
+            if not observed_material or not observed_digest:
+                reasons.append("audit carries no material/digest")
+            elif observed_digest != computed_digest:
+                reasons.append("audit material digest does not match its material")
+            elif observed_digest != expected_material_digest:
+                reasons.append("audit material does not match the authorized request")
+            if expected_workspace and observed_workspace != expected_workspace:
+                reasons.append(
+                    f"workspace={observed_workspace!r}, expected "
+                    f"{expected_workspace!r}")
+            if expected_tenant and observed_tenant != expected_tenant:
+                reasons.append(
+                    f"tenant={observed_tenant!r}, expected {expected_tenant!r}")
+            verified = not reasons
             return OracleResult(
                 action, verified,
                 f"canvas_audit {row.id} action_type={row.action_type!r} "
                 f"component_type={observed_component!r} "
-                f"canvas_id={canvas_id}")
+                f"operation={observed_operation!r} "
+                f"material={observed_digest[:12]}"
+                + ("" if verified else "; " + "; ".join(reasons)))
         except Exception as e:  # noqa: BLE001 - unreadable is not verified
             return OracleResult(
                 action, False, f"audit read-back failed: {e}")
@@ -613,6 +642,11 @@ def _goal_postcondition(mode: str):
                         action, False, f"goal {goal_id} not persisted")
                 result_status = str(ctx.get("status") or "")
                 result_progress = ctx.get("progress")
+                if not result_status and result_progress is None:
+                    return OracleResult(
+                        action, False,
+                        "the evaluation returned no status/progress "
+                        "observation to compare with the persisted goal")
                 verified = True
                 if result_status:
                     verified = verified and str(row.status or "") == result_status

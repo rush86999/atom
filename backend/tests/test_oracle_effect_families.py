@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from core.database import Base
 from core.models import Canvas, CanvasAudit, GoalObjective, GoalRun
 from core.oracle import validate
+from core.presentation_material import material_sha256, presentation_material
 import core.oracle.postcondition_verifiers  # noqa: F401 - registers checks
 from core.task_lifecycle import _approval_payload_hash
 
@@ -54,43 +55,97 @@ def _audit(db, canvas, *, action_type="update", details=None):
     return row
 
 
-def test_canvas_present_family_verifies_component_and_identity(db):
+def test_canvas_present_family_verifies_exact_material_and_operation(db):
     canvas = _canvas(db)
+    markdown_material = presentation_material(
+        "canvas.present_markdown", {"content": "APPROVED total 350.00"})
     markdown = _audit(
         db, canvas, action_type="present",
-        details={"component_type": "markdown", "title": "Quote"})
-    result = asyncio.run(validate("canvas.present_markdown", {
-        "db": db, "canvas_id": canvas.id, "remote_id": canvas.id,
+        details={
+            "component_type": "markdown", "title": "Quote",
+            "material": markdown_material,
+            "material_sha256": material_sha256(markdown_material),
+            "operation_id": "op-markdown-1",
+            "workspace_id": "default", "tenant_id": "tenant-1",
+        })
+    good = asyncio.run(validate("canvas.present_markdown", {
+        "db": db, "canvas_id": canvas.id, "audit_id": markdown.id,
         "_oracle_expected_canvas_id": canvas.id,
-        "_oracle_expected_title": "Quote",
-    }))
-    assert result is not None and result.verified is True, result
-
-    wrong = asyncio.run(validate("canvas.present_markdown", {
-        "db": db, "canvas_id": canvas.id,
-        "_oracle_expected_title": "Other",
-    }))
-    assert wrong is not None and wrong.verified is False
-    assert markdown.id
-
-    chart = _audit(
-        db, canvas, action_type="present",
-        details={"component_type": "chart", "chart_type": "bar_chart",
-                 "data_points": 2, "title": "Totals"})
-    good = asyncio.run(validate("canvas.present_chart", {
-        "db": db, "canvas_id": canvas.id,
-        "_oracle_expected_canvas_id": canvas.id,
-        "_oracle_expected_chart_type": "bar_chart",
-        "_oracle_expected_data_points": 2,
+        "_oracle_expected_operation_id": "op-markdown-1",
+        "_oracle_expected_material_sha256": material_sha256(markdown_material),
+        "_oracle_expected_workspace_id": "default",
+        "_oracle_expected_tenant_id": "tenant-1",
     }))
     assert good is not None and good.verified is True, good
-    bad = asyncio.run(validate("canvas.present_chart", {
-        "db": db, "canvas_id": canvas.id,
+
+    wrong_material = presentation_material(
+        "canvas.present_markdown", {"content": "WRONG total 999.00"})
+    wrong_audit = _audit(
+        db, canvas, action_type="present",
+        details={
+            "component_type": "markdown", "title": "Quote",
+            "material": wrong_material,
+            "material_sha256": material_sha256(wrong_material),
+            "operation_id": "op-markdown-2",
+            "workspace_id": "default", "tenant_id": "tenant-1",
+        })
+    wrong = asyncio.run(validate("canvas.present_markdown", {
+        "db": db, "canvas_id": canvas.id, "audit_id": wrong_audit.id,
         "_oracle_expected_canvas_id": canvas.id,
-        "_oracle_expected_chart_type": "pie_chart",
+        "_oracle_expected_operation_id": "op-markdown-2",
+        "_oracle_expected_material_sha256": material_sha256(markdown_material),
+        "_oracle_expected_workspace_id": "default",
+        "_oracle_expected_tenant_id": "tenant-1",
     }))
-    assert bad is not None and bad.verified is False
-    assert chart.id
+    assert wrong is not None and wrong.verified is False
+
+    chart_material = presentation_material(
+        "canvas.present_chart",
+        {"chart_type": "bar_chart",
+         "data": [{"x": "A", "y": 350}, {"x": "B", "y": 10}]})
+    chart = _audit(
+        db, canvas, action_type="present",
+        details={
+            "component_type": "chart", "chart_type": "bar_chart",
+            "data_points": 2, "title": "Totals",
+            "material": chart_material,
+            "material_sha256": material_sha256(chart_material),
+            "operation_id": "op-chart-1",
+            "workspace_id": "default", "tenant_id": "tenant-1",
+        })
+    chart_ok = asyncio.run(validate("canvas.present_chart", {
+        "db": db, "canvas_id": canvas.id, "audit_id": chart.id,
+        "_oracle_expected_canvas_id": canvas.id,
+        "_oracle_expected_operation_id": "op-chart-1",
+        "_oracle_expected_material_sha256": material_sha256(chart_material),
+        "_oracle_expected_workspace_id": "default",
+        "_oracle_expected_tenant_id": "tenant-1",
+    }))
+    assert chart_ok is not None and chart_ok.verified is True, chart_ok
+
+    wrong_chart = presentation_material(
+        "canvas.present_chart",
+        {"chart_type": "bar_chart",
+         "data": [{"x": "A", "y": 999}, {"x": "B", "y": 10}]})
+    wrong_chart_audit = _audit(
+        db, canvas, action_type="present",
+        details={
+            "component_type": "chart", "chart_type": "bar_chart",
+            "data_points": 2, "title": "Totals",
+            "material": wrong_chart,
+            "material_sha256": material_sha256(wrong_chart),
+            "operation_id": "op-chart-2",
+            "workspace_id": "default", "tenant_id": "tenant-1",
+        })
+    chart_bad = asyncio.run(validate("canvas.present_chart", {
+        "db": db, "canvas_id": canvas.id, "audit_id": wrong_chart_audit.id,
+        "_oracle_expected_canvas_id": canvas.id,
+        "_oracle_expected_operation_id": "op-chart-2",
+        "_oracle_expected_material_sha256": material_sha256(chart_material),
+        "_oracle_expected_workspace_id": "default",
+        "_oracle_expected_tenant_id": "tenant-1",
+    }))
+    assert chart_bad is not None and chart_bad.verified is False
 
 
 def test_canvas_update_family_verifies_content_and_mirror(db):
@@ -387,3 +442,133 @@ def test_adapter_uses_shared_goal_and_task_postconditions(db, monkeypatch):
     ))
     assert task_result["status"] == "applied", task_result
     assert task_result["oracle_verified"] is True
+
+
+def _presentation_audit(db, canvas, action_name, args, *, operation_id,
+                        workspace_id="default", tenant_id="tenant-1"):
+    material = presentation_material(action_name, args)
+    return _audit(
+        db, canvas, action_type="present",
+        details={
+            "component_type": (
+                "markdown" if action_name.endswith("markdown") else "chart"),
+            "title": args.get("title") or "Quote",
+            "material": material,
+            "material_sha256": material_sha256(material),
+            "operation_id": operation_id,
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
+        })
+
+
+def test_adapter_presentation_positive_binds_exact_audit(db, monkeypatch):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = "canvas.present_markdown"
+    canvas = _canvas(db)
+    args = {"canvas_id": canvas.id, "content": "APPROVED total 350.00",
+            "title": "Quote", "operation_id": "op-present-1"}
+    audit = _presentation_audit(db, canvas, name, args,
+                                operation_id="op-present-1")
+    action = action_registry.get_action(name)
+
+    async def handler(arguments, context):
+        return {"success": True, "status": "applied",
+                "action_result": "applied", "canvas_id": canvas.id,
+                "remote_id": canvas.id, "audit_id": audit.id}
+
+    monkeypatch.setattr(action, "handler", handler)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": args},
+        {"workspace_id": "default", "employee_id": "user-1",
+         "tenant_id": "tenant-1", "run_id": "r1",
+         "assignment_id": "a1", "db": db},
+    ))
+    assert result["status"] == "applied", result
+    assert result["oracle_verified"] is True
+
+
+def test_adapter_presentation_handler_mutation_is_refuted(db, monkeypatch):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = "canvas.present_markdown"
+    canvas = _canvas(db)
+    approved = {"canvas_id": canvas.id, "content": "APPROVED total 350.00",
+                "title": "Quote", "operation_id": "op-present-2"}
+    wrong = {**approved, "content": "WRONG total 999.00"}
+    wrong_audit = _presentation_audit(
+        db, canvas, name, wrong, operation_id="op-present-2")
+    action = action_registry.get_action(name)
+    calls = {"count": 0}
+
+    async def handler(arguments, context):
+        calls["count"] += 1
+        arguments["content"] = "WRONG total 999.00"
+        return {"success": True, "status": "applied",
+                "action_result": "applied", "canvas_id": canvas.id,
+                "remote_id": canvas.id, "audit_id": wrong_audit.id}
+
+    monkeypatch.setattr(action, "handler", handler)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": approved},
+        {"workspace_id": "default", "employee_id": "user-1",
+         "tenant_id": "tenant-1", "run_id": "r1",
+         "assignment_id": "a1", "db": db},
+    ))
+    assert result["status"] == "uncertain", result
+    assert calls["count"] == 1
+
+
+def test_adapter_old_audit_cannot_certify_new_operation(db, monkeypatch):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = "canvas.present_markdown"
+    canvas = _canvas(db)
+    args = {"canvas_id": canvas.id, "content": "New presentation",
+            "title": "Quote", "operation_id": "op-new"}
+    old_audit = _presentation_audit(
+        db, canvas, name, args, operation_id="op-old")
+    action = action_registry.get_action(name)
+
+    async def handler(arguments, context):
+        return {"success": True, "status": "applied",
+                "action_result": "applied", "canvas_id": canvas.id,
+                "remote_id": canvas.id, "audit_id": old_audit.id}
+
+    monkeypatch.setattr(action, "handler", handler)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": args},
+        {"workspace_id": "default", "employee_id": "user-1",
+         "tenant_id": "tenant-1", "run_id": "r1",
+         "assignment_id": "a1", "db": db},
+    ))
+    assert result["status"] == "uncertain", result
+
+
+def test_adapter_missing_presentation_material_refuses_before_dispatch(
+        db, monkeypatch):
+    from core.action_registry import action_registry
+    from core.assignment_executor import _action_registry_adapter
+
+    name = "canvas.present_markdown"
+    canvas = _canvas(db)
+    action = action_registry.get_action(name)
+    calls = {"count": 0}
+
+    async def handler(arguments, context):  # pragma: no cover - must not run
+        calls["count"] += 1
+        return {"success": True}
+
+    monkeypatch.setattr(action, "handler", handler)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": {"canvas_id": canvas.id}},
+        {"workspace_id": "default", "employee_id": "user-1",
+         "tenant_id": "tenant-1", "run_id": "r1",
+         "assignment_id": "a1", "db": db},
+    ))
+    assert result["status"] == "failed", result
+    assert result["error_class"] == "presentation_binding_unavailable"
+    assert calls["count"] == 0

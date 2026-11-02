@@ -3743,3 +3743,18 @@ def test_readback_conflict_preserves_remote_identity_and_blocks_dependents(
     assert step_by_id(
         env["lifecycle"].get_assignment(run_id), "draft")["status"] == (
             "pending")
+
+
+def test_plan_shape_output_is_not_a_durable_mutation():
+    """goals.decompose is plan validation, not persisted execution proof."""
+    from core.action_registry import action_registry
+    from core.assignment_executor import _registered_action_mutates
+
+    plan = action_registry.get_action("goals.decompose")
+    assert plan is not None
+    assert _registered_action_mutates(
+        plan, {"step": {"effect": "local"}}) is False
+    create = action_registry.get_action("goals.create")
+    assert create is not None
+    assert _registered_action_mutates(
+        create, {"step": {"effect": "local"}}) is True

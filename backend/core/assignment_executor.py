@@ -5762,8 +5762,10 @@ class AssignmentExecutor:
 _MUTATING_ACTION_EFFECTS = {
     "write", "create", "update", "delete", "send", "execute",
     "graph_updated", "record_created", "record_updated", "record_deleted",
-    "goal_created", "goal_run_started", "plan_produced", "goal_evaluated",
+    "goal_created", "goal_run_started", "goal_evaluated",
 }
+# ``plan_produced`` (goals.decompose) is pure plan-shape output, not a durable
+# mutation: it must not be counted as persisted execution proof.
 
 # Registered actions that mutate local durable state without declaring an
 # effect family in their registration metadata.  Keep this list aligned with
@@ -5771,7 +5773,7 @@ _MUTATING_ACTION_EFFECTS = {
 _LOCAL_MUTATING_ACTIONS = {
     "canvas.present_chart", "canvas.present_markdown", "canvas.restore_version",
     "canvas.update", "tasks.create", "goals.create", "goals.evaluate",
-    "goals.decompose", "goal_runs.start",
+    "goal_runs.start",
 }
 
 
@@ -5995,6 +5997,8 @@ async def _action_registry_adapter(
         "tenant_id": context.get("tenant_id"),
         "task_revision": (context.get("task_revision") or {}).get(
             "revision"),
+        "operation_id": str(
+            (context.get("step") or {}).get("operation_id") or ""),
     }
     failures = action.check_preconditions(execution_context)
     if failures:
@@ -6004,6 +6008,65 @@ async def _action_registry_adapter(
             "error_class": "precondition_failed",
             "evidence": failures,
         }
+    # Freeze the complete authorized presentation material BEFORE any
+    # handler runs. Missing material is a pre-dispatch refusal, never an
+    # applied presentation with a title/count fallback.
+    expected_presentation_material = None
+    expected_material_sha256 = ""
+    if name in ("canvas.present_markdown", "canvas.present_chart"):
+        from core.presentation_material import (
+            material_sha256,
+            presentation_material,
+        )
+        try:
+            expected_presentation_material = presentation_material(
+                name, authorized_arguments)
+        except Exception as exc:  # noqa: BLE001 - refuse before effect
+            return {
+                "status": "failed",
+                "message": (
+                    "the authorized presentation material could not be "
+                    f"normalized before dispatch: {type(exc).__name__}"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        if expected_presentation_material is None:
+            return {
+                "status": "failed",
+                "message": (
+                    "the canvas presentation has no complete authorized "
+                    "material to verify; refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        material = expected_presentation_material or {}
+        if material.get("kind") == "markdown" and not str(
+                material.get("content") or "").strip():
+            return {
+                "status": "failed",
+                "message": (
+                    "the markdown presentation has no authorized content; "
+                    "refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        if material.get("kind") == "chart" and (
+                not str(material.get("chart_type") or "").strip()
+                or not isinstance(material.get("data"), list)):
+            return {
+                "status": "failed",
+                "message": (
+                    "the chart presentation has no authorized type/data; "
+                    "refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
+        expected_material_sha256 = material_sha256(
+            expected_presentation_material)
+        if not expected_material_sha256:
+            return {
+                "status": "failed",
+                "message": (
+                    "the canvas presentation has no complete authorized "
+                    "material to verify; refusing before dispatch"),
+                "error_class": "presentation_binding_unavailable",
+            }
     mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
@@ -6091,14 +6154,20 @@ async def _action_registry_adapter(
     oracle_evidence = ""
     oracle_failed_closed = False
     expected_digest = canonical_digest or supplied_digest
+    executor_operation_id = str(
+        (context.get("step") or {}).get("operation_id") or "")
     expected_operation = str(
         expected_binding.get("operation_id")
-        or authorized_arguments.get("operation_id") or "")
+        or authorized_arguments.get("operation_id")
+        or executor_operation_id or "")
     expected_organization = str(
         expected_binding.get("organization_id")
         or authorized_arguments.get("organization_id") or "")
     expected_provider = str(expected_binding.get("provider") or "")
     expected_target = str(expected_binding.get("target") or "")
+    expected_tenant_id = str(
+        authorized_arguments.get("tenant_id")
+        or context.get("tenant_id") or "")
     expected_canvas_id = str(
         authorized_arguments.get("canvas_id") or "")
     expected_restore_audit_id = (
@@ -6156,6 +6225,9 @@ async def _action_registry_adapter(
         "_oracle_expected_restore_audit_id": expected_restore_audit_id,
         "_oracle_expected_canvas_content_sha256": (
             expected_canvas_content_sha256),
+        "_oracle_expected_material_sha256": expected_material_sha256,
+        "_oracle_expected_material": expected_presentation_material,
+        "_oracle_expected_tenant_id": expected_tenant_id,
         "_oracle_expected_goal_id": expected_goal_id,
         "_oracle_expected_goal_title": expected_goal_title,
         "_oracle_expected_workspace_id": expected_workspace_id,
