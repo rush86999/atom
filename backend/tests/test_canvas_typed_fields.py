@@ -547,6 +547,62 @@ def test_missing_value_clarification_resumes_the_same_derive(db, user):
               "answers": [{"row": 2, "field_id": "quantity", "value": "3"}]})
     assert conflict.status_code == 409, conflict.text
 
+    # A later edit invalidates the resolved clarification; an old duplicate
+    # answer must not be reported as the current result.
+    current = current_revision(canvas)
+    edit_operation(
+        db, canvas, user, [{"row": 2, "column": "Qty", "value": "4"}],
+        expected_revision=current)
+    stale_duplicate = client.post(
+        f"/api/canvas/canvas_typed_clarify/capability/derive/"
+        f"{clarification['id']}/answer", json=answer)
+    assert stale_duplicate.status_code == 409, stale_duplicate.text
+    assert stale_duplicate.json()["error"]["code"] == "stale_revision"
+
+
+def test_typed_string_and_receipt_limits_refuse_without_partial_total(
+        db, user, monkeypatch):
+    canvas = _canvas(db, user, "canvas_typed_limits", "Limits")
+    manifest = {
+        "schema_version": 2,
+        "base_component": "table",
+        "operations": ["read", "derive", "bind"],
+        "fields": [
+            {"id": "item_id", "label": "Item", "type": "string",
+             "column": "Item", "required": True},
+            {"id": "note", "label": "Note", "type": "string",
+             "column": "Note"},
+        ],
+        "outputs": ["xlsx"],
+    }
+    set_manifest(db, canvas, user, manifest)
+    bound = bind_dataset(
+        db, canvas, user, ["Item", "Note"],
+        [["A", "x" * 20001]], source={"file_name": "limits.csv"})
+    with pytest.raises(CapabilityError) as exc:
+        derive_operation(
+            db, canvas, user,
+            expected_revision=bound["revision"],
+            manifest_revision_value=bound["manifest"]["manifest_revision"],
+            source_version=bound["source"]["source_version"],
+        )
+    assert exc.value.code == "invalid_field_value"
+
+    monkeypatch.setenv("ATOM_CANVAS_DERIVE_MAX_BYTES", "1000")
+    small = _canvas(db, user, "canvas_typed_small", "Small")
+    set_manifest(db, small, user, _quote_manifest())
+    bound = bind_dataset(
+        db, small, user, ["Item", "Qty", "Price"],
+        [["A", "2", "100.00"]], source={"file_name": "small.csv"})
+    with pytest.raises(CapabilityError) as exc:
+        derive_operation(
+            db, small, user,
+            expected_revision=bound["revision"],
+            manifest_revision_value=bound["manifest"]["manifest_revision"],
+            source_version=bound["source"]["source_version"],
+        )
+    assert exc.value.code == "receipt_too_large"
+
 
 def test_declared_custom_code_runtime_is_refused_without_host_fallback(
         monkeypatch):

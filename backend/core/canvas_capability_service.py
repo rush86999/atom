@@ -1855,6 +1855,15 @@ def _typed_value(value: Any, field: Dict[str, Any], row: int) -> Any:
             field_id=field["id"], row=row,
         )
     text = str(value)
+    max_string = int(os.getenv(
+        "ATOM_CANVAS_MAX_TYPED_STRING", "20000") or 20000)
+    if len(text) > max_string:
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} exceeds the {max_string}-"
+            "character typed-value limit.",
+            field_id=field["id"], row=row,
+        )
     if field_type == "date":
         try:
             return date.fromisoformat(text.strip()[:10]).isoformat()
@@ -2220,9 +2229,18 @@ def derive_operation(
         "row_count": len(receipt_rows),
         "missing": [],
     }
-    receipt["digest"] = hashlib.sha256(json.dumps(
+    receipt_blob = json.dumps(
         receipt, sort_keys=True, separators=(",", ":"), default=str,
-    ).encode("utf-8")).hexdigest()
+    ).encode("utf-8")
+    max_receipt = int(os.getenv(
+        "ATOM_CANVAS_DERIVE_MAX_BYTES", str(8 * 1024 * 1024)) or 8 * 1024 * 1024)
+    if len(receipt_blob) > max_receipt:
+        raise CapabilityError(
+            "receipt_too_large",
+            f"The complete derive receipt is {len(receipt_blob)} bytes; the "
+            f"limit is {max_receipt}. No partial total was returned.",
+        )
+    receipt["digest"] = hashlib.sha256(receipt_blob).hexdigest()
     return {
         "success": True,
         "operation": "derive",
@@ -2322,6 +2340,14 @@ def answer_derive_clarification(
     digest = _answers_digest(normalized)
     if clarification.get("status") == "resolved":
         if clarification.get("answers_digest") == digest:
+            if int(clarification.get("revision") or 0) != current_revision(
+                    canvas):
+                raise CapabilityError(
+                    "stale_revision",
+                    "The canvas changed after this clarification was "
+                    "resolved; derive again from the current revision.",
+                    409,
+                )
             return {
                 "success": True,
                 "status": "already_resolved",
