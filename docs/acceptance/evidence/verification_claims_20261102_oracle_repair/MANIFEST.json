@@ -1,0 +1,105 @@
+{
+  "artifacts": {
+    "assignment-regression.log": "6219e39b9afd8d10fb20549dc97147bee8870b2cdabb90d17ed464a3f0270ed6",
+    "canvas-focused.log": "77976de86c0e5cce55300863a51fac1ab04e4f20ab00c8f316aceea7cd2f79db",
+    "canvas-probes.log": "7c2c9a1622ae037cc8801e5e78440d5f5629f7ba93e85b8836a02e137ebb9f80",
+    "connected-readback.log": "cc44c31d366c038a5a1f91cc0d54e074fb65eda499dd91849735034ed573ad9a",
+    "frontend-tests.log": "5e6a9f28b61d6888a8db9f02d6fe331a386e24e66c81901b976e4e17a2206efb",
+    "oracle-team-mem.log": "5f1a6232f5d505dc4b2e6ec8593af67e590a68bed8eae1327dc71f32f8ddb0ec",
+    "oracle_registry.json": "9ceb88c751839797a1796cb0cf470c6ca270fb4922cfd80701d41d0dace027af",
+    "teaching-neighborhood.log": "8cfa8f3f12815dc0d0d7d523aa61e1091929bf4a14ef4d208497055e7c626882",
+    "verifier-oracle-probes.py": "375a8c60890f089be683a24d1aa659e939f38a431aab0e6f3033157c2f7529e0"
+  },
+  "candidate": {
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source": "6f0acd0bd",
+    "manifest_note": "This evidence commit is docs-only after the executed source; it was not served.",
+    "previous_source": "fd4616c25",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/connected_actions.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/tests/integration/test_brennan_joint_document_flow.py",
+    "backend/tests/integration/test_brennan_joint_quote_campaign.py",
+    "backend/tests/test_canvas_assignment_integration.py",
+    "backend/tests/test_memento_candidate_review.py",
+    "backend/tests/test_oracle_connected_mutations.py",
+    "backend/tests/unit/test_brennan_agent2_connected_operations.py"
+  ],
+  "claims": [
+    "ORACLE-01",
+    "MEM-07",
+    "TEAM-05"
+  ],
+  "exclusions": [
+    "no browser/UI rerun for this bundle",
+    "no live provider lookup, refresh, write or send",
+    "Outlook readback uses the production service method with a controlled service in tests",
+    "MEM-07 closes pending candidate/review, not safe autonomous application",
+    "ORACLE coverage is the registered connected mutation inventory plus existing task/workflow verifiers, not every application mutation surface",
+    "connected acceptance remains 6431bcb78; historical 111/123 unchanged"
+  ],
+  "remaining_open_claims": [
+    "ORCH-01",
+    "ORCH-02",
+    "ORCH-07",
+    "GOAL-02",
+    "MINI-03",
+    "MINI-04",
+    "MINI-05",
+    "INT-09",
+    "ROUTE-07"
+  ],
+  "repairs": [
+    "oracle requires explicit verified status, no missing/mismatches, and agreeing digest copies",
+    "action registry consumer downgrades applied to uncertain on a refuted postcondition",
+    "Outlook draft independently reads back the created draft and compares material fields; no second create",
+    "MEM-07 runtime tool-failure trigger files a pending candidate through the real reflection/Memento path"
+  ],
+  "schema": "atom-verification-claims-oracle-repair-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "039f9d80dea89cf274787942760c8d37a0f14c11e92cba20b14bdb5beb93b4f7",
+    "backend/core/connected_actions.py": "c8059faffe4fe2a831707e8ee1d764fd5f0b0c88e9914229202dd91eb1d34e24",
+    "backend/core/oracle/postcondition_verifiers.py": "e557a5619fcd784c75a64d2a0ec7bce2501fcae49d741bdd10633022b2bed4e7",
+    "backend/tests/integration/test_brennan_joint_document_flow.py": "b40d7b12a8f989b4acbed19d3f2394eb5dd70058a59e026218098474a1fe8953",
+    "backend/tests/integration/test_brennan_joint_quote_campaign.py": "117e39e66556800400bc23a55e4f80904b15fbeee32c27646bb2a515382dc338",
+    "backend/tests/test_canvas_assignment_integration.py": "7ce9b642e0957a41deac5128ba054f763c082f4ffc5bc26955346361cfce647b",
+    "backend/tests/test_memento_candidate_review.py": "03114dddb1d5ee78f7ec191455464fed07c33f45fd99fecacdae1bfe20aa3a1d",
+    "backend/tests/test_oracle_connected_mutations.py": "58325e90234dee1c4956ec1c151fcf337bb191095f61681fea8311b4a9907ae5",
+    "backend/tests/unit/test_brennan_agent2_connected_operations.py": "804ff03d1bfbee86ae4927014bf1aaceb49192d46d9b869c58f56dbb40147a24"
+  },
+  "tests": {
+    "assignment_regression": {
+      "command": "TESTING=1 pytest tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py -q",
+      "result": "167 passed"
+    },
+    "canvas_assignment_probes": {
+      "command": "TESTING=1 pytest tests/test_canvas_assignment_integration.py tests/test_canvas_typed_fields.py /private/tmp/test_verifier_canvas_assignment_boundaries.py /private/tmp/test_verifier_canvas_boundaries.py -q",
+      "result": "42 passed"
+    },
+    "canvas_focused": {
+      "command": "TESTING=1 pytest <canvas focused suite> -q",
+      "result": "127 passed"
+    },
+    "connected_readback": {
+      "command": "TESTING=1 pytest tests/unit/test_brennan_agent2_connected_operations.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py -q",
+      "result": "59 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest <three canvas suites> --runInBand",
+      "result": "7 passed"
+    },
+    "oracle_team_mem_probes": {
+      "command": "TESTING=1 pytest tests/test_oracle_connected_mutations.py tests/test_org_politics_automation.py tests/test_memento_candidate_review.py /private/tmp/test_verifier_oracle_boundaries.py -q",
+      "result": "29 passed"
+    },
+    "teaching_neighborhood": {
+      "command": "TESTING=1 pytest <teaching neighborhood> -q",
+      "result": "203 passed"
+    }
+  }
+}
