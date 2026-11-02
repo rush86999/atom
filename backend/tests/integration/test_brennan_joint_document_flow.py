@@ -468,7 +468,14 @@ def test_one_assignment_consumes_bytes_calculates_and_drafts(env, monkeypatch):
             "defaults": {"price_basis": "contract"},
             "discount_mode": "percent",
             "discount_authority": "price-list:v1",
-            "source_ref": {"resource_id": "file-1", "version": "v1"},
+            "source_identity": {
+                "resource_id": {
+                    "$ref": "read.data.read_receipt.resource_id"},
+                "version": {
+                    "$ref": "read.data.read_receipt.version"},
+                "sha256": {
+                    "$ref": "read.data.read_receipt.fields.sha256"},
+            },
         },
         effect="local",
     )
@@ -595,6 +602,11 @@ def test_one_assignment_consumes_bytes_calculates_and_drafts(env, monkeypatch):
                      if step["step_id"] == "calculate")
     assert calc_step["status"] == "applied"
     assert calc_step["result_value"] == "362.50"
+    calc_internal = next(
+        step for step in env["lifecycle"].get_assignment(run_id)["steps"]
+        if step["step_id"] == "calculate")
+    assert calc_internal["result"]["rows"][0]["source_ref"]["version"] == "v1"
+    assert calc_internal["result"]["rows"][0]["source_ref"]["sha256"]
     estimate_step = next(step for step in started["steps"]
                          if step["step_id"] == "estimate")
     assert estimate_step["status"] == "awaiting_approval"
