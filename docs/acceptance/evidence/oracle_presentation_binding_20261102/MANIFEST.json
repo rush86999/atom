@@ -1,0 +1,247 @@
+{
+ "schema": "atom-oracle-presentation-binding-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "0d8767e3ac2494dd7a4b88ffc790f898035e8586",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "runtime_identity": "INFO:core.runtime_identity:runtime identity: source_id=0d8767e3ac24 revision=0d8767e3ac24 dirty=False (0 modified, 0 untracked)",
+  "frontend_build_id": "SAOb9wYp1j8dBc4h_u5dn",
+  "supersedes_source": "f8f8de387 (acceptance withheld for the three presentation false passes)"
+ },
+ "runtime": {
+  "world": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102",
+  "backend": {
+   "url": "http://127.0.0.1:8096",
+   "source_id": "0d8767e3ac24",
+   "dirty": false,
+   "health": "ok"
+  },
+  "frontend": {
+   "url": "http://127.0.0.1:3137",
+   "build_id": "SAOb9wYp1j8dBc4h_u5dn"
+  }
+ },
+ "repairs": {
+  "false_pass_1_markdown_wrong_content_same_title": "exact audit material digest required; title diagnostic",
+  "false_pass_2_chart_wrong_values_same_count": "chart data+config digest required; point count diagnostic",
+  "false_pass_3_old_audit_new_operation": "exact audit_id from the invocation + frozen operation id; latest row never used",
+  "pre_dispatch": "complete authorized material/operation/workspace/tenant frozen before handler; missing material refuses pre-dispatch",
+  "forged_returned_digest": "verifier recomputes digest from the persisted material; returned digest not trusted",
+  "scope": "workspace/tenant/canvas must match the frozen request",
+  "plan_output": "goals.decompose classified structural plan validation, not durable mutation coverage"
+ },
+ "campaign": {
+  "result": "campaign-result.json",
+  "status": "passed",
+  "checks_passed": 17,
+  "checks_total": 17,
+  "checks": [
+   {
+    "name": "promoted document lesson is explicit and source-bound",
+    "ok": true
+   },
+   {
+    "name": "quote receipt starts an ordinary assignment",
+    "ok": true
+   },
+   {
+    "name": "real backend restart preserves the prepared action",
+    "ok": true
+   },
+   {
+    "name": "prepared action survives restart without dispatch",
+    "ok": true
+   },
+   {
+    "name": "quote assignment completes after action approval",
+    "ok": true
+   },
+   {
+    "name": "quote document artifact is attached",
+    "ok": true
+   },
+   {
+    "name": "quote document contains the server total and provenance",
+    "ok": true
+   },
+   {
+    "name": "quote document consumes the promoted lesson",
+    "ok": true
+   },
+   {
+    "name": "declared registered action has readback evidence",
+    "ok": true
+   },
+   {
+    "name": "duplicate continuation does not dispatch the action again",
+    "ok": true
+   },
+   {
+    "name": "source change produces a new server receipt",
+    "ok": true
+   },
+   {
+    "name": "old source receipt is refused after the change",
+    "ok": true
+   },
+   {
+    "name": "service proposal completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "service document carries the CAD total and lesson",
+    "ok": true
+   },
+   {
+    "name": "exception queue completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "exception document carries the counts and lesson",
+    "ok": true
+   },
+   {
+    "name": "cancelled action assignment is terminal",
+    "ok": true
+   }
+  ]
+ },
+ "controls": {
+  "supplied_negative_probes": {
+   "result": "3 passed",
+   "log": "negative-probe.log"
+  },
+  "focused_presentation_controls": {
+   "result": "28 passed",
+   "log": "focused-controls.log",
+   "cases": [
+    "positive exact material/operation",
+    "wrong markdown same title",
+    "wrong chart values same count",
+    "old audit with identical content",
+    "missing audit",
+    "wrong workspace",
+    "exact audit wins over newer latest",
+    "forged returned digest",
+    "handler argument mutation",
+    "missing material refuses before dispatch",
+    "concurrent presentations",
+    "plan-output classification"
+   ]
+  },
+  "backend_combined": {
+   "command": "TESTING=1 pytest <28 files> -q",
+   "result": "470 passed",
+   "log": "backend-tests.log"
+  },
+  "frontend_canvas": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "effect_counts": {
+  "action_remote_id": "da30ae31-3d2f-4b10-a6cf-60748b5c0318",
+  "audit_operation_id": "3fbb4144-9839-4570-8457-23d2a0072c33",
+  "pending_operation_id": "3fbb4144-9839-4570-8457-23d2a0072c33",
+  "pending_payload_sha256": "859e4a9ce1219f866ecf13e5de4beb5cfe9ea8367c658b8b39b0a037db1a1e5d",
+  "pending_identity_unchanged_across_restart": true,
+  "audit_rows_before_duplicate": 1,
+  "audit_rows_after_duplicate": 1,
+  "documents": {
+   "quote": {
+    "sha256": "ae65495b0206d668066ed1bde9bd8fd8941ebe94675683a274abf3b17f6db7f4",
+    "total": "350.00"
+   },
+   "service": {
+    "sha256": "e148adc5f71e850fd046a0ba0b4b8c2862896275802ec8472d528fda7b81722b",
+    "total": "630.00 CAD"
+   },
+   "queue": {
+    "sha256": "b940187011222178a7811388374ed9284b4a4ff6183802c796f925ca9f242bb5",
+    "total": "3 / 170.00"
+   }
+  },
+  "font": "Georgia 18 for all three"
+ },
+ "oracle": {
+  "registry_union": [
+   "brennan.books.create_bill",
+   "brennan.books.create_estimate",
+   "brennan.outlook.create_draft",
+   "canvas.present_chart",
+   "canvas.present_markdown",
+   "canvas.restore_version",
+   "canvas.update",
+   "connected.books.create_bill",
+   "connected.books.create_estimate",
+   "connected.outlook.create_draft",
+   "goal_runs.start",
+   "goals.create",
+   "goals.decompose",
+   "goals.evaluate",
+   "tasks.create",
+   "trigger_workflow"
+  ],
+  "registry_count": 16,
+  "inventory": {
+   "registered_actions": 90,
+   "external_mutation": 6,
+   "external_covered": 6,
+   "local_mutation": 8,
+   "local_covered": 8,
+   "plan_output": 1,
+   "plan_output_covered": 1,
+   "mutating_http_routes": 827,
+   "provider_write_methods": 311
+  }
+ },
+ "books_dependency": "not repeated: presentation pre-dispatch only; connected/Books readback tests in the 470 matrix",
+ "open_items": [
+  "whole-app HTTP/provider oracle coverage",
+  "TEAM-05 real LLM sweep",
+  "MEM-07 approval/apply consumption",
+  "ORCH/GOAL model work",
+  "MINI Linux/KVM",
+  "INT/ROUTE live authorization"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/full_app_consolidated_integrated_20261102/",
+  "docs/acceptance/evidence/full_app_integrated_f8f8de387/",
+  "docs/acceptance/evidence/full_app_consolidated_20261102/",
+  "docs/acceptance/evidence/full_app_batch_20261102/",
+  "docs/acceptance/evidence/claim_progress_20261102/"
+ ],
+ "exclusions": [
+  "no live provider lookup, refresh, write, send, credential, consent or spend",
+  "no database reseed",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "artifacts": {
+  "README.md": "f942f6365fc347bd9b01318854419e5b842b68de524b513246c53ca0d002c737",
+  "TEST_RESULTS.md": "15572a1d88e96a7a33fe62ea0872f9adcbec4b82f5c446e5da10c5a68d9d8c29",
+  "audit-row.txt": "4595709b10ca3f84d27463d07e6efd9367e718083f8a38a667d631f0ec7583e0",
+  "backend-health.json": "1567deb4390de6e96c202c2225e6ee7d9233709937876a1878168159e961b710",
+  "backend-tests.log": "291fbf0685f6c9ce4dbeceef4e883b11991a77c309d0ea3bb7444eeaa750ded3",
+  "campaign-result.json": "c2df1a4ac4ef7624aea55b66801345344de71b96a18ac2f25cc57c08505b39ae",
+  "focused-controls.log": "436c371c9e70b2e6b0b34a99f1f135c61a9f104957eff37997e56bd84bc32c87",
+  "frontend-build-id.txt": "fea271a97dbd31d03f6635d8921f6b0b9d7564665e180ed99eb5863f1ddc8ff8",
+  "frontend-tests.log": "5e5d90cb1ed2676983420366677e06f7f7157b622af8b5878adbf9a4d4c45620",
+  "negative-probe.log": "ad162e9bd879c467b0b6f948ea0d3eba5c8b74e43b7de53f970d652d67400443",
+  "oracle-registry.txt": "b2e86f358243ba61207b20ed74bf98a8afbcd6005c4c04c3091cb2c61b731053",
+  "oracle-whole-app-inventory/README.md": "8a69f34e4f5a291ee20c37a927fb1c3645caf2bcb2e9bac60e03fa45605d5d48",
+  "oracle-whole-app-inventory/inventory.json": "5cf2fe0b16514f567f334043ba7fe34eaa4daa490eeb042801755d31ecbd7407",
+  "queue-document.docx": "b940187011222178a7811388374ed9284b4a4ff6183802c796f925ca9f242bb5",
+  "queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+  "quote-changed.csv": "2bf5e0039f8e4dab21ad738dc10708179573dc38328a5dbb2af8ede8d4a3742b",
+  "quote-document.docx": "ae65495b0206d668066ed1bde9bd8fd8941ebe94675683a274abf3b17f6db7f4",
+  "quote-journey.png": "cd2a6d3211c73a6df3a1647d11415a6391004d59a08d269a22b32ebb3f9a0e26",
+  "quote.csv": "4db47c8c4d1030e5f2011605e881dbe2536ecaefa120bb7baabda2cc21d4134f",
+  "runtime-identity.txt": "a5091521bc6bbfdd5ff221f4e810fc3fa9fd9e7297f8fff56e6c3b0f9559e744",
+  "service-document.docx": "e148adc5f71e850fd046a0ba0b4b8c2862896275802ec8472d528fda7b81722b",
+  "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+  "world-manifest.json": "6e87de5b47b8d9bbf148068ce7c6eca6b316a615cf3513e263ea038200eba1a1"
+ }
+}

@@ -1,0 +1,74 @@
+
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation 
+-------------------------------- live log setup --------------------------------
+2026-11-02 15:31:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 15:31:40 [    INFO] EscalationManager initialized
+2026-11-02 15:31:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:31:40 [    INFO] EscalationManager initialized
+2026-11-02 15:31:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 15:31:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 15:31:40 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [  7%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 10%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 17%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 21%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 25%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 28%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 32%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 35%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 39%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 42%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [ 46%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 50%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 53%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 57%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 60%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 64%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 67%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 71%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 75%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 78%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 82%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [ 85%]
+tests/test_presentation_binding_controls.py::test_concurrent_presentations_bind_their_own_audits PASSED [ 89%]
+tests/test_presentation_binding_controls.py::test_missing_audit_id_is_unverified PASSED [ 92%]
+tests/test_presentation_binding_controls.py::test_forged_result_digest_cannot_rescue_a_wrong_audit PASSED [ 96%]
+tests/test_presentation_binding_controls.py::test_goal_evaluate_without_an_observation_is_refuted PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 56 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 28 passed, 62 warnings in 14.29s =======================

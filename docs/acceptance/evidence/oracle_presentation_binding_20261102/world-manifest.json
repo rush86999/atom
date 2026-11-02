@@ -1,0 +1,11 @@
+{
+  "backend_port": 8096,
+  "created_at": "2026-11-02T14:53:06.128611+00:00",
+  "database": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/atom.db",
+  "frontend_port": 3137,
+  "last_launched_at": "2026-11-02T20:33:27.016515+00:00",
+  "repo": "/private/tmp/atom-full-app",
+  "schema": "atom-integrated-local-world-1",
+  "secret_file": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/.atom-secret",
+  "world": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102"
+}
