@@ -90,3 +90,42 @@ def test_meta_agent_consumes_the_promoted_skill(env, monkeypatch):  # noqa: F811
     block = agent._retrieve_skill_instructions(REQUEST)
     assert "repair_outlook_search" in block
     assert "def repair_outlook_search" not in block
+
+
+def test_react_step_final_model_request_contains_the_reviewed_skill(
+        env, monkeypatch, tmp_path):  # noqa: F811
+    import asyncio
+    import json
+    import os
+
+    from core.react_models import ReActStep
+
+    candidate = _candidate(env)
+    _apply(env, candidate)
+    monkeypatch.setattr("core.database.get_db_session", env["factory"])
+    agent = _agent(env, env["db"])
+    captured = {}
+
+    async def capture_structured(**kwargs):
+        captured.update(kwargs)
+        return ReActStep(thought="pin", final_answer="PIN")
+
+    monkeypatch.setattr(agent.llm, "generate_structured", capture_structured)
+    step = asyncio.run(agent._react_step(
+        REQUEST, memory={}, history="", context={}))
+    assert step.final_answer == "PIN"
+    system = str(captured.get("system_instruction") or "")
+    prompt = str(captured.get("prompt") or "")
+    assert "repair_outlook_search" in system
+    assert "repair outlook customer email search failures" in system
+    assert "def repair_outlook_search" not in system
+    assert REQUEST in prompt
+    target = os.getenv("ATOM_MODEL_REQUEST_CAPTURE")
+    if target:
+        from pathlib import Path
+        Path(target).write_text(json.dumps({
+            "kind": "atom-final-model-request",
+            "model": "llama3.1:8b",
+            "system_instruction": system,
+            "prompt": prompt,
+        }, indent=2))
