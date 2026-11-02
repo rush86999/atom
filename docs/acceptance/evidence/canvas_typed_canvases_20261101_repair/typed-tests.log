@@ -1,0 +1,107 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 00:00:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_canvas_typed_fields.py::test_three_typed_canvases_derive_server_totals 
+-------------------------------- live log setup --------------------------------
+2026-11-02 00:00:21 [    INFO] EscalationManager initialized
+2026-11-02 00:00:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 00:00:21 [    INFO] EscalationManager initialized
+2026-11-02 00:00:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 00:00:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 00:00:21 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  4%]
+tests/test_canvas_typed_fields.py::test_unknown_widget_action_field_and_unit_are_refused PASSED [  9%]
+tests/test_canvas_typed_fields.py::test_missing_required_value_is_targeted_and_zero_is_not_missing PASSED [ 14%]
+tests/test_canvas_typed_fields.py::test_forged_total_column_and_unknown_request_field_cannot_change_total PASSED [ 19%]
+tests/test_canvas_typed_fields.py::test_stale_revision_manifest_source_and_edit_refuse PASSED [ 23%]
+tests/test_canvas_typed_fields.py::test_duplicate_derive_is_stable_and_restart_preserves_receipt PASSED [ 28%]
+tests/test_canvas_typed_fields.py::test_cross_workspace_reader_is_refused PASSED [ 33%]
+tests/test_canvas_typed_fields.py::test_registered_action_binding_is_declared_not_authority PASSED [ 38%]
+tests/test_canvas_typed_fields.py::test_fork_keeps_typed_shape_but_drops_action_bindings PASSED [ 42%]
+tests/test_canvas_typed_fields.py::test_unknown_action_field_is_refused PASSED [ 47%]
+tests/test_canvas_typed_fields.py::test_derive_route_rejects_forged_total_and_accepts_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 422 Unprocessable Entity"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_route/capability/derive "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/test_canvas_typed_fields.py::test_missing_value_clarification_resumes_the_same_derive 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-a48a1eed5e374465b1d8492186812025/answer "HTTP/1.1 409 Conflict"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-a48a1eed5e374465b1d8492186812025/answer "HTTP/1.1 200 OK"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-a48a1eed5e374465b1d8492186812025/answer "HTTP/1.1 200 OK"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-a48a1eed5e374465b1d8492186812025/answer "HTTP/1.1 409 Conflict"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_typed_clarify/capability/derive/derive-a48a1eed5e374465b1d8492186812025/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_canvas_typed_fields.py::test_typed_string_and_receipt_limits_refuse_without_partial_total PASSED [ 61%]
+tests/test_canvas_typed_fields.py::test_declared_custom_code_runtime_is_refused_without_host_fallback PASSED [ 66%]
+tests/test_canvas_typed_fields.py::test_mixed_currency_and_hidden_currency_are_refused_at_manifest PASSED [ 71%]
+tests/test_canvas_typed_fields.py::test_same_currency_addition_and_rate_multiplication_are_accepted PASSED [ 76%]
+tests/test_canvas_typed_fields.py::test_old_open_clarification_refuses_replacement_source 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive/derive-6242a59ba7bf4cd79608422678482556/answer "HTTP/1.1 409 Conflict"
+2026-11-02 00:00:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_question/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_canvas_typed_fields.py::test_failed_derive_rolls_back_answer_and_keeps_question_open 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_rollback/capability/derive/derive-fe0b633ca6af40f7b37967fced9cb3ef/answer "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 85%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_an_edit_with_a_new_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_edit/capability/derive/derive-3ef1b291ac744a40b39b0f606a66b4ce/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 90%]
+tests/test_canvas_typed_fields.py::test_open_question_resolves_after_a_fresh_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_answer_restart/capability/derive/derive-c2504f2b65a245d1a58c589f937f9dc7/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_canvas_typed_fields.py::test_answer_refuses_after_manifest_or_edit_change 
+-------------------------------- live log call ---------------------------------
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 00:00:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_old_manifest/capability/derive/derive-d9e6aab2ca5e4f76b552d50d8008f5f8/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 42 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 21 passed, 49 warnings in 11.08s =======================
