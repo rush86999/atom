@@ -280,6 +280,41 @@ class TestCanvasCRUD:
         assert res.status_code == 200
         assert res.json()["success"] is True
 
+    def test_update_persists_exact_material_and_one_new_audit(
+            self, client, db_session, users):
+        """Direct canvas HTTP mutation must land the exact authorized content.
+
+        This is the route-family control the reachable mutation map requires:
+        the route bypasses the registered action family, so the test checks the
+        durable canvas mirror and the appended audit row directly.
+        """
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id, content={"blocks": []})
+        before = (
+            db_session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == c.id)
+            .count()
+        )
+        payload = {"blocks": [{"type": "paragraph", "text": "exact material"}]}
+        res = client.put(f"/api/canvas/{c.id}", json=payload)
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+
+        db_session.expire_all()
+        audits = (
+            db_session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == c.id)
+            .order_by(CanvasAudit.created_at.desc(), CanvasAudit.id.desc())
+            .all()
+        )
+        assert len(audits) == before + 1
+        latest = audits[0]
+        assert latest.action_type == "update"
+        assert (latest.details_json or {}).get("content") == payload
+        refreshed = db_session.query(Canvas).filter(Canvas.id == c.id).one()
+        assert refreshed.content == payload
+
     def test_update_accepts_string_and_list_content(self, client, db_session, users):
         """Non-email hosts persist their native shapes: string bodies
         (markdown/code/document) and row lists (sheets). Dict-only validation
