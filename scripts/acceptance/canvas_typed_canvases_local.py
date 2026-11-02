@@ -166,6 +166,7 @@ def main() -> int:
         "base_component": "table",
         "operations": ["read", "derive", "edit", "bind"],
         "data_binding": {"subject_field": "Item"},
+        "teaching_binding": {"agent_id": args.agent_id, "scope_id": "canvas-quote"},
         "fields": [
             {"id": "item_id", "label": "Item", "type": "string",
              "column": "Item", "required": True},
@@ -187,6 +188,7 @@ def main() -> int:
         "base_component": "form",
         "operations": ["read", "derive", "edit", "bind"],
         "data_binding": {"subject_field": "Service"},
+        "teaching_binding": {"agent_id": args.agent_id, "scope_id": "canvas-service"},
         "fields": [
             {"id": "service", "label": "Service", "type": "string",
              "column": "Service", "required": True},
@@ -209,6 +211,7 @@ def main() -> int:
         "operations": ["read", "derive", "edit", "select", "bind"],
         "data_binding": {
             "subject_field": "Exception", "status_field": "Status"},
+        "teaching_binding": {"agent_id": args.agent_id, "scope_id": "canvas-queue"},
         "fields": [
             {"id": "exception_id", "label": "Exception", "type": "string",
              "column": "Exception", "required": True,
@@ -253,6 +256,22 @@ def main() -> int:
             == "350.00"
             and quote_derive["body"].get("input_receipt", {}).get("digest"),
             {"aggregates": quote_derive["body"].get("aggregates")},
+        )
+        panel = page.get_by_test_id("canvas-capability-panel")
+        with page.expect_response(
+                lambda r: "/capability/assign" in r.url
+                and r.request.method == "POST", timeout=120000) as info:
+            panel.get_by_test_id("capability-assign").click()
+        assigned = info.value.json()
+        page.wait_for_timeout(800)
+        record(
+            "typed receipt starts an ordinary assignment",
+            info.value.status == 200
+            and assigned.get("run_id")
+            and assigned.get("assignment", {}).get("status") in (
+                "completed", "awaiting_approval"),
+            {"run_id": assigned.get("run_id"),
+             "status": assigned.get("assignment", {}).get("status")},
         )
         record(
             "industrial quote exposes table view and derive operation",
