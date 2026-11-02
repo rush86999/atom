@@ -3,15 +3,36 @@
     "name": "assignment starts and pauses on discount qualification",
     "ok": true,
     "detail": {
-      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f",
+      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3",
       "status": "waiting"
+    }
+  },
+  {
+    "name": "real backend process restarted",
+    "ok": true,
+    "detail": {
+      "old_pid": 56213,
+      "new_pid": 56234
+    }
+  },
+  {
+    "name": "restarted backend serves source identity",
+    "ok": true,
+    "detail": {
+      "ok": true,
+      "version": "v1",
+      "bytes": 120,
+      "calls": 0,
+      "estimates": [],
+      "drafts": [],
+      "last_payload": null
     }
   },
   {
     "name": "obligation survives backend restart",
     "ok": true,
     "detail": {
-      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
     }
   },
   {
@@ -28,7 +49,7 @@
     "ok": true,
     "detail": {
       "status": 200,
-      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
     }
   },
   {
@@ -39,12 +60,39 @@
     }
   },
   {
+    "name": "production WorkDrive receipt identifies v2",
+    "ok": true,
+    "detail": {
+      "version": "v2",
+      "sha256": "b3e6adebe9d8a3827e5ceeadf53a86081d9db3220d069228659de61eb802606f",
+      "coverage": "complete"
+    }
+  },
+  {
+    "name": "corrected calculation rows use v2 source identity",
+    "ok": true,
+    "detail": {
+      "row_count": 2,
+      "versions": [
+        "v2"
+      ]
+    }
+  },
+  {
+    "name": "v1 remains only in historical result",
+    "ok": true,
+    "detail": {
+      "prior_row_count": 0,
+      "versions": []
+    }
+  },
+  {
     "name": "estimate readback uses corrected total",
     "ok": true,
     "detail": [
       {
         "estimate_id": "est-browser-1",
-        "reference_number": "RFQ-BROWSER-1793577517631",
+        "reference_number": "RFQ-BROWSER-1793585903059",
         "total": "376.75"
       }
     ]
@@ -53,7 +101,7 @@
     "name": "Outlook draft uses verified corrected total",
     "ok": true,
     "detail": {
-      "subject": "Quote RFQ-BROWSER-1793577517631",
+      "subject": "Quote RFQ-BROWSER-1793585903059",
       "body": "Quoted total: 376.75 USD",
       "to": [
         "buyer@example.invalid"
@@ -64,7 +112,7 @@
     "name": "no send occurred",
     "ok": true,
     "detail": {
-      "subject": "Quote RFQ-BROWSER-1793577517631",
+      "subject": "Quote RFQ-BROWSER-1793585903059",
       "body": "Quoted total: 376.75 USD",
       "to": [
         "buyer@example.invalid"
@@ -75,7 +123,7 @@
     "name": "completed assignment reopens after reload",
     "ok": true,
     "detail": {
-      "run_id": "f0103b54-5b65-45c2-9e40-9bd08765055f"
+      "run_id": "c099946c-72d2-4268-b204-2a10e446a9d3"
     }
   }
 ]

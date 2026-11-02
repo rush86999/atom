@@ -61,8 +61,14 @@ def lines_from_rows(
     discount_mode: str = "percent",
     discount_authority: str = "row-evidence",
     source_ref: Optional[Dict[str, Any]] = None,
+    source_identity: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
-    """Return normalized line items; refuse rows with missing identity/value."""
+    """Return normalized line items; refuse rows with missing identity/value.
+
+    ``source_identity`` is the accepted read receipt's resource/version/hash.
+    A caller-supplied ``source_ref`` that conflicts with it is refused rather
+    than copied into pricing evidence.
+    """
     columns = dict(columns or {})
     defaults = dict(defaults or {})
     mode = str(discount_mode or "percent").strip().lower()
@@ -73,6 +79,23 @@ def lines_from_rows(
             "question": "Is the row discount a percentage or an amount?",
             "kind": "business_decision",
         })
+    identity_scope = dict(source_identity or source_ref or {})
+    if source_identity and source_ref:
+        for field in ("resource_id", "version", "sha256"):
+            supplied = _text(source_ref.get(field))
+            accepted = _text(source_identity.get(field))
+            if supplied and accepted and supplied != accepted:
+                raise NeedsContext({
+                    "concept": "source_identity_conflict",
+                    "reason": (
+                        f"the supplied {field} conflicts with the accepted "
+                        "read receipt"),
+                    "question": (
+                        f"Which source {field} governs these rows?"),
+                    "checked_evidence": [f"supplied={supplied}",
+                                         f"receipt={accepted}"],
+                    "kind": "missing_evidence",
+                })
     lines: List[Dict[str, Any]] = []
     for index, row in enumerate(list(rows or [])[:MAX_ROWS], start=1):
         if not isinstance(row, dict):
@@ -119,14 +142,20 @@ def lines_from_rows(
             "price_basis": _text(value("price_basis")) or "contract",
             "currency": _text(value("currency")).upper(),
             "category": _text(value("category")),
-            "source_ref": dict(source_ref or {
-                "resource_id": row.get("resource_id"),
-                "version": row.get("version"),
+            "source_ref": {
+                **identity_scope,
+                "resource_id": identity_scope.get("resource_id")
+                or row.get("resource_id"),
+                "version": identity_scope.get("version")
+                or row.get("version"),
                 "row": row.get("__row"),
-            }),
+            },
             "evidence": [{
-                "resource_id": (source_ref or {}).get("resource_id"),
-                "version": (source_ref or {}).get("version"),
+                **identity_scope,
+                "resource_id": identity_scope.get("resource_id")
+                or row.get("resource_id"),
+                "version": identity_scope.get("version")
+                or row.get("version"),
                 "row": row.get("__row"),
             }],
         }
@@ -194,6 +223,7 @@ async def _lines_from_rows(
         discount_authority=str(
             inputs.get("discount_authority") or "row-evidence"),
         source_ref=inputs.get("source_ref") or {},
+        source_identity=inputs.get("source_identity") or {},
     )
     return {
         "status": "applied",

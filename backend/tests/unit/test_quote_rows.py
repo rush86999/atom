@@ -80,3 +80,26 @@ def test_estimate_lines_flatten_calculated_rows():
         "rate": "50.00", "unit": "each", "account_id": "acct-1",
         "discount_percent": "5.00",
     }]
+
+
+def test_source_identity_is_copied_into_line_evidence():
+    lines = lines_from_rows(
+        rows=[{"item_id": "A", "quantity": "1", "unit_price": "10.00",
+               "currency": "USD", "__row": 2}],
+        source_identity={"resource_id": "file-1", "version": "v2",
+                         "sha256": "abc123"})
+    assert lines[0]["source_ref"]["version"] == "v2"
+    assert lines[0]["source_ref"]["sha256"] == "abc123"
+    assert lines[0]["source_ref"]["row"] == 2
+    assert lines[0]["evidence"][0]["version"] == "v2"
+
+
+def test_conflicting_supplied_source_reference_is_refused():
+    with pytest.raises(NeedsContext) as exc:
+        lines_from_rows(
+            rows=[{"item_id": "A", "quantity": "1",
+                   "unit_price": "10.00", "currency": "USD"}],
+            source_ref={"resource_id": "file-1", "version": "v1"},
+            source_identity={"resource_id": "file-1", "version": "v2",
+                             "sha256": "abc"})
+    assert exc.value.gap["concept"] == "source_identity_conflict"

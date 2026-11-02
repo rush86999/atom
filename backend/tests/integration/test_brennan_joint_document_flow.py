@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import core.assignment_quote  # noqa: F401  (registers quote.calculate)
+import core.connected_actions  # noqa: F401  (registers WorkDrive/read actions)
 from core.assignment_executor import AssignmentExecutor, default_adapter_registry
 from core.assignment_plan import new_assignment, new_step
 from core.goals.goal_run_service import GoalRunService
@@ -618,3 +619,214 @@ def test_one_assignment_consumes_bytes_calculates_and_drafts(env, monkeypatch):
     assert calls["draft"] == 1
     assert "362.50" in captured["draft"]["body"]
     assert outlook.sent is False
+
+
+@pytest.mark.parametrize("row_count", [79, 80, 81])
+def test_registered_workdrive_read_preserves_every_executable_row(
+        env, monkeypatch, row_count):
+    """Actual WorkDrive action -> executor -> quote calculation."""
+    import base64
+    import csv
+    import io
+
+    from core.assignment_plan import new_teaching_snapshot
+
+    rows = [{
+        "item_id": f"SKU-{index:03d}",
+        "description": "café item" if index == 0 else "item",
+        "quantity": "1", "unit": "each", "pack_size": "1",
+        "unit_price": "1.00", "price_basis": "contract",
+        "currency": "USD",
+    } for index in range(row_count)]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    content = buffer.getvalue().encode("utf-8")
+    assert len(content) > 2000
+
+    from core import connected_actions as actions
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "price-list.csv",
+                    "version": "v1", "size": len(content)}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return content
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    plan = new_assignment(
+        objective="Quote from the complete returned price list",
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        teaching_snapshot=new_teaching_snapshot(revision="quote-r1"),
+        sources=[{"kind": "document",
+                  "binding": {"resource_id": "price-list-v1"}}],
+        authorized_actions=["retrieve", "calculate"],
+        steps=[
+            new_step(
+                step_id="read", title="Read the full price list",
+                operation_type="retrieve", adapter="action.registry",
+                effect="read_only",
+                inputs={"action": "connected.workdrive.read_file",
+                        "arguments": {"file_id": "file-1",
+                                      "evidence_kind": "price_rows"}}),
+            new_step(
+                step_id="calculate", title="Calculate every returned row",
+                operation_type="calculate", adapter="quote.calculate",
+                effect="local", depends_on=["read"],
+                inputs={
+                    "line_items": {"$ref": "read.data.rows"},
+                    "currency": "USD", "freight": "0",
+                    "tax": {"basis": "none"}, "discount_rules": [],
+                }),
+        ])
+    run_id = env["executor"].create_assignment(
+        "conv-data-transfer", plan["objective"], assignment=plan)["run_id"]
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    read = next(step for step in assignment["steps"]
+                if step["step_id"] == "read")
+    returned = read["result"]["data"]
+    assert len(returned["rows"]) == row_count
+    assert returned["rows"][0]["description"] == "café item"
+    assert returned["content_b64"] == base64.b64encode(content).decode("ascii")
+    assert returned["read_receipt"]["coverage"] == "complete"
+    assert returned["read_receipt"]["fields"]["truncated"] is False
+    assert not returned["read_receipt"].get("truncated")
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == f"{row_count}.00"
+    assert len(calc["result"]["rows"]) == row_count
+
+    restarted = AssignmentExecutor(
+        env["lifecycle"], adapters=env["registry"])
+    persisted = restarted.status(run_id)["assignment"]
+    assert persisted["status"] == "completed"
+
+
+def test_truncated_read_blocks_full_population_calculation(env, monkeypatch):
+    """A bounded 500-row read of a 501-row file must not calculate silently."""
+    import csv
+    import io
+
+    from core.assignment_plan import new_teaching_snapshot
+    from core import connected_actions as actions
+
+    rows = [{
+        "item_id": f"SKU-{index:03d}", "quantity": "1", "unit": "each",
+        "pack_size": "1", "unit_price": "1.00", "price_basis": "contract",
+        "currency": "USD",
+    } for index in range(501)]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    content = buffer.getvalue().encode()
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "price-list.csv", "version": "v1"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return content
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    plan = new_assignment(
+        objective="Quote from a bounded read",
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        teaching_snapshot=new_teaching_snapshot(revision="quote-r1"),
+        sources=[{"kind": "document",
+                  "binding": {"resource_id": "price-list-v1"}}],
+        authorized_actions=["retrieve", "calculate"],
+        steps=[
+            new_step(
+                step_id="read", title="Read a bounded page",
+                operation_type="retrieve", adapter="action.registry",
+                effect="read_only",
+                inputs={"action": "connected.workdrive.read_file",
+                        "arguments": {"file_id": "file-1",
+                                      "evidence_kind": "price_rows"}}),
+            new_step(
+                step_id="calculate", title="Calculate all rows",
+                operation_type="calculate", adapter="quote.calculate",
+                effect="local", depends_on=["read"],
+                inputs={"line_items": {"$ref": "read.data.rows"},
+                        "currency": "USD", "freight": "0",
+                        "tax": {"basis": "none"}, "discount_rules": []}),
+        ])
+    run_id = env["executor"].create_assignment(
+        "conv-truncated", plan["objective"], assignment=plan)["run_id"]
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] != "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    read = next(step for step in assignment["steps"]
+                if step["step_id"] == "read")
+    assert read["status"] == "failed"
+    assert "partial coverage" in str(read.get("failure") or "").lower()
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "pending"
+    assert calc.get("result") is None
+
+
+def test_oversized_inline_content_refuses_without_downstream_work(
+        env, monkeypatch):
+    from core.assignment_plan import new_teaching_snapshot
+    from core import connected_actions as actions
+
+    content = b"a" * 2_100_000
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "large.txt", "version": "v1"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return content
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    plan = new_assignment(
+        objective="Read an oversized source",
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        teaching_snapshot=new_teaching_snapshot(revision="quote-r1"),
+        sources=[{"kind": "document",
+                  "binding": {"resource_id": "large-source"}}],
+        authorized_actions=["retrieve"],
+        steps=[new_step(
+            step_id="read", title="Read the oversized source",
+            operation_type="retrieve", adapter="action.registry",
+            effect="read_only",
+            inputs={"action": "connected.workdrive.read_file",
+                    "arguments": {"file_id": "file-1"}})])
+    run_id = env["executor"].create_assignment(
+        "conv-oversized", plan["objective"], assignment=plan)["run_id"]
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] != "completed", result
+    assignment = env["lifecycle"].get_assignment(run_id)
+    read = next(step for step in assignment["steps"]
+                if step["step_id"] == "read")
+    assert read["status"] == "failed"
+    message = str(read.get("failure") or "").lower()
+    assert "limit" in message or "oversized" in message or "payload" in message

@@ -29,7 +29,7 @@ const WORLD = process.env.BRENNAN_BROWSER_WORLD
 const OUT = process.env.BRENNAN_BROWSER_OUT
   || path.join(ROOT, "docs/acceptance/evidence/brennan_connected_browser_20261101");
 const PYTHON = process.env.BRENNAN_PYTHON
-  || "/Users/rushiparikh/projects/atom/backend/venv/bin/python";
+  || "/Users/rushiparikh/projects/atom/backend/venv314/bin/python";
 const SERVER = path.join(
   ROOT, "backend/scripts/assignment_browser_acceptance_server.py");
 const PORT = Number(new URL(API).port || 8090);
@@ -220,6 +220,7 @@ function planSteps(objective, ref) {
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   server = await startServer(true);
+  const oldPid = server.pid;
   const health = (await getJson(`${API}/api/health`)).body;
   const objective = `Browser connected quote ${Date.now()}`;
   const ref = `RFQ-BROWSER-${Date.now()}`;
@@ -284,6 +285,14 @@ async function main() {
   await page.goto(`${UI}/assignments`);
   await stopServer();
   server = await startServer(false);
+  const newPid = server.pid;
+  record("real backend process restarted", oldPid !== newPid,
+         { old_pid: oldPid, new_pid: newPid });
+  const restartedState = (await getJson(
+    `${API}/_acceptance/connected/state`)).body;
+  record("restarted backend serves source identity",
+         restartedState.version === "v1",
+         restartedState);
   detail = await openAssignment();
   await detail.getByText(/Which qualification applies/i).waitFor({
     state: "visible", timeout: 20000 });
@@ -322,6 +331,34 @@ async function main() {
   const corrected = await screenshot(page, "02-corrected-quote-approval");
   record("corrected continuation reaches estimate approval", true,
          { screenshot: corrected });
+  const rawRun = (await getJson(
+    `${API}/_acceptance/connected/run/${runId}`)).body.assignment;
+  const readStep = rawRun.steps.find((step) => step.step_id === "read");
+  const calcStep = rawRun.steps.find((step) => step.step_id === "calculate");
+  const readReceipt = readStep.result.data.read_receipt;
+  record("production WorkDrive receipt identifies v2",
+         readReceipt.version === "v2"
+         && readReceipt.fields.sha256
+         && readReceipt.coverage === "complete",
+         { version: readReceipt.version,
+           sha256: readReceipt.fields.sha256,
+           coverage: readReceipt.coverage });
+  const currentRows = calcStep.result.rows || [];
+  record("corrected calculation rows use v2 source identity",
+         currentRows.length > 0
+         && currentRows.every((row) => row.source_ref?.version === "v2"
+           && row.source_ref?.sha256),
+         { row_count: currentRows.length,
+           versions: [...new Set(currentRows.map(
+             (row) => row.source_ref?.version))] });
+  const priorRows = (calcStep.prior_results || []).flatMap(
+    (item) => item.rows || []);
+  record("v1 remains only in historical result",
+         priorRows.length === 0
+         || priorRows.every((row) => row.source_ref?.version === "v1"),
+         { prior_row_count: priorRows.length,
+           versions: [...new Set(priorRows.map(
+             (row) => row.source_ref?.version))] });
 
   // Approve the estimate, verify the readback, then approve the draft.
   await detail.getByRole("button", { name: /Approve this payload/ }).first()

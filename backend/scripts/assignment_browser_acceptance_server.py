@@ -112,26 +112,21 @@ CONNECTED = {
 }
 
 
-async def _controlled_workdrive_read(args, context):
-    rows = list(csv.DictReader(io.StringIO(CONNECTED["bytes"].decode("utf-8"))))
-    for index, row in enumerate(rows, start=2):
-        row["__row"] = index
-    return {
-        "status": "success",
-        "provider": "zoho_workdrive",
-        "file": {"id": args.get("file_id"), "name": "price-list.csv",
-                 "version": CONNECTED["version"]},
-        "version": CONNECTED["version"],
-        "rows": rows,
-        "read_receipt": {
-            "provider": "zoho_workdrive", "operation": "download_file",
-            "workspace_id": context.get("workspace_id"),
-            "account_id": args.get("workspace_id"),
-            "resource_id": args.get("file_id"),
-            "version": CONNECTED["version"], "access": "granted",
-            "kind": "price_rows", "rows": rows,
-        },
-    }
+class _ControlledWorkDrive:
+    async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+        return {"id": file_id, "name": "price-list.csv",
+                "version": CONNECTED["version"],
+                "size": len(CONNECTED["bytes"])}
+
+    async def download_file(self, user_id, file_id, workspace_id=None):
+        return CONNECTED["bytes"]
+
+    async def get_access_token(self, user_id, workspace_id=None):
+        return "controlled-token"
+
+
+async def _controlled_workdrive_service(ids):
+    return _ControlledWorkDrive()
 
 
 class _ControlledBooks:
@@ -194,13 +189,8 @@ from core.action_registry import action_registry  # noqa: E402
 import integrations.outlook_service as outlook_module  # noqa: E402
 
 connected_actions._books_service = _controlled_books_service
+connected_actions._workdrive_service = _controlled_workdrive_service
 outlook_module.OutlookService = lambda *a, **k: _ControlledOutlook()
-for _name in ("connected.workdrive.read_file", "brennan.workdrive.read_file"):
-    action_registry.register(
-        _name, _controlled_workdrive_read,
-        description="Controlled WorkDrive bytes for browser acceptance",
-        effects=[{"effect": "read"}])
-
 import openpyxl  # noqa: E402
 import docx  # noqa: E402
 
@@ -508,7 +498,14 @@ def acceptance_connected_plan(objective: str, ref: str):
                 "defaults": {"price_basis": "contract"},
                 "discount_mode": "percent",
                 "discount_authority": "price-list:v1",
-                "source_ref": {"resource_id": "price-file", "version": "v1"},
+                "source_identity": {
+                    "resource_id": {
+                        "$ref": "read.data.read_receipt.resource_id"},
+                    "version": {
+                        "$ref": "read.data.read_receipt.version"},
+                    "sha256": {
+                        "$ref": "read.data.read_receipt.fields.sha256"},
+                },
             },
             effect="local"),
         new_step(
@@ -533,7 +530,7 @@ def acceptance_connected_plan(objective: str, ref: str):
                 "rounding_authority": "agreement:round-half-up-2dp",
                 "source_evidence": [{
                     "resource_id": "price-file",
-                    "source_version": "${read.data.version}",
+                    "source_version": "${read.data.read_receipt.version}",
                 }],
             },
             effect="local"),
@@ -605,6 +602,11 @@ def acceptance_connected_source(body: ConnectedSourceRequest):
     CONNECTED["version"] = body.version
     return {"ok": True, "version": body.version,
             "bytes": len(CONNECTED["bytes"])}
+
+
+@app.get("/_acceptance/connected/run/{run_id}")
+def acceptance_connected_run(run_id: str):
+    return {"ok": True, "assignment": lifecycle.get_assignment(run_id)}
 
 
 @app.get("/_acceptance/connected/state")

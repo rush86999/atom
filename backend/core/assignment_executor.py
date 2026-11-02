@@ -279,17 +279,132 @@ def _summarize_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return {"summary": "step completed"}
 
 
-def _json_safe(value: Any, *, depth: int = 0) -> Any:
-    if depth > 4:
+class ExecutablePayloadTooLarge(ValueError):
+    """An inline executable value exceeds the supported transfer bound."""
+
+
+#: Fields whose contents are consumed by downstream work. They are never
+#: silently sliced; an oversized value refuses explicitly.
+_EXECUTABLE_FIELDS = frozenset({
+    "rows", "items", "line_items", "records", "data", "payload", "payloads",
+    "content", "content_b64", "documents", "attachments", "evidence",
+    "provider_receipt", "read_receipt", "receipt", "verification", "conflicts",
+})
+_MAX_EXECUTABLE_STRING = 2_000_000
+_MAX_EXECUTABLE_LIST = 10_000
+_MAX_EXECUTABLE_DEPTH = 14
+_MAX_EXECUTABLE_BYTES = 4 * 1024 * 1024
+_MAX_EXECUTABLE_NODES = 100_000
+_MAX_EXECUTABLE_ENTRIES = 100_000
+_MAX_EXECUTABLE_KEY_CHARS = 512
+
+
+class _SerializationBudget:
+    """One budget shared by every node of an executable result."""
+
+    def __init__(self) -> None:
+        self.bytes = 0
+        self.nodes = 0
+        self.entries = 0
+
+    def node(self) -> None:
+        self.nodes += 1
+        if self.nodes > _MAX_EXECUTABLE_NODES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload has more than "
+                f"{_MAX_EXECUTABLE_NODES} nodes")
+
+    def entry(self) -> None:
+        self.entries += 1
+        if self.entries > _MAX_EXECUTABLE_ENTRIES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload has more than "
+                f"{_MAX_EXECUTABLE_ENTRIES} dictionary/list entries")
+
+    def text(self, value: str, *, key: bool = False) -> None:
+        if key and len(value) > _MAX_EXECUTABLE_KEY_CHARS:
+            raise ExecutablePayloadTooLarge(
+                f"executable dictionary key has {len(value)} characters; "
+                f"limit is {_MAX_EXECUTABLE_KEY_CHARS}")
+        self.bytes += len(value.encode("utf-8"))
+        if self.bytes > _MAX_EXECUTABLE_BYTES:
+            raise ExecutablePayloadTooLarge(
+                f"executable payload exceeds {_MAX_EXECUTABLE_BYTES} UTF-8 "
+                "bytes")
+
+
+def _json_safe(
+    value: Any, *, depth: int = 0, executable: bool = False,
+    budget: Optional[_SerializationBudget] = None,
+) -> Any:
+    """Serialize a result, preserving executable data under one budget.
+
+    Diagnostics are bounded for lifecycle readability. Executable fields
+    (rows, bytes, receipts) are preserved in full or refused explicitly; the
+    aggregate budget counts every key, value and node, not each child
+    independently. A diagnostic limit never changes downstream calculation.
+    """
+    if budget is not None:
+        executable = True
+    elif executable:
+        budget = _SerializationBudget()
+    if depth > (_MAX_EXECUTABLE_DEPTH if executable else 6):
+        if executable:
+            raise ExecutablePayloadTooLarge(
+                "executable payload exceeds the supported nesting depth")
         return "…"
     if isinstance(value, dict):
-        return {str(k)[:80]: _json_safe(v, depth=depth + 1)
-                for k, v in list(value.items())[:60]}
+        result: Dict[str, Any] = {}
+        if budget:
+            budget.node()
+        for key, item in value.items():
+            key_text = str(key)
+            if budget:
+                budget.entry()
+                budget.text(key_text, key=True)
+            child_executable = executable or (
+                key_text.strip().lower() in _EXECUTABLE_FIELDS)
+            result[key_text if executable else key_text[:80]] = _json_safe(
+                item, depth=depth + 1, executable=child_executable,
+                budget=budget)
+        return result
     if isinstance(value, (list, tuple)):
-        return [_json_safe(v, depth=depth + 1) for v in list(value)[:80]]
+        if budget:
+            budget.node()
+        if executable and len(value) > _MAX_EXECUTABLE_LIST:
+            raise ExecutablePayloadTooLarge(
+                f"executable list has {len(value)} items; limit is "
+                f"{_MAX_EXECUTABLE_LIST}")
+        limit = len(value) if executable else min(len(value), 80)
+        items = []
+        for item in list(value)[:limit]:
+            if budget:
+                budget.entry()
+            items.append(_json_safe(
+                item, depth=depth + 1, executable=executable,
+                budget=budget))
+        return items
     if value is None or isinstance(value, (int, float, bool)):
+        if budget:
+            budget.node()
+            budget.text(str(value))
         return value
-    return str(value)[:2000]
+    text = str(value)
+    if budget:
+        budget.node()
+        budget.text(text)
+        if len(text) > _MAX_EXECUTABLE_STRING:
+            raise ExecutablePayloadTooLarge(
+                f"executable string has {len(text)} characters; limit is "
+                f"{_MAX_EXECUTABLE_STRING}")
+        return text
+    if executable:
+        if len(text) > _MAX_EXECUTABLE_STRING:
+            raise ExecutablePayloadTooLarge(
+                f"executable string has {len(text)} characters; limit is "
+                f"{_MAX_EXECUTABLE_STRING}")
+        return text
+    return text[:2000]
 
 
 def _filter_records(
@@ -5790,8 +5905,49 @@ async def _action_registry_adapter(
             "error_class": "action_dispatch_error",
         }
 
-    outcome = _action_result_outcome(result, mutating=mutating)
-    payload = result if isinstance(result, dict) else {}
+    try:
+        safe = _json_safe(
+            result, executable=True, budget=_SerializationBudget())
+    except ExecutablePayloadTooLarge as exc:
+        if mutating:
+            remote = ""
+            if isinstance(result, dict):
+                remote = str(
+                    result.get("remote_id") or result.get("provider_ref")
+                    or result.get("id") or "")
+            raise ExternalOutcomeUnknown(
+                f"registered action '{name}' returned an oversized executable "
+                f"result after dispatch: {exc}",
+                evidence=_bounded(
+                    "serialization refused after external dispatch"
+                    + (f"; remote_id={remote}" if remote else ""), 500),
+            ) from exc
+        return {
+            "status": "failed",
+            "error_class": "payload_too_large",
+            "message": str(exc),
+        }
+    payload = safe if isinstance(safe, dict) else {"data": safe}
+    read_receipt = payload.get("read_receipt") if isinstance(
+        payload.get("read_receipt"), dict) else {}
+    receipt_fields = read_receipt.get("fields") if isinstance(
+        read_receipt.get("fields"), dict) else {}
+    if not mutating and (
+            receipt_fields.get("truncated") is True
+            or str(read_receipt.get("coverage") or "").lower() in (
+                "partial", "bounded", "truncated")):
+        return {
+            "status": "partial",
+            "error_class": "partial_coverage",
+            "message": (
+                f"registered read action '{name}' returned partial coverage; "
+                "full-population work is blocked until the complete source is "
+                "available"),
+            "data": safe,
+            "evidence": [{"kind": "action_registry", "action": name,
+                          "coverage": "partial"}],
+        }
+    outcome = _action_result_outcome(safe, mutating=mutating)
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
@@ -5803,14 +5959,14 @@ async def _action_registry_adapter(
         "remote_id": remote_id,
         "provider_ref": provider_ref,
         "payload_sha256": payload.get("payload_sha256"),
-        "provider_receipt": _json_safe(payload.get("provider_receipt")),
-        "verification": _json_safe(payload.get("verification")),
+        "provider_receipt": payload.get("provider_receipt"),
+        "verification": payload.get("verification"),
     }
     if outcome == "applied":
         return {
             "status": "applied",
             "summary": f"registered action {name} completed",
-            "data": _json_safe(result),
+            "data": safe,
             "evidence": [{"kind": "action_registry", "action": name}],
             **identity,
         }
@@ -5821,8 +5977,8 @@ async def _action_registry_adapter(
                 f"registered action {name} reported "
                 f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"),
             "evidence": _bounded(str(result), 500),
-            "data": _json_safe(result),
-            "conflicts": _json_safe(payload.get("conflicts") or []),
+            "data": safe,
+            "conflicts": payload.get("conflicts") or [],
             **identity,
         }
     if outcome == "unavailable":
@@ -5834,7 +5990,7 @@ async def _action_registry_adapter(
             "error_class": str(
                 payload.get("error_kind") or "source_unavailable"),
             "evidence": _bounded(str(result), 500),
-            "data": _json_safe(result),
+            "data": safe,
             **identity,
         }
     return {
