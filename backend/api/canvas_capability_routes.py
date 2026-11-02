@@ -454,15 +454,14 @@ async def capability_assign(
         from core.task_lifecycle import TaskLifecycle
         from core.assignment_executor import AssignmentExecutor
 
+        workspace_id = str(current_user.workspace_id or "default")
+        tenant_id = str(current_user.tenant_id or "default")
         plan = build_canvas_assignment_plan(
             canvas, manifest, receipt,
             objective=objective, employee_id=employee_id,
-            workspace_id=str(current_user.workspace_id or ""),
-            tenant_id=str(current_user.tenant_id or ""),
+            workspace_id=workspace_id, tenant_id=tenant_id,
             action_ids=action_ids,
         )
-        workspace_id = str(current_user.workspace_id or "default")
-        tenant_id = str(current_user.tenant_id or "default")
         runs = GoalRunService(
             workspace_id=workspace_id, tenant_id=tenant_id)
         goals = GoalService(
