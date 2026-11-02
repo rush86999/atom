@@ -2931,3 +2931,71 @@ def test_cap_rule_refuses_through_route_before_arithmetic(
     deliverable = next(item for item in internal["deliverables"]
                        if item["kind"] == "document")
     assert deliverable["status"] != "applied"
+
+
+def test_public_route_consumes_connected_workdrive_rows(
+        route_env, tmp_path, monkeypatch):
+    """Public assignment: registered WorkDrive read → 81 rows → quote 81.00."""
+    import csv
+    import io
+    from core import connected_actions as actions
+
+    rows = [{
+        "item_id": f"SKU-{index:03d}", "quantity": "1", "unit": "each",
+        "pack_size": "1", "unit_price": "1.00", "price_basis": "contract",
+        "currency": "USD",
+    } for index in range(81)]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    content = buffer.getvalue().encode()
+
+    class FakeWorkDrive:
+        async def get_file_metadata(self, user_id, file_id, workspace_id=None):
+            return {"id": file_id, "name": "price-list.csv", "version": "v1"}
+
+        async def download_file(self, user_id, file_id, workspace_id=None):
+            return content
+
+        async def get_access_token(self, user_id, workspace_id=None):
+            return "token"
+
+    async def fake_service(ids):
+        return FakeWorkDrive()
+
+    monkeypatch.setattr(actions, "_workdrive_service", fake_service)
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    source = tmp_path / "quote-source.txt"
+    source.write_text("Authorized connected quote source.\n")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Quote from the connected WorkDrive price list",
+        "sources": [{"kind": "document", "path": str(source)}],
+        "evidence_reads": [{
+            "step_id": "read",
+            "action": "connected.workdrive.read_file",
+            "arguments": {"file_id": "file-1",
+                          "evidence_kind": "price_rows"},
+        }],
+        "calculation": {
+            "line_items": {"$ref": "read.data.rows"},
+            "currency": "USD", "freight": "0",
+            "tax": {"basis": "none"}, "discount_rules": [],
+        },
+        "deliverables": [{
+            "kind": "document", "description": "Connected quote",
+        }],
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "completed", body
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    read = next(step for step in internal["steps"]
+                if step["step_id"] == "read")
+    assert read["status"] == "applied"
+    assert len(read["result"]["data"]["rows"]) == 81
+    assert read["result"]["data"]["read_receipt"]["coverage"] == "complete"
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "81.00"
+    assert len(calc["result"]["rows"]) == 81

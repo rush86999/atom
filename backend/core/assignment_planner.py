@@ -375,11 +375,18 @@ def plan_assignment(
             raise AssignmentPlanError(
                 "a calculation cannot be both an expression/line-item "
                 "calculation and a connected aggregate")
-    line_items = (
-        list(calculation.get("line_items") or [])
-        if calculation and isinstance(calculation.get("line_items"), list)
+    raw_line_items = (
+        calculation.get("line_items") if calculation else None)
+    line_items_value = (
+        raw_line_items
+        if isinstance(raw_line_items, list)
+        or (isinstance(raw_line_items, dict)
+            and set(raw_line_items) == {"$ref"})
         else [])
-    if line_items and calculation.get("expression"):
+    line_items = (
+        raw_line_items if isinstance(raw_line_items, list) else [])
+    has_line_items = bool(line_items_value)
+    if has_line_items and calculation.get("expression"):
         raise AssignmentPlanError(
             "a calculation cannot be both an expression and line items")
     aggregate_index = 0
@@ -447,7 +454,7 @@ def plan_assignment(
     calc_steps: List[Dict[str, Any]] = []
     if aggregate is not None:
         calc_step = source_ids[aggregate_index]
-    elif line_items:
+    elif has_line_items:
         calc_step = "calculate"
         source_evidence = [{
             "resource_id": source.get("resource_id"),
@@ -467,7 +474,7 @@ def plan_assignment(
                 source_ids + read_ids
                 + ([wait_step] if wait_step else [])),
             inputs={
-                "line_items": line_items,
+                "line_items": line_items_value,
                 "currency": calculation.get("currency"),
                 "freight": calculation.get("freight"),
                 "tax": calculation.get("tax"),
@@ -503,7 +510,7 @@ def plan_assignment(
             effect="local",
         )]
     if (calculation and not calculation.get("expression")
-            and not line_items and aggregate is None):
+            and not has_line_items and aggregate is None):
         raise AssignmentPlanError(
             "a calculation requires an explicit expression, line items or a "
             "validated aggregate; a method gap cannot be invented")

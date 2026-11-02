@@ -124,6 +124,7 @@ class AssignmentStart(BaseModel):
     wait: Optional[Dict[str, Any]] = None
     task_context: Dict[str, Any] = {}
     transport: Optional[str] = None
+    evidence_reads: List[Dict[str, Any]] = []
     proposed_steps: Optional[List[Dict[str, Any]]] = None
     standing_authority: Optional[Dict[str, Any]] = None
     budget: Optional[Dict[str, Any]] = None
@@ -623,6 +624,7 @@ async def start_assignment(
                 "source_fingerprint": source_fingerprint(resolved_sources),
             },
             proposed_steps=body.proposed_steps,
+            evidence_reads=body.evidence_reads,
         )
         if body.proposed_steps is not None:
             validate_proposed_plan(plan)

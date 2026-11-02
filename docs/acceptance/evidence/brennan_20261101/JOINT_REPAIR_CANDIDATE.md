@@ -96,6 +96,14 @@ acceptance; no live provider action. Historical 111/123 remains unchanged.
 - Actual WorkDrive read → executor → calculation controls at 79/80/81 rows and
   a 501-row partial read remain green.
 
+### Public assignment connected-data path
+- `POST /api/assignments` now accepts `evidence_reads` and resolves a read
+  result reference in `calculation.line_items`.
+- Control: actual registered `connected.workdrive.read_file` returns 81 CSV
+  rows; the public assignment reads them, maps them into `quote.calculate`,
+  completes at **81.00**, and preserves the complete/non-truncated read
+  receipt.
+
 ## Remaining joint gaps
 
 - WorkDrive/OneDrive bytes → parsed typed records → quote line items is still
