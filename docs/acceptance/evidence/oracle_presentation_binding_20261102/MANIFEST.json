@@ -164,7 +164,14 @@
     "total": "3 / 170.00"
    }
   },
-  "font": "Georgia 18 for all three"
+  "font": "Georgia 18 for all three",
+  "books": {
+   "creates": 1,
+   "readbacks": 1,
+   "duplicate_creates_after_second_assignment": 1,
+   "duplicate_step_status": "failed",
+   "verification": "verified"
+  }
  },
  "oracle": {
   "registry_union": [
@@ -198,7 +205,7 @@
    "provider_write_methods": 311
   }
  },
- "books_dependency": "not repeated: presentation pre-dispatch only; connected/Books readback tests in the 470 matrix",
+ "books_dependency": "rerun on this source in a separate world (8100): 12/12; connected readback unchanged by the presentation pre-dispatch freeze",
  "open_items": [
   "whole-app HTTP/provider oracle coverage",
   "TEAM-05 real LLM sweep",
@@ -220,15 +227,19 @@
   "no change to 123 denominator or historical 111/123"
  ],
  "artifacts": {
-  "README.md": "f942f6365fc347bd9b01318854419e5b842b68de524b513246c53ca0d002c737",
-  "TEST_RESULTS.md": "15572a1d88e96a7a33fe62ea0872f9adcbec4b82f5c446e5da10c5a68d9d8c29",
+  "README.md": "d3abd26aa8362baa44e375705b2bdaaa304fd88d622a1de466a4b99d0a2d3aa9",
+  "TEST_RESULTS.md": "eff46dad563295101f8e0453bbaa45768e75414761f33452ba18357d05d25c50",
   "audit-row.txt": "4595709b10ca3f84d27463d07e6efd9367e718083f8a38a667d631f0ec7583e0",
   "backend-health.json": "1567deb4390de6e96c202c2225e6ee7d9233709937876a1878168159e961b710",
   "backend-tests.log": "291fbf0685f6c9ce4dbeceef4e883b11991a77c309d0ea3bb7444eeaa750ded3",
+  "bookkeeping-result.json": "f9f7a09ba8ecf6ee4589ba223e535787d3652ff80b75d89c5746c7a9211a9fbb",
+  "bookkeeping-runtime-identity.txt": "a5091521bc6bbfdd5ff221f4e810fc3fa9fd9e7297f8fff56e6c3b0f9559e744",
+  "books-state.json": "5504c94fdc435fb8f8614933678b905bd2723455b34fcc9b1756b6eb6c0320d6",
   "campaign-result.json": "c2df1a4ac4ef7624aea55b66801345344de71b96a18ac2f25cc57c08505b39ae",
   "focused-controls.log": "436c371c9e70b2e6b0b34a99f1f135c61a9f104957eff37997e56bd84bc32c87",
   "frontend-build-id.txt": "fea271a97dbd31d03f6635d8921f6b0b9d7564665e180ed99eb5863f1ddc8ff8",
   "frontend-tests.log": "5e5d90cb1ed2676983420366677e06f7f7157b622af8b5878adbf9a4d4c45620",
+  "invoice-INV-IN-1.txt": "6b682a8b036631a16c78e58ddb786870aa3a7413f65435db3a9dbc4b95df91c6",
   "negative-probe.log": "ad162e9bd879c467b0b6f948ea0d3eba5c8b74e43b7de53f970d652d67400443",
   "oracle-registry.txt": "b2e86f358243ba61207b20ed74bf98a8afbcd6005c4c04c3091cb2c61b731053",
   "oracle-whole-app-inventory/README.md": "8a69f34e4f5a291ee20c37a927fb1c3645caf2bcb2e9bac60e03fa45605d5d48",
@@ -243,5 +254,65 @@
   "service-document.docx": "e148adc5f71e850fd046a0ba0b4b8c2862896275802ec8472d528fda7b81722b",
   "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
   "world-manifest.json": "6e87de5b47b8d9bbf148068ce7c6eca6b316a615cf3513e263ea038200eba1a1"
+ },
+ "journeys": {
+  "invoice_to_books": {
+   "world": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-bookkeeping-presentation-fix",
+   "api": "http://127.0.0.1:8100",
+   "runtime_identity": "INFO:core.runtime_identity:runtime identity: source_id=0d8767e3ac24 revision=0d8767e3ac24 dirty=False (0 modified, 0 untracked)",
+   "status": "passed",
+   "checks_passed": 12,
+   "checks_total": 12,
+   "checks": [
+    {
+     "name": "invoice bytes parse through the normal document route",
+     "ok": true
+    },
+    {
+     "name": "invoice facts are extracted from the returned bytes",
+     "ok": true
+    },
+    {
+     "name": "normal assignment starts from the invoice facts",
+     "ok": true
+    },
+    {
+     "name": "vendor, CoA and balanced proposal resolve before approval",
+     "ok": true
+    },
+    {
+     "name": "proposal is exact, balanced and not yet posted",
+     "ok": true
+    },
+    {
+     "name": "real backend restart preserves the pending approval",
+     "ok": true
+    },
+    {
+     "name": "reopened assignment still awaits the same approval",
+     "ok": true
+    },
+    {
+     "name": "approval is accepted once",
+     "ok": true
+    },
+    {
+     "name": "one registered Books create completes with readback",
+     "ok": true
+    },
+    {
+     "name": "provider effect count is exactly one",
+     "ok": true
+    },
+    {
+     "name": "duplicate continuation is refused without a second effect",
+     "ok": true
+    },
+    {
+     "name": "same invoice is refused as a duplicate without a second create",
+     "ok": true
+    }
+   ]
+  }
  }
 }

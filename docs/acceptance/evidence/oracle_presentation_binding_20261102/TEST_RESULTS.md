@@ -44,3 +44,22 @@ Result: **passed**, 17/17.
 - Pending operation id and payload digest `859e4a9c…` identical before/after restart, `remote_id=null`.
 - Documents: quote `ae65495b…` (350.00), service `e148adc5…` (630.00 CAD), exception `b9401870…` (3/170.00); Georgia 18.
 - Oracle inventory: 6/6 external, 8/8 local durable mutations, 1/1 structural plan output; 827 HTTP mutation declarations and 311 provider writes remain unqualified.
+
+## Invoice → Books rerun (12 checks)
+
+| # | Check | Result | Detail |
+|---|---|---|---|
+| 1 | invoice bytes parse through the normal document route | PASS | {"method": "fallback", "chars": 213, "document_id": "0d984ba3-bbf6-41ac-9055-593133c042e0"} |
+| 2 | invoice facts are extracted from the returned bytes | PASS | {"vendor": "Acme", "total": "120.00", "lines": [{"description": "Parts", "amount": "100.00", "account_label": "Parts"}, {"description": "Fre |
+| 3 | normal assignment starts from the invoice facts | PASS | {"run_id": "e0866476-a192-46cb-8c42-ad2fe37efb5a", "status": null} |
+| 4 | vendor, CoA and balanced proposal resolve before approval | PASS | {"create": "awaiting_approval", "vendor": "applied", "accounts": "applied", "propose": "applied"} |
+| 5 | proposal is exact, balanced and not yet posted | PASS | {"status": "proposed", "total": "120.00", "duplicate_key": "zoho_books|org-1|bill|INV-IN-1"} |
+| 6 | real backend restart preserves the pending approval | PASS | {"old_backend_pid": 88008, "new_backend_pid": 88410, "old_frontend_pid": 88030, "new_frontend_pid": 88442} |
+| 7 | reopened assignment still awaits the same approval | PASS | {"status": "awaiting_approval", "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8"} |
+| 8 | approval is accepted once | PASS | {"status": "approved", "operation": {"schema_version": 1, "operation_id": "ddb56a44-00b7-4940-9fdb-8905c9a64dc8", "objective_id": "54747bd0- |
+| 9 | one registered Books create completes with readback | PASS | {"status": "applied", "remote_id": "bill-controlled-1", "verification": {"effect": "observed", "status": "verified", "checked_fields": ["ven |
+| 10 | provider effect count is exactly one | PASS | {"before": 0, "after": 1, "readbacks": 1} |
+| 11 | duplicate continuation is refused without a second effect | PASS | {"approve_status": 404, "creates": 1} |
+| 12 | same invoice is refused as a duplicate without a second create | PASS | {"creates": 1, "step_status": "failed", "message": "registered action connected.books.create_bill did not apply: duplicate"} |
+
+Result: **passed**, 12/12.
