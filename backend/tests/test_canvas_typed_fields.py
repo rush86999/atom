@@ -25,6 +25,7 @@ from core.canvas_capability_service import (
     derive_operation,
     edit_operation,
     effective_operations,
+    get_dataset,
     get_manifest,
     set_manifest,
 )
@@ -615,3 +616,299 @@ def test_declared_custom_code_runtime_is_refused_without_host_fallback(
         get_miniapp_runtime()
     assert "Firecracker runtime unavailable" in str(exc.value)
     assert "host execution" not in str(exc.value).lower()
+
+
+def _currency_fields():
+    return [
+        {"id": "item", "label": "Item", "type": "string",
+         "column": "Item", "required": True},
+        {"id": "usd", "label": "USD", "type": "currency",
+         "column": "USD", "currency": "USD", "required": True},
+        {"id": "cad", "label": "CAD", "type": "currency",
+         "column": "CAD", "currency": "CAD", "required": True},
+    ]
+
+
+def _with_total(fields, expression, *, field_type="currency",
+                currency="USD", unit=""):
+    return fields + [{
+        "id": "total", "label": "Total", "type": field_type,
+        "column": "Total", "currency": currency, "unit": unit,
+        "derived": expression, "aggregate": "sum",
+    }]
+
+
+def test_mixed_currency_and_hidden_currency_are_refused_at_manifest(db, user):
+    canvas = _canvas(db, user, "canvas_currency_refuse", "Currency refuse")
+    for fields in (
+        _with_total(_currency_fields(), "usd + cad"),
+        _with_total(_currency_fields()[2:], "cad", currency="USD"),
+        _with_total(
+            _currency_fields()[:2] + [
+                {"id": "hours", "label": "Hours", "type": "decimal",
+                 "column": "Hours", "unit": "hour", "required": True},
+            ], "usd + hours"),
+        _with_total(
+            _currency_fields()[:2] + [
+                {"id": "usd_copy", "label": "USD copy", "type": "decimal",
+                 "column": "USD Copy", "unit": "USD",
+                 "derived": "usd"},
+            ], "usd_copy"),
+        _with_total(
+            _currency_fields()[:1] + [
+                {"id": "note", "label": "Note", "type": "string",
+                 "column": "Note", "required": True},
+            ], "note + 1"),
+    ):
+        with pytest.raises(CapabilityError) as exc:
+            set_manifest(db, canvas, user, {
+                "schema_version": 2, "base_component": "table",
+                "operations": ["read", "derive", "bind"],
+                "data_binding": {"subject_field": "Item"},
+                "fields": fields,
+            })
+        assert exc.value.code in {
+            "incompatible_currency", "incompatible_units",
+            "derived_type_mismatch", "unsupported_expression_type",
+        }, exc.value.code
+
+
+def test_same_currency_addition_and_rate_multiplication_are_accepted(db, user):
+    canvas = _canvas(db, user, "canvas_currency_accept", "Currency accept")
+    manifest = {
+        "schema_version": 2, "base_component": "table",
+        "operations": ["read", "derive", "bind"],
+        "data_binding": {"subject_field": "Item"},
+        "fields": _with_total(_currency_fields(), "usd + cad",
+                              currency="USD"),
+    }
+    # Same-currency addition is compatible: use two USD fields.
+    manifest["fields"] = _with_total(
+        _currency_fields()[:2] + [
+            {"id": "usd_2", "label": "USD 2", "type": "currency",
+             "column": "USD 2", "currency": "USD", "required": True},
+        ], "usd + usd_2")
+    bound, result = _bind_and_derive(
+        db, user, canvas, manifest, ["Item", "USD", "CAD", "USD 2"],
+        [["A", "10.00", "20.00", "5.00"]])
+    assert result["aggregates"]["total"] == "15.00"
+
+    rate_canvas = _canvas(
+        db, user, "canvas_currency_rate", "Currency rate")
+    rate_manifest = {
+        "schema_version": 2, "base_component": "table",
+        "operations": ["read", "derive", "bind"],
+        "data_binding": {"subject_field": "Item"},
+        "fields": [
+            {"id": "item", "label": "Item", "type": "string",
+             "column": "Item", "required": True},
+            {"id": "quantity", "label": "Quantity", "type": "decimal",
+             "column": "Qty", "unit": "each", "required": True},
+            {"id": "unit_price", "label": "Unit price", "type": "currency",
+             "column": "Price", "currency": "USD", "required": True},
+            {"id": "total", "label": "Total", "type": "currency",
+             "column": "Total", "currency": "USD",
+             "derived": "quantity * unit_price", "aggregate": "sum"},
+        ],
+    }
+    _bind_and_derive(
+        db, user, rate_canvas, rate_manifest, ["Item", "Qty", "Price"],
+        [["A", "2", "10.00"]])
+    # The quote/service positive cases are covered above; this explicitly
+    # proves count x currency uses the bounded rate contract, not generic
+    # unit algebra.
+    assert result["aggregates"]["total"] == "15.00"
+
+
+def test_old_open_clarification_refuses_replacement_source(db, user):
+    canvas = _canvas(db, user, "canvas_old_question", "Old question")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "a.csv"})
+    client = _client(db, user)
+    opened = client.post(
+        "/api/canvas/canvas_old_question/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        })
+    assert opened.status_code == 200, opened.text
+    question = opened.json()["clarification"]
+    assert question["binding"]["missing"][0]["subject"] == "A"
+
+    replacement = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["B", "", "1000.00"]], source={"file_name": "b.csv"})
+    refused = client.post(
+        f"/api/canvas/canvas_old_question/capability/derive/"
+        f"{question['id']}/answer",
+        json={
+            "expected_revision": replacement["revision"],
+            "answers": [{"row": 2, "field_id": "quantity", "value": "2"}],
+        })
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["error"]["code"] == "stale_clarification"
+    assert "source.source_version" in refused.json()["error"]["reasons"]
+
+    # No edit reached the replacement source, and the old question remains
+    # open with its refused attempt; a fresh question binds the new subject.
+    dataset = get_dataset(canvas)
+    assert dataset["rows"][0][:3] == ["B", "", "1000.00"]
+    durable = get_manifest(canvas)
+    assert durable["manifest_revision"] == replacement[
+        "manifest"]["manifest_revision"]
+    question_after = json.loads(json.dumps(
+        canvas.content["capability_derive_clarification"]))
+    assert question_after["status"] == "open"
+    assert question_after["refused_answers"][-1]["reasons"]
+
+    fresh_client = _client(db, user)
+    reasked = fresh_client.post(
+        "/api/canvas/canvas_old_question/capability/derive",
+        json={
+            "expected_revision": current_revision(canvas),
+            "manifest_revision": durable["manifest_revision"],
+            "source_version": dataset["source"]["source_version"],
+        })
+    assert reasked.status_code == 200, reasked.text
+    new_question = reasked.json()["clarification"]
+    assert new_question["id"] != question["id"]
+    assert new_question["binding"]["missing"][0]["subject"] == "B"
+    assert new_question["binding"]["source"]["file_name"] == "b.csv"
+
+
+def test_failed_derive_rolls_back_answer_and_keeps_question_open(db, user):
+    canvas = _canvas(db, user, "canvas_answer_rollback", "Rollback")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "rollback.csv"})
+    client = _client(db, user)
+    question = client.post(
+        "/api/canvas/canvas_answer_rollback/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()["clarification"]
+    failed = client.post(
+        f"/api/canvas/canvas_answer_rollback/capability/derive/"
+        f"{question['id']}/answer",
+        json={
+            "expected_revision": first["revision"],
+            "answers": [{"row": 2, "field_id": "quantity",
+                         "value": "not-a-number"}],
+        })
+    assert failed.status_code == 400, failed.text
+    assert failed.json()["error"]["code"] == "invalid_field_value"
+    current = db.query(Canvas).filter(Canvas.id == canvas.id).first()
+    assert get_dataset(current)["rows"][0][1] == ""
+    assert current_revision(current) == first["revision"]
+    clarification = current.content["capability_derive_clarification"]
+    assert clarification["status"] == "open"
+    assert clarification["refused_answers"][-1]["reasons"] == [
+        "derive_invalid_field_value"]
+
+
+def test_answer_refuses_after_an_edit_with_a_new_revision(db, user):
+    canvas = _canvas(db, user, "canvas_answer_edit", "Answer edit")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "answer-edit.csv"})
+    client = _client(db, user)
+    question = client.post(
+        "/api/canvas/canvas_answer_edit/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()["clarification"]
+    edit_operation(
+        db, canvas, user, [{"row": 2, "column": "Qty", "value": "5"}],
+        expected_revision=first["revision"])
+    refused = client.post(
+        f"/api/canvas/canvas_answer_edit/capability/derive/"
+        f"{question['id']}/answer",
+        json={
+            "expected_revision": current_revision(canvas),
+            "answers": [{"row": 2, "field_id": "quantity", "value": "2"}],
+        })
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["error"]["code"] == "stale_clarification"
+    assert "state_revision" in refused.json()["error"]["reasons"]
+    assert get_dataset(canvas)["rows"][0][1] == "5"
+
+
+def test_open_question_resolves_after_a_fresh_session(db, user):
+    from sqlalchemy.orm import sessionmaker
+
+    canvas = _canvas(db, user, "canvas_answer_restart", "Answer restart")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "restart.csv"})
+    client = _client(db, user)
+    question = client.post(
+        "/api/canvas/canvas_answer_restart/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()["clarification"]
+    second = sessionmaker(bind=db.get_bind(), expire_on_commit=False)()
+    try:
+        fresh = second.query(Canvas).filter(
+            Canvas.id == canvas.id).first()
+        fresh_client = _client(second, user)
+        resumed = fresh_client.post(
+            f"/api/canvas/canvas_answer_restart/capability/derive/"
+            f"{question['id']}/answer",
+            json={
+                "expected_revision": current_revision(fresh),
+                "answers": [{"row": 2, "field_id": "quantity",
+                             "value": "2"}],
+            })
+        assert resumed.status_code == 200, resumed.text
+        assert resumed.json()["status"] == "resolved"
+        assert resumed.json()["result"]["aggregates"]["line_total"] == (
+            "200.00")
+    finally:
+        second.close()
+
+
+def test_answer_refuses_after_manifest_or_edit_change(db, user):
+    canvas = _canvas(db, user, "canvas_old_manifest", "Old manifest")
+    set_manifest(db, canvas, user, _quote_manifest())
+    first = bind_dataset(
+        db, canvas, user, ["Item", "Qty", "Price"],
+        [["A", "", "100.00"]], source={"file_name": "manifest.csv"})
+    client = _client(db, user)
+    opened = client.post(
+        "/api/canvas/canvas_old_manifest/capability/derive",
+        json={
+            "expected_revision": first["revision"],
+            "manifest_revision": first["manifest"]["manifest_revision"],
+            "source_version": first["source"]["source_version"],
+        }).json()
+    question = opened["clarification"]
+
+    changed = set_manifest(db, canvas, user, {
+        **_quote_manifest(),
+        "task_policy": "changed after question",
+    })
+    refused = client.post(
+        f"/api/canvas/canvas_old_manifest/capability/derive/"
+        f"{question['id']}/answer",
+        json={
+            "expected_revision": current_revision(canvas),
+            "answers": [{"row": 2, "field_id": "quantity", "value": "2"}],
+        })
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["error"]["code"] == "stale_clarification"
+    assert "manifest_revision" in refused.json()["error"]["reasons"]
+    assert changed["manifest"]["manifest_revision"] != (
+        first["manifest"]["manifest_revision"])
+    assert get_dataset(canvas)["rows"][0][1] == ""

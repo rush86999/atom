@@ -331,6 +331,199 @@ def _expression_names(expression: str) -> List[str]:
     return names
 
 
+def _field_dimension(field: Dict[str, Any]) -> Tuple[str, str]:
+    """The arithmetic dimension a typed field carries.
+
+    Only two numeric dimensions exist: a named unit (each/hour/mile/...) and
+    an ISO currency. Everything else is non-numeric. The dimension is derived
+    from the field's declared type, never from its label or position.
+    """
+    field_type = str(field.get("type") or "")
+    if field_type == "currency":
+        return ("currency", str(field.get("currency") or ""))
+    if field_type in {"integer", "decimal"}:
+        return ("unit", str(field.get("unit") or ""))
+    return ("nonnumeric", field_type)
+
+
+def _dimension_text(dimension: Tuple[str, str]) -> str:
+    kind, value = dimension
+    if kind == "currency":
+        return f"currency {value}"
+    if kind == "unit":
+        return f"unit {value}"
+    if kind == "scalar":
+        return "a scalar"
+    return f"non-numeric {value}"
+
+
+def _infer_expression_dimension(
+    expression: str,
+    dimensions: Dict[str, Tuple[str, str]],
+    field: Dict[str, Any],
+) -> Tuple[str, str]:
+    """Infer a derived field's dimension with the bounded arithmetic contract.
+
+    Supported rules:
+    - ``+``/``-`` require the same dimension (and therefore the same currency).
+    - scaling by a scalar preserves the other operand's dimension;
+    - ``unit * currency`` / ``currency * unit`` is the documented rate
+      contract (quantity x unit price), yielding the currency;
+    - same-dimension division yields a scalar; division by a scalar preserves
+      the numerator's dimension.
+
+    Mixed currencies, unit/currency addition, currency*currency, unit*unit and
+    implicit currency conversion are refused. This is deliberately smaller
+    than a general unit algebra.
+    """
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except (SyntaxError, ValueError) as exc:
+        raise CapabilityError(
+            "invalid_expression",
+            f"Derived expression is not valid arithmetic: {exc}",
+        ) from exc
+
+    def infer(node: Any) -> Tuple[str, str]:
+        if isinstance(node, ast.Expression):
+            return infer(node.body)
+        if isinstance(node, ast.Constant) and isinstance(
+                node.value, (int, float)) and not isinstance(node.value, bool):
+            return ("scalar", "")
+        if isinstance(node, ast.Name):
+            if node.id not in dimensions:
+                raise CapabilityError(
+                    "unsupported_field_reference",
+                    f"Field {field['id']!r} references unknown or later "
+                    f"field {node.id!r}.",
+                )
+            dimension = dimensions[node.id]
+            if dimension[0] == "nonnumeric":
+                raise CapabilityError(
+                    "unsupported_expression_type",
+                    f"Field {field['id']!r} cannot calculate with "
+                    f"non-numeric field {node.id!r}.",
+                )
+            return dimension
+        if isinstance(node, ast.UnaryOp) and isinstance(
+                node.op, (ast.UAdd, ast.USub)):
+            return infer(node.operand)
+        if isinstance(node, ast.BinOp):
+            left = infer(node.left)
+            right = infer(node.right)
+            if isinstance(node.op, (ast.Add, ast.Sub)):
+                if left != right:
+                    if left[0] == right[0] == "currency":
+                        raise CapabilityError(
+                            "incompatible_currency",
+                            f"Field {field['id']!r} adds {left[1]} and "
+                            f"{right[1]}; an explicit conversion would be "
+                            "required, and no exchange rate is assumed.",
+                        )
+                    raise CapabilityError(
+                        "incompatible_units",
+                        f"Field {field['id']!r} combines "
+                        f"{_dimension_text(left)} with "
+                        f"{_dimension_text(right)}; add/subtract requires the "
+                        "same dimension.",
+                    )
+                return left
+            if isinstance(node.op, ast.Mult):
+                if left[0] == "scalar":
+                    return right
+                if right[0] == "scalar":
+                    return left
+                if {left[0], right[0]} == {"unit", "currency"}:
+                    # Documented rate contract: quantity x unit price.
+                    return (
+                        "currency",
+                        left[1] if left[0] == "currency" else right[1],
+                    )
+                if left[0] == right[0] == "currency":
+                    raise CapabilityError(
+                        "incompatible_currency",
+                        f"Field {field['id']!r} multiplies two currencies "
+                        f"({left[1]} x {right[1]}); that is not a supported "
+                        "rate.",
+                    )
+                raise CapabilityError(
+                    "incompatible_units",
+                    f"Field {field['id']!r} multiplies "
+                    f"{_dimension_text(left)} by "
+                    f"{_dimension_text(right)}; generic unit algebra is not "
+                    "implemented.",
+                )
+            if isinstance(node.op, ast.Div):
+                if right[0] == "scalar":
+                    return left
+                if left == right and left[0] in {"unit", "currency"}:
+                    return ("scalar", "")
+                raise CapabilityError(
+                    "incompatible_units",
+                    f"Field {field['id']!r} divides "
+                    f"{_dimension_text(left)} by "
+                    f"{_dimension_text(right)}; only same-dimension ratios "
+                    "or division by a scalar are supported.",
+                )
+        raise CapabilityError(
+            "unsupported_expression",
+            "Derived expressions support only field names, numeric literals "
+            "and + - * /.",
+            field_id=field["id"],
+        )
+
+    return infer(tree)
+
+
+def _validate_expression_dimensions(fields: Sequence[Dict[str, Any]]) -> None:
+    """Validate declared fields against the inferred expression dimensions."""
+    dimensions: Dict[str, Tuple[str, str]] = {}
+    for field in fields:
+        if not field.get("derived"):
+            dimensions[field["id"]] = _field_dimension(field)
+            continue
+        inferred = _infer_expression_dimension(
+            str(field["derived"]), dimensions, field)
+        declared = _field_dimension(field)
+        if inferred[0] == "scalar":
+            if (field.get("type") not in {"integer", "decimal"}
+                    or str(field.get("unit") or "").casefold()
+                    not in {"scalar", "ratio"}):
+                raise CapabilityError(
+                    "derived_type_mismatch",
+                    f"Field {field['id']!r} expression produces a scalar, "
+                    "but the field is not declared with an explicit "
+                    "scalar/ratio unit.",
+                    field_id=field["id"],
+                )
+        elif inferred != declared:
+            if inferred[0] == declared[0] == "currency":
+                raise CapabilityError(
+                    "incompatible_currency",
+                    f"Field {field['id']!r} expression produces "
+                    f"{inferred[1]}, but the field is declared "
+                    f"{declared[1]}; a label cannot change currency.",
+                    field_id=field["id"],
+                )
+            if inferred[0] == "currency" and declared[0] != "currency":
+                raise CapabilityError(
+                    "derived_type_mismatch",
+                    f"Field {field['id']!r} expression produces currency "
+                    f"{inferred[1]}, but the field is declared as "
+                    f"{_dimension_text(declared)}; currency cannot be hidden "
+                    "inside a non-currency field.",
+                    field_id=field["id"],
+                )
+            raise CapabilityError(
+                "derived_type_mismatch",
+                f"Field {field['id']!r} expression produces "
+                f"{_dimension_text(inferred)}, but the field is declared as "
+                f"{_dimension_text(declared)}.",
+                field_id=field["id"],
+            )
+        dimensions[field["id"]] = inferred
+
+
 def _normalize_typed_fields(raw_fields: Any) -> List[Dict[str, Any]]:
     if not isinstance(raw_fields, list) or not raw_fields:
         raise CapabilityError(
@@ -522,6 +715,7 @@ def _normalize_typed_fields(raw_fields: Any) -> List[Dict[str, Any]]:
                 "invalid_manifest",
                 f"Field {item['id']!r} cannot group by itself.",
             )
+    _validate_expression_dimensions(normalized)
     return normalized
 
 
@@ -2008,6 +2202,9 @@ def derive_operation(
             "typed_fields_required",
             "Derive requires schema 2 typed fields with explicit units.",
         )
+    # Manifests stored before the dimension contract (or edited outside this
+    # service) are rechecked before any total is produced.
+    _validate_expression_dimensions(fields)
     if expected_revision is None:
         raise CapabilityError(
             "revision_required",
@@ -2289,6 +2486,74 @@ def _answers_digest(answers: Sequence[Dict[str, Any]]) -> str:
     ).encode("utf-8")).hexdigest()
 
 
+def _clarification_binding(
+    canvas: Canvas, manifest: Dict[str, Any],
+    missing: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Capture the exact state/source/row/field binding of a question.
+
+    The row number is not identity: a replacement dataset can reuse row 2 for
+    a different subject. Each missing entry therefore carries the subject
+    value, a digest of the complete row, and the field's mapping/type/unit
+    contract. The source and manifest revisions are captured independently of
+    any revision the caller supplies when answering.
+    """
+    dataset = get_dataset(canvas)
+    columns = [str(item) for item in (dataset.get("columns") or [])]
+    rows = dataset.get("rows") or []
+    sheet_rows = dataset.get("sheet_rows") or []
+    subject_field = str(
+        (manifest.get("data_binding") or {}).get("subject_field") or "")
+    field_by_id = {
+        item["id"]: item for item in (manifest.get("fields") or [])}
+    enriched: List[Dict[str, Any]] = []
+    for item in missing:
+        try:
+            row_number = int(item.get("row"))
+        except (TypeError, ValueError):
+            row_number = -1
+        try:
+            index = (
+                sheet_rows.index(row_number)
+                if sheet_rows else row_number - 2)
+        except (ValueError, TypeError):
+            index = -1
+        values: Dict[str, Any] = {}
+        if 0 <= index < len(rows):
+            values = {
+                columns[column_index]: (
+                    rows[index][column_index]
+                    if column_index < len(rows[index]) else None)
+                for column_index in range(len(columns))
+            }
+        subject = ""
+        if subject_field:
+            subject = str(values.get(subject_field) or "").strip()
+        field = field_by_id.get(str(item.get("field_id") or ""), {})
+        enriched.append({
+            "row": row_number,
+            "field_id": str(item.get("field_id") or ""),
+            "label": str(item.get("label") or ""),
+            "unit": str(item.get("unit") or ""),
+            "currency": str(item.get("currency") or ""),
+            "subject": subject,
+            "row_digest": _sha256_json(values),
+            "field_binding": {
+                key: field.get(key) for key in (
+                    "id", "column", "type", "unit", "currency", "derived",
+                    "scale", "rounding", "required", "editable")
+            },
+        })
+    return {
+        "state_revision": current_revision(canvas),
+        "manifest_revision": str(manifest.get("manifest_revision") or ""),
+        "policy_revision": policy_revision(manifest),
+        "source": _dataset_source(canvas),
+        "subject_field": subject_field,
+        "missing": enriched,
+    }
+
+
 def begin_derive_clarification(
     db, canvas: Canvas, user: Any, error: CapabilityError,
     *, expected_revision: int, manifest_revision_value: str,
@@ -2300,12 +2565,45 @@ def begin_derive_clarification(
     in the canvas, answers are applied through the existing edit operation and
     the same derive operation resumes the calculation.
     """
+    # Close the derive -> open-question race: the snapshot that produced the
+    # missing-value error must still be current when the question is stored.
+    if current_revision(canvas) != int(expected_revision):
+        raise CapabilityError(
+            "stale_revision",
+            "The canvas changed before the clarification could be stored; "
+            "derive again from the current revision.",
+            409,
+        )
+    manifest = get_manifest(canvas)
+    if str(manifest.get("manifest_revision") or "") != str(
+            manifest_revision_value or ""):
+        raise CapabilityError(
+            "stale_manifest",
+            "The fields or rules changed before the clarification could be "
+            "stored; derive again.",
+            409,
+        )
+    if str(_dataset_source(canvas).get("source_version") or "") != str(
+            source_version or ""):
+        raise CapabilityError(
+            "stale_source",
+            "The bound dataset changed before the clarification could be "
+            "stored; derive again.",
+            409,
+        )
     content = _canvas_content(canvas)
     existing = content.get("capability_derive_clarification")
     missing = list(error.extra.get("missing") or [])
+    binding = _clarification_binding(canvas, manifest, missing)
     if isinstance(existing, dict) and existing.get("status") == "open":
-        if existing.get("missing") == missing:
+        if existing.get("binding") == binding:
             return existing
+        # A source/manifest/row change superseded the old question. Preserve
+        # it in history and open a new question for the current snapshot.
+        history = list(
+            content.get("capability_derive_clarification_history") or [])
+        history.append(existing)
+        content["capability_derive_clarification_history"] = history[-5:]
     clarification = {
         "id": f"derive-{uuid.uuid4().hex}",
         "status": "open",
@@ -2314,7 +2612,8 @@ def begin_derive_clarification(
         "expected_revision": int(expected_revision),
         "manifest_revision": str(manifest_revision_value or ""),
         "source_version": str(source_version or ""),
-        "missing": missing,
+        "binding": binding,
+        "missing": binding["missing"],
         "question": error.message,
     }
     content["capability_derive_clarification"] = clarification
@@ -2323,13 +2622,55 @@ def begin_derive_clarification(
     return clarification
 
 
+def _record_refused_answer(
+    db, canvas: Canvas, clarification_id: str,
+    answers: Sequence[Dict[str, Any]], reasons: Sequence[str],
+    detail: str = "",
+) -> None:
+    """Keep a refused attempt on the historical question; never edit rows."""
+    content = _canvas_content(canvas)
+    clarification = content.get("capability_derive_clarification")
+    if not isinstance(clarification, dict) or str(
+            clarification.get("id") or "") != str(clarification_id):
+        return
+    if clarification.get("status") != "open":
+        return
+    refused = list(clarification.get("refused_answers") or [])
+    refused.append({
+        "answers": list(answers),
+        "at": _now().isoformat(),
+        "reasons": list(reasons),
+        "detail": str(detail or "")[:500],
+    })
+    clarification = dict(clarification)
+    clarification["refused_answers"] = refused[-5:]
+    content["capability_derive_clarification"] = clarification
+    canvas.content = content
+    db.commit()
+
+
 def answer_derive_clarification(
     db, canvas: Canvas, user: Any, clarification_id: str,
     answers: Sequence[Dict[str, Any]], *,
     expected_revision: Optional[int] = None,
 ) -> Dict[str, Any]:
-    authorize_canvas(db, canvas, user)
-    content = _canvas_content(canvas)
+    """Apply one answer only to the exact snapshot that opened the question.
+
+    The caller's current revision is not authority to answer an older
+    question. The captured state/manifest/policy/source binding, row subject
+    digest and field mapping must still match the authoritative canvas before
+    any edit. A mismatch refuses and records the refused attempt; it never
+    changes the replacement source.
+    """
+    fresh = (
+        db.query(Canvas)
+        .filter(Canvas.id == canvas.id)
+        .with_for_update()
+        .first()
+        or canvas
+    )
+    authorize_canvas(db, fresh, user)
+    content = _canvas_content(fresh)
     clarification = content.get("capability_derive_clarification")
     if not isinstance(clarification, dict) or str(
             clarification.get("id") or "") != str(clarification_id):
@@ -2341,7 +2682,7 @@ def answer_derive_clarification(
     if clarification.get("status") == "resolved":
         if clarification.get("answers_digest") == digest:
             if int(clarification.get("revision") or 0) != current_revision(
-                    canvas):
+                    fresh):
                 raise CapabilityError(
                     "stale_revision",
                     "The canvas changed after this clarification was "
@@ -2360,14 +2701,53 @@ def answer_derive_clarification(
             "The clarification was already resolved with a different answer.",
             409,
         )
+    if clarification.get("status") != "open":
+        raise CapabilityError(
+            "clarification_closed",
+            "This clarification is no longer open; start a new derive.",
+            409,
+        )
     if expected_revision is None:
         raise CapabilityError(
             "revision_required", "expected_revision is required for an answer.")
-    if int(expected_revision) != current_revision(canvas):
+    current_manifest = get_manifest(fresh)
+    original_binding = clarification.get("binding")
+    current_binding = _clarification_binding(
+        fresh, current_manifest, clarification.get("missing") or [])
+    reasons: List[str] = []
+    if not isinstance(original_binding, dict):
+        reasons.append("binding_missing")
+    else:
+        for key in ("state_revision", "manifest_revision", "policy_revision",
+                    "subject_field"):
+            if original_binding.get(key) != current_binding.get(key):
+                reasons.append(key)
+        original_source = dict(original_binding.get("source") or {})
+        current_source = dict(current_binding.get("source") or {})
+        for key in ("resource_id", "source_version", "sha256", "file_name"):
+            if str(original_source.get(key) or "") != str(
+                    current_source.get(key) or ""):
+                reasons.append(f"source.{key}")
+        if original_binding.get("missing") != current_binding.get("missing"):
+            reasons.append("missing")
+    if reasons:
+        _record_refused_answer(
+            db, fresh, clarification_id, normalized, reasons,
+            detail="source/manifest/row binding changed")
+        raise CapabilityError(
+            "stale_clarification",
+            "The canvas source, fields or revision changed after this "
+            "question was opened. The old answer was refused; derive again "
+            "to get a question for the current snapshot.",
+            409,
+            clarification_id=clarification_id,
+            reasons=reasons,
+        )
+    if int(expected_revision) != current_revision(fresh):
         raise CapabilityError(
             "stale_revision",
             f"Expected revision {expected_revision} but canvas is at "
-            f"{current_revision(canvas)}. Nothing was changed.",
+            f"{current_revision(fresh)}. Nothing was changed.",
             409,
         )
     missing = list(clarification.get("missing") or [])
@@ -2389,7 +2769,7 @@ def answer_derive_clarification(
                 for row, field in sorted(set(supplied) - set(required))
             ],
         )
-    manifest = get_manifest(canvas)
+    manifest = current_manifest
     field_by_id = {
         item["id"]: item for item in (manifest.get("fields") or [])}
     for (row, field_id), answer in supplied.items():
@@ -2409,24 +2789,40 @@ def answer_derive_clarification(
         "row": row, "column": field_by_id[field_id]["column"],
         "value": answer["value"],
     } for (row, field_id), answer in supplied.items()]
-    edited = edit_operation(
-        db, canvas, user, edits, expected_revision=expected_revision)
-    if not edited.get("success"):
-        raise CapabilityError(
-            "answer_readback_mismatch",
-            "The answer was not read back from the authoritative store.",
-            409,
-            edits=edited.get("edits"),
+    try:
+        # One transaction: the edit, the answered derive and the resolution
+        # all commit together. A failed derive rolls the edit back and leaves
+        # the question open with the refused attempt recorded.
+        edited = edit_operation(
+            db, fresh, user, edits, expected_revision=expected_revision,
+            commit=False)
+        if not edited.get("success"):
+            raise CapabilityError(
+                "answer_readback_mismatch",
+                "The answer was not read back from the authoritative store.",
+                409,
+                edits=edited.get("edits"),
+            )
+        result = derive_operation(
+            db, fresh, user,
+            expected_revision=current_revision(fresh),
+            manifest_revision_value=get_manifest(fresh).get(
+                "manifest_revision"),
+            source_version=(get_dataset(
+                fresh).get("source") or {}).get("source_version"),
         )
-    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first() or canvas
-    manifest = get_manifest(fresh)
-    dataset = get_dataset(fresh)
-    result = derive_operation(
-        db, fresh, user,
-        expected_revision=current_revision(fresh),
-        manifest_revision_value=manifest.get("manifest_revision"),
-        source_version=(dataset.get("source") or {}).get("source_version"),
-    )
+    except CapabilityError as exc:
+        db.rollback()
+        try:
+            current = db.query(Canvas).filter(
+                Canvas.id == canvas.id).first()
+            if current is not None:
+                _record_refused_answer(
+                    db, current, clarification_id, normalized,
+                    [f"derive_{exc.code}"], detail=exc.message)
+        except Exception:  # noqa: BLE001
+            db.rollback()
+        raise
     content = _canvas_content(fresh)
     clarification = dict(content.get("capability_derive_clarification") or {})
     clarification.update({
@@ -2955,6 +3351,7 @@ async def assess_operation(
 def edit_operation(
     db, canvas: Canvas, user: Any, edits: Sequence[Dict[str, Any]],
     expected_revision: Optional[int] = None,
+    commit: bool = True,
 ) -> Dict[str, Any]:
     manifest = _require_effective(canvas, "edit")
     _require_approval(canvas, manifest, "edit", user)
@@ -3054,7 +3451,8 @@ def edit_operation(
             "revision": content["capability_revision"],
             "source_version": dataset["source"]["source_version"],
         })
-    db.commit()
+    if commit:
+        db.commit()
     # Read back from the authoritative row, not the in-memory request.
     fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first() or canvas
     fresh_dataset = get_dataset(fresh)

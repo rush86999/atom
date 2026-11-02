@@ -117,6 +117,7 @@ def answer(page, row: int, field_id: str, value: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--frontend", required=True)
+    parser.add_argument("--api", default="http://127.0.0.1:8091")
     parser.add_argument("--password-file", required=True)
     parser.add_argument("--agent-id", required=True)
     parser.add_argument("--out-dir", required=True)
@@ -145,6 +146,18 @@ def main() -> int:
         "EX-1,,Open\n"
         "EX-2,50.00,Open\n"
         "EX-3,20.00,Closed\n",
+        encoding="utf-8",
+    )
+    stale_a_csv = out / "stale-question-a.csv"
+    stale_a_csv.write_text(
+        "Item,Qty,Price\n"
+        "A,,100.00\n",
+        encoding="utf-8",
+    )
+    stale_b_csv = out / "stale-question-b.csv"
+    stale_b_csv.write_text(
+        "Item,Qty,Price\n"
+        "B,,1000.00\n",
         encoding="utf-8",
     )
 
@@ -342,6 +355,71 @@ def main() -> int:
         )
         page.screenshot(path=str(out / "exception-queue.png"),
                         full_page=True)
+        # Safety control: a question opened for A must not edit a replacement
+        # source B. The old answer is submitted through the same page with the
+        # NEW current revision; the server must still refuse on the question's
+        # captured source/row binding.
+        stale_url = new_canvas(page, args.frontend, args.agent_id)
+        configure(page, quote_manifest)
+        stale_a = bind(page, stale_a_csv)
+        stale_open = derive(page)
+        stale_question = stale_open["body"].get("clarification") or {}
+        stale_question_id = stale_question.get("id", "")
+        stale_b = bind(page, stale_b_csv)
+        stale_canvas_id = stale_url.rstrip("/").split("/")[-1]
+        old_answer = page.evaluate(
+            """async ({api, canvasId, clarificationId, revision}) => {
+              const token = localStorage.getItem("auth_token")
+                || localStorage.getItem("token") || "";
+              const response = await fetch(
+                `${api}/api/canvas/${canvasId}/capability/derive/`
+                + `${clarificationId}/answer`,
+                {method: "POST",
+                 headers: {"Content-Type": "application/json",
+                           Authorization: `Bearer ${token}`},
+                 body: JSON.stringify({
+                   expected_revision: revision,
+                   answers: [{row: 2, field_id: "quantity", value: "2"}],
+                 })});
+              let body;
+              try { body = await response.json(); } catch { body = {}; }
+              return {status: response.status, body};
+            }""",
+            {api: args.api, canvasId: stale_canvas_id,
+             clarificationId: stale_question_id,
+             revision: stale_b["body"].get("revision")})
+        record(
+            "old answer refuses after source replacement",
+            stale_open["body"].get("status") == "clarification"
+            and stale_a["status"] == 200 and stale_b["status"] == 200
+            and old_answer["status"] == 409
+            and old_answer["body"].get("error", {}).get("code")
+                == "stale_clarification",
+            {"question": stale_question_id,
+             "answer_status": old_answer["status"],
+             "error": old_answer["body"].get("error")})
+        stale_reasked = derive(page)
+        new_question = stale_reasked["body"].get("clarification") or {}
+        record(
+            "replacement source receives a new question",
+            stale_reasked["body"].get("status") == "clarification"
+            and new_question.get("id") != stale_question_id
+            and new_question.get("binding", {}).get(
+                "missing", [{}])[0].get("subject") == "B",
+            {"new_question": new_question.get("id"),
+             "subject": new_question.get("binding", {}).get(
+                 "missing", [{}])[0].get("subject")})
+        stale_answered = answer(page, 2, "quantity", "2")
+        record(
+            "replacement source completes only through its new question",
+            stale_answered["status"] == 200
+            and stale_answered["body"].get("status") == "resolved"
+            and stale_answered["body"].get("result", {}).get(
+                "aggregates", {}).get("line_total") == "2000.00",
+            {"aggregates": stale_answered["body"].get("result", {}).get(
+                "aggregates")})
+        page.screenshot(path=str(out / "stale-question-refusal.png"),
+                        full_page=True)
         record("no browser page errors", not errors, errors)
 
         payload = {
@@ -367,6 +445,8 @@ def main() -> int:
                     (out / "service-proposal.png").read_bytes()).hexdigest(),
                 "exception_queue.png": hashlib.sha256(
                     (out / "exception-queue.png").read_bytes()).hexdigest(),
+                "stale-question-refusal.png": hashlib.sha256(
+                    (out / "stale-question-refusal.png").read_bytes()).hexdigest(),
             },
             "page_errors": errors,
         }
