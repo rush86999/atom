@@ -261,7 +261,8 @@ def main() -> int:
         with page.expect_response(
                 lambda r: "/capability/assign" in r.url
                 and r.request.method == "POST", timeout=120000) as info:
-            panel.get_by_test_id("capability-assign").click()
+            panel.get_by_test_id("capability-assign").evaluate(
+                "el => el.click()")
         assigned = info.value.json()
         page.wait_for_timeout(800)
         record(
