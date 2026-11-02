@@ -59,3 +59,26 @@ def test_post_effect_serialization_overflow_is_uncertain_not_failed():
     assert "serialization" in str(exc.value).lower()
     assert "remote-1" in str(exc.value) or "remote-1" in str(
         getattr(exc.value, "evidence", ""))
+
+
+def test_nested_provider_receipts_are_preserved_exactly():
+    payload = {
+        "provider_receipt": {
+            "operation_id": "op-1",
+            "remote_id": "est-1",
+            "verification": {
+                "status": "verified",
+                "checked_fields": ["customer_id", "line_items"],
+                "line_items": [{
+                    "item_id": "A", "quantity": "2",
+                    "rate": "100.00", "evidence": {"row": 2},
+                }],
+            },
+        },
+        "read_receipt": {
+            "version": "v2",
+            "fields": {"sha256": "abc", "truncated": False},
+            "rows": [{"item_id": "A", "quantity": "2"}],
+        },
+    }
+    assert _json_safe(payload, executable=True) == payload
