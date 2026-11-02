@@ -129,8 +129,10 @@
   },
   "candidate": {
     "branch": "codex/brennan-joint-review-20261101",
-    "evidence_commit": "the commit that adds this final evidence directory; see git log -- docs/acceptance/evidence/brennan_connected_browser_20261101_final",
+    "evidence_commit": "6b5045723 (25-check artifacts and manifest)",
     "executed_source_head": "6431bcb7857fd43dffc1ed685fffe47044669e5c",
+    "manifest_commit": "6b5045723",
+    "manifest_note": "The current file receives a docs-only pointer update after the evidence commit; the served code remains 6431bcb78.",
     "review_worktree": "/private/tmp/atom-brennan-review",
     "tree_clean_at_execution": true,
     "worktree": "/private/tmp/atom-brennan-clean (detached clean checkout of the branch tip)"
