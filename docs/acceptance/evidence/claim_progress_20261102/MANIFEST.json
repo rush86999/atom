@@ -1,0 +1,73 @@
+{
+ "schema": "atom-claim-progress-1",
+ "status": "submitted for verification; no claim verdict changed",
+ "claims": {
+  "ORACLE-01": {
+   "source_commits": [
+    "3f2373ab6"
+   ],
+   "defect": "flag enabled but zero verifiers registered in the production import path",
+   "fix": [
+    "auto-import postcondition_verifiers from core.oracle",
+    "canvas.present_markdown verifier reads canvas_audit",
+    "assignment executor gates applied mutations through registered verifiers"
+   ],
+   "positive_control": {
+    "campaign": "full-app 15/15 at ports 8096/3137",
+    "source_id": "3f2373ab6f2b",
+    "action_remote_id": "b819f56c-6be4-4a9f-8ecd-e9c055b69d5d",
+    "audit_row": "present | markdown",
+    "result": "oracle-campaign-result.json"
+   },
+   "negative_controls": [
+    "missing audit row refutes",
+    "component mismatch refutes",
+    "missing identity refutes",
+    "refuted postcondition blocks as uncertain, preserves remote id, reconciles applied with one effect"
+   ],
+   "tests": {
+    "command": "pytest tests/test_oracle_canvas_postcondition.py tests/test_canvas_assignment_integration.py -q",
+    "result": "17 passed",
+    "log": "oracle-tests.log"
+   },
+   "remaining_gap": "coverage is trigger_workflow, tasks.create and canvas.present_markdown only; \"every mutating action\" not established"
+  },
+  "TEAM-05": {
+   "source_commits": [
+    "ad8069b2a"
+   ],
+   "exercised": "run_auto_certification (scheduled entry, own session) in notify and approve modes",
+   "notify": "notified set recorded, zero org_politics_actions rows, flags off",
+   "approve": "pending approvals persist across a new session, flags off, second pass does not requeue",
+   "tests": {
+    "command": "pytest tests/test_org_politics_automation.py tests/test_org_politics_scheduled_entry.py -q",
+    "result": "21 passed",
+    "log": "team05-scheduled.log"
+   },
+   "remaining_gap": "sweep verdict is injected (no live LLM); a real 24h scheduling boundary was not observed"
+  },
+  "MEM-07": {
+   "source_commits": [
+    "ad8069b2a"
+   ],
+   "gap": "no tool-error hook or candidate store existed in the served agent path",
+   "slice": "flag-gated PENDING HITLAction candidate, deduped, no code/config change",
+   "tests": {
+    "command": "pytest tests/test_agent_evolution_candidates.py -q",
+    "result": "3 passed",
+    "log": "mem07-candidates.log"
+   },
+   "remaining_gap": "approval-to-apply and AlphaEvolver/Memento consumption are not implemented; no post-restart learning evidence yet"
+  }
+ },
+ "artifacts": {
+  "README.md": "c783c523b44cefe69db16fb0ed74d2bb08cea1b4bdc39fda826d5be318c76e0a",
+  "mem07-candidates.log": "6328ff849a5c173e4ce9ebdffc8bdab318c81c95309aa55334d1a4a994d07d74",
+  "oracle-audit-row.txt": "2a4cd0f96403f59ab841a2829aee8cd44722f752ef3f5d34e79ca206df7defd6",
+  "oracle-campaign-result.json": "4d94c3f644ef5242971c85bd3ce840305be1c4942fc75c622f6def76592e7f31",
+  "oracle-campaign.log": "53a4371989e4a620bfd68fe557143b93380f311fafd738345300fa4668d03748",
+  "oracle-runtime-identity.txt": "91e46613038d53f85c2010143abcf5f0ea551a1982aa0f3b8c6372e5b67ac73b",
+  "oracle-tests.log": "12b1506e37f4d341e66e8c4fd25e576c37de6813c1717cd433d52a6494e49ba2",
+  "team05-scheduled.log": "e60cdca738445fddc31334f18b5d291bd3131048a753f99ba4e95f02b92ba006"
+ }
+}
