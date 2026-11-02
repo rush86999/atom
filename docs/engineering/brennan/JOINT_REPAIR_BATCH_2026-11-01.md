@@ -106,9 +106,9 @@ when line items are supplied.
 
 | Suite | Result |
 |---|---|
-| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **241 passed** |
+| Joint core (assignment + quote + evidence + routes + joint integration + readback + connected + row mapping) | **251 passed** |
 | Agent 2 focused provider/accounting/readback | **273 passed** |
-| Agent 1 required assignment suite | **164 passed** |
+| Agent 1 required assignment suite | **174 passed** |
 | Public route quote/source-change/teaching-reassessment journey | **4 passed** |
 | Extended assignment/action-registry suite | **334 passed, 4 pre-existing baseline failures** |
 
