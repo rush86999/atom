@@ -1,0 +1,11 @@
+{
+  "backend_port": 8091,
+  "created_at": "2026-11-02T03:58:10.811743+00:00",
+  "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean/atom.db",
+  "frontend_port": 3131,
+  "last_launched_at": "2026-11-02T03:58:10.811743+00:00",
+  "repo": "/private/tmp/atom-canvas-successor",
+  "schema": "atom-integrated-local-world-1",
+  "secret_file": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean/.atom-secret",
+  "world": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean"
+}

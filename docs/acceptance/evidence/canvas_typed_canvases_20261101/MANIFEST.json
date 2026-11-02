@@ -1,0 +1,163 @@
+{
+  "artifacts": {
+    "backend-health.json": "380bf2072580717aabbc89aef5d14f9e9944859db595d476335c36dd101e3cb2",
+    "exception-queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+    "exception-queue.png": "b2f774c0f6cd34d888704be8b1e38a6a719a6a258ae27ba05cc5ebdb8dbd73d0",
+    "frontend-build-id.txt": "bb179b68b7c4504485ae61363c7d8d2e9cc1cd83d2da19e128a9d7ab268bb9e1",
+    "frontend-health.json": "a1a2e7e8361de3a1520020454dac2d6964f15b8b23dc7aeb80313a6ffb133862",
+    "industrial-quote.csv": "7c97d46957efbf355832a1f726ced1992adffec495cf5208cbefcce8b5e1f04f",
+    "industrial-quote.png": "e78b5b5d35efe070be6ff7708d955270243c853547e3be15ed547a5f08b40b2e",
+    "result.json": "f392e3e4df68c64ae3c8a3e5249763ca52de107e61258dfff9fc280ec294098e",
+    "run.log": "79ae9a6cd87262f8376b51590360c5ec0b8c1c1a3af0d9e21b72f75c98df3845",
+    "service-proposal.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+    "service-proposal.png": "f48aae0108f0f3892d3657c1064cc2e2c25d7d5ea765d68eb85b44987d30abb3",
+    "world.json": "2f909e85a61879cba55165376d5c93debf501760cff4284491baf13734e359ed"
+  },
+  "browser": {
+    "canvas_urls": {
+      "exception_queue": "http://127.0.0.1:3131/canvas/f8e910eb-be83-4597-b2c4-d4602acb08ed",
+      "industrial_quote": "http://127.0.0.1:3131/canvas/0c6b6918-8c49-4f6f-827e-e4c7a4737c2b",
+      "service_proposal": "http://127.0.0.1:3131/canvas/61d08fe4-7e1d-4927-9447-44df2f4c409d"
+    },
+    "checks": [
+      {
+        "name": "industrial quote created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "industrial quote derives server total 350.00 USD",
+        "ok": true
+      },
+      {
+        "name": "industrial quote exposes table view and derive operation",
+        "ok": true
+      },
+      {
+        "name": "industrial quote fields and revision survive reload",
+        "ok": true
+      },
+      {
+        "name": "service proposal created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives server total 630.00 CAD",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives in CAD through the same panel",
+        "ok": true
+      },
+      {
+        "name": "exception queue created with a targeted missing amount",
+        "ok": true
+      },
+      {
+        "name": "same queue derivation resumes after the answer",
+        "ok": true
+      },
+      {
+        "name": "exception queue counts and groups by status",
+        "ok": true
+      },
+      {
+        "name": "exception queue exposes derive and selection, not a sales quote",
+        "ok": true
+      },
+      {
+        "name": "exception queue history and fields survive reload",
+        "ok": true
+      },
+      {
+        "name": "no browser page errors",
+        "ok": true
+      }
+    ],
+    "checks_passed": 13,
+    "checks_total": 13,
+    "command": "TESTING=0 PYTHONPATH=$PWD/backend /Users/rushiparikh/projects/atom/backend/venv314/bin/python scripts/acceptance/canvas_typed_canvases_local.py --frontend http://127.0.0.1:3131 --password-file <world>/canvas-password.txt --agent-id <agent> --out-dir <evidence>",
+    "expected_totals": {
+      "exception_queue": "170.00 USD / 3 exceptions",
+      "industrial_quote": "350.00 USD",
+      "service_proposal": "630.00 CAD"
+    },
+    "page_errors": []
+  },
+  "candidate": {
+    "base": "9b39c35b7",
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source_head": "fa77cc2abf45ea17d3ab3ee8a07b9496a81c082c",
+    "manifest_note": "This manifest commit is docs-only after the executed source; it was not served.",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/api/canvas_capability_routes.py",
+    "backend/core/canvas_capability_service.py",
+    "backend/tests/test_canvas_typed_fields.py",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx",
+    "frontend-nextjs/components/canvas/__tests__/CanvasCapabilityDerive.test.tsx",
+    "scripts/acceptance/canvas_typed_canvases_local.py"
+  ],
+  "exclusions": [
+    "isolated local world and production frontend build, not hosted deployment/publication",
+    "no live external provider call, refresh, write or send",
+    "canvas action declarations are validated but not executed; connected effects remain assignment-owned",
+    "derive clarification is canvas-state and reuses the edit operation, not assignment-task resume",
+    "derived expressions are limited to + - * / with declared scale/rounding",
+    "no independent unfamiliar-user utility study",
+    "no universal mini-app/runtime claim from three canvases"
+  ],
+  "runtime": {
+    "backend": {
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean/atom.db",
+      "dirty": false,
+      "instance_id": "fa77cc2abf45.70749.1793591895",
+      "pid": 70749,
+      "revision": "fa77cc2abf45ea17d3ab3ee8a07b9496a81c082c",
+      "source_id": "fa77cc2abf45",
+      "url": "http://127.0.0.1:8091"
+    },
+    "frontend": {
+      "build_id": "8ekSj7KLz89t9mn-dO1A0",
+      "service": "atom-frontend",
+      "status": "healthy",
+      "url": "http://127.0.0.1:3131"
+    },
+    "world": {
+      "backend_port": 8091,
+      "created_at": "2026-11-02T03:58:10.811743+00:00",
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean/atom.db",
+      "frontend_port": 3131,
+      "last_launched_at": "2026-11-02T03:58:10.811743+00:00",
+      "repo": "/private/tmp/atom-canvas-successor",
+      "schema": "atom-integrated-local-world-1",
+      "secret_file": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean/.atom-secret",
+      "world": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-clean"
+    }
+  },
+  "schema": "atom-canvas-typed-three-1",
+  "source_hashes": {
+    "backend/api/canvas_capability_routes.py": "3d10abc36a2218aede7795c3a7e10191ba853a605fb88297a193336a0cec26ac",
+    "backend/core/canvas_capability_service.py": "56d5469430b28cdde5ab4f28d75145819980f9c6885580fae3727b6ca10cbb35",
+    "backend/tests/test_canvas_typed_fields.py": "82ffb3c169b9eaa5fcf73941247b9b3f188ffa9fa08ab1d79337f28b1756376d",
+    "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "982b58e0cacf92c8d460edf7e5a3355028299e7a43876ab7b124d680ce3c0c75",
+    "frontend-nextjs/components/canvas/__tests__/CanvasCapabilityDerive.test.tsx": "13580ce227726f8b22116ac781b9339ab80d399d72a2d2d4d99a0b492fcaefce",
+    "scripts/acceptance/canvas_typed_canvases_local.py": "f8e77cba705121d48ec3c942d80ca2d9d770ac7de452fce3a599795dea00269b"
+  },
+  "tests": {
+    "canvas_focused": {
+      "command": "TESTING=1 pytest tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_canvas_assessment_routes.py tests/test_canvas_assessment_clarification_routes.py tests/test_canvas_assessment_deterministic.py tests/test_canvas_assessment_concurrency.py tests/test_canvas_connected_binding.py tests/test_api_canvas_routes.py tests/test_canvas_crud.py tests/test_canvas_fork.py -q",
+      "result": "105 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand",
+      "result": "6 passed"
+    },
+    "typed_canvas": {
+      "command": "TESTING=1 pytest tests/test_canvas_typed_fields.py -q",
+      "result": "13 passed"
+    }
+  }
+}

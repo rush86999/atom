@@ -1,0 +1,288 @@
+{
+  "schema": "atom-canvas-typed-canvases-local-1",
+  "status": "passed",
+  "frontend": "http://127.0.0.1:3131",
+  "agent_id": "837c90e0-16c6-4e77-a410-21271b187172",
+  "canvas_urls": {
+    "industrial_quote": "http://127.0.0.1:3131/canvas/0c6b6918-8c49-4f6f-827e-e4c7a4737c2b",
+    "service_proposal": "http://127.0.0.1:3131/canvas/61d08fe4-7e1d-4927-9447-44df2f4c409d",
+    "exception_queue": "http://127.0.0.1:3131/canvas/f8e910eb-be83-4597-b2c4-d4602acb08ed"
+  },
+  "manifests": {
+    "industrial_quote": {
+      "schema_version": 2,
+      "base_component": "table",
+      "operations": [
+        "read",
+        "derive",
+        "edit",
+        "bind"
+      ],
+      "data_binding": {
+        "subject_field": "Item"
+      },
+      "fields": [
+        {
+          "id": "item_id",
+          "label": "Item",
+          "type": "string",
+          "column": "Item",
+          "required": true
+        },
+        {
+          "id": "quantity",
+          "label": "Quantity",
+          "type": "decimal",
+          "column": "Qty",
+          "unit": "each",
+          "required": true,
+          "editable": true
+        },
+        {
+          "id": "unit_price",
+          "label": "Unit price",
+          "type": "currency",
+          "column": "Price",
+          "currency": "USD",
+          "required": true,
+          "editable": true
+        },
+        {
+          "id": "line_total",
+          "label": "Line total",
+          "type": "currency",
+          "currency": "USD",
+          "column": "Line Total",
+          "derived": "quantity * unit_price",
+          "aggregate": "sum",
+          "group_by": "item_id"
+        }
+      ],
+      "outputs": [
+        "xlsx"
+      ]
+    },
+    "service_proposal": {
+      "schema_version": 2,
+      "base_component": "form",
+      "operations": [
+        "read",
+        "derive",
+        "edit",
+        "bind"
+      ],
+      "data_binding": {
+        "subject_field": "Service"
+      },
+      "fields": [
+        {
+          "id": "service",
+          "label": "Service",
+          "type": "string",
+          "column": "Service",
+          "required": true
+        },
+        {
+          "id": "hours",
+          "label": "Hours",
+          "type": "decimal",
+          "column": "Hours",
+          "unit": "hour",
+          "required": true,
+          "editable": true
+        },
+        {
+          "id": "rate",
+          "label": "Rate",
+          "type": "currency",
+          "column": "Rate",
+          "currency": "CAD",
+          "required": true,
+          "editable": true
+        },
+        {
+          "id": "fee_total",
+          "label": "Fee total",
+          "type": "currency",
+          "currency": "CAD",
+          "column": "Fee Total",
+          "derived": "hours * rate",
+          "aggregate": "sum",
+          "group_by": "service"
+        }
+      ],
+      "outputs": [
+        "xlsx"
+      ]
+    },
+    "exception_queue": {
+      "schema_version": 2,
+      "base_component": "queue",
+      "operations": [
+        "read",
+        "derive",
+        "edit",
+        "select",
+        "bind"
+      ],
+      "data_binding": {
+        "subject_field": "Exception",
+        "status_field": "Status"
+      },
+      "fields": [
+        {
+          "id": "exception_id",
+          "label": "Exception",
+          "type": "string",
+          "column": "Exception",
+          "required": true,
+          "aggregate": "count",
+          "group_by": "status"
+        },
+        {
+          "id": "amount",
+          "label": "Amount",
+          "type": "currency",
+          "column": "Amount",
+          "currency": "USD",
+          "required": true,
+          "editable": true,
+          "aggregate": "sum",
+          "group_by": "status"
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "string",
+          "column": "Status",
+          "required": true,
+          "editable": true
+        }
+      ],
+      "outputs": [
+        "xlsx"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "industrial quote created and bound through the UI",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3131/canvas/0c6b6918-8c49-4f6f-827e-e4c7a4737c2b",
+        "bind": 2
+      }
+    },
+    {
+      "name": "industrial quote derives server total 350.00 USD",
+      "ok": true,
+      "detail": {
+        "aggregates": {
+          "line_total": "350.00"
+        }
+      }
+    },
+    {
+      "name": "industrial quote exposes table view and derive operation",
+      "ok": true,
+      "detail": "effective: bind, derive, edit, read"
+    },
+    {
+      "name": "industrial quote fields and revision survive reload",
+      "ok": true,
+      "detail": "Typed fields (server-computed)\nitem_id \u00b7 string\nquantity \u00b7 decimal \u00b7 each\nunit_price \u00b7 currency \u00b7 USD \u00b7 USD\nline_total \u00b7 currency \u00b7 USD \u00b7 USD \u00b7 = quantity * unit_price"
+    },
+    {
+      "name": "service proposal created and bound through the UI",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3131/canvas/61d08fe4-7e1d-4927-9447-44df2f4c409d",
+        "bind": 2
+      }
+    },
+    {
+      "name": "service proposal derives server total 630.00 CAD",
+      "ok": true,
+      "detail": {
+        "aggregates": {
+          "fee_total": "630.00"
+        }
+      }
+    },
+    {
+      "name": "service proposal derives in CAD through the same panel",
+      "ok": true,
+      "detail": "effective: bind, derive, edit, read"
+    },
+    {
+      "name": "exception queue created with a targeted missing amount",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3131/canvas/f8e910eb-be83-4597-b2c4-d4602acb08ed",
+        "status": "clarification"
+      }
+    },
+    {
+      "name": "same queue derivation resumes after the answer",
+      "ok": true,
+      "detail": {
+        "status": "resolved",
+        "aggregates": {
+          "exception_id": 3,
+          "amount": "170.00"
+        }
+      }
+    },
+    {
+      "name": "exception queue counts and groups by status",
+      "ok": true,
+      "detail": [
+        {
+          "field_id": "exception_id",
+          "group_by": "status",
+          "group": "Closed",
+          "value": 1
+        },
+        {
+          "field_id": "exception_id",
+          "group_by": "status",
+          "group": "Open",
+          "value": 2
+        },
+        {
+          "field_id": "amount",
+          "group_by": "status",
+          "group": "Closed",
+          "value": "20.00"
+        },
+        {
+          "field_id": "amount",
+          "group_by": "status",
+          "group": "Open",
+          "value": "150.00"
+        }
+      ]
+    },
+    {
+      "name": "exception queue exposes derive and selection, not a sales quote",
+      "ok": true,
+      "detail": "effective: bind, derive, edit, read, select"
+    },
+    {
+      "name": "exception queue history and fields survive reload",
+      "ok": true,
+      "detail": "Typed fields (server-computed)\nexception_id \u00b7 string\namount \u00b7 currency \u00b7 USD \u00b7 USD\nstatus \u00b7 string"
+    },
+    {
+      "name": "no browser page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "artifacts": {
+    "industrial_quote.png": "e78b5b5d35efe070be6ff7708d955270243c853547e3be15ed547a5f08b40b2e",
+    "service_proposal.png": "f48aae0108f0f3892d3657c1064cc2e2c25d7d5ea765d68eb85b44987d30abb3",
+    "exception_queue.png": "b2f774c0f6cd34d888704be8b1e38a6a719a6a258ae27ba05cc5ebdb8dbd73d0"
+  },
+  "page_errors": []
+}
