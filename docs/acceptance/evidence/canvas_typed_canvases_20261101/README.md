@@ -18,9 +18,10 @@ scope is unchanged. No live provider lookup, refresh, write or send occurred.
 | Frontend | production build on `127.0.0.1:3131`, build id `8ekSj7KLz89t9mn-dO1A0` |
 | Backend | `127.0.0.1:8091`, real routes/executor/sqlite |
 
-The backend health identity and the frontend health/build identity are captured
-in `backend-health.json`, `frontend-health.json`, `world.json` and
-`frontend-build-id.txt`.
+The backend health identity and the frontend health identity are captured in
+`backend-health.json`, `frontend-health.json` and `world.json`. The original
+`frontend-build-id.txt` and `run.log` were ignored by Git and are omitted from
+this historical manifest; the repaired bundle tracks equivalent artifacts.
 
 ## Three canvases created through the ordinary UI
 
