@@ -660,7 +660,11 @@ _OPERATION_BINDING_KEYS = (
 
 def _validate_binding_value(value: Any, *, depth: int = 0) -> None:
     """Accept only deterministic JSON types; reject rather than truncate."""
-    if depth > 6:
+    # Real provider proposals (lines, tax components and journal entries) are
+    # legitimately deeper than a handful of levels. The size and key limits
+    # below remain the DoS guards; rejecting depth 7+ made a balanced Books
+    # proposal impossible to bind.
+    if depth > 24:
         raise TaskLifecycleError("operation binding nesting is too deep")
     if value is None or isinstance(value, (bool, int, float)):
         return

@@ -1141,7 +1141,7 @@ async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -
     title = args.get("title")
     if title is None and isinstance(nested, dict):
         title = nested.get("title")
-    return await present_chart(
+    result = await present_chart(
         user_id=str(user_id),
         chart_type=str(chart_type),
         data=data,
@@ -1149,6 +1149,11 @@ async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -
         agent_id=(context or {}).get("agent_id"),
         session_id=(context or {}).get("session_id") or args.get("session_id"),
     )
+    if isinstance(result, dict) and result.get("success"):
+        result.setdefault("status", "applied")
+        result.setdefault("action_result", "applied")
+        result.setdefault("remote_id", result.get("canvas_id"))
+    return result
 
 
 @register_action(

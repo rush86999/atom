@@ -4,6 +4,7 @@ Manage per-integration document ingestion settings and memory removal.
 """
 
 import asyncio
+import hashlib
 import io
 import logging
 import os
@@ -630,6 +631,8 @@ async def upload_document(
                     file_size_bytes=len(content),
                     content_preview=text[:500],
                     external_id=f"upload_{doc_id}",
+                    source_content_hash=hashlib.sha256(
+                        content).hexdigest(),
                     ingested_at=datetime.now(timezone.utc),
                     last_verified_at=datetime.now(timezone.utc),
                     freshness_status="fresh",
@@ -640,6 +643,7 @@ async def upload_document(
             
         return router.success_response(
             data={
+                "document_id": doc_id,
                 "file_name": file_name,
                 "size_bytes": len(content),
                 "extracted_chars": len(text)

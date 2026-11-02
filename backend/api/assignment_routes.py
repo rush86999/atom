@@ -303,10 +303,15 @@ async def start_assignment(
         raise HTTPException(
             status_code=422,
             detail="at least one authorized source is required")
-    if not body.deliverables and not body.outbound:
+    has_proposed_external = any(
+        str((step or {}).get("effect") or "") == "external"
+        for step in (body.proposed_steps or []))
+    if not body.deliverables and not body.outbound and not has_proposed_external:
         raise HTTPException(
             status_code=422,
-            detail="at least one deliverable or outbound action is required")
+            detail=(
+                "at least one deliverable, outbound action or proposed "
+                "external step is required"))
     employee = current_user
     # Bootstrap admin rows can carry NULL workspace/tenant columns while the
     # rest of the app resolves them to "default". Compare against the same

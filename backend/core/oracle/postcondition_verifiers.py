@@ -10,6 +10,7 @@ already met, the action succeeded despite the timeout; don't duplicate it.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Any, Dict, Iterable, Optional
@@ -265,73 +266,454 @@ for _action in (
 @register_postcondition("tasks.create")
 async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
     """A created task must persist to the DB (not just be returned by the tool)."""
-    task_id = ctx.get("task_id")
-    db = ctx.get("db")
-    if not task_id or not db:
-        return OracleResult("tasks.create", False, "missing task_id or db session")
-    try:
-        from core.models_board import BoardTask
-        exists = db.query(BoardTask).filter(BoardTask.id == task_id).first() is not None
-        return OracleResult(
-            "tasks.create", verified=exists,
-            evidence=f"BoardTask {task_id} {'present' if exists else 'absent'} in DB",
-        )
-    except Exception as e:
-        return OracleResult("tasks.create", False, f"DB read-back failed: {e}")
-
-
-@register_postcondition("canvas.present_markdown")
-async def _verify_canvas_markdown_presented(
-        ctx: Dict[str, Any]) -> OracleResult:
-    """A presented markdown canvas must exist in the audit system of record.
-
-    The tool broadcasts over the websocket and returns its own success flag;
-    neither is independent. The audit row written in the same dispatch is the
-    durable record, so it is the authority here. A missing row, a failed
-    query or a component mismatch is a refutation -- never a pass.
-    """
-    canvas_id = str(
-        ctx.get("canvas_id") or ctx.get("remote_id") or "").strip()
-    if not canvas_id:
-        return OracleResult(
-            "canvas.present_markdown", False, "missing canvas_id")
-    db = ctx.get("db")
+    task = ctx.get("task") if isinstance(ctx.get("task"), dict) else {}
+    task_id = str(ctx.get("task_id") or task.get("id") or "")
+    if not task_id:
+        return OracleResult("tasks.create", False, "missing task id")
 
     def _read(session):
-        from core.models import CanvasAudit
-        return (
-            session.query(CanvasAudit)
-            .filter(CanvasAudit.canvas_id == canvas_id)
-            .order_by(CanvasAudit.created_at.desc())
-            .first()
-        )
+        from core.models_board import BoardTask
+        return session.query(BoardTask).filter(
+            BoardTask.id == task_id).first()
 
     try:
-        if db is not None:
-            row = _read(db)
-        else:
-            from core.database import get_db_session
-            with get_db_session() as session:
-                row = _read(session)
+        row = _read_with_db(ctx, _read)
         if row is None:
             return OracleResult(
-                "canvas.present_markdown", False,
-                f"no canvas_audit row for canvas {canvas_id}")
-        details = row.details_json or {}
-        if isinstance(details, str):
-            details = json.loads(details)
-        component = str((details or {}).get("component_type") or "")
-        verified = (
-            str(row.action_type or "") == "present"
-            and component == "markdown"
-        )
+                "tasks.create", False,
+                f"BoardTask {task_id} absent in DB")
+        expected_title = str(
+            ctx.get("_oracle_expected_task_title")
+            or ctx.get("title") or "")
+        expected_board = str(
+            ctx.get("_oracle_expected_board_id")
+            or ctx.get("board_id") or "")
+        verified = True
+        if expected_title:
+            verified = verified and str(row.title or "") == expected_title
+        if expected_board:
+            verified = (
+                verified and str(row.board_id or "") == expected_board)
         return OracleResult(
-            "canvas.present_markdown", verified=verified,
-            evidence=(
-                f"canvas_audit {row.id} action_type={row.action_type!r} "
-                f"component_type={component!r}"),
-        )
+            "tasks.create", verified,
+            f"BoardTask {task_id} title={row.title!r} "
+            f"board={row.board_id!r}")
     except Exception as e:  # noqa: BLE001 - unreadable is not verified
         return OracleResult(
-            "canvas.present_markdown", False,
-            f"audit read-back failed: {e}")
+            "tasks.create", False, f"DB read-back failed: {e}")
+
+
+def _content_digest(value: Any) -> str:
+    blob = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _read_with_db(ctx: Dict[str, Any], reader):
+    db = ctx.get("db")
+    if db is not None:
+        return reader(db)
+    from core.database import get_db_session
+    with get_db_session() as session:
+        return reader(session)
+
+
+def _canvas_present_postcondition(component_type: str):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        action = str(ctx.get("_oracle_action") or "canvas.present")
+        canvas_id = str(
+            ctx.get("_oracle_expected_canvas_id")
+            or ctx.get("canvas_id") or ctx.get("remote_id") or "").strip()
+        if not canvas_id:
+            return OracleResult(action, False, "missing canvas_id")
+
+        def _read(session):
+            from core.models import CanvasAudit
+            from sqlalchemy import desc
+            return (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at),
+                          desc(CanvasAudit.id))
+                .first()
+            )
+
+        try:
+            row = _read_with_db(ctx, _read)
+            if row is None:
+                return OracleResult(
+                    action, False,
+                    f"no canvas_audit row for canvas {canvas_id}")
+            details = row.details_json or {}
+            if isinstance(details, str):
+                details = json.loads(details)
+            observed_component = str(
+                (details or {}).get("component_type") or "")
+            verified = (
+                str(row.action_type or "") == "present"
+                and observed_component == component_type
+            )
+            if component_type == "chart":
+                expected_chart = str(
+                    ctx.get("_oracle_expected_chart_type")
+                    or ctx.get("chart_type") or ctx.get("type") or "")
+                observed_chart = str(
+                    (details or {}).get("chart_type")
+                    or ((details or {}).get("chart_config") or {}).get("type")
+                    or "")
+                if expected_chart:
+                    verified = verified and observed_chart == expected_chart
+                expected_points = ctx.get("_oracle_expected_data_points")
+                if expected_points is not None:
+                    verified = (
+                        verified
+                        and (details or {}).get("data_points") == expected_points
+                    )
+            else:
+                expected_title = str(
+                    ctx.get("_oracle_expected_title") or "")
+                observed_title = str((details or {}).get("title") or "")
+                if expected_title:
+                    verified = verified and observed_title == expected_title
+            return OracleResult(
+                action, verified,
+                f"canvas_audit {row.id} action_type={row.action_type!r} "
+                f"component_type={observed_component!r} "
+                f"canvas_id={canvas_id}")
+        except Exception as e:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False, f"audit read-back failed: {e}")
+    return _verify
+
+
+def _canvas_write_postcondition(restore: bool):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        action = str(ctx.get("_oracle_action") or "canvas.update")
+        canvas_id = str(
+            ctx.get("_oracle_expected_canvas_id")
+            or ctx.get("canvas_id") or "").strip()
+        if not canvas_id:
+            return OracleResult(action, False, "missing canvas_id")
+        write_outcome = str(ctx.get("write_outcome") or "")
+        no_change = bool(ctx.get("no_change"))
+
+        def _read_new(session, audit_id: str):
+            from core.models import CanvasAudit, Canvas
+            row = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == audit_id,
+                        CanvasAudit.canvas_id == canvas_id)
+                .first()
+            )
+            canvas = (
+                session.query(Canvas)
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
+            return row, canvas
+
+        def _read_audit(session, audit_id: str):
+            from core.models import CanvasAudit
+            return (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == audit_id,
+                        CanvasAudit.canvas_id == canvas_id)
+                .first()
+            )
+
+        def _latest(session):
+            from core.models import CanvasAudit
+            from sqlalchemy import desc
+            return (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at),
+                          desc(CanvasAudit.id))
+                .first()
+            )
+
+        def _details(row):
+            value = row.details_json or {}
+            if isinstance(value, str):
+                value = json.loads(value)
+            return value or {}
+
+        try:
+            if no_change:
+                target_id = str(
+                    ctx.get("_oracle_expected_restore_audit_id")
+                    or ctx.get("restored_from") or "")
+                if not target_id:
+                    return OracleResult(
+                        action, False, "no-change restore has no target audit")
+                target = _read_with_db(
+                    ctx, lambda session: _read_audit(session, target_id))
+                latest = _read_with_db(ctx, _latest)
+                if target is None or latest is None:
+                    return OracleResult(
+                        action, False,
+                        "no-change restore could not read the target/current "
+                        "version")
+                target_digest = _content_digest(
+                    _details(target).get("content",
+                                         _details(target).get("data")))
+                latest_digest = _content_digest(
+                    _details(latest).get("content",
+                                         _details(latest).get("data")))
+                verified = target_digest == latest_digest
+                return OracleResult(
+                    action, verified,
+                    f"no-change restore target {target_id[:12]} "
+                    f"content_match={verified}")
+            if write_outcome and write_outcome != "committed":
+                return OracleResult(
+                    action, False,
+                    f"write_outcome == {write_outcome!r}, not committed")
+            new_audit_id = str(ctx.get("audit_id") or "")
+            if not new_audit_id:
+                return OracleResult(
+                    action, False, "no appended audit_id in the result")
+            row, canvas = _read_with_db(
+                ctx, lambda session: _read_new(session, new_audit_id))
+            if row is None:
+                return OracleResult(
+                    action, False,
+                    f"canvas_audit {new_audit_id[:12]} not found")
+            if str(row.action_type or "") != "update":
+                return OracleResult(
+                    action, False,
+                    f"canvas_audit action_type == {row.action_type!r}")
+            details = _details(row)
+            observed_content = details.get("content", details.get("data"))
+            if restore:
+                expected_target = str(
+                    ctx.get("_oracle_expected_restore_audit_id") or "")
+                restored_from = details.get("restored_from") or {}
+                observed_target = str(
+                    restored_from.get("audit_id") or "") if isinstance(
+                        restored_from, dict) else ""
+                if not expected_target:
+                    return OracleResult(
+                        action, False,
+                        "restore has no frozen target audit id")
+                if observed_target != expected_target:
+                    return OracleResult(
+                        action, False,
+                        "restored_from does not match the authorized target")
+                target = _read_with_db(
+                    ctx, lambda session: _read_audit(
+                        session, expected_target))
+                if target is None:
+                    return OracleResult(
+                        action, False, "authorized target version not found")
+                expected_digest = _content_digest(
+                    _details(target).get("content",
+                                         _details(target).get("data")))
+            else:
+                expected_digest = str(
+                    ctx.get("_oracle_expected_canvas_content_sha256") or "")
+                if not expected_digest:
+                    if "content" not in ctx:
+                        return OracleResult(
+                            action, False,
+                            "authorized content was not captured")
+                    expected_digest = _content_digest(ctx.get("content"))
+                expected_operation = str(
+                    ctx.get("_oracle_expected_operation_id") or "")
+                if expected_operation:
+                    if str(details.get("operation_id") or "") != expected_operation:
+                        return OracleResult(
+                            action, False,
+                            "audit operation_id does not match the authorized "
+                            "operation")
+                expected_review = str(
+                    ctx.get("_oracle_expected_review_status") or "")
+                if expected_review:
+                    if str(details.get("review_status") or "") != expected_review:
+                        return OracleResult(
+                            action, False,
+                            "audit review_status does not match the authorized "
+                            "request")
+            observed_digest = _content_digest(observed_content)
+            if observed_digest != expected_digest:
+                return OracleResult(
+                    action, False,
+                    "persisted canvas content does not match the authorized "
+                    "content")
+            review_status = str(details.get("review_status") or "accepted")
+            if canvas is not None and review_status == "accepted":
+                canvas_digest = _content_digest(canvas.content)
+                if canvas_digest != observed_digest:
+                    return OracleResult(
+                        action, False,
+                        "accepted canvas mirror does not match the audit content")
+            return OracleResult(
+                action, True,
+                f"canvas_audit {new_audit_id[:12]} action_type=update "
+                f"content={observed_digest[:12]} canvas_id={canvas_id}")
+        except Exception as e:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False, f"canvas read-back failed: {e}")
+    return _verify
+
+
+def _goal_postcondition(mode: str):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        action = str(ctx.get("_oracle_action") or "goals")
+        expected_goal_id = str(
+            ctx.get("_oracle_expected_goal_id") or "")
+        try:
+            if mode == "create":
+                goal = ctx.get("goal") or {}
+                goal_id = str(goal.get("id") or expected_goal_id or "")
+                if not goal_id:
+                    return OracleResult(action, False, "missing goal id")
+
+                def _read(session):
+                    from core.models import GoalObjective
+                    return session.query(GoalObjective).filter(
+                        GoalObjective.id == goal_id).first()
+
+                row = _read_with_db(ctx, _read)
+                if row is None:
+                    return OracleResult(
+                        action, False, f"goal {goal_id} not persisted")
+                expected_title = str(
+                    ctx.get("_oracle_expected_goal_title") or "")
+                expected_workspace = str(
+                    ctx.get("_oracle_expected_workspace_id") or "")
+                verified = True
+                if expected_title:
+                    verified = verified and str(row.title or "") == expected_title
+                if expected_workspace:
+                    verified = (
+                        verified
+                        and str(row.workspace_id or "") == expected_workspace)
+                return OracleResult(
+                    action, verified,
+                    f"GoalObjective {goal_id} title={row.title!r} "
+                    f"workspace={row.workspace_id!r}")
+            if mode == "evaluate":
+                goal_id = expected_goal_id or str(ctx.get("goal_id") or "")
+                if not goal_id:
+                    return OracleResult(action, False, "missing goal id")
+                if ctx.get("error"):
+                    return OracleResult(
+                        action, False, f"goal evaluation error: {ctx['error']}")
+
+                def _read(session):
+                    from core.models import GoalObjective
+                    return session.query(GoalObjective).filter(
+                        GoalObjective.id == goal_id).first()
+
+                row = _read_with_db(ctx, _read)
+                if row is None:
+                    return OracleResult(
+                        action, False, f"goal {goal_id} not persisted")
+                result_status = str(ctx.get("status") or "")
+                result_progress = ctx.get("progress")
+                verified = True
+                if result_status:
+                    verified = verified and str(row.status or "") == result_status
+                if result_progress is not None:
+                    try:
+                        verified = (
+                            verified
+                            and abs(float(row.progress or 0)
+                                    - float(result_progress)) < 0.01)
+                    except (TypeError, ValueError):
+                        verified = False
+                return OracleResult(
+                    action, verified,
+                    f"GoalObjective {goal_id} status={row.status!r} "
+                    f"progress={row.progress!r}")
+            if mode == "run":
+                run = ctx.get("run") or {}
+                run_id = str(ctx.get("id") or run.get("id") or "")
+                if not run_id:
+                    return OracleResult(action, False, "missing run id")
+
+                def _read(session):
+                    from core.models import GoalRun
+                    return session.query(GoalRun).filter(
+                        GoalRun.id == run_id).first()
+
+                row = _read_with_db(ctx, _read)
+                if row is None:
+                    return OracleResult(
+                        action, False, f"goal run {run_id} not persisted")
+                expected_agent = str(
+                    ctx.get("_oracle_expected_agent_id") or "")
+                verified = True
+                if expected_goal_id:
+                    verified = (
+                        verified
+                        and str(row.goal_id or "") == expected_goal_id)
+                if expected_agent:
+                    verified = (
+                        verified
+                        and str(row.agent_id or "") == expected_agent)
+                if str(row.status or "").lower() in {"failed", "cancelled"}:
+                    verified = False
+                return OracleResult(
+                    action, verified,
+                    f"GoalRun {run_id} goal={row.goal_id!r} "
+                    f"agent={row.agent_id!r} status={row.status!r}")
+            return OracleResult(action, False, f"unknown goal mode {mode!r}")
+        except Exception as e:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False, f"goal read-back failed: {e}")
+    return _verify
+
+
+@register_postcondition("goals.decompose")
+async def _verify_plan_produced(ctx: Dict[str, Any]) -> OracleResult:
+    action = "goals.decompose"
+    plan = ctx.get("plan")
+    if not isinstance(plan, dict):
+        return OracleResult(action, False, "no plan object in the result")
+    if plan.get("cycles"):
+        return OracleResult(
+            action, False,
+            f"plan contains dependency cycles: {plan.get('cycles')!r}")
+    subtasks = [item for item in (plan.get("subtasks") or [])
+                if isinstance(item, dict)]
+    if not subtasks:
+        return OracleResult(action, False, "plan has no subtasks")
+    ids = [str(item.get("id") or "") for item in subtasks]
+    if any(not item for item in ids) or len(set(ids)) != len(ids):
+        return OracleResult(
+            action, False, "plan subtask ids are missing or duplicated")
+    known = set(ids)
+    for item in subtasks:
+        for dependency in item.get("depends_on") or []:
+            if str(dependency) not in known:
+                return OracleResult(
+                    action, False,
+                    f"subtask {item.get('id')!r} depends on unknown "
+                    f"{dependency!r}")
+    groups = plan.get("execution_groups") or []
+    grouped = {str(step) for group in groups if isinstance(group, list)
+               for step in group}
+    if grouped and grouped != known:
+        return OracleResult(
+            action, False,
+            "execution groups do not cover exactly the subtasks")
+    return OracleResult(
+        action, True,
+        f"plan method={plan.get('method')!r} subtasks={len(subtasks)} "
+        f"groups={len(groups)}")
+
+
+register_postcondition("canvas.present_markdown")(
+    _canvas_present_postcondition("markdown"))
+register_postcondition("canvas.present_chart")(
+    _canvas_present_postcondition("chart"))
+register_postcondition("canvas.update")(
+    _canvas_write_postcondition(restore=False))
+register_postcondition("canvas.restore_version")(
+    _canvas_write_postcondition(restore=True))
+register_postcondition("goals.create")(_goal_postcondition("create"))
+register_postcondition("goals.evaluate")(_goal_postcondition("evaluate"))
+register_postcondition("goal_runs.start")(_goal_postcondition("run"))

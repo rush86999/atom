@@ -1560,7 +1560,7 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
     if duplicate:
         return {
             "status": "duplicate",
-            "success": True,
+            "success": False,
             "action_result": "proven_not_applied",
             "provider": "zoho_books",
             "operation": "create_bill",

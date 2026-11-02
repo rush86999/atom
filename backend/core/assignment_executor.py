@@ -5761,11 +5761,22 @@ class AssignmentExecutor:
 
 _MUTATING_ACTION_EFFECTS = {
     "write", "create", "update", "delete", "send", "execute",
-    "graph_updated", "record_created",
+    "graph_updated", "record_created", "record_updated", "record_deleted",
+    "goal_created", "goal_run_started", "plan_produced", "goal_evaluated",
+}
+
+# Registered actions that mutate local durable state without declaring an
+# effect family in their registration metadata.  Keep this list aligned with
+# the local postcondition families in core.oracle.postcondition_verifiers.
+_LOCAL_MUTATING_ACTIONS = {
+    "canvas.present_chart", "canvas.present_markdown", "canvas.restore_version",
+    "canvas.update", "tasks.create", "goals.create", "goals.evaluate",
+    "goals.decompose", "goal_runs.start",
 }
 
 
 def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
+    name = str(getattr(action, "name", "") or "")
     effects = [
         str(item.get("effect") or "").strip().lower()
         for item in (getattr(action, "effects", None) or [])
@@ -5773,6 +5784,8 @@ def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
     ]
     step_effect = str((context.get("step") or {}).get("effect") or "")
     if step_effect == "external":
+        return True
+    if name in _LOCAL_MUTATING_ACTIONS:
         return True
     return any(effect in _MUTATING_ACTION_EFFECTS for effect in effects)
 
@@ -6086,6 +6099,51 @@ async def _action_registry_adapter(
         or authorized_arguments.get("organization_id") or "")
     expected_provider = str(expected_binding.get("provider") or "")
     expected_target = str(expected_binding.get("target") or "")
+    expected_canvas_id = str(
+        authorized_arguments.get("canvas_id") or "")
+    expected_restore_audit_id = (
+        str(authorized_arguments.get("audit_id") or "")
+        if name == "canvas.restore_version" else "")
+    expected_canvas_content_sha256 = ""
+    if name == "canvas.update" and "content" in authorized_arguments:
+        try:
+            expected_canvas_content_sha256 = _approval_payload_hash(
+                authorized_arguments.get("content"))
+        except Exception:  # noqa: BLE001 - verifier falls back to content
+            expected_canvas_content_sha256 = ""
+    expected_goal_id = str(
+        authorized_arguments.get("goal_id") or "")
+    expected_goal_title = (
+        str(authorized_arguments.get("title") or "")
+        if name == "goals.create" else "")
+    expected_workspace_id = str(
+        authorized_arguments.get("workspace_id")
+        or context.get("workspace_id") or "")
+    expected_agent_id = str(
+        authorized_arguments.get("agent_id")
+        or context.get("agent_id") or "")
+    expected_chart_type = (
+        str(authorized_arguments.get("chart_type")
+            or authorized_arguments.get("type") or "")
+        if name == "canvas.present_chart" else "")
+    expected_data_points = None
+    if name == "canvas.present_chart":
+        chart_data = authorized_arguments.get("data")
+        if chart_data is None and isinstance(
+                authorized_arguments.get("chart"), dict):
+            chart_data = authorized_arguments["chart"].get("data")
+        if isinstance(chart_data, list):
+            expected_data_points = len(chart_data)
+    expected_present_title = (
+        str(authorized_arguments.get("title") or "")
+        if name in ("canvas.present_chart", "canvas.present_markdown")
+        else "")
+    expected_task_title = (
+        str(authorized_arguments.get("title") or "")
+        if name == "tasks.create" else "")
+    expected_board_id = (
+        str(authorized_arguments.get("board_id") or "")
+        if name == "tasks.create" else "")
     oracle_context = {
         **authorized_arguments,
         **payload,
@@ -6094,6 +6152,19 @@ async def _action_registry_adapter(
         "_oracle_expected_organization_id": expected_organization,
         "_oracle_expected_provider": expected_provider,
         "_oracle_expected_target": expected_target,
+        "_oracle_expected_canvas_id": expected_canvas_id,
+        "_oracle_expected_restore_audit_id": expected_restore_audit_id,
+        "_oracle_expected_canvas_content_sha256": (
+            expected_canvas_content_sha256),
+        "_oracle_expected_goal_id": expected_goal_id,
+        "_oracle_expected_goal_title": expected_goal_title,
+        "_oracle_expected_workspace_id": expected_workspace_id,
+        "_oracle_expected_agent_id": expected_agent_id,
+        "_oracle_expected_chart_type": expected_chart_type,
+        "_oracle_expected_data_points": expected_data_points,
+        "_oracle_expected_title": expected_present_title,
+        "_oracle_expected_task_title": expected_task_title,
+        "_oracle_expected_board_id": expected_board_id,
     }
     oracle_db = context.get("db") or context.get("session")
     if oracle_db is not None:
@@ -6140,6 +6211,25 @@ async def _action_registry_adapter(
                     "mismatches": ["oracle_error"],
                 },
             }
+    # A local mutation may return only ``success: True`` (no self-reported
+    # applied label). When the independent postcondition verifier confirms the
+    # persisted effect, the oracle is authoritative and the envelope can be
+    # applied. Without a verified verdict the conservative uncertain outcome
+    # remains.
+    if (oracle_verified is True and outcome == "uncertain"
+            and payload.get("success") is True
+            and not payload.get("error")
+            and not payload.get("error_kind")):
+        outcome = "applied"
+        payload = {
+            **payload,
+            "action_result": "applied",
+            "verification": {
+                "status": "verified",
+                "missing_fields": [],
+                "mismatches": [],
+            },
+        }
     remote_id = str(
         payload.get("remote_id") or payload.get("provider_ref")
         or payload.get("id") or "")
