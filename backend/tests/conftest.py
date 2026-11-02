@@ -168,6 +168,24 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_registered_actions():
+    """Restore the global action registry after every test.
+
+    Several suites register throwaway actions with mutating effects. Without
+    this, a later coverage test treats them as unverified production actions.
+    Registrations made inside a test remain visible for that test.
+    """
+    from core.action_registry import action_registry
+
+    snapshot = dict(action_registry._actions)
+    try:
+        yield
+    finally:
+        action_registry._actions.clear()
+        action_registry._actions.update(snapshot)
+
+
+@pytest.fixture(autouse=True)
 def ensure_numpy_available(request):
     """
     Auto-use fixture that ensures numpy/pandas/lancedb/pyarrow are available
