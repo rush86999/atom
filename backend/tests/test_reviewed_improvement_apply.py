@@ -19,7 +19,7 @@ from sqlalchemy.pool import StaticPool
 from core.auto_dev.models import SkillCandidate
 from core.database import Base, get_db
 from core.models import AgentRegistry, SkillExecution, Tenant, User, Workspace
-from core.reviewed_improvement import apply_reviewed_skill
+from core.reviewed_improvement import apply_reviewed_skill, mark_reviewed
 from core.skill_builder_service import SkillBuilderService
 from core.skill_registry_service import SkillRegistryService
 
@@ -74,6 +74,11 @@ def _candidate(env, status="validated", name="repair_outlook_search"):
         validation_status=status,
     )
     db.add(row)
+    db.flush()
+    if status == "validated":
+        mark_reviewed(
+            row, reviewer_id="reviewer", tenant_id=env["tenant"].id,
+            workspace_id=env["workspace"].id)
     db.commit()
     return row
 
@@ -114,8 +119,9 @@ def test_apply_writes_typed_skill_and_ordinary_work_consumes_it(env):
     assert result["generated_code_applied"] is False
     assert result["skill_id"]
 
-    package = env["tmp_path"] / env["tenant"].id / "skills" / (
-        "repair_outlook_search")
+    package = next(
+        (env["tmp_path"] / env["tenant"].id / "skills").glob(
+            "repair_outlook_search_r*"))
     markdown = (package / "SKILL.md").read_text()
     assert "repair outlook customer email search failures" in markdown
     assert "def repair_outlook_search" not in markdown
