@@ -1,0 +1,10 @@
+enabled True
+brennan.books.create_bill
+brennan.books.create_estimate
+brennan.outlook.create_draft
+canvas.present_markdown
+connected.books.create_bill
+connected.books.create_estimate
+connected.outlook.create_draft
+tasks.create
+trigger_workflow
