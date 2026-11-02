@@ -2854,3 +2854,196 @@ def test_onedrive_xlsx_public_route_uses_production_parser(
     assert calc["result"]["value"] == "80.00"
     assert all(row["source_ref"]["version"] == "v1"
                for row in calc["result"]["rows"])
+
+
+def _qualified_discount_quote(route_env, tmp_path, *, label, rules):
+    scope = tmp_path / f"{label}.txt"
+    scope.write_text("Customer: Acme\\nQualification: pending\\n")
+    return route_env["client"].post("/api/assignments", json={
+        "objective": f"Qualify the {label} line",
+        "sources": [{"kind": "document", "path": str(scope)}],
+        "calculation": {
+            "line_items": [{
+                "item_id": "B", "category": "B", "quantity": "1",
+                "unit": "each", "pack_size": "1", "unit_price": "100.00",
+                "price_basis": "contract", "currency": "USD"}],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "discount_rules": rules,
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "agreement AF-2026",
+        },
+        "deliverables": [{"kind": "document",
+                          "description": "Qualified quote"}],
+        "task_context": {"audience": "quote-reviewer"},
+    })
+
+
+def test_quote_missing_qualification_waits_and_resolves_through_route(
+        route_env, tmp_path):
+    """Missing qualification is a public-route gap, not an assumed answer.
+
+    Independent arithmetic: 1 x 100.00 less the licensed 10% = 90.00.
+    """
+    rules = [
+        {"lesson_id": "general-b", "revision": 1, "name": "general B",
+         "when": {"category": "B"}, "rate": "0.05"},
+        {"lesson_id": "licensed-b", "revision": 1, "name": "licensed B",
+         "when": {"category": "B", "qualification": "licensed"},
+         "rate": "0.10"},
+    ]
+    response = _qualified_discount_quote(
+        route_env, tmp_path, label="licensed", rules=rules)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    run_id = body["run_id"]
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "discount_scope")
+    assert "qualification" in gap["question"].lower(), gap
+    calc = next(step for step in assignment["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result_value"] is None
+
+    resolved = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed",
+              "resolved_by": "pricing owner",
+              "evidence": "accepted customer qualification: licensed"})
+    assert resolved.status_code == 200, resolved.text
+    completed = resolved.json()["assignment"]
+    assert completed["status"] == "completed", completed
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "90.00"
+    assert calc["result"]["rows"][0]["discount_rate"] == "0.10"
+    assert calc["result"]["rows"][0]["discount_rule"]["lesson_id"] == (
+        "licensed-b")
+    assert calc["result"]["calculation_receipt"]["rounding_authority"] == (
+        "agreement AF-2026")
+
+    replay = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "licensed"})
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "already_resolved"
+    conflict = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "unlicensed"})
+    assert conflict.status_code == 409, conflict.text
+    assert "different answer" in conflict.text.lower()
+    durable = route_env["lifecycle"].get_assignment(run_id)
+    assert next(step for step in durable["steps"]
+                if step["step_id"] == "calculate"
+                )["result"]["value"] == "90.00"
+
+
+def test_quote_ambiguous_discount_refuses_unrecognized_resolution(
+        route_env, tmp_path):
+    """Equally specific rules conflict; an unknown answer buys no arithmetic."""
+    rules = [
+        {"lesson_id": "five", "revision": 1, "name": "five percent",
+         "when": {"category": "B"}, "rate": "0.05"},
+        {"lesson_id": "ten", "revision": 1, "name": "ten percent",
+         "when": {"category": "B"}, "rate": "0.10"},
+    ]
+    response = _qualified_discount_quote(
+        route_env, tmp_path, label="conflict", rules=rules)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    run_id = body["run_id"]
+    gap = next(item for item in body["assignment"]["open_gaps"]
+               if item.get("concept") == "discount_rule_conflict")
+    calc = next(step for step in body["assignment"]["assignment"]["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result_value"] is None
+
+    refused = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": "the cheaper one"})
+    assert refused.status_code == 200, refused.text
+    after = route_env["lifecycle"].get_assignment(run_id)
+    calc = next(step for step in after["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["status"] == "waiting"
+    assert calc["result"] is None
+    # A refused candidate answer returns the rejection record, not a run
+    # projection; read the durable gap state from the assignment route.
+    durable_state = route_env["client"].get(
+        f"/api/assignments/{run_id}")
+    assert durable_state.status_code == 200, durable_state.text
+    open_gaps = durable_state.json()["open_gaps"]
+    replacement = next(item for item in open_gaps
+                       if item.get("concept") == "discount_rule_conflict")
+    assert replacement["question_id"] != gap["question_id"]
+
+    accepted = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{replacement['question_id']}/resolve",
+        json={"resolution": "ten percent"})
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["assignment"]["status"] == "completed"
+    calc = next(step for step in route_env["lifecycle"].get_assignment(
+        run_id)["steps"] if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "90.00"
+
+
+def test_expense_reconciliation_uses_the_same_assignment_route(
+        route_env, tmp_path):
+    """Non-sales portability: miles/nights, no quote lesson or discount.
+
+    Independent arithmetic: 120 x 0.67 + 1 x 180.00 = 260.40 USD.
+    """
+    import docx
+
+    policy = tmp_path / "travel-policy.txt"
+    policy.write_text(
+        "Travel policy 2026: mileage 0.67 USD per mile; lodging 180.00 "
+        "USD per night.\n")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Reconcile the submitted travel expenses",
+        "sources": [{"kind": "document", "path": str(policy)}],
+        "calculation": {
+            "line_items": [
+                {"item_id": "mileage", "quantity": "120", "unit": "mile",
+                 "pack_size": "1", "unit_price": "0.67",
+                 "price_basis": "rate", "currency": "USD"},
+                {"item_id": "lodging", "quantity": "1", "unit": "night",
+                 "pack_size": "1", "unit_price": "180.00",
+                 "price_basis": "rate", "currency": "USD"},
+            ],
+            "currency": "USD", "freight": "0", "tax": {"basis": "none"},
+            "rounding": "half_up", "scale": 2,
+            "rounding_authority": "travel policy 2026",
+            "discount_rules": [],
+        },
+        "deliverables": [{"kind": "document",
+                          "description": "Expense reconciliation"}],
+        "task_context": {"audience": "finance reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step["step_id"] == "calculate")
+    assert calc["result"]["value"] == "260.40"
+    assert calc["result"]["measure"] == "quote_total"
+    receipt = calc["result"]["calculation_receipt"]
+    assert receipt["currency"] == "USD"
+    assert receipt["total"] == "260.40"
+    assert len(receipt["line_evidence"]) == 2
+    assert {row["item_id"] for row in calc["result"]["rows"]} == {
+        "mileage", "lodging"}
+    deliverable = next(item for item in assignment["deliverables"]
+                       if item["kind"] == "document")
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            deliverable["artifact_path"]).paragraphs)
+    for table in docx.Document(deliverable["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "260.40" in text, text
+    assert "mileage" in text and "lodging" in text, text

@@ -127,6 +127,29 @@ async function startServer(reset) {
   return child;
 }
 
+async function expectOccupiedPortRefused() {
+  const decoy = net.createServer((socket) => socket.destroy());
+  await new Promise((resolve, reject) => {
+    decoy.once("error", reject);
+    decoy.listen(PORT, "127.0.0.1", resolve);
+  });
+  let errorMessage = "";
+  try {
+    await startServer(true);
+  } catch (error) {
+    errorMessage = String(error && error.message ? error.message : error);
+  } finally {
+    await new Promise((resolve) => decoy.close(resolve));
+  }
+  const refused = /already occupied/.test(errorMessage);
+  record("occupied acceptance port is refused, not reused", refused,
+         { message: errorMessage });
+  if (!refused) {
+    throw new Error(
+      "the runner did not refuse an occupied acceptance port");
+  }
+}
+
 async function stopServer() {
   if (!server) return;
   const pid = server.pid;
@@ -331,6 +354,7 @@ function planSteps(objective, ref) {
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
+  await expectOccupiedPortRefused();
   const expectedHead = execSync("git rev-parse HEAD", { cwd: ROOT })
     .toString().trim();
   const expectedDirty = execSync("git status --porcelain", { cwd: ROOT })
