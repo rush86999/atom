@@ -29,9 +29,12 @@ from core.canvas_capability_service import (
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
+    answer_derive_clarification,
+    begin_derive_clarification,
     calculate_operation,
     current_revision,
     decisions_operation,
+    derive_operation,
     edit_operation,
     effective_operations,
     export_operation,
@@ -82,6 +85,35 @@ class BindConnectedRequest(BaseModel):
 class AskRequest(BaseModel):
     ask: str = ""
     max_subjects: Optional[int] = None
+
+
+class DeriveRequest(BaseModel):
+    """No values and no total: derive reads the authoritative canvas snapshot.
+
+    ``extra='forbid'`` means a browser-supplied total, hidden field or
+    read-only widget value is rejected before the service is called.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int
+    manifest_revision: str
+    source_version: str
+
+
+class DeriveAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    row: int
+    field_id: str
+    value: Any
+
+
+class DeriveAnswerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int
+    answers: List[DeriveAnswer]
 
 
 class EditRequest(BaseModel):
@@ -265,6 +297,61 @@ async def capability_calculate(
     try:
         canvas = _canvas(db, canvas_id, current_user)
         return calculate_operation(db, canvas, current_user, request.ask)
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/derive")
+async def capability_derive(
+    canvas_id: str,
+    request: DeriveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        try:
+            return derive_operation(
+                db, canvas, current_user,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+        except CapabilityError as exc:
+            if exc.code != "missing_required_value":
+                raise
+            clarification = begin_derive_clarification(
+                db, canvas, current_user, exc,
+                expected_revision=request.expected_revision,
+                manifest_revision_value=request.manifest_revision,
+                source_version=request.source_version,
+            )
+            return {
+                "success": True,
+                "operation": "derive",
+                "status": "clarification",
+                "clarification": clarification,
+                "revision": current_revision(canvas),
+            }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/derive/{clarification_id}/answer")
+async def capability_derive_answer(
+    canvas_id: str,
+    clarification_id: str,
+    request: DeriveAnswerRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return answer_derive_clarification(
+            db, canvas, current_user, clarification_id,
+            [item.model_dump() for item in request.answers],
+            expected_revision=request.expected_revision,
+        )
     except CapabilityError as exc:
         return _error(exc)
 

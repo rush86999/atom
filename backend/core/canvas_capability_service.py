@@ -20,6 +20,7 @@ not CanvasContext.
 """
 from __future__ import annotations
 
+import ast
 import csv
 import copy
 import hashlib
@@ -27,9 +28,16 @@ import io
 import json
 import logging
 import os
+import re
 import uuid
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import date, datetime, timezone
+from decimal import (
+    Decimal,
+    InvalidOperation,
+    ROUND_DOWN,
+    ROUND_HALF_EVEN,
+    ROUND_HALF_UP,
+)
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -41,11 +49,29 @@ from core.models import Canvas, CanvasAudit
 logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
+#: Schema 2 adds stable typed fields, derived expressions and registered
+#: action bindings. Schema 1 manifests keep their exact old behavior.
+SUPPORTED_SCHEMA_VERSIONS = {1, 2}
 TABLE_OPERATIONS = {
-    "read", "select", "calculate", "assess", "edit", "export", "bind",
+    "read", "select", "calculate", "derive", "assess", "edit", "export",
+    "bind",
 }
 _SUPPORTED_OPERATIONS = TABLE_OPERATIONS
-_SUPPORTED_BASE_COMPONENTS = {"table"}
+#: Declarative views over the same table adapter. The base component selects
+#: presentation; it never grants an operation by itself.
+_SUPPORTED_BASE_COMPONENTS = {"table", "form", "queue"}
+_FIELD_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_FIELD_TYPES = {"string", "integer", "decimal", "currency", "boolean", "date"}
+_FIELD_AGGREGATES = {"sum", "count"}
+_FIELD_ROUNDING = {
+    "half_up": ROUND_HALF_UP,
+    "half_even": ROUND_HALF_EVEN,
+    "down": ROUND_DOWN,
+}
+_MAX_TYPED_FIELDS = 50
+_MAX_TYPED_ACTIONS = 20
+_MAX_FIELD_LABEL = 120
+_MAX_EXPRESSION_CHARS = 240
 _MAX_BIND_BYTES = int(os.getenv("ATOM_CANVAS_BIND_MAX_BYTES", str(20 * 1024 * 1024)))
 _MAX_ASSESS_SUBJECTS = int(os.getenv("ATOM_ASSESS_MAX_SUBJECTS", "50") or 50)
 
@@ -260,13 +286,334 @@ def default_manifest() -> Dict[str, Any]:
     }
 
 
+def _expression_names(expression: str) -> List[str]:
+    """Validate the tiny arithmetic grammar and return its field IDs.
+
+    Only field references, numeric literals and + - * / are supported. This is
+    deliberately smaller than a formula language: the server recomputes every
+    derived field and never evaluates client JavaScript or arbitrary code.
+    """
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except (SyntaxError, ValueError) as exc:
+        raise CapabilityError(
+            "invalid_expression",
+            f"Derived expression is not valid arithmetic: {exc}",
+        ) from exc
+    names: List[str] = []
+
+    def visit(node: Any) -> None:
+        if isinstance(node, ast.Expression):
+            visit(node.body)
+            return
+        if isinstance(node, ast.BinOp) and isinstance(
+                node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            visit(node.left)
+            visit(node.right)
+            return
+        if isinstance(node, ast.UnaryOp) and isinstance(
+                node.op, (ast.UAdd, ast.USub)):
+            visit(node.operand)
+            return
+        if isinstance(node, ast.Name):
+            names.append(node.id)
+            return
+        if isinstance(node, ast.Constant) and isinstance(
+                node.value, (int, float)) and not isinstance(node.value, bool):
+            return
+        raise CapabilityError(
+            "unsupported_expression",
+            "Derived expressions support only field names, numeric literals "
+            "and + - * /.",
+        )
+
+    visit(tree)
+    return names
+
+
+def _normalize_typed_fields(raw_fields: Any) -> List[Dict[str, Any]]:
+    if not isinstance(raw_fields, list) or not raw_fields:
+        raise CapabilityError(
+            "invalid_manifest",
+            "Schema 2 requires a non-empty fields list with stable field IDs.",
+        )
+    if len(raw_fields) > _MAX_TYPED_FIELDS:
+        raise CapabilityError(
+            "invalid_manifest",
+            f"At most {_MAX_TYPED_FIELDS} typed fields are supported.",
+        )
+    allowed = {
+        "id", "label", "type", "column", "unit", "currency", "required",
+        "editable", "derived", "aggregate", "group_by", "scale", "rounding",
+        "unit_field", "currency_field",
+    }
+    normalized: List[Dict[str, Any]] = []
+    seen: Dict[str, Dict[str, Any]] = {}
+    for index, raw in enumerate(raw_fields):
+        if not isinstance(raw, dict):
+            raise CapabilityError(
+                "invalid_manifest", f"fields[{index}] must be an object.")
+        unknown = sorted(set(raw) - allowed)
+        if unknown:
+            raise CapabilityError(
+                "unsupported_field_property",
+                f"fields[{index}] has unsupported property(ies): "
+                + ", ".join(unknown),
+            )
+        field_id = str(raw.get("id") or "").strip()
+        if not _FIELD_ID_RE.fullmatch(field_id):
+            raise CapabilityError(
+                "invalid_field_id",
+                f"Field ID {field_id!r} must match [a-z][a-z0-9_]{{0,63}}; "
+                "labels may change but IDs are the stable identity.",
+            )
+        if field_id in seen:
+            raise CapabilityError(
+                "duplicate_field_id", f"Field ID {field_id!r} is repeated.")
+        field_type = str(raw.get("type") or "").strip().lower()
+        if field_type not in _FIELD_TYPES:
+            raise CapabilityError(
+                "unsupported_field_type",
+                f"Field {field_id!r} has unsupported type {field_type!r}.",
+            )
+        label = str(raw.get("label") or field_id).strip()
+        if not label or len(label) > _MAX_FIELD_LABEL:
+            raise CapabilityError(
+                "invalid_manifest",
+                f"Field {field_id!r} needs a label of at most "
+                f"{_MAX_FIELD_LABEL} characters.",
+            )
+        column = str(raw.get("column") or "").strip()
+        derived = str(raw.get("derived") or "").strip()
+        if len(derived) > _MAX_EXPRESSION_CHARS:
+            raise CapabilityError(
+                "invalid_expression",
+                f"Field {field_id!r} expression exceeds "
+                f"{_MAX_EXPRESSION_CHARS} characters.",
+            )
+        if derived:
+            if bool(raw.get("editable")):
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"Derived field {field_id!r} cannot be editable.",
+                )
+            if bool(raw.get("required")):
+                raise CapabilityError(
+                    "invalid_manifest",
+                    f"Derived field {field_id!r} cannot be required.",
+                )
+            names = _expression_names(derived)
+            if field_id in names:
+                raise CapabilityError(
+                    "invalid_expression",
+                    f"Field {field_id!r} cannot reference itself.",
+                )
+            # A derived field may only reference values already computed in
+            # this row: non-derived fields or earlier derived fields.
+            available = set(seen) | {
+                item["id"] for item in normalized if not item["derived"]
+            }
+            missing = sorted(set(names) - available)
+            if missing:
+                raise CapabilityError(
+                    "unsupported_field_reference",
+                    f"Field {field_id!r} references unknown or later "
+                    f"field(s): {', '.join(missing)}.",
+                )
+        else:
+            if not column:
+                raise CapabilityError(
+                    "missing_field_column",
+                    f"Field {field_id!r} needs a bound column.",
+                )
+        unit = str(raw.get("unit") or "").strip()
+        currency = str(raw.get("currency") or "").strip().upper()
+        if field_type in {"integer", "decimal"} and not unit:
+            raise CapabilityError(
+                "missing_unit",
+                f"Field {field_id!r} needs an explicit unit; a bare number "
+                "cannot be calculated or compared safely.",
+            )
+        if field_type == "currency":
+            if not currency:
+                raise CapabilityError(
+                    "missing_currency",
+                    f"Field {field_id!r} needs an explicit ISO currency.",
+                )
+            if not re.fullmatch(r"[A-Z]{3}", currency):
+                raise CapabilityError(
+                    "invalid_currency",
+                    f"Field {field_id!r} currency must be a 3-letter code.",
+                )
+            # The currency itself is the unit for a money field.
+            unit = unit or currency
+        elif currency:
+            raise CapabilityError(
+                "invalid_currency",
+                f"Field {field_id!r} is not a currency field.",
+            )
+        if field_type in {"string", "boolean", "date"} and unit:
+            raise CapabilityError(
+                "invalid_unit",
+                f"Field {field_id!r} of type {field_type} cannot carry a "
+                "numeric unit.",
+            )
+        aggregate = str(raw.get("aggregate") or "").strip().lower()
+        if aggregate and aggregate not in _FIELD_AGGREGATES:
+            raise CapabilityError(
+                "unsupported_aggregate",
+                f"Field {field_id!r} aggregate must be sum or count.",
+            )
+        if aggregate == "sum" and field_type not in {
+                "integer", "decimal", "currency"}:
+            raise CapabilityError(
+                "unsupported_aggregate",
+                f"Field {field_id!r} cannot sum a {field_type} value.",
+            )
+        try:
+            scale = int(raw.get("scale", 2 if field_type in {
+                "decimal", "currency"} else 0))
+        except (TypeError, ValueError) as exc:
+            raise CapabilityError(
+                "invalid_manifest",
+                f"Field {field_id!r} scale must be an integer.",
+            ) from exc
+        if scale < 0 or scale > 6:
+            raise CapabilityError(
+                "invalid_manifest",
+                f"Field {field_id!r} scale must be between 0 and 6.",
+            )
+        rounding = str(raw.get("rounding") or "half_up").strip().lower()
+        if rounding not in _FIELD_ROUNDING:
+            raise CapabilityError(
+                "unsupported_rounding",
+                f"Field {field_id!r} rounding must be one of "
+                f"{sorted(_FIELD_ROUNDING)}.",
+            )
+        item = {
+            "id": field_id,
+            "label": label,
+            "type": field_type,
+            "column": column or field_id,
+            "unit": unit,
+            "currency": currency,
+            "required": bool(raw.get("required")),
+            "editable": bool(raw.get("editable")),
+            "derived": derived,
+            "aggregate": aggregate,
+            "group_by": str(raw.get("group_by") or "").strip(),
+            "scale": scale,
+            "rounding": rounding,
+            "unit_field": str(raw.get("unit_field") or "").strip(),
+            "currency_field": str(raw.get("currency_field") or "").strip(),
+        }
+        normalized.append(item)
+        seen[field_id] = item
+    ids = set(seen)
+    for item in normalized:
+        group_by = item["group_by"]
+        if group_by and group_by not in ids:
+            raise CapabilityError(
+                "unsupported_field_reference",
+                f"Field {item['id']!r} groups by unknown field {group_by!r}.",
+            )
+        if group_by == item["id"]:
+            raise CapabilityError(
+                "invalid_manifest",
+                f"Field {item['id']!r} cannot group by itself.",
+            )
+    return normalized
+
+
+def _normalize_typed_actions(
+    raw_actions: Any, field_ids: Sequence[str],
+) -> List[Dict[str, Any]]:
+    if raw_actions is None:
+        return []
+    if not isinstance(raw_actions, list):
+        raise CapabilityError(
+            "invalid_manifest", "actions must be a list.")
+    if len(raw_actions) > _MAX_TYPED_ACTIONS:
+        raise CapabilityError(
+            "invalid_manifest",
+            f"At most {_MAX_TYPED_ACTIONS} action bindings are supported.",
+        )
+    try:
+        from core.action_registry import action_registry
+        registered = set(action_registry.list_actions())
+    except Exception:  # noqa: BLE001
+        registered = set()
+    allowed = {"id", "operation", "allowed_fields", "target", "authority"}
+    known_fields = set(field_ids)
+    normalized: List[Dict[str, Any]] = []
+    seen: set = set()
+    for index, raw in enumerate(raw_actions):
+        if not isinstance(raw, dict):
+            raise CapabilityError(
+                "invalid_manifest", f"actions[{index}] must be an object.")
+        unknown = sorted(set(raw) - allowed)
+        if unknown:
+            raise CapabilityError(
+                "unsupported_action_property",
+                f"actions[{index}] has unsupported property(ies): "
+                + ", ".join(unknown),
+            )
+        action_id = str(raw.get("id") or "").strip()
+        if not _FIELD_ID_RE.fullmatch(action_id):
+            raise CapabilityError(
+                "invalid_action_id",
+                f"Action ID {action_id!r} must match [a-z][a-z0-9_]{{0,63}}.",
+            )
+        if action_id in seen:
+            raise CapabilityError(
+                "duplicate_action_id", f"Action ID {action_id!r} is repeated.")
+        operation = str(raw.get("operation") or "").strip()
+        if not operation or operation not in registered:
+            raise CapabilityError(
+                "unsupported_action",
+                f"Action {action_id!r} names an unregistered operation "
+                f"{operation!r}; nothing was enabled.",
+            )
+        allowed_fields = raw.get("allowed_fields") or []
+        if not isinstance(allowed_fields, list) or not all(
+                isinstance(item, str) for item in allowed_fields):
+            raise CapabilityError(
+                "invalid_manifest",
+                f"Action {action_id!r} allowed_fields must be a string list.",
+            )
+        missing = sorted(set(allowed_fields) - known_fields)
+        if missing:
+            raise CapabilityError(
+                "unsupported_field_reference",
+                f"Action {action_id!r} names unknown field(s): "
+                + ", ".join(missing),
+            )
+        normalized.append({
+            "id": action_id,
+            "operation": operation,
+            "allowed_fields": list(dict.fromkeys(allowed_fields)),
+            "target": str(raw.get("target") or "").strip()[:240],
+            "authority": str(raw.get("authority") or "").strip()[:240],
+        })
+        seen.add(action_id)
+    return normalized
+
+
 def validate_manifest(manifest: Any) -> Dict[str, Any]:
     if not isinstance(manifest, dict):
         raise CapabilityError("invalid_manifest", "Manifest must be an object.")
-    if manifest.get("schema_version") != SCHEMA_VERSION:
+    version = manifest.get("schema_version")
+    if version not in SUPPORTED_SCHEMA_VERSIONS:
         raise CapabilityError(
             "unsupported_manifest_version",
-            f"Manifest schema_version must be {SCHEMA_VERSION}.",
+            f"Manifest schema_version must be one of "
+            f"{sorted(SUPPORTED_SCHEMA_VERSIONS)}.",
+        )
+    if version == 1 and manifest.get("fields"):
+        raise CapabilityError(
+            "unsupported_manifest_version",
+            "Typed fields require schema_version 2; schema 1 has no field "
+            "IDs to bind.",
         )
     base = str(manifest.get("base_component") or "").strip().lower()
     if base not in _SUPPORTED_BASE_COMPONENTS:
@@ -346,8 +693,19 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
                     raise CapabilityError(
                         "invalid_manifest",
                         f"decision_rules[{index}] has an invalid condition.")
+    typed_fields: List[Dict[str, Any]] = []
+    typed_actions: List[Dict[str, Any]] = []
+    if version == 2:
+        typed_fields = _normalize_typed_fields(manifest.get("fields"))
+        typed_actions = _normalize_typed_actions(
+            manifest.get("actions"), [item["id"] for item in typed_fields])
+        # Field-level editability is the single source of truth in schema 2;
+        # a separate editable_fields list would be a second authority.
+        editable = [
+            item["column"] for item in typed_fields if item["editable"]]
     clean = dict(manifest)
     clean.pop("manifest_revision", None)
+    clean["schema_version"] = int(version)
     clean["base_component"] = base
     clean["operations"] = list(dict.fromkeys(operations))
     clean["data_binding"] = dict(binding)
@@ -358,6 +716,12 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     clean["required_approvals"] = list(required)
     clean["assessment_mode"] = mode
     clean["decision_rules"] = list(rules)
+    if version == 2:
+        clean["fields"] = typed_fields
+        clean["actions"] = typed_actions
+    else:
+        clean.pop("fields", None)
+        clean.pop("actions", None)
     clean["manifest_revision"] = manifest_revision(clean)
     return clean
 
@@ -378,6 +742,9 @@ def sanitize_capability_copy(content: Any, new_canvas_id: str) -> Any:
     manifest["task_policy"] = ""
     manifest["decision_options"] = []
     manifest["required_approvals"] = []
+    # Provider/action bindings and authority references are private to the
+    # source canvas; fields and calculations are copyable shape.
+    manifest["actions"] = []
     manifest["data_binding"] = {
         "subject_field": (manifest.get("data_binding") or {}).get("subject_field", ""),
         "measure_field": (manifest.get("data_binding") or {}).get("measure_field", ""),
@@ -452,12 +819,19 @@ def authorize_canvas(db, canvas: Canvas, user: Any) -> None:
 def effective_operations(canvas: Canvas, manifest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     manifest = manifest if isinstance(manifest, dict) else get_manifest(canvas)
     declared = set(manifest.get("operations") or [])
-    adapter = set(TABLE_OPERATIONS) if manifest.get("base_component") == "table" else set()
+    adapter = (
+        set(TABLE_OPERATIONS)
+        if manifest.get("base_component") in _SUPPORTED_BASE_COMPONENTS
+        else set()
+    )
     dataset = get_dataset(canvas)
     columns = [str(c) for c in (dataset.get("columns") or [])]
     resource = {"read", "bind"}
     if columns and dataset.get("rows") is not None:
         resource |= {"select", "calculate"}
+        if (manifest.get("schema_version") == 2
+                and manifest.get("fields")):
+            resource.add("derive")
         editable = [c for c in (manifest.get("editable_fields") or []) if c in columns]
         if editable:
             resource.add("edit")
@@ -747,7 +1121,8 @@ def _persist_dataset(
     manifest["data_binding"]["source_version"] = source["source_version"]
     if title:
         canvas.name = title
-    canvas.content = _init_capability(canvas, validate_manifest(manifest), content)
+    clean_manifest = validate_manifest(manifest)
+    canvas.content = _init_capability(canvas, clean_manifest, content)
     canvas.last_edited_by = str(getattr(user, "id", "") or "") or None
     canvas.last_edited_at = _now()
     _audit(db, canvas, user, "capability_bind", {
@@ -763,8 +1138,8 @@ def _persist_dataset(
         "row_count": len(clean_rows),
         "source": source,
         "revision": content["capability_revision"],
-        "manifest": manifest,
-        "operations": effective_operations(canvas, manifest),
+        "manifest": clean_manifest,
+        "operations": effective_operations(canvas, clean_manifest),
     }
 
 
@@ -1415,6 +1790,637 @@ def calculate_operation(db, canvas: Canvas, user: Any, ask: str) -> Dict[str, An
         "block": result.get("block"),
         "answer": result.get("answer"),
         "status": result.get("status"),
+    }
+
+
+def _missing_cell(value: Any) -> bool:
+    if value is None:
+        return True
+    try:
+        if pd.isna(value):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return isinstance(value, str) and not value.strip()
+
+
+def _typed_decimal(value: Any, field: Dict[str, Any], row: int) -> Decimal:
+    if isinstance(value, bool):
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} must be a number, not a boolean.",
+            field_id=field["id"], row=row,
+        )
+    try:
+        number = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} is not a valid number.",
+            field_id=field["id"], row=row,
+        ) from exc
+    if not number.is_finite():
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} must be finite.",
+            field_id=field["id"], row=row,
+        )
+    if field["type"] == "integer" and number != number.to_integral_value():
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} must be a whole number.",
+            field_id=field["id"], row=row,
+        )
+    return number
+
+
+def _typed_value(value: Any, field: Dict[str, Any], row: int) -> Any:
+    field_type = field["type"]
+    if field_type in {"integer", "decimal", "currency"}:
+        number = _typed_decimal(value, field, row)
+        if field["type"] == "integer":
+            return int(number)
+        return number
+    if field_type == "boolean":
+        if isinstance(value, bool):
+            return value
+        text = str(value).strip().lower()
+        if text in {"true", "yes", "1"}:
+            return True
+        if text in {"false", "no", "0"}:
+            return False
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} must be true or false.",
+            field_id=field["id"], row=row,
+        )
+    text = str(value)
+    if field_type == "date":
+        try:
+            return date.fromisoformat(text.strip()[:10]).isoformat()
+        except (TypeError, ValueError) as exc:
+            raise CapabilityError(
+                "invalid_field_value",
+                f"Row {row} field {field['id']!r} must be an ISO date.",
+                field_id=field["id"], row=row,
+            ) from exc
+    return text
+
+
+def _quantize_typed(value: Decimal, field: Dict[str, Any]) -> Decimal:
+    scale = int(field.get("scale") or 0)
+    rounding = _FIELD_ROUNDING.get(
+        str(field.get("rounding") or "half_up"), ROUND_HALF_UP)
+    return value.quantize(Decimal(1).scaleb(-scale), rounding=rounding)
+
+
+def _typed_json_value(value: Any, field: Dict[str, Any]) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return str(_quantize_typed(value, field))
+    return value
+
+
+def _typed_expression_value(
+    expression: str, values: Dict[str, Any], row: int,
+    field: Dict[str, Any],
+) -> Any:
+    tree = ast.parse(expression, mode="eval")
+
+    def evaluate(node: Any) -> Decimal:
+        if isinstance(node, ast.Expression):
+            return evaluate(node.body)
+        if isinstance(node, ast.Constant) and isinstance(
+                node.value, (int, float)) and not isinstance(node.value, bool):
+            return Decimal(str(node.value))
+        if isinstance(node, ast.Name):
+            value = values.get(node.id)
+            if value is None:
+                raise CapabilityError(
+                    "derived_dependency_missing",
+                    f"Row {row} field {field['id']!r} depends on missing "
+                    f"field {node.id!r}.",
+                    field_id=field["id"], row=row, dependency=node.id,
+                )
+            if isinstance(value, bool):
+                raise CapabilityError(
+                    "unsupported_expression",
+                    f"Row {row} field {field['id']!r} cannot calculate with "
+                    f"boolean field {node.id!r}.",
+                    field_id=field["id"], row=row,
+                )
+            try:
+                return Decimal(str(value))
+            except (InvalidOperation, ValueError, TypeError) as exc:
+                raise CapabilityError(
+                    "unsupported_expression",
+                    f"Row {row} field {field['id']!r} cannot calculate with "
+                    f"non-numeric field {node.id!r}.",
+                    field_id=field["id"], row=row,
+                ) from exc
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            return -evaluate(node.operand)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
+            return evaluate(node.operand)
+        if isinstance(node, ast.BinOp):
+            left = evaluate(node.left)
+            right = evaluate(node.right)
+            if isinstance(node.op, ast.Add):
+                return left + right
+            if isinstance(node.op, ast.Sub):
+                return left - right
+            if isinstance(node.op, ast.Mult):
+                return left * right
+            if isinstance(node.op, ast.Div):
+                if right == 0:
+                    raise CapabilityError(
+                        "invalid_expression",
+                        f"Row {row} field {field['id']!r} divides by zero.",
+                        field_id=field["id"], row=row,
+                    )
+                return left / right
+        raise CapabilityError(
+            "unsupported_expression",
+            "Derived expressions support only field names, numeric literals "
+            "and + - * /.",
+            field_id=field["id"], row=row,
+        )
+
+    result = evaluate(tree)
+    if not result.is_finite():
+        raise CapabilityError(
+            "invalid_field_value",
+            f"Row {row} field {field['id']!r} produced a non-finite number.",
+            field_id=field["id"], row=row,
+        )
+    if field["type"] == "integer":
+        if result != result.to_integral_value():
+            raise CapabilityError(
+                "invalid_field_value",
+                f"Row {row} field {field['id']!r} must be a whole number.",
+                field_id=field["id"], row=row,
+            )
+        return int(result)
+    return result
+
+
+def _aggregate_typed(
+    values: Sequence[Any], field: Dict[str, Any],
+) -> Any:
+    present = [value for value in values if value is not None]
+    if field["aggregate"] == "count":
+        return len(present)
+    total = sum((Decimal(str(value)) for value in present), Decimal("0"))
+    if field["type"] == "integer":
+        return int(total)
+    return str(_quantize_typed(total, field))
+
+
+def derive_operation(
+    db, canvas: Canvas, user: Any, *,
+    expected_revision: Optional[int] = None,
+    manifest_revision_value: str = "",
+    source_version: str = "",
+) -> Dict[str, Any]:
+    """Recompute typed fields and aggregates from the authoritative snapshot.
+
+    Every value is read from the server-stored dataset; the request carries no
+    values and no total. Expected state/manifest/source revisions are required
+    so a stale browser tab cannot calculate against a snapshot it no longer
+    owns.
+    """
+    authorize_canvas(db, canvas, user)
+    manifest = _require_effective(canvas, "derive")
+    _assert_bound_source_access(db, canvas, user)
+    fields = list(manifest.get("fields") or [])
+    if not fields:
+        raise CapabilityError(
+            "typed_fields_required",
+            "Derive requires schema 2 typed fields with explicit units.",
+        )
+    if expected_revision is None:
+        raise CapabilityError(
+            "revision_required",
+            "expected_revision is required for derive; refusing an unchecked "
+            "calculation.",
+        )
+    if int(expected_revision) != current_revision(canvas):
+        raise CapabilityError(
+            "stale_revision",
+            f"Expected revision {expected_revision} but canvas is at "
+            f"{current_revision(canvas)}. Nothing was calculated.",
+            409,
+        )
+    if str(manifest_revision_value or "") != str(
+            manifest.get("manifest_revision") or ""):
+        raise CapabilityError(
+            "stale_manifest",
+            "The typed fields or rules changed after this request was "
+            "prepared. Reload the manifest and try again.",
+            409,
+        )
+    dataset = get_dataset(canvas)
+    source = dict(dataset.get("source") or {})
+    if str(source_version or "") != str(source.get("source_version") or ""):
+        raise CapabilityError(
+            "stale_source",
+            "The bound dataset changed after this request was prepared. "
+            "Reload the source revision and try again.",
+            409,
+        )
+    columns = [str(item) for item in (dataset.get("columns") or [])]
+    rows = dataset.get("rows") or []
+    sheet_rows = dataset.get("sheet_rows") or []
+    max_rows = int(os.getenv("ATOM_CANVAS_DERIVE_MAX_ROWS", "5000") or 5000)
+    if len(rows) > max_rows:
+        raise CapabilityError(
+            "dataset_too_large",
+            f"Derive received {len(rows)} rows; the complete-population limit "
+            f"is {max_rows}. No partial total was returned.",
+        )
+    field_by_id = {item["id"]: item for item in fields}
+    missing: List[Dict[str, Any]] = []
+    receipt_rows: List[Dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        row_number = (
+            int(sheet_rows[index]) if index < len(sheet_rows) else index + 2)
+        values: Dict[str, Any] = {}
+        row_has_missing = False
+        for field in fields:
+            if field["derived"]:
+                continue
+            column = field["column"]
+            if column not in columns:
+                raise CapabilityError(
+                    "unbound_field_column",
+                    f"Field {field['id']!r} binds missing column {column!r}.",
+                    field_id=field["id"],
+                )
+            cell = row[columns.index(column)] if columns.index(column) < len(row) else None
+            if _missing_cell(cell):
+                if field["required"]:
+                    row_has_missing = True
+                    missing.append({
+                        "row": row_number,
+                        "field_id": field["id"],
+                        "label": field["label"],
+                        "question": (
+                            f"What {field['label']} applies to row "
+                            f"{row_number}?"),
+                        "unit": field["unit"],
+                        "currency": field["currency"],
+                    })
+                values[field["id"]] = None
+                continue
+            value = _typed_value(cell, field, row_number)
+            unit_field = field.get("unit_field") or ""
+            if unit_field:
+                if unit_field not in columns:
+                    raise CapabilityError(
+                        "unbound_field_column",
+                        f"Field {field['id']!r} names missing unit column "
+                        f"{unit_field!r}.",
+                        field_id=field["id"],
+                    )
+                observed = row[columns.index(unit_field)] if columns.index(
+                    unit_field) < len(row) else None
+                if _missing_cell(observed):
+                    raise CapabilityError(
+                        "ambiguous_unit",
+                        f"Row {row_number} field {field['id']!r} has no unit; "
+                        "a bare number cannot be calculated.",
+                        field_id=field["id"], row=row_number,
+                    )
+                if str(observed).strip().casefold() != field["unit"].casefold():
+                    raise CapabilityError(
+                        "ambiguous_unit",
+                        f"Row {row_number} field {field['id']!r} has unit "
+                        f"{observed!r}, but the field is declared in "
+                        f"{field['unit']!r}.",
+                        field_id=field["id"], row=row_number,
+                    )
+            currency_field = field.get("currency_field") or ""
+            if currency_field:
+                if currency_field not in columns:
+                    raise CapabilityError(
+                        "unbound_field_column",
+                        f"Field {field['id']!r} names missing currency column "
+                        f"{currency_field!r}.",
+                        field_id=field["id"],
+                    )
+                observed = row[columns.index(currency_field)] if columns.index(
+                    currency_field) < len(row) else None
+                if _missing_cell(observed) or str(
+                        observed).strip().upper() != field["currency"]:
+                    raise CapabilityError(
+                        "currency_mismatch",
+                        f"Row {row_number} field {field['id']!r} is not in "
+                        f"the declared {field['currency']} currency.",
+                        field_id=field["id"], row=row_number,
+                    )
+            values[field["id"]] = value
+        for field in fields:
+            if not field["derived"]:
+                continue
+            if row_has_missing:
+                # The targeted missing-value refusal is the useful answer;
+                # do not replace it with a downstream dependency error.
+                values[field["id"]] = None
+                continue
+            values[field["id"]] = _typed_expression_value(
+                field["derived"], values, row_number, field)
+        receipt_rows.append({
+            "row": row_number,
+            "values": {
+                item["id"]: _typed_json_value(
+                    values.get(item["id"]), item)
+                for item in fields
+            },
+        })
+    if missing:
+        question = (
+            f"Answer the missing value for {missing[0]['label']} on row "
+            f"{missing[0]['row']} before a total can be calculated."
+            if len(missing) == 1 else
+            f"Answer {len(missing)} missing required values before a total "
+            "can be calculated."
+        )
+        raise CapabilityError(
+            "missing_required_value",
+            question,
+            409,
+            missing=missing[:50],
+            question=question,
+            next_action=(
+                "Edit the named row/field with the current expected_revision, "
+                "then derive again."),
+        )
+    aggregates: Dict[str, Any] = {}
+    groups: List[Dict[str, Any]] = []
+    for field in fields:
+        if not field["aggregate"]:
+            continue
+        aggregates[field["id"]] = _aggregate_typed(
+            [row["values"].get(field["id"]) for row in receipt_rows],
+            field,
+        )
+        group_by = field["group_by"]
+        if group_by:
+            grouped: Dict[str, List[Any]] = {}
+            for row in receipt_rows:
+                raw_group = row["values"].get(group_by)
+                key = "(missing)" if raw_group is None else str(raw_group)
+                grouped.setdefault(key, []).append(
+                    row["values"].get(field["id"]))
+            for key in sorted(grouped):
+                groups.append({
+                    "field_id": field["id"],
+                    "group_by": group_by,
+                    "group": key,
+                    "value": _aggregate_typed(grouped[key], field),
+                })
+    receipt = {
+        "kind": "canvas_input_receipt",
+        "schema_version": 1,
+        "canvas_id": canvas.id,
+        "canvas_type": canvas.canvas_type,
+        "base_component": manifest.get("base_component"),
+        "manifest_revision": manifest.get("manifest_revision"),
+        "policy_revision": policy_revision(manifest),
+        "state_revision": current_revision(canvas),
+        "source": {
+            "resource_id": source.get("resource_id"),
+            "source_version": source.get("source_version"),
+            "sha256": source.get("sha256"),
+            "file_name": source.get("file_name"),
+            "coverage": {
+                "complete_dataset": True,
+                "row_count": len(rows),
+                "source_row_count": (
+                    (source.get("snapshot") or {}).get("rows") or len(rows)),
+            },
+        },
+        "fields": [{
+            "id": item["id"],
+            "label": item["label"],
+            "type": item["type"],
+            "column": item["column"],
+            "unit": item["unit"],
+            "currency": item["currency"],
+            "required": item["required"],
+            "editable": item["editable"],
+            "derived": item["derived"],
+            "aggregate": item["aggregate"],
+            "group_by": item["group_by"],
+            "scale": item["scale"],
+            "rounding": item["rounding"],
+        } for item in fields],
+        "rows": receipt_rows,
+        "row_count": len(receipt_rows),
+        "missing": [],
+    }
+    receipt["digest"] = hashlib.sha256(json.dumps(
+        receipt, sort_keys=True, separators=(",", ":"), default=str,
+    ).encode("utf-8")).hexdigest()
+    return {
+        "success": True,
+        "operation": "derive",
+        "canvas_id": canvas.id,
+        "manifest_revision": manifest.get("manifest_revision"),
+        "policy_revision": policy_revision(manifest),
+        "revision": current_revision(canvas),
+        "source": receipt["source"],
+        "fields": receipt["fields"],
+        "rows": receipt_rows,
+        "row_count": len(receipt_rows),
+        "aggregates": aggregates,
+        "groups": groups,
+        "input_receipt": receipt,
+        "status": "complete",
+    }
+
+
+def _clarification_answers(answers: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    normalized: List[Dict[str, Any]] = []
+    for item in answers or []:
+        if not isinstance(item, dict):
+            raise CapabilityError(
+                "invalid_answer", "Each answer must be an object.")
+        try:
+            row = int(item.get("row"))
+        except (TypeError, ValueError) as exc:
+            raise CapabilityError(
+                "invalid_answer", "answer.row must be the sheet row.") from exc
+        field_id = str(item.get("field_id") or "").strip()
+        if not field_id:
+            raise CapabilityError(
+                "invalid_answer", "answer.field_id is required.")
+        normalized.append({
+            "row": row,
+            "field_id": field_id,
+            "value": item.get("value"),
+        })
+    normalized.sort(key=lambda item: (item["row"], item["field_id"]))
+    return normalized
+
+
+def _answers_digest(answers: Sequence[Dict[str, Any]]) -> str:
+    return hashlib.sha256(json.dumps(
+        list(answers), sort_keys=True, separators=(",", ":"), default=str,
+    ).encode("utf-8")).hexdigest()
+
+
+def begin_derive_clarification(
+    db, canvas: Canvas, user: Any, error: CapabilityError,
+    *, expected_revision: int, manifest_revision_value: str,
+    source_version: str,
+) -> Dict[str, Any]:
+    """Persist one open clarification for a derive missing-value refusal.
+
+    This is canvas state, not a third job engine: the authoritative rows stay
+    in the canvas, answers are applied through the existing edit operation and
+    the same derive operation resumes the calculation.
+    """
+    content = _canvas_content(canvas)
+    existing = content.get("capability_derive_clarification")
+    missing = list(error.extra.get("missing") or [])
+    if isinstance(existing, dict) and existing.get("status") == "open":
+        if existing.get("missing") == missing:
+            return existing
+    clarification = {
+        "id": f"derive-{uuid.uuid4().hex}",
+        "status": "open",
+        "canvas_id": canvas.id,
+        "created_at": _now().isoformat(),
+        "expected_revision": int(expected_revision),
+        "manifest_revision": str(manifest_revision_value or ""),
+        "source_version": str(source_version or ""),
+        "missing": missing,
+        "question": error.message,
+    }
+    content["capability_derive_clarification"] = clarification
+    canvas.content = content
+    db.commit()
+    return clarification
+
+
+def answer_derive_clarification(
+    db, canvas: Canvas, user: Any, clarification_id: str,
+    answers: Sequence[Dict[str, Any]], *,
+    expected_revision: Optional[int] = None,
+) -> Dict[str, Any]:
+    authorize_canvas(db, canvas, user)
+    content = _canvas_content(canvas)
+    clarification = content.get("capability_derive_clarification")
+    if not isinstance(clarification, dict) or str(
+            clarification.get("id") or "") != str(clarification_id):
+        raise CapabilityError(
+            "clarification_not_found", "The derive clarification was not found.",
+            404)
+    normalized = _clarification_answers(answers)
+    digest = _answers_digest(normalized)
+    if clarification.get("status") == "resolved":
+        if clarification.get("answers_digest") == digest:
+            return {
+                "success": True,
+                "status": "already_resolved",
+                "clarification_id": clarification_id,
+                "result_digest": clarification.get("result_digest"),
+                "revision": clarification.get("revision"),
+            }
+        raise CapabilityError(
+            "clarification_conflict",
+            "The clarification was already resolved with a different answer.",
+            409,
+        )
+    if expected_revision is None:
+        raise CapabilityError(
+            "revision_required", "expected_revision is required for an answer.")
+    if int(expected_revision) != current_revision(canvas):
+        raise CapabilityError(
+            "stale_revision",
+            f"Expected revision {expected_revision} but canvas is at "
+            f"{current_revision(canvas)}. Nothing was changed.",
+            409,
+        )
+    missing = list(clarification.get("missing") or [])
+    required = {
+        (int(item["row"]), str(item["field_id"])): item for item in missing}
+    supplied = {(item["row"], item["field_id"]): item for item in normalized}
+    if set(supplied) != set(required):
+        raise CapabilityError(
+            "incomplete_answer",
+            "Answer every missing row/field in this clarification.",
+            400,
+            missing=missing,
+            unanswered=[
+                {"row": row, "field_id": field}
+                for row, field in sorted(set(required) - set(supplied))
+            ],
+            unknown=[
+                {"row": row, "field_id": field}
+                for row, field in sorted(set(supplied) - set(required))
+            ],
+        )
+    manifest = get_manifest(canvas)
+    field_by_id = {
+        item["id"]: item for item in (manifest.get("fields") or [])}
+    for (row, field_id), answer in supplied.items():
+        field = field_by_id.get(field_id)
+        if field is None:
+            raise CapabilityError(
+                "unsupported_field_reference",
+                f"Field {field_id!r} is not in the current manifest.", 409)
+        if not field.get("editable"):
+            raise CapabilityError(
+                "edit_not_allowed",
+                f"Field {field_id!r} is required but not editable; the "
+                "canvas owner must correct it.",
+                409,
+            )
+    edits = [{
+        "row": row, "column": field_by_id[field_id]["column"],
+        "value": answer["value"],
+    } for (row, field_id), answer in supplied.items()]
+    edited = edit_operation(
+        db, canvas, user, edits, expected_revision=expected_revision)
+    if not edited.get("success"):
+        raise CapabilityError(
+            "answer_readback_mismatch",
+            "The answer was not read back from the authoritative store.",
+            409,
+            edits=edited.get("edits"),
+        )
+    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first() or canvas
+    manifest = get_manifest(fresh)
+    dataset = get_dataset(fresh)
+    result = derive_operation(
+        db, fresh, user,
+        expected_revision=current_revision(fresh),
+        manifest_revision_value=manifest.get("manifest_revision"),
+        source_version=(dataset.get("source") or {}).get("source_version"),
+    )
+    content = _canvas_content(fresh)
+    clarification = dict(content.get("capability_derive_clarification") or {})
+    clarification.update({
+        "status": "resolved",
+        "answers": normalized,
+        "answers_digest": digest,
+        "resolved_at": _now().isoformat(),
+        "resolved_by": str(getattr(user, "id", "") or ""),
+        "revision": current_revision(fresh),
+        "result_digest": result["input_receipt"]["digest"],
+    })
+    content["capability_derive_clarification"] = clarification
+    fresh.content = content
+    db.commit()
+    return {
+        "success": True,
+        "status": "resolved",
+        "clarification_id": clarification_id,
+        "result": result,
+        "revision": current_revision(fresh),
     }
 
 
