@@ -1,0 +1,222 @@
+{
+  "artifacts": {
+    "assignment-regression.log": "799cdbee448bdb893c6007a68be59dff19b3c57468d38e1336378fcfc4f34045",
+    "backend-health.json": "1c7df9b95badb1bd9eb54b93b444c13d9c6c4b8c073e1cd24da02de602a92b7a",
+    "exception-queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+    "exception-queue.png": "639e04a29ac4cf349dd16c5a38b1bacd5467d5ead18ea5548e15e1353d438f99",
+    "focused-tests.log": "da8e83f084c60440e5d469b0973c8e0d169c67866e087e0619c2dc5d43821bc1",
+    "frontend-build-id.txt": "f08338435b3d0611ad402082e9a61241632bc257883bb4c8d149288508b2316a",
+    "frontend-health.json": "5a3cf2140a816f8e2bd92f255f669ee9016aa5e12a7212222c0f30973c3137c7",
+    "frontend-tests.log": "dbea5b8ff51db4ac393a29c7f72f0d713171e80982f48338c2098bd6ebfa7aad",
+    "industrial-quote.csv": "7c97d46957efbf355832a1f726ced1992adffec495cf5208cbefcce8b5e1f04f",
+    "industrial-quote.png": "9825ee6172a4de228457f15edc3d5362982fd616c46a7ca39d5718db61cbdfea",
+    "result.json": "f2949cc53430445a4767cee3f62428e4f68d7b7e16122fa85b1b15392f842269",
+    "run.log": "0188cdafb36c7d4a895c911b2f1f2d175cb6ff323c5b7089cecee0713ef15e7a",
+    "service-proposal.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47",
+    "service-proposal.png": "685f4cd41c57892eb52f29dd78d90c80dc4eb3edf9092d54dc694af3918dc0b5",
+    "stale-question-a.csv": "7c8d24379cfc9e41fee7ed9b7dc7cb136b0114aebd47bcc5d7388ee286109eb6",
+    "stale-question-b.csv": "4d54d513164df95912944991312b703e6db0d6b218b3e6ee878a48ba504651a9",
+    "stale-question-refusal.png": "d41e67f49ea61ef8869815e9a9dba712870f244c141bef428f1b66b71ba2699a",
+    "teaching-neighborhood.log": "6e62308a1602fe75b0f2d60053705487e19012093811832e6fa20b8494f5573d",
+    "verifier-assignment-probes.py": "13cba226a8c1471e89afd70a3a313042e775cd709897d4f30f24ebd77a81d5c9",
+    "verifier-canvas-probes.py": "458a69953ef4276b962dcf0a73da980a6e75b3f59b32d0f2df818d27c7d573f4",
+    "verifier-probes.log": "df2fc064278de026d9c8933a30d6b1a8cb9f9883d3c36d51478a031051c45264",
+    "world.json": "7ba2a7b31dbead8bb0384b96cfdf7357fec02337b1eb74c0950e19f7905b5ead"
+  },
+  "browser": {
+    "canvas_urls": {
+      "exception_queue": "http://127.0.0.1:3133/canvas/476e1f38-940c-4bff-aa3b-604f262199c9",
+      "industrial_quote": "http://127.0.0.1:3133/canvas/601e5cdb-1ed2-45d1-bc59-ea0ff7d21592",
+      "service_proposal": "http://127.0.0.1:3133/canvas/7e54e0d2-a4f8-431e-abfd-e23a42e943ba"
+    },
+    "checks": [
+      {
+        "name": "industrial quote created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "industrial quote derives server total 350.00 USD",
+        "ok": true
+      },
+      {
+        "name": "typed receipt starts an ordinary assignment",
+        "ok": true
+      },
+      {
+        "name": "industrial quote exposes table view and derive operation",
+        "ok": true
+      },
+      {
+        "name": "industrial quote fields and revision survive reload",
+        "ok": true
+      },
+      {
+        "name": "service proposal created and bound through the UI",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives server total 630.00 CAD",
+        "ok": true
+      },
+      {
+        "name": "service proposal derives in CAD through the same panel",
+        "ok": true
+      },
+      {
+        "name": "exception queue created with a targeted missing amount",
+        "ok": true
+      },
+      {
+        "name": "same queue derivation resumes after the answer",
+        "ok": true
+      },
+      {
+        "name": "exception queue counts and groups by status",
+        "ok": true
+      },
+      {
+        "name": "exception queue exposes derive and selection, not a sales quote",
+        "ok": true
+      },
+      {
+        "name": "exception queue history and fields survive reload",
+        "ok": true
+      },
+      {
+        "name": "old answer refuses after source replacement",
+        "ok": true
+      },
+      {
+        "name": "replacement source receives a new question",
+        "ok": true
+      },
+      {
+        "name": "replacement source completes only through its new question",
+        "ok": true
+      },
+      {
+        "name": "no browser page errors",
+        "ok": true
+      }
+    ],
+    "checks_passed": 17,
+    "checks_total": 17,
+    "command": "TESTING=0 PYTHONPATH=$PWD/backend /Users/rushiparikh/projects/atom/backend/venv314/bin/python scripts/acceptance/canvas_typed_canvases_local.py --frontend http://127.0.0.1:3133 --api http://127.0.0.1:8092 --password-file <world>/canvas-password.txt --agent-id <agent> --out-dir <evidence>",
+    "page_errors": [],
+    "receipt_assignment": {
+      "started_from": "industrial_quote",
+      "status": "completed"
+    },
+    "source_replacement_control": {
+      "completed_total": "2000.00",
+      "new_subject": "B",
+      "old_answer_status": 409
+    }
+  },
+  "candidate": {
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source": "a87882526323",
+    "manifest_note": "This evidence commit is docs-only after the executed source; it was not served.",
+    "previous_reviewed_source": "acc22b9283bc",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/api/canvas_capability_routes.py",
+    "backend/core/agent_pedagogy.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/canvas_assignment.py",
+    "backend/core/canvas_capability_service.py",
+    "backend/core/student_learning_service.py",
+    "backend/tests/test_canvas_assignment_integration.py"
+  ],
+  "controls": [
+    "stale proposal cannot use newer revisions: receipt/state/source/manifest/policy/proposal digest/target comparison -> 409, no journal entry",
+    "foreign or moved employee refused at proposal, assignment and promotion; no journal/task/provider mutation",
+    "journal append and canvas CAS share one transaction; forced CAS failure leaves no lesson and proposal proposed",
+    "global lesson returned by get_agent_lessons(task_context={}); full structured provenance under entry.provenance",
+    "non-supervisor promotion refused 403; duplicate promotion already_promoted",
+    "foreign assignment principal fails closed at canvas.receipt consumption",
+    "action guards recheck revision/manifest/source/declaration immediately before dispatch",
+    "source/canvas change after proposal requires a fresh proposal"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write or send",
+    "teaching promotion is explicit human approval, not autonomous learning",
+    "no hosted deployment, universal mini-app/runtime claim, multi-worker/soak or unfamiliar-user study",
+    "connected acceptance remains 6431bcb78; historical 111/123 unchanged"
+  ],
+  "runtime": {
+    "backend": {
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-assignment/atom.db",
+      "dirty": false,
+      "instance_id": "a87882526323.30391.1793628386",
+      "pid": 30391,
+      "revision": "a878825263235e485d146ea10a9b2bd36bebc003",
+      "source_id": "a87882526323",
+      "url": "http://127.0.0.1:8092"
+    },
+    "frontend": {
+      "build_id": "X_PhH8Q4l6qVCB2K0XQLf",
+      "service": "atom-frontend",
+      "status": "healthy",
+      "url": "http://127.0.0.1:3133"
+    },
+    "world": {
+      "backend_port": 8092,
+      "created_at": "2026-11-02T12:55:25.196193+00:00",
+      "database": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-assignment/atom.db",
+      "frontend_port": 3133,
+      "last_launched_at": "2026-11-02T14:06:21.779512+00:00",
+      "repo": "/private/tmp/atom-canvas-successor",
+      "schema": "atom-integrated-local-world-1",
+      "secret_file": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-assignment/.atom-secret",
+      "world": "/private/tmp/atom-canvas-successor/backend/data/acceptance_worlds/canvas-successor-20261101-assignment"
+    }
+  },
+  "schema": "atom-canvas-teaching-repair-1",
+  "source_hashes": {
+    "backend/api/canvas_capability_routes.py": "b6f3bc433f200e827e678126e02bb3cb1fc0c14a2171922add0729ba4048adcd",
+    "backend/core/agent_pedagogy.py": "b51d7222b9593cc2412c29701fda70ea8250bd5c74735a6e814027c54c016561",
+    "backend/core/assignment_executor.py": "292b2b651d404c7dc8e94547ab9ade9cde3af465f8726edccbd53ede0b7fa05b",
+    "backend/core/canvas_assignment.py": "27291c37cb908ccab4c6d9049a80f436ceb75c8d46df9659046ba5289ba8aa4a",
+    "backend/core/canvas_capability_service.py": "cf2fb339f38cab912706f91871feafa2cac3d04675d356daccdd83d1dd90af61",
+    "backend/core/student_learning_service.py": "393b640755101c96879d8fcd0efb0a56789905fed3cc95434b9e3515f4ac2905",
+    "backend/tests/test_canvas_assignment_integration.py": "9c39e065145f2b87a26f6b19f0d9f83ec999f180bedefc42407300dea4554157"
+  },
+  "tests": {
+    "assignment_regression": {
+      "command": "TESTING=1 pytest tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py -q",
+      "result": "167 passed"
+    },
+    "canvas_focused": {
+      "command": "TESTING=1 pytest <canvas focused suite> -q",
+      "result": "127 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest <three canvas capability suites> --runInBand",
+      "result": "7 passed"
+    },
+    "teaching_neighborhood": {
+      "command": "TESTING=1 pytest <chat/conversation/canvas/artifact/cross-canvas teaching suites> -q",
+      "result": "203 passed; 3 pre-existing mock-only failures in test_student_training_service.py excluded"
+    },
+    "verifier_probes": {
+      "command": "TESTING=1 pytest /private/tmp/test_verifier_canvas_assignment_boundaries.py /private/tmp/test_verifier_canvas_boundaries.py -q",
+      "result": "7 passed"
+    }
+  },
+  "tracking": {
+    "ignored_files_force_added": [
+      "run.log",
+      "focused-tests.log",
+      "assignment-regression.log",
+      "verifier-probes.log",
+      "teaching-neighborhood.log",
+      "frontend-tests.log",
+      "frontend-build-id.txt"
+    ],
+    "verification": "Every artifact listed above is tracked in Git at this evidence commit; verify with git show <evidence-commit>:<path>."
+  }
+}

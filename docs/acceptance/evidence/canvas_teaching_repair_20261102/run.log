@@ -1,0 +1,17 @@
+PASS industrial quote created and bound through the UI {"url": "http://127.0.0.1:3133/canvas/601e5cdb-1ed2-45d1-bc59-ea0ff7d21592", "bind": 2}
+PASS industrial quote derives server total 350.00 USD {"aggregates": {"line_total": "350.00"}}
+PASS typed receipt starts an ordinary assignment {"run_id": "aff397ee-c2dd-4a5a-adb0-149e5ce9e972", "status": "completed"}
+PASS industrial quote exposes table view and derive operation "effective: bind, derive, edit, read"
+PASS industrial quote fields and revision survive reload "Typed fields (server-computed)\nitem_id \u00b7 string\nquantity \u00b7 decimal \u00b7 each\nunit_price \u00b7 currency \u00b7 USD \u00b7 USD\nline_total \u00b7 currency \u00b7 USD \u00b7 USD \u00b7 = quantity * unit_price"
+PASS service proposal created and bound through the UI {"url": "http://127.0.0.1:3133/canvas/7e54e0d2-a4f8-431e-abfd-e23a42e943ba", "bind": 2}
+PASS service proposal derives server total 630.00 CAD {"aggregates": {"fee_total": "630.00"}}
+PASS service proposal derives in CAD through the same panel "effective: bind, derive, edit, read"
+PASS exception queue created with a targeted missing amount {"url": "http://127.0.0.1:3133/canvas/476e1f38-940c-4bff-aa3b-604f262199c9", "status": "clarification"}
+PASS same queue derivation resumes after the answer {"status": "resolved", "aggregates": {"exception_id": 3, "amount": "170.00"}}
+PASS exception queue counts and groups by status [{"field_id": "exception_id", "group_by": "status", "group": "Closed", "value": 1}, {"field_id": "exception_id", "group_by": "status", "group": "Open", "value": 2}, {"field_id": "amount", "group_by": "status", "group": "Closed", "value": "20.00"}, {"field_id": "amount", "group_by": "status", "group": "Open", "value": "150.00"}]
+PASS exception queue exposes derive and selection, not a sales quote "effective: bind, derive, edit, read, select"
+PASS exception queue history and fields survive reload "Typed fields (server-computed)\nexception_id \u00b7 string\namount \u00b7 currency \u00b7 USD \u00b7 USD\nstatus \u00b7 string"
+PASS old answer refuses after source replacement {"question": "derive-cba7c84638c84cdb8b35bfbb9d3c775f", "answer_status": 409, "error": {"code": "stale_clarification", "message": "The canvas source, fields or revision changed after this question was opened. The old answer was refused; derive again to get a question for the current snapshot.", "clarification_id": "derive-cba7c84638c84cdb8b35bfbb9d3c775f", "reasons": ["state_revision", "manifest_revision", "source.source_version", "source.sha256", "source.file_name", "missing"]}}
+PASS replacement source receives a new question {"new_question": "derive-54c95a4317354a5cb9204bb1ec33eaa5", "subject": "B"}
+PASS replacement source completes only through its new question {"aggregates": {"line_total": "2000.00"}}
+PASS no browser page errors {}
