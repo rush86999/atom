@@ -1,0 +1,146 @@
+INFO core.database 🧪 TESTING mode enabled: Forcing SQLite (/private/tmp/atom-full-app/backend/test_integration.db)
+INFO core.database Async database support enabled
+INFO core.llm_call_tracker Created LLM call tracker singleton (maxlen=5000)
+INFO core.cache ℹ️ No distributed cache configured. Using Local Memory Cache only.
+WARNING core.config ⚠️ Generated temporary SECRET_KEY for development: cENcdrV6...
+WARNING core.config ⚠️ Generated temporary SECRET_KEY for development: 4QPiU6nQ...
+INFO core.config Configuration loaded from environment variables
+INFO core.dynamic_pricing_fetcher Loaded 5020 model prices from cache
+INFO core.byok_endpoints Updated costs for 16 providers from dynamic pricing
+INFO core.llm.byok_handler Initialized Ollama (local) client at http://127.0.0.1:11436/v1
+INFO core.llm.escalation_manager EscalationManager initialized
+INFO core.llm.cognitive_tier_service CognitiveTierService initialized for workspace: default
+INFO core.provider_health_monitor Created ProviderHealthMonitor singleton instance
+INFO core.llm.rate_usage_persistence Created RateUsagePersistence singleton instance
+INFO core.llm.provider_rate_limits Created ProviderRateTracker singleton instance
+INFO core.dynamic_pricing_fetcher Auto-populating pricing cache synchronously...
+INFO core.dynamic_pricing_fetcher Using cached pricing data
+INFO core.dynamic_pricing_fetcher Pricing cache populated with 5020 models
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-02T23:11:09.550966+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": true, "blocked_services": 23, "local_allowed_services": 18}}
+INFO core.privsec.local_only_guard LocalOnlyGuard initialized
+INFO httpx HTTP Request: GET http://127.0.0.1:11436/api/tags "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: llama3.1, llama3.1:8b)
+INFO core.llm.opencode_model_limits Created OpencodeModelLimits singleton instance
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO core.llm.learning_router_registry [LearningRouter] auto-mode readiness: 29 verdict row(s) in the last 7d, 1 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 1.3s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.learning_llm_router Initialized router with 30 models
+INFO core.learning_llm_router Loaded 29 routing feedback rows from DB
+INFO core.llm.learning_router_registry Learning router hydrated 29 feedback rows from DB
+INFO core.llm.learning_router_registry Learning router singleton initialized
+INFO core.llm.routing.per_model_router Loaded 1 per-model predictors from data/router_models/per_model
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=29, accuracy=0.897
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 29 samples; predictors=[llama3.1:8b(0.90)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 7435800.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 1.7s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=30, accuracy=0.900
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 30 samples; predictors=[llama3.1:8b(0.90)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 7346700.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 9.8s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=31, accuracy=0.903
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 31 samples; predictors=[llama3.1:8b(0.90)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6010200.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 3.1s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=32, accuracy=0.906
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 32 samples; predictors=[llama3.1:8b(0.91)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6156000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 1.0s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=33, accuracy=0.909
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 33 samples; predictors=[llama3.1:8b(0.91)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6447600.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 1.7s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=34, accuracy=0.912
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 34 samples; predictors=[llama3.1:8b(0.91)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6577200.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 8.4s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=35, accuracy=0.914
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 35 samples; predictors=[llama3.1:8b(0.91)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6212700.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 2.5s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=36, accuracy=0.917
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 36 samples; predictors=[llama3.1:8b(0.92)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 6293700.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 10.5s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=37, accuracy=0.919
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 37 samples; predictors=[llama3.1:8b(0.92)]
+INFO core.llm.byok_handler BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 5929200.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 3.6s
+INFO core.llm.byok_handler BYOK Logic: complexity=moderate, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=38, accuracy=0.921
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 38 samples; predictors=[llama3.1:8b(0.92)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 5969700.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 10.7s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=39, accuracy=0.923
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 39 samples; predictors=[llama3.1:8b(0.92)]
+INFO core.llm.byok_handler BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 5694300.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 4.2s
+INFO core.llm.byok_handler BYOK Logic: complexity=moderate, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=40, accuracy=0.925
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 40 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 5726700.00)
+INFO core.llm.learning_router_registry [LearningRouter] auto-mode readiness: 41 verdict row(s) in the last 7d, 1 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 12.1s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=41, accuracy=0.927
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 41 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 5670000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 3.8s
+INFO core.llm.byok_handler BYOK Logic: complexity=moderate, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=42, accuracy=0.929
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 42 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 5670000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 11.1s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=43, accuracy=0.930
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 43 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 5670000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 5.1s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=44, accuracy=0.932
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 44 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 5670000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 14.2s
+INFO core.llm.byok_handler BYOK Logic: complexity=simple, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=45, accuracy=0.933
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 45 samples; predictors=[llama3.1:8b(0.93)]
+INFO core.llm.byok_handler BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 5670000.00)
+INFO httpx HTTP Request: POST http://127.0.0.1:11436/v1/chat/completions "HTTP/1.1 200 OK"
+INFO core.llm.byok_handler [inflight] ollama/llama3.1:8b released by 'completion:general' after 4.6s
+INFO core.llm.byok_handler BYOK Logic: complexity=moderate, provider=ollama, model=llama3.1:8b
+INFO core.llm.routing.per_model_router Trained per-model predictor for llama3.1:8b: samples=46, accuracy=0.935
+INFO core.learning_llm_router Updated router for tenant=default, task=general with 46 samples; predictors=[llama3.1:8b(0.93)]
+{
+  "status": "failed",
+  "capability_status": {
+    "alignment": "failed"
+  },
+  "report": "/private/tmp/atom-local-ollama/qualification-alignment/report.json",
+  "calls": 18
+}
