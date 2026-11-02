@@ -1,9 +1,16 @@
 [
   {
+    "name": "occupied acceptance port is refused, not reused",
+    "ok": true,
+    "detail": {
+      "message": "port 8090 is already occupied; refusing to reuse an unknown server"
+    }
+  },
+  {
     "name": "assignment starts and pauses on discount qualification",
     "ok": true,
     "detail": {
-      "run_id": "5fdd95b5-1a5e-42c6-b114-490b712c4dc4",
+      "run_id": "4776022b-138c-42db-9747-52c01ec9c665",
       "status": "waiting"
     }
   },
@@ -11,22 +18,22 @@
     "name": "real backend process restarted",
     "ok": true,
     "detail": {
-      "old_pid": 63587,
-      "new_pid": 63594
+      "old_pid": 65057,
+      "new_pid": 65066
     }
   },
   {
     "name": "restarted backend serves the declared code identity",
     "ok": true,
     "detail": {
-      "expected_head": "97c43c7e7dcc61e517095f91595942241ba2ea60",
+      "expected_head": "6431bcb7857fd43dffc1ed685fffe47044669e5c",
       "expected_dirty": false,
-      "old_pid": 63587,
-      "new_pid": 63594,
-      "old_instance": "97c43c7e7dcc.63587.1793588721",
-      "new_instance": "97c43c7e7dcc.63594.1793588724",
-      "old_source_id": "97c43c7e7dcc",
-      "new_source_id": "97c43c7e7dcc",
+      "old_pid": 65057,
+      "new_pid": 65066,
+      "old_instance": "6431bcb7857f.65057.1793589321",
+      "new_instance": "6431bcb7857f.65066.1793589324",
+      "old_source_id": "6431bcb7857f",
+      "new_source_id": "6431bcb7857f",
       "dirty": false,
       "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-connected-browser",
       "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/brennan-connected-browser/atom.db",
@@ -38,10 +45,10 @@
     "name": "health and connected routes identify the same instance",
     "ok": true,
     "detail": {
-      "health_pid": 63594,
-      "connected_pid": 63594,
-      "health_instance": "97c43c7e7dcc.63594.1793588724",
-      "connected_instance": "97c43c7e7dcc.63594.1793588724"
+      "health_pid": 65066,
+      "connected_pid": 65066,
+      "health_instance": "6431bcb7857f.65066.1793589324",
+      "connected_instance": "6431bcb7857f.65066.1793589324"
     }
   },
   {
@@ -55,7 +62,7 @@
     "name": "obligation survives backend restart",
     "ok": true,
     "detail": {
-      "run_id": "5fdd95b5-1a5e-42c6-b114-490b712c4dc4"
+      "run_id": "4776022b-138c-42db-9747-52c01ec9c665"
     }
   },
   {
@@ -72,7 +79,7 @@
     "name": "v1 calculation captured before correction",
     "ok": true,
     "detail": {
-      "screenshot": "/private/tmp/brennan-browser-final3/02-v1-completed-calculation.png"
+      "screenshot": "/private/tmp/brennan-browser-evidence-25/02-v1-completed-calculation.png"
     }
   },
   {
@@ -89,14 +96,14 @@
     "ok": true,
     "detail": {
       "status": 200,
-      "run_id": "5fdd95b5-1a5e-42c6-b114-490b712c4dc4"
+      "run_id": "4776022b-138c-42db-9747-52c01ec9c665"
     }
   },
   {
     "name": "corrected continuation reaches estimate approval",
     "ok": true,
     "detail": {
-      "screenshot": "/private/tmp/brennan-browser-final3/02-corrected-quote-approval.png"
+      "screenshot": "/private/tmp/brennan-browser-evidence-25/02-corrected-quote-approval.png"
     }
   },
   {
@@ -134,7 +141,7 @@
     "detail": [
       {
         "estimate_id": "est-browser-1",
-        "reference_number": "RFQ-BROWSER-1793588721969",
+        "reference_number": "RFQ-BROWSER-1793589321631",
         "total": "376.75"
       }
     ]
@@ -143,7 +150,7 @@
     "name": "Outlook draft uses verified corrected total",
     "ok": true,
     "detail": {
-      "subject": "Quote RFQ-BROWSER-1793588721969",
+      "subject": "Quote RFQ-BROWSER-1793589321631",
       "body": "Quoted total: 376.75 USD",
       "to": [
         "buyer@example.invalid"
@@ -162,7 +169,7 @@
     "name": "completed assignment reopens after reload",
     "ok": true,
     "detail": {
-      "run_id": "5fdd95b5-1a5e-42c6-b114-490b712c4dc4"
+      "run_id": "4776022b-138c-42db-9747-52c01ec9c665"
     }
   },
   {
