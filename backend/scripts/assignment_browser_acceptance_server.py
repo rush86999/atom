@@ -11,6 +11,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, Dict
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -397,25 +398,31 @@ def _outbox_lines():
     ]
 
 
+def _serving_identity() -> Dict[str, Any]:
+    """The source/tree/world identity served by THIS process.
+
+    The identity is captured once at boot, never re-resolved per request, so
+    a later git commit cannot be mistaken for the code this process loaded.
+    """
+    identity = get_runtime_identity()
+    return {
+        "pid": os.getpid(),
+        "process_start": identity.process_started_at,
+        "identity": identity.as_dict(),
+        "world": str(SCRATCH),
+        "database": str(SCRATCH / "atom.db"),
+        "repo_root": identity.repo_path,
+        "backend_root": identity.backend_path,
+    }
+
+
 @app.get("/_acceptance/state")
 def acceptance_state():
     entry = db.query(DatasetEntry).filter(
         DatasetEntry.dataset_name == "scotch_parts_price_list").first()
-    try:
-        import subprocess
-        process_start = subprocess.check_output(
-            ["ps", "-p", str(os.getpid()), "-o", "lstart="],
-            text=True).strip()
-    except Exception:  # noqa: BLE001
-        process_start = ""
     return {
         "ok": True,
-        "pid": os.getpid(),
-        "process_start": process_start,
-        "identity": get_runtime_identity().as_dict(),
-        "world": str(SCRATCH),
-        "database": str(SCRATCH / "atom.db"),
-        "backend_root": str(ROOT),
+        **_serving_identity(),
         "agent_id": agent.id,
         "dataset_name": entry.dataset_name if entry else None,
         "dataset_version": entry.content_hash if entry else None,
@@ -625,6 +632,7 @@ def acceptance_connected_run(run_id: str):
 def acceptance_connected_state():
     return {
         "ok": True,
+        **_serving_identity(),
         "version": CONNECTED["version"],
         "bytes": len(CONNECTED["bytes"]),
         "calls": CONNECTED["calls"],
@@ -642,6 +650,7 @@ def acceptance_connected_state():
 def health():
     return {
         "ok": True,
+        **_serving_identity(),
         "agent_id": agent.id,
         "workbook": str(source_workbook),
         "document": str(source_document),

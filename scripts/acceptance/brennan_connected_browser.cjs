@@ -8,10 +8,10 @@
  * executor, sqlite world) with controlled connected providers. User actions
  * go through the real Assignments page.
  */
-const { spawn } = require("child_process");
+const { execSync, spawn } = require("child_process");
 const fs = require("fs");
+const net = require("net");
 const path = require("path");
-const { execSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "../..");
 let playwright;
@@ -66,7 +66,25 @@ async function waitFor(predicate, timeoutMs = 30000, intervalMs = 250) {
   throw new Error(`timed out: ${last && last.message ? last.message : last}`);
 }
 
+function portFree(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    const finish = (free) => {
+      socket.destroy();
+      resolve(free);
+    };
+    socket.setTimeout(800);
+    socket.once("connect", () => finish(false));
+    socket.once("timeout", () => finish(true));
+    socket.once("error", () => finish(true));
+  });
+}
+
 async function startServer(reset) {
+  if (!(await portFree(PORT))) {
+    throw new Error(
+      `port ${PORT} is already occupied; refusing to reuse an unknown server`);
+  }
   const env = {
     ...process.env,
     ATOM_ASSIGNMENT_BROWSER_WORLD: WORLD,
@@ -90,10 +108,21 @@ async function startServer(reset) {
   const stream = fs.createWriteStream(logPath, { flags: "a" });
   child.stdout.pipe(stream);
   child.stderr.pipe(stream);
-  await waitFor(async () => {
-    const state = await getJson(`${API}/_acceptance/state`).catch(() => null);
-    return state && state.status === 200 && state.body.ok ? state.body : null;
+  const state = await waitFor(async () => {
+    const response = await getJson(
+      `${API}/_acceptance/state`).catch(() => null);
+    return response && response.status === 200 && response.body.ok
+      ? response.body : null;
   }, 45000);
+  if (state.pid !== child.pid
+      || state.world !== WORLD
+      || state.database !== path.join(WORLD, "atom.db")) {
+    child.kill("SIGTERM");
+    throw new Error(
+      `port ${PORT} is served by pid ${state.pid} in world ${state.world}; `
+      + `the spawned process is ${child.pid} in ${WORLD}`);
+  }
+  child.__acceptanceState = state;
   return child;
 }
 
@@ -220,13 +249,19 @@ function planSteps(objective, ref) {
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  server = await startServer(true);
-  const oldPid = server.pid;
   const expectedHead = execSync("git rev-parse HEAD", { cwd: ROOT })
     .toString().trim();
-  const initialState = (await getJson(
-    `${API}/_acceptance/connected/state`)).body;
+  const expectedDirty = execSync("git status --porcelain", { cwd: ROOT })
+    .toString().trim().length > 0;
+  if (process.env.BRENNAN_REQUIRE_CLEAN !== "0" && expectedDirty) {
+    throw new Error(
+      "browser gate requires a frozen clean source; commit the candidate "
+      + "before running (or set BRENNAN_REQUIRE_CLEAN=0 for development)");
+  }
+  server = await startServer(true);
+  const oldPid = server.pid;
   const health = (await getJson(`${API}/api/health`)).body;
+  const initialState = health;
   const objective = `Browser connected quote ${Date.now()}`;
   const ref = `RFQ-BROWSER-${Date.now()}`;
   const planResponse = await getJson(
@@ -304,32 +339,55 @@ async function main() {
          { old_pid: oldPid, new_pid: newPid });
   const restartedState = (await getJson(
     `${API}/_acceptance/connected/state`)).body;
+  const restartedHealth = (await getJson(`${API}/api/health`)).body;
   const oldIdentity = initialState.identity || {};
-  const newIdentity = restartedState.identity || {};
+  const newIdentity = restartedHealth.identity || {};
+  const expectedSourceId = expectedDirty
+    ? null : expectedHead.slice(0, 12);
+  const sourceMatches = expectedDirty
+    ? newIdentity.dirty === true
+      && String(newIdentity.source_id).startsWith(
+        `${expectedHead.slice(0, 12)}-dirty.`)
+    : newIdentity.dirty === false
+      && newIdentity.source_id === expectedSourceId;
   const codeIdentityOk =
     newIdentity.revision === expectedHead
-    && newIdentity.source_id === expectedHead
-    && newIdentity.dirty === false
+    && sourceMatches
     && newIdentity.source_id === oldIdentity.source_id
     && newIdentity.instance_id !== oldIdentity.instance_id
-    && restartedState.pid === newPid
-    && restartedState.process_start
-    && restartedState.process_start !== initialState.process_start
-    && restartedState.world === initialState.world
-    && restartedState.database === initialState.database;
+    && restartedHealth.pid === newPid
+    && initialState.pid === oldPid
+    && restartedHealth.process_start
+    && restartedHealth.process_start !== initialState.process_start
+    && restartedHealth.world === WORLD
+    && restartedHealth.database === path.join(WORLD, "atom.db")
+    && restartedHealth.repo_root === ROOT
+    && restartedHealth.backend_root === path.join(ROOT, "backend");
   record("restarted backend serves the declared code identity",
          codeIdentityOk,
          { expected_head: expectedHead,
+           expected_dirty: expectedDirty,
            old_pid: oldPid, new_pid: newPid,
            old_instance: oldIdentity.instance_id,
            new_instance: newIdentity.instance_id,
            old_source_id: oldIdentity.source_id,
            new_source_id: newIdentity.source_id,
            dirty: newIdentity.dirty,
-           world: restartedState.world,
-           database: restartedState.database,
-           backend_root: restartedState.backend_root,
-           source_file_version: restartedState.version });
+           world: restartedHealth.world,
+           database: restartedHealth.database,
+           repo_root: restartedHealth.repo_root,
+           backend_root: restartedHealth.backend_root });
+  record("health and connected routes identify the same instance",
+         restartedHealth.pid === restartedState.pid
+         && restartedHealth.identity?.instance_id
+            === restartedState.identity?.instance_id,
+         { health_pid: restartedHealth.pid,
+           connected_pid: restartedState.pid,
+           health_instance: restartedHealth.identity?.instance_id,
+           connected_instance: restartedState.identity?.instance_id });
+  record("connected provider still serves the pre-change source",
+         restartedState.version === "v1",
+         { version: restartedState.version });
   detail = await openAssignment();
   await detail.getByText(/Which qualification applies/i).waitFor({
     state: "visible", timeout: 20000 });
@@ -398,7 +456,7 @@ async function main() {
            versions: [...new Set(currentRows.map(
              (row) => row.source_ref?.version))] });
   const priorRows = (calcStep.prior_results || []).flatMap(
-    (item) => item.rows || []);
+    (item) => (item.result && item.result.rows) || item.rows || []);
   record("v1 remains only in historical result",
          priorRows.length > 0
          && priorRows.every((row) => row.source_ref?.version === "v1"),
