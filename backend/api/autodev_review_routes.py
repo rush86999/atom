@@ -28,7 +28,16 @@ from core.auto_dev.models import SkillCandidate, ToolMutation
 from core.auth import get_current_tenant, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AgentExecution, AgentFeedEvent, Tenant, User
+from core.models import (
+    AgentExecution,
+    AgentFeedEvent,
+    AgentRegistry,
+    Tenant,
+    User,
+    UserRole,
+)
+from core.reviewed_improvement import apply_reviewed_skill
+from core.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +124,53 @@ async def approve_skill_candidate(
     return router.success_response(
         data={"id": candidate_id, "status": candidate.validation_status},
         message="Skill candidate approved (validated) — promote it from Skills to activate",
+    )
+
+
+@router.post("/skills/{candidate_id}/apply")
+async def apply_skill_candidate(
+    candidate_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    current_user: User = Depends(require_role(UserRole.TEAM_LEAD)),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Explicitly apply a REVIEWED candidate as a typed prompt skill.
+
+    Pending candidates are refused. Generated executable code is not applied;
+    only the typed skill metadata/instructions are written and registered.
+    """
+    candidate = db.query(SkillCandidate).filter(
+        SkillCandidate.id == candidate_id,
+        SkillCandidate.tenant_id == str(tenant.id),
+    ).first()
+    if candidate is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Candidate not found")
+    workspace_id = str(current_user.workspace_id or "default")
+    if candidate.agent_id:
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == candidate.agent_id).first()
+        if agent is not None and agent.workspace_id:
+            workspace_id = str(agent.workspace_id)
+    try:
+        result = await apply_reviewed_skill(
+            db, candidate, tenant_id=str(tenant.id),
+            workspace_id=workspace_id)
+    except ValueError as exc:
+        message = str(exc)
+        code = (
+            status.HTTP_409_CONFLICT
+            if message.startswith("candidate_not_reviewed")
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=message) from exc
+    return router.success_response(
+        data=result,
+        message=(
+            "Reviewed skill applied as a typed prompt skill"
+            if not result.get("already_applied")
+            else "Reviewed skill was already applied"),
     )
 
 
