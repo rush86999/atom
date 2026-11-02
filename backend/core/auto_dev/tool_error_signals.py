@@ -52,6 +52,8 @@ def record_tool_error(
     execution_id: Optional[str] = None,
     tenant_id: str = "default",
     user_id: Optional[str] = None,
+    run_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
 ) -> bool:
     """Attach a structured tool-error entry to the agent's current running
     execution and the in-process ring. Returns True when persisted.
@@ -65,6 +67,10 @@ def record_tool_error(
         "signature": tool_error_signature(service, action),
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+    if run_id:
+        entry["run_id"] = str(run_id)
+    if operation_id:
+        entry["operation_id"] = str(operation_id)
     try:
         now = datetime.now(timezone.utc)
         ring = _RECENT_ERRORS[agent_id or (user_id or "unknown")]
