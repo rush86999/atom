@@ -1,0 +1,116 @@
+{
+  "artifacts": {
+    "README.md": "2fc39ac49ad0b2483c8cd63d6f7824627eb15b68d65661433eb2f9aa88eea979",
+    "TEST_RESULTS.md": "28031b400b874cb510055bb21d7a2ab629d58b1a76fe28a6853f2859d4106bed",
+    "assignment-oracle.log": "4e9a541ff973ddd21c1006d379d290e3b0b74e520a6000ed0986f2f9f4b0dd64",
+    "canvas-focused.log": "dfd3b2b2e15047b339d2ae89f5ff1bcc23930449c0c7984fbd7e5afbcae896f5",
+    "connected-readback.log": "d8bf523c7b98b433dcb570045dc0875f839ff7e9014b1e9d46171a45bcd6896e",
+    "frontend-tests.log": "e0508f7ba69b98c76bcc244243d2d44b5a17633e3f891ae8cb79e2b361d33a1b",
+    "oracle-team-mem.log": "1bcf2e3a373c6d2b325ce0bb0e01db9dbef4a22d4fa66b23789318e8f39eb8a4",
+    "oracle_registry.json": "7b21302dff8d0886897c3b7cb35de02397b88bd796bc4c8804b9bfc87073275c",
+    "serialization-generic-oracle.log": "ada27b9d442c65d681507676d42943e2488356ac9bbfeca7b485811ac88fa50c",
+    "teaching-neighborhood.log": "c4764692e75be01db3903851f38b30cb65ed4dd4749df5af589a1d3ea8ebca30",
+    "verifier-oracle-boundaries.py": "375a8c60890f089be683a24d1aa659e939f38a431aab0e6f3033157c2f7529e0",
+    "verifier-oracle-repair-boundaries.py": "ebd3cc19db15254abeec0779ae24469596a36e1111c7ca32f273b84f91d3f7b1"
+  },
+  "candidate": {
+    "branch": "codex/brennan-canvas-successor-20261101",
+    "dirty": false,
+    "executed_source": "45d015fa3",
+    "manifest_note": "This evidence commit is docs-only after the executed source; the executed source was not served.",
+    "previous_source": "22e7ab10a",
+    "runtime": "Python 3.14 venv at /Users/rushiparikh/projects/atom/backend/venv314; macOS host; local SQLite/API service tests",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-canvas-successor"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/commercial_readback.py",
+    "backend/core/connected_actions.py",
+    "backend/core/oracle/__init__.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py",
+    "backend/tests/test_oracle_connected_mutations.py",
+    "backend/tests/unit/test_brennan_agent2_connected_operations.py"
+  ],
+  "claims": [
+    "ORACLE-01",
+    "MEM-07",
+    "TEAM-05"
+  ],
+  "coverage_scope": "Six registered connected mutating actions, all covered, plus the existing task/workflow verifiers. This is not a whole-application dispatch/coverage inventory.",
+  "exclusions": [
+    "no browser/UI rerun for this bundle",
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "Outlook and commercial readbacks use production service methods with controlled providers in tests",
+    "MEM-07 closes pending candidate/review, not safe autonomous application",
+    "TEAM-05 remains the controlled deterministic service seam",
+    "ORACLE coverage is the registered mutation inventory above, not every application mutation surface",
+    "historical 111/123 unchanged",
+    "connected acceptance remains 6431bcb78",
+    "typed-canvas acceptance remains 4859b0ce2477",
+    "canvas assignment/teaching acceptance remains a87882526323"
+  ],
+  "remaining_open_claims": [
+    "ORCH-01",
+    "ORCH-02",
+    "ORCH-07",
+    "GOAL-02",
+    "MINI-03",
+    "MINI-04",
+    "MINI-05",
+    "INT-09",
+    "ROUTE-07"
+  ],
+  "repairs": [
+    "authorized request digest, operation, provider, organization and target stay separate from the returned envelope",
+    "oracle exception, None, malformed or refuted verdict downgrades a dispatched mutation to uncertain and retains remote identity",
+    "built-in verifiers register on core.oracle import so production consumers do not see an empty registry",
+    "digest syntax, expected-request digest, top/receipt/verification digest agreement and required material fields are enforced",
+    "estimate and bill readbacks must observe the same remote object before material fields count",
+    "Outlook draft readback distinguishes missing identity/material fields (incomplete) from a different object or mismatched content (conflict), with one create only",
+    "a real registered estimate create + oracle failure + fresh-session restart + reconciliation journey proves no second effect"
+  ],
+  "schema": "atom-verification-claims-oracle-binding-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "f49b8af3e13392bb9ee4d1181d038700bf09d6c524f8bb48f86164e7d133d343",
+    "backend/core/commercial_readback.py": "b0380f10e9fac08840323c0d4d15fe3a58b4522133b9b9f358ceb07836a606df",
+    "backend/core/connected_actions.py": "41eba44098410c3d6a035e2079228eed5f315321b6e3161691621303fff54fb9",
+    "backend/core/oracle/__init__.py": "52b11079306aa4f456b843668fc88f9556545e13042e91e32109fa40678165b4",
+    "backend/core/oracle/postcondition_verifiers.py": "5f6288ff4acbf5a176778bc4668923d2609bf16c2362d1d479432a3e13a6bda5",
+    "backend/tests/integration/test_brennan_joint_real_connected_effect.py": "bdc7d872aa14a53a435e9ca6d76d8aadffeecb5616113069362a2521368cf2f6",
+    "backend/tests/test_oracle_connected_mutations.py": "014d3de909bf988339e36de8a816934393867cfd0038e9b3070e1b6b2533201d",
+    "backend/tests/unit/test_brennan_agent2_connected_operations.py": "de01e186aa98a2b1ff2d68861c36fe5e6ba3241bb1ae762d4e82a25623518cbe"
+  },
+  "test_total": 667,
+  "tests": {
+    "assignment_oracle": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_assignment_routes.py tests/test_assignment_executor.py tests/test_assignment_quote.py tests/core/test_oracle_and_two_tier_confidence.py -q",
+      "result": "188 passed"
+    },
+    "canvas_focused": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_canvas_typed_fields.py tests/test_canvas_capability_service.py tests/test_canvas_assessment_routes.py tests/test_canvas_assessment_clarification_routes.py tests/test_canvas_assessment_deterministic.py tests/test_canvas_assessment_concurrency.py tests/test_canvas_connected_binding.py tests/test_api_canvas_routes.py tests/test_canvas_crud.py tests/test_canvas_fork.py tests/test_canvas_assignment_integration.py -q",
+      "result": "127 passed"
+    },
+    "connected_readback": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/unit/test_brennan_agent2_connected_operations.py tests/integration/test_brennan_joint_quote_campaign.py tests/integration/test_brennan_joint_document_flow.py tests/integration/test_brennan_joint_real_connected_effect.py tests/test_canvas_assignment_integration.py -q",
+      "result": "77 passed"
+    },
+    "frontend_canvas": {
+      "command": "npx jest components/canvas/__tests__/CanvasCapabilityRules.test.tsx components/canvas/__tests__/CanvasCapabilityDerive.test.tsx components/canvas/__tests__/CanvasCapabilityAssessment.test.tsx --runInBand --silent",
+      "result": "7 passed"
+    },
+    "oracle_team_mem_probes": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_oracle_connected_mutations.py tests/test_org_politics_automation.py tests/test_memento_candidate_review.py /private/tmp/test_verifier_oracle_boundaries.py /private/tmp/test_verifier_oracle_repair_boundaries.py -q",
+      "result": "36 passed"
+    },
+    "serialization_generic_oracle": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/unit/test_serialization_budget.py tests/test_covpush_w31_generic_agent.py -q",
+      "result": "29 passed"
+    },
+    "teaching_neighborhood": {
+      "command": "TESTING=1 PYTHONPATH=$PWD python -m pytest tests/test_chat_teaching.py tests/test_chat_teaching_route.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py tests/test_canvas_training_context.py tests/test_artifact_teaching_context.py tests/test_cross_canvas_learning.py tests/test_covpush_w64_continuous_learning.py -q",
+      "result": "203 passed"
+    }
+  }
+}

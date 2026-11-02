@@ -1,0 +1,270 @@
+
+tests/unit/test_brennan_agent2_connected_operations.py::test_provider_contract_matrix_matches_resolved_classes 
+-------------------------------- live log setup --------------------------------
+2026-11-02 10:47:51 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:51 [    INFO] Loaded service class for zoho_crm: integrations.zoho_crm_service:ZohoCRMService
+2026-11-02 10:47:51 [    INFO] Loaded service class for zoho_books: integrations.zoho_books_service:ZohoBooksService
+2026-11-02 10:47:51 [    INFO] Loaded service class for zoho_inventory: integrations.zoho_inventory_service:ZohoInventoryService
+2026-11-02 10:47:51 [    INFO] Loaded service class for zoho_workdrive: integrations.zoho_workdrive_service:ZohoWorkDriveService
+2026-11-02 10:47:51 [    INFO] Loaded service class for onedrive: integrations.onedrive_service:OneDriveService
+2026-11-02 10:47:51 [    INFO] Loaded service class for microsoft365: integrations.microsoft365_service:Microsoft365Service
+2026-11-02 10:47:51 [    INFO] Loaded service class for outlook: integrations.outlook_service:OutlookService
+PASSED                                                                   [  1%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_crm_create_record_passes_module_and_data PASSED [  2%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_crm_create_record_without_module_is_explicitly_refused PASSED [  3%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_strict_read_failure_is_not_an_empty_result PASSED [  5%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_capability_table_matches_dispatch_methods PASSED [  6%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_workdrive_missing_token_is_an_error_envelope_not_empty_data PASSED [  7%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_workdrive_search_unavailable_is_not_an_empty_success PASSED [  9%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_onedrive_page_requires_explicit_identity_for_sharepoint PASSED [ 10%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_connected_actions_are_registered_with_safe_effects PASSED [ 11%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_workdrive_read_action_returns_content_hash_and_receipt PASSED [ 12%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_onedrive_read_action_returns_binary_not_json PASSED [ 14%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_action_never_calls_send PASSED [ 15%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_create_bill_requires_authority_and_checks_exact_duplicate PASSED [ 16%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_create_bill_reads_back_one_effect PASSED [ 18%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_create_bill_without_authority_does_not_dispatch PASSED [ 19%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_proposal_action_returns_proposed_not_posted PASSED [ 20%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_http_end_to_end_proposal_create_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: POST https://www.zohoapis.com/books/v3/bills?organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills/bill-http-1?organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_http_changed_remote_is_conflict_not_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: POST https://www.zohoapis.com/books/v3/bills?organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills/bill-http-1?organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_http_duplicate_exact_reference_is_never_posted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_http_sweep_unavailable_refuses_to_create 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:51 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 25%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_http_readback_unavailable_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: POST https://www.zohoapis.com/books/v3/bills?organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills/bill-http-1?organization_id=org-1 "HTTP/1.1 503 Service Unavailable"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills/bill-http-1?organization_id=org-1 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_bill_digest_mismatch_is_conflict_without_dispatch PASSED [ 28%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_books_estimate_http_end_to_end_quote_total 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/estimates?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: POST https://www.zohoapis.com/books/v3/estimates?organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/estimates/est-http-1?organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_concurrent_same_bill_creates_one_provider_effect PASSED [ 31%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bill_unknown_account_is_refused_before_post PASSED [ 32%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bill_closed_period_is_refused_without_provider_call PASSED [ 33%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_read_file_receipt_matches_agent1_evidence_shape PASSED [ 35%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_corrupt_tabular_file_is_evidence_with_parse_error PASSED [ 36%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_resolve_vendor_is_exact_and_does_not_substring_match PASSED [ 37%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_resolve_vendor_same_name_different_ids_is_ambiguous PASSED [ 38%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_list_accounts_returns_exact_ids PASSED [ 40%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bookkeeping_campaign_resolves_vendor_accounts_and_posts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/contacts?page=1&per_page=200&contact_type=vendor&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: POST https://www.zohoapis.com/books/v3/bills?organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills/bill-campaign?organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bill_duplicate_on_second_page_is_found_before_post 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/chartofaccounts?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=1&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+2026-11-02 10:47:52 [    INFO] HTTP Request: GET https://www.zohoapis.com/books/v3/bills?page=2&per_page=200&organization_id=org-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_generic_connected_aliases_are_registered_and_executable PASSED [ 44%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_service_business_configuration_needs_no_source_edit PASSED [ 45%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_executor_outcome_mapping_never_calls_conflict_applied PASSED [ 46%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_readback_mismatch_is_conflict_and_never_recreates PASSED [ 48%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_wrong_remote_object_is_conflict_even_with_matching_content PASSED [ 49%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_missing_remote_identity_is_incomplete_not_invented PASSED [ 50%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_sparse_material_readback_is_incomplete PASSED [ 51%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_draft_missing_readback_is_uncertain_and_never_recreates PASSED [ 53%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_outlook_attachment_read_returns_binary_and_never_sends PASSED [ 54%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_estimate_exact_reference_duplicate_is_never_posted PASSED [ 55%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_concurrent_same_estimate_creates_one_provider_effect PASSED [ 57%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_estimate_readback_of_a_different_object_is_conflict_without_recreate PASSED [ 58%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bill_readback_of_a_different_object_is_conflict_without_recreate PASSED [ 59%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_estimate_sparse_readback_is_uncertain_without_second_create PASSED [ 61%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_estimate_wrong_line_is_conflict_and_keeps_remote_id PASSED [ 62%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_estimate_sparse_then_full_readback_applies_once PASSED [ 63%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_bill_sparse_readback_is_uncertain_without_second_create PASSED [ 64%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_repeat_after_uncertain_readback_reconciles_same_remote PASSED [ 66%]
+tests/unit/test_brennan_agent2_connected_operations.py::test_changed_payload_under_same_reference_refuses_second_create PASSED [ 67%]
+tests/integration/test_brennan_joint_quote_campaign.py::test_joint_quote_total_posts_and_drafts_without_sending PASSED [ 68%]
+tests/integration/test_brennan_joint_quote_campaign.py::test_executor_adapter_preserves_connected_action_outcome PASSED [ 70%]
+tests/integration/test_brennan_joint_document_flow.py::test_changed_file_bytes_change_the_quote_total 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] runtime identity: source_id=45d015fa377b revision=45d015fa377b dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 71%]
+tests/integration/test_brennan_joint_document_flow.py::test_unknown_customer_blocks_quote_evidence PASSED [ 72%]
+tests/integration/test_brennan_joint_document_flow.py::test_runtime_quote_reaches_verified_estimate_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] Created HITL action 6cc604d6-1863-470c-9b66-257213697863 for agent None
+2026-11-02 10:47:52 [    INFO] Created HITL action 67b42fb5-d3d3-497f-9f73-b0adac40dcfe for agent None
+PASSED                                                                   [ 74%]
+tests/integration/test_brennan_joint_document_flow.py::test_unexpected_customer_prevents_quote_plan_even_with_line_items PASSED [ 75%]
+tests/integration/test_brennan_joint_document_flow.py::test_one_assignment_consumes_bytes_calculates_and_drafts 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:52 [    INFO] Created HITL action 1042a20e-8b21-4d0e-9a8e-d87221e4c90a for agent None
+2026-11-02 10:47:53 [    INFO] Created HITL action d6efab5c-4e37-469b-91d3-32767dccbc70 for agent None
+PASSED                                                                   [ 76%]
+tests/integration/test_brennan_joint_document_flow.py::test_registered_workdrive_read_preserves_every_executable_row[79] PASSED [ 77%]
+tests/integration/test_brennan_joint_document_flow.py::test_registered_workdrive_read_preserves_every_executable_row[80] PASSED [ 79%]
+tests/integration/test_brennan_joint_document_flow.py::test_registered_workdrive_read_preserves_every_executable_row[81] PASSED [ 80%]
+tests/integration/test_brennan_joint_document_flow.py::test_truncated_read_blocks_full_population_calculation PASSED [ 81%]
+tests/integration/test_brennan_joint_document_flow.py::test_oversized_inline_content_refuses_without_downstream_work PASSED [ 83%]
+tests/integration/test_brennan_joint_real_connected_effect.py::test_real_connected_estimate_uncertainty_blocks_draft_and_reconciles 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:53 [    INFO] Created HITL action 6c4ccb4c-1dfa-4f66-bae4-ec30a977b052 for agent None
+2026-11-02 10:47:53 [    INFO] Created HITL action 9af73c56-bacc-4b4c-b524-55604f292978 for agent None
+PASSED                                                                   [ 84%]
+tests/integration/test_brennan_joint_real_connected_effect.py::test_post_dispatch_serialization_overflow_is_uncertain_and_reconciles 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:54 [    INFO] Created HITL action 7ba91c1c-80a5-4ab9-9a64-fdf611201aaf for agent None
+PASSED                                                                   [ 85%]
+tests/integration/test_brennan_joint_real_connected_effect.py::test_oracle_failure_after_real_create_stays_uncertain_and_never_recreates 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:54 [    INFO] Created HITL action a156d3a1-d809-48b0-8a15-59def997c601 for agent None
+2026-11-02 10:47:54 [    INFO] Created HITL action f38968df-bd7b-41fc-b64a-ba8ee82d1d2a for agent None
+PASSED                                                                   [ 87%]
+tests/test_canvas_assignment_integration.py::test_receipt_assignment_executes_one_approved_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:54 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_assignment/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_canvas_assignment_integration.py::test_canvas_edit_during_approval_blocks_action 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_corrected/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_canvas_assignment_integration.py::test_action_revocation_during_approval_blocks_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_revoked/capability/assign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_canvas_assignment_integration.py::test_foreign_or_moved_employee_cannot_receive_canvas_teaching 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 404 Not Found"
+2026-11-02 10:47:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 10:47:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign/capability/teaching/teach-37244549aaf944a6881f57f74c22ef05/promote "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 92%]
+tests/test_canvas_assignment_integration.py::test_non_supervisor_and_journal_failure_do_not_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-9584699537c244798a07bd339d4f85aa/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_role/capability/teaching/teach-9584699537c244798a07bd339d4f85aa/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 93%]
+tests/test_canvas_assignment_integration.py::test_promoted_global_lesson_is_consumed_with_full_provenance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 10:47:56 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_global/capability/teaching/teach-81e27d426eb248cea3f1b757ba584bb0/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_canvas_assignment_integration.py::test_foreign_employee_cannot_start_canvas_assignment 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_assign/capability/assign "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_canvas_assignment_integration.py::test_canvas_consumers_reject_a_foreign_assignment_principal 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_foreign_principal/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_canvas_assignment_integration.py::test_teaching_proposal_requires_explicit_promotion 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/derive "HTTP/1.1 200 OK"
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 409 Conflict"
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/propose "HTTP/1.1 200 OK"
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-17f1f6b39793418db7c6aa634032faa8/promote "HTTP/1.1 403 Forbidden"
+2026-11-02 10:47:57 [    INFO] Learning skipped for canvas-agent: status intern (not STUDENT)
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-17f1f6b39793418db7c6aa634032faa8/promote "HTTP/1.1 200 OK"
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_teaching/capability/teaching/teach-17f1f6b39793418db7c6aa634032faa8/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_canvas_assignment_integration.py::test_forged_self_consistent_receipt_is_not_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-02 10:47:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_forged_receipt/capability/derive "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/token_storage.py:17
+  /private/tmp/atom-canvas-successor/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-canvas-successor/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-canvas-successor/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-canvas-successor/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-canvas-successor/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-canvas-successor/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 154 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 77 passed, 169 warnings in 22.83s =======================
