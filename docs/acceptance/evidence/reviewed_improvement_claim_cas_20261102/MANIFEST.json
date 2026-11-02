@@ -1,0 +1,73 @@
+{
+ "schema": "atom-reviewed-improvement-claim-cas-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "c1074f0a9ecb057275b6990ef24eef1742c724a1",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "source_files": {
+   "backend/core/reviewed_improvement.py": "f91e0cf84cd14cc68ec8647b23815dee8d83922348474771a62a0a5342eb1b3a",
+   "backend/api/autodev_review_routes.py": "302877ec653934f7f8456df3dc5f29fdd79520fea1249aaccd58bf6204ac3c0b",
+   "backend/tests/test_reviewed_improvement_boundaries.py": "6625bcc0f5a01c6469870d7ee9fd5b56142b1a3d4128d15916c952c8358d54c6"
+  }
+ },
+ "claim_invariant": {
+  "predicates": [
+   "id",
+   "tenant_id",
+   "validation_status=validated",
+   "validated_at revision",
+   "exact review_revision via dialect-aware JSON",
+   "current employee exists in reviewed tenant/workspace"
+  ],
+  "unsupported_dialect": "fails closed",
+  "review_writers": "conditional on current revision; applying/promoted cannot be overwritten",
+  "identical_material_rereview": "revision increments; older claim invalidated",
+  "final_promotion": "conditional on claimed revision; authoritative JSON merge",
+  "lost_claim": "rollback before package/registry; same-review original result only; otherwise conflict"
+ },
+ "controls": {
+  "independent_cas_probe": {
+   "result": "1 passed",
+   "log": "cas-probe.log"
+  },
+  "repo_interleavings": [
+   "changed re-review",
+   "identical re-review revision",
+   "rejection",
+   "employee move",
+   "two applies same review",
+   "failed retry/reuse",
+   "original five boundary controls"
+  ],
+  "backend_combined": {
+   "command": "TESTING=1 pytest <30 files> -q",
+   "result": "487 passed",
+   "log": "backend-tests.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "exclusions": [
+  "no live provider call, credential, consent, spend, send or reseed",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/reviewed_improvement_boundaries_52549c51a/",
+  "docs/acceptance/evidence/reviewed_improvement_20261102/",
+  "docs/acceptance/evidence/reviewed_improvement_reachable_map_6926ffa24/",
+  "docs/acceptance/evidence/oracle_presentation_binding_20261102/"
+ ],
+ "artifacts": {
+  "README.md": "30a50e024f08f4c65dfb51b9e4b21f7401f552ffc0a66428e7984bf5a725fe3e",
+  "TEST_RESULTS.md": "bf9f650ae5b693a089568f8b48fbdaa8d407559d947466150e4718d6b0c114a5",
+  "backend-tests.log": "34e613e2551bf5013b7295eaa7fa4b49a493a580c3e33ef40199ed84212ce56e",
+  "cas-probe.log": "d59eae5b4901d7f378374e9e065e838b41a7544c05e6ad3eb1777e54a2ed7610",
+  "frontend-tests.log": "b3ce7ed66c083a1468e70a290c1c06c935260db1a815ed511d71e1f051f35a5d"
+ }
+}
