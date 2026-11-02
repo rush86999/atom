@@ -102,3 +102,11 @@ async def verify_before_retry(action: str, context: Optional[Dict[str, Any]] = N
         return False
     result = await validate(action, context)
     return result is not None and result.verified
+
+
+# Importing the verifier module is what registers the postconditions. It is
+# deliberately imported here (after validate/register are defined) so any
+# caller that can enable the oracle also has the verifiers it claims to run.
+# Before this, the flag was on but the registry was empty unless a script
+# imported the module by hand.
+from core.oracle import postcondition_verifiers as _postconditions  # noqa: E402,F401

@@ -10,6 +10,7 @@ already met, the action succeeded despite the timeout; don't duplicate it.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict
 
 from core.oracle import OracleResult, register_postcondition
@@ -52,3 +53,60 @@ async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
         )
     except Exception as e:
         return OracleResult("tasks.create", False, f"DB read-back failed: {e}")
+
+
+@register_postcondition("canvas.present_markdown")
+async def _verify_canvas_markdown_presented(
+        ctx: Dict[str, Any]) -> OracleResult:
+    """A presented markdown canvas must exist in the audit system of record.
+
+    The tool broadcasts over the websocket and returns its own success flag;
+    neither is independent. The audit row written in the same dispatch is the
+    durable record, so it is the authority here. A missing row, a failed
+    query or a component mismatch is a refutation -- never a pass.
+    """
+    canvas_id = str(
+        ctx.get("canvas_id") or ctx.get("remote_id") or "").strip()
+    if not canvas_id:
+        return OracleResult(
+            "canvas.present_markdown", False, "missing canvas_id")
+    db = ctx.get("db")
+
+    def _read(session):
+        from core.models import CanvasAudit
+        return (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == canvas_id)
+            .order_by(CanvasAudit.created_at.desc())
+            .first()
+        )
+
+    try:
+        if db is not None:
+            row = _read(db)
+        else:
+            from core.database import get_db_session
+            with get_db_session() as session:
+                row = _read(session)
+        if row is None:
+            return OracleResult(
+                "canvas.present_markdown", False,
+                f"no canvas_audit row for canvas {canvas_id}")
+        details = row.details_json or {}
+        if isinstance(details, str):
+            details = json.loads(details)
+        component = str((details or {}).get("component_type") or "")
+        verified = (
+            str(row.action_type or "") == "present"
+            and component == "markdown"
+        )
+        return OracleResult(
+            "canvas.present_markdown", verified=verified,
+            evidence=(
+                f"canvas_audit {row.id} action_type={row.action_type!r} "
+                f"component_type={component!r}"),
+        )
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(
+            "canvas.present_markdown", False,
+            f"audit read-back failed: {e}")

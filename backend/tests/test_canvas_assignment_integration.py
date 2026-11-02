@@ -321,6 +321,46 @@ def test_uncertain_effect_reconciles_with_one_provider_draft(env):
     assert reconciled[0]["needs_reconciliation"] is False
 
 
+def test_refuted_postcondition_blocks_instead_of_claiming_applied(
+        env, monkeypatch):
+    """An independent refutation beats a tool's own success envelope."""
+    async def refuted(name, *, remote_id, result, context):
+        return {
+            "action": name,
+            "verified": False,
+            "claim_verified": True,
+            "evidence": "system-of-record readback found no effect",
+        }
+
+    monkeypatch.setattr(
+        "core.assignment_executor._registered_action_oracle_verdict", refuted)
+    canvas, bound = _canvas(env, canvas_id="canvas_refuted")
+    created = _assign(env, canvas, bound)
+    executor = _executor(env)
+    executor.approve_step(
+        created["run_id"], "action-notify",
+        approved_by=env["user"].id, note="approve refuted action")
+    blocked = asyncio.run(executor.execute(created["run_id"]))
+    action = _step(blocked["assignment"], "action-notify")
+    assert action["status"] == "uncertain", action
+    assert blocked["assignment"]["status"] == "blocked"
+    assert len(env["drafts"]) == 1
+    operations = [
+        item for item in blocked.get("operations", [])
+        if item.get("step_id") == "action-notify"
+    ]
+    assert operations[0]["needs_reconciliation"] is True
+    assert operations[0]["remote_id"] == "draft-1"
+
+    executor.reconcile_step(
+        created["run_id"], "action-notify", "applied",
+        evidence="provider readback: draft-1 exists")
+    asyncio.run(executor.execute(created["run_id"]))
+    after = executor.status(created["run_id"])
+    assert after["assignment"]["status"] == "completed", after["assignment"]
+    assert len(env["drafts"]) == 1
+
+
 def test_canvas_edit_during_approval_blocks_action(env):
     canvas, bound = _canvas(env, canvas_id="canvas_corrected")
     created = _assign(env, canvas, bound)

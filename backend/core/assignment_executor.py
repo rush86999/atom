@@ -5885,6 +5885,34 @@ def _action_result_outcome(result: Any, *, mutating: bool) -> str:
     return "uncertain"
 
 
+async def _registered_action_oracle_verdict(
+    name: str, *, remote_id: str, result: Any,
+    context: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Independently re-derive an applied mutation, when a verifier exists.
+
+    Only registered high-risk actions are checked. A missing verifier leaves
+    the action's own explicit envelope in charge; a refutation (including an
+    unreadable system of record) is returned to the caller as uncertain.
+    """
+    from core.oracle import (
+        get_postcondition,
+        oracle_verifier_enabled,
+        validate,
+    )
+
+    if not oracle_verifier_enabled() or get_postcondition(name) is None:
+        return None
+    verdict = await validate(name, {
+        "action": name,
+        "canvas_id": remote_id,
+        "remote_id": remote_id,
+        "result": result,
+        "context": context,
+    })
+    return verdict.to_dict() if verdict is not None else None
+
+
 @register_assignment_adapter(
     "action.registry",
     description="Dispatch one registered action through the shared registry",
@@ -6031,6 +6059,26 @@ async def _action_registry_adapter(
         "provider_receipt": payload.get("provider_receipt"),
         "verification": payload.get("verification"),
     }
+    if outcome == "applied" and mutating:
+        verdict = await _registered_action_oracle_verdict(
+            name, remote_id=remote_id, result=safe,
+            context=execution_context)
+        if verdict is not None and not verdict.get("verified"):
+            return {
+                "status": "uncertain",
+                "action_result": "uncertain",
+                "reason": (
+                    f"postcondition oracle refuted {name}: "
+                    f"{verdict.get('evidence') or 'no evidence'}"),
+                "evidence": verdict,
+                "remote_id": remote_id or None,
+                "provider_ref": provider_ref or None,
+                "data": safe,
+                "provider": payload.get("provider"),
+                "operation": payload.get("operation"),
+                "payload_sha256": payload.get("payload_sha256"),
+                "provider_receipt": payload.get("provider_receipt"),
+            }
     if outcome == "applied":
         return {
             "status": "applied",
