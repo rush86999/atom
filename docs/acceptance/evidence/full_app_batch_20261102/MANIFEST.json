@@ -1,0 +1,209 @@
+{
+ "schema": "atom-full-app-batch-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "worktree": "/private/tmp/atom-full-app",
+  "base_source": "69a7de28de9a3988696909d858eccefdcb6ce84c",
+  "executed_source": "6f697cd9d642940221046353d72937040e61b009",
+  "head_at_packaging": "609dc4144df05185b9a050dd8acefbd256d1512e",
+  "head_at_packaging_note": "docs-only evidence commit by the other agent; it does not change the served source",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "frontend_build_id": "qPTn5x9z4xY8Qfz1O8SRp",
+  "runtime_source_id": "6f697cd9d642"
+ },
+ "runtime": {
+  "world": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102",
+  "database": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/full-app-quote-20261102/atom.db",
+  "backend": {
+   "url": "http://127.0.0.1:8096",
+   "source_id": "6f697cd9d642",
+   "revision": "6f697cd9d642940221046353d72937040e61b009",
+   "dirty": false,
+   "health": "ok"
+  },
+  "frontend": {
+   "url": "http://127.0.0.1:3137",
+   "build_id": "qPTn5x9z4xY8Qfz1O8SRp",
+   "http_status": 307
+  },
+  "identity_log": "INFO:core.runtime_identity:runtime identity: source_id=6f697cd9d642 revision=6f697cd9d642 dirty=False (0 modified, 0 untracked)"
+ },
+ "campaign": {
+  "command": "TESTING=0 BRENNAN_PYTHON=<venv>/python PYTHONPATH=$PWD/backend <venv>/python scripts/acceptance/full_app_quote_journey.py --frontend http://127.0.0.1:3137 --api http://127.0.0.1:8096 --password-file <world>/canvas-password.txt --agent-id 5ef8be20-1528-42d2-86e0-5c932c4a45e4 --out-dir /private/tmp/full-app-quote-run",
+  "status": "passed",
+  "checks_passed": 15,
+  "checks_total": 15,
+  "checks": [
+   {
+    "name": "promoted document lesson is explicit and source-bound",
+    "ok": true
+   },
+   {
+    "name": "quote receipt starts an ordinary assignment",
+    "ok": true
+   },
+   {
+    "name": "real backend restart preserves the prepared action",
+    "ok": true
+   },
+   {
+    "name": "prepared action survives restart without dispatch",
+    "ok": true
+   },
+   {
+    "name": "quote assignment completes after action approval",
+    "ok": true
+   },
+   {
+    "name": "quote document artifact is attached",
+    "ok": true
+   },
+   {
+    "name": "quote document contains the server total and provenance",
+    "ok": true
+   },
+   {
+    "name": "quote document consumes the promoted lesson",
+    "ok": true
+   },
+   {
+    "name": "declared registered action has readback evidence",
+    "ok": true
+   },
+   {
+    "name": "duplicate continuation does not dispatch the action again",
+    "ok": true
+   },
+   {
+    "name": "source change produces a new server receipt",
+    "ok": true
+   },
+   {
+    "name": "old source receipt is refused after the change",
+    "ok": true
+   },
+   {
+    "name": "service proposal completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "exception queue completes with a document artifact",
+    "ok": true
+   },
+   {
+    "name": "cancelled action assignment is terminal",
+    "ok": true
+   }
+  ],
+  "canvas_urls": {
+   "quote_canvas": "http://127.0.0.1:3137/canvas/b0aa6c22-4c75-49a1-8601-8f6ea4c88056",
+   "service_canvas": "http://127.0.0.1:3137/canvas/72fd3e90-d1b5-4228-a1ab-015785e32c8f",
+   "queue_canvas": "http://127.0.0.1:3137/canvas/8d16e9ae-fc8e-41b5-afee-a1c0fa25895e"
+  }
+ },
+ "baseline": {
+  "command": "TESTING=0 PYTHONPATH=$PWD/backend <venv>/python scripts/acceptance/canvas_typed_canvases_local.py --frontend http://127.0.0.1:3137 --api http://127.0.0.1:8096 --password-file <world>/canvas-password.txt --agent-id 5ef8be20-1528-42d2-86e0-5c932c4a45e4 --out-dir /private/tmp/full-app-baseline-final",
+  "status": "passed",
+  "checks_passed": 17,
+  "checks_total": 17
+ },
+ "effect_counts": {
+  "canvas_action_dispatches": 1,
+  "action_remote_id": "e33a850a-a213-481c-8cb8-f31059ea2a07",
+  "duplicate_approval_status": 404,
+  "duplicate_remote_id_unchanged": true,
+  "artifacts": {
+   "quote": {
+    "run_id": "88bd8bd2-5dd4-465a-94af-85c6f50e3df9",
+    "sha256": "e9fc6f13ca8c465fde6f3439f8a9f57b16fb47027bf7ebcc405bddb93b922925",
+    "bytes": 37253,
+    "total": "line_total 350.00",
+    "font": "Georgia 18"
+   },
+   "service": {
+    "run_id": "c9a1dc7c-8f0c-4ea9-b802-1c64ad95f7f7",
+    "sha256": "3bc4862508b8628bdd9239b33d9fbe97c16ff02cecfab334fc123a0044b7ddf5",
+    "total": "fee_total 630.00 CAD",
+    "font": "Georgia 18"
+   },
+   "queue": {
+    "run_id": "4f10e5fa-a463-425c-9122-f9a1384e5b02",
+    "sha256": "e51ed8aec9ea530f4d673243e1c97dbc802a90895bf374fb50c9b651c17c4afb",
+    "total": "exception_id 3; amount 170.00",
+    "font": "Georgia 18"
+   }
+  },
+  "reconciliation": {
+   "drafts_created": 1,
+   "uncertain_then_applied": true
+  }
+ },
+ "controls": [
+  "promoted document lesson is consumed: Georgia 18 in quote, service and queue documents",
+  "source change rebinds new bytes; receipt total moves 350.00 -> 450.00; the old receipt is refused 409 stale_revision",
+  "real backend/frontend restart preserves the prepared action and does not dispatch it",
+  "duplicate approval returns 404 and the action remote id is unchanged",
+  "cancellation before approval is terminal and dispatches nothing",
+  "a controlled write timeout after the draft landed is uncertain, reconciles with readback evidence, completes, and leaves exactly one draft"
+ ],
+ "tests": {
+  "backend_affected": {
+   "command": "TESTING=1 <venv>/python -m pytest <16 files> -q",
+   "result": "325 passed",
+   "log": "backend-tests.log"
+  },
+  "frontend_canvas": {
+   "command": "jest CanvasCapabilityAssessment CanvasCapabilityDerive CanvasCapabilityRules --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  },
+  "reconciliation_control": {
+   "command": "TESTING=1 pytest tests/test_canvas_assignment_integration.py::test_uncertain_effect_reconciles_with_one_provider_draft -q",
+   "result": "1 passed",
+   "log": "reconciliation-control.log"
+  }
+ },
+ "changed_files": [
+  "backend/api/canvas_capability_routes.py",
+  "backend/core/action_registry.py",
+  "backend/core/assignment_executor.py",
+  "backend/core/canvas_assignment.py",
+  "backend/tests/test_canvas_assignment_integration.py",
+  "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx",
+  "scripts/acceptance/canvas_typed_canvases_local.py",
+  "scripts/acceptance/full_app_quote_journey.py"
+ ],
+ "related_evidence": {
+  "path": "docs/acceptance/evidence/full_app_quote_journey_20261102/",
+  "note": "concurrent docs-only bundle by the other agent for the same executed source; not modified"
+ },
+ "exclusions": [
+  "no live provider lookup, refresh, write, send or spend",
+  "no new credentials or consent",
+  "no database reseed; the world was reused across restarts",
+  "no change to the 123-feature denominator or historical 111/123"
+ ],
+ "artifacts": {
+  "README.md": "4ed62cf67b8a199f60a4d9de4a9b09315ab0faf3596067c33ae696eed4c43b6a",
+  "TEST_RESULTS.md": "92120338e537b662087e20acdaf742f4f35be39669435789ce029436b1a5177c",
+  "backend-health.json": "400f44fa404ffdf0df5e24c30969b1d6ebd5716def6080147c2c2454f3e2cf40",
+  "backend-tests.log": "403958cf20346ba639d606340b1e6e406633325359fc35a66da52225dbc305d7",
+  "baseline-17-result.json": "fb90f8cd778cf38823b6f23760833b1906bc0ed978e9c157af95db5646b8c779",
+  "baseline-17.log": "7d59bbe5fc0b8c8e107f2794031084ff7ebd6037c4c82bdeb9c848ee912ab792",
+  "baseline-industrial-quote.png": "4ce749e7c686026aacbc7b9dfdfa07fe3e18d2125369dad50ad8c6d93a92c6be",
+  "campaign-result.json": "d453c99c764f29c7e52a5999b25bd9bee4b7a087a35fe8d98efe3ebed7460e6a",
+  "frontend-build-id.txt": "1358fef75a3abf2071376bb5fcf3674064552ad3b6880c9f04ba5722ae0e78cb",
+  "frontend-health.txt": "6d976934be74941fba578b143ba964eded443d10384e3f3d62a1ba7b4d339df8",
+  "frontend-tests.log": "7bdb45bf55e46686166df8c57e4adad7825e4aa5790565124db1ad63ac70c2c7",
+  "full-app-campaign.log": "0bab17dfc360e2760b84512e5e81266a6368cf3ba07e50fc5bc5a9d4e7b615ff",
+  "queue.csv": "aa0a685af4031fc25df9dc7340b051443eb7c8fc19628eaa8023f8e169cddbf0",
+  "quote-changed.csv": "2bf5e0039f8e4dab21ad738dc10708179573dc38328a5dbb2af8ede8d4a3742b",
+  "quote-document.docx": "e9fc6f13ca8c465fde6f3439f8a9f57b16fb47027bf7ebcc405bddb93b922925",
+  "quote-journey.png": "91ee21e21fbfc816e71ceb4ce042d603639b46aba1865a5489fdcc4ae2c45f0d",
+  "quote.csv": "4db47c8c4d1030e5f2011605e881dbe2536ecaefa120bb7baabda2cc21d4134f",
+  "reconciliation-control.log": "e909a57b6b95f5ecc2527ab372bf6dae9d1ae15303bdcf33c8570c5e2155a112",
+  "runtime-identity.txt": "ce1e752cccc9d3808d43da7a1c15de7bd719734089b64b7dacbbd9c761ec0fae",
+  "service.csv": "a77348523333fd3b952f78f28c80f27ccbb78d6131cb00dc287c180961e5ea47"
+ }
+}
