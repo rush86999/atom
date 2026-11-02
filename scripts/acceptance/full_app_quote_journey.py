@@ -189,7 +189,22 @@ def _approve_action(page, api, run_id, step_id):
     return approved
 
 
-def _download_artifact(page, api, run_id, deliverable_id, out_dir):
+def _audit_count(password_file, canvas_id):
+    """Read-only count of durable audit rows for one presented canvas."""
+    import sqlite3
+
+    database = Path(password_file).resolve().parent / "atom.db"
+    conn = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        return int(conn.execute(
+            "select count(*) from canvas_audit where canvas_id = ?",
+            (canvas_id,)).fetchone()[0])
+    finally:
+        conn.close()
+
+
+def _download_artifact(page, api, run_id, deliverable_id, out_dir,
+                       name=None):
     result = page.evaluate(
         """async ({api, runId, deliverableId}) => {
           const token = localStorage.getItem("auth_token")
@@ -205,7 +220,7 @@ def _download_artifact(page, api, run_id, deliverable_id, out_dir):
     )
     if result["status"] != 200:
         raise AssertionError(f"download failed: {result['status']}")
-    path = out_dir / f"{deliverable_id}-{run_id[:8]}.bin"
+    path = out_dir / (name or f"{deliverable_id}-{run_id[:8]}.bin")
     path.write_bytes(bytes(result["bytes"]))
     return path
 
@@ -364,6 +379,19 @@ def main():
             for item in quoted.get("assignment", {}).get("steps", []))
         restart_evidence = None
         if needs_approval and args.restart:
+            before_restart = poll_assignment(page, args.api, run_id)
+            before_ops = before_restart.get("body", {}).get(
+                "operations", [])
+            pending_op = next(
+                (item for item in before_ops
+                 if item.get("step_id") == "action-publish"), {})
+            before_identity = {
+                "operation_id": pending_op.get("operation_id"),
+                "payload_sha256": (pending_op.get("approval") or {}).get(
+                    "payload_sha256"),
+                "status": pending_op.get("status"),
+                "remote_id": pending_op.get("remote_id"),
+            }
             restart_evidence = restart_world(
                 args.password_file, args.api, args.frontend)
             record("real backend restart preserves the prepared action",
@@ -371,13 +399,35 @@ def main():
                    != restart_evidence["new_backend_pid"],
                    restart_evidence)
             resumed = poll_assignment(page, args.api, run_id)
-            resumed_steps = resumed.get("body", {}).get(
-                "assignment", {}).get("steps", [])
+            resumed_assignment = resumed.get("body", {}).get(
+                "assignment", {})
+            resumed_steps = resumed_assignment.get("steps", [])
+            resumed_ops = resumed.get("body", {}).get("operations", [])
+            resumed_op = next(
+                (item for item in resumed_ops
+                 if item.get("step_id") == "action-publish"), {})
+            after_identity = {
+                "operation_id": resumed_op.get("operation_id"),
+                "payload_sha256": (resumed_op.get("approval") or {}).get(
+                    "payload_sha256"),
+                "status": resumed_op.get("status"),
+                "remote_id": resumed_op.get("remote_id"),
+            }
+            pending_steps = [
+                {"step_id": item.get("step_id"),
+                 "status": item.get("status")}
+                for item in resumed_steps
+                if item.get("status") == "awaiting_approval"
+            ]
             record("prepared action survives restart without dispatch",
-                   any(item.get("step_id") == "action-publish"
-                       and item.get("status") == "awaiting_approval"
-                       for item in resumed_steps),
-                   {"steps": [item.get("step_id") for item in []]})
+                   bool(pending_steps)
+                   and before_identity["operation_id"]
+                   and before_identity == after_identity
+                   and after_identity["remote_id"] is None,
+                   {"pending_steps": pending_steps,
+                    "before_restart": before_identity,
+                    "after_restart": after_identity,
+                    "assignment_status": resumed_assignment.get("status")})
             _approve_action(page, args.api, run_id, "action-publish")
         final = poll_assignment(page, args.api, run_id)
         final_assignment = final.get("body", {}).get("assignment", {})
@@ -391,7 +441,8 @@ def main():
                artifacts)
         if artifacts:
             downloaded = _download_artifact(
-                page, args.api, run_id, "del-document", out)
+                page, args.api, run_id, "del-document", out,
+                name="quote-document.docx")
             import docx
             text = "\n".join(
                 p.text for p in docx.Document(str(downloaded)).paragraphs)
@@ -413,6 +464,9 @@ def main():
         before_remote = next(
             (item.get("remote_id") for item in before_ops
              if item.get("step_id") == "action-publish"), None)
+        before_audit_count = (
+            _audit_count(args.password_file, before_remote)
+            if before_remote else 0)
         record("declared registered action has readback evidence",
                action_steps and action_steps[0].get("status") == "applied"
                and bool(before_remote),
@@ -430,11 +484,18 @@ def main():
         after_remote = next(
             (item.get("remote_id") for item in after_ops
              if item.get("step_id") == "action-publish"), None)
+        after_audit_count = (
+            _audit_count(args.password_file, after_remote)
+            if after_remote else 0)
         record("duplicate continuation does not dispatch the action again",
                duplicate["status"] in (200, 404, 409)
-               and before_remote == after_remote,
+               and before_remote == after_remote
+               and before_audit_count == after_audit_count == 1,
                {"approve_status": duplicate["status"],
-                "before": before_remote, "after": after_remote})
+                "before_remote": before_remote,
+                "after_remote": after_remote,
+                "audit_count_before_duplicate": before_audit_count,
+                "audit_count_after_duplicate": after_audit_count})
 
         # Source change: the same canvas, new bytes, a new server receipt.
         changed_csv = out / "quote-changed.csv"
@@ -485,6 +546,24 @@ def main():
                service_assignment.get("status") == "completed"
                and service_assignment.get("deliverables"),
                {"status": service_assignment.get("status")})
+        if service_assignment.get("status") == "completed":
+            service_doc_path = _download_artifact(
+                page, args.api, service_assigned.get("run_id"),
+                "del-document", out, name="service-document.docx")
+            import docx
+            service_doc = docx.Document(str(service_doc_path))
+            service_text = "\n".join(
+                item.text for item in service_doc.paragraphs)
+            service_font = service_doc.styles["Normal"].font
+            record("service document carries the CAD total and lesson",
+                   "630.00" in service_text
+                   and "Receipt:" in service_text
+                   and service_font.name == "Georgia"
+                   and int(service_font.size.pt) == 18,
+                   {"bytes": service_doc_path.stat().st_size,
+                    "font": service_font.name,
+                    "size_pt": service_font.size.pt
+                    if service_font.size else None})
 
         # Exception queue variant: same mechanisms, non-sales rows.
         queue_url, queue_bound, queue_derived = _canvas_with_bind(
@@ -500,6 +579,25 @@ def main():
                queue_assignment.get("status") == "completed"
                and queue_assignment.get("deliverables"),
                {"status": queue_assignment.get("status")})
+        if queue_assignment.get("status") == "completed":
+            queue_doc_path = _download_artifact(
+                page, args.api, queue_assigned.get("run_id"),
+                "del-document", out, name="queue-document.docx")
+            import docx
+            queue_doc = docx.Document(str(queue_doc_path))
+            queue_text = "\n".join(
+                item.text for item in queue_doc.paragraphs)
+            queue_font = queue_doc.styles["Normal"].font
+            record("exception document carries the counts and lesson",
+                   "exception_id: 3" in queue_text
+                   and "amount: 170.00" in queue_text
+                   and "Receipt:" in queue_text
+                   and queue_font.name == "Georgia"
+                   and int(queue_font.size.pt) == 18,
+                   {"bytes": queue_doc_path.stat().st_size,
+                    "font": queue_font.name,
+                    "size_pt": queue_font.size.pt
+                    if queue_font.size else None})
 
         # Cancellation: a waiting action assignment must not dispatch.
         cancel_url, cancel_bound, cancel_derived = _canvas_with_bind(
