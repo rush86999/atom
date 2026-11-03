@@ -387,6 +387,16 @@ def _employee_llm(current_user: User, db: Session):
         return None
 
 
+def _employee_provider_model() -> Optional[tuple]:
+    """Operator-declared employee serving pin, e.g. ollama:llama3.1:8b."""
+    raw = os.getenv("ATOM_EMPLOYEE_PROVIDER_MODEL", "").strip()
+    if ":" not in raw:
+        return None
+    provider, model = raw.split(":", 1)
+    provider, model = provider.strip(), model.strip()
+    return (provider, model) if provider and model else None
+
+
 @router.post("")
 async def start_assignment(
     body: AssignmentStart,
@@ -844,6 +854,7 @@ def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 90.0,
+    provider_model: Optional[tuple] = None,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
 
@@ -874,6 +885,7 @@ async def _advance_employee_work(
             record, action_views=action_views(assignment))
         proposal_result = await propose_adaptation(
             context, observations, assignment=assignment, llm_service=llm,
+            provider_model=provider_model,
             deadline=time.monotonic() + max(0.0, float(deadline_seconds)))
         proposal = proposal_result.get("proposal") or {}
         round_record = {
@@ -1002,8 +1014,9 @@ async def start_employee_objective(
         budget=body.budget or {},
     )
     llm = _employee_llm(current_user, db) if body.use_model else None
+    provider_model = _employee_provider_model()
     proposal_result = await propose_employee_work(
-        context, llm_service=llm)
+        context, llm_service=llm, provider_model=provider_model)
     checked = validate_employee_proposal(
         proposal_result.get("proposal"), context)
     if not checked["valid"]:
@@ -1107,7 +1120,8 @@ async def start_employee_objective(
     status = await executor.execute(run_id, max_steps=12)
     adaptive_rounds = []
     if llm is not None:
-        adaptive_rounds = await _advance_employee_work(executor, run_id, llm)
+        adaptive_rounds = await _advance_employee_work(
+            executor, run_id, llm, provider_model=provider_model)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
@@ -1341,7 +1355,8 @@ async def advance_assignment(
         rounds = await _advance_employee_work(
             executor, run_id, llm,
             max_rounds=max(0, min(int(body.max_adaptations), 3)),
-            deadline_seconds=max(0.0, float(body.deadline_seconds)))
+            deadline_seconds=max(0.0, float(body.deadline_seconds)),
+            provider_model=_employee_provider_model())
         return {
             "run_id": run_id,
             "assignment": executor.status(run_id),
