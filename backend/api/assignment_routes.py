@@ -1295,6 +1295,11 @@ async def list_assignment_sources(
         str(entry.get("file_name") or "").lower()
         for entry in entries if entry.get("file_name")
     }
+    seen_source_versions = {
+        (str(entry.get("file_name") or "").lower(),
+         str(entry.get("content_hash") or ""))
+        for entry in entries if entry.get("file_name")
+    }
     for entry in entries:
         if str(entry.get("workspace_id") or "") not in ("", workspace_id):
             continue
@@ -1337,6 +1342,14 @@ async def list_assignment_sources(
             # A workbook upload also materializes a sheet dataset; expose the
             # tabular source once, not the same file as a text document too.
             continue
+        source_key = (
+            str(row.file_name or "").lower(),
+            str(row.source_content_hash or row.external_id or ""))
+        if source_key in seen_source_versions:
+            # Repeated uploads of the same authorized file/version must not
+            # create duplicate source steps or ambiguous evidence roles.
+            continue
+        seen_source_versions.add(source_key)
         rows.append({
             "document_id": row.id,
             "dataset_name": None,
