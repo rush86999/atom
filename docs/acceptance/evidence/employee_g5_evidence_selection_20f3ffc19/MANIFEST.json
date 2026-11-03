@@ -21,8 +21,12 @@
  },
  "artifacts": {
   "README.md": "ba48d3c5a22827e631a06cf7257bb5f1dbd02cd88c476eb4242c72fc36160c51",
+  "TEST_RESULTS.md": "d79f48822846e430a10aed1718a5d504287cf3238000949583612f71a8b14689",
+  "affected-suite.log": "7407d886bddc30749375051fc328f7f9a7c816f8a66b673be9b8a31fbef14c01",
   "evidence-selection-calls.jsonl": "772ed0b7423c7ffd9bef8630e0975a8e58139a33371e743d7e1def475c2ed987",
-  "evidence-selection-report.json": "866cd2b8425dcdb9e3546eaa36c04e18d4863597977dd2d0fbe4b2b0d36d927d"
+  "evidence-selection-report.json": "866cd2b8425dcdb9e3546eaa36c04e18d4863597977dd2d0fbe4b2b0d36d927d",
+  "frontend.log": "1c56a9f6bc64eb6c6d8c925b0b31548d8e0cd8cd90d51f880a3d9f17a141b732",
+  "independent-probes.log": "5f85c138b5c9e0b4f96b1a5cf320135dfda787dbc6b9558e41596f4307329b25"
  },
  "results": {
   "industrial_quote": "model source; required sources selected",
