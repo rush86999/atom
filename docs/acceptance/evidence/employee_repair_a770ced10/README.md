@@ -16,7 +16,7 @@ real operation returned.
 | Branch | `codex/brennan-full-app-20261102` |
 | Worktree | `/private/tmp/atom-full-app` |
 | Executed source | `a770ced10` (full SHA in `MANIFEST.json`) |
-| Parent repair | `1135fd00d` / `employee_repair_1135fd00d` |
+| Parent repair | `a770ced10` / `employee_repair_1135fd00d` |
 | Transport | controlled local service/DB; no live provider |
 
 ## Repairs
