@@ -7311,6 +7311,21 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
                    if _matches(record.get(field))]
     limit = max(1, min(int(inputs.get("max_rows") or 500), 5000))
     source_version = _sha256_file(path)
+    truncated = len(records) > limit
+    binding = next((
+        inputs.get(key) for key in (
+            "resource_binding", "source_binding", "binding", "source")
+        if isinstance(inputs.get(key), dict)), {})
+    resource_id = str(
+        inputs.get("resource_id") or inputs.get("source_id")
+        or binding.get("resource_id") or binding.get("source_id")
+        or binding.get("id") or f"file:{path}")
+    version = str(
+        inputs.get("source_version") or inputs.get("version")
+        or binding.get("source_version") or binding.get("version")
+        or source_version)
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
     return {
         "status": "applied",
         "summary": (
@@ -7319,8 +7334,16 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "rows": _json_safe(records[:limit]),
         "schema": [{"column": column} for column in header if column],
         "matched_count": len(records),
-        "truncated": len(records) > limit,
+        "truncated": truncated,
         "source_version": source_version,
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "evidence": [{
             "kind": "workbook",
             "path": path,
@@ -7353,6 +7376,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         })
     suffix = Path(path).suffix.lower()
     text = ""
+    structured = None
     if suffix == ".docx":
         import docx
 
@@ -7364,19 +7388,56 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         text = "\n".join(part for part in parts if part.strip())
     else:
         text = Path(path).read_text(errors="replace")
+        if suffix == ".json":
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                structured = payload
+                text = json.dumps(payload, indent=2, sort_keys=True)
     source_version = _sha256_file(path)
-    return {
+    truncated = len(text) > 20000
+    binding = next((
+        inputs.get(key) for key in (
+            "resource_binding", "source_binding", "binding", "source")
+        if isinstance(inputs.get(key), dict)), {})
+    resource_id = str(
+        inputs.get("resource_id") or inputs.get("source_id")
+        or binding.get("resource_id") or binding.get("source_id")
+        or binding.get("id") or f"file:{path}")
+    version = str(
+        inputs.get("source_version") or inputs.get("version")
+        or binding.get("source_version") or binding.get("version")
+        or source_version)
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
+    result = {
         "status": "applied",
-        "summary": f"read {len(text)} characters from {Path(path).name}",
+        "summary": (
+            f"read structured {Path(path).name}"
+            if structured is not None
+            else f"read {len(text)} characters from {Path(path).name}"),
         "text": text[:20000],
-        "truncated": len(text) > 20000,
+        "truncated": truncated,
         "source_version": source_version,
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "evidence": [{
             "kind": "document",
             "path": path,
             "content_hash": source_version,
         }],
     }
+    if structured is not None:
+        result["data"] = structured
+    return result
 
 
 @register_assignment_adapter(

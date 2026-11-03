@@ -328,7 +328,7 @@ def build_employee_context(
         "work_request_schemas": (
             [
                 schema for schema in work_request_schemas()
-                if not available_work_requests
+                if available_work_requests is None
                 or schema.get("operation") in set(available_work_requests)
             ]
             if stage in ("follow_up", "adaptation", "result")
@@ -370,6 +370,11 @@ def build_employee_context(
 
 
 def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]:
+    if available is None:
+        available = []
+        unrestricted = True
+    else:
+        unrestricted = False
     definitions = [
         {
             "operation": "quote_calculation",
@@ -391,7 +396,7 @@ def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]
     allowed = set(available or [])
     return [
         item for item in definitions
-        if not allowed or item["operation"] in allowed
+        if unrestricted or item["operation"] in allowed
     ]
 
 
@@ -407,7 +412,7 @@ def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
             result.get("data"), Mapping) else {}
         keys = set(data)
         if ({"invoice_id", "quantity", "unit_price"} <= keys
-                or "received_quantity" in keys):
+                or "invoice_number" in keys):
             invoice = True
         rows = result.get("rows") or []
         if isinstance(rows, list) and rows and isinstance(rows[0], Mapping):

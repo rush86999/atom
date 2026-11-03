@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,10 +27,12 @@ from core.assignment_planner import (
     plan_assignment,
     validate_proposed_plan,
 )
+from core.employee_adaptation import adopt_adaptation, propose_adaptation
 from core.employee_patch import PlanPatchError, PlanPatchProposal, apply_plan_patch
 from core.employee_proposal import (
     build_employee_context,
     compile_employee_proposal,
+    context_from_record,
     employee_job_view,
     propose_employee_work,
     validate_employee_proposal,
@@ -127,7 +130,14 @@ class EmployeeObjectiveStart(BaseModel):
     task_context: Dict[str, Any] = {}
     authorized_actions: List[str] = ["retrieve"]
     budget: Optional[Dict[str, Any]] = None
+    teaching_terms: Dict[str, Any] = {}
     use_model: bool = True
+
+
+class EmployeeAdvance(BaseModel):
+    use_model: bool = True
+    max_adaptations: int = 1
+    deadline_seconds: float = 120.0
 
 
 class AssignmentStart(BaseModel):
@@ -348,7 +358,9 @@ def _employee_action_views(
     views: List[Dict[str, Any]] = []
     for name in authorized_actions:
         name = str(name or "").strip()
-        if not name or name in ("retrieve", "calculate", "present"):
+        if not name or name in (
+                "retrieve", "calculate", "present", "outbound", "send",
+                "edit", "delete"):
             continue
         action = action_registry.get_action(name)
         if action is None:
@@ -818,6 +830,107 @@ async def start_assignment(
     }
 
 
+def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
+    consumed = set()
+    for item in assignment.get("patch_history") or []:
+        for observed in item.get("observations") or []:
+            value = (observed.get("observation_id")
+                     if isinstance(observed, dict) else observed)
+            if value:
+                consumed.add(str(value))
+    return consumed
+
+
+async def _advance_employee_work(
+    executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
+    deadline_seconds: float = 90.0,
+) -> List[Dict[str, Any]]:
+    """Run the ordinary objective's typed follow-up through the product.
+
+    The initial proposal chooses read-only evidence. This loop hands the
+    durable evidence result back to the same adaptation contract used by the
+    served smokes, adopts the compiled work request, and lets the existing
+    executor own execution. It never invents evidence or a plan patch.
+    """
+    from core.employee_job_runner import action_views, evidence_observations
+    from core.task_lifecycle import open_unresolved_questions
+
+    rounds: List[Dict[str, Any]] = []
+    for _ in range(max_rounds):
+        record = executor.lifecycle.get_task(run_id) or {}
+        assignment = record.get("assignment") or {}
+        status = str(assignment.get("status") or "")
+        if status in ("completed", "failed", "cancelled"):
+            break
+        if open_unresolved_questions(record):
+            break
+        # Only new evidence reads can drive a proposal; a business calculation
+        # result is not fresh evidence and must not cause the model to repeat
+        # the same work.
+        observations = evidence_observations(record)
+        if not observations:
+            break
+        context = context_from_record(
+            record, action_views=action_views(assignment))
+        proposal_result = await propose_adaptation(
+            context, observations, assignment=assignment, llm_service=llm,
+            deadline=time.monotonic() + max(0.0, float(deadline_seconds)))
+        proposal = proposal_result.get("proposal") or {}
+        round_record = {
+            "source": proposal_result.get("source"),
+            "technical_fallback": proposal_result.get(
+                "technical_fallback", False),
+            "decision": proposal.get("decision"),
+            "errors": proposal_result.get("errors") or [],
+            "failure_stage": proposal_result.get("failure_stage"),
+            "attempt_id": proposal_result.get("attempt_id"),
+            "observation_ids": [item["observation_id"]
+                                for item in observations],
+        }
+        rounds.append(round_record)
+        if proposal_result.get("source") not in ("model", "model_repaired"):
+            break
+        if proposal.get("decision") == "clarify":
+            clarification = proposal.get("clarification") or {}
+            question = str(clarification.get("question") or "").strip()
+            if question:
+                from core.task_lifecycle import add_unresolved_questions
+
+                add_unresolved_questions(executor.lifecycle, run_id, [{
+                    "kind": "business_decision",
+                    "question": question,
+                    "concept": clarification.get("concept") or None,
+                    "reason": clarification.get("unblocks") or None,
+                    "next_action": "Confirm the missing business fact.",
+                    "next_retrieval": clarification.get("unblocks") or None,
+                }])
+            round_record["clarification"] = clarification
+            break
+        if proposal.get("decision") not in ("replan", "work_request"):
+            break
+        if not proposal.get("work_request"):
+            break
+        try:
+            adopted = adopt_adaptation(
+                executor.lifecycle, run_id, proposal,
+                rationale="ordinary objective adaptive follow-up")
+        except Exception as exc:  # noqa: BLE001 - typed refusal
+            round_record["adoption_error"] = f"{type(exc).__name__}: {exc}"
+            break
+        round_record["adoption_status"] = adopted.get("status")
+        round_record["work_request_operation"] = (
+            (proposal.get("work_request") or {}).get("operation"))
+        if adopted.get("status") != "applied":
+            break
+        execution = await executor.execute(run_id, max_steps=12)
+        round_record["execution_status"] = (
+            (execution.get("assignment") or {}).get("status"))
+        if round_record["execution_status"] in (
+                "completed", "failed", "cancelled"):
+            break
+    return rounds
+
+
 @router.post("/from-objective")
 async def start_employee_objective(
     body: EmployeeObjectiveStart,
@@ -866,6 +979,12 @@ async def start_employee_objective(
         task_context=body.task_context,
         now=datetime.now(timezone.utc).isoformat(),
     )
+    if body.teaching_terms:
+        teaching = dict(teaching)
+        teaching["terms"] = {
+            **dict(teaching.get("terms") or {}),
+            **{str(key): value for key, value in body.teaching_terms.items()},
+        }
     context = build_employee_context(
         objective=body.objective,
         employee_id=employee.id,
@@ -921,7 +1040,8 @@ async def start_employee_objective(
                     "technical_fallback", False),
             },
         )
-    accepted_actions = ["retrieve"]
+    accepted_actions = list(dict.fromkeys(
+        ["retrieve", *list(body.authorized_actions or [])]))
     plan = plan_assignment(
         objective=body.objective,
         sources=list(compiled["plan_kwargs"].get("sources") or []),
@@ -985,6 +1105,12 @@ async def start_employee_objective(
             }],
         )
     status = await executor.execute(run_id, max_steps=12)
+    adaptive_rounds = []
+    if llm is not None:
+        adaptive_rounds = await _advance_employee_work(executor, run_id, llm)
+        # The follow-up calls the executor again; the response must reflect
+        # the resulting steps/status, not the pre-adaptation snapshot.
+        status = executor.status(run_id)
     current = executor.lifecycle.get_task(run_id) or {}
     from core.task_lifecycle import open_unresolved_questions
     job = employee_job_view(
@@ -1001,6 +1127,7 @@ async def start_employee_objective(
         "technical_fallback": proposal_result.get(
             "technical_fallback", False),
         "proposal_errors": proposal_result.get("errors") or [],
+        "adaptive_rounds": adaptive_rounds,
         "plan_revision": plan.get("plan_revision"),
         "teaching_revision": (
             plan.get("teaching_snapshot") or {}).get("revision"),
@@ -1189,6 +1316,39 @@ async def resume_assignment(
         return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/{run_id}/advance")
+async def advance_assignment(
+    run_id: str,
+    body: EmployeeAdvance,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Continue from applied evidence to model-chosen supported work.
+
+    The initial objective call owns evidence discovery. This endpoint hands
+    the accepted observations to the same adaptation consumer, adopts one
+    typed work request (or persists one targeted clarification), and advances
+    the existing executor. No caller-supplied plan, rows or step mechanics are
+    accepted here.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    llm = _employee_llm(current_user, db) if body.use_model else None
+    try:
+        await executor.execute(run_id, max_steps=12)
+        rounds = await _advance_employee_work(
+            executor, run_id, llm,
+            max_rounds=max(0, min(int(body.max_adaptations), 3)),
+            deadline_seconds=max(0.0, float(body.deadline_seconds)))
+        return {
+            "run_id": run_id,
+            "assignment": executor.status(run_id),
+            "rounds": rounds,
+        }
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/{run_id}/reassess")
