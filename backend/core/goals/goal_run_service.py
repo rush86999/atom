@@ -114,7 +114,12 @@ class GoalRunService:
             raise ValueError(
                 f"supervision_mode must be one of {SUPERVISION_MODES}")
         if plan:
-            errors = validate_goal_plan(plan, require_non_empty=True)
+            projection = bool(
+                isinstance(parameters, dict)
+                and isinstance(parameters.get("task_lifecycle"), dict))
+            errors = validate_goal_plan(
+                plan, require_non_empty=True,
+                allowed_extra_kinds=("operation",) if projection else ())
             if errors:
                 raise ValueError(
                     "invalid goal plan: " + "; ".join(errors))
@@ -383,14 +388,33 @@ class GoalRunService:
 
     def set_plan(self, run_id: str, plan: List[Dict[str, Any]]) -> Dict[str, Any]:
         from core.models import GoalRun
-        errors = validate_goal_plan(plan, require_non_empty=True)
-        if errors:
+        # Cheap structural refusal before any DB session. Allow the assignment
+        # projection kind only for this first pass so an assignment plan can
+        # reach the run-context check below; ordinary goal plans are checked
+        # again without that allowance.
+        pre_errors = validate_goal_plan(
+            plan, require_non_empty=True,
+            allowed_extra_kinds=("operation",))
+        if pre_errors:
             raise ValueError(
-                "invalid goal plan: " + "; ".join(errors))
+                "invalid goal plan: " + "; ".join(pre_errors))
         with self._sessions()() as session:
             run = self._load(session, run_id)
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
+            # Assignment/task runs store an inspection projection whose steps
+            # are operation records, not goal-executor steps. Allow only that
+            # projection kind for such runs; ordinary goal plans and REPLANs
+            # still face the executable vocabulary.
+            projection = bool(
+                isinstance(run.parameters, dict)
+                and isinstance(run.parameters.get("task_lifecycle"), dict))
+            errors = validate_goal_plan(
+                plan, require_non_empty=True,
+                allowed_extra_kinds=("operation",) if projection else ())
+            if errors:
+                raise ValueError(
+                    "invalid goal plan: " + "; ".join(errors))
             run.plan = list(plan or [])
             if run.status == "planning" and run.plan:
                 run.cursor = run.plan[0].get("id")

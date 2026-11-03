@@ -33,8 +33,15 @@ def validate_goal_plan(
     target_step: Optional[str] = None,
     require_non_empty: bool = True,
     action_registry: Any = None,
+    allowed_extra_kinds: Iterable[str] = (),
 ) -> List[str]:
-    """Return concise validation errors; an empty list means executable shape."""
+    """Return concise validation errors; an empty list means executable shape.
+
+    ``allowed_extra_kinds`` is for non-executable plan PROJECTIONS that share
+    the GoalRun row (e.g. the assignment executor's ``operation`` steps). The
+    router/REPLAN call sites leave it empty, so a model cannot propose a
+    projection kind as an executable goal plan.
+    """
     errors: List[str] = []
     if not isinstance(plan, list):
         return ["new_plan must be a list of step objects"]
@@ -42,6 +49,8 @@ def validate_goal_plan(
         return ["new_plan must contain at least one step"]
     if len(plan) > _MAX_STEPS:
         errors.append(f"new_plan exceeds {_MAX_STEPS} steps")
+    supported_kinds = set(SUPPORTED_STEP_KINDS) | {
+        str(kind).strip().lower() for kind in allowed_extra_kinds if kind}
     seen: Dict[str, int] = {}
     all_ids: Dict[str, int] = {}
     for index, item in enumerate(plan):
@@ -67,7 +76,7 @@ def validate_goal_plan(
                 f"{where} declares forbidden authority fields: "
                 + ", ".join(forbidden))
         kind = str(step.get("kind") or "canvas_work").strip().lower()
-        if kind not in SUPPORTED_STEP_KINDS:
+        if kind not in supported_kinds:
             errors.append(f"{where} has unsupported kind {kind!r}")
             continue
         if kind == "canvas_work":
