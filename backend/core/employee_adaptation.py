@@ -253,6 +253,14 @@ def _adaptation_errors(
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
 ) -> List[str]:
+    if normalized.decision == "clarify":
+        clarification = normalized.clarification
+        if clarification is None or not str(
+                clarification.question or "").strip():
+            return [
+                "clarify requires one specific clarification question the "
+                "user can answer"]
+        return []
     if normalized.decision == "retain" and context.get(
             "missing_prerequisites"):
         missing = "; ".join(

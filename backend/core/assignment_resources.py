@@ -118,12 +118,20 @@ def _internal_source(reference: Dict[str, Any], user: Any) -> Dict[str, Any]:
     if not kind:
         kind = "workbook" if suffix in (".xlsx", ".xls") else "document"
     representation = "xlsx" if suffix in (".xlsx", ".xls", ".xlsm") else "file"
+    actual_version = _sha256_file(path)
+    expected_version = str(reference.get("source_version") or "").strip()
+    if expected_version and expected_version != actual_version:
+        raise AssignmentResourceError(
+            "stale_source_version",
+            "The requested fixture version is not the current file version.",
+            status=409,
+        )
     return {
         "kind": kind,
         "representation": representation,
         "path": str(path),
         "resource_id": f"fixture:{path.name}",
-        "source_version": _sha256_file(path),
+        "source_version": actual_version,
         "dataset_name": None,
         "original_file_name": path.name,
         "columns": [],

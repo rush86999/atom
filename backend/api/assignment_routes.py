@@ -925,6 +925,22 @@ async def _advance_employee_work(
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}
             question = str(clarification.get("question") or "").strip()
+            if not question:
+                # A bare "clarify" is not actionable. Fall back to the
+                # capability's declared missing prerequisite instead of
+                # silently abandoning the objective.
+                fallback = missing_prerequisite_question(assignment)
+                if fallback and not open_unresolved_questions(
+                        executor.lifecycle.get_task(run_id) or {}):
+                    from core.task_lifecycle import add_unresolved_questions
+
+                    add_unresolved_questions(
+                        executor.lifecycle, run_id, [fallback])
+                    round_record["obligation"] = fallback
+                    round_record["obligation_source"] = (
+                        "deterministic_empty_clarification")
+                    round_record["progress"] = "no_progress"
+                break
             if question:
                 from core.task_lifecycle import add_unresolved_questions
 
@@ -1531,15 +1547,33 @@ async def add_assignment_source(
         for item in operation_capabilities(current_assignment)
         if item.get("status") == "ready"
     }
+    added_step = next((
+        item for item in current_assignment.get("steps") or []
+        if item.get("step_id") == step.get("step_id")), {})
+    added_data = ((added_step.get("result") or {}).get("data")
+                  if isinstance(added_step.get("result"), dict) else {})
+    observed_po = str(
+        (added_data or {}).get("po_id") or "").strip()
     settled = []
-    question_ids = [
-        str(question.get("question_id"))
-        for question in open_unresolved_questions(current)
-        if question.get("kind") in (
-            "missing_prerequisite", "missing_evidence")
-        and str(question.get("operation") or question.get("concept") or "")
-        in ready_operations
-    ]
+    mismatched = []
+    question_ids = []
+    for question in open_unresolved_questions(current):
+        if question.get("kind") not in (
+                "missing_prerequisite", "missing_evidence"):
+            continue
+        operation = str(
+            question.get("operation") or question.get("concept") or "")
+        if operation not in ready_operations:
+            continue
+        inputs = question.get("inputs") if isinstance(
+            question.get("inputs"), dict) else {}
+        known = inputs.get("known_identities") if isinstance(
+            inputs.get("known_identities"), dict) else {}
+        expected_po = str(known.get("purchase_order.po_id") or "").strip()
+        if expected_po and observed_po and expected_po != observed_po:
+            mismatched.append(question.get("question_id"))
+            continue
+        question_ids.append(str(question.get("question_id")))
     if question_ids:
         settled = resolve_unresolved_questions(
             executor.lifecycle, run_id, question_ids=question_ids,
@@ -1550,7 +1584,10 @@ async def add_assignment_source(
         status = executor.status(run_id)
     return {**adopted, "assignment": status,
             "resolved_question_ids": [
-                item.get("question_id") for item in settled]}
+                item.get("question_id") for item in settled],
+            "mismatched_question_ids": [
+                item for item in mismatched if item],
+            "observed_purchase_order": observed_po or None}
 
 
 @router.post("/{run_id}/reassess")

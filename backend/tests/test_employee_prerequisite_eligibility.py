@@ -130,3 +130,13 @@ def test_retain_with_missing_prerequisite_is_repaired_and_obligated():
     assert "PO-7" in question["question"]
     assert question["concept"] == "invoice_reconciliation"
     assert question["inputs"]["missing"] == ["invoice"]
+
+
+def test_empty_clarification_is_not_accepted_as_progress():
+    from core.employee_adaptation import _adaptation_errors
+    from core.employee_adaptation import AdaptationProposal
+
+    proposal = AdaptationProposal(
+        decision="clarify", reason="nothing", observation_ids=["o1"])
+    errors = _adaptation_errors(proposal, {}, {})
+    assert any("specific clarification question" in item for item in errors)
