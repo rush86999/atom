@@ -11,7 +11,7 @@ import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info, Tren
 import {
     getGoalRun, getGoalRunCanvases, resumeGoalRun, resolveCheckpoint,
     advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
-    getPromotionEvidence, getGoal,
+    getPromotionEvidence, getGoal, isAssignmentOwnedRun,
     GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode, Goal,
     AgentLesson, listAgentLessons, teachAgentFromRun,
 } from "@/lib/goal-run-api";
@@ -146,6 +146,7 @@ export default function GoalRunDetailPage() {
         userId && run?.created_by && String(userId) === String(run.created_by));
     const canActOnRun = canSupervise || isOwner;
     const runStatus = run?.status;
+    const assignmentOwned = isAssignmentOwnedRun(run);
 
     const load = useCallback(async (silent = false) => {
         if (typeof id !== "string") return;
@@ -341,10 +342,12 @@ export default function GoalRunDetailPage() {
                             )}
                             {!terminal && (
                                 <>
-                                    <Button size="sm" variant="outline" disabled={busy}
-                                            onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
-                                        <Play className="h-4 w-4" /> Advance
-                                    </Button>
+                                    {!assignmentOwned && (
+                                        <Button size="sm" variant="outline" disabled={busy}
+                                                onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
+                                            <Play className="h-4 w-4" /> Advance
+                                        </Button>
+                                    )}
                                     <Button size="sm" variant="outline" disabled={busy}
                                             onClick={() => void act(async () => {
                                                 await cancelGoalRun(run.id);
@@ -366,6 +369,17 @@ export default function GoalRunDetailPage() {
                     Read-only view — this run is worked by whoever started it and by
                     supervisors (team_lead or higher). The timeline below is the full
                     record of what this agent decided and why.
+                </div>
+            )}
+
+            {assignmentOwned && (
+                <div className="mb-6 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                     data-testid="assignment-continuation">
+                    This run is driven by its durable assignment. The plan here is a
+                    read-only projection — continue the work and any approvals in the{" "}
+                    <Link href="/assignments" className="underline">
+                        assignment panel
+                    </Link>.
                 </div>
             )}
 
@@ -395,7 +409,13 @@ export default function GoalRunDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <p className="text-sm">{pending.rationale}</p>
-                        {canActOnRun && (
+                        {assignmentOwned && (
+                            <p className="text-sm text-muted-foreground" data-testid="assignment-pending-note">
+                                This decision belongs to the durable assignment. Resolve it
+                                from the assignment panel, not the native goal loop.
+                            </p>
+                        )}
+                        {canActOnRun && !assignmentOwned && (
                             <>
                                 <Textarea
                                     placeholder="Guidance (optional) — overriding teaches the agent instantly"

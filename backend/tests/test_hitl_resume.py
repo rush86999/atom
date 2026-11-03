@@ -254,14 +254,14 @@ def test_preflight_goal_decision_rejects_stale_review(monkeypatch):
     monkeypatch.setattr(hitl_resume, "_load_action", lambda _: action)
 
     class FakeService:
-        def __init__(self, workspace_id, tenant_id):
+        def __init__(self, workspace_id, tenant_id, session_factory=None):
             pass
 
         def get_run(self, run_id):
             return {
                 "id": run_id, "workspace_id": "default",
                 "tenant_id": "default", "status": "paused_hitl",
-                "human_interventions": 2,
+                "human_interventions": 2, "material_revision": 2,
                 "pending_decision": {
                     "decision": "REPLAN",
                     "rationale": "newer",

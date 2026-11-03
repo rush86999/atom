@@ -8,7 +8,7 @@ free of authority-expanding declarations.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 SUPPORTED_STEP_KINDS = (
     "canvas_work",
@@ -17,6 +17,10 @@ SUPPORTED_STEP_KINDS = (
     "human_checkpoint",
     "wait_for",
 )
+# Non-executable representations of assignment work in the shared GoalRun
+# plan column. The native executor refuses these; only AssignmentExecutor
+# reads them.
+NON_EXECUTABLE_PROJECTION_KINDS = ("operation",)
 FORBIDDEN_STEP_KEYS = {
     "authorized_actions",
     "standing_authority",
@@ -25,6 +29,26 @@ FORBIDDEN_STEP_KEYS = {
     "role_override",
 }
 _MAX_STEPS = 200
+_LEGACY_CANVAS_KIND = "canvas_work"
+
+
+def normalize_step_kind(step: Any) -> str:
+    """One normalization shared by validation and executor dispatch.
+
+    Legacy plans may omit ``kind`` (or carry an empty/whitespace value); those
+    are canvas work. Everything else is trimmed and lower-cased so a model's
+    ``Canvas_Work`` cannot validate here and then miss the executor branch.
+    """
+    if isinstance(step, Mapping):
+        raw = step.get("kind")
+    else:
+        raw = step
+    text = str(raw or "").strip().lower()
+    return text or _LEGACY_CANVAS_KIND
+
+
+def is_executable_step_kind(kind: Any) -> bool:
+    return normalize_step_kind(kind) in SUPPORTED_STEP_KINDS
 
 
 def validate_goal_plan(
@@ -50,7 +74,7 @@ def validate_goal_plan(
     if len(plan) > _MAX_STEPS:
         errors.append(f"new_plan exceeds {_MAX_STEPS} steps")
     supported_kinds = set(SUPPORTED_STEP_KINDS) | {
-        str(kind).strip().lower() for kind in allowed_extra_kinds if kind}
+        normalize_step_kind(kind) for kind in allowed_extra_kinds if kind}
     seen: Dict[str, int] = {}
     all_ids: Dict[str, int] = {}
     for index, item in enumerate(plan):
@@ -75,7 +99,7 @@ def validate_goal_plan(
             errors.append(
                 f"{where} declares forbidden authority fields: "
                 + ", ".join(forbidden))
-        kind = str(step.get("kind") or "canvas_work").strip().lower()
+        kind = normalize_step_kind(step)
         if kind not in supported_kinds:
             errors.append(f"{where} has unsupported kind {kind!r}")
             continue
@@ -153,6 +177,77 @@ def validate_replan_decision(
         target_step=decision.get("target_step"),
         action_registry=action_registry,
     )
+
+
+def validate_assignment_projection(
+    plan: Any,
+    *,
+    require_non_empty: bool = True,
+) -> List[str]:
+    """Validate the assignment-owned read model stored in ``GoalRun.plan``.
+
+    The canonical projection is operation-only, uses the assignment step's
+    stable id, and keeps dependency order. This is deliberately separate from
+    executable goal-plan validation: agreement between this validator and the
+    executor representation is tested through actual consumption, not just an
+    empty error list.
+    """
+    errors: List[str] = []
+    if not isinstance(plan, list):
+        return ["assignment projection must be a list of step objects"]
+    if require_non_empty and not plan:
+        return ["assignment projection must contain at least one step"]
+    if len(plan) > _MAX_STEPS:
+        errors.append(f"assignment projection exceeds {_MAX_STEPS} steps")
+    all_ids: Dict[str, int] = {}
+    for index, item in enumerate(plan):
+        if not isinstance(item, Mapping):
+            continue
+        item_id = str(item.get("id") or "").strip()
+        if item_id and item_id not in all_ids:
+            all_ids[item_id] = index
+    seen: Dict[str, int] = {}
+    for index, step in enumerate(plan):
+        where = f"projection[{index}]"
+        if not isinstance(step, Mapping):
+            errors.append(f"{where} must be an object")
+            continue
+        step_id = str(step.get("id") or "").strip()
+        if not step_id:
+            errors.append(f"{where} requires a stable non-empty id")
+        elif step_id in seen:
+            errors.append(f"duplicate projection id {step_id!r}")
+        else:
+            seen[step_id] = index
+        kind = normalize_step_kind(step)
+        if kind not in NON_EXECUTABLE_PROJECTION_KINDS:
+            errors.append(
+                f"{where} has {kind!r}; an assignment projection may only "
+                f"contain {list(NON_EXECUTABLE_PROJECTION_KINDS)}")
+        if not str(step.get("title") or "").strip():
+            errors.append(f"{where} operation projection requires a title")
+        operation_type = step.get("operation_type")
+        if operation_type is not None and not isinstance(operation_type, str):
+            errors.append(f"{where} operation_type must be a string")
+        status = step.get("status")
+        if status is not None and not isinstance(status, str):
+            errors.append(f"{where} status must be a string")
+        depends = step.get("depends_on")
+        if depends is not None:
+            if not isinstance(depends, list):
+                errors.append(f"{where} depends_on must be a list")
+            else:
+                for dependency in depends:
+                    dep = str(dependency or "").strip()
+                    if not dep:
+                        errors.append(f"{where} has an empty dependency")
+                    elif dep == step_id:
+                        errors.append(
+                            f"{where} cannot depend on itself")
+                    elif dep not in all_ids:
+                        errors.append(
+                            f"{where} depends on unknown step {dep!r}")
+    return errors
 
 
 def confidence_is_valid(value: Any) -> bool:

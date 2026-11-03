@@ -889,3 +889,142 @@ def test_restart_review_effect_and_replay_journey(tmp_path, monkeypatch):
     assert final["pending_decision"]["decision_binding"]
     db2.close(); db3.close()
     engine.dispose()
+
+
+@pytest.mark.parametrize("mutation", [
+    "plan", "parameters", "cursor", "mode", "wait",
+])
+def test_material_change_after_validation_cannot_win_claim(
+        tmp_path, monkeypatch, mutation):
+    """All binding-material writers, not just set_plan, defeat the claim."""
+    import core.goals.goal_run_binding as binding
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, f"material-race-{mutation}.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "reviewed"})
+    reviewed = _review(held)
+    baseline_revision = svc.get_run(run_id)["material_revision"]
+    effects = []
+
+    async def execute(run_id, decision):
+        effects.append(decision.get("decision"))
+        return {"run": svc.get_run(run_id)}
+
+    monkeypatch.setattr(svc, "execute_decision", execute)
+    original = binding.validate_pending_decision
+
+    def validate_then_mutate(run, pending, **kwargs):
+        valid, reason = original(run, pending, **kwargs)
+        if valid:
+            if mutation == "plan":
+                svc.set_plan(run_id, [{
+                    "id": "replacement", "kind": "canvas_work",
+                    "title": "Unreviewed work", "canvas_type": "document"}])
+            elif mutation == "parameters":
+                svc.patch_parameters(run_id, {"lead": "Changed after review"})
+            elif mutation == "cursor":
+                svc._set_cursor(run_id, "step-quote")
+            elif mutation == "mode":
+                svc.set_supervision_mode(run_id, "training")
+            elif mutation == "wait":
+                svc.set_wait(run_id, {"event": "timer"})
+        return valid, reason
+
+    monkeypatch.setattr(
+        binding, "validate_pending_decision", validate_then_mutate)
+    result = asyncio.run(svc.resume(
+        run_id, approved=True, reviewer="lead-a",
+        expected_decision_id=reviewed["decision_id"],
+        expected_decision_binding=reviewed["decision_binding"]))
+
+    assert result.get("resumed") is False, mutation
+    assert result.get("stale_review") is True, mutation
+    assert effects == [], mutation
+    current = svc.get_run(run_id)
+    assert current["pending_decision"]["decision_id"] == (
+        reviewed["decision_id"]), mutation
+    assert current["material_revision"] > baseline_revision, mutation
+    db.close()
+    engine.dispose()
+
+
+def test_assignment_operation_projection_is_not_native_canvas_work(
+        tmp_path, monkeypatch):
+    from core.models import Canvas, GoalRun
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "projection-native.db")
+    run_id = svc.create_run(
+        "goal-family", role="sales",
+        plan=[{"id": "projected-read", "kind": "operation",
+               "title": "Assignment operation"}],
+        parameters={"task_lifecycle": {}})["id"]
+    svc.transition(run_id, "active")
+    result = asyncio.run(svc.execute_decision(
+        run_id, {"decision": "ADVANCE", "human_approved": True,
+                 "rationale": "native advance"}))
+    assert result["advanced"] is False
+    assert result["result"].get("not_executed") is True
+    assert db.query(Canvas).filter(Canvas.goal_run_id == run_id).count() == 0
+    current = svc.get_run(run_id)
+    assert current["steps_executed"] == 0
+    assert current["cursor"] == "projected-read"
+    db.close()
+    engine.dispose()
+
+
+def test_unknown_native_kind_does_not_fall_through_to_canvas(
+        tmp_path, monkeypatch):
+    from core.models import Canvas, GoalRun
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "unknown-native-kind.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=[])["id"]
+    svc.transition(run_id, "active")
+    row = db.query(GoalRun).filter(GoalRun.id == run_id).one()
+    row.plan = [{"id": "mystery", "kind": "mystery", "title": "Unknown"}]
+    row.cursor = "mystery"
+    row.material_revision = (row.material_revision or 0) + 1
+    db.commit()
+    result = asyncio.run(svc.execute_decision(
+        run_id, {"decision": "ADVANCE", "human_approved": True,
+                 "rationale": "unknown kind"}))
+    assert result["advanced"] is False
+    assert result["result"].get("not_executed") is True
+    assert db.query(Canvas).filter(Canvas.goal_run_id == run_id).count() == 0
+    assert svc.get_run(run_id)["steps_executed"] == 0
+    db.close()
+    engine.dispose()
+
+
+def test_material_revision_advances_on_every_material_writer(tmp_path):
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "material-writers.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+
+    def revision():
+        return svc.get_run(run_id)["material_revision"]
+
+    def assert_bumps(label, fn):
+        before = revision()
+        fn()
+        after = revision()
+        assert after > before, label
+
+    assert_bumps("transition", lambda: svc.transition(run_id, "active"))
+    assert_bumps("set_plan", lambda: svc.set_plan(run_id, PLAN))
+    assert_bumps("parameters", lambda: svc.patch_parameters(
+        run_id, {"lead": "Acme"}))
+    assert_bumps("cursor", lambda: svc._set_cursor(run_id, "step-quote"))
+    assert_bumps("mode", lambda: svc.set_supervision_mode(run_id, "training"))
+    assert_bumps("wait", lambda: svc.set_wait(
+        run_id, {"event": "timer"}))
+    assert_bumps("wake", lambda: svc.consume_wake(
+        run_id, {"event": "timer"}))
+    assert_bumps("count_step", lambda: svc._count_step(run_id, "ADVANCE"))
+    assert_bumps("terminal", lambda: svc.transition(run_id, "cancelled"))
+    db.close()
+    engine.dispose()

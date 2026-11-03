@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core.goals.goal_plan_validation import (
+    normalize_step_kind,
+    validate_assignment_projection,
     validate_goal_plan,
     validate_replan_decision,
 )
@@ -114,12 +116,18 @@ class GoalRunService:
             raise ValueError(
                 f"supervision_mode must be one of {SUPERVISION_MODES}")
         if plan:
-            projection = bool(
-                isinstance(parameters, dict)
-                and isinstance(parameters.get("task_lifecycle"), dict))
-            errors = validate_goal_plan(
-                plan, require_non_empty=True,
-                allowed_extra_kinds=("operation",) if projection else ())
+            # A caller-supplied task_lifecycle marker is not ownership. At
+            # create time an operation-only list is accepted as an inert
+            # projection (native execution refuses it); a mixed list is an
+            # ordinary goal plan and cannot smuggle projection steps in.
+            projection_plan = all(
+                normalize_step_kind(step) == "operation"
+                for step in plan if isinstance(step, dict))
+            if projection_plan:
+                errors = validate_assignment_projection(plan)
+            else:
+                errors = validate_goal_plan(
+                    plan, require_non_empty=True)
             if errors:
                 raise ValueError(
                     "invalid goal plan: " + "; ".join(errors))
@@ -195,6 +203,11 @@ class GoalRunService:
             GoalRun.id == run_id,
             GoalRun.workspace_id == self.workspace_id).first()
 
+    @staticmethod
+    def _bump_material(run) -> None:
+        """Advance the monotonic revision after any binding-material write."""
+        run.material_revision = int(run.material_revision or 0) + 1
+
     # ------------------------------------------------------------ surfaces
 
     def set_supervision_mode(self, run_id: str, mode: str) -> Dict[str, Any]:
@@ -208,6 +221,7 @@ class GoalRunService:
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
             run.supervision_mode = mode
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -226,6 +240,7 @@ class GoalRunService:
             if not run or run.status != "active":
                 return None
             run.status = "paused_hitl"
+            self._bump_material(run)
             pending = install_pending_decision(run, {
                 "decision": "ASK_HUMAN",
                 "rationale": (reason or "run stalled")[:2000],
@@ -309,6 +324,7 @@ class GoalRunService:
                 # run's live waiting projection is cleared. Without this, a
                 # cancelled run stays publicly "waiting for input" forever.
                 run.waiting_on = None
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             result = self._to_dict(run)
@@ -382,19 +398,24 @@ class GoalRunService:
             run = self._load(session, run_id)
             if run:
                 run.cursor = step_id
+                self._bump_material(run)
                 session.commit()
 
     # ------------------------------------------------------------- plan
 
     def set_plan(self, run_id: str, plan: List[Dict[str, Any]]) -> Dict[str, Any]:
         from core.models import GoalRun
-        # Cheap structural refusal before any DB session. Allow the assignment
-        # projection kind only for this first pass so an assignment plan can
-        # reach the run-context check below; ordinary goal plans are checked
-        # again without that allowance.
-        pre_errors = validate_goal_plan(
-            plan, require_non_empty=True,
-            allowed_extra_kinds=("operation",))
+        # Cheap structural refusal before any DB session. A projection-shaped
+        # list is validated as a read model; a goal plan is validated as
+        # executable vocabulary. Ownership is established below from the
+        # trusted server-side association, never from caller parameters.
+        projection_plan = bool(plan) and all(
+            normalize_step_kind(step) == "operation"
+            for step in plan if isinstance(step, dict))
+        if projection_plan:
+            pre_errors = validate_assignment_projection(plan)
+        else:
+            pre_errors = validate_goal_plan(plan, require_non_empty=True)
         if pre_errors:
             raise ValueError(
                 "invalid goal plan: " + "; ".join(pre_errors))
@@ -403,21 +424,27 @@ class GoalRunService:
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
             # Assignment/task runs store an inspection projection whose steps
-            # are operation records, not goal-executor steps. Allow only that
-            # projection kind for such runs; ordinary goal plans and REPLANs
-            # still face the executable vocabulary.
-            projection = bool(
-                isinstance(run.parameters, dict)
-                and isinstance(run.parameters.get("task_lifecycle"), dict))
-            errors = validate_goal_plan(
-                plan, require_non_empty=True,
-                allowed_extra_kinds=("operation",) if projection else ())
+            # are operation records, not goal-executor steps. Only a run with
+            # the trusted task_created/assignment_attached association may
+            # write that projection; ordinary goal plans and REPLANs, and
+            # forged task_lifecycle markers, still face the executable
+            # vocabulary.
+            from core.goals.goal_run_ownership import is_assignment_owned
+            if projection_plan and not is_assignment_owned(run):
+                raise ValueError(
+                    "invalid goal plan: an operation projection requires "
+                    "trusted assignment ownership")
+            if projection_plan:
+                errors = validate_assignment_projection(plan)
+            else:
+                errors = validate_goal_plan(plan, require_non_empty=True)
             if errors:
                 raise ValueError(
                     "invalid goal plan: " + "; ".join(errors))
             run.plan = list(plan or [])
             if run.status == "planning" and run.plan:
                 run.cursor = run.plan[0].get("id")
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -442,6 +469,7 @@ class GoalRunService:
                 else:
                     merged[key] = value
             run.parameters = merged
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -486,6 +514,7 @@ class GoalRunService:
                     if step.get("id") == (step_id or run.cursor):
                         step["done"] = True
                 run.plan = plan
+                self._bump_material(run)
                 session.commit()
         self._advance_cursor(run_id, {})
 
@@ -509,6 +538,7 @@ class GoalRunService:
                     f"cannot wait from status '{run.status}'")
             run.waiting_on = {**spec, "created_at": _iso()}
             run.status = "waiting"
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             result = self._to_dict(run)
@@ -559,7 +589,8 @@ class GoalRunService:
                 GoalRun.waiting_on.isnot(None),
             ).update(
                 {"waiting_on": None, "status": "active",
-                 "decision_log": log},
+                 "decision_log": log,
+                 "material_revision": GoalRun.material_revision + 1},
                 synchronize_session=False,
             )
             if updated != 1:
@@ -632,6 +663,18 @@ class GoalRunService:
             # the supervisor — never execute around an unresolved hold.
             return {"advanced": False,
                     "reason": "held decision awaiting approval"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # The assignment owns its plan and effects. Do not spend a router
+            # call or execute any native decision against its projection.
+            return {
+                "advanced": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "run": run,
+            }
 
         # 1. Goal evaluation drives termination/escalation (§3.4).
         goal_state = self._evaluate_goal(run)
@@ -693,6 +736,22 @@ class GoalRunService:
         run = self.get_run(run_id)
         if not run:
             return {"advanced": False, "reason": "run not found"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # Includes held/approved native decisions: approval replay can
+            # never turn an assignment projection into native work.
+            return {
+                "advanced": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "result": {
+                    "not_executed": True,
+                    "assignment_continuation_required": True,
+                },
+                "run": run,
+            }
         kind = decision.get("decision")
 
         if kind == "ASK_HUMAN":
@@ -753,6 +812,7 @@ class GoalRunService:
                     db_run.replan_count = (db_run.replan_count or 0) + 1
                     if db_run.plan and not db_run.cursor:
                         db_run.cursor = db_run.plan[0].get("id")
+                    self._bump_material(db_run)
                     session.commit()
             return {"advanced": True, "decision": "REPLAN",
                     "run": self.get_run(run_id)}
@@ -761,6 +821,11 @@ class GoalRunService:
             return self._finish_done(run_id, decision)
 
         result = await executors.execute(run, decision)
+        if isinstance(result, dict) and result.get("not_executed"):
+            # Refused before any canvas/effect/counter: a non-executable
+            # assignment projection or unknown kind is not native work.
+            return {"advanced": False, "decision": kind, "result": result,
+                    "run": self.get_run(run_id)}
         # Non-terminal canvas work updates the counters; REVISE_CURRENT
         # stays on the step (that is what "revise" means) — only ADVANCE /
         # BRANCH / SKIP move the cursor.
@@ -787,6 +852,7 @@ class GoalRunService:
             if db_run:
                 if db_run.status == "active":
                     db_run.status = "paused_hitl"
+                self._bump_material(db_run)
                 pending = install_pending_decision(db_run, decision)
                 db_run.pending_decision = pending
                 db_run.human_interventions = pending["decision_generation"]
@@ -856,6 +922,18 @@ class GoalRunService:
         run = self.get_run(run_id)
         if not run:
             return {"resumed": False, "reason": "run not found"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # No HITL closure, learning, or executor work for a projection
+            # owned by the assignment driver.
+            return {
+                "resumed": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "run": run,
+            }
         pending = run.get("pending_decision")
         if not pending:
             return {"resumed": False, "reason": "no pending decision"}
@@ -902,7 +980,12 @@ class GoalRunService:
                 session.rollback()
                 return {"resumed": False, "reason": "no pending decision"}
             current_decision = db_run.pending_decision or {}
-            values: Dict[str, Any] = {"pending_decision": None}
+            expected_material_revision = int(
+                run.get("material_revision") or 0)
+            values: Dict[str, Any] = {
+                "pending_decision": None,
+                "material_revision": GoalRun.material_revision + 1,
+            }
             if db_run.status == "paused_hitl":
                 values["status"] = "waiting" if db_run.waiting_on else "active"
             updated = session.query(GoalRun).filter(
@@ -910,6 +993,7 @@ class GoalRunService:
                 GoalRun.workspace_id == self.workspace_id,
                 GoalRun.pending_decision.isnot(None),
                 GoalRun.human_interventions == expected_generation,
+                GoalRun.material_revision == expected_material_revision,
                 GoalRun.status == run.get("status"),
             ).update(values, synchronize_session=False)
             if updated != 1:
@@ -1089,6 +1173,7 @@ class GoalRunService:
             db_run = self._load(session, run_id)
             if db_run:
                 db_run.steps_executed = (db_run.steps_executed or 0) + 1
+                self._bump_material(db_run)
                 session.commit()
 
     def _advance_cursor(self, run_id: str, decision: Dict[str, Any]) -> None:
@@ -1171,6 +1256,7 @@ class GoalRunService:
             "replan_count": run.replan_count,
             "steps_executed": run.steps_executed,
             "human_interventions": run.human_interventions,
+            "material_revision": run.material_revision,
             "created_by": run.created_by,
             "created_at": run.created_at.isoformat() if run.created_at else None,
             "updated_at": run.updated_at.isoformat() if run.updated_at else None,

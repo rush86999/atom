@@ -1420,7 +1420,13 @@ class TaskLifecycle:
             if workspace_id:
                 filters.append(GoalRun.workspace_id == workspace_id)
             updated = session.query(GoalRun).filter(*filters).update(
-                {"parameters": params, "decision_log": log},
+                {
+                    "parameters": params,
+                    "decision_log": log,
+                    # Task-lifecycle parameters are binding-material: a held
+                    # decision must not execute after the assignment changes.
+                    "material_revision": GoalRun.material_revision + 1,
+                },
                 synchronize_session=False)
             session.commit()
             return updated == 1

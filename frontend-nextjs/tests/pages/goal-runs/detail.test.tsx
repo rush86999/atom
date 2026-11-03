@@ -35,6 +35,7 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/lib/goal-run-api", () => ({
   __esModule: true,
+  isAssignmentOwnedRun: jest.requireActual("@/lib/goal-run-api").isAssignmentOwnedRun,
   getGoalRun: jest.fn(),
   getGoalRunCanvases: jest.fn().mockResolvedValue([]),
   getGoal: jest.fn(),
@@ -425,5 +426,63 @@ describe("GoalRun detail — coaching", () => {
         decision_binding: "bind-1",
       },
     ));
+  });
+});
+
+describe("GoalRunDetailPage assignment projection ownership", () => {
+  const assignmentRun = () => run({
+    status: "paused_hitl",
+    parameters: {
+      task_lifecycle: {
+        task_version: 2,
+        task_revision: { revision: 2 },
+        operations: [],
+        conversation_id: "conv-1",
+      },
+    },
+    decision_log: [{ ts: "2026-11-02T00:00:00Z", kind: "task_created" }],
+    plan: [{
+      id: "read-1", kind: "operation", title: "Read the approved source",
+      operation_type: "retrieve", status: "pending",
+    }],
+    cursor: "read-1",
+    pending_decision: {
+      ts: "", kind: "decision", decision: "ADVANCE",
+      rationale: "native projection step",
+      decision_id: "dec-a", decision_generation: 1,
+      decision_binding: "bind-a",
+    } as any,
+  });
+
+  it("shows the assignment plan read-only and sends no native advance", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalRun.mockResolvedValue(assignmentRun());
+    render(<GoalRunDetailPage />);
+
+    const banner = await waitFor(() =>
+      screen.getByTestId("assignment-continuation"));
+    expect(banner.textContent).toContain("read-only projection");
+    expect(screen.getByText("Read the approved source")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /advance/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    expect(screen.getByTestId("assignment-pending-note").textContent)
+      .toContain("assignment panel");
+    expect(screen.queryByRole("button", { name: /^approve/i })).toBeNull();
+    expect(screen.queryByTestId("guidance-input")).toBeNull();
+  });
+
+  it("a caller-shaped marker without the trusted creation log stays native", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalRun.mockResolvedValue(run({
+      status: "active",
+      parameters: { task_lifecycle: {} },
+      plan: [{ id: "s1", kind: "canvas_work", title: "Draft the quote" }],
+      cursor: "s1",
+    }));
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("goal-run-detail"));
+    expect(screen.queryByTestId("assignment-continuation")).toBeNull();
+    expect(screen.getByRole("button", { name: /advance/i })).toBeInTheDocument();
   });
 });

@@ -78,6 +78,8 @@ def decision_binding(
             "waiting_on": _value(run, "waiting_on", None),
             "replan_count": int(_value(run, "replan_count", 0) or 0),
             "steps_executed": int(_value(run, "steps_executed", 0) or 0),
+            "material_revision": int(
+                _value(run, "material_revision", 0) or 0),
         },
         "decision": reviewed_decision_material(decision),
     }

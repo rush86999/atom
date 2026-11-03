@@ -142,7 +142,7 @@ async def decide_approval(
     from core.hitl_resume import preflight_hitl_decision
 
     preflight = preflight_hitl_decision(
-        approval_id, body.modified_params, action=action)
+        approval_id, body.modified_params, action=action, db=db)
     if not preflight.get("valid", True):
         reason = preflight.get("reason") or "stale_decision_review"
         raise HTTPException(

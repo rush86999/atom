@@ -107,6 +107,26 @@ export interface GoalRun {
   created_at: string | null;
 }
 
+/**
+ * A task-lifecycle assignment owns its run. The plan is an inspection
+ * projection; work and approvals continue in the assignment panel, never
+ * through the native goal loop. Ownership requires the durable server-side
+ * creation marker, not just a caller-shaped `task_lifecycle` parameter.
+ */
+export function isAssignmentOwnedRun(run: GoalRun | null | undefined): boolean {
+  const parameters = run?.parameters as Record<string, unknown> | undefined;
+  const lifecycle = parameters?.task_lifecycle;
+  if (!lifecycle || typeof lifecycle !== 'object' || Array.isArray(lifecycle)) {
+    return false;
+  }
+  const revision = (lifecycle as Record<string, unknown>).task_revision;
+  if (!revision || typeof revision !== 'object' || Array.isArray(revision)) {
+    return false;
+  }
+  return (run?.decision_log || []).some((entry) =>
+    entry.kind === 'task_created' || entry.kind === 'assignment_attached');
+}
+
 export interface GoalRunCanvas {
   id: string;
   name: string;

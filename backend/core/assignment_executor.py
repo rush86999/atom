@@ -1586,6 +1586,14 @@ class AssignmentExecutor:
         """Attach a plan to an existing task (inspection/import/tests)."""
         self.lifecycle.put_assignment(
             run_id, assignment, rationale="assignment attached")
+        # Trusted ownership association: this is the only attach path and it
+        # writes through the server-side decision log, never through caller
+        # parameters. The native goal loop refuses the resulting projection.
+        self.lifecycle.runs.append_decision(run_id, {
+            "kind": "assignment_attached",
+            "assignment_id": assignment.get("assignment_id"),
+            "plan_revision": assignment.get("plan_revision"),
+        })
         self._sync_run_plan(run_id, assignment)
         return self.lifecycle.get_task(run_id) or {}
 
@@ -1597,6 +1605,10 @@ class AssignmentExecutor:
         The plan is an inspection/continuation projection, not a second
         execution truth: effect status still lives on the operation records.
         """
+        from core.goals.goal_plan_validation import (
+            validate_assignment_projection,
+        )
+
         plan = []
         for step in assignment.get("steps") or []:
             plan.append({
@@ -1608,6 +1620,11 @@ class AssignmentExecutor:
                 "depends_on": list(step.get("depends_on") or []),
                 "status": step.get("status"),
             })
+        projection_errors = validate_assignment_projection(plan)
+        if projection_errors:
+            raise AssignmentError(
+                "invalid assignment projection: "
+                + "; ".join(projection_errors))
         try:
             self.lifecycle.runs.set_plan(run_id, plan)
         except Exception as exc:  # noqa: BLE001 — plan projection is auxiliary

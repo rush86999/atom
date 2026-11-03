@@ -10592,6 +10592,12 @@ class GoalRun(Base):
     replan_count = Column(Integer, nullable=False, default=0)
     steps_executed = Column(Integer, nullable=False, default=0)
     human_interventions = Column(Integer, nullable=False, default=0)
+    # Monotonic revision of binding-material state: plan, cursor, parameters,
+    # waiting/terminal state, supervision/scope and the counters above.
+    # Diagnostic decision_log timestamps do NOT advance it. Approval claims
+    # CAS on this value so a change after review validation cannot be
+    # executed under the old review.
+    material_revision = Column(Integer, nullable=False, default=0)
 
     created_by = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

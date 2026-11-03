@@ -15,6 +15,7 @@ HITL row's status.
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from typing import Any, Dict, Optional
 
 from core.models import HITLAction
@@ -56,6 +57,7 @@ def preflight_hitl_decision(
     modified_params: Optional[Dict[str, Any]] = None,
     *,
     action: Any = None,
+    db: Any = None,
 ) -> Dict[str, Any]:
     """Validate a goal-decision approval BEFORE any HITL state changes.
 
@@ -100,9 +102,17 @@ def preflight_hitl_decision(
     from core.goals.goal_run_binding import validate_pending_decision
     from core.goals.goal_run_service import GoalRunService
 
+    session_factory = None
+    if db is not None:
+        @contextmanager
+        def _session():
+            yield db
+
+        session_factory = _session
     svc = GoalRunService(
         workspace_id=_action_field(action, "workspace_id") or "default",
         tenant_id=_action_field(action, "tenant_id") or "default",
+        session_factory=session_factory,
     )
     run = svc.get_run(run_id)
     if not run:
