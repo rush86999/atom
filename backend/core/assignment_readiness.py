@@ -250,6 +250,18 @@ def _verified_receipt_proof(
     complete/non-truncated coverage when coverage is declared.
     """
     verification = result.get("verification")
+    receipt = result.get("receipt") if isinstance(
+        result.get("receipt"), dict) else {}
+    if not isinstance(verification, dict) or not verification:
+        # Durable operation receipts carry the same proof under
+        # ``remote_identity.verification``. Older/restarted results may only
+        # have this form; it is still explicit structured verification, not a
+        # free-form status.
+        remote = receipt.get("remote_identity") if isinstance(
+            receipt.get("remote_identity"), dict) else {}
+        verification = remote.get("verification")
+        if not isinstance(verification, dict) or not verification:
+            verification = receipt.get("verification")
     if not isinstance(verification, dict) or not verification:
         return "unknown", "verified_proof_missing"
     status = str(verification.get("status") or "").lower()
@@ -267,6 +279,10 @@ def _verified_receipt_proof(
     coverage = result.get("coverage")
     if not isinstance(coverage, dict):
         coverage = verification.get("coverage")
+    if not isinstance(coverage, dict):
+        receipt_source = receipt.get("source") if isinstance(
+            receipt.get("source"), dict) else {}
+        coverage = receipt_source.get("coverage")
     if isinstance(coverage, dict) and coverage:
         if coverage.get("truncated") is True:
             return "unknown", "verified_coverage_truncated"

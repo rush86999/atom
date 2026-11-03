@@ -5633,6 +5633,11 @@ class AssignmentExecutor:
             "artifact_revision": (
                 (result.get("artifact") or {}).get("revision")
                 if isinstance(result.get("artifact"), dict) else None),
+            # Preserve the material proof/coverage on the durable step result.
+            # The operation receipt also carries it, but dependent readiness
+            # evaluates the step result and must not lose the proof.
+            "verification": result.get("verification"),
+            "coverage": result.get("coverage"),
             "value": result.get("value"),
             "unit": result.get("unit"),
             "expression": result.get("expression"),

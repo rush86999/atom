@@ -3760,6 +3760,107 @@ def test_plan_shape_output_is_not_a_durable_mutation():
         create, {"step": {"effect": "local"}}) is True
 
 
+@pytest.mark.parametrize("proof,expected_reason", [
+    ({}, "verified_proof_missing"),
+    ({"verification": {"status": "conflict"}}, "verified_proof_refuted"),
+    ({"verification": {"status": "verified",
+                       "missing_fields": ["currency"]}},
+     "verified_proof_missing_fields"),
+    ({"verification": {"status": "verified"},
+      "coverage": {"truncated": True}}, "verified_coverage_truncated"),
+])
+def test_verified_receipt_gates_dependent_execution(
+        env, proof, expected_reason):
+    calls = []
+
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "row", **proof}
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": "dependent-result"}
+
+    async def independent(inputs, context):
+        calls.append("independent")
+        return {"status": "applied", "value": "independent-result"}
+
+    env["registry"].register("test.receipt.source", source)
+    env["registry"].register("test.receipt.dependent", dependent)
+    env["registry"].register("test.receipt.independent", independent)
+    steps = [
+        new_step(
+            step_id="independent", title="Independent work",
+            operation_type="retrieve",
+            adapter="test.receipt.independent", effect="read_only"),
+        new_step(
+            step_id="source", title="Read verified source",
+            operation_type="retrieve", adapter="test.receipt.source",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Use verified evidence",
+            operation_type="calculate", adapter="test.receipt.dependent",
+            depends_on=["source"], effect="local",
+            requires=[{"kind": "receipt", "step_id": "source",
+                       "require": "verified"}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Use verified evidence", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"])
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "source")["status"] == "applied"
+    assert calls == ["independent"], calls
+    dependent_step = step_by_id(assignment, "dependent")
+    assert dependent_step["status"] == "pending"
+    assert dependent_step["readiness"]["truth"] in ("unknown", "false")
+    assert dependent_step["readiness"]["blockers"][0]["reason"] == (
+        expected_reason)
+    assert result["assignment"]["status"] != "completed"
+
+
+def test_verified_receipt_positive_twin_executes_dependent(env):
+    calls = []
+
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "verified source",
+            "value": "row",
+            "verification": {"status": "verified",
+                             "coverage": {"complete": True,
+                                          "truncated": False}},
+            "coverage": {"complete": True, "truncated": False},
+        }
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": "dependent-result"}
+
+    env["registry"].register("test.receipt.strong_source", source)
+    env["registry"].register("test.receipt.strong_dependent", dependent)
+    steps = [
+        new_step(
+            step_id="source", title="Read verified source",
+            operation_type="retrieve", adapter="test.receipt.strong_source",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Use verified evidence",
+            operation_type="calculate",
+            adapter="test.receipt.strong_dependent",
+            depends_on=["source"], effect="local",
+            requires=[{"kind": "receipt", "step_id": "source",
+                       "require": "verified"}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Use verified evidence", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"])
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["dependent"]
+    assert step_by_id(assignment, "dependent")["status"] == "applied"
+    assert result["assignment"]["status"] == "completed"
+
+
 def test_business_readiness_blocks_dependent_while_independent_runs(env):
     """Unknown qualification blocks one branch; useful work still completes."""
     calls = []
