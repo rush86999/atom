@@ -165,7 +165,9 @@ def _write_quote(path: Path, b_price: float, a_qty: int) -> None:
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Prices"
-    sheet.append(["Item", "Qty", "Price", "Currency"])
+    # Deliberately unfamiliar headers: the model must perform the semantic
+    # mapping; the reasoner must not filter them out before reasoning.
+    sheet.append(["Product", "Units", "ApprovedCost", "Currency"])
     sheet.append(["A", a_qty, 100, "USD"])
     sheet.append(["B", 3, b_price, "USD"])
     workbook.save(path)

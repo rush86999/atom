@@ -510,3 +510,16 @@ def test_invoice_role_bindings_resolve_from_evidence_shape():
         "purchase_order_step_id": "po",
         "receiving_step_id": "receiving",
     } in patch["observations"]
+
+
+def test_invoice_wrong_purchase_order_identity_is_refused():
+    po, invoice, receiving = _verified_invoice_evidence()
+    invoice["result"]["data"]["po_id"] = "PO-OTHER"
+    assignment = new_assignment(
+        objective="Reconcile the invoice",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[po, invoice, receiving],
+        authorized_actions=["retrieve", "calculate"])
+    with pytest.raises(WorkRequestCompileError, match="not the accepted"):
+        compile_work_request_patch(
+            _invoice_request(), assignment, context={})

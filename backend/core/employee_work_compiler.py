@@ -498,15 +498,24 @@ def _invoice_patch(
             invoice_step_id, purchase_order_step_id, receiving_step_id):
         _step_result(assignment, step_id)
         _require_verified(assignment, step_id)
-    _invoice_evidence_shape(
+    invoice_data = _invoice_evidence_shape(
         assignment, invoice_step_id, invoice_fields, invoice_fields,
-        ("invoice_id", "po_id", "quantity", "unit_price"), "invoice")
-    _invoice_evidence_shape(
+        INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
+    po_data = _invoice_evidence_shape(
         assignment, purchase_order_step_id, po_fields, po_fields,
-        ("po_id", "vendor_id"), "purchase order")
-    _invoice_evidence_shape(
+        INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
+    receiving_data = _invoice_evidence_shape(
         assignment, receiving_step_id, receiving_fields,
-        receiving_fields, ("po_id", "received_quantity"), "receiving")
+        receiving_fields, INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
+    po_identity = str(po_data.get(po_fields["po_id"]) or "").strip()
+    for label, data, fields in (
+            ("invoice", invoice_data, invoice_fields),
+            ("receiving", receiving_data, receiving_fields)):
+        identity = str(data.get(fields["po_id"]) or "").strip()
+        if po_identity and identity and identity != po_identity:
+            raise WorkRequestCompileError(
+                f"{label} belongs to purchase order {identity!r}, not the "
+                f"accepted purchase order {po_identity!r}")
     if request.bill_action:
         from core.action_registry import action_registry
         from core.assignment_planner import _registered_action_effect

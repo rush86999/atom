@@ -13,7 +13,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -951,6 +951,7 @@ async def _advance_employee_work(
                     "next_retrieval": clarification.get("unblocks") or None,
                 }
                 if chosen:
+                    entry["kind"] = "missing_evidence"
                     entry["concept"] = (
                         entry["concept"] or chosen.get("operation"))
                     entry["item"] = chosen.get("label")
