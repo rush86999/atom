@@ -630,6 +630,50 @@ def _draft_saved_verifier(outcome: Dict[str, Any]) -> "bool | None":
     return None
 
 
+def sent_record_confirmed_evidence(step: Dict[str, Any],
+                                   result: Dict[str, Any]) -> "bool | None":
+    """Explicit authoritative Sent Items confirmation, never acceptance.
+
+    Provider acceptance proves the request reached the provider, not that the
+    message is observable in Sent Items. Only an explicit correlated readback
+    (or a test/controlled readback seam) may set this stronger fact.
+    """
+    if not isinstance(result, dict):
+        return None
+    explicit = result.get("sent_record_confirmed")
+    if isinstance(explicit, bool):
+        return explicit
+    receipt = result.get("receipt") if isinstance(
+        result.get("receipt"), dict) else {}
+    readback = result.get("readback") or receipt.get("readback")
+    if not isinstance(readback, dict):
+        return None
+    direct = readback.get("sent_record_confirmed")
+    if isinstance(direct, bool):
+        return direct
+    sent_items = readback.get("sent_items")
+    if isinstance(sent_items, bool):
+        return sent_items
+    if not isinstance(sent_items, dict):
+        return None
+    present = sent_items.get("present", sent_items.get("found"))
+    if not isinstance(present, bool):
+        return None
+    expected = {
+        str(value) for value in (
+            step.get("operation_id"), result.get("provider_ref"),
+            receipt.get("operation_id")) if value
+    }
+    observed = {
+        str(value) for value in (
+            sent_items.get("operation_id"),
+            sent_items.get("provider_ref")) if value
+    }
+    if expected and observed and not expected & observed:
+        return False
+    return present
+
+
 def _employee_result_verifier(outcome: Dict[str, Any]) -> "bool | None":
     """A business result exists: artifact, draft, or verified provider effect.
 
@@ -1176,8 +1220,12 @@ def build_assignment_outcome(
                     or outbound.get("provider_ref")
                     or outbound.get("remote_id")
                     or remote.get("provider_ref"))
-                delivery["sent_record_confirmed"] = accepted
-                delivery["delivery_confirmed"] = False
+            # Stronger observations stand on their own evidence. Neither is
+            # inferred from provider acceptance; unobserved delivery stays
+            # unknown instead of being asserted false.
+            sent_record = sent_record_confirmed_evidence(step, result)
+            if sent_record is not None:
+                delivery["sent_record_confirmed"] = sent_record
         if result.get("value") is not None:
             calculation = {
                 "computed": result.get("value"),

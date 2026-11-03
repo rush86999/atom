@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pytest
+
 from core.assignment_plan import new_assignment, new_step, new_teaching_snapshot
 from core.assignment_readiness import (
     evaluate_step_readiness,
@@ -88,6 +90,7 @@ def test_all_or_unknown_and_not_truth_tables():
         any_assignment["steps"][0], any_assignment,
         task_authorization="read_only")
     assert any_decision["eligible"] is True
+    assert any_decision["blockers"] == []
 
 
 def test_receipt_requires_applied_with_result():
@@ -148,3 +151,139 @@ def test_requirements_and_facts_validate():
         assert "duplicate" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("duplicate facts accepted")
+
+
+def _receipt_assignment(result, require="applied"):
+    source = _step("source")
+    source["status"] = "applied"
+    source["operation_id"] = "op-source"
+    source["result"] = result
+    return _assignment(steps=[
+        source,
+        _step("dependent", requires=[
+            {"kind": "receipt", "step_id": "source", "require": require}]),
+    ])
+
+
+def test_verified_receipt_accepts_complete_explicit_verification():
+    assignment = _receipt_assignment(
+        {"verification": {"status": "verified",
+                          "coverage": {"complete": True}}},
+        require="verified")
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment, task_authorization="read_only")
+    assert decision["eligible"] is True, decision
+    assert decision["truth"] == "true"
+
+
+@pytest.mark.parametrize("result,truth,reason", [
+    ({}, "unknown", "applied_without_result"),
+    ({"value": "row"}, "unknown", "verified_proof_missing"),
+    ({"verification": {"status": "conflict"}},
+     "false", "verified_proof_refuted"),
+    ({"verification": {"status": "refuted"}},
+     "false", "verified_proof_refuted"),
+    ({"verification": {"status": "verified",
+                       "missing_fields": ["currency"]}},
+     "false", "verified_proof_missing_fields"),
+    ({"verification": {"status": "verified",
+                       "mismatches": ["amount"]}},
+     "false", "verified_proof_mismatches"),
+    ({"verification": {"status": "verified",
+                       "coverage": {"complete": False}}},
+     "unknown", "verified_coverage_incomplete"),
+    ({"verification": {"status": "verified",
+                       "coverage": {"known": False}}},
+     "unknown", "verified_coverage_unknown"),
+    ({"coverage": {"known": True, "truncated": True}},
+     "unknown", "verified_proof_missing"),
+    ({"verification": {"status": "verified"}, "truncated": True},
+     "unknown", "verified_coverage_truncated"),
+    ({"verification": {"status": "unverified"}},
+     "unknown", "verified_proof_incomplete"),
+])
+def test_verified_receipt_refuses_weaker_or_incomplete_proof(
+        result, truth, reason):
+    assignment = _receipt_assignment(result, require="verified")
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment, task_authorization="read_only")
+    assert decision["eligible"] is False, decision
+    assert decision["truth"] == truth
+    assert decision["blockers"][0]["reason"] == reason
+
+
+def test_verified_receipt_binding_must_match_a_declared_applied_step():
+    assignment = _receipt_assignment(
+        {"verification": {"status": "verified"}}, require="verified")
+    assignment["steps"][0]["status"] = "skipped"
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment, task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["blockers"][0]["reason"] == "not_applied"
+
+    assignment["steps"][0]["status"] = "applied"
+    assignment["steps"][1]["requires"] = [
+        {"kind": "receipt", "step_id": "absent", "require": "verified"}]
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment, task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["blockers"][0]["reason"] == "not_applied"
+
+
+def test_unknown_receipt_requirement_names_refuse_normalization():
+    for require in ("trusted", "verified_or_applied", "material"):
+        with pytest.raises(ValueError, match="receipt require"):
+            normalize_requirements(
+                [{"kind": "receipt", "step_id": "source",
+                  "require": require}])
+
+
+def test_verified_receipt_binding_must_match_the_receipt_identity():
+    identity = {
+        "operation_id": "op-source",
+        "resource_id": "res-1",
+        "source_version": "v3",
+        "subject": {"kind": "invoice", "id": "INV-1"},
+    }
+    assignment = _receipt_assignment({
+        **identity,
+        "verification": {
+            "status": "verified",
+            "operation_id": "op-source",
+            "resource_id": "res-1",
+            "version": "v3",
+            "subject": {"kind": "invoice", "id": "INV-1"},
+        },
+    }, require="verified")
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is True
+
+    for field, value, reason in (
+        ("operation_id", "op-other", "verified_binding_operation_id_mismatch"),
+        ("resource_id", "res-other", "verified_binding_resource_id_mismatch"),
+        ("version", "v4", "verified_binding_version_mismatch"),
+        ("subject", {"kind": "invoice", "id": "INV-2"},
+         "verified_binding_subject_mismatch"),
+    ):
+        mismatched = _receipt_assignment({
+            **identity,
+            "verification": {"status": "verified", field: value},
+        }, require="verified")
+        decision = evaluate_step_readiness(
+            mismatched["steps"][1], mismatched,
+            task_authorization="read_only")
+        assert decision["eligible"] is False, (field, decision)
+        assert decision["blockers"][0]["reason"] == reason
+
+
+def test_verified_receipt_binding_absent_from_receipt_stays_unknown():
+    assignment = _receipt_assignment(
+        {"verification": {"status": "verified", "request_id": "req-1"}},
+        require="verified")
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment, task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["truth"] == "unknown"
+    assert decision["blockers"][0]["reason"] == (
+        "verified_binding_request_id_missing")

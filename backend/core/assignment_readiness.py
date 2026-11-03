@@ -15,6 +15,10 @@ EVIDENCE_STATES = (
     "unavailable",
 )
 PREDICATE_KINDS = ("fact", "receipt", "authority", "time", "all", "any", "not")
+RECEIPT_REQUIREMENTS = ("applied", "verified")
+_VERIFIED_STATUSES = ("verified", "material_verified", "confirmed", "complete")
+_REFUTED_STATUSES = ("conflict", "conflicting", "mismatch", "mismatched",
+                     "refuted", "failed", "invalid")
 _MAX_DEPTH = 8
 _MAX_PREDICATES = 40
 
@@ -84,7 +88,12 @@ def normalize_requirements(value: Any, *, depth: int = 0) -> List[Dict[str, Any]
             if not step_id:
                 raise ValueError("receipt requirement needs step_id")
             item["step_id"] = step_id
-            item["require"] = _text(raw.get("require"), 40) or "applied"
+            require = _text(raw.get("require"), 40).lower() or "applied"
+            if require not in RECEIPT_REQUIREMENTS:
+                raise ValueError(
+                    "receipt require must be one of "
+                    + ", ".join(RECEIPT_REQUIREMENTS))
+            item["require"] = require
         elif kind == "authority":
             allow = raw.get("allow")
             if allow is not None:
@@ -171,6 +180,105 @@ def _fact_truth(fact: Optional[Dict[str, Any]], requirement: Dict[str, Any],
     return _truth(actual == expected)
 
 
+def _binding_actual(
+    result: Dict[str, Any], step: Dict[str, Any], field: str,
+) -> Any:
+    receipt = result.get("receipt") if isinstance(
+        result.get("receipt"), dict) else {}
+    outbound = receipt.get("outbound") if isinstance(
+        receipt.get("outbound"), dict) else {}
+    source = result.get("source") if isinstance(
+        result.get("source"), dict) else {}
+    artifact = result.get("artifact") if isinstance(
+        result.get("artifact"), dict) else {}
+    binding = result.get("binding") if isinstance(
+        result.get("binding"), dict) else {}
+    return {
+        "operation_id": (
+            result.get("operation_id") or step.get("operation_id")
+            or receipt.get("operation_id")),
+        "request_id": result.get("request_id") or receipt.get("request_id"),
+        "resource_id": (
+            result.get("resource_id") or source.get("resource_id")
+            or source.get("id") or binding.get("resource_id")),
+        "subject": (
+            result.get("subject") or result.get("subject_id")
+            or binding.get("subject") or outbound.get("subject")),
+        "version": (
+            result.get("version") or result.get("source_version")
+            or source.get("version") or artifact.get("revision")
+            or outbound.get("version")),
+        "sha256": (
+            result.get("sha256") or artifact.get("sha256")
+            or receipt.get("sha256")),
+    }.get(field)
+
+
+def _verification_binding(
+    verification: Dict[str, Any],
+    result: Dict[str, Any],
+    step: Dict[str, Any],
+) -> tuple:
+    """Declared proof identity must match the receipt it claims to verify."""
+    for field in ("operation_id", "request_id", "resource_id", "subject",
+                  "version", "sha256"):
+        if field not in verification:
+            continue
+        declared = verification.get(field)
+        if declared in (None, "", [], {}):
+            continue
+        actual = _binding_actual(result, step, field)
+        if actual in (None, "", [], {}):
+            return "unknown", f"verified_binding_{field}_missing"
+        if isinstance(declared, (dict, list)) or isinstance(
+                actual, (dict, list)):
+            if declared != actual:
+                return "false", f"verified_binding_{field}_mismatch"
+        elif str(declared) != str(actual):
+            return "false", f"verified_binding_{field}_mismatch"
+    return "true", ""
+
+
+def _verified_receipt_proof(
+    result: Dict[str, Any], step: Optional[Dict[str, Any]] = None,
+) -> tuple:
+    """Return (truth, reason) for a receipt that requires verified proof.
+
+    A step status of ``applied`` is not material verification. The proof must
+    say verified/confirmed, carry no missing/mismatched/conflicting fields,
+    bind to the operation/resource/version it claims to verify, and have
+    complete/non-truncated coverage when coverage is declared.
+    """
+    verification = result.get("verification")
+    if not isinstance(verification, dict) or not verification:
+        return "unknown", "verified_proof_missing"
+    status = str(verification.get("status") or "").lower()
+    if status in _REFUTED_STATUSES:
+        return "false", "verified_proof_refuted"
+    if status not in _VERIFIED_STATUSES:
+        return "unknown", "verified_proof_incomplete"
+    for key in ("missing_fields", "mismatches", "conflicts", "refuted_fields"):
+        value = verification.get(key)
+        if value:
+            return "false", f"verified_proof_{key}"
+    binding = _verification_binding(verification, result, step or {})
+    if binding[0] != "true":
+        return binding
+    coverage = result.get("coverage")
+    if not isinstance(coverage, dict):
+        coverage = verification.get("coverage")
+    if isinstance(coverage, dict) and coverage:
+        if coverage.get("truncated") is True:
+            return "unknown", "verified_coverage_truncated"
+        if coverage.get("complete") is False:
+            return "unknown", "verified_coverage_incomplete"
+        if coverage.get("known") is False:
+            return "unknown", "verified_coverage_unknown"
+    if result.get("truncated") is True or verification.get("truncated") is True:
+        return "unknown", "verified_coverage_truncated"
+    return "true", ""
+
+
 def _predicate(
     predicate: Dict[str, Any],
     assignment: Dict[str, Any],
@@ -214,24 +322,34 @@ def _predicate(
                         "reason": "not_applied",
                     }], "supporting_refs": []}
         result = dependency.get("result")
-        if result is None:
+        if not isinstance(result, dict) or not result:
             return {"truth": "unknown",
                     "blockers": [{
                         "kind": "predecessor",
                         "step_id": predicate.get("step_id"),
                         "reason": "applied_without_result",
                     }], "supporting_refs": []}
-        verification = (result.get("verification")
-                        if isinstance(result, dict) else None)
-        if isinstance(verification, dict) and str(
-                verification.get("status") or "").lower() in (
-                    "incomplete", "unknown", "unverified"):
-            return {"truth": "unknown",
-                    "blockers": [{
-                        "kind": "predecessor",
-                        "step_id": predicate.get("step_id"),
-                        "reason": "material_verification_incomplete",
-                    }], "supporting_refs": []}
+        require = str(predicate.get("require") or "applied").lower()
+        if require == "verified":
+            proof, reason = _verified_receipt_proof(result, dependency)
+            if proof != "true":
+                return {"truth": proof,
+                        "blockers": [{
+                            "kind": "predecessor",
+                            "step_id": predicate.get("step_id"),
+                            "reason": reason,
+                        }], "supporting_refs": []}
+        else:
+            verification = result.get("verification")
+            if isinstance(verification, dict) and str(
+                    verification.get("status") or "").lower() in (
+                        "incomplete", "unknown", "unverified"):
+                return {"truth": "unknown",
+                        "blockers": [{
+                            "kind": "predecessor",
+                            "step_id": predicate.get("step_id"),
+                            "reason": "material_verification_incomplete",
+                        }], "supporting_refs": []}
         return {"truth": "true", "blockers": [],
                 "supporting_refs": [str(predicate.get("step_id"))]}
 
@@ -266,8 +384,12 @@ def _predicate(
         truth = (_combine_and(item["truth"] for item in child_results)
                  if kind == "all"
                  else _combine_or(item["truth"] for item in child_results))
-        blockers = [blocker for item in child_results
-                    for blocker in item["blockers"]]
+        # An eligible OR/NOT branch must not surface a demand that did not
+        # block the chosen outcome. Only unresolved/false children are
+        # material when the predicate itself is not true.
+        blockers = [] if truth == "true" else [
+            blocker for item in child_results
+            for blocker in item["blockers"]]
         supporting = [ref for item in child_results
                       for ref in item["supporting_refs"]]
         return {"truth": truth, "blockers": blockers,
@@ -313,7 +435,8 @@ def evaluate_step_readiness(
         for item in predicates
     ]
     truth = _combine_and(item["truth"] for item in results)
-    blockers = [blocker for item in results for blocker in item["blockers"]]
+    blockers = ([] if truth == "true" else [
+        blocker for item in results for blocker in item["blockers"]])
     supporting = [ref for item in results for ref in item["supporting_refs"]]
     return {
         "step_id": step.get("step_id"),

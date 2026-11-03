@@ -3739,7 +3739,9 @@ class AssignmentExecutor:
         """
         try:
             from core.task_lifecycle import open_unresolved_questions
-            from core.task_outcome_contract import build_task_outcome
+            from core.task_outcome_contract import (
+                build_task_outcome, sent_record_confirmed_evidence,
+            )
         except Exception:
             return assignment
         steps = assignment.get("steps") or []
@@ -3807,8 +3809,12 @@ class AssignmentExecutor:
                         or outbound.get("provider_ref")
                         or outbound.get("remote_id")
                         or remote.get("provider_ref"))
-                    delivery["sent_record_confirmed"] = accepted
-                    delivery["delivery_confirmed"] = False
+                # Stronger observations stand on their own evidence. Neither
+                # is inferred from provider acceptance; unobserved delivery
+                # stays unknown instead of being asserted false.
+                sent_record = sent_record_confirmed_evidence(step, result)
+                if sent_record is not None:
+                    delivery["sent_record_confirmed"] = sent_record
             if (step.get("result") or {}).get("value") is not None:
                 calculation = {
                     "computed": (step.get("result") or {}).get("value"),
