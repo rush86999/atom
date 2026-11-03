@@ -45,7 +45,7 @@ This source additionally:
 
 | Scope | Result |
 |---|---|
-| Integrated backend selection | **559 passed** |
+| Integrated backend selection | **683 passed** |
 | Frontend assignment/goal/approvals | **54 passed** |
 | Focused affected suites | **211 passed** |
 | Patch invariants | **8 passed** |

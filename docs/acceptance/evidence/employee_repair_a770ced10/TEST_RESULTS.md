@@ -25,7 +25,7 @@ readiness also falls back to the operation receipt for restarted results.
 
 | Log | Result |
 |---|---|
-| `backend-integrated.log` | **559 passed** |
+| `backend-integrated.log` | **683 passed** |
 | `frontend-integrated.log` | **54 passed** |
 | `patch-invariants.log` | **8 passed** |
 | `two-domain-campaign.log` | **4 passed** |
