@@ -163,6 +163,17 @@ def test_requirements_cannot_be_weakened_and_facts_need_provenance(env):
         }])
     with pytest.raises(PlanPatchError, match="evidence|provenance|accepted"):
         apply_plan_patch(env["lifecycle"], run_id, unproven)
+
+    arbitrary = _patch(
+        env, run_id, patch_id="inv-fact-arbitrary",
+        invalidate_steps=[],
+        add_facts=[{
+            "fact_id": "arbitrary", "value": True,
+            "evidence_state": "established",
+            "source_refs": [{"note": "someone observed it"}],
+        }])
+    with pytest.raises(PlanPatchError, match="evidence|provenance|accepted"):
+        apply_plan_patch(env["lifecycle"], run_id, arbitrary)
     assert step_by_id(
         env["lifecycle"].get_assignment(run_id), "use-a")[
             "requires"][0]["fact_id"] == "eligibility"

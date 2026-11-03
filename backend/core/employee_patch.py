@@ -396,12 +396,18 @@ def validate_plan_patch(
         normalized_facts = []
         errors.append(f"facts: {exc}")
     for fact in normalized_facts:
-        if (str(fact.get("evidence_state") or "") == "established"
-                and not fact.get("source_refs")
-                and not fact.get("authority_ref")):
+        if str(fact.get("evidence_state") or "") != "established":
+            continue
+        bound_refs = [
+            ref for ref in (fact.get("source_refs") or [])
+            if isinstance(ref, dict) and any(
+                ref.get(key) for key in
+                ("resource_id", "source_id", "id", "uri", "sha256"))
+        ]
+        if not bound_refs and not fact.get("authority_ref"):
             errors.append(
                 f"fact {fact.get('fact_id')} is marked established without "
-                f"accepted evidence or authored confirmation")
+                f"accepted evidence identity or authored confirmation")
     for step_id, requirements in normalized.set_requires.items():
         if step_id not in seen:
             errors.append(f"set_requires names unknown step {step_id!r}")
