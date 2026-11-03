@@ -134,6 +134,7 @@ export function AssignmentPanel({
   const [measure, setMeasure] = useState("");
   const [customMeasure, setCustomMeasure] = useState("");
   const [businessContext, setBusinessContext] = useState("");
+  const [teachingTerms, setTeachingTerms] = useState("");
   const [qualification, setQualification] = useState("");
   const [taskScope, setTaskScope] = useState("");
   const [missingFact, setMissingFact] = useState("");
@@ -278,6 +279,21 @@ export function AssignmentPanel({
             source_version: source.source_version,
             sheet: source.sheet,
           }));
+      let parsedTeachingTerms: Record<string, unknown> | undefined;
+      if (startDraft.employeeDecides && teachingTerms.trim()) {
+        try {
+          const parsed = JSON.parse(teachingTerms);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("teaching terms must be a JSON object");
+          }
+          parsedTeachingTerms = parsed;
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Invalid teaching terms");
+          setBusy(false);
+          return;
+        }
+      }
       const taskContext = {
         ...(businessContext.trim()
           ? { business_category: businessContext.trim() }
@@ -297,6 +313,7 @@ export function AssignmentPanel({
             : undefined,
           task_context: taskContext,
           authorized_actions: ["retrieve"],
+          teaching_terms: parsedTeachingTerms,
           use_model: true,
         });
         setStartDraft({
@@ -670,6 +687,15 @@ export function AssignmentPanel({
           aria-label="Business context"
           data-testid="assignment-context-input"
         />
+        <textarea
+          value={teachingTerms}
+          onChange={(e) => setTeachingTerms(e.target.value)}
+          placeholder='Taught terms JSON (optional, e.g. {"currency":"USD","freight":"20.00","tax_basis":"none"})'
+          rows={2}
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Teaching terms"
+          data-testid="assignment-teaching-terms-input"
+        />
         <div className="grid grid-cols-2 gap-1">
           <input
             value={qualification}
@@ -957,6 +983,20 @@ export function AssignmentPanel({
                       Open question:{" "}
                       {detail.employee_job.open_obligations[0]?.question}
                     </p>
+                    <select
+                      value={selectedSourceKey}
+                      onChange={(e) => setSelectedSourceKey(e.target.value)}
+                      className="w-full rounded border px-1.5 py-1"
+                      aria-label="Source that answers the open question"
+                      data-testid="assignment-answer-source-select"
+                    >
+                      {sources.map((source) => (
+                        <option key={sourceKey(source)} value={sourceKey(source)}>
+                          {source.file_name || source.dataset_name}
+                          {source.sheet ? ` / ${source.sheet}` : ""}
+                        </option>
+                      ))}
+                    </select>
                     <Button
                       size="sm"
                       variant="outline"
@@ -968,6 +1008,7 @@ export function AssignmentPanel({
                           if (!source) return;
                           await addAssignmentSource(detail.run_id, {
                             kind: source.kind,
+                            document_id: source.document_id || undefined,
                             dataset_name: source.dataset_name,
                             source: source.source,
                             external_id: source.external_id,

@@ -236,6 +236,7 @@ export async function createEmployeeAssignment(payload: {
   task_context?: Record<string, unknown>;
   authorized_actions?: string[];
   budget?: Record<string, unknown>;
+  teaching_terms?: Record<string, unknown>;
   use_model?: boolean;
 }): Promise<Record<string, any>> {
   // Objective-only start: the employee proposes read-only evidence work or
