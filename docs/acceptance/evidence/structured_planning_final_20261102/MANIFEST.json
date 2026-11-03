@@ -1,0 +1,78 @@
+{
+ "schema": "atom-structured-planning-final-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "756edfd4520649778d3fa27a4b514bb1530679ac",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "source_files": {
+   "backend/core/chat_tool_planner.py": "a007a83d5d7aa43bc1e19a825e66673c010372efceb15585100f9a0116776bda",
+   "backend/core/goals/goal_run_router.py": "361becf55ea0098ac55fbfe84dbacbb8d8f8d2f68a48aca72286cc811ed16ae8",
+   "backend/core/goals/goal_run_service.py": "7608ea2710b4914c484b55fb7d89090e821322517bb5b26ce3622979db43995e",
+   "backend/core/goals/goal_run_executors.py": "8daa837b242c96b412685f55baf20cc6bae5a22dae173b99f9fadcbb29516175",
+   "backend/core/goals/goal_plan_validation.py": "c498f4cf6471116da12459525458ee58968ce4174e6673b42407f5092c6b67b0",
+   "backend/tests/test_goal_plan_validation.py": "0968a7745221c529559f5adbb62487859dea754b3ac65bfbaef44f01e006a1cc",
+   "backend/tests/test_structured_consumer_contracts.py": "50df47635b88e3965e33a076d95f728c8c91eb30ede8478e62508ffe083a429a"
+  }
+ },
+ "model": {
+  "base_url": "http://127.0.0.1:11436/v1",
+  "model": "llama3.1:8b",
+  "pin": "ollama:llama3.1:8b",
+  "serialized_owner": "Agent 1",
+  "servers_untouched": [
+   "11434"
+  ],
+  "call_count": 9
+ },
+ "qualification": {
+  "planner": {
+   "status": "passed",
+   "passed": 5,
+   "total": 5,
+   "no_tool": "typed use_tool=false"
+  },
+  "goal": {
+   "status": "failed",
+   "passed": 1,
+   "total": 2,
+   "ambiguous_quote": "empty REPLAN after repair -> ASK_HUMAN, no execution"
+  },
+  "report": "qualification-report.json",
+  "calls": "qualification-calls.jsonl",
+  "summary": "qualification-summary.json"
+ },
+ "tests": {
+  "goal_family": {
+   "command": "TESTING=1 pytest <14 files> -q",
+   "result": "152 passed",
+   "log": "goal-suite.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "exclusions": [
+  "no live provider call, credential, spend, send or reseed",
+  "alignment quality and arbitrary behavior improvement not claimed",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/goal_approval_binding_013e1b7cc/",
+  "docs/acceptance/evidence/structured_consumer_repair_20261102/",
+  "docs/acceptance/evidence/local_model_goal_family_31c48718b/"
+ ],
+ "artifacts": {
+  "README.md": "71921ac6a9a85aed515e4680b675f2d71b85f96f495708b46853ccf848626faf",
+  "TEST_RESULTS.md": "53d3bd31a476b1f03e2fdf9d8de569bd8ea26d9078a3a9c512f722eb672ee84b",
+  "frontend-tests.log": "960fcb1f78d58dc7c1a755fc08b08fbfffbec8fbaf26e5dad95be668e2de637e",
+  "goal-suite.log": "a7d91688b3308c8e4a26bc432acc36330f1def4ae3eec73f2dbe2470f949aa53",
+  "qualification-calls.jsonl": "dc9ce25185d00d8cf4ba4a26660693e6de06fd0db4e99e7a0b36e98f28af8adf",
+  "qualification-report.json": "94deffdaa33cc6a6017407488cf846b248128102104baa49f8ef5060aef4e475",
+  "qualification-summary.json": "e43d870e31c46f7335e692b745ac6acffb3c93d650f214e096c5a0cb86a7d9d5"
+ }
+}
