@@ -8,6 +8,7 @@ model inference occurs inside the CAS callback.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
@@ -295,16 +296,42 @@ def adopt_adaptation(
     if record is None:
         raise PlanPatchError(f"no task record on run {run_id}")
     assignment = record.get("assignment") or {}
+    observation_ids = [str(item) for item in normalized.observation_ids]
+    if not observation_ids:
+        raise PlanPatchError(
+            "an invalidate/replan adaptation requires observation ids")
+    consumed = set()
+    for history_item in assignment.get("patch_history") or []:
+        for observed in history_item.get("observations") or []:
+            if isinstance(observed, dict):
+                observed_id = (
+                    observed.get("observation_id") or observed.get("id"))
+            else:
+                observed_id = observed
+            if observed_id:
+                consumed.add(str(observed_id))
+    if all(item in consumed for item in observation_ids):
+        # A replayed page/event must not reopen completed work or create a
+        # second plan revision. The first adoption remains authoritative.
+        return {
+            "status": "already_applied",
+            "decision": decision,
+            "reason": "observation already consumed by an earlier patch",
+            "assignment": assignment,
+        }
+    if any(item in consumed for item in observation_ids):
+        raise PlanPatchError(
+            "adaptation mixes already-consumed and new observation ids")
     affected: List[str] = []
     for step_id in normalized.step_ids:
         if step_by_id(assignment, step_id) is None:
             raise PlanPatchError(f"unknown step {step_id!r}")
         affected.extend(downstream_step_ids(assignment, [step_id]))
     affected = list(dict.fromkeys(affected))
+    observation_digest = hashlib.sha256(
+        "\n".join(sorted(observation_ids)).encode("utf-8")).hexdigest()[:16]
     patch = {
-        "patch_id": (
-            f"adapt-{normalized.observation_ids[0] if normalized.observation_ids else 'obs'}"
-            f"-{int(assignment.get('plan_revision') or 1)}"),
+        "patch_id": f"adapt-{observation_digest}",
         "base_task_version": int(
             (record.get("task_revision") or {}).get("revision") or 0),
         "base_plan_revision": int(assignment.get("plan_revision") or 1),

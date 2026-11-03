@@ -4005,6 +4005,134 @@ def test_adaptation_invalidates_only_affected_branch(env):
     assert step_by_id(fresh, "read-b") == before_b
 
 
+def test_replayed_observation_does_not_reopen_work_twice(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-replay-1",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "source A revision changed",
+    }, assignment)
+    first = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert first["status"] == "applied"
+    after_first = env["lifecycle"].get_assignment(run_id)
+    revision = after_first["plan_revision"]
+
+    replay = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert replay["status"] == "already_applied", replay
+    after_replay = env["lifecycle"].get_assignment(run_id)
+    assert after_replay["plan_revision"] == revision
+    assert step_by_id(after_replay, "read-a")["status"] == "pending"
+    assert step_by_id(after_replay, "use-a")["status"] == "pending"
+    assert len(after_replay["patch_history"]) == len(
+        after_first["patch_history"])
+
+    second_observation = deterministic_adaptation({
+        "observation_id": "obs-replay-2",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "a newer source A revision changed",
+    }, after_replay)
+    second = adopt_adaptation(
+        env["lifecycle"], run_id, second_observation)
+    assert second["status"] == "applied"
+    assert env["lifecycle"].get_assignment(
+        run_id)["plan_revision"] == revision + 1
+
+
+def test_observation_reopens_affected_work_and_reruns_only_that_branch(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    calls = {"read-a": 0, "read-b": 0, "use-a": 0}
+
+    async def read_a(inputs, context):
+        calls["read-a"] += 1
+        return {
+            "status": "applied", "value": "A",
+            "source_version": "v1",
+            "verification": {"status": "verified",
+                             "version": "v1"},
+        }
+
+    async def read_b(inputs, context):
+        calls["read-b"] += 1
+        return {"status": "applied", "value": "B",
+                "source_version": "v9"}
+
+    async def use_a(inputs, context):
+        calls["use-a"] += 1
+        return {"status": "applied", "value": f"{inputs['value']}-used"}
+
+    env["registry"].register("test.campaign.read_a", read_a)
+    env["registry"].register("test.campaign.read_b", read_b)
+    env["registry"].register("test.campaign.use_a", use_a)
+    steps = [
+        new_step(step_id="read-a", title="Read A",
+                 operation_type="retrieve",
+                 adapter="test.campaign.read_a", effect="read_only"),
+        new_step(step_id="read-b", title="Read B",
+                 operation_type="retrieve",
+                 adapter="test.campaign.read_b", effect="read_only"),
+        new_step(step_id="use-a", title="Use A",
+                 operation_type="calculate",
+                 adapter="test.campaign.use_a", depends_on=["read-a"],
+                 inputs={"value": "${read-a.value}"}, effect="local"),
+    ]
+    run_id, _ = _create(
+        env, objective="Campaign branch retention", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}])
+    completed = _run(env["executor"].execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert calls == {"read-a": 1, "read-b": 1, "use-a": 1}
+    before = env["lifecycle"].get_assignment(run_id)
+    read_b_before = copy.deepcopy(step_by_id(before, "read-b"))
+    budget_before = copy.deepcopy(before["budget"])
+
+    proposal = deterministic_adaptation({
+        "observation_id": "campaign-source-2",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "governing A source changed to v2",
+    }, before)
+    adopted = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert adopted["status"] == "applied"
+    reopened = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(reopened, "read-a")["status"] == "pending"
+    assert step_by_id(reopened, "use-a")["status"] == "pending"
+    assert step_by_id(reopened, "read-a")["prior_results"]
+    assert step_by_id(reopened, "use-a")["prior_results"]
+    assert step_by_id(reopened, "read-b") == read_b_before
+    assert reopened["budget"]["max_steps"] == budget_before["max_steps"]
+    assert reopened["budget"]["max_wall_seconds"] == (
+        budget_before["max_wall_seconds"])
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    rerun = _run(restarted.execute(run_id))
+    assert rerun["assignment"]["status"] == "completed", rerun
+    assert calls == {"read-a": 2, "read-b": 1, "use-a": 2}
+    final = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(final, "read-b") == read_b_before
+    assert step_by_id(final, "read-a")["result"]["value"] == "A"
+    assert step_by_id(final, "use-a")["result"]["value"] == "A-used"
+
+    replay = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert replay["status"] == "already_applied", replay
+    final_replay = env["lifecycle"].get_assignment(run_id)
+    assert final_replay["plan_revision"] == final["plan_revision"]
+    assert step_by_id(final_replay, "read-a")["status"] == "applied"
+    assert step_by_id(final_replay, "use-a")["status"] == "applied"
+
+
 def test_adaptation_missing_qualification_asks_instead_of_guessing(env):
     from core.employee_adaptation import (
         adopt_adaptation,
