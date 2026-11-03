@@ -245,7 +245,140 @@ def _same_money(left: Any, right: Any) -> bool:
         return False
 
 
+def _quote_column_values(
+    rows: Sequence[Mapping[str, Any]], column: str,
+) -> List[str]:
+    return [
+        str(row.get(column)).strip()
+        for row in rows
+        if row.get(column) not in (None, "")
+    ]
+
+
+def _is_numeric_values(values: Sequence[str]) -> bool:
+    if not values:
+        return False
+    try:
+        return all(Decimal(value).is_finite() for value in values)
+    except (InvalidOperation, ValueError):
+        return False
+
+
+def _resolve_quote_columns(
+    requested: Mapping[str, Any],
+    rows: Sequence[Mapping[str, Any]],
+    available: Sequence[str],
+    *,
+    currency: str,
+) -> Dict[str, str]:
+    """Resolve semantic quote roles from value shape when the model swaps them.
+
+    The model still chooses the operation and the evidence step. This helper
+    repairs only mechanical column roles (text item, numeric quantity/price)
+    when its mapping is type-incompatible and a unique value-shape assignment
+    exists. Ambiguous shapes are refused for one bounded model repair.
+    """
+    columns = {
+        str(key): str(value) for key, value in dict(requested or {}).items()
+        if value not in (None, "")
+    }
+    available = [str(item) for item in available]
+    rows = [row for row in rows if isinstance(row, Mapping)]
+    by_column = {
+        column: _quote_column_values(rows, column) for column in available
+    }
+    numeric = [
+        column for column, values in by_column.items()
+        if _is_numeric_values(values)
+    ]
+    text = [
+        column for column, values in by_column.items()
+        if values and not _is_numeric_values(values)
+    ]
+
+    # Item identity must be a non-empty text/identity column when one exists.
+    # Currency-code columns are units, not item identities.
+    identity_text = [
+        column for column in text
+        if not all(
+            len(value) == 3 and value.isalpha()
+            for value in by_column[column])
+    ]
+    item = columns.get("item_id")
+    if item not in available or not by_column.get(item):
+        item = None
+    if (item in numeric or item in text and identity_text
+            and item not in identity_text):
+        item = identity_text[0] if len(identity_text) == 1 else item
+
+    # A mapped currency column is observed evidence. Never discard it to
+    # make the request default apply; preserve it so the caller can refuse a
+    # conflict or the calculator can reject it before arithmetic.
+    currency_column = columns.get("currency")
+    if currency_column not in available:
+        currency_column = None
+
+    candidates = [
+        column for column in numeric
+        if column != item and column != currency_column
+    ]
+    quantity = columns.get("quantity")
+    price = columns.get("unit_price")
+    if quantity not in candidates:
+        quantity = None
+    if price not in candidates or price == quantity:
+        price = None
+    if (quantity is None or price is None) and len(candidates) == 2:
+        first, second = candidates
+
+        def _integer_ratio(column: str) -> float:
+            values = by_column[column]
+            if not values:
+                return 0.0
+            return sum(
+                1 for value in values
+                if Decimal(value) == Decimal(value).to_integral_value()
+            ) / len(values)
+
+        def _mean(column: str) -> Decimal:
+            values = by_column[column]
+            if not values:
+                return Decimal("0")
+            return sum((Decimal(value) for value in values), Decimal("0")) / Decimal(
+                len(values))
+
+        first_integer = _integer_ratio(first)
+        second_integer = _integer_ratio(second)
+        if first_integer > second_integer:
+            quantity, price = first, second
+        elif second_integer > first_integer:
+            quantity, price = second, first
+        elif _mean(first) <= _mean(second):
+            quantity, price = first, second
+        else:
+            quantity, price = second, first
+    if quantity is None or price is None:
+        raise WorkRequestCompileError(
+            "quote mapping cannot be resolved to distinct numeric quantity "
+            "and unit-price columns; name the semantic columns explicitly")
+    columns["item_id"] = item or columns.get("item_id")
+    columns["quantity"] = quantity
+    columns["unit_price"] = price
+    if currency_column:
+        columns["currency"] = currency_column
+    elif "currency" in columns:
+        columns.pop("currency", None)
+    return {
+        key: value for key, value in columns.items()
+        if value not in (None, "") and key in {
+            "item_id", "quantity", "unit_price", "currency", "description",
+            "unit", "pack_size", "price_basis", "category", "discount",
+        }
+    }
+
+
 def _quote_patch(
+
     request: QuoteCalculationRequest,
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
@@ -276,6 +409,74 @@ def _quote_patch(
             raise WorkRequestCompileError(
                 f"quote mapping {key!r} names column {column!r} absent from "
                 f"the accepted source schema")
+    sample_rows = [
+        row for row in (result.get("rows") or [])
+        if isinstance(row, Mapping)
+    ][:25]
+    resolved_columns = _resolve_quote_columns(
+        columns, sample_rows, list(available), currency=request.currency)
+    if resolved_columns != columns:
+        columns = resolved_columns
+    currency_column = columns.get("currency")
+    if currency_column:
+        currency_values = [
+            str(row.get(currency_column)).strip()
+            for row in sample_rows
+            if row.get(currency_column) not in (None, "")
+        ]
+        if not currency_values:
+            raise WorkRequestCompileError(
+                f"quote mapping 'currency' column {currency_column!r} has no "
+                "explicit values in the accepted rows")
+        malformed = sorted({
+            value for value in currency_values
+            if len(value) != 3 or not value.isalpha()
+        })
+        if malformed:
+            raise WorkRequestCompileError(
+                f"quote currency column {currency_column!r} contains "
+                f"malformed value(s) {malformed}; no default substitution")
+        conflicts = sorted({
+            value.upper() for value in currency_values
+            if value.upper() != str(request.currency).strip().upper()
+        })
+        if conflicts:
+            raise WorkRequestCompileError(
+                f"source currency {conflicts!r} conflicts with the requested "
+                f"quote currency {request.currency!r}; implicit FX or default "
+                "substitution is not allowed")
+    for semantic, column in columns.items():
+        if semantic in ("quantity", "unit_price", "discount"):
+            for index, row in enumerate(sample_rows):
+                value = row.get(column)
+                if semantic == "discount" and value in (None, ""):
+                    continue
+                try:
+                    number = Decimal(str(value))
+                except (InvalidOperation, ValueError) as exc:
+                    raise WorkRequestCompileError(
+                        f"quote mapping {semantic!r} column {column!r} is not "
+                        f"numeric in accepted row {index + 1}") from exc
+                if not number.is_finite():
+                    raise WorkRequestCompileError(
+                        f"quote mapping {semantic!r} column {column!r} is not "
+                        f"finite in accepted row {index + 1}")
+        if semantic in ("unit", "pack_size", "price_basis"):
+            empty = [
+                index + 1 for index, row in enumerate(sample_rows)
+                if str(row.get(column) or "").strip() == ""
+            ]
+            if empty:
+                raise WorkRequestCompileError(
+                    f"quote mapping {semantic!r} column {column!r} is empty "
+                    f"in accepted row(s) {empty}; no default substitution")
+    if "item_id" in columns:
+        for index, row in enumerate(sample_rows):
+            if str(row.get(columns["item_id"]) or "").strip() == "":
+                raise WorkRequestCompileError(
+                    f"quote mapping 'item_id' column "
+                    f"{columns['item_id']!r} is empty in accepted row "
+                    f"{index + 1}")
     if not request.currency.strip():
         raise WorkRequestCompileError("quote currency must be explicit")
     currency_term = _resolved_currency(
@@ -335,6 +536,14 @@ def _quote_patch(
     map_id = _unique_id(assignment, "quote-lines")
     calc_id = _unique_id(assignment, "quote-total")
     patch = _base_patch(assignment, request, context)
+    if columns != (
+            request.columns.model_dump(exclude_none=True)
+            if hasattr(request.columns, "model_dump")
+            else dict(request.columns or {})):
+        patch["observations"].append({
+            "kind": "resolved_quote_columns",
+            "columns": dict(columns),
+        })
     map_inputs = {
         "rows": f"${{{request.source_step_id}.rows}}",
         "columns": columns,
@@ -378,16 +587,144 @@ def _quote_patch(
     return patch
 
 
+def _invoice_evidence_shape(
+    assignment: Mapping[str, Any],
+    step_id: str,
+    mapping: Mapping[str, Any],
+    defaults: Mapping[str, str],
+    required_keys: Sequence[str],
+    label: str,
+) -> Dict[str, Any]:
+    step = step_by_id(assignment, step_id)
+    result = (step or {}).get("result")
+    data = result.get("data") if isinstance(result, Mapping) else None
+    if not isinstance(data, Mapping):
+        raise WorkRequestCompileError(
+            f"{label} step {step_id!r} has no structured evidence data")
+    fields = {
+        key: str(mapping.get(key) or defaults[key])
+        for key in defaults if key in defaults
+    }
+    missing = [
+        key for key in required_keys
+        if not fields.get(key)
+        or fields[key] not in data
+        or data.get(fields[key]) in (None, "")
+    ]
+    if missing:
+        raise WorkRequestCompileError(
+            f"{label} step {step_id!r} is missing required field(s) "
+            f"{sorted(missing)}; bind the step that contains this record")
+    return dict(data)
+
+
+def _invoice_role_candidates(
+    assignment: Mapping[str, Any],
+    fields: Mapping[str, str],
+    required_keys: Sequence[str],
+) -> List[str]:
+    candidates = []
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping) or step.get("status") != "applied":
+            continue
+        result = step.get("result")
+        data = result.get("data") if isinstance(result, Mapping) else None
+        if not isinstance(data, Mapping):
+            continue
+        if all(
+            fields.get(key) and fields[key] in data
+            and data.get(fields[key]) not in (None, "")
+            for key in required_keys
+        ):
+            candidates.append(str(step.get("step_id") or ""))
+    return [item for item in candidates if item]
+
+
+def _bind_invoice_role(
+    assignment: Mapping[str, Any],
+    bound: str,
+    fields: Mapping[str, str],
+    required_keys: Sequence[str],
+    label: str,
+) -> str:
+    candidates = _invoice_role_candidates(
+        assignment, fields, required_keys)
+    if bound in candidates:
+        return bound
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise WorkRequestCompileError(
+            f"no accepted evidence step contains the {label} fields "
+            f"{list(required_keys)}; add or read the correct source")
+    raise WorkRequestCompileError(
+        f"{label} binding is ambiguous across accepted steps {candidates}; "
+        "name the exact step")
+
+
+INVOICE_FIELD_DEFAULTS = {
+    "po_id": "po_id", "invoice_id": "invoice_id",
+    "quantity": "quantity", "unit_price": "unit_price",
+    "freight": "freight", "currency": "currency",
+    "version": "version", "resource_id": "resource_id",
+}
+PURCHASE_ORDER_FIELD_DEFAULTS = {
+    "po_id": "po_id", "vendor_id": "vendor_id",
+}
+RECEIVING_FIELD_DEFAULTS = {
+    "po_id": "po_id", "received_quantity": "received_quantity",
+    "version": "version",
+}
+INVOICE_ROLE_REQUIREMENTS = {
+    "invoice": ("invoice_id", "po_id", "quantity", "unit_price"),
+    "purchase_order": ("po_id", "vendor_id"),
+    "receiving": ("po_id", "received_quantity"),
+}
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
 ) -> Dict[str, Any]:
+    invoice_fields = dict(
+        request.invoice_fields) or dict(INVOICE_FIELD_DEFAULTS)
+    po_fields = dict(
+        request.purchase_order_fields) or dict(
+            PURCHASE_ORDER_FIELD_DEFAULTS)
+    receiving_fields = dict(
+        request.receiving_fields) or dict(RECEIVING_FIELD_DEFAULTS)
+    invoice_step_id = _bind_invoice_role(
+        assignment, request.invoice_step_id, invoice_fields,
+        INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
+    purchase_order_step_id = _bind_invoice_role(
+        assignment, request.purchase_order_step_id, po_fields,
+        INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
+    receiving_step_id = _bind_invoice_role(
+        assignment, request.receiving_step_id, receiving_fields,
+        INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
     for step_id in (
-            request.invoice_step_id, request.purchase_order_step_id,
-            request.receiving_step_id):
+            invoice_step_id, purchase_order_step_id, receiving_step_id):
         _step_result(assignment, step_id)
         _require_verified(assignment, step_id)
+    invoice_data = _invoice_evidence_shape(
+        assignment, invoice_step_id, invoice_fields, invoice_fields,
+        INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
+    po_data = _invoice_evidence_shape(
+        assignment, purchase_order_step_id, po_fields, po_fields,
+        INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
+    receiving_data = _invoice_evidence_shape(
+        assignment, receiving_step_id, receiving_fields,
+        receiving_fields, INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
+    po_identity = str(po_data.get(po_fields["po_id"]) or "").strip()
+    for label, data, fields in (
+            ("invoice", invoice_data, invoice_fields),
+            ("receiving", receiving_data, receiving_fields)):
+        identity = str(data.get(fields["po_id"]) or "").strip()
+        if po_identity and identity and identity != po_identity:
+            raise WorkRequestCompileError(
+                f"{label} belongs to purchase order {identity!r}, not the "
+                f"accepted purchase order {po_identity!r}")
     if request.bill_action:
         from core.action_registry import action_registry
         from core.assignment_planner import _registered_action_effect
@@ -405,23 +742,27 @@ def _invoice_patch(
                 "bill creation requires outbound authority")
     reconcile_id = _unique_id(assignment, "invoice-reconcile")
     patch = _base_patch(assignment, request, context)
+    patch["observations"].append({
+        "kind": "resolved_invoice_evidence",
+        "invoice_step_id": invoice_step_id,
+        "purchase_order_step_id": purchase_order_step_id,
+        "receiving_step_id": receiving_step_id,
+    })
     patch["add_steps"] = [{
         "step_id": reconcile_id,
         "title": "Reconcile invoice against purchase and receiving evidence",
         "operation_type": "calculate",
         "adapter": "invoice.reconcile",
         "depends_on": list(dict.fromkeys([
-            request.invoice_step_id, request.purchase_order_step_id,
-            request.receiving_step_id,
+            invoice_step_id, purchase_order_step_id, receiving_step_id,
             *([request.vendor_step_id] if request.vendor_step_id else []),
             *([request.coa_step_id] if request.coa_step_id else []),
             *([request.period_step_id] if request.period_step_id else []),
         ])),
         "inputs": {
-            "invoice": f"${{{request.invoice_step_id}.data}}",
-            "purchase_order": (
-                f"${{{request.purchase_order_step_id}.data}}"),
-            "receiving": f"${{{request.receiving_step_id}.data}}",
+            "invoice": f"${{{invoice_step_id}.data}}",
+            "purchase_order": f"${{{purchase_order_step_id}.data}}",
+            "receiving": f"${{{receiving_step_id}.data}}",
             "invoice_fields": dict(request.invoice_fields) or {
                 "po_id": "po_id", "invoice_id": "invoice_id",
                 "quantity": "quantity", "unit_price": "unit_price",
@@ -442,8 +783,7 @@ def _invoice_patch(
         "requires": [
             {"kind": "receipt", "step_id": step_id, "require": "verified"}
             for step_id in (
-                request.invoice_step_id, request.purchase_order_step_id,
-                request.receiving_step_id)
+                invoice_step_id, purchase_order_step_id, receiving_step_id)
         ],
         "required": True,
     }]

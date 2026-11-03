@@ -853,9 +853,16 @@ def _normalize_question(question: Dict[str, Any],
     if not text.strip():
         raise TaskLifecycleError("an unresolved question requires text")
     next_action = _bounded_text(question.get("next_action"), 400)
-    if kind in ("verification", "missing_evidence", "external_research") and not next_action.strip():
-        raise TaskLifecycleError(
-            f"a {kind} question requires the next action to run")
+    if kind in (
+            "verification", "missing_evidence", "external_research"
+    ) and not next_action.strip():
+        # Preserve an actionable obligation instead of failing the whole
+        # request when an adapter supplied a retrieval hint but omitted the
+        # executable action. The hint is the action; only a completely
+        # actionless question is noise.
+        next_action = _bounded_text(
+            question.get("next_retrieval"), 400
+        ) or "Resolve the named missing evidence and retry the step."
     attempts = question.get("attempts")
     try:
         attempts = max(0, int(attempts)) if attempts is not None else 0

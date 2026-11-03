@@ -51,6 +51,10 @@ class Observation(BaseModel):
     evidence_state: str = Field(default="established", max_length=20)
     source_refs: List[Dict[str, Any]] = Field(default_factory=list)
     reason: str = Field(default="", max_length=500)
+    shape: str = Field(default="", max_length=40)
+    columns: List[str] = Field(default_factory=list)
+    data_keys: List[str] = Field(default_factory=list)
+    verified: Optional[bool] = None
 
 
 class AdaptationProposal(BaseModel):
@@ -249,6 +253,26 @@ def _adaptation_errors(
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
 ) -> List[str]:
+    if normalized.decision == "clarify":
+        clarification = normalized.clarification
+        if clarification is None or not str(
+                clarification.question or "").strip():
+            return [
+                "clarify requires one specific clarification question the "
+                "user can answer"]
+        return []
+    if normalized.decision == "retain" and context.get(
+            "missing_prerequisites"):
+        missing = "; ".join(
+            f"{item.get('label') or item.get('operation')} needs "
+            f"{', '.join(item.get('missing') or [])}"
+            for item in context.get("missing_prerequisites") or []
+            if isinstance(item, Mapping))
+        return [
+            "retain leaves the objective unsatisfied with a missing "
+            f"prerequisite: {missing}. Choose clarify and ask for the named "
+            "missing evidence, or propose supported work that does not need "
+            "it."]
     if normalized.decision != "replan":
         return []
     if normalized.work_request is not None:
@@ -321,14 +345,31 @@ def _adaptation_prompt(
             "- invalidate/replan: reopen only work affected by the "
             "observation; preserve unrelated completed receipts.\n")
     business_rule = (
-        "- For an evidence_result, if a listed "
-        "context.available_business_operations is supported by the accepted "
-        "evidence and taught terms, choose replan and return that "
-        "work_request. Do not return retain merely because evidence was read. "
-        "If no listed operation is supported, choose clarify when one fact "
-        "is missing, otherwise retain. On a replan, return one work_request "
-        "from context.work_request_schemas.\n"
-        if typed else "")
+        (
+            "- For an evidence_result, if a listed "
+            "context.available_business_operations is supported by the "
+            "accepted evidence and taught terms, choose replan and return "
+            "that work_request. Do not return retain merely because evidence "
+            "was read. If no listed operation is supported, choose clarify "
+            "when one fact is missing, otherwise retain. On a replan, return "
+            "one work_request from context.work_request_schemas.\n"
+            if typed else (
+                "- The accepted evidence does not yet support a listed "
+                "business operation. If the objective still requires a "
+                "specific missing business record or source, choose clarify "
+                "and ask for that exact evidence; do not retain while the "
+                "objective remains unresolved and one authorized source "
+                "could supply it.\n"
+                if context.get("stage") == "follow_up" else "")
+        )
+        + (
+            "- context.available_business_operations entries with status "
+            "'missing' or 'ambiguous' name their prerequisites. Choose "
+            "clarify and ask for the named missing evidence; do not propose "
+            "that work_request until the prerequisite is supplied, and do "
+            "not return retain while the objective is unresolved.\n"
+            if context.get("missing_prerequisites") else "")
+    )
     return (
         "You are the accountable employee's adaptation reasoner. Choose the "
         "bounded response to the observation(s).\n"
@@ -339,11 +380,19 @@ def _adaptation_prompt(
         "prices, totals, facts or authority.\n"
         + (
             "- quote_calculation.columns values are exact column NAMES from "
-            "the evidence schema (for example 'Item', 'Qty', 'Price'), never "
-            "cell values such as 'A', '2' or '100'.\n"
+            "the evidence schema; never use cell values. Map each semantic "
+            "field to a DIFFERENT column with matching meaning: item_id is "
+            "the descriptive item/product column, quantity is a numeric "
+            "units/qty column, unit_price is a numeric price/cost column. "
+            "Inspect the evidence schema and sample rows; never reuse one "
+            "column for two fields or map a text column to quantity/price.\n"
             "- freight/tax/currency authority_ref is the taught TERM KEY "
             "(for example 'freight', 'tax_basis'), never the term value or a "
             "free-form label; the compiler resolves and compares it.\n"
+            "- For invoice_reconciliation, bind invoice/purchase order/"
+            "receiving step IDs to context.evidence_results entries whose "
+            "business_role is invoice/purchase_order/receiving. Never bind "
+            "by numeric step order alone.\n"
             if typed else ""
         )
         + "- Do not invent source/action IDs or authority; do not remove "

@@ -25,6 +25,7 @@ from core.employee_work_requests import (
     InvoiceReconciliationRequest,
     MoneyTerm,
     QuoteCalculationRequest,
+    QuoteColumns,
     TaxTerm,
 )
 from tests.test_assignment_executor import _run, env  # noqa: F401
@@ -478,3 +479,229 @@ def test_invoice_request_can_compile_one_approved_bill_action(env):
     assert len(calls) == 1
     assert calls[0]["total"] == "270.00"
     assert calls[0]["vendor_id"] == "V-9"
+
+
+def test_invoice_role_bindings_resolve_from_evidence_shape():
+    """The model names the operation; the compiler resolves mechanical roles.
+
+    Accepting a model's arbitrary step ordering would bind invoice data as a
+    purchase order. The compiler resolves each role from the accepted
+    structured fields and records the corrected binding.
+    """
+    po, invoice, receiving = _verified_invoice_evidence()
+    assignment = new_assignment(
+        objective="Reconcile the invoice",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[po, invoice, receiving],
+        authorized_actions=["retrieve", "calculate"])
+    request = _invoice_request().model_copy(update={
+        "invoice_step_id": "po",
+        "purchase_order_step_id": "receiving",
+        "receiving_step_id": "invoice",
+    })
+    patch = compile_work_request_patch(request, assignment, context={})
+    reconcile = patch["add_steps"][0]
+    assert reconcile["inputs"]["invoice"] == "${invoice.data}"
+    assert reconcile["inputs"]["purchase_order"] == "${po.data}"
+    assert reconcile["inputs"]["receiving"] == "${receiving.data}"
+    assert reconcile["depends_on"] == ["invoice", "po", "receiving"]
+    assert {
+        "kind": "resolved_invoice_evidence",
+        "invoice_step_id": "invoice",
+        "purchase_order_step_id": "po",
+        "receiving_step_id": "receiving",
+    } in patch["observations"]
+
+
+def test_invoice_wrong_purchase_order_identity_is_refused():
+    po, invoice, receiving = _verified_invoice_evidence()
+    invoice["result"]["data"]["po_id"] = "PO-OTHER"
+    assignment = new_assignment(
+        objective="Reconcile the invoice",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[po, invoice, receiving],
+        authorized_actions=["retrieve", "calculate"])
+    with pytest.raises(WorkRequestCompileError, match="not the accepted"):
+        compile_work_request_patch(
+            _invoice_request(), assignment, context={})
+
+
+def test_quote_mapping_resolves_type_swapped_unfamiliar_headers():
+    read = _verified_quote_evidence()
+    read["result"]["rows"] = [
+        {"Product": "A", "Units": 2, "ApprovedCost": "100.00",
+         "Currency": "USD"},
+        {"Product": "B", "Units": 3, "ApprovedCost": "55.00",
+         "Currency": "USD"},
+    ]
+    read["result"]["schema"] = [
+        {"column": column} for column in (
+            "Product", "Units", "ApprovedCost", "Currency")]
+    assignment = new_assignment(
+        objective="Quote from unfamiliar headers",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[read],
+        teaching_snapshot=_terms_teaching(),
+        authorized_actions=["retrieve", "calculate"])
+    swapped = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="ApprovedCost", quantity="Currency",
+            unit_price="Product"),
+    })
+    patch = compile_work_request_patch(swapped, assignment, context={})
+    mapping = patch["add_steps"][0]["inputs"]["columns"]
+    assert mapping["item_id"] == "Product"
+    assert mapping["quantity"] == "Units"
+    assert mapping["unit_price"] == "ApprovedCost"
+    assert any(
+        item.get("kind") == "resolved_quote_columns"
+        for item in patch["observations"])
+
+
+def _currency_read(currencies):
+    read = _verified_quote_evidence()
+    for row, currency in zip(read["result"]["rows"], currencies):
+        row["Currency"] = currency
+    return read
+
+
+def test_quote_currency_preserves_observed_values_and_refuses_conflicts():
+    # Same-currency positive: the mapped column is preserved.
+    usd = compile_work_request_patch(
+        _quote_request(),
+        _quote_assignment(_terms_teaching(), read=_currency_read(
+            ["USD", "USD"])), context={})
+    assert usd["add_steps"][0]["inputs"]["columns"]["currency"] == "Currency"
+
+    # CAD source under a USD request must refuse, never relabel.
+    with pytest.raises(WorkRequestCompileError, match="conflicts"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["CAD", "CAD"])), context={})
+
+    # Mixed currencies are also a conflict, not a majority vote.
+    with pytest.raises(WorkRequestCompileError, match="conflicts"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["USD", "CAD"])), context={})
+
+    # Malformed observed currency refuses instead of inheriting USD.
+    with pytest.raises(WorkRequestCompileError, match="malformed"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["US", "USD"])), context={})
+
+    # A valid CAD twin is supported when the job itself is CAD.
+    cad_teaching = _terms_teaching()
+    cad_teaching["terms"]["currency"] = "CAD"
+    cad_request = _quote_request().model_copy(update={"currency": "CAD"})
+    cad = compile_work_request_patch(
+        cad_request,
+        _quote_assignment(cad_teaching, read=_currency_read(
+            ["CAD", "CAD"])), context={})
+    assert cad["add_steps"][0]["inputs"]["columns"]["currency"] == "Currency"
+    assert cad["add_steps"][1]["inputs"]["currency"] == "CAD"
+
+
+def test_quote_missing_currency_column_inherits_only_explicit_job_default():
+    read = _verified_quote_evidence()
+    read["result"]["rows"] = [
+        {"Item": "A", "Qty": 2, "Price": 100},
+        {"Item": "B", "Qty": 3, "Price": 50},
+    ]
+    read["result"]["schema"] = [
+        {"column": column} for column in ("Item", "Qty", "Price")]
+    request = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="Item", quantity="Qty", unit_price="Price")})
+    patch = compile_work_request_patch(
+        request, _quote_assignment(_terms_teaching(), read=read), context={})
+    assert "currency" not in patch["add_steps"][0]["inputs"]["columns"]
+    assert patch["add_steps"][0]["inputs"]["defaults"]["currency"] == "USD"
+
+
+def test_executor_refuses_currency_changed_after_compilation(env):
+    import asyncio
+
+    from core.employee_adaptation import AdaptationProposal, adopt_adaptation
+
+    assignment = _quote_assignment(_terms_teaching())
+    record = env["executor"].create_assignment(
+        "conv-currency-change", assignment["objective"],
+        assignment=assignment)
+    run_id = record["run_id"]
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="quote from accepted USD evidence",
+            observation_ids=["currency-change-1"],
+            work_request=_quote_request()))
+    assert adopted["status"] == "applied", adopted
+
+    def change_currency(record, current):
+        for step in current.get("steps") or []:
+            if step.get("step_id") == "read":
+                for row in (step.get("result") or {}).get("rows") or []:
+                    row["Currency"] = "CAD"
+        return current, None
+
+    env["lifecycle"].mutate_assignment(
+        run_id, change_currency, rationale="source currency changed")
+    result = asyncio.run(env["executor"].execute(run_id))
+    final = env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in final["steps"]
+        if step.get("adapter") == "quote.calculate")
+    assert result["assignment"]["status"] != "completed"
+    assert calculate["status"] != "applied"
+    assert not (calculate.get("result") or {}).get("value")
+
+
+def test_mapped_unit_cannot_be_defaulted_over_empty_source_value():
+    read = _verified_quote_evidence()
+    read["result"]["rows"][0]["Unit"] = ""
+    read["result"]["schema"].append({"column": "Unit"})
+    request = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="Item", quantity="Qty", unit_price="Price",
+            currency="Currency", unit="Unit")})
+    with pytest.raises(WorkRequestCompileError, match="no default substitution"):
+        compile_work_request_patch(
+            request, _quote_assignment(_terms_teaching(), read=read),
+            context={})
+
+
+def test_valid_cad_twin_executes_without_relabelling(env):
+    import asyncio
+
+    from core.employee_adaptation import AdaptationProposal, adopt_adaptation
+
+    read = _verified_quote_evidence()
+    for row in read["result"]["rows"]:
+        row["Currency"] = "CAD"
+    teaching = _terms_teaching()
+    teaching["terms"]["currency"] = "CAD"
+    assignment = _quote_assignment(teaching, read=read)
+    record = env["executor"].create_assignment(
+        "conv-currency-cad", assignment["objective"],
+        assignment=assignment)
+    run_id = record["run_id"]
+    request = _quote_request().model_copy(update={"currency": "CAD"})
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="quote from accepted CAD evidence",
+            observation_ids=["currency-cad-1"], work_request=request))
+    assert adopted["status"] == "applied", adopted
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    final = env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in final["steps"]
+        if step.get("adapter") == "quote.calculate")
+    assert calculate["result"]["value"] == "370.00"
+    assert (calculate["result"].get("currency")
+            or calculate["result"].get("unit")) == "CAD"

@@ -1,0 +1,99 @@
+⚠️  Using SQLite file database (/private/tmp/atom-full-app/backend/dev.db)
+⚠️ Generated temporary SECRET_KEY for development: g-zwTkGZ...
+⚠️ Generated temporary SECRET_KEY for development: wsiWrz1p...
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-03T17:02:54.461043+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": true, "blocked_services": 23, "local_allowed_services": 18}}
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not load routing feedback from DB (non-fatal, starting with empty state): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT llm_routing_feedback.id AS llm_routing_feedback_id, llm_routing_feedback.routing_result_id AS llm_routing_feedback_routing_result_id, llm_routing_feedback.tenant_id AS llm_routing_feedback_tenant_id, llm_routing_feedback.task_type AS llm_routing_feedback_task_type, llm_routing_feedback.model_id AS llm_routing_feedback_model_id, llm_routing_feedback.success AS llm_routing_feedback_success, llm_routing_feedback.quality_satisfied AS llm_routing_feedback_quality_satisfied, llm_routing_feedback.cost_within_budget AS llm_routing_feedback_cost_within_budget, llm_routing_feedback.user_satisfaction AS llm_routing_feedback_user_satisfaction, llm_routing_feedback.actual_cost AS llm_routing_feedback_actual_cost, llm_routing_feedback.actual_latency_ms AS llm_routing_feedback_actual_latency_ms, llm_routing_feedback.prompt_features AS llm_routing_feedback_prompt_features, llm_routing_feedback.created_at AS llm_routing_feedback_created_at 
+FROM llm_routing_feedback ORDER BY llm_routing_feedback.created_at DESC]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('b42d4ada-447a-4fd9-a3e8-94da07136ac9', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('83ffb87d-3509-48b7-aec7-d2dbdb9f412d', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️  Using SQLite file database (/private/tmp/atom-full-app/backend/dev.db)
+⚠️ Generated temporary SECRET_KEY for development: A5oGgTce...
+⚠️ Generated temporary SECRET_KEY for development: o2SfArnl...
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-03T17:03:43.995529+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": true, "blocked_services": 23, "local_allowed_services": 18}}
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not load routing feedback from DB (non-fatal, starting with empty state): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT llm_routing_feedback.id AS llm_routing_feedback_id, llm_routing_feedback.routing_result_id AS llm_routing_feedback_routing_result_id, llm_routing_feedback.tenant_id AS llm_routing_feedback_tenant_id, llm_routing_feedback.task_type AS llm_routing_feedback_task_type, llm_routing_feedback.model_id AS llm_routing_feedback_model_id, llm_routing_feedback.success AS llm_routing_feedback_success, llm_routing_feedback.quality_satisfied AS llm_routing_feedback_quality_satisfied, llm_routing_feedback.cost_within_budget AS llm_routing_feedback_cost_within_budget, llm_routing_feedback.user_satisfaction AS llm_routing_feedback_user_satisfaction, llm_routing_feedback.actual_cost AS llm_routing_feedback_actual_cost, llm_routing_feedback.actual_latency_ms AS llm_routing_feedback_actual_latency_ms, llm_routing_feedback.prompt_features AS llm_routing_feedback_prompt_features, llm_routing_feedback.created_at AS llm_routing_feedback_created_at 
+FROM llm_routing_feedback ORDER BY llm_routing_feedback.created_at DESC]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('953573e1-609a-4d1b-a9fd-b0d6a6a3d750', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('185c5034-76cc-4d16-bca1-8213257d4433', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('8598cc21-aba6-44d4-8ec8-b5488be5c558', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('04235940-e6fa-4f0c-8da0-d8f184ac9c06', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('39d05f65-d1bf-47fa-853d-7cd37d231ee2', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

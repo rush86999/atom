@@ -1,0 +1,371 @@
+PASS quote initial model proposal "model"
+PASS quote typed work adopted {"source": "model", "technical_fallback": false, "decision": "replan", "errors": [], "failure_stage": null, "attempt_id": "5af11951b3cf4f28ad0c6ca587e548e1", "observation_ids": ["evidence-ed55ee296d89ccc69d3d"], "adoption_status": "applied", "work_request_operation": "quote_calculation", "execution_status": "completed"}
+PASS quote initial total "370.00"
+PASS quote initial completed "completed"
+PASS quote changed total "485.00"
+PASS quote changed completed "completed"
+PASS quote survives restart "completed"
+PASS quote value survives restart "485.00"
+PASS cancellation is terminal "cancelled"
+PASS invoice typed work adopted {"source": "model", "technical_fallback": false, "decision": "replan", "errors": [], "failure_stage": null, "attempt_id": "ab9857f4ad0d4a9db50dcb999081f98b", "observation_ids": ["evidence-91189afcfe6d759162b6", "evidence-06eb3370e19442b1045c", "evidence-3c1d180ef32aa4d487d5"], "adoption_status": "applied", "work_request_operation": "invoice_reconciliation", "execution_status": "completed"}
+PASS invoice reconciled value "270.00"
+PASS invoice initial completed "completed"
+PASS missing invoice not fabricated ["clarify"]
+PASS missing invoice produces actionable obligation [{"question_id": "42447fbf-d93c-4c7f-92a0-c13ccd12804b", "item": "invoice reconciliation", "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?", "kind": "missing_evidence", "evidence": "", "next_action": "Confirm the missing business fact.", "decision_owner": null, "inputs": {"operation": "invoice_reconciliation", "missing": ["invoice"], "known_identities": {"purchase_order.po_id": "PO-8", "purchase_order.vendor_id": "V-9", "receiving.po_id": "PO-8"}}, "concept": "invoice_reconciliation", "reason": "missing prerequisite: invoice", "affected_subjects": [], "checked_evidence": [], "next_retrieval": "Which authorized source contains the missing in
+PASS source answer resolves the obligation {"status": "applied", "patch_id": "source-add-5f335369cfb0f66e", "material_digest": "cb66225de91c1352b47749a7a12c421011d7a38c6567d31666124ec7f41a8c0b", "affected_steps": [], "updated_steps": [], "retained_steps": ["source-1", "source-2"], "plan_revision": 2, "assignment": {"run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02", "assignment": {"assignment_id": "asg-cca55eeef6a64cc0", "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work", "employee_id": "browser-admin", "workspace_id": "default", "plan_revision": 2, "status": "blocked", "teaching_revision": "untrained", "teaching_fingerprint": "78786447fe775f92377d7122eec09317", "teaching_history": [], "e
+PASS duplicate source is idempotent {"status": "already_present", "reason": "the authorized source version is already present", "step_id": "source-3", "assignment": {"run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02", "assignment": {"assignment_id": "asg-cca55eeef6a64cc0", "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work", "employee_id": "browser-admin", "workspace_id": "default", "plan_revision": 2, "status": "blocked", "teaching_revision": "untrained", "teaching_fingerprint": "78786447fe775f92377d7122eec09317", "teaching_history": [], "effective_lesson_ids": [], "mappings": [], "mapping_history": [], "deliverables": [], "sources": [{"kind": "document", "binding": {"resource_id":
+PASS missing invoice recovery adopted {"source": "model", "technical_fallback": false, "decision": "replan", "errors": [], "failure_stage": null, "attempt_id": "2797c0694eec4c9aadbe159dec73cac8", "observation_ids": ["evidence-c2a617e8f73266651d01", "evidence-af08e577116872dca531", "evidence-1f876663cd4b50d60f98"], "adoption_status": "applied", "work_request_operation": "invoice_reconciliation", "execution_status": "completed"}
+PASS missing invoice recovered value "270.00"
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "quote initial model proposal",
+      "ok": true,
+      "detail": "model"
+    },
+    {
+      "name": "quote typed work adopted",
+      "ok": true,
+      "detail": {
+        "source": "model",
+        "technical_fallback": false,
+        "decision": "replan",
+        "errors": [],
+        "failure_stage": null,
+        "attempt_id": "5af11951b3cf4f28ad0c6ca587e548e1",
+        "observation_ids": [
+          "evidence-ed55ee296d89ccc69d3d"
+        ],
+        "adoption_status": "applied",
+        "work_request_operation": "quote_calculation",
+        "execution_status": "completed"
+      }
+    },
+    {
+      "name": "quote initial total",
+      "ok": true,
+      "detail": "370.00"
+    },
+    {
+      "name": "quote initial completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote changed total",
+      "ok": true,
+      "detail": "485.00"
+    },
+    {
+      "name": "quote changed completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote survives restart",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote value survives restart",
+      "ok": true,
+      "detail": "485.00"
+    },
+    {
+      "name": "cancellation is terminal",
+      "ok": true,
+      "detail": "cancelled"
+    },
+    {
+      "name": "invoice typed work adopted",
+      "ok": true,
+      "detail": {
+        "source": "model",
+        "technical_fallback": false,
+        "decision": "replan",
+        "errors": [],
+        "failure_stage": null,
+        "attempt_id": "ab9857f4ad0d4a9db50dcb999081f98b",
+        "observation_ids": [
+          "evidence-91189afcfe6d759162b6",
+          "evidence-06eb3370e19442b1045c",
+          "evidence-3c1d180ef32aa4d487d5"
+        ],
+        "adoption_status": "applied",
+        "work_request_operation": "invoice_reconciliation",
+        "execution_status": "completed"
+      }
+    },
+    {
+      "name": "invoice reconciled value",
+      "ok": true,
+      "detail": "270.00"
+    },
+    {
+      "name": "invoice initial completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "missing invoice not fabricated",
+      "ok": true,
+      "detail": [
+        "clarify"
+      ]
+    },
+    {
+      "name": "missing invoice produces actionable obligation",
+      "ok": true,
+      "detail": [
+        {
+          "question_id": "42447fbf-d93c-4c7f-92a0-c13ccd12804b",
+          "item": "invoice reconciliation",
+          "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+          "kind": "missing_evidence",
+          "evidence": "",
+          "next_action": "Confirm the missing business fact.",
+          "decision_owner": null,
+          "inputs": {
+            "operation": "invoice_reconciliation",
+            "missing": [
+              "invoice"
+            ],
+            "known_identities": {
+              "purchase_order.po_id": "PO-8",
+              "purchase_order.vendor_id": "V-9",
+              "receiving.po_id": "PO-8"
+            }
+          },
+          "concept": "invoice_reconciliation",
+          "reason": "missing prerequisite: invoice",
+          "affected_subjects": [],
+          "checked_evidence": [],
+          "next_retrieval": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+          "resolver": null,
+          "step_id": null,
+          "waiting": null,
+          "status": "open",
+          "attempts": 0,
+          "opened_at": "2026-11-03T19:20:11.364723+00:00",
+          "resolved_at": null,
+          "resolution": null,
+          "source_operation": null
+        }
+      ]
+    },
+    {
+      "name": "source answer resolves the obligation",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "patch_id": "source-add-5f335369cfb0f66e",
+        "material_digest": "cb66225de91c1352b47749a7a12c421011d7a38c6567d31666124ec7f41a8c0b",
+        "affected_steps": [],
+        "updated_steps": [],
+        "retained_steps": [
+          "source-1",
+          "source-2"
+        ],
+        "plan_revision": 2,
+        "assignment": {
+          "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+          "assignment": {
+            "assignment_id": "asg-cca55eeef6a64cc0",
+            "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+            "employee_id": "browser-admin",
+            "workspace_id": "default",
+            "plan_revision": 2,
+            "status": "blocked",
+            "teaching_revision": "untrained",
+            "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+            "teaching_history": [],
+            "effective_lesson_ids": [],
+            "mappings": [],
+            "mapping_history": [],
+            "deliverables": [],
+            "sources": [
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-po.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-po.json",
+                  "representation": "file",
+                  "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              },
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-receiving.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-receiving.json",
+                  "representation": "file",
+                  "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              }
+            ],
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "standing_authority": null,
+            "budget": {
+              "max_steps": 10,
+              "max_attempts_per_step": 3,
+              "max_wall_seconds": 900.0,
+              "max_cost_usd": 0.0,
+              "deadline": null,
+              "cost_mode": "hard",
+              "soft_limit_authorized_by": null,
+              "reserved_cost_usd": 0.0,
+              "cost_reservations": [],
+              "cost_overrun_usd": 0.0,
+              "cost_violation": null,
+              "soft_limit_exceeded": false,
+              "steps_started": 3,
+              "started_at": "2026-11-03T19:18:57.178042+00:00",
+              "elapsed_seconds": 0.0,
+              "paused_seconds": 0.0,
+              "waiting_since": null,
+              "wait_credits": {},
+              "wait_credits_schema": 1,
+              "active_wait": null,
+              "cost_usd": 0.0,
+              "idle_ledger_schema": 2,
+              "idle_intervals": {},
+              "working_seconds": 74.24,
+              "wall_seconds": 74.24
+            },
+            "steps": [
+              {
+                "step_id": "source-1",
+                "title": "Read missing-po.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+                "attempts": 0,
+                "result_summary": "read structured missing-po.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-2",
+                "title": "Read missing-receiving.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+                "attempts": 0,
+                "result_summary": "read structured missing-receiving.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-3",
+                "title": "Read supplied-invoice.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+                "attempts": 0,
+                "result_summary": "read structured supplied-invoice.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              }
+            ],
+            "created_at": "2026-11-03T19:18:57.169721+00:00",
+            "updated_at": "2026-11-03T19:20:11.409334+00:00",
+            "completed_at": "2026-11-03T19:20:11.408171+00:00",
+            "progress": {
+              "total_steps": 3,
+              "required_steps": 3,
+              "completed_steps": 3,
+              "waiting_steps": 0,
+              "failed_steps": 0,
+              "uncertain_steps": 0,
+          

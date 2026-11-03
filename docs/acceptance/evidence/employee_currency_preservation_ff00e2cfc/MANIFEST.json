@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "README.md": "78a0feedcf9cb74c9de318806d9c97025aebd952a30e4092c9d9ece21cae68cd",
+    "TEST_RESULTS.md": "9a2c108568cd43737a9b6dad88e6a0664c5acec2cefa7fe9a3bea67e5f40c78f",
+    "focused-tests.log": "1c549093d0e884e2cd0498f70654f90a006abe1184d57f8dcd07364da9201ae8",
+    "independent-currency-probe.log": "ae6cb5f6800138c0988f4882a3c6c655d0da1066f8fcad45dda15769ce26a7db"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "ff00e2cfc5607dfcfffe3e13c99c0bddbe5e351f",
+    "manifest_note": "Observed currency is preserved; conflicts refuse. No model inference required.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/employee_work_compiler.py",
+    "backend/tests/test_employee_work_requests.py"
+  ],
+  "exclusions": [
+    "no FX feature",
+    "UI/browser campaign remains with the product owner",
+    "historical scores unchanged",
+    "no cloud/live provider authority"
+  ],
+  "schema": "atom-employee-currency-preservation-1",
+  "source_hashes": {
+    "backend/core/employee_work_compiler.py": "8d84472988146e9bb56939586d9abbbdc7eb3fded1de2d3035b6642cbe1a65aa",
+    "backend/tests/test_employee_work_requests.py": "bc1bc6c4c8236b488b309874f30f148ec5b00d0a5d75e3a5cc5b5841ac696212"
+  },
+  "status": "focused-repair-verified",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "173 passed"
+    },
+    "independent_probe": {
+      "log": "independent-currency-probe.log",
+      "result": "2 passed"
+    }
+  }
+}

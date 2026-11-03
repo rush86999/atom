@@ -230,6 +230,16 @@ def _schema_json(response_model: Any) -> Dict[str, Any]:
         return {}
 
 
+def _raw_payload(result: Any) -> Any:
+    raw = getattr(result, "_raw_response", None)
+    if raw is None:
+        return None
+    try:
+        return str(raw)[:24000]
+    except Exception:  # noqa: BLE001 — diagnostics only
+        return None
+
+
 def _parsed_payload(result: Any) -> Any:
     try:
         if hasattr(result, "model_dump"):
@@ -237,6 +247,17 @@ def _parsed_payload(result: Any) -> Any:
         if isinstance(result, dict):
             return result
         return str(result)[:12000]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _raw_payload(result: Any) -> Any:
+    """Best-effort raw provider completion for the attempt journal."""
+    raw = getattr(result, "_raw_response", None)
+    if raw is None:
+        return None
+    try:
+        return str(raw)[:12000]
     except Exception:  # noqa: BLE001
         return None
 
@@ -353,7 +374,7 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="pinned",
                 seconds=_time.monotonic() - _pinned_started,
-                parsed=_parsed_payload(result))
+                parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
         logger.info(
             "%s pinned call (%s) returned no result — retrying unpinned "
@@ -389,7 +410,8 @@ async def pinned_structured_call(
                     attempt_observer, "parsed", label=log_label, attempt=2,
                     route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
-                    parsed=_parsed_payload(fallback_result))
+                    parsed=_parsed_payload(fallback_result),
+                    raw=_raw_payload(fallback_result))
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -418,7 +440,8 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
-                parsed=_parsed_payload(direct_result))
+                parsed=_parsed_payload(direct_result),
+                raw=_raw_payload(direct_result))
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(

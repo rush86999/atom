@@ -137,6 +137,7 @@ export interface AssignmentSummary {
 }
 
 export interface AssignmentSource {
+  document_id?: string | null;
   dataset_name: string;
   sheet: string;
   file_name: string;
@@ -156,6 +157,18 @@ export interface AssignmentAgent {
   name: string;
   status?: string;
   category?: string;
+}
+
+export async function uploadAssignmentSource(
+  file: File
+): Promise<Record<string, unknown>> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    "/api/documents/upload", form,
+    { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 }
+  );
+  return data;
 }
 
 export async function listAssignmentSources(
@@ -223,6 +236,7 @@ export async function createEmployeeAssignment(payload: {
   task_context?: Record<string, unknown>;
   authorized_actions?: string[];
   budget?: Record<string, unknown>;
+  teaching_terms?: Record<string, unknown>;
   use_model?: boolean;
 }): Promise<Record<string, any>> {
   // Objective-only start: the employee proposes read-only evidence work or
@@ -230,7 +244,9 @@ export async function createEmployeeAssignment(payload: {
   const { data } = await apiClient.post(
     "/api/assignments/from-objective",
     payload,
-    { timeout: 120000, retry: false },
+    // The objective start may run the model's discovery and one bounded
+    // typed-work follow-up on the local 8B; both are bounded server-side.
+    { timeout: 300000, retry: false },
   );
   return data;
 }
@@ -245,6 +261,32 @@ export async function getAssignment(runId: string): Promise<AssignmentDetail> {
 export async function resumeAssignment(runId: string): Promise<AssignmentDetail> {
   const { data } = await apiClient.post<AssignmentDetail>(
     `/api/assignments/${encodeURIComponent(runId)}/resume`
+  );
+  return data;
+}
+
+export async function addAssignmentSource(
+  runId: string,
+  source: Record<string, unknown>,
+  reason = "authorized source added to answer the employee question",
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/sources`,
+    { source, reason },
+    { timeout: 120000, retry: false },
+  );
+  return data;
+}
+
+export async function advanceAssignment(
+  runId: string,
+  payload: { use_model?: boolean; max_adaptations?: number;
+    deadline_seconds?: number } = {},
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/advance`,
+    payload,
+    { timeout: 300000, retry: false },
   );
   return data;
 }
@@ -334,11 +376,17 @@ export async function reconcileAssignmentStep(
   stepId: string,
   verdict: "applied" | "not_applied" | "insufficient",
   evidence: string,
-  evidenceRef?: string
+  evidenceRef?: string,
+  providerRef?: string
 ): Promise<Record<string, any>> {
   const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/reconcile/${encodeURIComponent(stepId)}`,
-    { verdict, evidence, evidence_ref: evidenceRef || undefined }
+    {
+      verdict,
+      evidence,
+      evidence_ref: evidenceRef || undefined,
+      provider_ref: providerRef || undefined,
+    }
   );
   return data;
 }

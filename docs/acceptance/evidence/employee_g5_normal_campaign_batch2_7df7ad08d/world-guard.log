@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/private/tmp/atom-full-app/scripts/acceptance/employee_g5_normal_campaign.py", line 467, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/private/tmp/atom-full-app/scripts/acceptance/employee_g5_normal_campaign.py", line 230, in main
+    world = _prepare_world(args.world, reset_world=args.reset_world)
+  File "/private/tmp/atom-full-app/scripts/acceptance/employee_g5_normal_campaign.py", line 202, in _prepare_world
+    raise UnsafeScratchError(
+        "refusing an existing unmarked campaign world: "
+        f"{candidate}")
+core.assignment_launcher_guard.UnsafeScratchError: refusing an existing unmarked campaign world: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-guard-sentinel

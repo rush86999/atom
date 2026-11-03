@@ -1,0 +1,58 @@
+{
+ "schema": "atom-employee-g5-normal-campaign-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "a9cdac47405d9f0f4872d479e1c2543a427bc490",
+  "tree_clean_at_run": true,
+  "worktree": "/private/tmp/atom-full-app",
+  "manifest_note": "Normal-product two-domain campaign passed 16/16; missing-invoice recovery followed an authorized source addition, not spontaneous model discovery."
+ },
+ "local_model": {
+  "declared": "llama3.1:8b",
+  "base_url": "http://127.0.0.1:11436",
+  "context_window": 16384,
+  "pin": "ollama:llama3.1:8b"
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "aef5f79a5e771bddd3b53dbc13b30e4232a8f22c609a2ce350a6ac2eb58b0426",
+  "backend/core/employee_job_runner.py": "c995ed7d1035ef2158624e653ee65637be07a9725585e197363a539a14fa2aa6",
+  "backend/core/employee_proposal.py": "c557d4a5c32f25025b58cdc2eaf9c3c70f7630ea04e6eac920e28095074aa3d5",
+  "backend/core/employee_adaptation.py": "a379d4e116cd0bf994263991d492bce3eddf764306f8c79bcc0be9ad0c701f8f",
+  "backend/core/employee_work_compiler.py": "123f38bea0b5c3f3059fae9f3eb646fac9d6b7945615bfa6d64220fbaf8da6b9",
+  "backend/core/assignment_executor.py": "58436c5d64a2c4d035f5126dbd8ee3bdd479dcbad02261c3721ad25223a3410e",
+  "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+  "backend/core/llm/pinned_planning.py": "99db0ed3db5e777ffae4d1202b8edb60306a3d5e5bb557d548e5598b4f0bd377",
+  "backend/scripts/assignment_browser_acceptance_server.py": "0bae3475320c4b4d7ed2586b044c4e97c82e1d35f509514d9ead957c4e7374f4",
+  "scripts/acceptance/employee_g5_normal_campaign.py": "ff8179dfe34ab63e26d3ce40e59cc2ea7a3e7768ee2ec8416a94f085a37f96d2"
+ },
+ "artifacts": {
+  "README.md": "8d60043f100ce8a0fb148101460e20b6cffb78a1a8b196fc40da13cad70f092b",
+  "TEST_RESULTS.md": "6ce0b21caf5cefb3251f8ad237068e68a3ab8aa3736c72584fa20cb94d8bd739",
+  "attempts.jsonl": "c6df1ed1f9705c4ab11add8b729023369645951cac4ceea6987f5380c867d7d1",
+  "campaign.json": "a5180d3c1a5b7be1b8e405aa0dc87bf5ec972c8f4cf9daed930a3cc4e4c89514",
+  "deterministic-campaign.log": "86a2eb29e3a8b3dceff7a3283e278c42612bdfac6bb7af3af005645b37b1b055",
+  "focused-tests.log": "072f886f6f51f98726e9a8e14a6ff1069538f82b2c9fa2a7b76a94e155015df0",
+  "server.log": "840e5b9480315a7a2723045b17a45b705b96ddb66860b8e3e76c9b9e7a04e5f3",
+  "uncertain-reconcile.log": "d418e88c6633d043c92071288b91dde11ea8627fb2fe7c3e54dd45ede7cc21d8"
+ },
+ "results": {
+  "campaign_checks": "16/16 passed",
+  "quote_initial": "370.00",
+  "quote_changed": "485.00",
+  "invoice_initial": "270.00",
+  "invoice_recovered": "270.00",
+  "restart": "quote 485.00 survives",
+  "cancellation": "cancelled",
+  "missing_invoice_fabricated": false,
+  "deterministic_campaign": "4 passed",
+  "uncertain_reconcile": "3 passed",
+  "focused": "199 passed"
+ },
+ "exclusions": [
+  "general employee judgment remains unqualified",
+  "missing invoice was supplied by the user/harness after model retain, not spontaneously requested",
+  "deterministic mechanism controls separate from served adaptive result",
+  "no cloud provider, credential, consent, send, spend or deployment",
+  "prior acceptance 28afe7248 and historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

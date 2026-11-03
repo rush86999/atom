@@ -37,7 +37,7 @@ from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_service import GoalService
 from core.models import (
     Base, DatasetEntry, GoalRun, HITLAction, HITLActionStatus,
-    IntegrationToken, User,
+    IngestedDocument, IntegrationToken, User,
 )
 from core.task_lifecycle import TaskLifecycle
 
@@ -3107,6 +3107,61 @@ def test_objective_only_reads_authorized_evidence(route_env, tmp_path, monkeypat
     assert fresh_record["assignment"]["sources"]
 
 
+def test_objective_uploaded_document_is_selectable_and_readable(
+        route_env, tmp_path, monkeypatch):
+    payload = tmp_path / "purchase-order.json"
+    payload.write_text(
+        '{"po_id": "PO-9", "vendor_id": "V-2", "quantity": "2", '
+        '"unit_price": "10.00", "currency": "USD"}')
+    doc = IngestedDocument(
+        id="doc-upload-1", workspace_id="ws-1", tenant_id="tenant-1",
+        file_name="purchase-order.json", file_path=str(payload),
+        file_type="json", integration_id="upload", external_id="upload-1",
+        source_content_hash="v1", freshness_status="fresh")
+    route_env["db"].add(doc)
+    route_env["db"].commit()
+
+    sources = route_env["client"].get("/api/assignments/sources")
+    assert sources.status_code == 200, sources.text
+    uploaded = next(
+        item for item in sources.json()
+        if item.get("document_id") == "doc-upload-1")
+    assert uploaded["kind"] == "document"
+
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the uploaded purchase order.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read purchase order",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Read the uploaded purchase order",
+            "sources": [{"document_id": "doc-upload-1"}],
+            "authorized_actions": ["retrieve"],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    step = internal["steps"][0]
+    assert step["status"] == "applied", step
+    assert step["result"]["data"]["po_id"] == "PO-9"
+
+
 def test_objective_only_returns_one_targeted_business_question(
         route_env, tmp_path, monkeypatch):
     async def proposal(_context, **_kwargs):
@@ -3241,3 +3296,239 @@ def test_plan_patch_route_adopts_fact_and_refuses_stale_proposal(
     refused = route_env["client"].post(
         f"/api/assignments/{run_id}/patch", json=stale)
     assert refused.status_code == 409, refused.text
+
+
+def test_objective_only_runs_typed_adaptive_follow_up(
+        route_env, tmp_path, monkeypatch):
+    import openpyxl
+
+    prices = tmp_path / "heldout-prices.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Prices"
+    sheet.append(["Item", "Qty", "Price", "Currency"])
+    sheet.append(["A", 2, 100.00, "USD"])
+    sheet.append(["B", 3, 50.00, "USD"])
+    workbook.save(prices)
+
+    async def initial(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the authorized price rows.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read held-out prices",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    async def adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        assert observations
+        request = QuoteCalculationRequest(
+            operation="quote_calculation",
+            source_step_id="source-1",
+            columns=QuoteColumns(
+                item_id="Item", quantity="Qty", unit_price="Price",
+                currency="Currency"),
+            currency="USD",
+            freight=MoneyTerm(value="20.00", authority_ref="freight"),
+            tax=TaxTerm(basis="none", authority_ref="tax_basis"),
+            reason="calculate the held-out quote")
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan", reason="accepted rows support the quote",
+                observation_ids=[observations[0]["observation_id"]],
+                work_request=request).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+            "attempt_id": "route-adaptive-1",
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", initial)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Quote the held-out customer request",
+            "sources": [{
+                "kind": "workbook", "path": str(prices),
+                "sheet": "Prices",
+            }],
+            "authorized_actions": ["retrieve", "calculate"],
+            "teaching_terms": {
+                "currency": "USD", "freight": "20.00",
+                "tax_basis": "none",
+            },
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["adaptive_rounds"], (
+        body["assignment"]["assignment"]["status"],
+        [s.get("status") for s in body["assignment"]["assignment"]["steps"]],
+        body["employee_job"]["business_outcome"],
+        body.get("proposal_source"),
+    )
+    round_zero = body["adaptive_rounds"][0]
+    assert round_zero["source"] == "model"
+    assert round_zero.get("work_request_operation") == "quote_calculation", round_zero
+    assert round_zero["adoption_status"] == "applied"
+    assert body["assignment"]["assignment"]["status"] == "completed", body
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(step for step in internal["steps"]
+                if step.get("adapter") == "quote.calculate")
+    assert calc["status"] == "applied"
+    assert calc["result"]["value"] == "370.00"
+
+
+def test_advance_route_adopts_typed_work_from_applied_evidence(
+        route_env, monkeypatch):
+    from core.employee_adaptation import WorkAdaptationProposal
+    from tests.test_employee_work_requests import (
+        _quote_request, _verified_quote_evidence,
+    )
+
+    teaching = new_teaching_snapshot(revision="route-advance-1")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+    }
+    plan = new_assignment(
+        objective="Quote the accepted customer request",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=teaching, steps=[_verified_quote_evidence()],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[
+            {"kind": "required_work_complete", "required": True},
+            {"criterion_id": "employee_result:objective",
+             "kind": "employee_result", "required": True,
+             "verifier": "employee_result"},
+        ])
+    record = route_env["executor"].create_assignment(
+        "conv-route-advance", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+
+    async def proposal(
+        _context, observations, *, assignment, **_kwargs,
+    ):
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="the accepted rows support an exact quote",
+                observation_ids=[observations[0]["observation_id"]],
+                work_request=_quote_request()).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", proposal)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/advance",
+        json={"use_model": False, "deadline_seconds": 30})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["rounds"][0]["source"] == "model"
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in internal["steps"]
+        if step["adapter"] == "quote.calculate")
+    assert calculate["status"] == "applied"
+    assert calculate["result"]["value"] == "370.00"
+
+
+def test_source_addition_settles_missing_prerequisite_without_duplicates(
+        route_env, tmp_path, monkeypatch):
+    from core.task_lifecycle import (
+        add_unresolved_questions, open_unresolved_questions,
+    )
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv(
+        "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+
+    def applied(step_id, data):
+        step = new_step(
+            step_id=step_id, title=step_id, operation_type="retrieve",
+            adapter="document.read", inputs={}, effect="read_only")
+        payload = tmp_path / f"{step_id}.json"
+        payload.write_text(json.dumps(data))
+        step.update(
+            status="applied", operation_id=f"op-{step_id}",
+            inputs={"path": str(payload)},
+            result={
+                "data": data, "resource_id": step_id,
+                "source_version": "v1",
+                "coverage": {"complete": True, "known": True,
+                             "truncated": False},
+                "verification": {
+                    "status": "verified", "resource_id": step_id,
+                    "version": "v1"},
+            })
+        return step
+
+    plan = new_assignment(
+        objective="Reconcile the supplier invoice for PO-7",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="source-settle-1"),
+        steps=[
+            applied("purchase-order", {
+                "po_id": "PO-7", "vendor_id": "V-9"}),
+            applied("receiving", {
+                "po_id": "PO-7", "received_quantity": "2"}),
+        ],
+        authorized_actions=["retrieve", "calculate"])
+    record = route_env["executor"].create_assignment(
+        "conv-source-settle", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    add_unresolved_questions(route_env["lifecycle"], run_id, [{
+        "kind": "missing_evidence",
+        "item": "invoice reconciliation",
+        "question": "Which authorized source contains the invoice for PO-7?",
+        "concept": "invoice_reconciliation",
+        "next_action": "Authorize the invoice source.",
+        "inputs": {"operation": "invoice_reconciliation",
+                   "missing": ["invoice"]},
+    }])
+    invoice = tmp_path / "invoice.json"
+    invoice.write_text(json.dumps({
+        "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"kind": "document", "path": str(invoice)},
+              "reason": "the user supplied the invoice"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["resolved_question_ids"]
+    assert open_unresolved_questions(
+        route_env["lifecycle"].get_task(run_id)) == []
+    steps_before = len(
+        route_env["lifecycle"].get_assignment(run_id)["steps"])
+
+    duplicate = route_env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"kind": "document", "path": str(invoice)},
+              "reason": "same invoice again"})
+    assert duplicate.status_code == 200, duplicate.text
+    assert duplicate.json()["status"] == "already_present"
+    assert len(route_env["lifecycle"].get_assignment(
+        run_id)["steps"]) == steps_before

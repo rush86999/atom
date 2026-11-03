@@ -9,10 +9,11 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -26,10 +27,12 @@ from core.assignment_planner import (
     plan_assignment,
     validate_proposed_plan,
 )
+from core.employee_adaptation import adopt_adaptation, propose_adaptation
 from core.employee_patch import PlanPatchError, PlanPatchProposal, apply_plan_patch
 from core.employee_proposal import (
     build_employee_context,
     compile_employee_proposal,
+    context_from_record,
     employee_job_view,
     propose_employee_work,
     validate_employee_proposal,
@@ -78,6 +81,7 @@ class AssignmentReconciliation(BaseModel):
     verdict: str
     evidence: str
     evidence_ref: Optional[str] = None
+    provider_ref: Optional[str] = None
 
 
 class AssignmentGapResolution(BaseModel):
@@ -127,7 +131,19 @@ class EmployeeObjectiveStart(BaseModel):
     task_context: Dict[str, Any] = {}
     authorized_actions: List[str] = ["retrieve"]
     budget: Optional[Dict[str, Any]] = None
+    teaching_terms: Dict[str, Any] = {}
     use_model: bool = True
+
+
+class EmployeeAdvance(BaseModel):
+    use_model: bool = True
+    max_adaptations: int = 1
+    deadline_seconds: float = 240.0
+
+
+class EmployeeSourceAdd(BaseModel):
+    source: Dict[str, Any]
+    reason: str = "authorized source added to answer the employee question"
 
 
 class AssignmentStart(BaseModel):
@@ -348,7 +364,9 @@ def _employee_action_views(
     views: List[Dict[str, Any]] = []
     for name in authorized_actions:
         name = str(name or "").strip()
-        if not name or name in ("retrieve", "calculate", "present"):
+        if not name or name in (
+                "retrieve", "calculate", "present", "outbound", "send",
+                "edit", "delete"):
             continue
         action = action_registry.get_action(name)
         if action is None:
@@ -373,6 +391,16 @@ def _employee_llm(current_user: User, db: Session):
         )
     except Exception:  # noqa: BLE001 — deterministic fallback remains
         return None
+
+
+def _employee_provider_model() -> Optional[tuple]:
+    """Operator-declared employee serving pin, e.g. ollama:llama3.1:8b."""
+    raw = os.getenv("ATOM_EMPLOYEE_PROVIDER_MODEL", "").strip()
+    if ":" not in raw:
+        return None
+    provider, model = raw.split(":", 1)
+    provider, model = provider.strip(), model.strip()
+    return (provider, model) if provider and model else None
 
 
 @router.post("")
@@ -818,6 +846,174 @@ async def start_assignment(
     }
 
 
+def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
+    consumed = set()
+    for item in assignment.get("patch_history") or []:
+        for observed in item.get("observations") or []:
+            value = (observed.get("observation_id")
+                     if isinstance(observed, dict) else observed)
+            if value:
+                consumed.add(str(value))
+    return consumed
+
+
+async def _advance_employee_work(
+    executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
+    deadline_seconds: float = 240.0,
+    provider_model: Optional[tuple] = None,
+) -> List[Dict[str, Any]]:
+    """Run the ordinary objective's typed follow-up through the product.
+
+    The initial proposal chooses read-only evidence. This loop hands the
+    durable evidence result back to the same adaptation contract used by the
+    served smokes, adopts the compiled work request, and lets the existing
+    executor own execution. It never invents evidence or a plan patch.
+    """
+    from core.employee_job_runner import (
+        action_views, evidence_observations, missing_prerequisite_question,
+    )
+    from core.task_lifecycle import open_unresolved_questions
+
+    rounds: List[Dict[str, Any]] = []
+    for _ in range(max_rounds):
+        record = executor.lifecycle.get_task(run_id) or {}
+        assignment = record.get("assignment") or {}
+        status = str(assignment.get("status") or "")
+        if status in ("completed", "failed", "cancelled"):
+            break
+        if open_unresolved_questions(record):
+            break
+        # Only new evidence reads can drive a proposal; a business calculation
+        # result is not fresh evidence and must not cause the model to repeat
+        # the same work.
+        observations = evidence_observations(record)
+        if not observations:
+            break
+        context = context_from_record(
+            record, action_views=action_views(assignment))
+        proposal_result = await propose_adaptation(
+            context, observations, assignment=assignment, llm_service=llm,
+            provider_model=provider_model,
+            deadline=time.monotonic() + max(0.0, float(deadline_seconds)))
+        proposal = proposal_result.get("proposal") or {}
+        round_record = {
+            "source": proposal_result.get("source"),
+            "technical_fallback": proposal_result.get(
+                "technical_fallback", False),
+            "decision": proposal.get("decision"),
+            "errors": proposal_result.get("errors") or [],
+            "failure_stage": proposal_result.get("failure_stage"),
+            "attempt_id": proposal_result.get("attempt_id"),
+            "observation_ids": [item["observation_id"]
+                                for item in observations],
+        }
+        rounds.append(round_record)
+        if not proposal or proposal.get("decision") in ("retain",):
+            question = missing_prerequisite_question(assignment)
+            if question and not open_unresolved_questions(
+                    executor.lifecycle.get_task(run_id) or {}):
+                from core.task_lifecycle import add_unresolved_questions
+
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [question])
+                round_record["obligation"] = question
+                round_record["obligation_source"] = (
+                    "deterministic_missing_prerequisite")
+                round_record["progress"] = "no_progress"
+            break
+        if proposal_result.get("source") not in ("model", "model_repaired"):
+            break
+        if proposal.get("decision") == "clarify":
+            clarification = proposal.get("clarification") or {}
+            question = str(clarification.get("question") or "").strip()
+            if not question:
+                # A bare "clarify" is not actionable. Fall back to the
+                # capability's declared missing prerequisite instead of
+                # silently abandoning the objective.
+                fallback = missing_prerequisite_question(assignment)
+                if fallback and not open_unresolved_questions(
+                        executor.lifecycle.get_task(run_id) or {}):
+                    from core.task_lifecycle import add_unresolved_questions
+
+                    add_unresolved_questions(
+                        executor.lifecycle, run_id, [fallback])
+                    round_record["obligation"] = fallback
+                    round_record["obligation_source"] = (
+                        "deterministic_empty_clarification")
+                    round_record["progress"] = "no_progress"
+                break
+            if question:
+                from core.task_lifecycle import add_unresolved_questions
+
+                missing = [
+                    dict(item) for item in (
+                        context.get("missing_prerequisites") or [])
+                    if isinstance(item, Mapping)
+                ]
+                chosen = next((
+                    item for item in missing
+                    if str(item.get("question_hint") or "").strip()
+                    == question), None)
+                if chosen is None and missing:
+                    chosen = next((
+                        item for item in missing
+                        if str(item.get("operation") or "").replace(
+                            "_", " ") in question.lower()), missing[0])
+                entry = {
+                    "kind": "business_decision",
+                    "question": question,
+                    "concept": clarification.get("concept") or None,
+                    "reason": clarification.get("unblocks") or None,
+                    "next_action": "Confirm the missing business fact.",
+                    "next_retrieval": clarification.get("unblocks") or None,
+                }
+                if chosen:
+                    entry["kind"] = "missing_evidence"
+                    entry["concept"] = (
+                        entry["concept"] or chosen.get("operation"))
+                    entry["item"] = chosen.get("label")
+                    entry["inputs"] = {
+                        "operation": chosen.get("operation"),
+                        "missing": list(chosen.get("missing") or []),
+                        "known_identities": dict(
+                            chosen.get("known_identities") or {}),
+                    }
+                    entry["reason"] = (
+                        entry["reason"] or (
+                            "missing prerequisite: "
+                            + ", ".join(chosen.get("missing") or [])))
+                    entry["next_retrieval"] = (
+                        chosen.get("question_hint")
+                        or entry["next_retrieval"])
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [entry])
+            round_record["clarification"] = clarification
+            break
+        if proposal.get("decision") not in ("replan", "work_request"):
+            break
+        if not proposal.get("work_request"):
+            break
+        try:
+            adopted = adopt_adaptation(
+                executor.lifecycle, run_id, proposal,
+                rationale="ordinary objective adaptive follow-up")
+        except Exception as exc:  # noqa: BLE001 - typed refusal
+            round_record["adoption_error"] = f"{type(exc).__name__}: {exc}"
+            break
+        round_record["adoption_status"] = adopted.get("status")
+        round_record["work_request_operation"] = (
+            (proposal.get("work_request") or {}).get("operation"))
+        if adopted.get("status") != "applied":
+            break
+        execution = await executor.execute(run_id, max_steps=12)
+        round_record["execution_status"] = (
+            (execution.get("assignment") or {}).get("status"))
+        if round_record["execution_status"] in (
+                "completed", "failed", "cancelled"):
+            break
+    return rounds
+
+
 @router.post("/from-objective")
 async def start_employee_objective(
     body: EmployeeObjectiveStart,
@@ -866,6 +1062,12 @@ async def start_employee_objective(
         task_context=body.task_context,
         now=datetime.now(timezone.utc).isoformat(),
     )
+    if body.teaching_terms:
+        teaching = dict(teaching)
+        teaching["terms"] = {
+            **dict(teaching.get("terms") or {}),
+            **{str(key): value for key, value in body.teaching_terms.items()},
+        }
     context = build_employee_context(
         objective=body.objective,
         employee_id=employee.id,
@@ -883,8 +1085,9 @@ async def start_employee_objective(
         budget=body.budget or {},
     )
     llm = _employee_llm(current_user, db) if body.use_model else None
+    provider_model = _employee_provider_model()
     proposal_result = await propose_employee_work(
-        context, llm_service=llm)
+        context, llm_service=llm, provider_model=provider_model)
     checked = validate_employee_proposal(
         proposal_result.get("proposal"), context)
     if not checked["valid"]:
@@ -921,7 +1124,8 @@ async def start_employee_objective(
                     "technical_fallback", False),
             },
         )
-    accepted_actions = ["retrieve"]
+    accepted_actions = list(dict.fromkeys(
+        ["retrieve", *list(body.authorized_actions or [])]))
     plan = plan_assignment(
         objective=body.objective,
         sources=list(compiled["plan_kwargs"].get("sources") or []),
@@ -985,6 +1189,16 @@ async def start_employee_objective(
             }],
         )
     status = await executor.execute(run_id, max_steps=12)
+    adaptive_rounds = []
+    if llm is not None:
+        deadline_seconds = float(os.getenv(
+            "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
+        adaptive_rounds = await _advance_employee_work(
+            executor, run_id, llm, provider_model=provider_model,
+            deadline_seconds=deadline_seconds)
+        # The follow-up calls the executor again; the response must reflect
+        # the resulting steps/status, not the pre-adaptation snapshot.
+        status = executor.status(run_id)
     current = executor.lifecycle.get_task(run_id) or {}
     from core.task_lifecycle import open_unresolved_questions
     job = employee_job_view(
@@ -1001,6 +1215,7 @@ async def start_employee_objective(
         "technical_fallback": proposal_result.get(
             "technical_fallback", False),
         "proposal_errors": proposal_result.get("errors") or [],
+        "adaptive_rounds": adaptive_rounds,
         "plan_revision": plan.get("plan_revision"),
         "teaching_revision": (
             plan.get("teaching_snapshot") or {}).get("revision"),
@@ -1058,6 +1273,7 @@ async def list_assignment_sources(
     query: str = "",
     limit: int = 50,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """Authorized catalog sources the ordinary assignment form can name.
 
@@ -1098,6 +1314,36 @@ async def list_assignment_sources(
             "row_count": int(entry.get("row_count") or 0),
             "coverage": entry.get("coverage") or {},
             "ingested_at": entry.get("ingested_at"),
+        })
+    # Ordinary uploaded documents are authorized sources too. They are
+    # selected by durable document_id, never by a caller-supplied path.
+    from core.models import IngestedDocument
+
+    documents = db.query(IngestedDocument).filter(
+        IngestedDocument.workspace_id == workspace_id,
+    ).order_by(IngestedDocument.ingested_at.desc()).limit(
+        max(1, min(int(limit or 50), 100))).all()
+    for row in documents:
+        freshness = str(row.freshness_status or "fresh").lower()
+        if freshness in ("removed", "superseded", "outdated", "stale"):
+            continue
+        if query and query.lower() not in str(row.file_name or "").lower():
+            continue
+        rows.append({
+            "document_id": row.id,
+            "dataset_name": None,
+            "sheet": None,
+            "file_name": row.file_name,
+            "source": row.integration_id or "upload",
+            "external_id": row.external_id,
+            "source_version": row.source_content_hash or row.external_id,
+            "kind": "document",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": 0,
+            "coverage": {"known": True, "freshness": freshness},
+            "ingested_at": row.ingested_at.isoformat()
+            if row.ingested_at else None,
         })
     return rows
 
@@ -1189,6 +1435,191 @@ async def resume_assignment(
         return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/{run_id}/advance")
+async def advance_assignment(
+    run_id: str,
+    body: EmployeeAdvance,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Continue from applied evidence to model-chosen supported work.
+
+    The initial objective call owns evidence discovery. This endpoint hands
+    the accepted observations to the same adaptation consumer, adopts one
+    typed work request (or persists one targeted clarification), and advances
+    the existing executor. No caller-supplied plan, rows or step mechanics are
+    accepted here.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    llm = _employee_llm(current_user, db) if body.use_model else None
+    try:
+        await executor.execute(run_id, max_steps=12)
+        rounds = await _advance_employee_work(
+            executor, run_id, llm,
+            max_rounds=max(0, min(int(body.max_adaptations), 3)),
+            deadline_seconds=max(0.0, float(body.deadline_seconds)),
+            provider_model=_employee_provider_model())
+        return {
+            "run_id": run_id,
+            "assignment": executor.status(run_id),
+            "rounds": rounds,
+        }
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/{run_id}/sources")
+async def add_assignment_source(
+    run_id: str,
+    body: EmployeeSourceAdd,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Add one authorized source after a targeted evidence question.
+
+    The source is resolved through the same connected/internal binding as the
+    objective start, read by the normal adapter, and then the existing
+    adaptive consumer decides whether the new evidence supports business work.
+    No rows, expected values or step mechanics are supplied by the caller.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    allow_internal = os.getenv(
+        "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS") == "1"
+    try:
+        resolved = resolve_assignment_source(
+            db, current_user, dict(body.source or {}),
+            allow_internal=allow_internal)
+    except AssignmentResourceError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"error": exc.code, "message": str(exc)}) from exc
+    record = executor.lifecycle.get_task(run_id) or {}
+    assignment = record.get("assignment") or {}
+    # A duplicate source addition must not add another read step or cause
+    # duplicate arithmetic/effects later. Same resource identity/version is
+    # already present: return the durable state unchanged.
+    existing = None
+    for step in assignment.get("steps") or []:
+        binding = ((step.get("inputs") or {}).get("resource_binding")
+                   if isinstance(step.get("inputs"), dict) else None)
+        if not isinstance(binding, dict):
+            continue
+        if str(binding.get("resource_id") or "") == str(
+                resolved.get("resource_id") or "") and str(
+                binding.get("source_version") or "") == str(
+                resolved.get("source_version") or ""):
+            existing = step
+            break
+    if existing is not None:
+        return {
+            "status": "already_present",
+            "reason": "the authorized source version is already present",
+            "step_id": existing.get("step_id"),
+            "assignment": executor.status(run_id),
+        }
+    from core.assignment_planner import _source_step
+    from core.employee_patch import apply_plan_patch
+    import hashlib as _hashlib
+
+    indexes = []
+    for step in assignment.get("steps") or []:
+        step_id = str(step.get("step_id") or "")
+        if step_id.startswith("source-"):
+            try:
+                indexes.append(int(step_id.split("-", 1)[1]))
+            except ValueError:
+                pass
+    raw_step = _source_step(resolved, (max(indexes) if indexes else 0) + 1)
+    step = {
+        key: raw_step.get(key) for key in (
+            "step_id", "title", "operation_type", "adapter", "depends_on",
+            "inputs", "effect", "requires", "required")
+        if raw_step.get(key) is not None
+    }
+    identity = _hashlib.sha256(json.dumps(
+        {"resource_id": resolved.get("resource_id"),
+         "source_version": resolved.get("source_version")},
+        sort_keys=True, default=str).encode()).hexdigest()[:16]
+    patch = {
+        "patch_id": f"source-add-{identity}",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": int(assignment.get("plan_revision") or 1),
+        "reason": body.reason,
+        "observations": [{
+            "kind": "authorized_source_added",
+            "resource_id": resolved.get("resource_id"),
+            "source_version": resolved.get("source_version"),
+        }],
+        "invalidate_steps": [],
+        "remove_steps": [],
+        "add_steps": [step],
+        "update_steps": [],
+        "add_facts": [],
+        "set_requires": {},
+    }
+    try:
+        adopted = apply_plan_patch(
+            executor.lifecycle, run_id, patch, rationale=body.reason)
+        status = await executor.execute(run_id, max_steps=12)
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    # Settle only obligations that this accepted source actually made ready.
+    current = executor.lifecycle.get_task(run_id) or {}
+    current_assignment = current.get("assignment") or {}
+    from core.employee_proposal import operation_capabilities
+    from core.task_lifecycle import (
+        open_unresolved_questions, resolve_unresolved_questions,
+    )
+    ready_operations = {
+        str(item.get("operation") or "")
+        for item in operation_capabilities(current_assignment)
+        if item.get("status") == "ready"
+    }
+    added_step = next((
+        item for item in current_assignment.get("steps") or []
+        if item.get("step_id") == step.get("step_id")), {})
+    added_data = ((added_step.get("result") or {}).get("data")
+                  if isinstance(added_step.get("result"), dict) else {})
+    observed_po = str(
+        (added_data or {}).get("po_id") or "").strip()
+    settled = []
+    mismatched = []
+    question_ids = []
+    for question in open_unresolved_questions(current):
+        if question.get("kind") not in (
+                "missing_prerequisite", "missing_evidence"):
+            continue
+        operation = str(
+            question.get("operation") or question.get("concept") or "")
+        if operation not in ready_operations:
+            continue
+        inputs = question.get("inputs") if isinstance(
+            question.get("inputs"), dict) else {}
+        known = inputs.get("known_identities") if isinstance(
+            inputs.get("known_identities"), dict) else {}
+        expected_po = str(known.get("purchase_order.po_id") or "").strip()
+        if expected_po and observed_po and expected_po != observed_po:
+            mismatched.append(question.get("question_id"))
+            continue
+        question_ids.append(str(question.get("question_id")))
+    if question_ids:
+        settled = resolve_unresolved_questions(
+            executor.lifecycle, run_id, question_ids=question_ids,
+            resolution=(
+                "authorized source "
+                f"{resolved.get('resource_id')} version "
+                f"{resolved.get('source_version')} made the capability ready"))
+        status = executor.status(run_id)
+    return {**adopted, "assignment": status,
+            "resolved_question_ids": [
+                item.get("question_id") for item in settled],
+            "mismatched_question_ids": [
+                item for item in mismatched if item],
+            "observed_purchase_order": observed_po or None}
 
 
 @router.post("/{run_id}/reassess")
@@ -1645,6 +2076,7 @@ async def reconcile_assignment_step(
             run_id, step_id, body.verdict,
             evidence=body.evidence,
             evidence_ref=body.evidence_ref,
+            provider_ref=body.provider_ref,
         )
     except Exception as exc:  # noqa: BLE001 — keep the uncertain state
         raise HTTPException(status_code=409, detail=str(exc))

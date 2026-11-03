@@ -2327,6 +2327,22 @@ class AssignmentExecutor:
                         "reason": _bounded(reason, 300),
                     })
                 item["prior_results"] = prior[-10:]
+                if str(item.get("adapter") or "") in (
+                        "workbook.read", "document.read"):
+                    inputs = item.get("inputs") if isinstance(
+                        item.get("inputs"), dict) else {}
+                    source_path = str(inputs.get("path") or "")
+                    if source_path and os.path.isfile(source_path):
+                        refreshed = _sha256_file(source_path)
+                        binding = inputs.get("resource_binding")
+                        if isinstance(binding, dict) and binding.get(
+                                "source_version") not in (None, ""):
+                            binding = dict(binding)
+                            binding["source_version"] = refreshed
+                            inputs["resource_binding"] = binding
+                        if inputs.get("source_version") not in (None, ""):
+                            inputs["source_version"] = refreshed
+                        item["inputs"] = inputs
                 item["status"] = "pending"
                 item["operation_id"] = None
                 item["result"] = None
@@ -3532,6 +3548,7 @@ class AssignmentExecutor:
         *,
         evidence: str,
         evidence_ref: Optional[str] = None,
+        provider_ref: Optional[str] = None,
     ) -> Dict[str, Any]:
         record = self.lifecycle.get_task(run_id)
         if record is None:
@@ -3546,17 +3563,33 @@ class AssignmentExecutor:
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)
         if verdict == "applied":
+            execution = _json_safe(result.get("execution") or {
+                "summary": "reconciled applied",
+                "evidence": [evidence],
+            })
+            if provider_ref:
+                execution = {
+                    **execution,
+                    "summary": execution.get("summary")
+                    or "reconciled applied",
+                    "provider_state": "accepted",
+                    "provider_ref": str(provider_ref),
+                    "remote_id": str(provider_ref),
+                    "verification": {
+                        "status": "verified",
+                        "provider_ref": str(provider_ref),
+                    },
+                }
             assignment = self._mark_step(
                 (self.lifecycle.get_assignment(run_id) or {}),
                 step_id,
                 {
                     "status": "applied",
-                    "result": _json_safe(result.get("execution") or {
-                        "summary": "reconciled applied",
-                        "evidence": [evidence],
-                    }),
+                    "result": execution,
                     "failure": None,
                 })
+            assignment = self._apply_deliverables(
+                assignment, step, execution)
             self._persist_assignment(
                 run_id, assignment, f"step {step_id} reconciled applied")
         elif verdict == "not_applied":
@@ -5725,6 +5758,10 @@ class AssignmentExecutor:
             gap["question"] = (
                 f"Provide the missing information to continue "
                 f"'{step.get('title')}'.")
+        if not str(gap.get("next_action") or "").strip():
+            gap["next_action"] = (
+                str(gap.get("next_retrieval") or "").strip()
+                or "Provide the missing evidence and retry the step.")
         waiting = gap.get("waiting") or {
             "state": "waiting_for_person",
             "party": gap.get("resolver") or "owner",
@@ -7311,6 +7348,21 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
                    if _matches(record.get(field))]
     limit = max(1, min(int(inputs.get("max_rows") or 500), 5000))
     source_version = _sha256_file(path)
+    truncated = len(records) > limit
+    binding = next((
+        inputs.get(key) for key in (
+            "resource_binding", "source_binding", "binding", "source")
+        if isinstance(inputs.get(key), dict)), {})
+    resource_id = str(
+        inputs.get("resource_id") or inputs.get("source_id")
+        or binding.get("resource_id") or binding.get("source_id")
+        or binding.get("id") or f"file:{path}")
+    version = str(
+        inputs.get("source_version") or inputs.get("version")
+        or binding.get("source_version") or binding.get("version")
+        or source_version)
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
     return {
         "status": "applied",
         "summary": (
@@ -7319,8 +7371,16 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "rows": _json_safe(records[:limit]),
         "schema": [{"column": column} for column in header if column],
         "matched_count": len(records),
-        "truncated": len(records) > limit,
+        "truncated": truncated,
         "source_version": source_version,
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "evidence": [{
             "kind": "workbook",
             "path": path,
@@ -7353,6 +7413,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         })
     suffix = Path(path).suffix.lower()
     text = ""
+    structured = None
     if suffix == ".docx":
         import docx
 
@@ -7364,19 +7425,180 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         text = "\n".join(part for part in parts if part.strip())
     else:
         text = Path(path).read_text(errors="replace")
+        if suffix == ".json":
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                structured = payload
+                text = json.dumps(payload, indent=2, sort_keys=True)
     source_version = _sha256_file(path)
-    return {
+    truncated = len(text) > 20000
+    data = None
+    if suffix == ".json":
+        try:
+            parsed = json.loads(text)
+        except (TypeError, ValueError):
+            parsed = None
+        if isinstance(parsed, dict):
+            data = _json_safe(parsed)
+    binding = next((
+        inputs.get(key) for key in (
+            "resource_binding", "source_binding", "binding", "source")
+        if isinstance(inputs.get(key), dict)), {})
+    resource_id = str(
+        inputs.get("resource_id") or inputs.get("source_id")
+        or binding.get("resource_id") or binding.get("source_id")
+        or binding.get("id") or f"file:{path}")
+    version = str(
+        inputs.get("source_version") or inputs.get("version")
+        or binding.get("source_version") or binding.get("version")
+        or source_version)
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
+    result = {
         "status": "applied",
-        "summary": f"read {len(text)} characters from {Path(path).name}",
+        "summary": (
+            f"read structured {Path(path).name}"
+            if structured is not None
+            else f"read {len(text)} characters from {Path(path).name}"),
         "text": text[:20000],
-        "truncated": len(text) > 20000,
+        "truncated": truncated,
         "source_version": source_version,
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "data": data or {},
+        "schema": [
+            {"column": str(key)} for key in (data or {})
+        ],
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "evidence": [{
             "kind": "document",
             "path": path,
             "content_hash": source_version,
         }],
     }
+    if structured is not None:
+        result["data"] = structured
+    return result
+
+
+@register_assignment_adapter(
+    "document.text", description="Read an uploaded document's extracted text",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "requires_resource": True})
+async def _document_text_read(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    binding = inputs.get("resource_binding") if isinstance(
+        inputs.get("resource_binding"), dict) else {}
+    document_id = str(
+        binding.get("resource_id") or inputs.get("document_id") or "").strip()
+    path = str(inputs.get("path") or binding.get("path") or "").strip()
+    if path and os.path.isfile(path):
+        result = await _document_read(inputs, context)
+        text = str(result.get("text") or "")
+        if text.strip().startswith("{"):
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                result["data"] = payload
+        return result
+    if not document_id:
+        raise NeedsContext({
+            "concept": "document_identity",
+            "reason": "the assignment did not name an uploaded document",
+            "question": "Which authorized document should I read?",
+            "next_retrieval": "resolve the uploaded document and retry",
+            "kind": "missing_evidence",
+        })
+    workspace_id = context.get("workspace_id") or "default"
+    document = None
+    try:
+        from core.lancedb_handler import get_lancedb_handler
+
+        for candidate_workspace in (workspace_id, "default_shared"):
+            handler = get_lancedb_handler(candidate_workspace)
+            document = await asyncio.to_thread(
+                handler.get_document_by_id, "documents", document_id)
+            if document:
+                break
+    except Exception as exc:  # noqa: BLE001 - durable evidence unavailable
+        raise NeedsContext({
+            "concept": "document_resource",
+            "reason": f"the uploaded document could not be read: {exc}",
+            "question": "The uploaded document is unavailable.",
+            "next_retrieval": "reconnect the document store and retry",
+            "kind": "missing_evidence",
+        }) from exc
+    if not document:
+        raise NeedsContext({
+            "concept": "document_resource",
+            "reason": "the uploaded document is not in this workspace",
+            "question": "The uploaded document is unavailable.",
+            "next_retrieval": "re-upload or select the document again",
+            "kind": "missing_evidence",
+        })
+    text = str(document.get("text") or "")
+    if not text.strip():
+        raise NeedsContext({
+            "concept": "document_text",
+            "reason": "the uploaded document has no extracted text",
+            "question": "The document contains no readable text.",
+            "next_retrieval": "supply a readable document",
+            "kind": "missing_evidence",
+        })
+    data = None
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        try:
+            payload = json.loads(stripped)
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            data = payload
+    from core.database import get_db_session
+    from core.models import IngestedDocument
+
+    version = str(
+        (document.get("metadata") or {}).get("source_content_hash") or "")
+    try:
+        with get_db_session() as db:
+            row = db.query(IngestedDocument).filter(
+                IngestedDocument.id == document_id).first()
+            if row is not None and row.source_content_hash:
+                version = str(row.source_content_hash)
+    except Exception:  # noqa: BLE001 - version falls back to metadata
+        pass
+    truncated = len(text) > 20000
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
+    result = {
+        "status": "applied",
+        "summary": f"read extracted text from {document.get('source') or document_id}",
+        "text": text[:20000],
+        "truncated": truncated,
+        "source_version": version or None,
+        "resource_id": document_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": document_id,
+            "version": version or None,
+            "coverage": coverage,
+        },
+    }
+    if data is not None:
+        result["data"] = data
+    return result
 
 
 @register_assignment_adapter(

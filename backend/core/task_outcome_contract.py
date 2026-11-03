@@ -739,6 +739,7 @@ def _employee_result_verifier(outcome: Dict[str, Any]) -> "bool | None":
     positives = (
         "artifact_verified", "draft_saved", "provider_accepted",
         "sent_record_confirmed", "delivery_confirmed",
+        "calculation_verified",
     )
     if any(delivery.get(key) is True for key in positives):
         return True
@@ -1284,7 +1285,13 @@ def build_assignment_outcome(
                 "computed": result.get("value"),
                 "unit": result.get("unit"),
                 "verified": applied,
+                "step_id": step.get("step_id"),
+                "adapter": step.get("adapter"),
             }
+    if calculation.get("verified") and calculation.get("computed") not in (
+            None, ""):
+        delivery["calculation_verified"] = True
+        delivery["calculated_value"] = calculation.get("computed")
     gaps: List[Dict[str, Any]] = []
     try:
         from core.task_lifecycle import open_unresolved_questions
