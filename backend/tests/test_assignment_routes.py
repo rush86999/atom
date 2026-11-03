@@ -3047,3 +3047,145 @@ def test_expense_reconciliation_uses_the_same_assignment_route(
             text += "\n" + " | ".join(cell.text for cell in row.cells)
     assert "260.40" in text, text
     assert "mileage" in text and "lodging" in text, text
+
+
+def test_objective_only_reads_authorized_evidence(route_env, tmp_path, monkeypatch):
+    """An ordinary objective can start useful read-only work without a DAG."""
+    note = tmp_path / "commercial-notes.txt"
+    note.write_text("Approved commercial note: delivery within ten days.\n")
+
+    async def proposal(context, **_kwargs):
+        source_id = context["sources"][0]["source_id"]
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the authorized commercial note first.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the commercial note",
+                    "source_id": source_id,
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Prepare a delivery answer for the customer",
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["proposal_source"] == "model"
+    assert body["plan_revision"] == 1
+    steps = body["assignment"]["assignment"]["steps"]
+    assert steps[0]["status"] == "applied"
+    assert body["employee_job"]["identity"]["execution_owner"] == "assignment"
+    assert body["employee_job"]["objective"] == (
+        "Prepare a delivery answer for the customer")
+    assert body["employee_job"]["business_outcome"]["state"] == "unresolved"
+
+    # G1: the same root job/criteria/identity survives a fresh session.
+    fresh_runs = GoalRunService(
+        workspace_id="ws-1", tenant_id="tenant-1",
+        session_factory=route_env["factory"])
+    fresh_goals = GoalService(
+        workspace_id="ws-1", tenant_id="tenant-1",
+        session_factory=route_env["factory"])
+    fresh_lifecycle = TaskLifecycle(fresh_runs, fresh_goals)
+    fresh_record = fresh_lifecycle.get_task(body["run_id"])
+    assert fresh_record["assignment"]["objective"] == (
+        "Prepare a delivery answer for the customer")
+    assert fresh_record["assignment"]["employee_id"]
+    assert fresh_record["assignment"]["completion_criteria"]
+    assert fresh_record["assignment"]["sources"]
+
+
+def test_objective_only_returns_one_targeted_business_question(
+        route_env, tmp_path, monkeypatch):
+    async def proposal(_context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "clarification",
+                "reason": "The delivery requirement changes the answer.",
+                "clarification": {
+                    "question": "What delivery date has the customer accepted?",
+                    "concept": "delivery_deadline",
+                    "unblocks": "Selecting an eligible delivery option.",
+                    "expected_answer_type": "date",
+                },
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    note = tmp_path / "notes.txt"
+    note.write_text("source\n")
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Prepare a delivery answer",
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["error"] == "employee_clarification_required"
+    assert detail["clarification"]["question"] == (
+        "What delivery date has the customer accepted?")
+
+
+def test_objective_only_unknown_qualification_blocks_dependent_read(
+        route_env, tmp_path, monkeypatch):
+    note = tmp_path / "eligibility-notes.txt"
+    note.write_text("Eligibility is not stated in this note.\n")
+
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "The price answer depends on eligibility.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the pricing note",
+                    "source_id": context["sources"][0]["source_id"],
+                    "requires": [{
+                        "kind": "fact", "fact_id": "agreement_eligible",
+                        "equals": True,
+                    }],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Prepare the agreement price",
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["employee_job"]["business_outcome"]["state"] in (
+        "unresolved", "unsatisfied")
+    assert body["employee_job"]["business_outcome"]["state"] != "satisfied"
+    step = body["employee_job"]["steps"][0]
+    assert step["status"] == "pending"
+    assert step["requires"] == [{
+        "kind": "fact", "fact_id": "agreement_eligible", "equals": True}]
+    assert body["assignment"]["assignment"]["status"] in (
+        "blocked", "planned", "partial")

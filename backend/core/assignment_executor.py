@@ -34,6 +34,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
+from core.assignment_readiness import evaluate_step_readiness
 from core.assignment_plan import (
     ASSIGNMENT_STATES,
     TERMINAL_ASSIGNMENT_STATES,
@@ -1853,11 +1854,25 @@ class AssignmentExecutor:
                 or "read_only")
             state = derive_state(
                 assignment, task_authorization=task_authorization)
-            if state in ("failed", "partial") and ready_steps(assignment):
+            if state in ("failed", "partial") and ready_steps(
+                    assignment, task_authorization=task_authorization):
                 # Independent ready work may continue even when one branch
                 # has failed; only the branch is blocked.
                 state = "running"
             assignment = self._set_state(assignment, state)
+            if state == "completed" and assignment.get(
+                    "completion_criteria"):
+                from core.task_outcome_contract import (
+                    build_assignment_outcome,
+                )
+                business = build_assignment_outcome(
+                    assignment, record, state=state)
+                if business.get("verdict") is not True:
+                    # Every step applied is necessary, never sufficient.
+                    state = "partial" if any(
+                        step.get("status") == "applied"
+                        for step in assignment.get("steps") or []) else "blocked"
+                    assignment = self._set_state(assignment, state)
             if state in TERMINAL_ASSIGNMENT_STATES:
                 assignment = self._attach_outcome(
                     record, assignment, state)
@@ -1906,8 +1921,23 @@ class AssignmentExecutor:
             assignment = self._sync_assignment(record, assignment)
             assignment = self._ensure_idle_ledger(assignment)
             assignment = self._checkpoint_idle(assignment)
-            readiness = ready_steps(assignment)
+            readiness = ready_steps(
+                assignment, task_authorization=task_authorization)
             if not readiness:
+                # Persist typed readiness blockers for pending work. A
+                # scheduler miss is a business reason (unknown qualification,
+                # missing receipt, expired evidence, authority), not a silent
+                # idle state; the read projection exposes it.
+                for pending_step in assignment.get("steps") or []:
+                    if pending_step.get("status") != "pending":
+                        continue
+                    if not pending_step.get("requires"):
+                        continue
+                    decision = evaluate_step_readiness(
+                        pending_step, assignment,
+                        task_authorization=task_authorization)
+                    if not decision["eligible"]:
+                        pending_step["readiness"] = decision
                 if self._waiting_steps(assignment):
                     assignment = self._open_idle(
                         assignment,
@@ -3754,15 +3784,28 @@ class AssignmentExecutor:
                 delivery["draft_revision"] = (
                     step.get("result") or {}).get("artifact", {}).get(
                         "revision")
-            if step.get("adapter") in (
-                    "email.send_outlook", "outbound.send") and applied:
+            if step.get("effect") == "external" and applied:
                 result = step.get("result") or {}
+                receipt = result.get("receipt") if isinstance(
+                    result.get("receipt"), dict) else {}
+                outbound = receipt.get("outbound") if isinstance(
+                    receipt.get("outbound"), dict) else {}
+                remote = result.get("remote_identity") if isinstance(
+                    result.get("remote_identity"), dict) else {}
                 provider_state = str(
-                    result.get("provider_state") or "sent")
-                delivery["provider_accepted"] = provider_state == "sent"
-                delivery["provider_ref"] = result.get("provider_ref")
-                delivery["sent_record_confirmed"] = provider_state == "sent"
-                delivery["delivery_confirmed"] = False
+                    result.get("provider_state")
+                    or outbound.get("provider_state") or "")
+                if provider_state:
+                    accepted = provider_state.lower() in (
+                        "sent", "accepted", "applied", "provider_accepted")
+                    delivery["provider_accepted"] = accepted
+                    delivery["provider_ref"] = (
+                        result.get("provider_ref")
+                        or outbound.get("provider_ref")
+                        or outbound.get("remote_id")
+                        or remote.get("provider_ref"))
+                    delivery["sent_record_confirmed"] = accepted
+                    delivery["delivery_confirmed"] = False
             if (step.get("result") or {}).get("value") is not None:
                 calculation = {
                     "computed": (step.get("result") or {}).get("value"),
@@ -3790,6 +3833,13 @@ class AssignmentExecutor:
                         or (step.get("failure") or {}).get("reason")],
                     "next_evidence_needed": "retry or resolve the named gap",
                 })
+        objective_met = None
+        if assignment.get("completion_criteria"):
+            from core.task_outcome_contract import build_assignment_outcome
+            objective_met = build_assignment_outcome(
+                assignment, record, state=state).get("verdict")
+        else:
+            objective_met = state == "completed"
         outcome = build_task_outcome(
             objective=assignment.get("objective") or "",
             completion_criteria=assignment.get("completion_criteria") or [],
@@ -3800,7 +3850,7 @@ class AssignmentExecutor:
             gaps=gaps,
             actions=actions,
             calculation=calculation,
-            objective_met=state == "completed",
+            objective_met=objective_met,
             scope={
                 "workspace_id": assignment.get("workspace_id"),
                 "teaching_revision": (
@@ -4962,6 +5012,31 @@ class AssignmentExecutor:
         assignment: Dict[str, Any],
         step: Dict[str, Any],
     ) -> None:
+        # Re-evaluate business readiness against the CURRENT durable record
+        # immediately before the operation claim. Scheduling is only a hint;
+        # facts/qualifications may have changed since the scheduler read.
+        fresh_record = self.lifecycle.get_task(run_id) or record
+        fresh_assignment = self._sync_assignment(
+            fresh_record, fresh_record.get("assignment") or assignment)
+        fresh_step = step_by_id(
+            fresh_assignment, step.get("step_id")) or step
+        fresh_auth = str(
+            (fresh_record.get("task_revision") or {}).get("authorization")
+            or "read_only")
+        decision = evaluate_step_readiness(
+            fresh_step, fresh_assignment, task_authorization=fresh_auth)
+        if not decision["eligible"]:
+            fresh_assignment = self._mark_step(
+                fresh_assignment, fresh_step["step_id"], {
+                    "status": "pending",
+                    "readiness_blocker": decision,
+                    "updated_at": _utc_now_iso(),
+                })
+            self._persist_assignment(
+                run_id, fresh_assignment,
+                f"step {fresh_step['step_id']} readiness changed before claim")
+            return
+        record, assignment, step = fresh_record, fresh_assignment, fresh_step
         operation = self._ensure_operation(run_id, record, assignment, step)
         operation_id = operation["operation_id"]
         assignment = self._mark_step(assignment, step["step_id"], {

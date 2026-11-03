@@ -630,6 +630,29 @@ def _draft_saved_verifier(outcome: Dict[str, Any]) -> "bool | None":
     return None
 
 
+def _employee_result_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """A business result exists: artifact, draft, or verified provider effect.
+
+    Reading evidence is useful work but not the requested business result.
+    This criterion stays unresolved until a concrete result is materialized.
+    """
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    positives = (
+        "artifact_verified", "draft_saved", "provider_accepted",
+        "sent_record_confirmed", "delivery_confirmed",
+    )
+    if any(delivery.get(key) is True for key in positives):
+        return True
+    if any(delivery.get(key) is False for key in positives):
+        return False
+    return None
+
+
+register_criteria_verifier("employee_result", _employee_result_verifier)
+
+
 def _provider_accepted_verifier(outcome: Dict[str, Any]) -> "bool | None":
     """Provider acceptance — not recipient delivery and not merely a local
     dispatch attempt. The provider reference is required."""
@@ -1066,3 +1089,154 @@ def attach_feedback_to_execution(
         return True
     except Exception:
         return False
+
+
+def build_assignment_outcome(
+    assignment: Dict[str, Any],
+    record: Optional[Dict[str, Any]] = None,
+    *,
+    state: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Business-outcome verdict for an assignment-owned job.
+
+    Completion is derived from declared criteria and durable receipts, not
+    from a model's DONE text or the last step's status. A correct calculation
+    with a failed delivery criterion remains unsatisfied; missing evidence
+    remains unresolved, never silently green.
+    """
+    assignment = assignment if isinstance(assignment, dict) else {}
+    record = record if isinstance(record, dict) else {}
+    steps = [step for step in (assignment.get("steps") or [])
+             if isinstance(step, dict)]
+    operations = {
+        operation.get("operation_id"): operation
+        for operation in (record.get("operations") or [])
+        if isinstance(operation, dict)
+    }
+    tool_outcomes: List[Dict[str, Any]] = []
+    evidence_refs: List[Dict[str, Any]] = []
+    actions: List[Dict[str, Any]] = []
+    delivery: Dict[str, Any] = {}
+    calculation: Dict[str, Any] = {}
+    for step in steps:
+        operation = operations.get(step.get("operation_id")) or {}
+        execution = operation.get("execution") or {}
+        applied = step.get("status") == "applied"
+        refs = [ref for ref in (step.get("evidence_refs") or [])
+                if isinstance(ref, dict)]
+        evidence_refs.extend(refs)
+        tool_outcomes.append({
+            "tool": step.get("adapter"),
+            "verified": applied,
+            "outcome": (
+                execution.get("summary")
+                or (step.get("failure") or {}).get("message") or ""),
+            "required": bool(step.get("required", True)),
+            "evidence_refs": refs,
+        })
+        actions.append({
+            "action_type": step.get("operation_type"),
+            "status": step.get("status"),
+            "required": bool(step.get("required", True)),
+            "authorized": (
+                step.get("effect") != "external"
+                or bool((step.get("approval") or {}).get("required"))),
+            "applied": applied,
+            "evidence_refs": refs,
+        })
+        result = step.get("result") if isinstance(step.get("result"), dict) else {}
+        artifact = result.get("artifact")
+        if isinstance(artifact, dict) and applied:
+            delivery.update({
+                "artifact_verified": bool(
+                    artifact.get("sha256") and artifact.get("revision")),
+                "artifact_revision": artifact.get("revision"),
+                "artifact_sha256": artifact.get("sha256"),
+            })
+        if step.get("adapter") == "email.draft" and applied:
+            delivery["draft_saved"] = True
+            delivery["draft_revision"] = (
+                (result.get("artifact") or {}).get("revision"))
+        if step.get("effect") == "external" and applied:
+            receipt = result.get("receipt") if isinstance(
+                result.get("receipt"), dict) else {}
+            outbound = receipt.get("outbound") if isinstance(
+                receipt.get("outbound"), dict) else {}
+            remote = result.get("remote_identity") if isinstance(
+                result.get("remote_identity"), dict) else {}
+            provider_state = str(
+                result.get("provider_state")
+                or outbound.get("provider_state") or "")
+            if provider_state:
+                accepted = provider_state.lower() in (
+                    "sent", "accepted", "applied", "provider_accepted")
+                delivery["provider_accepted"] = accepted
+                delivery["provider_ref"] = (
+                    result.get("provider_ref")
+                    or outbound.get("provider_ref")
+                    or outbound.get("remote_id")
+                    or remote.get("provider_ref"))
+                delivery["sent_record_confirmed"] = accepted
+                delivery["delivery_confirmed"] = False
+        if result.get("value") is not None:
+            calculation = {
+                "computed": result.get("value"),
+                "unit": result.get("unit"),
+                "verified": applied,
+            }
+    gaps: List[Dict[str, Any]] = []
+    try:
+        from core.task_lifecycle import open_unresolved_questions
+        for question in open_unresolved_questions(record):
+            gaps.append({
+                "criterion_id": question.get("step_id") or "",
+                "status": "open",
+                "reasons": [question.get("reason")
+                            or question.get("question")],
+                "next_evidence_needed": question.get("next_retrieval")
+                or question.get("next_action"),
+            })
+    except Exception:  # noqa: BLE001 — a read-only view must not crash
+        pass
+    for step in steps:
+        if step.get("status") in ("failed", "uncertain"):
+            gaps.append({
+                "criterion_id": step.get("step_id"),
+                "status": step.get("status"),
+                "reasons": [
+                    (step.get("failure") or {}).get("message")
+                    or (step.get("failure") or {}).get("reason")],
+                "next_evidence_needed": "retry or resolve the named gap",
+            })
+    outcome = build_task_outcome(
+        objective=assignment.get("objective") or "",
+        completion_criteria=assignment.get("completion_criteria") or [],
+        authorized_actions=assignment.get("authorized_actions") or [],
+        tool_outcomes=tool_outcomes,
+        evidence_refs=evidence_refs,
+        delivery=delivery,
+        gaps=gaps,
+        actions=actions,
+        calculation=calculation,
+        scope={
+            "workspace_id": assignment.get("workspace_id"),
+            "teaching_revision": (
+                (assignment.get("teaching_snapshot") or {}).get("revision")),
+            "plan_revision": assignment.get("plan_revision"),
+        },
+        objective_met=None,
+    )
+    basis, verdict = criteria_verdict(outcome)
+    if verdict is True:
+        state_verdict = "satisfied"
+    elif verdict is False:
+        state_verdict = "unsatisfied"
+    else:
+        state_verdict = "unresolved"
+    return {
+        "basis": basis,
+        "verdict": verdict,
+        "state": state_verdict,
+        "declared_state": state or assignment.get("status"),
+        "outcome": outcome,
+    }

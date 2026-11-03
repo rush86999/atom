@@ -190,6 +190,28 @@ export async function createAssignment(payload: {
   return data;
 }
 
+export async function createEmployeeAssignment(payload: {
+  objective: string;
+  conversation_id?: string;
+  agent_id?: string;
+  employee_id?: string;
+  sources?: Record<string, unknown>[];
+  source_scope?: Record<string, unknown>;
+  task_context?: Record<string, unknown>;
+  authorized_actions?: string[];
+  budget?: Record<string, unknown>;
+  use_model?: boolean;
+}): Promise<Record<string, any>> {
+  // Objective-only start: the employee proposes read-only evidence work or
+  // one targeted business question. Never retry creation on timeout.
+  const { data } = await apiClient.post(
+    "/api/assignments/from-objective",
+    payload,
+    { timeout: 120000, retry: false },
+  );
+  return data;
+}
+
 export async function getAssignment(runId: string): Promise<AssignmentDetail> {
   const { data } = await apiClient.get<AssignmentDetail>(
     `/api/assignments/${encodeURIComponent(runId)}`

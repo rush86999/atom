@@ -25,6 +25,7 @@ import {
   cancelAssignment,
   correctAssignmentMapping,
   createAssignment,
+  createEmployeeAssignment,
   downloadAssignmentDeliverable,
   getAssignment,
   listAssignmentAgents,
@@ -144,6 +145,7 @@ export function AssignmentPanel({
     correlation: "",
     discover: false,
     scopeQuery: "",
+    employeeDecides: false,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,19 +251,58 @@ export function AssignmentPanel({
     setError(null);
     try {
       const source = selectedSource;
+      const sourceRefs = startDraft.discover || !source
+        ? []
+        : [{
+            kind: source.kind,
+            dataset_name: source.dataset_name,
+            source: source.source,
+            external_id: source.external_id,
+            source_version: source.source_version,
+            sheet: source.sheet,
+          }];
+      const taskContext = {
+        ...(businessContext.trim()
+          ? { business_category: businessContext.trim() }
+          : {}),
+        ...(qualification.trim()
+          ? { qualification: qualification.trim() }
+          : {}),
+        ...(taskScope.trim() ? { task_scope: taskScope.trim() } : {}),
+      };
+      if (startDraft.employeeDecides) {
+        const result = await createEmployeeAssignment({
+          objective: startDraft.objective,
+          agent_id: selectedAgentId || agentId || undefined,
+          sources: sourceRefs,
+          source_scope: startDraft.discover
+            ? { query: startDraft.scopeQuery }
+            : undefined,
+          task_context: taskContext,
+          authorized_actions: ["retrieve"],
+          use_model: true,
+        });
+        setStartDraft({
+          objective: "",
+          deliverableKind: "document",
+          content: "",
+          recipient: "",
+          expression: "",
+          lineItems: "",
+          correlation: "",
+          discover: false,
+          scopeQuery: "",
+          employeeDecides: false,
+        });
+        setSelected(result.run_id);
+        await refreshList();
+        await refreshDetail(result.run_id);
+        return;
+      }
       const payload: Parameters<typeof createAssignment>[0] = {
         objective: startDraft.objective,
         agent_id: selectedAgentId || agentId || undefined,
-        sources: startDraft.discover || !source
-          ? []
-          : [{
-              kind: source.kind,
-              dataset_name: source.dataset_name,
-              source: source.source,
-              external_id: source.external_id,
-              source_version: source.source_version,
-              sheet: source.sheet,
-            }],
+        sources: sourceRefs,
         discover: startDraft.discover,
         source_scope: startDraft.discover
           ? { query: startDraft.scopeQuery }
@@ -271,15 +312,7 @@ export function AssignmentPanel({
           description: startDraft.objective,
           content: startDraft.content.trim() || undefined,
         }],
-        task_context: {
-          ...(businessContext.trim()
-            ? { business_category: businessContext.trim() }
-            : {}),
-          ...(qualification.trim()
-            ? { qualification: qualification.trim() }
-            : {}),
-          ...(taskScope.trim() ? { task_scope: taskScope.trim() } : {}),
-        },
+        task_context: taskContext,
       };
       const measureValue = measure === "__custom__"
         ? customMeasure.trim()
@@ -354,6 +387,7 @@ export function AssignmentPanel({
         correlation: "",
         discover: false,
         scopeQuery: "",
+        employeeDecides: false,
       });
       setMeasure("");
       setCustomMeasure("");
@@ -578,6 +612,22 @@ export function AssignmentPanel({
             data-testid="assignment-task-scope-input"
           />
         </div>
+        <label className="flex items-center gap-1 text-[10px]">
+          <input
+            type="checkbox"
+            checked={startDraft.employeeDecides}
+            onChange={(e) =>
+              setStartDraft((d) => ({
+                ...d,
+                employeeDecides: e.target.checked,
+                discover: e.target.checked ? false : d.discover,
+              }))
+            }
+            aria-label="Let the employee decide the next work"
+            data-testid="assignment-employee-decides-checkbox"
+          />
+          Let the employee decide the next supported work
+        </label>
         <label className="flex items-center gap-1 text-[10px]">
           <input
             type="checkbox"

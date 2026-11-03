@@ -21,6 +21,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from core.assignment_readiness import (
+    evaluate_step_readiness,
+    normalize_facts,
+    normalize_requirements,
+)
 from core.task_lifecycle import OPERATION_TYPES, TaskLifecycleError
 
 ASSIGNMENT_SCHEMA_VERSION = 1
@@ -305,6 +310,7 @@ def new_step(
     standing_authorization: str = "",
     max_attempts: int = 3,
     invalidate_on_revision_change: bool = True,
+    requires: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build one dependency-ordered step.
 
@@ -346,6 +352,7 @@ def new_step(
         "max_attempts": max(1, min(int(max_attempts or 3), 10)),
         "invalidate_on_revision_change": bool(
             invalidate_on_revision_change),
+        "requires": normalize_requirements(requires or []),
         "status": "pending",
         "operation_id": None,
         "attempts": 0,
@@ -462,6 +469,7 @@ def new_assignment(
     provenance: Optional[Dict[str, Any]] = None,
     assignment_id: Optional[str] = None,
     standing_authority: Optional[Dict[str, Any]] = None,
+    facts: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     objective_text = _bounded(objective, 4000).strip()
     if not objective_text:
@@ -501,6 +509,7 @@ def new_assignment(
             _clean_dict(item) for item in (completion_criteria or [])
             if isinstance(item, dict)
         ][:40],
+        "facts": normalize_facts(facts or []),
         "budget": {
             "max_steps": max(1, min(int(
                 (budget or {}).get("max_steps") or 40), 200)),
@@ -572,6 +581,16 @@ def validate_assignment(assignment: Dict[str, Any]) -> None:
         if step.get("status") not in STEP_STATUSES:
             raise TaskLifecycleError(
                 f"step {step_id} has an unknown status")
+        try:
+            normalize_requirements(step.get("requires") or [])
+        except ValueError as exc:
+            raise TaskLifecycleError(
+                f"step {step_id} has invalid requirements: {exc}") from exc
+    try:
+        normalize_facts(assignment.get("facts") or [])
+    except ValueError as exc:
+        raise TaskLifecycleError(
+            f"assignment has invalid facts: {exc}") from exc
     known = set(ids)
     for step in steps:
         for dependency in step.get("depends_on") or []:
@@ -640,14 +659,22 @@ def _dependency_done(step: Dict[str, Any], by_id: Dict[str, Dict[str, Any]]) -> 
     return True
 
 
-def ready_steps(assignment: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Pending steps whose declared dependencies are all satisfied."""
+def ready_steps(
+    assignment: Dict[str, Any],
+    *,
+    task_authorization: str = "read_only",
+) -> List[Dict[str, Any]]:
+    """Pending steps whose dependency graph AND business readiness hold."""
     by_id = {step["step_id"]: step for step in assignment.get("steps") or []}
-    return [
-        step for step in assignment.get("steps") or []
-        if step.get("status") == "pending"
-        and _dependency_done(step, by_id)
-    ]
+    ready = []
+    for step in assignment.get("steps") or []:
+        if step.get("status") != "pending" or not _dependency_done(step, by_id):
+            continue
+        decision = evaluate_step_readiness(
+            step, assignment, task_authorization=task_authorization)
+        if decision["eligible"]:
+            ready.append(step)
+    return ready
 
 
 def downstream_step_ids(
@@ -695,7 +722,7 @@ def derive_state(
             step.get("status") == "applied" for step in required) else "failed"
     if any(step.get("status") in ("running",) for step in steps):
         return "running"
-    if ready_steps(assignment):
+    if ready_steps(assignment, task_authorization=task_authorization):
         return "running"
     if all(step.get("status") in ("applied", "skipped") for step in required):
         deliverables = assignment.get("deliverables") or []
@@ -751,6 +778,9 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             "result_unit": (
                 (step.get("result") or {}).get("unit")
                 if isinstance(step.get("result"), dict) else None),
+            "readiness": (
+                step.get("readiness")
+                if isinstance(step.get("readiness"), dict) else None),
             "result_measure": (
                 (step.get("result") or {}).get("measure")
                 if isinstance(step.get("result"), dict) else None),

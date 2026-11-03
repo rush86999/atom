@@ -3758,3 +3758,65 @@ def test_plan_shape_output_is_not_a_durable_mutation():
     assert create is not None
     assert _registered_action_mutates(
         create, {"step": {"effect": "local"}}) is True
+
+
+def test_business_readiness_blocks_dependent_while_independent_runs(env):
+    """Unknown qualification blocks one branch; useful work still completes."""
+    calls = []
+
+    async def independent(inputs, context):
+        calls.append("independent")
+        return {"status": "applied", "value": 1}
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": 2}
+
+    env["registry"].register("test.readiness.independent", independent)
+    env["registry"].register("test.readiness.dependent", dependent)
+    steps = [
+        new_step(
+            step_id="independent", title="Independent work",
+            operation_type="retrieve", adapter="test.readiness.independent",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Qualification-dependent work",
+            operation_type="retrieve", adapter="test.readiness.dependent",
+            effect="read_only", depends_on=["independent"],
+            requires=[{"kind": "fact", "fact_id": "eligible",
+                       "equals": True}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Prepare a quote with a qualification",
+        steps=steps, teaching=_teaching(),
+        authorized_actions=["retrieve"])
+    first = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["independent"]
+    assert step_by_id(assignment, "independent")["status"] == "applied"
+    dependent_step = step_by_id(assignment, "dependent")
+    assert dependent_step["status"] == "pending"
+    assert dependent_step["readiness"]["truth"] == "unknown"
+    assert dependent_step["readiness"]["blockers"][0]["kind"] == "qualification"
+
+    def add_fact(record, assignment):
+        new_assignment = copy.deepcopy(assignment)
+        new_assignment["facts"] = [{
+            "fact_id": "eligible", "subject": {"kind": "customer",
+                                               "id": "cust-1"},
+            "field_id": "eligible", "value": True,
+            "value_type": "boolean", "evidence_state": "established",
+            "source_refs": [{"resource_id": "agreement-1",
+                             "version": "v3"}],
+            "authority_ref": "agreement:eligibility",
+            "validity": {"policy": "current"},
+        }]
+        return new_assignment, {"added": "eligible"}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, add_fact, rationale="qualified via agreement")
+    second = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["independent", "dependent"]
+    assert step_by_id(assignment, "dependent")["status"] == "applied"
+    assert second["assignment"]["status"] == "completed"

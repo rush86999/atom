@@ -105,6 +105,7 @@ def _action_steps(
             approval_purpose=str(
                 spec.get("approval_purpose")
                 or f"Apply the registered action '{name}'"),
+            requires=list(spec.get("requires") or []),
         )
         steps.append(step)
     return steps
@@ -166,6 +167,7 @@ def _source_step(
             adapter=adapter,
             inputs=inputs,
             effect="local",
+            requires=list(source.get("requires") or []),
         )
     return new_step(
         step_id=f"source-{index}",
@@ -174,6 +176,7 @@ def _source_step(
         adapter=adapter,
         inputs=inputs,
         effect="read_only",
+        requires=list(source.get("requires") or []),
     )
 
 
@@ -222,6 +225,7 @@ def _deliverable_step(
                     or f"del-{step_id}"),
             },
             effect="local",
+            requires=list(deliverable.get("requires") or []),
         )
         return [draft]
 
@@ -266,6 +270,7 @@ def _deliverable_step(
         depends_on=list(depends_on),
         inputs=inputs,
         effect="local",
+        requires=list(deliverable.get("requires") or []),
     )
     return [step]
 
@@ -341,6 +346,7 @@ def _send_step(
         effect="external",
         approval_required=True,
         approval_purpose="Send the prepared response",
+        requires=list(outbound.get("requires") or []),
     )
 
 
@@ -365,6 +371,7 @@ def plan_assignment(
     evidence_reads: Optional[Sequence[Dict[str, Any]]] = None,
     standing_authority: Optional[Dict[str, Any]] = None,
     budget: Optional[Dict[str, Any]] = None,
+    facts: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build and validate an assignment plan from opaque descriptors."""
     teaching = teaching_snapshot or new_teaching_snapshot(
@@ -420,6 +427,7 @@ def plan_assignment(
             title=str(item.get("title") or f"Read evidence {index + 1}"),
             operation_type="retrieve", adapter=adapter,
             inputs=inputs, effect="read_only",
+            requires=list(item.get("requires") or []),
         ))
         read_ids.append(step_id)
     wait_step: Optional[str] = None
@@ -612,15 +620,27 @@ def plan_assignment(
                     f"grant:{standing_authority.get('grant_id')}")
 
     criteria: List[Dict[str, Any]] = []
+
+    def _criterion(kind: str, **extra: Any) -> Dict[str, Any]:
+        identity = extra.get("deliverable_id") or "assignment"
+        return {
+            "criterion_id": f"{kind}:{identity}",
+            "kind": kind,
+            "required": True,
+            "verifier": kind,
+            "scope": {"workspace_id": workspace_id or None},
+            **extra,
+        }
+
     for record in deliverable_records:
         criterion = _DELIVERABLE_CRITERIA.get(record["kind"])
         if criterion:
-            criteria.append({"kind": criterion,
-                             "deliverable_id": record["deliverable_id"]})
+            criteria.append(_criterion(
+                criterion, deliverable_id=record["deliverable_id"]))
     if send_steps:
-        criteria.append({"kind": "provider_accepted",
-                         "deliverable_id": "del-send"})
-    criteria.append({"kind": "required_work_complete"})
+        criteria.append(_criterion(
+            "provider_accepted", deliverable_id="del-send"))
+    criteria.append(_criterion("required_work_complete"))
 
     actions = sorted(set(str(item) for item in (authorized_actions or [])
                           if str(item).strip()))
@@ -643,6 +663,7 @@ def plan_assignment(
         ],
         authorized_actions=actions,
         completion_criteria=criteria,
+        facts=list(facts or []),
         budget={
             "max_steps": max(4, min(len(steps) + 8, 40)),
             "max_attempts_per_step": 3,

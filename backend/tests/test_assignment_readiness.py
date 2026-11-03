@@ -1,0 +1,150 @@
+"""Deterministic business readiness for assignment steps."""
+from __future__ import annotations
+
+import datetime as dt
+
+from core.assignment_plan import new_assignment, new_step, new_teaching_snapshot
+from core.assignment_readiness import (
+    evaluate_step_readiness,
+    normalize_facts,
+    normalize_requirements,
+)
+
+
+def _assignment(**overrides):
+    facts = overrides.pop("facts", [])
+    steps = overrides.pop("steps", [])
+    return new_assignment(
+        objective="Prepare a quote",
+        workspace_id="ws-a", tenant_id="t-a",
+        teaching_snapshot=new_teaching_snapshot(revision="teach-1"),
+        steps=steps, facts=facts, **overrides)
+
+
+def _fact(fact_id="eligible", value=True, state="established", **extra):
+    item = {"fact_id": fact_id, "value": value, "evidence_state": state,
+            "subject": {"kind": "customer", "id": "cust-1"},
+            "field_id": fact_id, "source_refs": [
+                {"resource_id": "agreement-1", "version": "v3"}]}
+    item.update(extra)
+    return item
+
+
+def _step(step_id="dependent", requires=None, **extra):
+    return new_step(
+        step_id=step_id, title=step_id,
+        operation_type="retrieve", adapter="test.read",
+        requires=requires or [], **extra)
+
+
+def test_unknown_fact_blocks_only_dependent_branch():
+    independent = _step("independent")
+    dependent = _step("dependent", requires=[
+        {"kind": "fact", "fact_id": "eligible", "equals": True}])
+    assignment = _assignment(steps=[independent, dependent], facts=[])
+    decision = evaluate_step_readiness(
+        dependent, assignment, task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["truth"] == "unknown"
+    assert decision["blockers"][0]["kind"] == "qualification"
+    from core.assignment_plan import ready_steps
+    ready = ready_steps(assignment, task_authorization="read_only")
+    assert [step["step_id"] for step in ready] == ["independent"]
+
+
+def test_established_true_and_false_are_distinct():
+    requirement = [{"kind": "fact", "fact_id": "eligible", "equals": True}]
+    yes = _assignment(steps=[_step(requires=requirement)],
+                      facts=[_fact(value=True)])
+    no = _assignment(steps=[_step(requires=requirement)],
+                     facts=[_fact(value=False)])
+    assert evaluate_step_readiness(
+        yes["steps"][0], yes, task_authorization="read_only")["eligible"] is True
+    false_decision = evaluate_step_readiness(
+        no["steps"][0], no, task_authorization="read_only")
+    assert false_decision["eligible"] is False
+    assert false_decision["truth"] == "false"
+    assert false_decision["blockers"][0]["reason"] == "false"
+
+
+def test_all_or_unknown_and_not_truth_tables():
+    assignment = _assignment(steps=[_step(requires=[
+        {"kind": "all", "of": [
+            {"kind": "fact", "fact_id": "known", "equals": True},
+            {"kind": "fact", "fact_id": "unknown", "equals": True},
+        ]},
+    ])], facts=[_fact("known", True)])
+    decision = evaluate_step_readiness(
+        assignment["steps"][0], assignment, task_authorization="read_only")
+    assert decision["truth"] == "unknown"
+
+    any_assignment = _assignment(steps=[_step(requires=[
+        {"kind": "any", "of": [
+            {"kind": "fact", "fact_id": "known", "equals": True},
+            {"kind": "fact", "fact_id": "unknown", "equals": True},
+        ]},
+    ])], facts=[_fact("known", True)])
+    any_decision = evaluate_step_readiness(
+        any_assignment["steps"][0], any_assignment,
+        task_authorization="read_only")
+    assert any_decision["eligible"] is True
+
+
+def test_receipt_requires_applied_with_result():
+    prerequisite = _step("source")
+    prerequisite["status"] = "applied"
+    prerequisite["result"] = {"value": "row"}
+    assignment = _assignment(
+        steps=[prerequisite, _step("dependent", requires=[
+            {"kind": "receipt", "step_id": "source"}])])
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is True
+
+    assignment["steps"][0]["status"] = "skipped"
+    decision = evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["blockers"][0]["reason"] == "not_applied"
+
+    assignment["steps"][0]["status"] = "applied"
+    assignment["steps"][0]["result"] = None
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is False
+
+
+def test_expired_fact_and_authority_are_not_ready():
+    expired = _assignment(steps=[_step(requires=[
+        {"kind": "fact", "fact_id": "eligible", "equals": True}])],
+        facts=[_fact(validity={"expires_at": "2020-01-01T00:00:00+00:00"})])
+    assert evaluate_step_readiness(
+        expired["steps"][0], expired,
+        task_authorization="authorized")["eligible"] is False
+
+    authority = _assignment(steps=[_step(requires=[
+        {"kind": "authority", "allow": ["authorized"]}])])
+    assert evaluate_step_readiness(
+        authority["steps"][0], authority,
+        task_authorization="read_only")["eligible"] is False
+    assert evaluate_step_readiness(
+        authority["steps"][0], authority,
+        task_authorization="authorized")["eligible"] is True
+
+
+def test_requirements_and_facts_validate():
+    assert normalize_requirements([]) == []
+    try:
+        normalize_requirements([{"kind": "unknown"}])
+    except ValueError as exc:
+        assert "unsupported requirement" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("invalid requirement accepted")
+    assert normalize_facts([_fact()])[0]["fact_id"] == "eligible"
+    try:
+        normalize_facts([_fact(), _fact()])
+    except ValueError as exc:
+        assert "duplicate" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("duplicate facts accepted")

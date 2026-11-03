@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 jest.mock("@/lib/assignment-api", () => ({
   __esModule: true,
   listAssignments: jest.fn(),
+  createEmployeeAssignment: jest.fn(),
   getAssignment: jest.fn(),
   resumeAssignment: jest.fn(),
   cancelAssignment: jest.fn(),
@@ -16,6 +17,7 @@ jest.mock("@/lib/assignment-api", () => ({
 
 import {
   approveAssignmentStep,
+  createEmployeeAssignment,
   getAssignment,
   listAssignments,
   reconcileAssignmentStep,
@@ -196,4 +198,33 @@ test("uncertain effect reconciliation sends evidence and verdict", async () => {
       "provider receipt row 42"
     )
   );
+});
+
+
+test("employee-decides starts objective-only work without a supplied DAG", async () => {
+  (createEmployeeAssignment as jest.Mock).mockResolvedValue({
+    run_id: "run-2",
+    assignment: detail,
+  });
+  render(<AssignmentPanel />);
+  await screen.findByTestId("assignment-start");
+
+  fireEvent.change(screen.getByTestId("assignment-objective-input"), {
+    target: { value: "Prepare a delivery answer for the customer" },
+  });
+  fireEvent.click(screen.getByTestId("assignment-employee-decides-checkbox"));
+  fireEvent.click(screen.getByTestId("assignment-discover-checkbox"));
+  fireEvent.change(screen.getByTestId("assignment-scope-input"), {
+    target: { value: "commercial notes" },
+  });
+  fireEvent.click(screen.getByTestId("assignment-start-button"));
+
+  await waitFor(() => expect(createEmployeeAssignment).toHaveBeenCalledWith(
+    expect.objectContaining({
+      objective: "Prepare a delivery answer for the customer",
+      source_scope: { query: "commercial notes" },
+      authorized_actions: ["retrieve"],
+      use_model: true,
+    }),
+  ));
 });
