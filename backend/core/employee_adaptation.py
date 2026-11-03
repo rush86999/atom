@@ -18,6 +18,7 @@ from core.assignment_plan import downstream_step_ids, step_by_id
 from core.employee_patch import (
     PlanPatchError,
     StepPatch,
+    StepUpdate,
     apply_plan_patch,
 )
 from core.employee_proposal import ClarificationProposal
@@ -53,6 +54,7 @@ class AdaptationProposal(BaseModel):
     step_ids: List[str] = Field(default_factory=list)
     facts: List[Dict[str, Any]] = Field(default_factory=list)
     new_steps: List[StepPatch] = Field(default_factory=list)
+    update_steps: List[StepUpdate] = Field(default_factory=list)
     clarification: Optional[ClarificationProposal] = None
 
 
@@ -332,8 +334,7 @@ def adopt_adaptation(
         "\n".join(sorted(observation_ids)).encode("utf-8")).hexdigest()[:16]
     patch = {
         "patch_id": f"adapt-{observation_digest}",
-        "base_task_version": int(
-            (record.get("task_revision") or {}).get("revision") or 0),
+        "base_task_version": int(record.get("task_version") or 0),
         "base_plan_revision": int(assignment.get("plan_revision") or 1),
         "reason": normalized.reason or "observation-driven reassessment",
         "observations": [
@@ -343,6 +344,9 @@ def adopt_adaptation(
         "add_facts": list(normalized.facts),
         "add_steps": [
             item.model_dump() for item in normalized.new_steps
+        ],
+        "update_steps": [
+            item.model_dump() for item in normalized.update_steps
         ],
     }
     result = apply_plan_patch(

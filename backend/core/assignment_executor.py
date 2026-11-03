@@ -1973,6 +1973,7 @@ class AssignmentExecutor:
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "running",
                 "pre_dispatch_budget_refusal": False,
+                "readiness": None,
                 "updated_at": _utc_now_iso(),
             })
             assignment = self._bump_steps_started(assignment)

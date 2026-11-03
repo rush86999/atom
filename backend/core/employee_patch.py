@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.assignment_plan import (
+    canonical_sha256,
     downstream_step_ids,
     new_step,
     step_by_id,
@@ -51,6 +52,22 @@ class StepPatch(BaseModel):
     required: bool = True
 
 
+class StepUpdate(BaseModel):
+    """Bounded rewiring of pending/failed (or invalidated) work.
+
+    The objective, adapter, effect, authority and required flag are not
+    mutable here: a plan change may reroute data/dependencies, not weaken
+    the job's obligations or convert work into a different effect class.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_id: str = Field(min_length=1, max_length=80)
+    depends_on: Optional[List[str]] = None
+    inputs: Optional[Dict[str, Any]] = None
+    requires: Optional[List[Dict[str, Any]]] = None
+
+
 class PlanPatchProposal(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -62,16 +79,75 @@ class PlanPatchProposal(BaseModel):
     invalidate_steps: List[str] = Field(default_factory=list)
     remove_steps: List[str] = Field(default_factory=list)
     add_steps: List[StepPatch] = Field(default_factory=list)
+    update_steps: List[StepUpdate] = Field(default_factory=list)
     add_facts: List[Dict[str, Any]] = Field(default_factory=list)
     set_requires: Dict[str, List[Dict[str, Any]]] = Field(
         default_factory=dict)
 
 
-def _task_version(record: Mapping[str, Any]) -> int:
+def _task_version(record: Mapping[str, Any]) -> Optional[int]:
+    """The authoritative lifecycle CAS state version (not objective revision)."""
+    value = record.get("task_version")
+    if value is None:
+        return None
     try:
-        return int((record.get("task_revision") or {}).get("revision") or 0)
+        return int(value)
     except (TypeError, ValueError):
-        return 0
+        return None
+
+
+def _material_patch_digest(patch: Mapping[str, Any]) -> str:
+    """Canonical identity of the MATERIAL patch content."""
+    material = {
+        "base_task_version": int(patch.get("base_task_version") or 0),
+        "base_plan_revision": int(patch.get("base_plan_revision") or 0),
+        "invalidate_steps": sorted({
+            str(item) for item in patch.get("invalidate_steps") or []}),
+        "remove_steps": sorted({
+            str(item) for item in patch.get("remove_steps") or []}),
+        "add_steps": sorted(
+            [dict(item) for item in patch.get("add_steps") or []],
+            key=lambda item: str(item.get("step_id") or "")),
+        "update_steps": sorted(
+            [dict(item) for item in patch.get("update_steps") or []],
+            key=lambda item: str(item.get("step_id") or "")),
+        "add_facts": sorted(
+            [dict(item) for item in patch.get("add_facts") or []],
+            key=lambda item: str(item.get("fact_id") or "")),
+        "set_requires": {
+            str(key): value for key, value in sorted(
+                (patch.get("set_requires") or {}).items())
+        },
+    }
+    return canonical_sha256(material)
+
+
+def _operation_is_active(operation: Any) -> bool:
+    if not isinstance(operation, Mapping):
+        return False
+    status = str(operation.get("status") or "").lower()
+    if status in ("running", "uncertain", "dispatching", "claimed"):
+        return True
+    execution = operation.get("execution")
+    if isinstance(execution, Mapping):
+        if execution.get("outcome_unknown") is True:
+            return True
+        if str(execution.get("status") or "").lower() in (
+                "dispatching", "claimed", "running", "uncertain"):
+            return True
+    return False
+
+
+def _requirements_weakened(
+    old: Sequence[Mapping[str, Any]],
+    new: Sequence[Mapping[str, Any]],
+) -> List[str]:
+    """Return old predicates erased by the proposed replacement list."""
+    new_hashes = {canonical_sha256(dict(item)) for item in new}
+    return [
+        str(item) for item in old
+        if canonical_sha256(dict(item)) not in new_hashes
+    ]
 
 
 def _normalize_patch(patch: Any) -> PlanPatchProposal:
@@ -96,7 +172,11 @@ def validate_plan_patch(
     current_version = _task_version(record)
     assignment = record.get("assignment") or {}
     current_revision = int(assignment.get("plan_revision") or 1)
-    if normalized.base_task_version != current_version:
+    if current_version is None:
+        errors.append(
+            "task state version is missing or ambiguous; refresh the "
+            "proposal against the durable task record")
+    elif normalized.base_task_version != current_version:
         errors.append(
             f"stale task version: base {normalized.base_task_version} is "
             f"not current {current_version}")
@@ -128,6 +208,10 @@ def validate_plan_patch(
             errors.append(
                 f"step {step_id} is {step.get('status')}; only pending work "
                 f"may be removed")
+        elif bool(step.get("required", True)):
+            errors.append(
+                f"required step {step_id} cannot be removed by a model "
+                f"patch; an authorized objective revision is required")
         elif any(str(step_id) in (item.get("depends_on") or [])
                  for item in steps
                  if item.get("step_id") != step_id):
@@ -163,18 +247,205 @@ def validate_plan_patch(
                 required=raw.required, requires=raw.requires)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"added step {step_id}: {exc}")
+        try:
+            from core.assignment_executor import default_adapter_registry
+            adapter = default_adapter_registry.get(raw.adapter)
+            if adapter is None:
+                errors.append(
+                    f"added step {step_id} names unregistered adapter "
+                    f"{raw.adapter!r}")
+            else:
+                metadata = dict(adapter.metadata or {})
+                expected_effect = metadata.get("effect")
+                if (expected_effect and expected_effect != "declared"
+                        and str(raw.effect) != str(expected_effect)):
+                    errors.append(
+                        f"added step {step_id} declares effect {raw.effect!r} "
+                        f"but adapter {raw.adapter!r} is {expected_effect!r}")
+                required_actions = set(metadata.get("required_actions") or [])
+                if required_actions and not required_actions <= set(
+                        assignment.get("authorized_actions") or []):
+                    errors.append(
+                        f"added step {step_id} requires actions "
+                        f"{sorted(required_actions)} outside the accepted "
+                        f"authority")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"added step {step_id} adapter contract: {exc}")
+        if raw.adapter == "action.registry":
+            try:
+                from core.action_registry import action_registry
+                from core.assignment_planner import _registered_action_effect
+                action_name = str(
+                    (raw.inputs or {}).get("action") or "").strip()
+                action = action_registry.get_action(action_name)
+                if action is None:
+                    errors.append(
+                        f"added step {step_id} names unregistered action "
+                        f"{action_name!r}")
+                else:
+                    actual = _registered_action_effect(action)
+                    if str(raw.effect) != actual:
+                        errors.append(
+                            f"added step {step_id} declares {raw.effect!r} "
+                            f"but action {action_name!r} is {actual!r}")
+                    required = (
+                        "outbound" if actual == "external" else "retrieve")
+                    if required not in set(
+                            assignment.get("authorized_actions") or []):
+                        errors.append(
+                            f"added step {step_id} requires action "
+                            f"{required!r} outside the accepted authority")
+            except Exception as exc:  # noqa: BLE001
+                errors.append(
+                    f"added step {step_id} action contract: {exc}")
+    invalidated = {str(item) for item in normalized.invalidate_steps}
+    updated_seen = set()
+    for raw in normalized.update_steps:
+        step_id = raw.step_id
+        if step_id in updated_seen:
+            errors.append(f"step {step_id} is updated more than once")
+            continue
+        updated_seen.add(step_id)
+        step = by_id.get(step_id)
+        if step is None:
+            errors.append(f"update names unknown step {step_id!r}")
+            continue
+        if step.get("status") in _IMMUTABLE_STATUSES:
+            errors.append(
+                f"step {step_id} is {step.get('status')}; a running or "
+                f"uncertain effect cannot be rewired by replanning")
+            continue
+        if step.get("status") not in ("pending", "failed") and (
+                step_id not in invalidated):
+            errors.append(
+                f"step {step_id} is {step.get('status')}; only pending, "
+                f"failed or invalidated work may be updated")
+            continue
+        if (raw.depends_on is None and raw.inputs is None
+                and raw.requires is None):
+            errors.append(f"update for {step_id} has no changes")
+            continue
+        depends = (raw.depends_on if raw.depends_on is not None
+                   else list(step.get("depends_on") or []))
+        for dependency in depends:
+            if dependency == step_id:
+                errors.append(f"step {step_id} cannot depend on itself")
+            elif dependency not in seen:
+                errors.append(
+                    f"updated step {step_id} depends on unknown step "
+                    f"{dependency!r}")
+        merged_inputs = (raw.inputs if raw.inputs is not None
+                         else step.get("inputs") or {})
+        merged_requires = (raw.requires if raw.requires is not None
+                           else step.get("requires") or [])
+        try:
+            new_step(
+                step_id=step_id, title=step.get("title") or step_id,
+                operation_type=step.get("operation_type") or "retrieve",
+                adapter=step.get("adapter") or "",
+                depends_on=depends, inputs=merged_inputs,
+                effect=step.get("effect") or "local",
+                requires=merged_requires)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"updated step {step_id}: {exc}")
+    # The FULL affected closure, not only explicitly named roots. Validate
+    # every member against both plan status and durable operation truth.
+    operations = {
+        str(op.get("operation_id")): op
+        for op in record.get("operations") or []
+        if isinstance(op, dict) and op.get("operation_id")
+    }
+    roots = list(normalized.invalidate_steps)
+    roots.extend(raw.step_id for raw in normalized.update_steps)
+    roots.extend(normalized.set_requires)
+    fact_ids = {
+        str(item.get("fact_id")) for item in normalized.add_facts
+        if isinstance(item, dict) and item.get("fact_id")
+    }
+    for step in steps:
+        for requirement in step.get("requires") or []:
+            if (requirement.get("kind") == "fact"
+                    and str(requirement.get("fact_id") or "") in fact_ids):
+                roots.append(str(step.get("step_id") or ""))
+    roots = [item for item in dict.fromkeys(roots) if item]
+    affected_closure = downstream_step_ids(assignment, roots) if roots else []
+    for step_id in affected_closure:
+        step = by_id.get(step_id)
+        if step is None:
+            errors.append(f"affected closure names unknown step {step_id!r}")
+            continue
+        if step.get("status") in _IMMUTABLE_STATUSES:
+            errors.append(
+                f"affected step {step_id} is {step.get('status')}; a running "
+                f"or uncertain effect cannot be changed by replanning")
+        operation = operations.get(str(step.get("operation_id") or ""))
+        if _operation_is_active(operation):
+            errors.append(
+                f"affected step {step_id} has an active/uncertain durable "
+                f"operation; reconcile it before replanning")
+    for step_id in normalized.remove_steps:
+        step = by_id.get(step_id)
+        if step is not None and _operation_is_active(
+                operations.get(str(step.get("operation_id") or ""))):
+            errors.append(
+                f"remove step {step_id} has an active/uncertain durable "
+                f"operation")
     try:
-        normalize_facts(normalized.add_facts)
+        normalized_facts = normalize_facts(normalized.add_facts)
     except ValueError as exc:
+        normalized_facts = []
         errors.append(f"facts: {exc}")
+    for fact in normalized_facts:
+        if (str(fact.get("evidence_state") or "") == "established"
+                and not fact.get("source_refs")
+                and not fact.get("authority_ref")):
+            errors.append(
+                f"fact {fact.get('fact_id')} is marked established without "
+                f"accepted evidence or authored confirmation")
     for step_id, requirements in normalized.set_requires.items():
         if step_id not in seen:
             errors.append(f"set_requires names unknown step {step_id!r}")
             continue
+        step = by_id.get(step_id)
+        if step is None:
+            errors.append(f"set_requires names unknown step {step_id!r}")
+            continue
+        if step.get("status") in _IMMUTABLE_STATUSES:
+            errors.append(
+                f"set_requires cannot change {step_id} while it is "
+                f"{step.get('status')}")
+            continue
+        if step.get("status") not in ("pending", "failed") and (
+                step_id not in invalidated):
+            errors.append(
+                f"set_requires cannot change {step_id} while it is "
+                f"{step.get('status')}")
+            continue
         try:
-            normalize_requirements(requirements)
+            candidate = normalize_requirements(requirements)
         except ValueError as exc:
             errors.append(f"{step_id} requirements: {exc}")
+            continue
+        erased = _requirements_weakened(
+            step.get("requires") or [], candidate)
+        if erased:
+            errors.append(
+                f"set_requires would erase an existing requirement on "
+                f"{step_id}; a model patch cannot weaken the objective")
+    for raw in normalized.update_steps:
+        step = by_id.get(raw.step_id)
+        if step is not None and raw.requires is not None:
+            try:
+                candidate = normalize_requirements(raw.requires)
+            except ValueError as exc:
+                errors.append(f"{raw.step_id} requirements: {exc}")
+                continue
+            erased = _requirements_weakened(
+                step.get("requires") or [], candidate)
+            if erased:
+                errors.append(
+                    f"update_steps would erase an existing requirement on "
+                    f"{raw.step_id}; a model patch cannot weaken the objective")
     return {
         "valid": not errors,
         "errors": errors,
@@ -194,22 +465,36 @@ def apply_plan_patch(
     if record is None:
         raise PlanPatchError(f"no task record on run {run_id}")
     normalized = _normalize_patch(patch)
-    existing = next((
-        item for item in (
-            (record.get("assignment") or {}).get("patch_history") or [])
-        if item.get("patch_id") == normalized.patch_id), None)
+    digest = _material_patch_digest(normalized.model_dump())
+    registry = (record.get("assignment") or {}).get("patch_registry") or {}
+    existing = registry.get(normalized.patch_id) if isinstance(
+        registry, Mapping) else None
+    if existing is None:
+        legacy = next((
+            item for item in (
+                (record.get("assignment") or {}).get("patch_history") or [])
+            if item.get("patch_id") == normalized.patch_id), None)
+        if legacy is not None:
+            raise PlanPatchError(
+                "patch history lacks a material digest; refresh the "
+                "proposal against current state")
     if existing is not None:
-        if (int(existing.get("base_task_version") or 0)
-                == normalized.base_task_version
-                and int(existing.get("base_plan_revision") or 0)
-                == normalized.base_plan_revision):
+        stored_digest = str(existing.get("material_digest") or "")
+        if stored_digest and stored_digest != digest:
+            raise PlanPatchError(
+                "patch_id conflict: the same identity carries different "
+                "material content")
+        if stored_digest == digest:
+            stored_result = existing.get("result")
             return {
+                **(copy.deepcopy(stored_result)
+                   if isinstance(stored_result, dict) else {}),
                 "status": "already_applied",
                 "patch_id": normalized.patch_id,
                 "assignment": record.get("assignment"),
             }
         raise PlanPatchError(
-            "patch_id was reused for a different base revision")
+            "patch identity has no material digest; refresh the proposal")
     checked = validate_plan_patch(normalized.model_dump(), record)
     if not checked["valid"]:
         raise PlanPatchError("; ".join(checked["errors"]))
@@ -217,42 +502,82 @@ def apply_plan_patch(
 
     def compute(record, assignment):
         # Re-check inside the CAS callback: another writer may have changed
-        # the plan after the pre-check.
-        if _task_version(record) != normalized["base_task_version"]:
+        # the plan after the pre-check. task_version is the lifecycle CAS
+        # state version; task_revision.revision is the objective revision and
+        # is deliberately NOT used here.
+        current_task_version = _task_version(record)
+        if (current_task_version is None
+                or current_task_version != normalized["base_task_version"]):
             raise PlanPatchError(
-                "stale task version: the plan changed after proposal")
+                "stale task version: the durable task state changed after "
+                "the proposal")
         if int(assignment.get("plan_revision") or 1) != int(
                 normalized["base_plan_revision"]):
             raise PlanPatchError(
                 "stale plan revision: the plan changed after proposal")
-        history = list(assignment.get("patch_history") or [])
-        duplicate = next((
-            item for item in history
-            if item.get("patch_id") == normalized["patch_id"]), None)
+        registry = assignment.get("patch_registry") or {}
+        duplicate = registry.get(normalized["patch_id"]) if isinstance(
+            registry, Mapping) else None
         if duplicate is not None:
-            if (int(duplicate.get("base_task_version") or 0)
-                    == normalized["base_task_version"]
-                    and int(duplicate.get("base_plan_revision") or 0)
-                    == normalized["base_plan_revision"]):
+            stored_digest = str(duplicate.get("material_digest") or "")
+            if stored_digest and stored_digest != digest:
+                raise PlanPatchError(
+                    "patch_id conflict: the same identity carries different "
+                    "material content")
+            if stored_digest == digest:
+                stored_result = duplicate.get("result")
                 return copy.deepcopy(assignment), {
+                    **(copy.deepcopy(stored_result)
+                       if isinstance(stored_result, dict) else {}),
                     "status": "already_applied",
                     "patch_id": normalized["patch_id"],
                 }
             raise PlanPatchError(
-                "patch_id was reused for a different base revision")
+                "patch identity has no material digest; refresh the proposal")
+        history = list(assignment.get("patch_history") or [])
         steps = list(assignment.get("steps") or [])
         by_id = {str(step.get("step_id") or ""): step for step in steps}
-        affected: List[str] = []
+        operations = {
+            str(op.get("operation_id")): op
+            for op in record.get("operations") or []
+            if isinstance(op, dict) and op.get("operation_id")
+        }
+        roots: List[str] = []
         for step_id in normalized["invalidate_steps"]:
             step = by_id.get(str(step_id))
             if step is None:
                 raise PlanPatchError(f"unknown step {step_id!r}")
+            roots.append(str(step_id))
+        roots.extend(
+            raw["step_id"] for raw in normalized["update_steps"])
+        roots.extend(normalized["set_requires"])
+        fact_ids = {
+            str(item.get("fact_id")) for item in normalized["add_facts"]
+            if isinstance(item, dict) and item.get("fact_id")
+        }
+        for step in steps:
+            for requirement in step.get("requires") or []:
+                if (requirement.get("kind") == "fact"
+                        and str(requirement.get("fact_id") or "")
+                        in fact_ids):
+                    roots.append(str(step.get("step_id") or ""))
+        roots = [item for item in dict.fromkeys(roots) if item]
+        affected = downstream_step_ids(assignment, roots) if roots else []
+        for step_id in affected:
+            step = by_id.get(step_id)
+            if step is None:
+                raise PlanPatchError(
+                    f"affected closure names unknown step {step_id!r}")
             if step.get("status") in _IMMUTABLE_STATUSES:
                 raise PlanPatchError(
-                    f"step {step_id} is {step.get('status')}; cannot "
-                    f"invalidate it by replanning")
-            affected.extend(downstream_step_ids(assignment, [step_id]))
-        affected = list(dict.fromkeys(affected))
+                    f"affected step {step_id} is {step.get('status')}; a "
+                    f"running or uncertain effect cannot be changed by "
+                    f"replanning")
+            if _operation_is_active(
+                    operations.get(str(step.get("operation_id") or ""))):
+                raise PlanPatchError(
+                    f"affected step {step_id} has an active or uncertain "
+                    f"durable operation; reconcile it before replanning")
         removed = set(normalized["remove_steps"])
         for step_id in removed:
             step = by_id.get(step_id)
@@ -262,6 +587,15 @@ def apply_plan_patch(
                 raise PlanPatchError(
                     f"step {step_id} is {step.get('status')}; only pending "
                     f"work may be removed")
+            if bool(step.get("required", True)):
+                raise PlanPatchError(
+                    f"required step {step_id} cannot be removed by a model "
+                    f"patch; an authorized objective revision is required")
+            if _operation_is_active(
+                    operations.get(str(step.get("operation_id") or ""))):
+                raise PlanPatchError(
+                    f"step {step_id} has an active or uncertain durable "
+                    f"operation")
         retained = [
             item.get("step_id") for item in steps
             if item.get("step_id") not in affected
@@ -318,6 +652,21 @@ def apply_plan_patch(
                     f"added step {raw.get('step_id')}: {exc}") from exc
             kept_steps.append(compiled)
         new_plan["steps"] = kept_steps
+        updated_steps: List[str] = []
+        for raw in normalized["update_steps"]:
+            target = step_by_id(new_plan, raw["step_id"])
+            if target is None:
+                raise PlanPatchError(
+                    f"update names unknown step {raw['step_id']!r}")
+            if raw.get("depends_on") is not None:
+                target["depends_on"] = list(raw["depends_on"])
+            if raw.get("inputs") is not None:
+                target["inputs"] = copy.deepcopy(raw["inputs"])
+            if raw.get("requires") is not None:
+                target["requires"] = normalize_requirements(
+                    raw["requires"])
+            target["updated_at"] = _utc_now_iso()
+            updated_steps.append(raw["step_id"])
         if normalized["add_facts"]:
             facts = {
                 str(item.get("fact_id")): item
@@ -335,11 +684,22 @@ def apply_plan_patch(
             target["updated_at"] = _utc_now_iso()
         new_plan["status"] = "planned"
         new_plan["completed_at"] = None
+        result_summary = {
+            "status": "applied",
+            "patch_id": normalized["patch_id"],
+            "material_digest": digest,
+            "affected_steps": affected,
+            "updated_steps": updated_steps,
+            "retained_steps": retained,
+            "plan_revision": new_plan["plan_revision"],
+        }
         new_plan["last_transition"] = {
             "kind": "plan_patch",
             "patch_id": normalized["patch_id"],
+            "material_digest": digest,
             "reason": normalized["reason"][:500],
             "affected_steps": affected,
+            "updated_steps": updated_steps,
             "retained_steps": retained,
             "at": _utc_now_iso(),
         }
@@ -347,22 +707,32 @@ def apply_plan_patch(
             "patch_id": normalized["patch_id"],
             "base_task_version": normalized["base_task_version"],
             "base_plan_revision": normalized["base_plan_revision"],
+            "material_digest": digest,
             "reason": normalized["reason"][:500],
             "observations": copy.deepcopy(normalized["observations"]),
             "affected_steps": affected,
+            "updated_steps": updated_steps,
             "retained_steps": retained,
             "at": _utc_now_iso(),
         })
         new_plan["patch_history"] = history[-MAX_PATCH_HISTORY:]
-        new_plan["updated_at"] = _utc_now_iso()
-        validate_assignment(new_plan)
-        return new_plan, {
-            "status": "applied",
-            "patch_id": normalized["patch_id"],
-            "affected_steps": affected,
-            "retained_steps": retained,
-            "plan_revision": new_plan["plan_revision"],
+        # Durable replay identity is separate from the bounded display
+        # history: pruning a display entry must not re-enable an old effect.
+        patch_registry = dict(assignment.get("patch_registry") or {})
+        patch_registry[normalized["patch_id"]] = {
+            "material_digest": digest,
+            "base_task_version": normalized["base_task_version"],
+            "base_plan_revision": normalized["base_plan_revision"],
+            "result": copy.deepcopy(result_summary),
+            "at": _utc_now_iso(),
         }
+        new_plan["patch_registry"] = patch_registry
+        new_plan["updated_at"] = _utc_now_iso()
+        try:
+            validate_assignment(new_plan)
+        except Exception as exc:  # noqa: BLE001
+            raise PlanPatchError(f"patched plan is invalid: {exc}") from exc
+        return new_plan, result_summary
 
     result = lifecycle.mutate_assignment(
         run_id, compute,

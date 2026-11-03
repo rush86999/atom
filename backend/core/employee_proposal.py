@@ -137,6 +137,8 @@ def build_employee_context(
     authorized_actions: Optional[Sequence[str]] = None,
     action_views: Optional[Sequence[Mapping[str, Any]]] = None,
     budget: Optional[Mapping[str, Any]] = None,
+    task_version: Optional[int] = None,
+    plan_revision: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -155,6 +157,10 @@ def build_employee_context(
             "tenant_id": _text(tenant_id, 120) or None,
             "execution_owner": "assignment",
         },
+        "task_version": (
+            int(task_version) if task_version is not None else None),
+        "plan_revision": (
+            int(plan_revision) if plan_revision is not None else None),
         "criteria": [dict(item) for item in (criteria or [])[:20]
                      if isinstance(item, Mapping)],
         "teaching": {
@@ -547,6 +553,9 @@ def employee_job_view(
         ],
         "budget": dict(assignment.get("budget") or {}),
         "status": assignment.get("status"),
+        "task_version": (
+            record.get("task_version") if isinstance(record, Mapping)
+            else None),
         "plan_revision": assignment.get("plan_revision"),
         "business_outcome": business_outcome,
     }

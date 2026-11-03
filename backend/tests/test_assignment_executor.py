@@ -3869,8 +3869,7 @@ def test_plan_patch_invalidates_only_affected_branch_and_preserves_budget(env):
 
     result = apply_plan_patch(env["lifecycle"], run_id, {
         "patch_id": "patch-a-1",
-        "base_task_version": int(
-            (record.get("task_revision") or {}).get("revision") or 0),
+        "base_task_version": int(record.get("task_version") or 0),
         "base_plan_revision": assignment["plan_revision"],
         "reason": "source A changed; preserve unrelated B",
         "observations": [{"kind": "source_version", "resource_id": "A"}],
@@ -3889,6 +3888,69 @@ def test_plan_patch_invalidates_only_affected_branch_and_preserves_budget(env):
     assert after["authorized_actions"] == before_actions
     assert after["patch_history"][-1]["patch_id"] == "patch-a-1"
     assert "read-b" in after["patch_history"][-1]["retained_steps"]
+
+
+def test_plan_patch_rewires_invalidated_work_and_refuses_applied_update(env):
+    from core.employee_patch import PlanPatchError, apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    result = apply_plan_patch(env["lifecycle"], run_id, {
+        "patch_id": "rewire-1",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "rewire A after the governing source changed",
+        "observations": [{"kind": "source_version", "id": "A-v2"}],
+        "invalidate_steps": ["read-a"],
+        "update_steps": [{
+            "step_id": "read-a",
+            "inputs": {"resource_binding": {"resource_id": "fixture:A2"}},
+            "requires": [],
+        }],
+    })
+    assert result["status"] == "applied"
+    assert result["updated_steps"] == ["read-a"]
+    updated = env["lifecycle"].get_assignment(run_id)
+    read_a = step_by_id(updated, "read-a")
+    assert read_a["status"] == "pending"
+    assert read_a["inputs"]["resource_binding"]["resource_id"] == "fixture:A2"
+    assert read_a["prior_results"]
+    assert updated["patch_history"][-1]["updated_steps"] == ["read-a"]
+    assert step_by_id(updated, "read-b")["status"] == "applied"
+
+    fresh = env["lifecycle"].get_task(run_id)
+    refused = {
+        "patch_id": "rewire-applied",
+        "base_task_version": int(fresh.get("task_version") or 0),
+        "base_plan_revision": fresh["assignment"]["plan_revision"],
+        "reason": "do not silently rewrite applied work",
+        "observations": [{"kind": "source_version", "id": "B-v2"}],
+        "update_steps": [{
+            "step_id": "read-b",
+            "inputs": {"resource_binding": {"resource_id": "fixture:B2"}},
+        }],
+    }
+    with pytest.raises(PlanPatchError, match="only pending"):
+        apply_plan_patch(env["lifecycle"], run_id, refused)
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "read-b") == step_by_id(
+            fresh["assignment"], "read-b")
+
+    cyclic = {
+        "patch_id": "rewire-cycle",
+        "base_task_version": int(fresh.get("task_version") or 0),
+        "base_plan_revision": fresh["assignment"]["plan_revision"],
+        "reason": "a cycle must be refused",
+        "observations": [{"kind": "source_version", "id": "A-v3"}],
+        "invalidate_steps": ["read-a"],
+        "update_steps": [{
+            "step_id": "read-a", "depends_on": ["use-a"]}],
+    }
+    with pytest.raises(Exception, match="cycle"):
+        apply_plan_patch(env["lifecycle"], run_id, cyclic)
+    after_cycle = env["lifecycle"].get_assignment(run_id)
+    assert after_cycle["plan_revision"] == fresh["assignment"]["plan_revision"]
 
 
 def test_plan_patch_rejects_stale_base_and_immutable_effects(env):
@@ -3918,8 +3980,7 @@ def test_plan_patch_rejects_stale_base_and_immutable_effects(env):
     running = env["lifecycle"].get_task(run_id)
     immutable = {
         "patch_id": "running-1",
-        "base_task_version": int(
-            (running.get("task_revision") or {}).get("revision") or 0),
+        "base_task_version": int(running.get("task_version") or 0),
         "base_plan_revision": running["assignment"]["plan_revision"],
         "reason": "do not replace an in-flight effect",
         "observations": [{"kind": "event", "id": "e2"}],
@@ -3930,14 +3991,13 @@ def test_plan_patch_rejects_stale_base_and_immutable_effects(env):
 
 
 def test_plan_patch_duplicate_is_idempotent_and_survives_restart(env):
-    from core.employee_patch import apply_plan_patch
+    from core.employee_patch import PlanPatchError, apply_plan_patch
 
     run_id = _patch_ready_assignment(env)
     record = env["lifecycle"].get_task(run_id)
     patch = {
         "patch_id": "patch-dup-1",
-        "base_task_version": int(
-            (record.get("task_revision") or {}).get("revision") or 0),
+        "base_task_version": int(record.get("task_version") or 0),
         "base_plan_revision": record["assignment"]["plan_revision"],
         "reason": "add qualification fact",
         "observations": [{"kind": "qualification", "id": "eligible"}],
@@ -3945,6 +4005,9 @@ def test_plan_patch_duplicate_is_idempotent_and_survives_restart(env):
             "fact_id": "eligible", "value": True,
             "evidence_state": "established",
             "subject": {"kind": "customer", "id": "cust-1"},
+            "source_refs": [{"resource_id": "agreement-1",
+                             "version": "v3"}],
+            "authority_ref": "agreement:eligibility",
         }],
     }
     first = apply_plan_patch(env["lifecycle"], run_id, patch)
@@ -3953,6 +4016,11 @@ def test_plan_patch_duplicate_is_idempotent_and_survives_restart(env):
     second = apply_plan_patch(env["lifecycle"], run_id, patch)
     assert second["status"] == "already_applied"
     assert second["assignment"]["plan_revision"] == revision
+
+    changed = {**patch, "invalidate_steps": ["read-b"],
+               "reason": "different requested patch"}
+    with pytest.raises(PlanPatchError, match="conflict|different"):
+        apply_plan_patch(env["lifecycle"], run_id, changed)
 
     restarted = TaskLifecycle(
         GoalRunService(
@@ -4202,3 +4270,60 @@ def test_adaptation_model_choice_is_scoped_and_uncertain_reconciles(env):
         "observation_id": "obs-effect-2", "kind": "uncertain_effect"},
         assignment)
     assert local["decision"] == "reconcile"
+
+
+def test_plan_patch_validation_refuses_weakening_and_effect_relabel():
+    from core.employee_patch import validate_plan_patch
+
+    required_step = new_step(
+        step_id="dependent", title="Dependent work",
+        operation_type="retrieve", adapter="document.read",
+        inputs={}, effect="read_only",
+        requires=[{"kind": "fact", "fact_id": "eligible", "equals": True}])
+    assignment = new_assignment(
+        objective="Do not weaken requirements",
+        workspace_id="ws_assign", tenant_id="tenant_assign",
+        teaching_snapshot=_teaching(), steps=[required_step],
+        authorized_actions=["retrieve"])
+    record = {
+        "task_version": 3,
+        "task_revision": {"revision": 1},
+        "assignment": assignment,
+        "operations": [],
+    }
+    base = {
+        "patch_id": "weaken-1",
+        "base_task_version": 3,
+        "base_plan_revision": 1,
+        "reason": "attempt to weaken the requirement",
+        "observations": [{"kind": "event", "id": "e1"}],
+    }
+    weakened = validate_plan_patch(
+        {**base, "set_requires": {"dependent": []}}, record)
+    assert weakened["valid"] is False
+    assert any("erase" in error for error in weakened["errors"])
+
+    relabel = validate_plan_patch({
+        **base,
+        "patch_id": "relabel-1",
+        "add_steps": [{
+            "step_id": "fake-read", "title": "Fake read",
+            "operation_type": "retrieve", "adapter": "email.draft",
+            "inputs": {"to": ["x@example.invalid"], "body": "x"},
+            "effect": "read_only",
+        }],
+    }, record)
+    assert relabel["valid"] is False
+    assert any("declares effect" in error for error in relabel["errors"])
+
+    bare_fact = validate_plan_patch({
+        **base,
+        "patch_id": "bare-fact-1",
+        "add_facts": [{
+            "fact_id": "eligible", "value": True,
+            "evidence_state": "established",
+        }],
+    }, record)
+    assert bare_fact["valid"] is False
+    assert any("without accepted evidence" in error
+               for error in bare_fact["errors"])

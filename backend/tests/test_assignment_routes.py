@@ -3213,8 +3213,7 @@ def test_plan_patch_route_adopts_fact_and_refuses_stale_proposal(
     task = route_env["lifecycle"].get_task(run_id)
     payload = {
         "patch_id": "route-patch-1",
-        "base_task_version": int(
-            (task.get("task_revision") or {}).get("revision") or 0),
+        "base_task_version": int(task.get("task_version") or 0),
         "base_plan_revision": task["assignment"]["plan_revision"],
         "reason": "qualification evidence arrived",
         "observations": [{"kind": "qualification", "id": "eligible"}],
@@ -3222,6 +3221,9 @@ def test_plan_patch_route_adopts_fact_and_refuses_stale_proposal(
             "fact_id": "eligible", "value": True,
             "evidence_state": "established",
             "subject": {"kind": "customer", "id": "cust-1"},
+            "source_refs": [{"resource_id": "agreement-1",
+                             "version": "v3"}],
+            "authority_ref": "agreement:eligibility",
         }],
     }
     response = route_env["client"].post(
