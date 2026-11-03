@@ -410,7 +410,8 @@ def main() -> int:
             "open_obligations") or []
         _check(checks, "missing invoice produces actionable obligation",
                any(
-                   str(item.get("kind") or "") == "missing_prerequisite"
+                   str(item.get("kind") or "") in (
+                       "missing_prerequisite", "missing_evidence")
                    and "invoice" in str(item.get("question") or "").lower()
                    for item in obligations if isinstance(item, dict)),
                obligations)

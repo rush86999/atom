@@ -140,77 +140,6 @@ def evidence_observations(record: Mapping[str, Any]) -> List[Dict[str, Any]]:
     return observations
 
 
-def missing_prerequisite_question(
-    target: Mapping[str, Any],
-) -> Optional[Dict[str, Any]]:
-    """Durable question for a missing capability role, bound to the job.
-
-    Accepts either the assignment or the bounded reasoning context; both
-    expose the same capability/precondition contract. The capability names
-    the missing roles and known business identities; this does not invent the
-    answer or the expected source.
-    """
-    if "available_business_operations" in target:
-        capabilities = [
-            dict(item) for item in (
-                target.get("available_business_operations") or [])
-            if isinstance(item, Mapping)
-        ]
-    else:
-        from core.employee_proposal import operation_capabilities
-
-        capabilities = operation_capabilities(target)
-    for capability in capabilities:
-        status = str(capability.get("status") or "")
-        if status not in ("missing", "ambiguous"):
-            continue
-        operation = str(capability.get("operation") or "")
-        missing = list(capability.get("missing") or [])
-        known = dict(capability.get("known_identities") or {})
-        subject = (
-            known.get("purchase_order.po_id")
-            or known.get("receiving.po_id")
-            or known.get("invoice.po_id"))
-        question = str(capability.get("question_hint") or "").strip()
-        if not question:
-            question = (
-                "Which authorized source provides the missing "
-                + (", ".join(missing) or "evidence")
-                + " for this objective?")
-        evidence_steps = [
-            str(item.get("step_id"))
-            for item in capability.get("evidence") or []
-            if isinstance(item, Mapping) and item.get("step_id")
-        ]
-        return {
-            "kind": "missing_prerequisite",
-            "question": question,
-            "concept": operation,
-            "operation": operation,
-            "missing_roles": missing,
-            "ambiguous_roles": list(
-                capability.get("ambiguous_roles") or []),
-            "subject": subject or None,
-            "known_identities": known,
-            "evidence_step_ids": evidence_steps,
-            "inputs": {
-                "missing": missing,
-                "known_identities": known,
-                "evidence_step_ids": evidence_steps,
-            },
-            "reason": (
-                f"The {capability.get('label') or operation} capability is "
-                f"{status}; the objective is not complete."),
-            "next_action": (
-                "Add the authorized source containing the missing evidence "
-                "role, then resume this same assignment."),
-            "next_retrieval": (
-                "authorized source read for "
-                + (", ".join(missing) or "the missing prerequisite")),
-        }
-    return None
-
-
 def action_views(assignment: Mapping[str, Any]) -> List[Dict[str, Any]]:
     """Authorized registered external actions, without expanding authority."""
     from core.action_registry import action_registry
@@ -233,19 +162,38 @@ def action_views(assignment: Mapping[str, Any]) -> List[Dict[str, Any]]:
 
 
 def missing_prerequisite_question(
-    context: Mapping[str, Any],
+    target: Mapping[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """One actionable obligation derived from a capability's missing roles.
+    """One actionable obligation from the capability's declared missing roles.
 
-    This is the deterministic no-progress floor, not model discovery. It is
-    used only when the model retains or fails to propose while a declared
-    capability is still missing a prerequisite, so the job cannot silently
-    abandon the objective.
+    Accepts the assignment or the bounded reasoning context. This is the
+    deterministic no-progress floor, not model discovery: it runs only when
+    the model retains/fails while a declared capability is missing a
+    prerequisite, so the job cannot silently abandon the objective.
     """
-    missing = [
-        dict(item) for item in (context.get("missing_prerequisites") or [])
-        if isinstance(item, Mapping)
-    ]
+    if "missing_prerequisites" in target:
+        missing = [
+            dict(item) for item in (
+                target.get("missing_prerequisites") or [])
+            if isinstance(item, Mapping)
+        ]
+    else:
+        from core.employee_proposal import operation_capabilities
+
+        missing = [
+            {
+                "operation": item.get("operation"),
+                "label": item.get("label") or item.get("operation"),
+                "status": item.get("status"),
+                "missing": list(item.get("missing") or []),
+                "question_hint": item.get("question_hint") or "",
+                "known_identities": dict(
+                    item.get("known_identities") or {}),
+                "evidence": list(item.get("evidence") or []),
+            }
+            for item in operation_capabilities(target)
+            if str(item.get("status") or "") in ("missing", "ambiguous")
+        ]
     if not missing:
         return None
     chosen = next(
@@ -260,11 +208,26 @@ def missing_prerequisite_question(
             "Which authorized source contains the missing "
             + ", ".join(roles)
             + " evidence needed for this objective?")
+    known = dict(chosen.get("known_identities") or {})
+    subject = (
+        known.get("purchase_order.po_id")
+        or known.get("receiving.po_id")
+        or known.get("invoice.po_id"))
+    evidence_steps = [
+        str(item.get("step_id"))
+        for item in chosen.get("evidence") or []
+        if isinstance(item, Mapping) and item.get("step_id")
+    ]
     return {
         "kind": "missing_evidence",
         "item": chosen.get("label") or chosen.get("operation"),
         "question": hint,
         "concept": chosen.get("operation"),
+        "operation": chosen.get("operation"),
+        "missing_roles": roles,
+        "subject": subject or None,
+        "known_identities": known,
+        "evidence_step_ids": evidence_steps,
         "reason": (
             "the accepted evidence does not satisfy the required role(s): "
             + ", ".join(roles)),
@@ -275,7 +238,7 @@ def missing_prerequisite_question(
         "inputs": {
             "operation": chosen.get("operation"),
             "missing": roles,
-            "known_identities": dict(
-                chosen.get("known_identities") or {}),
+            "known_identities": known,
+            "evidence_step_ids": evidence_steps,
         },
     }

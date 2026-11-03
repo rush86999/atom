@@ -928,14 +928,47 @@ async def _advance_employee_work(
             if question:
                 from core.task_lifecycle import add_unresolved_questions
 
-                add_unresolved_questions(executor.lifecycle, run_id, [{
+                missing = [
+                    dict(item) for item in (
+                        context.get("missing_prerequisites") or [])
+                    if isinstance(item, Mapping)
+                ]
+                chosen = next((
+                    item for item in missing
+                    if str(item.get("question_hint") or "").strip()
+                    == question), None)
+                if chosen is None and missing:
+                    chosen = next((
+                        item for item in missing
+                        if str(item.get("operation") or "").replace(
+                            "_", " ") in question.lower()), missing[0])
+                entry = {
                     "kind": "business_decision",
                     "question": question,
                     "concept": clarification.get("concept") or None,
                     "reason": clarification.get("unblocks") or None,
                     "next_action": "Confirm the missing business fact.",
                     "next_retrieval": clarification.get("unblocks") or None,
-                }])
+                }
+                if chosen:
+                    entry["concept"] = (
+                        entry["concept"] or chosen.get("operation"))
+                    entry["item"] = chosen.get("label")
+                    entry["inputs"] = {
+                        "operation": chosen.get("operation"),
+                        "missing": list(chosen.get("missing") or []),
+                        "known_identities": dict(
+                            chosen.get("known_identities") or {}),
+                    }
+                    entry["reason"] = (
+                        entry["reason"] or (
+                            "missing prerequisite: "
+                            + ", ".join(chosen.get("missing") or [])))
+                    entry["next_retrieval"] = (
+                        chosen.get("question_hint")
+                        or entry["next_retrieval"])
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [entry])
             round_record["clarification"] = clarification
             break
         if proposal.get("decision") not in ("replan", "work_request"):
@@ -1501,7 +1534,8 @@ async def add_assignment_source(
     question_ids = [
         str(question.get("question_id"))
         for question in open_unresolved_questions(current)
-        if question.get("kind") == "missing_prerequisite"
+        if question.get("kind") in (
+            "missing_prerequisite", "missing_evidence")
         and str(question.get("operation") or question.get("concept") or "")
         in ready_operations
     ]
