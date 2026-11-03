@@ -3769,6 +3769,10 @@ def test_plan_shape_output_is_not_a_durable_mutation():
     ({"resource_id": "source-1", "source_version": "v1",
       "verification": {"status": "verified"},
       "coverage": {"truncated": True}}, "verified_coverage_truncated"),
+    ({"resource_id": "source-1", "source_version": "v1",
+      "verification": {"status": "verified"},
+      "coverage": {"complete": True, "known": "unknown"}},
+     "verified_coverage_unknown"),
 ])
 def test_verified_receipt_gates_dependent_execution(
         env, proof, expected_reason):
@@ -3916,6 +3920,57 @@ def test_provider_acceptance_never_confirms_sent_items_through_executor(env):
     assert verdict["verdict"] is not True
     assert "sent_record_confirmed" not in (
         verdict["outcome"].get("delivery") or {})
+    assert result["assignment"]["status"] != "completed"
+
+
+@pytest.mark.parametrize("readback_kind", ["operation_only", "message_only"])
+def test_sent_items_minimum_schema_gates_executor(env, readback_kind):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        operation_id = (context.get("step") or {}).get("operation_id")
+        sent_items = {"present": True}
+        if readback_kind == "operation_only":
+            sent_items["operation_id"] = operation_id
+        else:
+            sent_items["provider_ref"] = "prov-1"
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+            "readback": {"sent_items": sent_items},
+        }
+
+    env["registry"].register(f"test.sent.minimum.{readback_kind}", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound",
+        adapter=f"test.sent.minimum.{readback_kind}",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "send")["status"] == "applied"
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    criteria = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert criteria["provider_accepted"]["met"] is True
+    assert criteria["sent_record_confirmed"]["met"] is None
+    assert verdict["verdict"] is not True
     assert result["assignment"]["status"] != "completed"
 
 
