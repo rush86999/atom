@@ -4,7 +4,7 @@ Executed source: `b7ea53b31` (clean worktree at the integrated run).
 
 ## Backend
 
-`backend-integrated.log` — **552 passed** across assignment/employee,
+`backend-integrated.log` — **676 passed** across assignment/employee,
 readiness/patch invariants, two-domain campaign, goal/approval, HITL,
 structured consumers, alignment, oracle/presentation and reviewed-work
 neighborhoods.

@@ -52,7 +52,7 @@ tests use `task_version`.
 
 | Scope | Result |
 |---|---|
-| Integrated backend selection | **552 passed** |
+| Integrated backend selection | **676 passed** |
 | Frontend assignment/goal/approvals | **54 passed** |
 | Evidence/G0/blocked-route probes | **9 passed** |
 | Focused affected suites | **204 passed** |
