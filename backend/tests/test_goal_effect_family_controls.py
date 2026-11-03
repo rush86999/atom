@@ -823,3 +823,69 @@ def test_cancelled_run_cannot_dispatch_its_old_held_decision(
     assert calls == []
     db.close()
     engine.dispose()
+
+
+def test_restart_review_effect_and_replay_journey(tmp_path, monkeypatch):
+    """One ordinary journey: persisted review -> restart -> effect -> replay."""
+    from api import goal_run_routes as routes
+
+    engine, factory, db1, user, creator = _file_client(
+        tmp_path, "restart-review-journey.db")
+    run_id = creator.create_run(
+        "goal-family", role="sales", plan=[])["id"]
+    creator.transition(run_id, "active")
+    held_a = _hold(creator, run_id, {
+        "decision": "ADVANCE", "rationale": "reviewed action A"})
+    db1.close()
+
+    db2 = factory()
+    svc = GoalRunService(
+        workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
+    pending = svc.get_run(run_id)["pending_decision"]
+    assert pending["decision_id"] == held_a["decision_id"]
+    assert pending["decision_binding"] == held_a["decision_binding"]
+
+    effects = []
+
+    async def execute(run_id, decision):
+        effects.append(decision.get("decision_id"))
+        if len(effects) == 1:
+            _hold(svc, run_id, {
+                "decision": "REPLAN",
+                "new_plan": [{"id": "new", "kind": "canvas_work",
+                              "title": "Unreviewed next decision"}],
+                "rationale": "new decision B",
+            })
+        return {"run": svc.get_run(run_id)}
+
+    monkeypatch.setattr(svc, "execute_decision", execute)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db2, user)
+    review_a = {
+        "decision_id": pending["decision_id"],
+        "decision_binding": pending["decision_binding"],
+    }
+
+    first = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review_a})
+    assert first.status_code == 200, first.text
+    assert effects == [held_a["decision_id"]]
+    current = svc.get_run(run_id)
+    assert current["pending_decision"]["rationale"] == "new decision B"
+
+    replay = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review_a})
+    assert replay.status_code == 409
+    assert replay.json()["detail"]["error"] == "stale_decision_review"
+    assert effects == [held_a["decision_id"]]
+
+    db3 = factory()
+    restarted = GoalRunService(
+        workspace_id="ws-a", tenant_id="t-a", session_factory=factory)
+    final = restarted.get_run(run_id)
+    assert final["pending_decision"]["rationale"] == "new decision B"
+    assert final["pending_decision"]["decision_binding"]
+    db2.close(); db3.close()
+    engine.dispose()
