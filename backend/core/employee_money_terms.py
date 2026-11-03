@@ -209,10 +209,18 @@ def _check_validity(
                 raise TermContractError(
                     f"authority {ref!r} is outside the assignment {key} scope")
         plan_revision = scope.get("plan_revision")
-        if plan_revision not in (None, "") and int(plan_revision) != int(
-                assignment.get("plan_revision") or 1):
-            raise TermContractError(
-                f"authority {ref!r} belongs to an earlier plan revision")
+        if plan_revision not in (None, ""):
+            try:
+                scoped_revision = int(plan_revision)
+                current_revision = int(
+                    assignment.get("plan_revision") or 1)
+            except (TypeError, ValueError) as exc:
+                raise TermContractError(
+                    f"authority {ref!r} has invalid plan-revision scope"
+                ) from exc
+            if scoped_revision != current_revision:
+                raise TermContractError(
+                    f"authority {ref!r} belongs to an earlier plan revision")
     snapshot_revision = str(
         (assignment.get("teaching_snapshot") or {}).get("revision") or "")
     actual_revision = validity.get("teaching_revision")

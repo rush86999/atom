@@ -366,6 +366,9 @@ def _quote_patch(
                 "freight": freight["value"],
                 "tax": tax_input,
                 "term_receipt": term_receipt,
+                # Marks this as a compiled typed request so removing the
+                # receipt cannot silently downgrade it to a legacy caller.
+                "term_binding_required": True,
             },
             "effect": "local",
             "requires": [],

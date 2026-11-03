@@ -1147,9 +1147,9 @@ def _resolve_current_term(
         raise QuoteInputError(
             f"{label} term role {role or receipt_role!r} is not compatible "
             "with this field")
-    if source == "fact" and source_identity(
-            resolved.get("source_refs") or []) != source_identity(
-            term.get("source_refs") or []):
+    receipt_refs = source_identity(term.get("source_refs") or [])
+    resolved_refs = source_identity(resolved.get("source_refs") or [])
+    if receipt_refs and resolved_refs and receipt_refs != resolved_refs:
         raise QuoteInputError(
             f"{label} term source identity changed from its accepted state")
     receipt_revision = str(term.get("teaching_revision") or "")
@@ -1158,6 +1158,13 @@ def _resolve_current_term(
             receipt_revision != resolved_revision):
         raise QuoteInputError(
             f"{label} term teaching revision changed from its accepted state")
+    receipt_fingerprint = str(term.get("teaching_fingerprint") or "")
+    resolved_fingerprint = str(resolved.get("teaching_fingerprint") or "")
+    if receipt_fingerprint and resolved_fingerprint and (
+            receipt_fingerprint != resolved_fingerprint):
+        raise QuoteInputError(
+            f"{label} term teaching fingerprint changed from its accepted "
+            "state")
     canonical = role
     if not same_role_value(
             canonical, resolved.get("value"), term.get("value")):
@@ -1277,6 +1284,10 @@ async def _quote_calculate(
             source_evidence=merged_inputs.get("source_evidence") or [],
         )
         receipt = merged_inputs.get("term_receipt")
+        if receipt is None and merged_inputs.get("term_binding_required"):
+            raise QuoteInputError(
+                "compiled quote term provenance is missing; recompile the "
+                "work request")
         if receipt is not None:
             result["term_receipt"] = _validate_term_receipt(
                 receipt, str(merged_inputs.get("currency") or ""),

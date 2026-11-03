@@ -1,6 +1,7 @@
 """Proof, term-scope and adoption controls for typed work requests."""
 from __future__ import annotations
 
+import copy
 from decimal import Decimal
 
 import pytest
@@ -334,6 +335,78 @@ def test_executor_rechecks_the_term_after_restart(env, mutation):
     assert result["assignment"]["status"] in ("blocked", "waiting"), result
 
 
+@pytest.mark.parametrize("terms,tax,expected", [
+    ({"currency": "USD", "freight": "20.00", "tax_rate": "0.10"},
+     TaxTerm(basis="rate", value="0.10", authority_ref="tax_rate"),
+     "405.00"),
+    ({"currency": "USD", "freight": "20.00", "tax_amount": "5.00"},
+     TaxTerm(basis="amount", value="5.00", authority_ref="tax_amount"),
+     "375.00"),
+])
+def test_rate_and_amount_twins_complete_with_authority(
+    env, terms, tax, expected,
+):
+    import asyncio
+
+    assignment = _assignment(_verified_quote_evidence(), terms=terms)
+    record = env["executor"].create_assignment(
+        f"conv-tax-{tax.basis}", assignment["objective"],
+        assignment=assignment)
+    run_id = record["run_id"]
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="bind the taught tax term",
+            observation_ids=[f"tax-{tax.basis}-1"],
+            work_request=_term_request(tax=tax)))
+    assert adopted["status"] == "applied", adopted
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    final = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(final, adopted["compiled"]["step_ids"][1])
+    assert Decimal(str(calc["result"]["value"])) == Decimal(expected)
+
+
+def test_typed_receipt_requires_authoritative_context_and_is_not_tamper_proof():
+    import asyncio
+
+    from core.assignment_executor import NeedsContext
+    from core.assignment_quote import _quote_calculate
+
+    assignment = _assignment(
+        _verified_quote_evidence(),
+        terms={"currency": "USD", "freight": "20.00", "tax_basis": "none"})
+    inputs = compile_work_request_patch(
+        _quote_request(), assignment, context={})["add_steps"][1]["inputs"]
+    inputs["line_items"] = [{
+        "item_id": "A", "quantity": "2", "unit_price": "100",
+        "unit": "each", "pack_size": "1", "price_basis": "list",
+        "currency": "USD"}]
+
+    # A typed receipt cannot be checked without the job's authoritative
+    # teaching/facts; absence blocks instead of falling back to the copy.
+    with pytest.raises(NeedsContext):
+        asyncio.run(_quote_calculate(dict(inputs), {}))
+
+    tampered = copy.deepcopy(inputs)
+    tampered["term_receipt"]["freight"]["value"] = "19.00"
+    with pytest.raises(NeedsContext):
+        asyncio.run(_quote_calculate(tampered, {
+            "assignment": assignment,
+            "teaching": assignment.get("teaching_snapshot") or {},
+            "facts": assignment.get("facts") or [],
+        }))
+
+    wrong_role = copy.deepcopy(inputs)
+    wrong_role["term_receipt"]["freight"]["role"] = "tax_rate"
+    with pytest.raises(NeedsContext):
+        asyncio.run(_quote_calculate(wrong_role, {
+            "assignment": assignment,
+            "teaching": assignment.get("teaching_snapshot") or {},
+            "facts": assignment.get("facts") or [],
+        }))
+
+
 def test_fact_term_scope_revision_dates_and_currency():
     read = _verified_quote_evidence()
     base_fact = {
@@ -429,9 +502,15 @@ def test_term_provenance_is_revalidated_at_consumption():
 
     stripped = dict(inputs)
     stripped.pop("term_receipt", None)
-    result = asyncio.run(_quote_calculate(stripped, {}))
-    # Direct callers that predate typed work keep their contract; the typed
-    # compiler always supplies the receipt, and a forged one is refused.
+    with pytest.raises(NeedsContext):
+        asyncio.run(_quote_calculate(stripped, context))
+
+    legacy = dict(stripped)
+    legacy.pop("term_binding_required", None)
+    result = asyncio.run(_quote_calculate(legacy, {}))
+    # Direct callers that predate typed work keep their explicitly documented
+    # contract; a compiled typed request cannot downgrade itself by dropping
+    # its receipt.
     assert result["value"] == "220.00"
 
 
