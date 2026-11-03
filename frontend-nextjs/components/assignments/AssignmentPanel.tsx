@@ -22,6 +22,8 @@ import {
   AssignmentSource,
   AssignmentStep,
   AssignmentSummary,
+  addAssignmentSource,
+  advanceAssignment,
   cancelAssignment,
   correctAssignmentMapping,
   createAssignment,
@@ -873,10 +875,35 @@ export function AssignmentPanel({
                   ) : null;
                 })()}
                 {detail.employee_job.open_obligations?.length ? (
-                  <p className="text-amber-700">
-                    Open question:{" "}
-                    {detail.employee_job.open_obligations[0]?.question}
-                  </p>
+                  <div className="space-y-1 text-amber-700">
+                    <p>
+                      Open question:{" "}
+                      {detail.employee_job.open_obligations[0]?.question}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid="assignment-use-source"
+                      disabled={busy || !selectedSource}
+                      onClick={() =>
+                        act(async () => {
+                          const source = selectedSource;
+                          if (!source) return;
+                          await addAssignmentSource(detail.run_id, {
+                            kind: source.kind,
+                            dataset_name: source.dataset_name,
+                            source: source.source,
+                            external_id: source.external_id,
+                            source_version: source.source_version,
+                            sheet: source.sheet,
+                          }, "the user supplied the source named by the open question");
+                          await advanceAssignment(detail.run_id);
+                        }, detail.run_id)
+                      }
+                    >
+                      Use selected source
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             ) : null}

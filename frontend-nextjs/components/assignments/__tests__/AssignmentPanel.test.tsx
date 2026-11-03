@@ -5,7 +5,10 @@ import "@testing-library/jest-dom";
 jest.mock("@/lib/assignment-api", () => ({
   __esModule: true,
   listAssignments: jest.fn(),
+  listAssignmentSources: jest.fn(),
   createEmployeeAssignment: jest.fn(),
+  addAssignmentSource: jest.fn(),
+  advanceAssignment: jest.fn(),
   getAssignment: jest.fn(),
   resumeAssignment: jest.fn(),
   cancelAssignment: jest.fn(),
@@ -16,10 +19,13 @@ jest.mock("@/lib/assignment-api", () => ({
 }));
 
 import {
+  addAssignmentSource,
+  advanceAssignment,
   approveAssignmentStep,
   createEmployeeAssignment,
   getAssignment,
   listAssignments,
+  listAssignmentSources,
   reconcileAssignmentStep,
   resolveAssignmentGap,
   resumeAssignment,
@@ -158,6 +164,14 @@ beforeEach(() => {
     },
   ]);
   (getAssignment as jest.Mock).mockResolvedValue(detail);
+  (listAssignmentSources as jest.Mock).mockResolvedValue([{
+    dataset_name: "supplier-invoices",
+    sheet: "Invoices",
+    kind: "workbook",
+    source: "onedrive",
+    external_id: "invoice-drive-1",
+    source_version: "v1",
+  }]);
   (approveAssignmentStep as jest.Mock).mockResolvedValue({ status: "approved" });
   (resolveAssignmentGap as jest.Mock).mockResolvedValue(detail);
   (resumeAssignment as jest.Mock).mockResolvedValue(detail);
@@ -260,4 +274,40 @@ test("employee-decides starts objective-only work without a supplied DAG", async
       use_model: true,
     }),
   ));
+});
+
+
+test("answers an open prerequisite with the selected authorized source", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    employee_job: {
+      ...detail.employee_job,
+      open_obligations: [{
+        question_id: "q-invoice",
+        question: "Which authorized source contains the invoice for PO-8?",
+        kind: "missing_evidence",
+      }],
+    },
+  });
+  (addAssignmentSource as jest.Mock).mockResolvedValue({
+    status: "applied", resolved_question_ids: ["q-invoice"],
+  });
+  (advanceAssignment as jest.Mock).mockResolvedValue({ rounds: [] });
+  render(<AssignmentPanel />);
+  const button = await screen.findByTestId("assignment-use-source");
+  fireEvent.click(button);
+  await waitFor(() =>
+    expect(addAssignmentSource).toHaveBeenCalledWith(
+      "run-1",
+      expect.objectContaining({
+        dataset_name: "supplier-invoices",
+        sheet: "Invoices",
+        source_version: "v1",
+      }),
+      expect.stringContaining("open question"),
+    )
+  );
+  await waitFor(() =>
+    expect(advanceAssignment).toHaveBeenCalledWith("run-1")
+  );
 });

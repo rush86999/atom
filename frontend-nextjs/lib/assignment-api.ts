@@ -251,6 +251,32 @@ export async function resumeAssignment(runId: string): Promise<AssignmentDetail>
   return data;
 }
 
+export async function addAssignmentSource(
+  runId: string,
+  source: Record<string, unknown>,
+  reason = "authorized source added to answer the employee question",
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/sources`,
+    { source, reason },
+    { timeout: 120000, retry: false },
+  );
+  return data;
+}
+
+export async function advanceAssignment(
+  runId: string,
+  payload: { use_model?: boolean; max_adaptations?: number;
+    deadline_seconds?: number } = {},
+): Promise<Record<string, any>> {
+  const { data } = await apiClient.post(
+    `/api/assignments/${encodeURIComponent(runId)}/advance`,
+    payload,
+    { timeout: 300000, retry: false },
+  );
+  return data;
+}
+
 export async function reassessAssignment(
   runId: string,
   reason = "explicit reassessment"
