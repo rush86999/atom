@@ -1,0 +1,69 @@
+{
+  "artifacts": {
+    "README.md": "e95e40f9e91f77f91acfcc0a09da7aa0e0eacc5dfd4001fd616e4bd494c9e26b",
+    "TEST_RESULTS.md": "11f7212be351d71d2553ab9b77563a49c2ad0efdc054c3ab457a5d831c7c98e8",
+    "focused-tests.log": "206ef23c23c0c3bf46938096b2e242ce2f5819c73e0f21ceafe52769ce05f9f1",
+    "served-work-request-smoke-calls.jsonl": "90539beb8e5e7f0e0c2fd0d092654f903397c64dfdcef6359b674bbbebf6bde2",
+    "served-work-request-smoke-report.json": "46c1e0887387f1f8cc0ed5125ccbb5e7529ea06dbce4998fb8691a83510dcb50"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "80e3bd702dc7e07d921f8082a20ab06926a062a6",
+    "manifest_note": "Mandatory proof, bound terms, aligned prompt/schema and auditable attempt capture. Short quote smoke passed; full G5 two-domain campaign remains open.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_quote.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/core/employee_work_requests.py",
+    "backend/core/llm/pinned_planning.py",
+    "backend/core/employee_attempt_journal.py",
+    "backend/tests/test_employee_g5_model_proposal.py",
+    "backend/tests/test_employee_work_request_matrix.py",
+    "backend/tests/test_employee_work_requests.py",
+    "backend/tests/test_employee_adaptation_contract.py",
+    "backend/tests/test_employee_work_request_bindings.py",
+    "scripts/acceptance/employee_g5_served_probe.py"
+  ],
+  "exclusions": [
+    "full G5 two-domain campaign not run",
+    "adaptive employee judgment remains unqualified",
+    "no cloud provider, credential, consent, send, spend or deployment",
+    "prior deterministic acceptance 28afe7248 remains intact",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "schema": "atom-employee-typed-work-repair-1",
+  "source_hashes": {
+    "backend/core/assignment_quote.py": "47a9c05bd055dc0219fc027be882cdc186a1e16861e6e96451fecec082ae4267",
+    "backend/core/employee_adaptation.py": "41487e212763d8d18c1cb59c345bd8e2792cade40485367e78d13f23d71c9db4",
+    "backend/core/employee_attempt_journal.py": "d011ca3cb22d97f1cbd9f267ea0f73edabde2daad3e09d502b0bf68141e6b765",
+    "backend/core/employee_work_compiler.py": "a000460540cd455f306e99aa84f49bf02bfd8795c26669e865d53b02e3ad126e",
+    "backend/core/employee_work_requests.py": "7bb6283ced9bbf7649dd7728e09283d76ccd57a3d9490d78a8698aa982305daf",
+    "backend/core/llm/pinned_planning.py": "5c5908cdc968290f283c7c5c2ced518604c19ab0044c1dbe939dc2cb8e00793d",
+    "backend/tests/test_employee_adaptation_contract.py": "73cce0441a808137db49f0d2ec8c48340db034cc36447756df2e9ab9cfa846b7",
+    "backend/tests/test_employee_g5_model_proposal.py": "abf45cae0e242ebf197e85f6487e9d851179c31adaabee55d71bd38f0a9d1bcd",
+    "backend/tests/test_employee_work_request_bindings.py": "533f0fbad349de145b4eb3e6a7988150f714dcfb946fbd723ac61b2a73b5bd19",
+    "backend/tests/test_employee_work_request_matrix.py": "10d595fa1c8b67272c5fe062d004e281a7fa2ca0c3637e44ecf5013e40b158d3",
+    "backend/tests/test_employee_work_requests.py": "374a6b69c7be531b95eae9992154dde94b10a6782942190556951c179ee138ec",
+    "scripts/acceptance/employee_g5_served_probe.py": "c706c02eca1f9f0b622e54cfe8630726e494b2ec4bd56fc2a5cf08501b9f3989"
+  },
+  "status": "deterministic-repair-and-short-served-smoke",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "203 passed"
+    },
+    "served_smoke": {
+      "calls": "served-work-request-smoke-calls.jsonl",
+      "report": "served-work-request-smoke-report.json",
+      "result": "model work_request adopted; 370.00"
+    }
+  }
+}
