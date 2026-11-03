@@ -230,7 +230,9 @@ export async function createEmployeeAssignment(payload: {
   const { data } = await apiClient.post(
     "/api/assignments/from-objective",
     payload,
-    { timeout: 120000, retry: false },
+    // The objective start may run the model's discovery and one bounded
+    // typed-work follow-up on the local 8B; both are bounded server-side.
+    { timeout: 300000, retry: false },
   );
   return data;
 }

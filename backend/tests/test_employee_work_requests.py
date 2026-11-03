@@ -478,3 +478,35 @@ def test_invoice_request_can_compile_one_approved_bill_action(env):
     assert len(calls) == 1
     assert calls[0]["total"] == "270.00"
     assert calls[0]["vendor_id"] == "V-9"
+
+
+def test_invoice_role_bindings_resolve_from_evidence_shape():
+    """The model names the operation; the compiler resolves mechanical roles.
+
+    Accepting a model's arbitrary step ordering would bind invoice data as a
+    purchase order. The compiler resolves each role from the accepted
+    structured fields and records the corrected binding.
+    """
+    po, invoice, receiving = _verified_invoice_evidence()
+    assignment = new_assignment(
+        objective="Reconcile the invoice",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[po, invoice, receiving],
+        authorized_actions=["retrieve", "calculate"])
+    request = _invoice_request().model_copy(update={
+        "invoice_step_id": "po",
+        "purchase_order_step_id": "receiving",
+        "receiving_step_id": "invoice",
+    })
+    patch = compile_work_request_patch(request, assignment, context={})
+    reconcile = patch["add_steps"][0]
+    assert reconcile["inputs"]["invoice"] == "${invoice.data}"
+    assert reconcile["inputs"]["purchase_order"] == "${po.data}"
+    assert reconcile["inputs"]["receiving"] == "${receiving.data}"
+    assert reconcile["depends_on"] == ["invoice", "po", "receiving"]
+    assert {
+        "kind": "resolved_invoice_evidence",
+        "invoice_step_id": "invoice",
+        "purchase_order_step_id": "po",
+        "receiving_step_id": "receiving",
+    } in patch["observations"]
