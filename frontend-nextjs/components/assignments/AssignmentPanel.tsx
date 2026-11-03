@@ -314,6 +314,7 @@ export function AssignmentPanel({
           task_context: taskContext,
           authorized_actions: ["retrieve", "calculate"],
           teaching_terms: parsedTeachingTerms,
+          budget: {max_steps: 20},
           use_model: true,
         });
         setStartDraft({
