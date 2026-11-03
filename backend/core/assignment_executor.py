@@ -5638,6 +5638,7 @@ class AssignmentExecutor:
             # evaluates the step result and must not lose the proof.
             "verification": result.get("verification"),
             "coverage": result.get("coverage"),
+            "readback": result.get("readback"),
             "value": result.get("value"),
             "unit": result.get("unit"),
             "expression": result.get("expression"),

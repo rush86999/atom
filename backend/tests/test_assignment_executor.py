@@ -3861,6 +3861,93 @@ def test_verified_receipt_positive_twin_executes_dependent(env):
     assert result["assignment"]["status"] == "completed"
 
 
+def test_provider_acceptance_never_confirms_sent_items_through_executor(env):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+        }
+
+    env["registry"].register("test.sent.accepted", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound", adapter="test.sent.accepted",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "send")["status"] == "applied"
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    results = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert results["provider_accepted"]["met"] is True
+    assert results["sent_record_confirmed"]["met"] is None
+    assert verdict["verdict"] is not True
+    assert "sent_record_confirmed" not in (
+        verdict["outcome"].get("delivery") or {})
+    assert result["assignment"]["status"] != "completed"
+
+
+def test_explicit_sent_items_readback_confirms_through_executor(env):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+            "readback": {"sent_items": {
+                "present": True, "provider_ref": "prov-1"}},
+        }
+
+    env["registry"].register("test.sent.readback", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound", adapter="test.sent.readback",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    results = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert results["provider_accepted"]["met"] is True
+    assert results["sent_record_confirmed"]["met"] is True
+    assert verdict["verdict"] is True
+    assert result["assignment"]["status"] == "completed"
+
+
 def test_business_readiness_blocks_dependent_while_independent_runs(env):
     """Unknown qualification blocks one branch; useful work still completes."""
     calls = []
