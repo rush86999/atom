@@ -23,6 +23,11 @@ from core.employee_patch import (
     validate_plan_patch,
 )
 from core.employee_proposal import ClarificationProposal
+from core.employee_work_compiler import (
+    WorkRequestCompileError,
+    compile_work_request_patch,
+)
+from core.employee_work_requests import WorkRequest, request_digest
 
 ADAPTATION_SCHEMA = "atom-employee-adaptation-1"
 
@@ -50,13 +55,31 @@ class AdaptationProposal(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision: Literal[
-        "retain", "clarify", "invalidate", "replan", "reconcile"]
+        "retain", "clarify", "invalidate", "replan", "reconcile",
+        "work_request"]
     reason: str = Field(default="", max_length=800)
     observation_ids: List[str] = Field(default_factory=list)
     step_ids: List[str] = Field(default_factory=list)
     facts: List[Dict[str, Any]] = Field(default_factory=list)
     new_steps: List[StepPatch] = Field(default_factory=list)
     update_steps: List[StepUpdate] = Field(default_factory=list)
+    work_request: Optional[WorkRequest] = None
+    clarification: Optional[ClarificationProposal] = None
+
+
+class WorkAdaptationProposal(BaseModel):
+    """Follow-up proposal for supported business work.
+
+    This schema intentionally does not expose StepPatch/new_steps: the
+    compiler supplies execution mechanics on this path.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["retain", "clarify", "replan", "reconcile"]
+    reason: str = Field(default="", max_length=800)
+    observation_ids: List[str] = Field(default_factory=list)
+    work_request: Optional[WorkRequest] = None
     clarification: Optional[ClarificationProposal] = None
 
 
@@ -226,6 +249,19 @@ def _adaptation_errors(
 ) -> List[str]:
     if normalized.decision != "replan":
         return []
+    if normalized.work_request is not None:
+        if normalized.new_steps or normalized.update_steps or normalized.facts:
+            return [
+                "work_request cannot be combined with model-authored steps "
+                "or facts; the compiler supplies execution mechanics"]
+        try:
+            compile_work_request_patch(
+                normalized.work_request, assignment, context=context)
+        except WorkRequestCompileError as exc:
+            return [str(exc)]
+        except Exception as exc:  # noqa: BLE001 - schema boundary
+            return [f"work_request compile: {exc}"]
+        return []
     record = {
         "task_version": int(context.get("task_version") or 0),
         "assignment": dict(assignment),
@@ -245,8 +281,9 @@ def _adaptation_retry_prompt(
         + "\n\nYour previous proposal was invalid:\n"
         + json.dumps(invalid_output, sort_keys=True, default=str)[:4000]
         + "\nValidation errors:\n- " + "\n- ".join(errors[:20])
-        + "\nReturn one corrected JSON proposal. Do not repeat existing "
-          "step IDs; use unique IDs and complete adapter inputs."
+        + "\nReturn one corrected JSON proposal. On the supported path, "
+          "do not include new_steps/update_steps; return a complete typed "
+          "work_request or one clarification."
     )
 
 
@@ -258,14 +295,18 @@ def _adaptation_prompt(
         "bounded response to the observation(s).\n"
         "Rules:\n"
         "- retain: no material change.\n"
-        "- For an evidence_result, you may replan with supported new steps "
-        "that consume the returned rows/values; do not invent rows, prices, "
-        "ids or authority.\n"
-        "- Every new_steps[].step_id must be NEW and must not reuse any id in "
-        "context.existing_step_ids. Reference existing completed steps by "
-        "their step_id in depends_on and inputs.\n"
-        "- A calculation step must carry complete typed inputs; an empty-input "
-        "calculation is invalid.\n"
+        "- For an evidence_result, if a listed "
+        "context.available_business_operations is supported by the accepted "
+        "evidence and taught terms, choose replan and return that "
+        "work_request. Do not return retain merely because evidence was read. "
+        "If no listed operation is supported, choose clarify when one fact "
+        "is missing, otherwise retain. On a replan, return one work_request "
+        "from context.work_request_schemas. "
+        "The compiler supplies step IDs, adapters, references, dependencies "
+        "and effects; do not author new_steps/update_steps or executable "
+        "inputs in this supported path.\n"
+        "- Bind evidence by existing durable step_id. Do not invent rows, "
+        "prices, totals, facts or authority.\n"
         "- clarify: one targeted business fact/choice is missing.\n"
         "- invalidate/replan: reopen only work affected by the observation; "
         "preserve unrelated completed receipts.\n"
@@ -273,14 +314,13 @@ def _adaptation_prompt(
         "reconciled; never resend.\n"
         "- Do not invent source/action IDs or authority; do not remove "
         "criteria or budget.\n"
-        "- New step IDs must not repeat any entry in existing_step_ids. Use "
-        "the adapter_views.input_schema for inputs and ${step.field} "
-        "references for prior results.\n"
-        "- A step's `requires` must be [] or a list of predicate objects "
-        "whose kind is one of fact, receipt, authority, time, all, any, not. "
-        "Never use {id, type} result descriptors.\n"
-        "- Return JSON only: {decision, reason, observation_ids, step_ids, "
-        "facts, new_steps, clarification}.\n\n"
+        "- On the supported business-work path, return decision `replan` "
+        "with a typed `work_request` copied from the listed "
+        "context.work_request_schemas. Do not author step IDs, adapters, "
+        "result references, dependencies, effects, new_steps or "
+        "update_steps; the compiler supplies all execution mechanics.\n"
+        "- Return JSON only with this shape: {decision, reason, "
+        "observation_ids, step_ids, facts, work_request, clarification}.\n\n"
         "CONTEXT:\n" + json.dumps(context, sort_keys=True, default=str)
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(observations, sort_keys=True, default=str)
@@ -299,13 +339,18 @@ async def propose_adaptation(
     if llm_service is not None and observations:
         try:
             from core.llm.pinned_planning import pinned_structured_call
+            response_model = (
+                WorkAdaptationProposal
+                if context.get("work_request_schemas")
+                else AdaptationProposal)
             result = await pinned_structured_call(
                 llm_service,
                 prompt=_adaptation_prompt(context, observations),
-                response_model=AdaptationProposal,
+                response_model=response_model,
                 system_instruction=(
-                    "You propose bounded, read-only employee plan changes. "
-                    "You never execute or grant authority. Return JSON only."),
+                    "You choose bounded business work and plan changes. You "
+                    "never execute, author execution plumbing or grant "
+                    "authority. Return JSON only."),
                 call_kwargs=(
                     {"provider_model": tuple(provider_model)}
                     if provider_model else None),
@@ -335,11 +380,15 @@ async def propose_adaptation(
                             llm_service,
                             prompt=_adaptation_retry_prompt(
                                 context, observations, normalized, errors),
-                            response_model=AdaptationProposal,
+                            response_model=(
+                                WorkAdaptationProposal
+                                if context.get("work_request_schemas")
+                                else AdaptationProposal),
                             system_instruction=(
-                                "You propose bounded, read-only employee "
-                                "plan changes. You never execute or grant "
-                                "authority. Return corrected JSON only."),
+                                "You choose bounded business work and plan "
+                                "changes. You never execute, author execution "
+                                "plumbing or grant authority. Return corrected "
+                                "JSON only."),
                             call_kwargs=(
                                 {"provider_model": tuple(provider_model)}
                                 if provider_model else None),
@@ -461,6 +510,48 @@ def adopt_adaptation(
     if any(item in consumed for item in observation_ids):
         raise PlanPatchError(
             "adaptation mixes already-consumed and new observation ids")
+    if normalized.work_request is not None:
+        if decision not in ("replan", "work_request"):
+            raise PlanPatchError(
+                "a work_request requires decision 'replan' or 'work_request'")
+        observation_digest = hashlib.sha256(
+            "\n".join(sorted(observation_ids)).encode("utf-8")
+        ).hexdigest()[:16]
+        compile_context = {
+            "task_version": int(record.get("task_version") or 0),
+            "plan_revision": int(assignment.get("plan_revision") or 1),
+            "authorized_actions": list(
+                assignment.get("authorized_actions") or []),
+            "action_views": [],
+        }
+        try:
+            patch = compile_work_request_patch(
+                normalized.work_request, assignment,
+                context=compile_context)
+        except WorkRequestCompileError as exc:
+            raise PlanPatchError(str(exc)) from exc
+        request_id = request_digest(normalized.work_request)
+        patch["observations"] = [
+            {"observation_id": item} for item in observation_ids
+        ] + list(patch.get("observations") or [])
+        patch["patch_id"] = f"{patch.get('patch_id')}-{observation_digest}"
+        result = apply_plan_patch(
+            lifecycle, run_id, patch,
+            rationale=rationale or (
+                f"adapted work {request_id}: {normalized.reason[:300]}"))
+        return {
+            **result,
+            "decision": decision,
+            "reason": normalized.reason,
+            "work_request": normalized.work_request.model_dump(),
+            "compiled": {
+                "request_digest": request_id,
+                "step_ids": [
+                    item.get("step_id") for item in patch.get("add_steps") or []
+                ],
+            },
+            "affected_steps": [],
+        }
     affected: List[str] = []
     for step_id in normalized.step_ids:
         if step_by_id(assignment, step_id) is None:

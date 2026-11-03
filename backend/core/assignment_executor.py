@@ -7853,4 +7853,5 @@ default_adapter_registry.register(
 # cycle; registries cloned after this point carry the adapter.
 import core.assignment_quote  # noqa: E402,F401
 import core.quote_rows  # noqa: E402,F401
+import core.assignment_invoice  # noqa: E402,F401
 import core.canvas_assignment  # noqa: E402,F401

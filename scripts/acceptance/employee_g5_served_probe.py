@@ -106,7 +106,9 @@ async def main() -> int:
     from core.goals.goal_service import GoalService
     from core.task_lifecycle import TaskLifecycle
     from core.assignment_executor import AssignmentExecutor, default_adapter_registry
-    from core.assignment_plan import new_assignment, new_step
+    from core.assignment_plan import (
+        new_assignment, new_step, new_teaching_snapshot,
+    )
     import core.quote_rows  # noqa: F401  (registers quote.lines_from_rows)
     from core.employee_proposal import (
         build_employee_context, context_from_record, propose_employee_work,
@@ -175,11 +177,40 @@ async def main() -> int:
                    {"column": "Price"}, {"column": "Currency"}],
         "coverage": {"complete": True, "known": True, "truncated": False},
         "source_version": "heldout-v1",
+        "resource_id": "heldout:price-book.xlsx",
+        "verification": {
+            "status": "verified",
+            "resource_id": "heldout:price-book.xlsx",
+            "version": "heldout-v1",
+            "coverage": {"complete": True, "truncated": False},
+        },
     }
+    terms = new_step(
+        step_id="terms", title="Read the taught commercial terms",
+        operation_type="retrieve", adapter="document.read",
+        inputs={}, effect="read_only")
+    terms["status"] = "applied"
+    terms["operation_id"] = "op-g5-terms"
+    terms["result"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        "rounding_authority": "held-out agreement",
+        "verification": {
+            "status": "verified", "resource_id": "heldout:terms.docx",
+            "version": "terms-v1"},
+    }
+    teaching = new_teaching_snapshot(revision="heldout-teach-1")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        "rounding_authority": "held-out agreement",
+    }
+    teaching["rules"] = [
+        "Use the accepted price rows and taught terms; no tax is inferred.",
+    ]
     plan = new_assignment(
         objective="Quote the held-out customer request using approved prices",
         employee_id="employee-1", workspace_id="ws-g5",
-        tenant_id="tenant-g5", steps=[read],
+        tenant_id="tenant-g5", steps=[read, terms],
+        teaching_snapshot=teaching,
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[{"kind": "required_work_complete"}])
     created = executor.create_assignment(
