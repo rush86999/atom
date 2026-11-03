@@ -169,6 +169,13 @@ async def _invoice_reconcile(
         "received_quantity": str(received_qty),
         "purchase_order_id": po_id or None,
         "receiving_purchase_order_id": receiving_po or None,
+        "verification": {
+            "status": "verified",
+            "resource_id": _text(_mapped(invoice, fields["invoice"],
+                                        "resource_id")) or invoice_id,
+            "version": _text(_mapped(invoice, fields["invoice"], "version")),
+            "coverage": {"complete": True, "truncated": False},
+        },
         "data": {
             "total": str(total),
             "currency": currency,

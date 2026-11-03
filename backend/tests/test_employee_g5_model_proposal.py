@@ -178,7 +178,7 @@ def test_followup_transport_contract_and_repair_feedback(env):
         "Return JSON only with this shape: ", 1)[1].split(".\n", 1)[0]
     assert "step_ids" not in shape and "facts" not in shape
     assert '"operation": "quote_calculation"' in first["prompt"]
-    assert '"operation": "invoice_reconciliation"' in first["prompt"]
+    assert '"operation": "invoice_reconciliation"' not in first["prompt"]
     assert "previous proposal was invalid" in second["prompt"]
     assert "absent" in second["prompt"]
     assert proposal["repair"]["first_errors"]

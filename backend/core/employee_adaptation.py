@@ -391,7 +391,6 @@ async def propose_adaptation(
             journal = AttemptJournal()
         except Exception:  # noqa: BLE001 — diagnostics are optional
             journal = None
-    attempts: List[Dict[str, Any]] = []
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
 
     def _remaining() -> Optional[float]:

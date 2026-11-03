@@ -174,7 +174,8 @@ def _term_candidate(
                 "term_id": ref,
                 "value": fact.get("value"),
                 "currency": (
-                    validity.get("currency") or validity.get("unit")),
+                    validity.get("currency") or validity.get("unit")
+                    or fact.get("currency") or fact.get("unit")),
                 "basis": fact.get("field_id") or key,
                 "source": "fact",
                 "source_refs": list(fact.get("source_refs") or []),
@@ -461,6 +462,21 @@ def _invoice_patch(
             request.receiving_step_id):
         _step_result(assignment, step_id)
         _require_verified(assignment, step_id)
+    if request.bill_action:
+        from core.action_registry import action_registry
+        from core.assignment_planner import _registered_action_effect
+        action = action_registry.get_action(request.bill_action)
+        if action is None:
+            raise WorkRequestCompileError(
+                f"bill action {request.bill_action!r} is not registered")
+        if _registered_action_effect(action) != "external":
+            raise WorkRequestCompileError(
+                f"bill action {request.bill_action!r} is not an external "
+                "mutation capability")
+        if "outbound" not in set(
+                assignment.get("authorized_actions") or []):
+            raise WorkRequestCompileError(
+                "bill creation requires outbound authority")
     reconcile_id = _unique_id(assignment, "invoice-reconcile")
     patch = _base_patch(assignment, request, context)
     patch["add_steps"] = [{
@@ -505,6 +521,28 @@ def _invoice_patch(
         ],
         "required": True,
     }]
+    if request.bill_action:
+        bill_id = _unique_id(assignment, "create-bill")
+        patch["add_steps"].append({
+            "step_id": bill_id,
+            "title": "Create the supported reviewed bill",
+            "operation_type": "outbound",
+            "adapter": "action.registry",
+            "depends_on": [reconcile_id],
+            "inputs": {
+                "action": request.bill_action,
+                "arguments": f"${{{reconcile_id}.data.bill}}",
+            },
+            "effect": "external",
+            "requires": [{
+                "kind": "receipt", "step_id": reconcile_id,
+                "require": "verified"}],
+            "approval_required": True,
+            "approval_purpose": (
+                "Create one bill after reconciliation to accepted purchase "
+                "and receiving evidence"),
+            "required": True,
+        })
     return patch
 
 

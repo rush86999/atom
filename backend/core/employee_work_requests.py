@@ -87,6 +87,7 @@ class InvoiceReconciliationRequest(BaseModel):
     purchase_order_fields: Dict[str, str] = Field(default_factory=dict)
     receiving_fields: Dict[str, str] = Field(default_factory=dict)
     currency: Optional[str] = Field(default=None, max_length=20)
+    bill_action: Optional[str] = Field(default=None, max_length=200)
     evidence: List[EvidenceRef] = Field(default_factory=list)
     reason: str = Field(default="", max_length=800)
 

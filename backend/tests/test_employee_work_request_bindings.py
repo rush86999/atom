@@ -131,9 +131,12 @@ def test_executor_negative_preserves_independent_progress(env):
     assert step_by_id(after, "independent")["status"] == "applied"
     assert env["lifecycle"].get_task(run_id).get("task_version") == (
         record["task_version"])
+    assert not env["lifecycle"].get_task(run_id).get("operations")
 
 
 def test_valid_twin_still_compiles_and_completes(env):
+    import asyncio
+
     assignment = new_assignment(
         objective="verified twin", workspace_id="ws_assign",
         tenant_id="tenant_assign", teaching_snapshot=_teaching(
@@ -151,6 +154,11 @@ def test_valid_twin_still_compiles_and_completes(env):
             observation_ids=["proof-positive-1"],
             work_request=_quote_request()))
     assert adopted["status"] == "applied"
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed"
+    final = env["lifecycle"].get_assignment(run_id)
+    calc = step_by_id(final, adopted["compiled"]["step_ids"][1])
+    assert Decimal(str(calc["result"]["value"])) == Decimal("370.00")
 
 
 def _term_request(**updates):

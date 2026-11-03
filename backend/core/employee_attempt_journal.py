@@ -19,7 +19,7 @@ import os
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 _SECRET_HINTS = (
     "api_key", "apikey", "api-key", "authorization", "bearer", "token",

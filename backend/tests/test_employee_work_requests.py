@@ -415,3 +415,66 @@ def test_work_request_rejects_unverified_or_skipped_evidence():
     with pytest.raises(WorkRequestCompileError, match="verified"):
         compile_work_request_patch(
             _invoice_request(), invoice_assignment, context={})
+
+
+def test_invoice_request_can_compile_one_approved_bill_action(env):
+    from core.action_registry import action_registry
+
+    calls = []
+
+    async def create_bill(arguments, context):
+        calls.append(dict(arguments))
+        return {
+            "status": "applied", "action_result": "applied",
+            "provider_state": "accepted", "provider_ref": "bill-1",
+            "remote_id": "bill-1",
+            "verification": {"status": "verified"},
+            "data": {"bill_id": "bill-1", "total": arguments.get("total")},
+        }
+
+    action_registry.register(
+        "books.create_bill", create_bill,
+        effects=[{"effect": "create", "object": "bill"}])
+    po, invoice, receiving = _verified_invoice_evidence()
+    teaching = new_teaching_snapshot(revision="invoice-terms-1")
+    plan = new_assignment(
+        objective="Prepare the supported bill",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[po, invoice, receiving],
+        teaching_snapshot=teaching,
+        authorized_actions=["retrieve", "calculate", "outbound"],
+        completion_criteria=[{"kind": "required_work_complete"}])
+    record = env["executor"].create_assignment(
+        "conv-invoice-bill", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    assignment = env["lifecycle"].get_assignment(run_id)
+    context = {
+        "task_version": int(record["task_version"]),
+        "plan_revision": int(assignment["plan_revision"]),
+        "action_views": [{"action": "books.create_bill",
+                          "effect": "external"}],
+        "authorized_actions": ["outbound"],
+    }
+    request = _invoice_request().model_copy(update={
+        "bill_action": "books.create_bill"})
+    patch = compile_work_request_patch(
+        request, assignment, context=context)
+    assert patch["add_steps"][-1]["adapter"] == "action.registry"
+    assert patch["add_steps"][-1]["effect"] == "external"
+    assert patch["add_steps"][-1]["approval_required"] is True
+
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="prepare one supported bill",
+            observation_ids=["invoice-bill-1"], work_request=request))
+    assert adopted["status"] == "applied"
+    waiting = _run(env["executor"].execute(run_id))
+    assert waiting["assignment"]["status"] == "waiting", waiting
+    env["executor"].approve_step(
+        run_id, patch["add_steps"][-1]["step_id"], approved_by="owner")
+    completed = _run(env["executor"].execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(calls) == 1
+    assert calls[0]["total"] == "270.00"
+    assert calls[0]["vendor_id"] == "V-9"

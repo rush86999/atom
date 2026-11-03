@@ -210,6 +210,7 @@ def build_employee_context(
     plan_revision: Optional[int] = None,
     existing_step_ids: Optional[Sequence[str]] = None,
     stage: str = "discovery",
+    available_work_requests: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -325,35 +326,16 @@ def build_employee_context(
         "budget": dict(budget or {}),
         "stage": stage,
         "work_request_schemas": (
-            work_request_schemas()
-            if stage in ("follow_up", "adaptation", "result")
-            else []
-        ),
-        "available_business_operations": (
-            ["quote_calculation", "invoice_reconciliation"]
-            if stage in ("follow_up", "adaptation", "result")
-            else []
-        ),
-        "available_business_operations": (
             [
-                {
-                    "operation": "quote_calculation",
-                    "when": (
-                        "accepted price rows and taught/authorized currency, "
-                        "freight and tax terms are available"),
-                    "supports": [
-                        "exact quote line items and total from full rows"],
-                },
-                {
-                    "operation": "invoice_reconciliation",
-                    "when": (
-                        "accepted invoice, purchase order and receiving "
-                        "evidence are available"),
-                    "supports": [
-                        "quantity/amount reconciliation",
-                        "one targeted correction obligation when mismatched"],
-                },
+                schema for schema in work_request_schemas()
+                if not available_work_requests
+                or schema.get("operation") in set(available_work_requests)
             ]
+            if stage in ("follow_up", "adaptation", "result")
+            else []
+        ),
+        "available_business_operations": (
+            _operation_views(available_work_requests)
             if stage in ("follow_up", "adaptation", "result")
             else []
         ),
@@ -361,7 +343,8 @@ def build_employee_context(
             {
                 "allowed_proposal_kinds": ["replan"],
                 "allowed_work_requests": [
-                    "quote_calculation", "invoice_reconciliation"],
+                    item["operation"] for item in
+                    _operation_views(available_work_requests)],
                 "can_execute": False,
                 "can_grant_authority": False,
                 "can_supply_receipts": False,
@@ -384,6 +367,62 @@ def build_employee_context(
             }
         ),
     }
+
+
+def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]:
+    definitions = [
+        {
+            "operation": "quote_calculation",
+            "when": (
+                "accepted price rows and taught/authorized currency, freight "
+                "and tax terms are available"),
+            "supports": ["exact quote line items and total from full rows"],
+        },
+        {
+            "operation": "invoice_reconciliation",
+            "when": (
+                "accepted invoice, purchase order and receiving evidence are "
+                "available"),
+            "supports": [
+                "quantity/amount reconciliation",
+                "one targeted correction obligation when mismatched"],
+        },
+    ]
+    allowed = set(available or [])
+    return [
+        item for item in definitions
+        if not allowed or item["operation"] in allowed
+    ]
+
+
+def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
+    quote = False
+    invoice = False
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        result = step.get("result") if isinstance(
+            step.get("result"), Mapping) else {}
+        data = result.get("data") if isinstance(
+            result.get("data"), Mapping) else {}
+        keys = set(data)
+        if ({"invoice_id", "quantity", "unit_price"} <= keys
+                or "received_quantity" in keys):
+            invoice = True
+        rows = result.get("rows") or []
+        if isinstance(rows, list) and rows and isinstance(rows[0], Mapping):
+            row_keys = set(rows[0])
+            if ({"Item", "Qty", "Price"} & row_keys
+                    or {"item_id", "quantity", "unit_price"} & row_keys):
+                quote = True
+        if result.get("line_items"):
+            quote = True
+    operations = []
+    if quote:
+        operations.append("quote_calculation")
+    if invoice:
+        operations.append("invoice_reconciliation")
+    return operations
 
 
 def context_from_record(
@@ -450,6 +489,7 @@ def context_from_record(
             if step.get("step_id")
         ],
         stage="follow_up" if evidence else "discovery",
+        available_work_requests=_operations_from_evidence(assignment),
     )
 
 
