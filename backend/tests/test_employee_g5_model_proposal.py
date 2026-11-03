@@ -5,6 +5,9 @@ import asyncio
 from decimal import Decimal
 
 from core.assignment_plan import new_assignment, new_step, step_by_id
+import core.quote_rows  # noqa: F401,E402  (registers quote.lines_from_rows)
+import core.assignment_quote  # noqa: F401,E402
+import core.quote_rows  # noqa: F401,E402
 from core.employee_adaptation import (
     AdaptationProposal,
     adopt_adaptation,

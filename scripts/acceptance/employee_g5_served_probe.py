@@ -107,6 +107,7 @@ async def main() -> int:
     from core.task_lifecycle import TaskLifecycle
     from core.assignment_executor import AssignmentExecutor, default_adapter_registry
     from core.assignment_plan import new_assignment, new_step
+    import core.quote_rows  # noqa: F401  (registers quote.lines_from_rows)
     from core.employee_proposal import (
         build_employee_context, context_from_record, propose_employee_work,
     )
