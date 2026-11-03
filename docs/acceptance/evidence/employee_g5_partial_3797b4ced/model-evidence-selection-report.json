@@ -1,0 +1,140 @@
+{
+  "schema": "atom-g5-model-probe-1",
+  "generated_at": "2026-11-03T13:04:28.436433+00:00",
+  "model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "boundaries": [
+    "local Ollama only; no cloud/provider key",
+    "proposal consumer only; no effect/send",
+    "deterministic fallback is not adaptive success"
+  ],
+  "cases": [
+    {
+      "name": "industrial_quote",
+      "objective": "Prepare an accurate, cited industrial quote for customer C-104 using approved commercial sources. The customer requires delivery within 10 calendar days and a total no greater than 500 USD. Apply only established eligibility and approved equivalents.",
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "errors": [],
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "To prepare an accurate quote for customer C-104, we need to read the approved commercial sources.",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Read price list from workbook",
+            "source_id": "price-workbook",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "To determine the prices for the items in the quote."
+          },
+          {
+            "step_id": "evidence-2",
+            "title": "Read customer terms from document",
+            "source_id": "terms-agreement",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "To understand any specific requirements or restrictions for the customer."
+          },
+          {
+            "step_id": "evidence-3",
+            "title": "Read customer record from CRM",
+            "source_id": "customer-record",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "To gather information about the customer's preferences and history."
+          },
+          {
+            "step_id": "evidence-4",
+            "title": "Read approved equivalence from document",
+            "source_id": "equivalence-record",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "To ensure that we are using the correct equivalents for the items in the quote."
+          },
+          {
+            "step_id": "evidence-5",
+            "title": "Read customer requirements from JSON file",
+            "source_id": "customer-record",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "To understand any specific requirements or restrictions for the customer."
+          }
+        ],
+        "clarification": null
+      },
+      "selected_handles": [
+        "price-workbook",
+        "terms-agreement",
+        "customer-record",
+        "equivalence-record",
+        "customer-record"
+      ],
+      "required_prerequisites": [
+        "price-workbook",
+        "terms-agreement"
+      ],
+      "discovered_required": [
+        "price-workbook",
+        "terms-agreement"
+      ],
+      "model_backed": true,
+      "seconds": 18.46
+    },
+    {
+      "name": "procurement_bookkeeping",
+      "objective": "Reconcile supplier invoice INV-2210 against approved purchase order PO-8841 and receiving records. Prepare or post only the supported reviewed bill; do not infer tax or rewrite quantities.",
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "errors": [],
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "Reconcile supplier invoice INV-2210 against approved purchase order PO-8841 and receiving records.",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Verify purchase order PO-8841",
+            "source_id": "purchase-order",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "Verify the details of the purchase order"
+          },
+          {
+            "step_id": "evidence-2",
+            "title": "Check receiving records",
+            "source_id": "receiving-records",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": "Verify the quantities received"
+          }
+        ],
+        "clarification": null
+      },
+      "selected_handles": [
+        "purchase-order",
+        "receiving-records"
+      ],
+      "required_prerequisites": [
+        "invoice-v1",
+        "purchase-order",
+        "receiving-records"
+      ],
+      "discovered_required": [
+        "purchase-order",
+        "receiving-records"
+      ],
+      "model_backed": true,
+      "seconds": 11.28
+    }
+  ],
+  "calls": 2
+}
