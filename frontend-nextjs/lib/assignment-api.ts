@@ -137,6 +137,7 @@ export interface AssignmentSummary {
 }
 
 export interface AssignmentSource {
+  document_id?: string | null;
   dataset_name: string;
   sheet: string;
   file_name: string;
@@ -156,6 +157,18 @@ export interface AssignmentAgent {
   name: string;
   status?: string;
   category?: string;
+}
+
+export async function uploadAssignmentSource(
+  file: File
+): Promise<Record<string, unknown>> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    "/api/documents/upload", form,
+    { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 }
+  );
+  return data;
 }
 
 export async function listAssignmentSources(
@@ -362,11 +375,17 @@ export async function reconcileAssignmentStep(
   stepId: string,
   verdict: "applied" | "not_applied" | "insufficient",
   evidence: string,
-  evidenceRef?: string
+  evidenceRef?: string,
+  providerRef?: string
 ): Promise<Record<string, any>> {
   const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/reconcile/${encodeURIComponent(stepId)}`,
-    { verdict, evidence, evidence_ref: evidenceRef || undefined }
+    {
+      verdict,
+      evidence,
+      evidence_ref: evidenceRef || undefined,
+      provider_ref: providerRef || undefined,
+    }
   );
   return data;
 }

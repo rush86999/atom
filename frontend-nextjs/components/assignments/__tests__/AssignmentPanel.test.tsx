@@ -242,7 +242,9 @@ test("uncertain effect reconciliation sends evidence and verdict", async () => {
       "run-1",
       "send",
       "applied",
-      "provider receipt row 42"
+      "provider receipt row 42",
+      undefined,
+      undefined
     )
   );
 });

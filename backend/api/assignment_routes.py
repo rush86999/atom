@@ -81,6 +81,7 @@ class AssignmentReconciliation(BaseModel):
     verdict: str
     evidence: str
     evidence_ref: Optional[str] = None
+    provider_ref: Optional[str] = None
 
 
 class AssignmentGapResolution(BaseModel):
@@ -1272,6 +1273,7 @@ async def list_assignment_sources(
     query: str = "",
     limit: int = 50,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """Authorized catalog sources the ordinary assignment form can name.
 
@@ -1312,6 +1314,36 @@ async def list_assignment_sources(
             "row_count": int(entry.get("row_count") or 0),
             "coverage": entry.get("coverage") or {},
             "ingested_at": entry.get("ingested_at"),
+        })
+    # Ordinary uploaded documents are authorized sources too. They are
+    # selected by durable document_id, never by a caller-supplied path.
+    from core.models import IngestedDocument
+
+    documents = db.query(IngestedDocument).filter(
+        IngestedDocument.workspace_id == workspace_id,
+    ).order_by(IngestedDocument.ingested_at.desc()).limit(
+        max(1, min(int(limit or 50), 100))).all()
+    for row in documents:
+        freshness = str(row.freshness_status or "fresh").lower()
+        if freshness in ("removed", "superseded", "outdated", "stale"):
+            continue
+        if query and query.lower() not in str(row.file_name or "").lower():
+            continue
+        rows.append({
+            "document_id": row.id,
+            "dataset_name": None,
+            "sheet": None,
+            "file_name": row.file_name,
+            "source": row.integration_id or "upload",
+            "external_id": row.external_id,
+            "source_version": row.source_content_hash or row.external_id,
+            "kind": "document",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": 0,
+            "coverage": {"known": True, "freshness": freshness},
+            "ingested_at": row.ingested_at.isoformat()
+            if row.ingested_at else None,
         })
     return rows
 
@@ -2044,6 +2076,7 @@ async def reconcile_assignment_step(
             run_id, step_id, body.verdict,
             evidence=body.evidence,
             evidence_ref=body.evidence_ref,
+            provider_ref=body.provider_ref,
         )
     except Exception as exc:  # noqa: BLE001 — keep the uncertain state
         raise HTTPException(status_code=409, detail=str(exc))

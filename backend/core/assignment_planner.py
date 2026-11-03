@@ -130,6 +130,8 @@ def _source_step(
     representation = str(source.get("representation") or "").strip().lower()
     if representation == "parquet_frame":
         adapter = "dataset.aggregate" if aggregate else "dataset.read"
+    elif representation == "document_text":
+        adapter = "document.text"
     elif representation in ("xlsx", "file"):
         adapter = "workbook.read" if kind == "workbook" else "document.read"
     else:
@@ -143,7 +145,11 @@ def _source_step(
         raise AssignmentPlanError(
             f"source {kind!r} requires a server-resolved resource binding")
     inputs: Dict[str, Any] = {"resource_binding": binding}
-    if source.get("internal_fixture") and source.get("path"):
+    if source.get("path") and (
+            source.get("internal_fixture")
+            or source.get("document_id")):
+        # Server-resolved path only; catalog parquet paths stay behind the
+        # resource binding, and a caller can never supply a raw path.
         inputs["path"] = str(source["path"])
     if kind == "workbook":
         for key in ("sheet", "columns", "filters", "header_row", "max_rows"):

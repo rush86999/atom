@@ -3548,6 +3548,7 @@ class AssignmentExecutor:
         *,
         evidence: str,
         evidence_ref: Optional[str] = None,
+        provider_ref: Optional[str] = None,
     ) -> Dict[str, Any]:
         record = self.lifecycle.get_task(run_id)
         if record is None:
@@ -3562,17 +3563,33 @@ class AssignmentExecutor:
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)
         if verdict == "applied":
+            execution = _json_safe(result.get("execution") or {
+                "summary": "reconciled applied",
+                "evidence": [evidence],
+            })
+            if provider_ref:
+                execution = {
+                    **execution,
+                    "summary": execution.get("summary")
+                    or "reconciled applied",
+                    "provider_state": "accepted",
+                    "provider_ref": str(provider_ref),
+                    "remote_id": str(provider_ref),
+                    "verification": {
+                        "status": "verified",
+                        "provider_ref": str(provider_ref),
+                    },
+                }
             assignment = self._mark_step(
                 (self.lifecycle.get_assignment(run_id) or {}),
                 step_id,
                 {
                     "status": "applied",
-                    "result": _json_safe(result.get("execution") or {
-                        "summary": "reconciled applied",
-                        "evidence": [evidence],
-                    }),
+                    "result": execution,
                     "failure": None,
                 })
+            assignment = self._apply_deliverables(
+                assignment, step, execution)
             self._persist_assignment(
                 run_id, assignment, f"step {step_id} reconciled applied")
         elif verdict == "not_applied":
@@ -7469,6 +7486,106 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
     }
     if structured is not None:
         result["data"] = structured
+    return result
+
+
+@register_assignment_adapter(
+    "document.text", description="Read an uploaded document's extracted text",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "requires_resource": True})
+async def _document_text_read(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    binding = inputs.get("resource_binding") if isinstance(
+        inputs.get("resource_binding"), dict) else {}
+    document_id = str(
+        binding.get("resource_id") or inputs.get("document_id") or "").strip()
+    if not document_id:
+        raise NeedsContext({
+            "concept": "document_identity",
+            "reason": "the assignment did not name an uploaded document",
+            "question": "Which authorized document should I read?",
+            "next_retrieval": "resolve the uploaded document and retry",
+            "kind": "missing_evidence",
+        })
+    workspace_id = context.get("workspace_id") or "default"
+    document = None
+    try:
+        from core.lancedb_handler import get_lancedb_handler
+
+        for candidate_workspace in (workspace_id, "default_shared"):
+            handler = get_lancedb_handler(candidate_workspace)
+            document = await asyncio.to_thread(
+                handler.get_document_by_id, "documents", document_id)
+            if document:
+                break
+    except Exception as exc:  # noqa: BLE001 - durable evidence unavailable
+        raise NeedsContext({
+            "concept": "document_resource",
+            "reason": f"the uploaded document could not be read: {exc}",
+            "question": "The uploaded document is unavailable.",
+            "next_retrieval": "reconnect the document store and retry",
+            "kind": "missing_evidence",
+        }) from exc
+    if not document:
+        raise NeedsContext({
+            "concept": "document_resource",
+            "reason": "the uploaded document is not in this workspace",
+            "question": "The uploaded document is unavailable.",
+            "next_retrieval": "re-upload or select the document again",
+            "kind": "missing_evidence",
+        })
+    text = str(document.get("text") or "")
+    if not text.strip():
+        raise NeedsContext({
+            "concept": "document_text",
+            "reason": "the uploaded document has no extracted text",
+            "question": "The document contains no readable text.",
+            "next_retrieval": "supply a readable document",
+            "kind": "missing_evidence",
+        })
+    data = None
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        try:
+            payload = json.loads(stripped)
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            data = payload
+    from core.database import get_db_session
+    from core.models import IngestedDocument
+
+    version = str(
+        (document.get("metadata") or {}).get("source_content_hash") or "")
+    try:
+        with get_db_session() as db:
+            row = db.query(IngestedDocument).filter(
+                IngestedDocument.id == document_id).first()
+            if row is not None and row.source_content_hash:
+                version = str(row.source_content_hash)
+    except Exception:  # noqa: BLE001 - version falls back to metadata
+        pass
+    truncated = len(text) > 20000
+    coverage = {"complete": not truncated, "known": True,
+                "truncated": truncated}
+    result = {
+        "status": "applied",
+        "summary": f"read extracted text from {document.get('source') or document_id}",
+        "text": text[:20000],
+        "truncated": truncated,
+        "source_version": version or None,
+        "resource_id": document_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": document_id,
+            "version": version or None,
+            "coverage": coverage,
+        },
+    }
+    if data is not None:
+        result["data"] = data
     return result
 
 

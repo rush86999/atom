@@ -38,6 +38,7 @@ import {
   recordAssignmentResponse,
   resolveAssignmentGap,
   resumeAssignment,
+  uploadAssignmentSource,
 } from "@/lib/assignment-api";
 
 function userFacingError(err: unknown, fallback: string): string {
@@ -67,6 +68,7 @@ function userFacingError(err: unknown, fallback: string): string {
 }
 
 function sourceKey(source: AssignmentSource): string {
+  if (source.document_id) return `document:${source.document_id}`;
   return `${source.dataset_name || ""}::${source.sheet || ""}`;
 }
 
@@ -127,6 +129,7 @@ export function AssignmentPanel({
   const [agents, setAgents] = useState<AssignmentAgent[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [selectedSourceKey, setSelectedSourceKey] = useState("");
+  const [selectedSourceKeys, setSelectedSourceKeys] = useState<string[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [measure, setMeasure] = useState("");
   const [customMeasure, setCustomMeasure] = useState("");
@@ -137,6 +140,7 @@ export function AssignmentPanel({
   const [standingRecipients, setStandingRecipients] = useState("");
   const [standingMax, setStandingMax] = useState("");
   const [reconcileEvidence, setReconcileEvidence] = useState("");
+  const [reconcileProviderRef, setReconcileProviderRef] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
     deliverableKind: "document",
@@ -181,6 +185,11 @@ export function AssignmentPanel({
           return current;
         }
         return rows[0] ? sourceKey(rows[0]) : "";
+      });
+      setSelectedSourceKeys((current) => {
+        const available = rows.map(sourceKey);
+        const kept = current.filter((key) => available.includes(key));
+        return kept.length ? kept : (available[0] ? [available[0]] : []);
       });
     } catch (err) {
       setError(userFacingError(err, "Could not load the data catalog"));
@@ -252,17 +261,23 @@ export function AssignmentPanel({
     setBusy(true);
     setError(null);
     try {
-      const source = selectedSource;
-      const sourceRefs = startDraft.discover || !source
+      const chosenSources = startDraft.employeeDecides
+        ? selectedSourceKeys
+            .map((key) => sources.find(
+              (source) => sourceKey(source) === key))
+            .filter((source): source is AssignmentSource => Boolean(source))
+        : (selectedSource ? [selectedSource] : []);
+      const sourceRefs = startDraft.discover || !chosenSources.length
         ? []
-        : [{
+        : chosenSources.map((source) => ({
             kind: source.kind,
+            document_id: source.document_id || undefined,
             dataset_name: source.dataset_name,
             source: source.source,
             external_id: source.external_id,
             source_version: source.source_version,
             sheet: source.sheet,
-          }];
+          }));
       const taskContext = {
         ...(businessContext.trim()
           ? { business_category: businessContext.trim() }
@@ -507,6 +522,64 @@ export function AssignmentPanel({
             </option>
           ))}
         </select>
+        <div className="flex items-center gap-1">
+          <input
+            type="file"
+            data-testid="assignment-source-upload"
+            aria-label="Upload an authorized source"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              setBusy(true);
+              setError(null);
+              try {
+                await uploadAssignmentSource(file);
+                await refreshSources();
+                setNotice(
+                  `Uploaded ${file.name}; it is now selectable.`);
+              } catch (err) {
+                setError(userFacingError(err, "Source upload failed"));
+              } finally {
+                setBusy(false);
+                event.target.value = "";
+              }
+            }}
+            className="min-w-0 flex-1 text-[10px]"
+          />
+        </div>
+        {startDraft.employeeDecides && !startDraft.discover ? (
+          <div
+            className="max-h-28 space-y-1 overflow-auto rounded border bg-white p-1"
+            data-testid="assignment-source-checklist"
+            aria-label="Authorized data sources"
+          >
+            {sources.map((source) => {
+              const key = sourceKey(source);
+              return (
+                <label key={key} className="flex items-center gap-1 text-[10px]">
+                  <input
+                    type="checkbox"
+                    data-testid={`assignment-source-checkbox-${testIdPart(
+                      source.file_name || source.dataset_name || key)}`}
+                    checked={selectedSourceKeys.includes(key)}
+                    onChange={(event) =>
+                      setSelectedSourceKeys((current) =>
+                        event.target.checked
+                          ? Array.from(new Set([...current, key]))
+                          : current.filter((item) => item !== key)
+                      )
+                    }
+                  />
+                  <span>
+                    {source.file_name || source.dataset_name}
+                    {source.sheet ? ` / ${source.sheet}` : ""}
+                    {source.row_count ? ` · ${source.row_count} rows` : ""}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
         <select
           value={selectedSourceKey}
           onChange={(e) => {
@@ -531,6 +604,7 @@ export function AssignmentPanel({
             </option>
           ))}
         </select>
+        )}
         {!sourcesLoading && !sources.length ? (
           <p className="text-[10px] text-muted-foreground">
             Upload a CSV or workbook in{" "}
@@ -758,7 +832,10 @@ export function AssignmentPanel({
           disabled={
             busy ||
             !startDraft.objective.trim() ||
-            (!startDraft.discover && !selectedSource) ||
+            (!startDraft.discover && !startDraft.employeeDecides
+              && !selectedSource) ||
+            (!startDraft.discover && startDraft.employeeDecides
+              && !selectedSourceKeys.length) ||
             (startDraft.discover && !startDraft.scopeQuery.trim())
           }
           onClick={start}
@@ -1534,6 +1611,14 @@ export function AssignmentPanel({
                 aria-label="Reconciliation evidence"
                 data-testid="assignment-reconcile-evidence"
               />
+              <input
+                value={reconcileProviderRef}
+                onChange={(e) => setReconcileProviderRef(e.target.value)}
+                placeholder="Provider reference or remote id (required for applied)"
+                className="mt-1 w-full rounded border px-1.5 py-1"
+                aria-label="Provider reference"
+                data-testid="assignment-reconcile-provider-ref"
+              />
               <div className="mt-1 flex flex-wrap gap-1">
                 <Button
                   size="sm"
@@ -1544,9 +1629,12 @@ export function AssignmentPanel({
                         detail.run_id,
                         String(uncertain.step_id),
                         "applied",
-                        reconcileEvidence.trim()
+                        reconcileEvidence.trim(),
+                        undefined,
+                        reconcileProviderRef.trim() || undefined
                       );
                       setReconcileEvidence("");
+                      setReconcileProviderRef("");
                     }, detail.run_id)
                   }
                 >

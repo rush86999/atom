@@ -204,6 +204,7 @@ def resolve_assignment_source(
             "kind": "document",
             "document_id": row.id,
             "resource_id": row.id,
+            "path": row.file_path,
             "file_name": row.file_name,
             "file_type": row.file_type,
             "source": row.integration_id or "upload",
@@ -212,6 +213,8 @@ def resolve_assignment_source(
             "workspace_id": row.workspace_id,
             "tenant_id": row.tenant_id,
             "representation": "document_text",
+            "path": row.file_path,
+            "original_file_name": row.file_name,
             "coverage": {
                 "known": True,
                 "freshness": freshness,
