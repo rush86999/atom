@@ -110,6 +110,35 @@ const detail = {
       resolver: "owner",
     },
   ],
+  employee_job: {
+    objective: "Prepare the controlled response",
+    status: "waiting",
+    business_outcome: {
+      state: "unresolved",
+      basis: "criteria_unknown",
+      verdict: null,
+    },
+    steps: [
+      {
+        step_id: "doc",
+        title: "Render response",
+        status: "applied",
+        readiness: null,
+      },
+      {
+        step_id: "send",
+        title: "Send response",
+        status: "pending",
+        readiness: {
+          truth: "unknown",
+          blockers: [
+            { kind: "qualification", fact_id: "expiry", reason: "missing" },
+          ],
+        },
+      },
+    ],
+    open_obligations: [],
+  },
   operations: [],
 };
 
@@ -145,6 +174,10 @@ test("shows objective, completed work, gaps, waiting party and approval payload"
   expect(within(detailNode).getByText("What expiry applies?")).toBeInTheDocument();
   expect(within(detailNode).getByText(/Approval required/)).toBeInTheDocument();
   expect(within(detailNode).getByText(/Send the prepared response/)).toBeInTheDocument();
+  expect(within(detailNode).getByTestId("assignment-employee-job").textContent)
+    .toContain("unresolved");
+  expect(within(detailNode).getByTestId("assignment-readiness-reasons").textContent)
+    .toContain("expiry");
   expect(resumeAssignment).not.toHaveBeenCalled();
 });
 

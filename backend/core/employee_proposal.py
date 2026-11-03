@@ -533,6 +533,7 @@ def employee_job_view(
                 "required": bool(step.get("required", True)),
                 "effect": step.get("effect"),
                 "requires": list(step.get("requires") or []),
+                "readiness": step.get("readiness"),
                 "readiness_blocker": step.get("readiness_blocker"),
                 "result_summary": (
                     (step.get("result") or {}).get("summary")

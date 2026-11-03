@@ -94,6 +94,29 @@ export interface AssignmentDetail {
   };
   open_gaps: Array<Record<string, any>>;
   operations: Array<Record<string, any>>;
+  employee_job?: {
+    objective?: string | null;
+    status?: string | null;
+    business_outcome?: {
+      state?: string;
+      basis?: string;
+      verdict?: boolean | null;
+    } | null;
+    steps?: Array<{
+      step_id?: string;
+      title?: string;
+      status?: string;
+      readiness?: {
+        truth?: string;
+        blockers?: Array<Record<string, any>>;
+      } | null;
+      readiness_blocker?: {
+        truth?: string;
+        blockers?: Array<Record<string, any>>;
+      } | null;
+    }>;
+    open_obligations?: Array<Record<string, any>>;
+  };
 }
 
 export interface AssignmentSummary {

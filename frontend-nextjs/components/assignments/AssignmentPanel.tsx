@@ -835,6 +835,51 @@ export function AssignmentPanel({
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
             </p>
+            {detail.employee_job ? (
+              <div
+                className="mt-1 rounded bg-slate-50 px-2 py-1 text-[10px]"
+                data-testid="assignment-employee-job"
+              >
+                <p>
+                  Business outcome:{" "}
+                  <span className="font-semibold">
+                    {detail.employee_job.business_outcome?.state || "unresolved"}
+                  </span>
+                  {detail.employee_job.business_outcome?.basis
+                    ? ` · ${detail.employee_job.business_outcome.basis}`
+                    : ""}
+                </p>
+                {(() => {
+                  const blockers = (detail.employee_job?.steps || [])
+                    .flatMap((step) =>
+                      step.readiness?.blockers
+                      || step.readiness_blocker?.blockers
+                      || []
+                    );
+                  return blockers.length ? (
+                    <p
+                      className="text-amber-700"
+                      data-testid="assignment-readiness-reasons"
+                    >
+                      Waiting for:{" "}
+                      {blockers
+                        .map((blocker) =>
+                          blocker.fact_id || blocker.step_id
+                          || blocker.reason || blocker.kind
+                        )
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  ) : null;
+                })()}
+                {detail.employee_job.open_obligations?.length ? (
+                  <p className="text-amber-700">
+                    Open question:{" "}
+                    {detail.employee_job.open_obligations[0]?.question}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {detail.assignment.progress ? (
               <div
                 className="mt-1 space-y-1"

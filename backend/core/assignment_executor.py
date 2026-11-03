@@ -1938,7 +1938,10 @@ class AssignmentExecutor:
                         task_authorization=task_authorization)
                     if not decision["eligible"]:
                         pending_step["readiness"] = decision
-                if self._waiting_steps(assignment):
+                waiting = self._waiting_steps(assignment)
+                assignment = self._set_state(
+                    assignment, "waiting" if waiting else "blocked")
+                if waiting:
                     assignment = self._open_idle(
                         assignment,
                         reason="all runnable branches are waiting")
@@ -1947,7 +1950,7 @@ class AssignmentExecutor:
                 else:
                     self._persist_assignment(
                         run_id, assignment,
-                        "assignment stopped: no ready step")
+                        "assignment blocked: no ready step")
                 return self.status(run_id)
 
             # Work can progress: any open idle interval ends now, before the
