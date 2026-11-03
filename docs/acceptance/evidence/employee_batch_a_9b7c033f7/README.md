@@ -15,7 +15,7 @@ verification.
 |---|---|
 | Branch | `codex/brennan-full-app-20261102` |
 | Worktree | `/private/tmp/atom-full-app` |
-| Executed source | `27f256177` (full SHA in `MANIFEST.json`) |
+| Executed source | `9b7c033f7` (full SHA in `MANIFEST.json`) |
 | Tree at integrated run | clean |
 | Transport | controlled local service/DB; no live provider |
 
@@ -59,21 +59,27 @@ outcome.
 
 | Scope | Result |
 |---|---|
-| Integrated backend neighborhood | **506 passed** |
+| Integrated backend neighborhood | **631 passed**, 8 known WebSocket tests deselected |
 | Integrated frontend assignment/goal/approvals | **54 passed** |
 | Verifier G0 boundary probes | **2/2 passed** |
-| Assignment readiness suite | **227 passed** |
-| Focused readiness/proposal/outcome controls | **19 passed** |
+| Assignment readiness suite | **224 passed** |
+| Focused readiness/proposal/outcome controls | **23 passed** |
 
 The deterministic controls demonstrate: unknown qualification blocks only the
 dependent branch while independent work completes; established false differs
 from missing; skipped predecessor does not satisfy a receipt; expired evidence
-and insufficient authority block; blockers persist; and adding a valid fact
-lets the dependent branch run to a verified completion.
+and insufficient authority block; blockers persist; a blocked assignment is
+persisted as `blocked`, not left `running`; and adding a valid fact lets the
+dependent branch run to a verified completion. The objective-only path is
+tested end to end: an ordinary objective starts an authorized read or returns
+one targeted business question, and a read-only job remains business-outcome
+unresolved rather than falsely completed.
 
 ## Boundaries / remaining gates
 
-- G3 atomic plan-patch adoption is **not yet** implemented/claimed.
+- G3 atomic plan-patch adoption is **not yet** implemented/claimed; the
+  Batch A path exercises the deterministic compiler and read-only proposal
+  seam, not adaptive replanning.
 - G4 general observation-driven reassessment, durable clarification/event
   ordering and uncertain-effect recovery are **not yet** re-proven for this
   new path.

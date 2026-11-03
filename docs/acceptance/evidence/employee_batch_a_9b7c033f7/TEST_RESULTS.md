@@ -1,10 +1,10 @@
 # Employee Batch A — results
 
-Executed source: `27f256177` (clean worktree).
+Executed source: `9b7c033f7` (clean worktree).
 
 ## Backend
 
-`backend-integrated.log` — **506 passed** in one integrated run across:
+`backend-integrated.log` — **631 passed, 8 known WebSocket tests deselected** in one integrated run across:
 
 - employee proposal/context and outcome contracts;
 - assignment readiness, executor, routes, resources, quote and deterministic
@@ -17,10 +17,10 @@ Executed source: `27f256177` (clean worktree).
 `verifier-boundary-probes.log` — **2 passed** (material-state claim and
 assignment projection cannot execute natively).
 
-`assignment-readiness-suite.log` — **227 passed** across the assignment
+`assignment-readiness-suite.log` — **224 passed** across the assignment
 executor, routes, resource boundary, quote and deterministic plan suites.
 
-`readiness-controls.log` / `employee-proposal-outcome.log` — **7 + 16 passed**
+`readiness-controls.log` / `employee-proposal-outcome.log` — **6 + 17 passed**
 focused controls.
 
 ## Frontend
@@ -41,6 +41,9 @@ partial outcomes in business language.
 | expired fact | not ready |
 | insufficient current authority | not ready |
 | valid fact added | dependent branch runs; assignment completed |
+| objective-only read | authorized evidence applied; business outcome unresolved until a result exists |
+| objective-only clarification | one targeted question returned; no guessed work |
+| blocked readiness | assignment persisted `blocked`, not `running` |
 | all/any/not | correct three-valued truth tables |
 | recheck before claim | changed readiness creates no operation/effect |
 
@@ -51,7 +54,8 @@ partial outcomes in business language.
   adapter-name narration;
 - an applied step with an unresolved required criterion remains partial;
 - a verified artifact + controlled provider acceptance reaches completed;
-- results and operation identities survive a fresh executor/session.
+- results and operation identities survive a fresh executor/session;
+- a read-only employee job is not reported as completed business success.
 
 ## Boundaries
 

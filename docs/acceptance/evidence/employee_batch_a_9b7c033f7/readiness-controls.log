@@ -1,30 +1,20 @@
 
-tests/test_employee_outcome.py::test_applied_steps_satisfy_required_work_criterion 
+tests/test_assignment_readiness.py::test_unknown_fact_blocks_only_dependent_branch 
 -------------------------------- live log setup --------------------------------
-2026-11-02 21:38:34 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-02 21:38:34 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-02 21:38:34 [    INFO] EscalationManager initialized
-2026-11-02 21:38:34 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 21:38:34 [    INFO] EscalationManager initialized
-2026-11-02 21:38:34 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 21:38:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-02 21:38:34 [    INFO] AgentTaskRegistry initialized
-PASSED                                                                   [  6%]
-tests/test_employee_outcome.py::test_failed_required_branch_keeps_outcome_unsatisfied_even_if_state_claimed PASSED [ 12%]
-tests/test_employee_outcome.py::test_missing_artifact_evidence_stays_unresolved_not_green PASSED [ 18%]
-tests/test_employee_outcome.py::test_verified_artifact_criterion_can_be_satisfied PASSED [ 25%]
-tests/test_employee_proposal.py::test_context_is_bounded_and_excludes_paths PASSED [ 31%]
-tests/test_employee_proposal.py::test_valid_evidence_and_clarification_proposal PASSED [ 37%]
-tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal0-at least one read] PASSED [ 43%]
-tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal1-requires a question] PASSED [ 50%]
-tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal2-unknown source_id] PASSED [ 56%]
-tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal3-unknown action] PASSED [ 62%]
-tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal4-not both] PASSED [ 68%]
-tests/test_employee_proposal.py::test_deterministic_fallback_is_a_read_not_a_business_fact PASSED [ 75%]
-tests/test_employee_proposal.py::test_model_proposal_is_captured_with_scoped_json_mode PASSED [ 81%]
-tests/test_employee_proposal.py::test_invalid_model_output_falls_back_and_preserves_errors PASSED [ 87%]
-tests/test_employee_proposal.py::test_compiler_builds_planner_kwargs_with_facts_and_requirements PASSED [ 93%]
-tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_and_blockers PASSED [100%]
+2026-11-02 22:00:08 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 22:00:08 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 22:00:08 [    INFO] EscalationManager initialized
+2026-11-02 22:00:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 22:00:08 [    INFO] EscalationManager initialized
+2026-11-02 22:00:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 22:00:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 22:00:08 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 16%]
+tests/test_assignment_readiness.py::test_established_true_and_false_are_distinct PASSED [ 33%]
+tests/test_assignment_readiness.py::test_all_or_unknown_and_not_truth_tables PASSED [ 50%]
+tests/test_assignment_readiness.py::test_receipt_requires_applied_with_result PASSED [ 66%]
+tests/test_assignment_readiness.py::test_expired_fact_and_authority_are_not_ready PASSED [ 83%]
+tests/test_assignment_readiness.py::test_requirements_and_facts_validate PASSED [100%]
 
 =============================== warnings summary ===============================
 ../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
@@ -35,7 +25,7 @@ tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_
   /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
     ref_error: type[Exception] = jsonschema.RefResolutionError,
 
-../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 32 warnings
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 12 warnings
   /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -60,4 +50,4 @@ tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 16 passed, 38 warnings in 9.43s ========================
+======================== 6 passed, 18 warnings in 8.99s ========================
