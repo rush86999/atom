@@ -19,7 +19,7 @@
   "candidate": {
     "branch": "codex/brennan-full-app-20261102",
     "executed_source": "74acbd2b8ceff34d2042493f161d62af8fcf29ec",
-    "manifest_note": "New product source closing the withheld typed proof-binding and Sent Items correlation matrix. Deterministic only; served-model G5 level 2 and Batch A acceptance are not claimed.",
+    "manifest_note": "Historical intermediate bundle for 74acbd2b8 before observed-coverage hardening; superseded by the c6ac292f3 bundle. Its tests were run at 74ac.",
     "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
     "tree_clean_at_integrated_run": true,
     "worktree": "/private/tmp/atom-full-app"
@@ -76,7 +76,7 @@
   "schema": "atom-employee-proof-binding-repair-1",
   "source_hashes": {
     "backend/core/assignment_executor.py": "2f7732d74b49904f8e197e62959a4c1bbf0c61afa89685631290b8ef2976f39d",
-    "backend/core/assignment_readiness.py": "d51dc1bf47bccc51c1c99af42fb2b9c2ee8b08c564c4ba7d6a8c88fdb37ad34d",
+    "backend/core/assignment_readiness.py": "b3796b1106f5cdd45cb1f4bfbc0f13539d5ef8d7216a557ca0b3a91f3229f28f",
     "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
     "backend/core/employee_patch.py": "d9e0fe893a3844b1596d52dfa46a02e119fb963d565e7e8f83034a04ffc739f9",
     "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
@@ -86,7 +86,7 @@
     "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
     "backend/tests/test_employee_outcome.py": "209fc76d8233cbe5704f122264033e9f23c9a1bfe1313eaa3db392e7364fb858",
     "backend/tests/test_employee_patch_invariants.py": "331255af16c9db747c6bbd92671ba52a95590deae7d1db491950be5aa3e48fb3",
-    "backend/tests/test_employee_proof_binding.py": "8a8cf370df3eed7adf75f509f924b9ecde8ee934a355b0e3d4f4948dc1e5de8c",
+    "backend/tests/test_employee_proof_binding.py": "97a9b21de3bcebc645d407813d96d4fadc5b8013af9f9cf64196cb797143c9b4",
     "backend/tests/test_employee_two_domain_campaign.py": "90cd3fd38a62780a41619544c677d62a7ddb197ded6f64e2ed3f019ac4a993df"
   },
   "status": "submitted-for-independent-verification",
