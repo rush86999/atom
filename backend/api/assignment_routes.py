@@ -26,6 +26,7 @@ from core.assignment_planner import (
     plan_assignment,
     validate_proposed_plan,
 )
+from core.employee_patch import PlanPatchError, PlanPatchProposal, apply_plan_patch
 from core.employee_proposal import (
     build_employee_context,
     compile_employee_proposal,
@@ -1267,6 +1268,25 @@ async def invalidate_assignment_step(
             run_id, step_id, reason=body.reason or "evidence changed")
         status = await executor.execute(run_id, max_steps=12)
     except TaskLifecycleError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {**result, "assignment": status}
+
+
+@router.post("/{run_id}/patch")
+async def patch_assignment_plan(
+    run_id: str,
+    body: PlanPatchProposal,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Adopt one validated plan patch atomically, then advance ready work."""
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    try:
+        result = apply_plan_patch(
+            executor.lifecycle, run_id, body.model_dump(),
+            rationale=body.reason or "explicit employee plan patch")
+        status = await executor.execute(run_id, max_steps=12)
+    except PlanPatchError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return {**result, "assignment": status}
 

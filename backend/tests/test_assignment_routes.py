@@ -3189,3 +3189,53 @@ def test_objective_only_unknown_qualification_blocks_dependent_read(
         "kind": "fact", "fact_id": "agreement_eligible", "equals": True}]
     assert body["assignment"]["assignment"]["status"] in (
         "blocked", "planned", "partial")
+
+
+def test_plan_patch_route_adopts_fact_and_refuses_stale_proposal(
+        route_env, tmp_path):
+    step = new_step(
+        step_id="read", title="Read the source",
+        operation_type="retrieve", adapter="document.read",
+        inputs={"path": str(tmp_path / "patch.txt")},
+        effect="read_only")
+    step["status"] = "applied"
+    step["operation_id"] = "op-patch-read"
+    step["result"] = {"value": "evidence", "summary": "read"}
+    plan = new_assignment(
+        objective="Apply a bounded plan patch",
+        employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="patch-r1"),
+        steps=[step], authorized_actions=["retrieve"],
+        completion_criteria=[{"kind": "required_work_complete"}])
+    record = route_env["executor"].create_assignment(
+        "conv-patch-route", "Apply a bounded plan patch", assignment=plan)
+    run_id = record["run_id"]
+    task = route_env["lifecycle"].get_task(run_id)
+    payload = {
+        "patch_id": "route-patch-1",
+        "base_task_version": int(
+            (task.get("task_revision") or {}).get("revision") or 0),
+        "base_plan_revision": task["assignment"]["plan_revision"],
+        "reason": "qualification evidence arrived",
+        "observations": [{"kind": "qualification", "id": "eligible"}],
+        "add_facts": [{
+            "fact_id": "eligible", "value": True,
+            "evidence_state": "established",
+            "subject": {"kind": "customer", "id": "cust-1"},
+        }],
+    }
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/patch", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "applied"
+    fresh = route_env["lifecycle"].get_assignment(run_id)
+    assert fresh["plan_revision"] == 2
+    assert fresh["facts"][0]["fact_id"] == "eligible"
+
+    stale = dict(payload)
+    stale["patch_id"] = "route-patch-stale"
+    stale["base_task_version"] = 0
+    refused = route_env["client"].post(
+        f"/api/assignments/{run_id}/patch", json=stale)
+    assert refused.status_code == 409, refused.text

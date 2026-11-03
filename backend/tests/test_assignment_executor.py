@@ -3820,3 +3820,245 @@ def test_business_readiness_blocks_dependent_while_independent_runs(env):
     assert calls == ["independent", "dependent"]
     assert step_by_id(assignment, "dependent")["status"] == "applied"
     assert second["assignment"]["status"] == "completed"
+
+
+def _patch_ready_assignment(env):
+    steps = []
+    for step_id, value in (("read-a", "A"), ("read-b", "B")):
+        step = new_step(
+            step_id=step_id, title=f"Read {value}",
+            operation_type="retrieve", adapter="workbook.read",
+            inputs={"resource_binding": {"resource_id": f"fixture:{value}"}},
+            effect="read_only")
+        step["status"] = "applied"
+        step["operation_id"] = f"op-{step_id}"
+        step["result"] = {"value": value, "summary": f"read {value}"}
+        steps.append(step)
+    dependent = new_step(
+        step_id="use-a", title="Use A", operation_type="calculate",
+        adapter="formula.calculate", depends_on=["read-a"], inputs={})
+    dependent["status"] = "applied"
+    dependent["operation_id"] = "op-use-a"
+    dependent["result"] = {"value": "A-used", "summary": "used A"}
+    steps.append(dependent)
+    plan = new_assignment(
+        objective="Patch the affected branch only",
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        teaching_snapshot=_teaching(), steps=steps,
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+        budget={"max_steps": 40, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600})
+    record = env["executor"].create_assignment(
+        f"conv-patch-{uuid.uuid4().hex[:8]}",
+        "Patch the affected branch only", assignment=plan)
+    return record["run_id"]
+
+
+def test_plan_patch_invalidates_only_affected_branch_and_preserves_budget(env):
+    from core.employee_patch import apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    before_b = copy.deepcopy(step_by_id(assignment, "read-b"))
+    before_budget = copy.deepcopy(assignment["budget"])
+    before_criteria = copy.deepcopy(assignment["completion_criteria"])
+    before_actions = list(assignment["authorized_actions"])
+
+    result = apply_plan_patch(env["lifecycle"], run_id, {
+        "patch_id": "patch-a-1",
+        "base_task_version": int(
+            (record.get("task_revision") or {}).get("revision") or 0),
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "source A changed; preserve unrelated B",
+        "observations": [{"kind": "source_version", "resource_id": "A"}],
+        "invalidate_steps": ["read-a"],
+    })
+    assert result["status"] == "applied"
+    after = env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == assignment["plan_revision"] + 1
+    assert step_by_id(after, "read-a")["status"] == "pending"
+    assert step_by_id(after, "use-a")["status"] == "pending"
+    assert step_by_id(after, "read-a")["prior_results"]
+    assert step_by_id(after, "use-a")["prior_results"]
+    assert step_by_id(after, "read-b") == before_b
+    assert after["budget"] == before_budget
+    assert after["completion_criteria"] == before_criteria
+    assert after["authorized_actions"] == before_actions
+    assert after["patch_history"][-1]["patch_id"] == "patch-a-1"
+    assert "read-b" in after["patch_history"][-1]["retained_steps"]
+
+
+def test_plan_patch_rejects_stale_base_and_immutable_effects(env):
+    from core.employee_patch import PlanPatchError, apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    stale = {
+        "patch_id": "stale-1",
+        "base_task_version": 0,
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "stale proposal",
+        "observations": [{"kind": "event", "id": "e1"}],
+        "invalidate_steps": ["read-a"],
+    }
+    with pytest.raises(PlanPatchError, match="stale"):
+        apply_plan_patch(env["lifecycle"], run_id, stale)
+
+    def mark_running(record, current):
+        updated = copy.deepcopy(current)
+        step_by_id(updated, "read-b")["status"] = "running"
+        return updated, {"marked": "running"}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, mark_running, rationale="simulate in-flight effect")
+    running = env["lifecycle"].get_task(run_id)
+    immutable = {
+        "patch_id": "running-1",
+        "base_task_version": int(
+            (running.get("task_revision") or {}).get("revision") or 0),
+        "base_plan_revision": running["assignment"]["plan_revision"],
+        "reason": "do not replace an in-flight effect",
+        "observations": [{"kind": "event", "id": "e2"}],
+        "remove_steps": ["read-b"],
+    }
+    with pytest.raises(PlanPatchError, match="only pending|running"):
+        apply_plan_patch(env["lifecycle"], run_id, immutable)
+
+
+def test_plan_patch_duplicate_is_idempotent_and_survives_restart(env):
+    from core.employee_patch import apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    patch = {
+        "patch_id": "patch-dup-1",
+        "base_task_version": int(
+            (record.get("task_revision") or {}).get("revision") or 0),
+        "base_plan_revision": record["assignment"]["plan_revision"],
+        "reason": "add qualification fact",
+        "observations": [{"kind": "qualification", "id": "eligible"}],
+        "add_facts": [{
+            "fact_id": "eligible", "value": True,
+            "evidence_state": "established",
+            "subject": {"kind": "customer", "id": "cust-1"},
+        }],
+    }
+    first = apply_plan_patch(env["lifecycle"], run_id, patch)
+    assert first["status"] == "applied"
+    revision = first["assignment"]["plan_revision"]
+    second = apply_plan_patch(env["lifecycle"], run_id, patch)
+    assert second["status"] == "already_applied"
+    assert second["assignment"]["plan_revision"] == revision
+
+    restarted = TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]),
+        GoalService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]))
+    fresh = restarted.get_assignment(run_id)
+    assert fresh["patch_history"][-1]["patch_id"] == "patch-dup-1"
+    assert fresh["facts"][0]["fact_id"] == "eligible"
+
+
+def test_adaptation_invalidates_only_affected_branch(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    before_b = copy.deepcopy(step_by_id(assignment, "read-b"))
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-source-1",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "governing A source version changed",
+    }, assignment)
+    assert proposal["decision"] == "invalidate"
+    assert set(proposal["step_ids"]) == {"read-a", "use-a"}
+
+    result = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert result["status"] == "applied"
+    after = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(after, "read-a")["status"] == "pending"
+    assert step_by_id(after, "use-a")["status"] == "pending"
+    assert step_by_id(after, "read-b") == before_b
+    assert after["plan_revision"] == assignment["plan_revision"] + 1
+
+
+def test_adaptation_missing_qualification_asks_instead_of_guessing(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    before = assignment["plan_revision"]
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-qual-1",
+        "kind": "qualification",
+        "fact_id": "agreement_eligible",
+        "value": None,
+        "evidence_state": "missing",
+    }, assignment)
+    assert proposal["decision"] == "clarify"
+    result = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert result["status"] == "clarification_required"
+    assert result["clarification"]["question"]
+    assert env["lifecycle"].get_assignment(run_id)["plan_revision"] == before
+
+
+def test_adaptation_model_choice_is_scoped_and_uncertain_reconciles(env):
+    from core.employee_adaptation import (
+        AdaptationProposal,
+        adopt_adaptation,
+        deterministic_adaptation,
+        propose_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+
+    class FakeLLM:
+        def __init__(self):
+            self.kwargs = {}
+
+        async def generate_structured_response(self, **kwargs):
+            self.kwargs = kwargs
+            return AdaptationProposal(
+                decision="reconcile",
+                reason="provider may have accepted before confirmation",
+                observation_ids=["obs-effect-1"],
+            )
+
+    fake = FakeLLM()
+    result = asyncio.run(propose_adaptation(
+        {"identity": {"workspace_id": "ws_assign",
+                      "tenant_id": "tenant_assign"}},
+        [{"observation_id": "obs-effect-1",
+          "kind": "uncertain_effect"}],
+        assignment=assignment, llm_service=fake))
+    assert result["source"] == "model"
+    assert result["proposal"]["decision"] == "reconcile"
+    assert fake.kwargs["output_mode"] == "json"
+    assert fake.kwargs["cascade"] is False
+    assert fake.kwargs["allow_moa"] is False
+
+    before = env["lifecycle"].get_assignment(run_id)["plan_revision"]
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id, result["proposal"])
+    assert adopted["status"] == "reconcile"
+    assert env["lifecycle"].get_assignment(run_id)["plan_revision"] == before
+
+    local = deterministic_adaptation({
+        "observation_id": "obs-effect-2", "kind": "uncertain_effect"},
+        assignment)
+    assert local["decision"] == "reconcile"
