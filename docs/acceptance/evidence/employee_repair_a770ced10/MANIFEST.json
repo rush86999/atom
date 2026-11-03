@@ -52,7 +52,7 @@
  },
  "candidate": {
   "branch": "codex/brennan-full-app-20261102",
-  "executed_source": "aa5fca387c6d08405d7bf9275e33b99e9b05baf8",
+  "executed_source": "a770ced104a6936f942c30e8fcdf37a40c065e67",
   "manifest_note": "Successor to employee_repair_1135fd00d for durable verification/coverage/readback on real executor results. Deterministic only; served-model G5 level 2 and Batch A acceptance are not claimed.",
   "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
   "tree_clean_at_integrated_run": true,
