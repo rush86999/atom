@@ -160,18 +160,26 @@ def _source_step(
             inputs["value_column"] = str(aggregate["value_column"])
         if aggregate.get("filters") is not None:
             inputs["filters"] = aggregate["filters"]
+        display_name = str(
+            source.get("original_file_name") or source.get("file_name")
+            or source.get("resource_id") or "").strip()
         return new_step(
             step_id=f"source-{index}",
-            title=f"Aggregate {kind} source",
+            title=(f"Aggregate {display_name}" if display_name
+                   else f"Aggregate {kind} source"),
             operation_type="calculate",
             adapter=adapter,
             inputs=inputs,
             effect="local",
             requires=list(source.get("requires") or []),
         )
+    display_name = str(
+        source.get("original_file_name") or source.get("file_name")
+        or source.get("resource_id") or "").strip()
     return new_step(
         step_id=f"source-{index}",
-        title=f"Read {kind} source",
+        title=(f"Read {display_name}" if display_name
+               else f"Read {kind} source"),
         operation_type="retrieve",
         adapter=adapter,
         inputs=inputs,

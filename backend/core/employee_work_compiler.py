@@ -378,6 +378,37 @@ def _quote_patch(
     return patch
 
 
+def _invoice_evidence_shape(
+    assignment: Mapping[str, Any],
+    step_id: str,
+    mapping: Mapping[str, Any],
+    defaults: Mapping[str, str],
+    required_keys: Sequence[str],
+    label: str,
+) -> Dict[str, Any]:
+    step = step_by_id(assignment, step_id)
+    result = (step or {}).get("result")
+    data = result.get("data") if isinstance(result, Mapping) else None
+    if not isinstance(data, Mapping):
+        raise WorkRequestCompileError(
+            f"{label} step {step_id!r} has no structured evidence data")
+    fields = {
+        key: str(mapping.get(key) or defaults[key])
+        for key in defaults if key in defaults
+    }
+    missing = [
+        key for key in required_keys
+        if not fields.get(key)
+        or fields[key] not in data
+        or data.get(fields[key]) in (None, "")
+    ]
+    if missing:
+        raise WorkRequestCompileError(
+            f"{label} step {step_id!r} is missing required field(s) "
+            f"{sorted(missing)}; bind the step that contains this record")
+    return dict(data)
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
@@ -388,6 +419,26 @@ def _invoice_patch(
             request.receiving_step_id):
         _step_result(assignment, step_id)
         _require_verified(assignment, step_id)
+    invoice_fields = dict(request.invoice_fields) or {
+        "po_id": "po_id", "invoice_id": "invoice_id",
+        "quantity": "quantity", "unit_price": "unit_price",
+        "freight": "freight", "currency": "currency",
+        "version": "version", "resource_id": "resource_id",
+    }
+    po_fields = dict(request.purchase_order_fields) or {
+        "po_id": "po_id", "vendor_id": "vendor_id"}
+    receiving_fields = dict(request.receiving_fields) or {
+        "po_id": "po_id", "received_quantity": "received_quantity",
+        "version": "version"}
+    _invoice_evidence_shape(
+        assignment, request.invoice_step_id, invoice_fields, invoice_fields,
+        ("invoice_id", "quantity", "unit_price"), "invoice")
+    _invoice_evidence_shape(
+        assignment, request.purchase_order_step_id, po_fields, po_fields,
+        ("po_id",), "purchase order")
+    _invoice_evidence_shape(
+        assignment, request.receiving_step_id, receiving_fields,
+        receiving_fields, ("po_id", "received_quantity"), "receiving")
     if request.bill_action:
         from core.action_registry import action_registry
         from core.assignment_planner import _registered_action_effect

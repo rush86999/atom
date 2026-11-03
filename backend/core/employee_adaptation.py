@@ -350,6 +350,10 @@ def _adaptation_prompt(
             "- freight/tax/currency authority_ref is the taught TERM KEY "
             "(for example 'freight', 'tax_basis'), never the term value or a "
             "free-form label; the compiler resolves and compares it.\n"
+            "- For invoice_reconciliation, bind invoice/purchase order/"
+            "receiving step IDs to context.evidence_results entries whose "
+            "business_role is invoice/purchase_order/receiving. Never bind "
+            "by numeric step order alone.\n"
             if typed else ""
         )
         + "- Do not invent source/action IDs or authority; do not remove "
