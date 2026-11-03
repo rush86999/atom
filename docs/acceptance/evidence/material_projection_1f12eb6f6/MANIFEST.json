@@ -1,164 +1,174 @@
 {
-  "artifacts": {
-    "README.md": "e2acfafff511b70f0034c093a6db8ee47337c7e1a146e334f299d61d03fde809",
-    "TEST_RESULTS.md": "0870b5d6f3b4b014478c9de23eee108dcaa5ff1d4a7c59f43cf564d8cb3ee515",
-    "adapted-http-binding.log": "52c41541c1b06d9d83bf933de17c977deeb13d2a7931b804d1da54391e4ada2c",
-    "backend-integrated.log": "0e8f632f0bb349e62ccace1c224e4bdca6bc8bf9a6ae6ce05fb6deecaf482fdc",
-    "frontend-integrated.log": "4fcdd88d57f656c261f06d0a8504bae351909f221b0171243faaa52478e8b25c",
-    "goal-resume-claim-probe.json": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
-    "goal-resume-claim-probe.log": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
-    "legacy-unbound-refusal.txt": "d5c4b4b82158e01f2879768a617597f459785979ad4fb5d106cbe73c8d70cd04",
-    "material-writer-test.log": "9c297fbd26423873b0782552e2d40d5e4b56aa30ee1296eed1999d8ab1433adf",
-    "projection-ownership-tests.log": "33c31746e3495906edd4edf0b8206bd125ca4aef87a20feebe6478a64bc6c835",
-    "verifier-boundary-probes.log": "c99922ed1f1a27b1f4865a8a1db721c781f8547dd7424dd809e429ba9c0c180d"
-  },
-  "candidate": {
-    "branch": "codex/brennan-full-app-20261102",
-    "executed_source": "1f12eb6f6813c3d4eaef0b576228524c2d86de59",
-    "manifest_note": "This evidence commit is docs-only after the executed source.",
-    "tree_clean_at_executed_run": true,
-    "worktree": "/private/tmp/atom-full-app"
-  },
-  "changed_files": [
-    "backend/core/models.py",
-    "backend/core/goals/goal_run_binding.py",
-    "backend/core/goals/goal_run_service.py",
-    "backend/core/goals/goal_run_executors.py",
-    "backend/core/goals/goal_plan_validation.py",
-    "backend/core/goals/goal_run_ownership.py",
-    "backend/core/assignment_executor.py",
-    "backend/core/task_lifecycle.py",
-    "backend/core/hitl_resume.py",
-    "backend/api/agent_routes.py",
-    "backend/api/approvals_routes.py",
-    "backend/alembic/versions/20261102_goal_run_material_revision.py",
-    "backend/tests/test_goal_effect_family_controls.py",
-    "backend/tests/test_goal_projection_boundaries.py",
-    "backend/tests/test_hitl_resume.py",
-    "frontend-nextjs/lib/goal-run-api.ts",
-    "frontend-nextjs/pages/goal-runs/[id].tsx",
-    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx"
+ "artifacts": {
+  "README.md": "c3de1c63366efc6898cd4f6ef0b845fbf86ea3acd694dc98bfebc282d6d7004f",
+  "TEST_RESULTS.md": "2d08c8852428ab4e79aa42083c11ae0f9916297d45c7ac31a5ef2d42cc043c74",
+  "adapted-http-binding.log": "52c41541c1b06d9d83bf933de17c977deeb13d2a7931b804d1da54391e4ada2c",
+  "backend-integrated.log": "6ac504766875ef69dd9e2617b95284b828bfd60b250fed16f6be724459c949e9",
+  "frontend-integrated.log": "030984826ed13792b330d7f76c6275ff650d60cb88f15e2ae9d2d78ec6ab0d48",
+  "goal-resume-claim-probe.json": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
+  "goal-resume-claim-probe.log": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
+  "legacy-unbound-refusal.txt": "d5c4b4b82158e01f2879768a617597f459785979ad4fb5d106cbe73c8d70cd04",
+  "material-writer-test.log": "8f0c4801fa7113e8f1c6da993c2953b0a62e3366b5c41807db34ae5f06dae9de",
+  "projection-ownership-tests.log": "986b591398504b59e7f0a2f3e01d32fe20b16ca5f83081ddf3189a8d6b9145df",
+  "sqlite-integer-repair.log": "113561a8bcf35d4fd333dbac83027ba30710eda5fdd401f1dc4d5aa3bc53c417",
+  "verifier-boundary-probes.log": "e3b7416ff95450284388735059cf24c90f002b7d3c75a39723adf8ca11f61cd3"
+ },
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "df9c8abc7f4cca9d5deee02f83eb2f7485baae9a",
+  "manifest_note": "This evidence commit is docs-only after the executed source.",
+  "tree_clean_at_executed_run": true,
+  "worktree": "/private/tmp/atom-full-app"
+ },
+ "changed_files": [
+  "backend/alembic/versions/20261102_goal_run_material_revision.py",
+  "backend/api/agent_routes.py",
+  "backend/api/approvals_routes.py",
+  "backend/core/assignment_executor.py",
+  "backend/core/goals/goal_plan_validation.py",
+  "backend/core/goals/goal_run_binding.py",
+  "backend/core/goals/goal_run_executors.py",
+  "backend/core/goals/goal_run_ownership.py",
+  "backend/core/goals/goal_run_service.py",
+  "backend/core/hitl_resume.py",
+  "backend/core/models.py",
+  "backend/core/sqlite_schema_repair.py",
+  "backend/core/task_lifecycle.py",
+  "backend/tests/test_goal_effect_family_controls.py",
+  "backend/tests/test_goal_projection_boundaries.py",
+  "backend/tests/test_hitl_resume.py",
+  "backend/tests/test_sqlite_schema_repair.py",
+  "frontend-nextjs/lib/goal-run-api.ts",
+  "frontend-nextjs/pages/goal-runs/[id].tsx",
+  "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx"
+ ],
+ "exclusions": [
+  "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+  "interrupted-claim/provider-lost-confirmation recovery not claimed",
+  "no whole-app ORACLE-01 closure",
+  "no soak, multi-worker or PostgreSQL runtime claim",
+  "previous planner 5/5, goal router 1/2 and alignment gap 3.0 results remain separate",
+  "historical 111/123, 123 denominator and accepted tags/sources unchanged"
+ ],
+ "material_claim": {
+  "binding_includes": [
+   "plan",
+   "cursor",
+   "parameters",
+   "waiting_on",
+   "status",
+   "supervision_mode",
+   "replan_count",
+   "steps_executed",
+   "material_revision"
   ],
-  "exclusions": [
-    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
-    "interrupted-claim/provider-lost-confirmation recovery not claimed",
-    "no whole-app ORACLE-01 closure",
-    "no soak, multi-worker or PostgreSQL runtime claim",
-    "previous planner 5/5, goal router 1/2 and alignment gap 3.0 results remain separate",
-    "historical 111/123, 123 denominator and accepted tags/sources unchanged"
+  "claim_filter": [
+   "id",
+   "workspace_id",
+   "pending is not null",
+   "human_interventions generation",
+   "material_revision",
+   "status"
   ],
-  "material_claim": {
-    "binding_includes": [
-      "plan",
-      "cursor",
-      "parameters",
-      "waiting_on",
-      "status",
-      "supervision_mode",
-      "replan_count",
-      "steps_executed",
-      "material_revision"
-    ],
-    "claim_filter": [
-      "id",
-      "workspace_id",
-      "pending is not null",
-      "human_interventions generation",
-      "material_revision",
-      "status"
-    ],
-    "column": "goal_runs.material_revision",
-    "diagnostic_only": [
-      "decision_log entries",
-      "created_at/updated_at display timestamps"
-    ],
-    "migration": "20261102_goal_run_material_revision",
-    "writers": [
-      "transition",
-      "set_plan",
-      "patch_parameters",
-      "_set_cursor",
-      "set_supervision_mode",
-      "set_wait",
-      "consume_wake",
-      "complete_checkpoint",
-      "_count_step",
-      "REPLAN counter",
-      "_hold_for_approval",
-      "interrupt_stalled",
-      "resume claim"
-    ]
+  "column": "goal_runs.material_revision",
+  "diagnostic_only": [
+   "decision_log entries",
+   "created_at/updated_at display timestamps"
+  ],
+  "migration": "20261102_goal_run_material_revision",
+  "writers": [
+   "transition",
+   "set_plan",
+   "patch_parameters",
+   "_set_cursor",
+   "set_supervision_mode",
+   "set_wait",
+   "consume_wake",
+   "complete_checkpoint",
+   "_count_step",
+   "REPLAN counter",
+   "_hold_for_approval",
+   "interrupt_stalled",
+   "resume claim"
+  ],
+  "sqlite_repair": "missing non-nullable Integer columns use DEFAULT 0, not TEXT ''"
+ },
+ "projection": {
+  "assignment_executor": "single driver remains",
+  "native_dispatch": [
+   "canvas_work",
+   "integration_action",
+   "computer_use_work",
+   "human_checkpoint",
+   "wait_for"
+  ],
+  "ownership": "trusted task-lifecycle association; caller task_lifecycle marker alone is insufficient",
+  "refused": [
+   "operation assignment projection",
+   "unknown kind"
+  ]
+ },
+ "schema": "atom-material-claim-projection-1",
+ "source_hashes": {
+  "backend/alembic/versions/20261102_goal_run_material_revision.py": "72dd0ebd646b41be749f0f8de0c0aecdbf71bf05df3d832e0b301f2859be8d8a",
+  "backend/api/agent_routes.py": "6cbb2f795faa67e987780382a1aac5104e182bfff957bf795255887ffe8de059",
+  "backend/api/approvals_routes.py": "0e8cf3bb767f5bf2ca9a28e36dc3f1c8c0a6922d3a328b3e2536b9a13b243003",
+  "backend/core/assignment_executor.py": "d9e183afc4f170a63c4878605a4e29b655760d99b8653728169d800d62873568",
+  "backend/core/goals/goal_plan_validation.py": "0a206d583a02672081ab39d9638ad60e04b0c29191257934ea9aa23379d1e8cf",
+  "backend/core/goals/goal_run_binding.py": "75d93b8bf507328cecdf18b13f48158e765fec13da911df7dc66237912efd012",
+  "backend/core/goals/goal_run_executors.py": "9813eb886a2da78fd0ad2d9e9dcb5e6326f9dd43e73ab092f1f61c3838ddb6e5",
+  "backend/core/goals/goal_run_ownership.py": "45c5c8947108b30e6a84ee50294861ab6a13e53d0312fd0f99b1c455af0d66db",
+  "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+  "backend/core/hitl_resume.py": "9ac02465fcd12a39560cc99ffd267ea504d1518463e262fb96f6345a3a3c829f",
+  "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
+  "backend/core/task_lifecycle.py": "0a682e3936b80cfc3dcdfaa8c531bd32d2517c26cb2e056734bc12f71348c3c8",
+  "backend/tests/test_goal_effect_family_controls.py": "234ad68470f3f70a36ed8992f23670566e3cb6a14793c26c2ac8474a2fb12376",
+  "backend/tests/test_goal_projection_boundaries.py": "509cb18b0ca4f74a2206b00895f40f19abfc7a9d9eaf3924f48b54ae29635f9d",
+  "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0",
+  "frontend-nextjs/lib/goal-run-api.ts": "713e66e223484b98d96bcdf0be6ec684fa2abb8be1e5fcd622170cfaca371da8",
+  "frontend-nextjs/pages/goal-runs/[id].tsx": "e4c14e230b90a8a8c37b8df0a046b21c7a513c04be62fb2b17228bf029fd5bb6",
+  "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "9aa40e24a239c1cb1ecc84f7b3f121616f68e1ed2b54378fcd7a2510138a56dc",
+  "backend/core/sqlite_schema_repair.py": "eafe4e60bc417fcd111d8bb9f0b9f454c9462aa14152a54db5e4a6bfb0efa2bf",
+  "backend/tests/test_sqlite_schema_repair.py": "d779c60d88a3b5d177e0ef447e674c3fdd183b390c4eb18d40b6df6e41f2ab3d"
+ },
+ "status": "submitted-for-independent-verification",
+ "tests": {
+  "adapted_http_binding": {
+   "log": "adapted-http-binding.log",
+   "result": "1 passed"
   },
-  "projection": {
-    "assignment_executor": "single driver remains",
-    "native_dispatch": [
-      "canvas_work",
-      "integration_action",
-      "computer_use_work",
-      "human_checkpoint",
-      "wait_for"
-    ],
-    "ownership": "trusted task-lifecycle association; caller task_lifecycle marker alone is insufficient",
-    "refused": [
-      "operation assignment projection",
-      "unknown kind"
-    ]
+  "backend_integrated": {
+   "log": "backend-integrated.log",
+   "result": "611 passed, 8 deselected"
   },
-  "schema": "atom-material-claim-projection-1",
-  "source_hashes": {
-    "backend/alembic/versions/20261102_goal_run_material_revision.py": "72dd0ebd646b41be749f0f8de0c0aecdbf71bf05df3d832e0b301f2859be8d8a",
-    "backend/api/agent_routes.py": "6cbb2f795faa67e987780382a1aac5104e182bfff957bf795255887ffe8de059",
-    "backend/api/approvals_routes.py": "0e8cf3bb767f5bf2ca9a28e36dc3f1c8c0a6922d3a328b3e2536b9a13b243003",
-    "backend/core/assignment_executor.py": "d9e183afc4f170a63c4878605a4e29b655760d99b8653728169d800d62873568",
-    "backend/core/goals/goal_plan_validation.py": "0a206d583a02672081ab39d9638ad60e04b0c29191257934ea9aa23379d1e8cf",
-    "backend/core/goals/goal_run_binding.py": "75d93b8bf507328cecdf18b13f48158e765fec13da911df7dc66237912efd012",
-    "backend/core/goals/goal_run_executors.py": "9813eb886a2da78fd0ad2d9e9dcb5e6326f9dd43e73ab092f1f61c3838ddb6e5",
-    "backend/core/goals/goal_run_ownership.py": "45c5c8947108b30e6a84ee50294861ab6a13e53d0312fd0f99b1c455af0d66db",
-    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
-    "backend/core/hitl_resume.py": "9ac02465fcd12a39560cc99ffd267ea504d1518463e262fb96f6345a3a3c829f",
-    "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
-    "backend/core/task_lifecycle.py": "0a682e3936b80cfc3dcdfaa8c531bd32d2517c26cb2e056734bc12f71348c3c8",
-    "backend/tests/test_goal_effect_family_controls.py": "234ad68470f3f70a36ed8992f23670566e3cb6a14793c26c2ac8474a2fb12376",
-    "backend/tests/test_goal_projection_boundaries.py": "509cb18b0ca4f74a2206b00895f40f19abfc7a9d9eaf3924f48b54ae29635f9d",
-    "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0",
-    "frontend-nextjs/lib/goal-run-api.ts": "713e66e223484b98d96bcdf0be6ec684fa2abb8be1e5fcd622170cfaca371da8",
-    "frontend-nextjs/pages/goal-runs/[id].tsx": "e4c14e230b90a8a8c37b8df0a046b21c7a513c04be62fb2b17228bf029fd5bb6",
-    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "9aa40e24a239c1cb1ecc84f7b3f121616f68e1ed2b54378fcd7a2510138a56dc"
+  "frontend_integrated": {
+   "log": "frontend-integrated.log",
+   "result": "49 passed"
   },
-  "status": "submitted-for-independent-verification",
-  "tests": {
-    "adapted_http_binding": {
-      "log": "adapted-http-binding.log",
-      "result": "1 passed"
-    },
-    "backend_integrated": {
-      "log": "backend-integrated.log",
-      "result": "439 passed"
-    },
-    "frontend_integrated": {
-      "log": "frontend-integrated.log",
-      "result": "49 passed"
-    },
-    "legacy_unbound": {
-      "log": "legacy-unbound-refusal.txt",
-      "result": "first request 409 decision_review_required"
-    },
-    "material_writers": {
-      "log": "material-writer-test.log",
-      "result": "26 passed"
-    },
-    "projection_ownership": {
-      "log": "projection-ownership-tests.log",
-      "result": "7 passed"
-    },
-    "service_probe": {
-      "evidence": "goal-resume-claim-probe.json",
-      "log": "goal-resume-claim-probe.log",
-      "result": "2/2 scenarios passed"
-    },
-    "verifier_boundaries": {
-      "log": "verifier-boundary-probes.log",
-      "result": "2/2 passed"
-    }
+  "legacy_unbound": {
+   "log": "legacy-unbound-refusal.txt",
+   "result": "first request 409 decision_review_required"
+  },
+  "material_writers": {
+   "log": "material-writer-test.log",
+   "result": "26 passed"
+  },
+  "projection_ownership": {
+   "log": "projection-ownership-tests.log",
+   "result": "7 passed"
+  },
+  "service_probe": {
+   "evidence": "goal-resume-claim-probe.json",
+   "log": "goal-resume-claim-probe.log",
+   "result": "2/2 scenarios passed"
+  },
+  "verifier_boundaries": {
+   "log": "verifier-boundary-probes.log",
+   "result": "3 passed"
+  },
+  "sqlite_integer_repair": {
+   "log": "sqlite-integer-repair.log",
+   "result": "1 passed"
   }
+ }
 }

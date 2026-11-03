@@ -1,14 +1,14 @@
 
 tests/test_goal_projection_boundaries.py::test_forged_task_lifecycle_marker_cannot_execute_projection 
 -------------------------------- live log setup --------------------------------
-2026-11-02 21:10:25 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-02 21:10:25 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-02 21:10:25 [    INFO] EscalationManager initialized
-2026-11-02 21:10:25 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 21:10:25 [    INFO] EscalationManager initialized
-2026-11-02 21:10:25 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 21:10:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-02 21:10:25 [    INFO] AgentTaskRegistry initialized
+2026-11-02 21:20:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 21:20:23 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 21:20:23 [    INFO] EscalationManager initialized
+2026-11-02 21:20:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 21:20:23 [    INFO] EscalationManager initialized
+2026-11-02 21:20:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 21:20:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 21:20:23 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [ 14%]
 tests/test_goal_projection_boundaries.py::test_forged_marker_cannot_write_operation_projection PASSED [ 28%]
 tests/test_goal_projection_boundaries.py::test_unknown_kind_creates_no_canvas_or_counter PASSED [ 42%]
@@ -51,4 +51,4 @@ tests/test_goal_projection_boundaries.py::test_projection_validator_rejects_exec
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 7 passed, 20 warnings in 9.10s ========================
+======================= 7 passed, 20 warnings in 10.10s ========================

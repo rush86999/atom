@@ -1,16 +1,16 @@
 # Material-state claim and projection separation — results
 
-Executed source: `1f12eb6f6` (clean worktree).
+Executed source: `df9c8abc7` (clean worktree).
 
 ## Backend
 
-`backend-integrated.log` — **439 passed** in one run across goal effect-family,
+`backend-integrated.log` — **611 passed, 8 WebSocket tests deselected** in one run across goal effect-family,
 routes/service/loop/events/learning/watchdog/access, HITL approvals, shared
 goal plan validation, projection ownership, structured consumers, alignment,
 chat teaching, assignment executor, reviewed-skill/Memento, oracle/presentation
 and direct canvas controls.
 
-`verifier-boundary-probes.log` — **2 passed**:
+`verifier-boundary-probes.log` — **3 passed** (two boundary probes plus the adapted bound HTTP replay):
 
 - plan changed after binding validation cannot win the claim;
 - assignment operation projection cannot execute as native canvas work.
@@ -22,6 +22,9 @@ the original pending decision retained.
 `projection-ownership-tests.log` — **7 passed**: genuine assignment projection
 readable; forged marker not trusted; native advance/resume refuses owned
 projection; unknown kind creates nothing; assignment executor still completes.
+
+`sqlite-integer-repair.log` — **1 passed**: a drifted SQLite table repairs a
+missing non-nullable Integer column with numeric `0`, not TEXT `''`.
 
 ## Frontend
 
