@@ -1098,6 +1098,7 @@ def _bind_quote_gap(
     "quote.calculate",
     description="Calculate evidence-backed line items with exact decimals",
     metadata={"effect": "local", "required_actions": ["calculate"],
+              "required_inputs": ["line_items", "currency", "freight", "tax"],
               "allow_standing_authorization": False},
 )
 async def _quote_calculate(

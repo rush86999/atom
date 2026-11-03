@@ -212,6 +212,7 @@ def lines_from_rows(
     "quote.lines_from_rows",
     description="Map runtime rows to quote line items with explicit columns",
     metadata={"effect": "local", "required_actions": ["calculate"],
+              "required_inputs": ["rows", "columns"],
               "allow_standing_authorization": False},
 )
 async def _lines_from_rows(

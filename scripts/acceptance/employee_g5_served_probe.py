@@ -89,7 +89,7 @@ async def main() -> int:
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11436/v1")
     parser.add_argument("--model", default="llama3.1:8b")
     parser.add_argument("--out", default="/private/tmp/atom-g5-served")
-    parser.add_argument("--deadline", type=float, default=150.0)
+    parser.add_argument("--deadline", type=float, default=90.0)
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -149,9 +149,16 @@ async def main() -> int:
     llm = RecordingLLM(
         LLMService(db=db, workspace_id="ws-g5", tenant_id="tenant-g5"),
         args.model, calls=[])
-    initial = await asyncio.wait_for(propose_employee_work(
-        initial_context, llm_service=llm,
-        provider_model=("ollama", args.model)), timeout=args.deadline)
+    try:
+        initial = await asyncio.wait_for(propose_employee_work(
+            initial_context, llm_service=llm,
+            provider_model=("ollama", args.model)), timeout=args.deadline)
+    except asyncio.TimeoutError:
+        initial = {
+            "proposal": None, "source": "timeout",
+            "technical_fallback": False,
+            "errors": ["deadline_exceeded: initial proposal"],
+        }
 
     read = new_step(
         step_id="read", title="Read the held-out price book",
@@ -211,10 +218,17 @@ async def main() -> int:
         "step_id": "read",
         "reason": "the authorized price rows were read",
     }
-    proposal = await asyncio.wait_for(propose_adaptation(
-        context, [observation], assignment=record["assignment"],
-        llm_service=llm, provider_model=("ollama", args.model)),
-        timeout=args.deadline)
+    try:
+        proposal = await asyncio.wait_for(propose_adaptation(
+            context, [observation], assignment=record["assignment"],
+            llm_service=llm, provider_model=("ollama", args.model)),
+            timeout=args.deadline)
+    except asyncio.TimeoutError:
+        proposal = {
+            "proposal": None, "source": "timeout",
+            "technical_fallback": False,
+            "errors": ["deadline_exceeded: evidence adaptation"],
+        }
     report: Dict[str, Any] = {
         "schema": "atom-g5-served-probe-1",
         "provider": {
@@ -228,25 +242,91 @@ async def main() -> int:
         "adoption": None,
         "execution": None,
     }
-    if proposal.get("source") == "model" and proposal.get("proposal"):
+    rounds = []
+    current = proposal
+    for round_index in range(4):
+        if current.get("source") not in ("model", "model_repaired"):
+            break
+        if not current.get("proposal"):
+            break
+        item = {
+            "round": round_index,
+            "proposal": current.get("proposal"),
+            "source": current.get("source"),
+        }
         try:
             adopted = adopt_adaptation(
-                lifecycle, run_id, proposal["proposal"],
+                lifecycle, run_id, current["proposal"],
                 rationale="served G5 evidence adaptation")
             status = await executor.execute(run_id, max_steps=12)
-            report["adoption"] = {
+            item["adoption"] = {
                 "status": adopted.get("status"),
                 "affected": adopted.get("affected_steps"),
                 "updated": adopted.get("updated_steps"),
             }
-            report["execution"] = status
+            item["execution_status"] = (
+                (status.get("assignment") or {}).get("status"))
             assignment = lifecycle.get_assignment(run_id)
-            report["calculated_value"] = next((
+            item["calculated_value"] = next((
                 (step.get("result") or {}).get("value")
                 for step in assignment.get("steps") or []
-                if step.get("step_id") == "calculate"), None)
+                if step.get("adapter") == "quote.calculate"), None)
         except Exception as exc:  # noqa: BLE001
-            report["adoption_error"] = f"{type(exc).__name__}: {exc}"
+            item["adoption_error"] = f"{type(exc).__name__}: {exc}"
+            rounds.append(item)
+            break
+        rounds.append(item)
+        record = lifecycle.get_task(run_id)
+        assignment = record.get("assignment") or {}
+        if assignment.get("status") in ("completed", "failed", "cancelled"):
+            break
+        from core.task_lifecycle import open_unresolved_questions
+        if open_unresolved_questions(record):
+            break
+        context = context_from_record(
+            record,
+            adapter_views=[
+                {"adapter": "quote.lines_from_rows", "effect": "local",
+                 "operation_type": "calculate",
+                 "required_actions": ["calculate"],
+                 "input_schema": {
+                     "rows": "array of source row objects; use ${read.rows}",
+                     "columns": "mapping item_id/quantity/unit_price/currency "
+                                "to source column names",
+                     "defaults": "object, e.g. {currency: USD}"}},
+                {"adapter": "quote.calculate", "effect": "local",
+                 "operation_type": "calculate",
+                 "required_actions": ["calculate"],
+                 "input_schema": {
+                     "line_items": "array; reference the mapping step's "
+                                   "line_items result with ${step_id.line_items}",
+                     "currency": "explicit ISO currency",
+                     "freight": "explicit decimal",
+                     "tax": "explicit descriptor, e.g. {basis: none}"}},
+            ])
+        try:
+            current = await asyncio.wait_for(propose_adaptation(
+                context,
+                [{"observation_id": f"round-{round_index + 1}",
+                  "kind": "evidence_result",
+                  "reason": "the newly adopted steps completed"}],
+                assignment=assignment, llm_service=llm,
+                provider_model=("ollama", args.model)),
+                timeout=args.deadline)
+        except asyncio.TimeoutError:
+            rounds.append({
+                "round": round_index + 1,
+                "source": "timeout",
+                "proposal": None,
+                "error": "deadline_exceeded: next adaptation",
+            })
+            break
+    report["rounds"] = rounds
+    if rounds:
+        last = rounds[-1]
+        report["adoption"] = last.get("adoption")
+        report["adoption_error"] = last.get("adoption_error")
+        report["calculated_value"] = last.get("calculated_value")
     (out / "report.json").write_text(json.dumps(report, indent=1) + "\n")
     with (out / "calls.jsonl").open("w") as handle:
         for call in llm.calls:
