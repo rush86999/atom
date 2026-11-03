@@ -453,31 +453,47 @@ def _bind_invoice_role(
         "name the exact step")
 
 
+INVOICE_FIELD_DEFAULTS = {
+    "po_id": "po_id", "invoice_id": "invoice_id",
+    "quantity": "quantity", "unit_price": "unit_price",
+    "freight": "freight", "currency": "currency",
+    "version": "version", "resource_id": "resource_id",
+}
+PURCHASE_ORDER_FIELD_DEFAULTS = {
+    "po_id": "po_id", "vendor_id": "vendor_id",
+}
+RECEIVING_FIELD_DEFAULTS = {
+    "po_id": "po_id", "received_quantity": "received_quantity",
+    "version": "version",
+}
+INVOICE_ROLE_REQUIREMENTS = {
+    "invoice": ("invoice_id", "po_id", "quantity", "unit_price"),
+    "purchase_order": ("po_id", "vendor_id"),
+    "receiving": ("po_id", "received_quantity"),
+}
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
 ) -> Dict[str, Any]:
-    invoice_fields = dict(request.invoice_fields) or {
-        "po_id": "po_id", "invoice_id": "invoice_id",
-        "quantity": "quantity", "unit_price": "unit_price",
-        "freight": "freight", "currency": "currency",
-        "version": "version", "resource_id": "resource_id",
-    }
-    po_fields = dict(request.purchase_order_fields) or {
-        "po_id": "po_id", "vendor_id": "vendor_id"}
-    receiving_fields = dict(request.receiving_fields) or {
-        "po_id": "po_id", "received_quantity": "received_quantity",
-        "version": "version"}
+    invoice_fields = dict(
+        request.invoice_fields) or dict(INVOICE_FIELD_DEFAULTS)
+    po_fields = dict(
+        request.purchase_order_fields) or dict(
+            PURCHASE_ORDER_FIELD_DEFAULTS)
+    receiving_fields = dict(
+        request.receiving_fields) or dict(RECEIVING_FIELD_DEFAULTS)
     invoice_step_id = _bind_invoice_role(
         assignment, request.invoice_step_id, invoice_fields,
-        ("invoice_id", "po_id", "quantity", "unit_price"), "invoice")
+        INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
     purchase_order_step_id = _bind_invoice_role(
         assignment, request.purchase_order_step_id, po_fields,
-        ("po_id", "vendor_id"), "purchase order")
+        INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
     receiving_step_id = _bind_invoice_role(
         assignment, request.receiving_step_id, receiving_fields,
-        ("po_id", "received_quantity"), "receiving")
+        INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
     for step_id in (
             invoice_step_id, purchase_order_step_id, receiving_step_id):
         _step_result(assignment, step_id)

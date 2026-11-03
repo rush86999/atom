@@ -26,7 +26,9 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -34,8 +36,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "backend"
-DEFAULT_WORLD_ROOT = Path(
-    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode")
+DEFAULT_WORLD_ROOT = Path(tempfile.gettempdir())
 PYTHON = sys.executable
 
 
@@ -172,22 +173,59 @@ def _write_json(path: Path, payload: Dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2))
 
 
+def _prepare_world(raw_world: str, *, reset_world: bool) -> Path:
+    """Create a fresh harness-owned world or reuse a marked disposable one.
+
+    Never deletes an arbitrary caller path. The existing launch guard validates
+    the path root, requires its marker before reset, and is the only deletion
+    path.
+    """
+    from core.assignment_launcher_guard import (
+        MARKER_NAME, UnsafeScratchError, prepare_scratch_dir,
+        validate_scratch_dir,
+    )
+
+    if not raw_world:
+        candidate = DEFAULT_WORLD_ROOT / (
+            f"atom-g5-normal-{os.getpid()}-{uuid.uuid4().hex[:8]}")
+        if candidate.exists():
+            raise UnsafeScratchError(
+                f"fresh campaign world unexpectedly exists: {candidate}")
+        candidate.mkdir(parents=True)
+        prepare_scratch_dir(candidate)
+        return candidate
+    candidate = validate_scratch_dir(raw_world)
+    if candidate.exists() and any(candidate.iterdir()):
+        if not (candidate / MARKER_NAME).exists():
+            raise UnsafeScratchError(
+                "refusing an existing unmarked campaign world: "
+                f"{candidate}")
+        if not reset_world:
+            raise UnsafeScratchError(
+                "an existing campaign world requires explicit --reset-world: "
+                f"{candidate}")
+        prepare_scratch_dir(candidate, reset=True)
+    else:
+        prepare_scratch_dir(candidate)
+    return candidate
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11436/v1")
     parser.add_argument("--model", default="llama3.1:8b")
     parser.add_argument("--out", required=True)
     parser.add_argument("--world", default="")
+    parser.add_argument("--reset", action="store_true")
     parser.add_argument("--port", type=int, default=8094)
+    parser.add_argument(
+        "--reset-world", action="store_true",
+        help="explicitly reset an existing marked harness-owned world")
     args = parser.parse_args()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    world = Path(args.world) if args.world else (
-        DEFAULT_WORLD_ROOT / f"atom-g5-normal-{os.getpid()}")
-    if world.exists():
-        shutil.rmtree(world)
-    world.mkdir(parents=True, exist_ok=True)
+    world = _prepare_world(args.world, reset_world=args.reset_world)
 
     server = Server(world, out, args.port, args.model, args.ollama_url)
     checks: List[Dict[str, Any]] = []
@@ -366,6 +404,14 @@ def main() -> int:
                        "invoice_reconciliation")
                    for item in missing_rounds),
                [item.get("decision") for item in missing_rounds])
+        obligations = (missing.get("employee_job") or {}).get(
+            "open_obligations") or []
+        _check(checks, "missing invoice produces actionable obligation",
+               any(
+                   str(item.get("kind") or "") == "missing_prerequisite"
+                   and "invoice" in str(item.get("question") or "").lower()
+                   for item in obligations if isinstance(item, dict)),
+               obligations)
 
         supplied = client.post(
             server.base + f"/api/assignments/{missing_run}/sources",
@@ -377,6 +423,18 @@ def main() -> int:
                     "the evidence gap"),
             }).json()
         report["scenarios"]["missing_invoice_source"] = supplied
+        _check(checks, "source answer resolves the obligation",
+               bool(supplied.get("resolved_question_ids")), supplied)
+        duplicate = client.post(
+            server.base + f"/api/assignments/{missing_run}/sources",
+            json={
+                "source": {"kind": "document",
+                           "path": str(supplied_invoice)},
+                "reason": "duplicate source addition must not duplicate work",
+            }).json()
+        report["scenarios"]["missing_invoice_duplicate"] = duplicate
+        _check(checks, "duplicate source is idempotent",
+               duplicate.get("status") == "already_present", duplicate)
         recovered = client.post(
             server.base + f"/api/assignments/{missing_run}/advance",
             json={"use_model": True, "deadline_seconds": 300}).json()

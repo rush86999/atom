@@ -212,6 +212,7 @@ def build_employee_context(
     existing_step_ids: Optional[Sequence[str]] = None,
     stage: str = "discovery",
     available_work_requests: Optional[Sequence[str]] = None,
+    operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -221,18 +222,53 @@ def build_employee_context(
     """
     teaching = dict(teaching or {})
     follow_up_stage = stage in ("follow_up", "adaptation", "result")
+    eligibility = [
+        dict(item) for item in (operation_eligibility or [])
+        if isinstance(item, Mapping)
+    ]
+    if eligibility:
+        operation_names = [
+            str(item.get("operation") or "") for item in eligibility
+            if str(item.get("status") or "") != "unavailable"
+        ]
+        ready_names = {
+            str(item.get("operation") or "") for item in eligibility
+            if str(item.get("status") or "") == "ready"
+        }
+    elif available_work_requests is None:
+        operation_names = [
+            item["operation"] for item in _operation_views(None)]
+        ready_names = set(operation_names)
+    else:
+        operation_names = list(available_work_requests)
+        ready_names = set(operation_names)
     schemas = (
         [
             schema for schema in work_request_schemas()
-            if available_work_requests is None
-            or schema.get("operation") in set(available_work_requests)
+            if (
+                not eligibility
+                and available_work_requests is None
+            )
+            or schema.get("operation") in set(operation_names)
         ]
         if follow_up_stage else []
     )
     operations = (
-        _operation_views(available_work_requests)
+        _operation_views(available_work_requests, eligibility)
         if follow_up_stage else []
     )
+    missing_prerequisites = [
+        {
+            "operation": item.get("operation"),
+            "label": item.get("label") or item.get("operation"),
+            "status": item.get("status"),
+            "missing": list(item.get("missing") or []),
+            "question_hint": item.get("question_hint") or "",
+            "known_identities": dict(item.get("known_identities") or {}),
+        }
+        for item in operations
+        if str(item.get("status") or "") in ("missing", "ambiguous")
+    ]
     return {
         "schema": PROPOSAL_SCHEMA,
         "objective": _text(objective, 4000),
@@ -341,15 +377,19 @@ def build_employee_context(
         "stage": stage,
         "work_request_schemas": schemas,
         "available_business_operations": operations,
+        "missing_prerequisites": missing_prerequisites,
         "rules": (
             {
-                "allowed_proposal_kinds": ["replan"],
+                "allowed_proposal_kinds": (
+                    ["replan", "clarify"] if missing_prerequisites
+                    else ["replan"]),
                 "allowed_work_requests": [
-                    item["operation"] for item in operations],
+                    item["operation"] for item in operations
+                    if item.get("operation") in ready_names],
                 "can_execute": False,
                 "can_grant_authority": False,
                 "can_supply_receipts": False,
-                "can_propose_supported_work": True,
+                "can_propose_supported_work": bool(ready_names),
                 "evidence_only": False,
                 "clarify_only_when_material": True,
                 "execution_mechanics": "compiler",
@@ -381,7 +421,10 @@ def build_employee_context(
     }
 
 
-def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]:
+def _operation_views(
+    available: Optional[Sequence[str]],
+    eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
     if available is None:
         available = []
         unrestricted = True
@@ -406,41 +449,218 @@ def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]
         },
     ]
     allowed = set(available or [])
+    by_operation = {
+        str(item.get("operation") or ""): dict(item)
+        for item in (eligibility or []) if isinstance(item, Mapping)
+    }
+    if by_operation:
+        merged = []
+        for definition in definitions:
+            extra = by_operation.get(definition["operation"])
+            if extra is None:
+                continue
+            merged.append({**definition, **extra})
+        return merged
     return [
         item for item in definitions
         if unrestricted or item["operation"] in allowed
     ]
 
 
-def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
-    quote = False
-    invoice = False
-    for step in assignment.get("steps") or []:
-        if not isinstance(step, Mapping):
-            continue
-        result = step.get("result") if isinstance(
-            step.get("result"), Mapping) else {}
-        data = result.get("data") if isinstance(
-            result.get("data"), Mapping) else {}
-        keys = set(data)
-        if ({"invoice_id", "quantity", "unit_price"} <= keys
-                or "invoice_number" in keys):
-            invoice = True
-        rows = result.get("rows") or []
-        if isinstance(rows, list) and rows and isinstance(rows[0], Mapping):
-            row_keys = set(rows[0])
-            if ({"Item", "Qty", "Price"} & row_keys
-                    or {"item_id", "quantity", "unit_price"} & row_keys):
-                quote = True
-        if result.get("line_items"):
-            quote = True
-    operations = []
-    if quote:
-        operations.append("quote_calculation")
-    if invoice:
-        operations.append("invoice_reconciliation")
-    return operations
+_VERIFIED_PROOF = {
+    "verified", "material_verified", "confirmed", "complete",
+}
 
+
+def _result_proven(result: Mapping[str, Any]) -> bool:
+    verification = result.get("verification")
+    status = (
+        str(verification.get("status") or "").lower()
+        if isinstance(verification, Mapping) else "")
+    if status in _VERIFIED_PROOF:
+        return True
+    receipt = result.get("receipt")
+    return bool(
+        isinstance(receipt, Mapping)
+        and str(receipt.get("status") or "").lower() in _VERIFIED_PROOF)
+
+
+def _evidence_shapes(assignment: Mapping[str, Any]) -> Dict[str, List[Dict]]:
+    tabular: List[Dict[str, Any]] = []
+    structured: List[Dict[str, Any]] = []
+    textual: List[Dict[str, Any]] = []
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping) or step.get("status") != "applied":
+            continue
+        result = step.get("result")
+        if not isinstance(result, Mapping) or not result:
+            continue
+        adapter = str(step.get("adapter") or "")
+        if adapter.startswith((
+                "quote.", "invoice.", "action.", "assignment.",
+                "deliverable.", "document.write", "presentation.",
+                "outbound.")):
+            continue
+        proven = _result_proven(result)
+        base = {
+            "step_id": str(step.get("step_id") or ""),
+            "title": str(step.get("title") or ""),
+            "verified": proven,
+        }
+        rows = result.get("rows")
+        if (isinstance(rows, list) and rows
+                and isinstance(rows[0], Mapping)):
+            tabular.append({
+                **base,
+                "shape": "tabular",
+                "columns": sorted(str(key) for key in rows[0])[:40],
+            })
+            continue
+        data = result.get("data")
+        if isinstance(data, Mapping) and data:
+            structured.append({
+                **base,
+                "shape": "structured",
+                "data_keys": sorted(str(key) for key in data)[:40],
+                "data": dict(data),
+            })
+            continue
+        if str(result.get("text") or "").strip():
+            textual.append({**base, "shape": "text"})
+    return {
+        "tabular": tabular, "structured": structured, "textual": textual,
+    }
+
+
+def operation_capabilities(
+    assignment: Mapping[str, Any],
+) -> List[Dict[str, Any]]:
+    """Capabilities with eligibility/precondition status, not header filters.
+
+    Accepted evidence is classified by its registered result contract
+    (tabular rows, structured object, text), never by business column names.
+    A missing role is named so the model can recognize what to retrieve; the
+    capability description is not erased.
+    """
+    shapes = _evidence_shapes(assignment)
+    tabular = shapes["tabular"]
+    structured = shapes["structured"]
+    textual = shapes["textual"]
+    capabilities: List[Dict[str, Any]] = []
+
+    if tabular:
+        proven = [item for item in tabular if item["verified"]]
+        capabilities.append({
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "ready" if proven else "missing",
+            "missing": [] if proven else ["verified tabular evidence"],
+            "evidence": tabular,
+            "question_hint": (
+                "Which authorized source provides verified tabular price rows?"
+                if not proven else ""),
+        })
+    elif structured or textual:
+        capabilities.append({
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "missing",
+            "missing": ["tabular price rows"],
+            "evidence": structured + textual,
+            "question_hint": (
+                "Which authorized source contains the tabular price rows "
+                "needed for the quote?"),
+        })
+
+    from core.employee_work_compiler import (
+        INVOICE_FIELD_DEFAULTS,
+        INVOICE_ROLE_REQUIREMENTS,
+        PURCHASE_ORDER_FIELD_DEFAULTS,
+        RECEIVING_FIELD_DEFAULTS,
+        _invoice_role_candidates,
+    )
+
+    role_fields = {
+        "invoice": dict(INVOICE_FIELD_DEFAULTS),
+        "purchase_order": dict(PURCHASE_ORDER_FIELD_DEFAULTS),
+        "receiving": dict(RECEIVING_FIELD_DEFAULTS),
+    }
+    role_candidates = {
+        role: _invoice_role_candidates(
+            assignment, role_fields[role], INVOICE_ROLE_REQUIREMENTS[role])
+        for role in INVOICE_ROLE_REQUIREMENTS
+    }
+    if structured:
+        candidate_steps = {
+            str(step.get("step_id")): step for step in structured
+        }
+        missing = [
+            role for role, candidates in role_candidates.items()
+            if not candidates
+        ]
+        ambiguous = [
+            role for role, candidates in role_candidates.items()
+            if len(candidates) > 1
+        ]
+        unproven = [
+            role for role, candidates in role_candidates.items()
+            if candidates and not all(
+                candidate_steps.get(candidate, {}).get("verified")
+                for candidate in candidates)
+        ]
+        if missing:
+            status = "missing"
+        elif ambiguous:
+            status = "ambiguous"
+        elif unproven:
+            status = "missing"
+        else:
+            status = "ready"
+        known_identities: Dict[str, Any] = {}
+        for role, candidates in role_candidates.items():
+            for step_id in candidates:
+                data = next((
+                    item.get("data") for item in structured
+                    if item["step_id"] == step_id), {}) or {}
+                for key in ("po_id", "purchase_order_id", "vendor_id",
+                            "invoice_id", "invoice_number"):
+                    if data.get(key) not in (None, ""):
+                        known_identities[f"{role}.{key}"] = data.get(key)
+        missing_roles = missing or unproven
+        hint = ""
+        if missing_roles:
+            subject = (
+                known_identities.get("purchase_order.po_id")
+                or known_identities.get("receiving.po_id")
+                or known_identities.get("invoice.po_id"))
+            hint = (
+                "Which authorized source contains the missing "
+                + ", ".join(missing_roles)
+                + " evidence"
+                + (f" for purchase order {subject}" if subject else "")
+                + "?")
+        capabilities.append({
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": status,
+            "missing": missing_roles,
+            "ambiguous_roles": ambiguous,
+            "evidence": structured,
+            "roles": {
+                role: list(candidates)
+                for role, candidates in role_candidates.items()
+            },
+            "known_identities": known_identities,
+            "question_hint": hint,
+        })
+    return capabilities
+
+
+def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
+    return [
+        item["operation"] for item in operation_capabilities(assignment)
+        if item.get("status") != "unavailable"
+    ]
 
 def context_from_record(
     record: Mapping[str, Any],
@@ -500,6 +720,7 @@ def context_from_record(
             "unresolved") or []:
         if question.get("status") == "open":
             obligations.append(question)
+    eligibility = operation_capabilities(assignment)
     return build_employee_context(
         objective=assignment.get("objective") or "",
         employee_id=assignment.get("employee_id") or "",
@@ -525,7 +746,10 @@ def context_from_record(
             if step.get("step_id")
         ],
         stage="follow_up" if evidence else "discovery",
-        available_work_requests=_operations_from_evidence(assignment),
+        available_work_requests=[
+            item["operation"] for item in eligibility
+            if item.get("status") != "unavailable"],
+        operation_eligibility=eligibility,
     )
 
 

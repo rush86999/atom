@@ -868,7 +868,9 @@ async def _advance_employee_work(
     served smokes, adopts the compiled work request, and lets the existing
     executor own execution. It never invents evidence or a plan patch.
     """
-    from core.employee_job_runner import action_views, evidence_observations
+    from core.employee_job_runner import (
+        action_views, evidence_observations, missing_prerequisite_question,
+    )
     from core.task_lifecycle import open_unresolved_questions
 
     rounds: List[Dict[str, Any]] = []
@@ -905,6 +907,19 @@ async def _advance_employee_work(
                                 for item in observations],
         }
         rounds.append(round_record)
+        if not proposal or proposal.get("decision") in ("retain",):
+            question = missing_prerequisite_question(assignment)
+            if question and not open_unresolved_questions(
+                    executor.lifecycle.get_task(run_id) or {}):
+                from core.task_lifecycle import add_unresolved_questions
+
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [question])
+                round_record["obligation"] = question
+                round_record["obligation_source"] = (
+                    "deterministic_missing_prerequisite")
+                round_record["progress"] = "no_progress"
+            break
         if proposal_result.get("source") not in ("model", "model_repaired"):
             break
         if proposal.get("decision") == "clarify":
@@ -1402,6 +1417,28 @@ async def add_assignment_source(
             detail={"error": exc.code, "message": str(exc)}) from exc
     record = executor.lifecycle.get_task(run_id) or {}
     assignment = record.get("assignment") or {}
+    # A duplicate source addition must not add another read step or cause
+    # duplicate arithmetic/effects later. Same resource identity/version is
+    # already present: return the durable state unchanged.
+    existing = None
+    for step in assignment.get("steps") or []:
+        binding = ((step.get("inputs") or {}).get("resource_binding")
+                   if isinstance(step.get("inputs"), dict) else None)
+        if not isinstance(binding, dict):
+            continue
+        if str(binding.get("resource_id") or "") == str(
+                resolved.get("resource_id") or "") and str(
+                binding.get("source_version") or "") == str(
+                resolved.get("source_version") or ""):
+            existing = step
+            break
+    if existing is not None:
+        return {
+            "status": "already_present",
+            "reason": "the authorized source version is already present",
+            "step_id": existing.get("step_id"),
+            "assignment": executor.status(run_id),
+        }
     from core.assignment_planner import _source_step
     from core.employee_patch import apply_plan_patch
     import hashlib as _hashlib
@@ -1448,7 +1485,37 @@ async def add_assignment_source(
         status = await executor.execute(run_id, max_steps=12)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return {**adopted, "assignment": status}
+    # Settle only obligations that this accepted source actually made ready.
+    current = executor.lifecycle.get_task(run_id) or {}
+    current_assignment = current.get("assignment") or {}
+    from core.employee_proposal import operation_capabilities
+    from core.task_lifecycle import (
+        open_unresolved_questions, resolve_unresolved_questions,
+    )
+    ready_operations = {
+        str(item.get("operation") or "")
+        for item in operation_capabilities(current_assignment)
+        if item.get("status") == "ready"
+    }
+    settled = []
+    question_ids = [
+        str(question.get("question_id"))
+        for question in open_unresolved_questions(current)
+        if question.get("kind") == "missing_prerequisite"
+        and str(question.get("operation") or question.get("concept") or "")
+        in ready_operations
+    ]
+    if question_ids:
+        settled = resolve_unresolved_questions(
+            executor.lifecycle, run_id, question_ids=question_ids,
+            resolution=(
+                "authorized source "
+                f"{resolved.get('resource_id')} version "
+                f"{resolved.get('source_version')} made the capability ready"))
+        status = executor.status(run_id)
+    return {**adopted, "assignment": status,
+            "resolved_question_ids": [
+                item.get("question_id") for item in settled]}
 
 
 @router.post("/{run_id}/reassess")

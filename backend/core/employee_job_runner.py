@@ -58,27 +58,32 @@ def _is_business_step(step: Mapping[str, Any]) -> bool:
 def _evidence_observation(
     step: Mapping[str, Any], result: Mapping[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """Only evidence that can actually support a supported business operation.
+    """Hand accepted evidence to adaptation by its result contract.
 
-    Terms/policy reads and already-calculated business results are not new
-    evidence; including them would invite the model to re-propose completed
-    work. Quote rows and invoice/PO/receiving receipts are included.
+    Tabular rows, structured objects and textual documents are registered
+    evidence shapes. Business header names are deliberately not a filter: the
+    model may map an unfamiliar table (Product/Units/ApprovedCost) onto the
+    supported quote fields, and the compiler validates the concrete mapping.
+    Terms/policy reads still reach the model as evidence; they simply do not
+    make a capability ready by themselves.
     """
     if _is_business_step(step):
         return None
     rows = result.get("rows")
     data = result.get("data")
-    row_keys = set()
+    text = result.get("text")
+    shape = ""
+    columns: List[str] = []
+    data_keys: List[str] = []
     if isinstance(rows, list) and rows and isinstance(rows[0], Mapping):
-        row_keys = set(rows[0])
-    data_keys = set(data) if isinstance(data, Mapping) else set()
-    quote_shape = bool(
-        row_keys & {"Item", "Qty", "Price", "item_id", "quantity",
-                    "unit_price"})
-    invoice_shape = bool(
-        data_keys & {"invoice_id", "purchase_order_id", "po_id",
-                     "received_quantity", "vendor_id", "invoice_number"})
-    if not (quote_shape or invoice_shape):
+        shape = "tabular"
+        columns = sorted(str(key) for key in rows[0])[:40]
+    elif isinstance(data, Mapping) and data:
+        shape = "structured"
+        data_keys = sorted(str(key) for key in data)[:40]
+    elif str(text or "").strip():
+        shape = "text"
+    if not shape:
         return None
     step_id = str(step.get("step_id") or "")
     operation_id = str(step.get("operation_id") or "")
@@ -92,6 +97,7 @@ def _evidence_observation(
         "result": {
             "rows": rows,
             "data": data,
+            "text": text,
             "coverage": result.get("coverage"),
         },
     })
@@ -99,6 +105,9 @@ def _evidence_observation(
         "observation_id": observation_id,
         "kind": "evidence_result",
         "step_id": step_id,
+        "shape": shape,
+        "columns": columns,
+        "data_keys": data_keys,
         "resource_id": str(result.get("resource_id") or ""),
         "source_refs": [{
             "resource_id": str(result.get("resource_id") or ""),
@@ -106,7 +115,8 @@ def _evidence_observation(
         }] if result.get("resource_id") or version else [],
         "reason": (
             "the authorized evidence read completed and its accepted result "
-            "can support supported business work"),
+            "is available for semantic mapping or missing-prerequisite "
+            "diagnosis"),
     }
 
 
@@ -130,6 +140,77 @@ def evidence_observations(record: Mapping[str, Any]) -> List[Dict[str, Any]]:
     return observations
 
 
+def missing_prerequisite_question(
+    target: Mapping[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Durable question for a missing capability role, bound to the job.
+
+    Accepts either the assignment or the bounded reasoning context; both
+    expose the same capability/precondition contract. The capability names
+    the missing roles and known business identities; this does not invent the
+    answer or the expected source.
+    """
+    if "available_business_operations" in target:
+        capabilities = [
+            dict(item) for item in (
+                target.get("available_business_operations") or [])
+            if isinstance(item, Mapping)
+        ]
+    else:
+        from core.employee_proposal import operation_capabilities
+
+        capabilities = operation_capabilities(target)
+    for capability in capabilities:
+        status = str(capability.get("status") or "")
+        if status not in ("missing", "ambiguous"):
+            continue
+        operation = str(capability.get("operation") or "")
+        missing = list(capability.get("missing") or [])
+        known = dict(capability.get("known_identities") or {})
+        subject = (
+            known.get("purchase_order.po_id")
+            or known.get("receiving.po_id")
+            or known.get("invoice.po_id"))
+        question = str(capability.get("question_hint") or "").strip()
+        if not question:
+            question = (
+                "Which authorized source provides the missing "
+                + (", ".join(missing) or "evidence")
+                + " for this objective?")
+        evidence_steps = [
+            str(item.get("step_id"))
+            for item in capability.get("evidence") or []
+            if isinstance(item, Mapping) and item.get("step_id")
+        ]
+        return {
+            "kind": "missing_prerequisite",
+            "question": question,
+            "concept": operation,
+            "operation": operation,
+            "missing_roles": missing,
+            "ambiguous_roles": list(
+                capability.get("ambiguous_roles") or []),
+            "subject": subject or None,
+            "known_identities": known,
+            "evidence_step_ids": evidence_steps,
+            "inputs": {
+                "missing": missing,
+                "known_identities": known,
+                "evidence_step_ids": evidence_steps,
+            },
+            "reason": (
+                f"The {capability.get('label') or operation} capability is "
+                f"{status}; the objective is not complete."),
+            "next_action": (
+                "Add the authorized source containing the missing evidence "
+                "role, then resume this same assignment."),
+            "next_retrieval": (
+                "authorized source read for "
+                + (", ".join(missing) or "the missing prerequisite")),
+        }
+    return None
+
+
 def action_views(assignment: Mapping[str, Any]) -> List[Dict[str, Any]]:
     """Authorized registered external actions, without expanding authority."""
     from core.action_registry import action_registry
@@ -149,3 +230,52 @@ def action_views(assignment: Mapping[str, Any]) -> List[Dict[str, Any]]:
             "description": getattr(action, "description", "") or "",
         })
     return views
+
+
+def missing_prerequisite_question(
+    context: Mapping[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """One actionable obligation derived from a capability's missing roles.
+
+    This is the deterministic no-progress floor, not model discovery. It is
+    used only when the model retains or fails to propose while a declared
+    capability is still missing a prerequisite, so the job cannot silently
+    abandon the objective.
+    """
+    missing = [
+        dict(item) for item in (context.get("missing_prerequisites") or [])
+        if isinstance(item, Mapping)
+    ]
+    if not missing:
+        return None
+    chosen = next(
+        (item for item in missing
+         if item.get("known_identities") and item.get("question_hint")),
+        missing[0],
+    )
+    roles = list(chosen.get("missing") or [])
+    hint = str(chosen.get("question_hint") or "").strip()
+    if not hint:
+        hint = (
+            "Which authorized source contains the missing "
+            + ", ".join(roles)
+            + " evidence needed for this objective?")
+    return {
+        "kind": "missing_evidence",
+        "item": chosen.get("label") or chosen.get("operation"),
+        "question": hint,
+        "concept": chosen.get("operation"),
+        "reason": (
+            "the accepted evidence does not satisfy the required role(s): "
+            + ", ".join(roles)),
+        "next_action": (
+            "Authorize or name the source that contains the missing "
+            "business record."),
+        "next_retrieval": hint,
+        "inputs": {
+            "operation": chosen.get("operation"),
+            "missing": roles,
+            "known_identities": dict(
+                chosen.get("known_identities") or {}),
+        },
+    }
