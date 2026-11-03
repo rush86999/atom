@@ -245,7 +245,151 @@ def _same_money(left: Any, right: Any) -> bool:
         return False
 
 
+def _quote_column_values(
+    rows: Sequence[Mapping[str, Any]], column: str,
+) -> List[str]:
+    return [
+        str(row.get(column)).strip()
+        for row in rows
+        if row.get(column) not in (None, "")
+    ]
+
+
+def _is_numeric_values(values: Sequence[str]) -> bool:
+    if not values:
+        return False
+    try:
+        return all(Decimal(value).is_finite() for value in values)
+    except (InvalidOperation, ValueError):
+        return False
+
+
+def _resolve_quote_columns(
+    requested: Mapping[str, Any],
+    rows: Sequence[Mapping[str, Any]],
+    available: Sequence[str],
+    *,
+    currency: str,
+) -> Dict[str, str]:
+    """Resolve semantic quote roles from value shape when the model swaps them.
+
+    The model still chooses the operation and the evidence step. This helper
+    repairs only mechanical column roles (text item, numeric quantity/price)
+    when its mapping is type-incompatible and a unique value-shape assignment
+    exists. Ambiguous shapes are refused for one bounded model repair.
+    """
+    columns = {
+        str(key): str(value) for key, value in dict(requested or {}).items()
+        if value not in (None, "")
+    }
+    available = [str(item) for item in available]
+    rows = [row for row in rows if isinstance(row, Mapping)]
+    by_column = {
+        column: _quote_column_values(rows, column) for column in available
+    }
+    numeric = [
+        column for column, values in by_column.items()
+        if _is_numeric_values(values)
+    ]
+    text = [
+        column for column, values in by_column.items()
+        if values and not _is_numeric_values(values)
+    ]
+
+    # Item identity must be a non-empty text/identity column when one exists.
+    # Currency-code columns are units, not item identities.
+    identity_text = [
+        column for column in text
+        if not all(
+            len(value) == 3 and value.isalpha()
+            for value in by_column[column])
+    ]
+    item = columns.get("item_id")
+    if item not in available or not by_column.get(item):
+        item = None
+    if (item in numeric or item in text and identity_text
+            and item not in identity_text):
+        item = identity_text[0] if len(identity_text) == 1 else item
+
+    # Currency is a unit/code, not a quantity. If the model chose a numeric
+    # column, prefer a text code column or fall back to the request currency.
+    currency_column = columns.get("currency")
+    if currency_column not in available:
+        currency_column = None
+    if currency_column in numeric:
+        codes = [
+            column for column in text
+            if set(by_column[column]) and all(
+                len(value) == 3 and value.isalpha()
+                for value in by_column[column])
+        ]
+        currency_column = codes[0] if len(codes) == 1 else None
+    if currency_column and any(
+            value.upper() != str(currency or "USD").upper()
+            for value in by_column.get(currency_column) or []):
+        currency_column = None
+
+    candidates = [
+        column for column in numeric
+        if column != item and column != currency_column
+    ]
+    quantity = columns.get("quantity")
+    price = columns.get("unit_price")
+    if quantity not in candidates:
+        quantity = None
+    if price not in candidates or price == quantity:
+        price = None
+    if (quantity is None or price is None) and len(candidates) == 2:
+        first, second = candidates
+
+        def _integer_ratio(column: str) -> float:
+            values = by_column[column]
+            if not values:
+                return 0.0
+            return sum(
+                1 for value in values
+                if Decimal(value) == Decimal(value).to_integral_value()
+            ) / len(values)
+
+        def _mean(column: str) -> Decimal:
+            values = by_column[column]
+            if not values:
+                return Decimal("0")
+            return sum((Decimal(value) for value in values), Decimal("0")) / Decimal(
+                len(values))
+
+        first_integer = _integer_ratio(first)
+        second_integer = _integer_ratio(second)
+        if first_integer > second_integer:
+            quantity, price = first, second
+        elif second_integer > first_integer:
+            quantity, price = second, first
+        elif _mean(first) <= _mean(second):
+            quantity, price = first, second
+        else:
+            quantity, price = second, first
+    if quantity is None or price is None:
+        raise WorkRequestCompileError(
+            "quote mapping cannot be resolved to distinct numeric quantity "
+            "and unit-price columns; name the semantic columns explicitly")
+    columns["item_id"] = item or columns.get("item_id")
+    columns["quantity"] = quantity
+    columns["unit_price"] = price
+    if currency_column:
+        columns["currency"] = currency_column
+    elif "currency" in columns:
+        columns.pop("currency", None)
+    return {
+        key: value for key, value in columns.items()
+        if value not in (None, "") and key in {
+            "item_id", "quantity", "unit_price", "currency", "description",
+            "unit", "pack_size", "price_basis", "category", "discount",
+        }
+    }
+
+
 def _quote_patch(
+
     request: QuoteCalculationRequest,
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
@@ -280,6 +424,10 @@ def _quote_patch(
         row for row in (result.get("rows") or [])
         if isinstance(row, Mapping)
     ][:25]
+    resolved_columns = _resolve_quote_columns(
+        columns, sample_rows, list(available), currency=request.currency)
+    if resolved_columns != columns:
+        columns = resolved_columns
     for semantic, column in columns.items():
         if semantic not in ("quantity", "unit_price"):
             continue
@@ -361,6 +509,14 @@ def _quote_patch(
     map_id = _unique_id(assignment, "quote-lines")
     calc_id = _unique_id(assignment, "quote-total")
     patch = _base_patch(assignment, request, context)
+    if columns != (
+            request.columns.model_dump(exclude_none=True)
+            if hasattr(request.columns, "model_dump")
+            else dict(request.columns or {})):
+        patch["observations"].append({
+            "kind": "resolved_quote_columns",
+            "columns": dict(columns),
+        })
     map_inputs = {
         "rows": f"${{{request.source_step_id}.rows}}",
         "columns": columns,

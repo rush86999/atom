@@ -3398,3 +3398,82 @@ def test_advance_route_adopts_typed_work_from_applied_evidence(
         if step["adapter"] == "quote.calculate")
     assert calculate["status"] == "applied"
     assert calculate["result"]["value"] == "370.00"
+
+
+def test_source_addition_settles_missing_prerequisite_without_duplicates(
+        route_env, tmp_path, monkeypatch):
+    from core.task_lifecycle import (
+        add_unresolved_questions, open_unresolved_questions,
+    )
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv(
+        "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+
+    def applied(step_id, data):
+        step = new_step(
+            step_id=step_id, title=step_id, operation_type="retrieve",
+            adapter="document.read", inputs={}, effect="read_only")
+        payload = tmp_path / f"{step_id}.json"
+        payload.write_text(json.dumps(data))
+        step.update(
+            status="applied", operation_id=f"op-{step_id}",
+            inputs={"path": str(payload)},
+            result={
+                "data": data, "resource_id": step_id,
+                "source_version": "v1",
+                "coverage": {"complete": True, "known": True,
+                             "truncated": False},
+                "verification": {
+                    "status": "verified", "resource_id": step_id,
+                    "version": "v1"},
+            })
+        return step
+
+    plan = new_assignment(
+        objective="Reconcile the supplier invoice for PO-7",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="source-settle-1"),
+        steps=[
+            applied("purchase-order", {
+                "po_id": "PO-7", "vendor_id": "V-9"}),
+            applied("receiving", {
+                "po_id": "PO-7", "received_quantity": "2"}),
+        ],
+        authorized_actions=["retrieve", "calculate"])
+    record = route_env["executor"].create_assignment(
+        "conv-source-settle", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    add_unresolved_questions(route_env["lifecycle"], run_id, [{
+        "kind": "missing_evidence",
+        "item": "invoice reconciliation",
+        "question": "Which authorized source contains the invoice for PO-7?",
+        "concept": "invoice_reconciliation",
+        "next_action": "Authorize the invoice source.",
+        "inputs": {"operation": "invoice_reconciliation",
+                   "missing": ["invoice"]},
+    }])
+    invoice = tmp_path / "invoice.json"
+    invoice.write_text(json.dumps({
+        "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"kind": "document", "path": str(invoice)},
+              "reason": "the user supplied the invoice"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["resolved_question_ids"]
+    assert open_unresolved_questions(
+        route_env["lifecycle"].get_task(run_id)) == []
+    steps_before = len(
+        route_env["lifecycle"].get_assignment(run_id)["steps"])
+
+    duplicate = route_env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"kind": "document", "path": str(invoice)},
+              "reason": "same invoice again"})
+    assert duplicate.status_code == 200, duplicate.text
+    assert duplicate.json()["status"] == "already_present"
+    assert len(route_env["lifecycle"].get_assignment(
+        run_id)["steps"]) == steps_before

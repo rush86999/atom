@@ -25,6 +25,7 @@ from core.employee_work_requests import (
     InvoiceReconciliationRequest,
     MoneyTerm,
     QuoteCalculationRequest,
+    QuoteColumns,
     TaxTerm,
 )
 from tests.test_assignment_executor import _run, env  # noqa: F401
@@ -523,3 +524,35 @@ def test_invoice_wrong_purchase_order_identity_is_refused():
     with pytest.raises(WorkRequestCompileError, match="not the accepted"):
         compile_work_request_patch(
             _invoice_request(), assignment, context={})
+
+
+def test_quote_mapping_resolves_type_swapped_unfamiliar_headers():
+    read = _verified_quote_evidence()
+    read["result"]["rows"] = [
+        {"Product": "A", "Units": 2, "ApprovedCost": "100.00",
+         "Currency": "USD"},
+        {"Product": "B", "Units": 3, "ApprovedCost": "55.00",
+         "Currency": "USD"},
+    ]
+    read["result"]["schema"] = [
+        {"column": column} for column in (
+            "Product", "Units", "ApprovedCost", "Currency")]
+    assignment = new_assignment(
+        objective="Quote from unfamiliar headers",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[read],
+        teaching_snapshot=_terms_teaching(),
+        authorized_actions=["retrieve", "calculate"])
+    swapped = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="ApprovedCost", quantity="Currency",
+            unit_price="Product"),
+    })
+    patch = compile_work_request_patch(swapped, assignment, context={})
+    mapping = patch["add_steps"][0]["inputs"]["columns"]
+    assert mapping["item_id"] == "Product"
+    assert mapping["quantity"] == "Units"
+    assert mapping["unit_price"] == "ApprovedCost"
+    assert any(
+        item.get("kind") == "resolved_quote_columns"
+        for item in patch["observations"])
