@@ -1,0 +1,68 @@
+{
+  "artifacts": {
+    "README.md": "1d3f28b4449bb2058200aff39795356fc5b7976a1300db1ca555a5bc536d6824",
+    "TEST_RESULTS.md": "e7c3deae8ca30c220939fb199ba115a561ae47aa3b67763a8252d916dcba7da1",
+    "focused-tests.log": "37a9c7644f52cbdb2b2c5ecb1b519c8e0eb7ceb4f9577192664ba01d006a3a43",
+    "independent-probes.log": "84cf851a49c3a5d67902bd13569ae6dd81525fc682461f2c8f5c7511a226dbe5",
+    "invoice-calls.jsonl": "fd497fbfc4d87a4c7d56beaa053bc24801b6f673312fc01eed603264260ade43",
+    "invoice-report.json": "1cb25b30c17e9c4150e63b32106f078beffb8be312194a7c0fb8fa4d74086627",
+    "quote-calls.jsonl": "eb7ee67104349eb9751b3e34bf624b7770bf5584c367cd5f3b3cef86e3fb9028",
+    "quote-report.json": "8402a833a4d7e9cc4df6e0a71ef17521082a32bddd75238dfb1966dc0e3974b2"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "c55cc945036e3bd38c9f296597bb0e15c9bfc9f1",
+    "manifest_note": "Follow-up hardening for typed term provenance downgrade and source identity, with served quote/invoice smoke confirmation. Full G5 remains open.",
+    "prior_term_repair": "36fd2670b3cc918f64113df1fc1b675690c3f07c",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_quote.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/employee_money_terms.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/tests/test_employee_work_request_bindings.py"
+  ],
+  "exclusions": [
+    "full G5 ordinary-product campaign not run",
+    "adaptive employee judgment remains unqualified",
+    "no cloud/live provider, credential, consent, send, spend or deployment",
+    "prior deterministic acceptance 28afe7248 remains intact",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "schema": "atom-employee-term-contract-followup-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "4bdb2a9d0ea855df7fb9fe3db9ebe4dc9cf2cd4fbacd9f26f7359fa7dc1de369",
+    "backend/core/assignment_quote.py": "a1a5aeca6f4ad3f913952267fc288b01734fdc854e5cc75e798d92cb6772d5c5",
+    "backend/core/employee_money_terms.py": "d8ac4a8ed4a09ee68399f0dc038fa779b7773d6ed7175c5eb05fce3943e79a19",
+    "backend/core/employee_work_compiler.py": "9761124fe9f5ab63e56dc81801b121c4f81b75454ff3208c037c514202345863",
+    "backend/tests/test_employee_work_request_bindings.py": "7bc693caa6a6acf1605c0b4b2ed914a5c0a98fd4d24ad177803a1f8e267d59ee"
+  },
+  "status": "focused-deterministic-and-served-smoke",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "235 passed"
+    },
+    "independent_probes": {
+      "log": "independent-probes.log",
+      "result": "6 passed"
+    },
+    "invoice_smoke": {
+      "calls": "invoice-calls.jsonl",
+      "report": "invoice-report.json",
+      "result": "model work request; 270.00"
+    },
+    "quote_smoke": {
+      "calls": "quote-calls.jsonl",
+      "report": "quote-report.json",
+      "result": "model work request; 370.00"
+    }
+  }
+}
