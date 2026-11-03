@@ -672,3 +672,36 @@ def test_mapped_unit_cannot_be_defaulted_over_empty_source_value():
         compile_work_request_patch(
             request, _quote_assignment(_terms_teaching(), read=read),
             context={})
+
+
+def test_valid_cad_twin_executes_without_relabelling(env):
+    import asyncio
+
+    from core.employee_adaptation import AdaptationProposal, adopt_adaptation
+
+    read = _verified_quote_evidence()
+    for row in read["result"]["rows"]:
+        row["Currency"] = "CAD"
+    teaching = _terms_teaching()
+    teaching["terms"]["currency"] = "CAD"
+    assignment = _quote_assignment(teaching, read=read)
+    record = env["executor"].create_assignment(
+        "conv-currency-cad", assignment["objective"],
+        assignment=assignment)
+    run_id = record["run_id"]
+    request = _quote_request().model_copy(update={"currency": "CAD"})
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="quote from accepted CAD evidence",
+            observation_ids=["currency-cad-1"], work_request=request))
+    assert adopted["status"] == "applied", adopted
+    result = asyncio.run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    final = env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in final["steps"]
+        if step.get("adapter") == "quote.calculate")
+    assert calculate["result"]["value"] == "370.00"
+    assert (calculate["result"].get("currency")
+            or calculate["result"].get("unit")) == "CAD"
