@@ -16,7 +16,7 @@ though the pure predicate accepted a hand-built result.
 | Branch | `codex/brennan-full-app-20261102` |
 | Worktree | `/private/tmp/atom-full-app` |
 | Executed source | `1135fd00d` (full SHA in `MANIFEST.json`) |
-| Parent repair | `b7ea53b31` / `employee_repair_b7ea53b31` |
+| Parent repair | `1135fd00d` / `employee_repair_b7ea53b31` |
 | Transport | controlled local service/DB; no live provider |
 
 ## Repairs carried by this source

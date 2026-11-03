@@ -1,33 +1,24 @@
-============================= test session starts ==============================
-platform darwin -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
-Test order randomisation NOT enabled. Enable with --random-order or --random-order-bucket=<bucket_type>
-benchmark: 5.3.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
-rootdir: /private/tmp/atom-full-app/backend
-configfile: pytest.ini
-plugins: mock-3.15.1, freezegun-0.4.2, repeat-0.9.4, locust-2.46.5, allure-pytest-2.16.0, json-report-1.5.0, random-order-1.2.0, timeout-2.4.0, schemathesis-3.39.16, asyncio-1.4.0, metadata-3.1.1, benchmark-5.3.0, cov-4.1.0, rerunfailures-14.0, html-4.2.0, base-url-2.1.0, hypothesis-6.167.1, playwright-0.5.2, anyio-4.15.1, Faker-22.7.0, xdist-3.6.1
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 4 items
 
 tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote 
 -------------------------------- live log setup --------------------------------
-2026-11-02 23:06:55 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-02 23:06:55 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-02 23:06:55 [    INFO] EscalationManager initialized
-2026-11-02 23:06:55 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 23:06:55 [    INFO] EscalationManager initialized
-2026-11-02 23:06:55 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 23:06:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-02 23:06:55 [    INFO] AgentTaskRegistry initialized
+2026-11-02 23:07:41 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 23:07:41 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 23:07:41 [    INFO] EscalationManager initialized
+2026-11-02 23:07:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 23:07:41 [    INFO] EscalationManager initialized
+2026-11-02 23:07:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 23:07:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 23:07:41 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-02 23:06:55 [    INFO] runtime identity: source_id=1135fd00dcf2 revision=1135fd00dcf2 dirty=False (0 modified, 0 untracked)
+2026-11-02 23:07:41 [    INFO] runtime identity: source_id=1135fd00dcf2 revision=1135fd00dcf2 dirty=False (0 modified, 0 untracked)
 PASSED                                                                   [ 25%]
 tests/test_employee_two_domain_campaign.py::test_procurement_campaign_waits_corrects_and_posts_supported_bill 
 -------------------------------- live log call ---------------------------------
-2026-11-02 23:06:58 [    INFO] Created HITL action c8840578-395b-4b4d-b8aa-f02a1889586a for agent None
+2026-11-02 23:07:42 [    INFO] Created HITL action 9b31c43f-cdfb-4539-a92e-60b1276aa8c4 for agent None
 PASSED                                                                   [ 50%]
 tests/test_employee_two_domain_campaign.py::test_procurement_campaign_period_close_blocks_bill 
 -------------------------------- live log call ---------------------------------
-2026-11-02 23:06:59 [    INFO] Created HITL action 14c17015-483b-4503-85b3-ee0153364490 for agent None
+2026-11-02 23:07:42 [    INFO] Created HITL action 9a563edf-d8a1-4668-bf0b-84774a3afae0 for agent None
 PASSED                                                                   [ 75%]
 tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refuses_infeasible_delivery PASSED [100%]
 
@@ -72,4 +63,4 @@ tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refus
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 4 passed, 14 warnings in 16.07s ========================
+======================= 4 passed, 14 warnings in 10.61s ========================

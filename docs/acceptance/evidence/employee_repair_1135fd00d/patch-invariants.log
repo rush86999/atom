@@ -1,23 +1,14 @@
-============================= test session starts ==============================
-platform darwin -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
-Test order randomisation NOT enabled. Enable with --random-order or --random-order-bucket=<bucket_type>
-benchmark: 5.3.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
-rootdir: /private/tmp/atom-full-app/backend
-configfile: pytest.ini
-plugins: mock-3.15.1, freezegun-0.4.2, repeat-0.9.4, locust-2.46.5, allure-pytest-2.16.0, json-report-1.5.0, random-order-1.2.0, timeout-2.4.0, schemathesis-3.39.16, asyncio-1.4.0, metadata-3.1.1, benchmark-5.3.0, cov-4.1.0, rerunfailures-14.0, html-4.2.0, base-url-2.1.0, hypothesis-6.167.1, playwright-0.5.2, anyio-4.15.1, Faker-22.7.0, xdist-3.6.1
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 8 items
 
 tests/test_employee_patch_invariants.py::test_transitive_uncertain_descendant_refuses_upstream_invalidation 
 -------------------------------- live log setup --------------------------------
-2026-11-02 23:07:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-02 23:07:15 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-02 23:07:15 [    INFO] EscalationManager initialized
-2026-11-02 23:07:15 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 23:07:15 [    INFO] EscalationManager initialized
-2026-11-02 23:07:15 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-02 23:07:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-02 23:07:15 [    INFO] AgentTaskRegistry initialized
+2026-11-02 23:07:28 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 23:07:28 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 23:07:28 [    INFO] EscalationManager initialized
+2026-11-02 23:07:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 23:07:28 [    INFO] EscalationManager initialized
+2026-11-02 23:07:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 23:07:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 23:07:28 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [ 12%]
 tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[facts] PASSED [ 25%]
 tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[teaching] PASSED [ 37%]
@@ -61,4 +52,4 @@ tests/test_employee_patch_invariants.py::test_authority_change_advances_task_sta
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 8 passed, 22 warnings in 9.46s ========================
+======================== 8 passed, 22 warnings in 9.16s ========================

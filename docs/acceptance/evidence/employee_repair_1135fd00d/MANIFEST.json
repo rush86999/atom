@@ -1,118 +1,141 @@
 {
-  "artifacts": {
-    "README.md": "ca6154135fc8550d071cee36a5931f84a67198c799874fdc99e1d4d8eaec1b12",
-    "TEST_RESULTS.md": "784807403afa0d378965840651c4021c3315e80aabfd7f1094c67986dae0d9fa",
-    "backend-integrated.log": "76cae85e4549095038d8f23551347774a56cc34fbddf2bda44faeeeba55a6779",
-    "corrected-patch-invariant-probe.log": "931d517e403258e7bb71711b73c252fbf4c5a1f1098590c7c0ef5119a62cc818",
-    "corrected-patch-invariant-probe.py": "2318d35cf15a694c29744af7ab087b879070b6ba274a595b63485a3dd5e803d5",
-    "evidence-contract-probes.log": "7af9b551abcd57c40ab7a877035c1a5a6a478c4633cc9071ae6a56513bc4ae07",
-    "focused-affected.log": "607cb53e507f9ee25f967cdc366a7bbe92c6c2babb38c41b74896b6839a8dfbb",
-    "frontend-integrated.log": "60091a1af5ed9cbd3a6e699b138ceeb521b6f0433a324a1a8bdeb30cc3554169",
-    "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
-    "independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
-    "patch-invariants.log": "085f6652aad7c35155e0669421b4c48e9c05b84a085f8364b19ccd8af65ea08d",
-    "pre-existing-task-lifecycle-at-source.log": "1ebda21a965dc44a0f301026ab83f0a9052f41f9e06011c8e4fe6dd48b7700f3",
-    "two-domain-campaign.log": "9c6675a83b1a078f26dc97406191505e8a2c9b36558fafaa547bf7e0c99622ca"
+ "artifacts": {
+  "README.md": "eb4f670ebf74ec76c7b5a6813ce806800101413882f56e0335b14098ff9fd973",
+  "TEST_RESULTS.md": "784807403afa0d378965840651c4021c3315e80aabfd7f1094c67986dae0d9fa",
+  "backend-integrated.log": "0d6c94cf4aef514232dc0e5044eb598c06c6e81ee8e5493bb19048eefa0596a1",
+  "corrected-patch-invariant-probe.log": "931d517e403258e7bb71711b73c252fbf4c5a1f1098590c7c0ef5119a62cc818",
+  "corrected-patch-invariant-probe.py": "2318d35cf15a694c29744af7ab087b879070b6ba274a595b63485a3dd5e803d5",
+  "employee_repair_b7ea53b31/README.md": "e616d21d18a2e792d406300115996c9f45395dcf7e75264f5daa224ea74dc792",
+  "employee_repair_b7ea53b31/TEST_RESULTS.md": "ffa64e68a4cc3df69a52837ddb0765a128dff11a92f19baf018ee3edb16d7bd6",
+  "employee_repair_b7ea53b31/backend-integrated.log": "7a6c772ffaf9fc9632a57637bc2e440eee5efefd14e1549016ee5457c8aab36e",
+  "employee_repair_b7ea53b31/corrected-patch-invariant-probe.log": "29fb3c9a5f07057b5f774b7f33ac7510b1049227f4c5c764a4333f11785d0e80",
+  "employee_repair_b7ea53b31/corrected-patch-invariant-probe.py": "2318d35cf15a694c29744af7ab087b879070b6ba274a595b63485a3dd5e803d5",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/README.md": "9b93812b5eb7d75ec640e80e6dcd013469e9baf7b17496c5f31003bcfb1a5aab",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/TEST_RESULTS.md": "a6ce1e24cf6ccd57a5cd4058b417d6fcf78c1479f781d519ce10038d8a2c1463",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/backend-integrated.log": "343c9288c5897691aeadbb75a149504619cb54221a58e9c57306445ec5a30360",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/evidence-contract-probes.log": "afef3c0eb024a7f9fe93321e2f9b3b6e366620d786065dfd74aa377dff86c315",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/focused-affected.log": "e52cdee5b1a223b21daedb50a5cf96e69456d93271f595b529c936e5765ecb56",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/frontend-integrated.log": "c8c7af7dce5b3f58b3ef28e584d50ed7add48d44ecbb852e2015f5766b41021f",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/patch-invariants.log": "444dd8fe8cbbe94793820dc03a067f8e3e744cd93ef56afb2b9625b54947e1ea",
+  "employee_repair_b7ea53b31/employee_repair_1909cd23b/two-domain-campaign.log": "02b8ae9b562889120d1ea95b6e85ef635f4de9b51ad079cb629e82a1e3bfcbd7",
+  "employee_repair_b7ea53b31/evidence-contract-probes.log": "6386c8f79106bb81e863e00668dae7448ddd0a0dced681168a4eaf22999a3e74",
+  "employee_repair_b7ea53b31/focused-affected.log": "cd0a6163fcb4fda6dc01093731e0c37553d67f9896c4a880aca14d13c061184c",
+  "employee_repair_b7ea53b31/frontend-integrated.log": "b618beb34ad0af5d43eebc332371317144e7a46b319547fdc91d13c08dbe49c0",
+  "employee_repair_b7ea53b31/independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+  "employee_repair_b7ea53b31/independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
+  "employee_repair_b7ea53b31/original-patch-invariant-probe.log": "2c927fc0e6d7a4189179800e9ded38c1f3b0ffe34f280702b68b9af9c0138c54",
+  "employee_repair_b7ea53b31/original-patch-invariant-probe.py": "2fe6f5dbfbacf59c58cf6a04d5a12779f9fe44eb5810744f362b253fc256cf36",
+  "employee_repair_b7ea53b31/patch-invariants.log": "e15a4601aa1815b85bc7308e409537b856d34423d3f58339e74cbe286eac470a",
+  "employee_repair_b7ea53b31/pre-existing-task-lifecycle-at-source.log": "94a4dadf2db255371a92ee709091d40b670079813f9e2129ad98099d4fb66e64",
+  "employee_repair_b7ea53b31/two-domain-campaign.log": "5935e9d16c7e811f70f36ff073cba367c55f104a96a0cc16aa449519c25d2a2f",
+  "evidence-contract-probes.log": "660dfb0b60fd256c91825a149fff3c7cf86c649b672d85706520b418b19eb686",
+  "focused-affected.log": "1cb9bb413912ff4186ff2d2ab8613fa57f5d1370885723f274c4e8ce403dcea1",
+  "frontend-integrated.log": "4f2c7782f5933f337091c8b98d00b5839d154ee2236d3a47894ca129086dc6a4",
+  "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+  "independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
+  "patch-invariants.log": "66942c070ff37c1dafd8bc6b110aa348844fe0093d00838039f25ef1dfdfb91a",
+  "pre-existing-task-lifecycle-at-source.log": "1ebda21a965dc44a0f301026ab83f0a9052f41f9e06011c8e4fe6dd48b7700f3",
+  "two-domain-campaign.log": "9c58f4c9200454c97a7ae127f85c288df033fd13b27457d40e016b2a51512663"
+ },
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "c994ce94b5f40fdd8b532a15081df904ae6b0572",
+  "manifest_note": "Successor to employee_repair_b7ea53b31 for durable verified proof on real executor results. Deterministic only; served-model G5 level 2 and Batch A acceptance are not claimed.",
+  "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
+  "tree_clean_at_integrated_run": true,
+  "worktree": "/private/tmp/atom-full-app"
+ },
+ "changed_files": [
+  "backend/core/assignment_executor.py",
+  "backend/core/assignment_readiness.py",
+  "backend/core/employee_adaptation.py",
+  "backend/core/employee_patch.py",
+  "backend/core/employee_proposal.py",
+  "backend/core/task_outcome_contract.py",
+  "backend/tests/test_assignment_executor.py",
+  "backend/tests/test_assignment_readiness.py",
+  "backend/tests/test_assignment_routes.py",
+  "backend/tests/test_employee_outcome.py",
+  "backend/tests/test_employee_patch_invariants.py",
+  "backend/tests/test_employee_two_domain_campaign.py"
+ ],
+ "exclusions": [
+  "served-model adaptive-choice campaign and raw model traces not run",
+  "Batch A acceptance remains withheld pending independent re-verification",
+  "G4 broader event-order/recovery campaign beyond named controls not claimed",
+  "no live provider lookup/write/send/credential/consent/spend",
+  "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
+  "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
+  "historical 111/123 and accepted tags/sources unchanged"
+ ],
+ "known_pre_existing_failures": {
+  "log": "pre-existing-task-lifecycle-at-source.log",
+  "note": "Four test_task_lifecycle.py controls fail identically at the parent/base and at this source; disclosed, not counted.",
+  "result": "4 failed"
+ },
+ "lineage": {
+  "durable_proof_source": "1135fd00d",
+  "parent_evidence": "employee_repair_b7ea53b31",
+  "parent_source": "b7ea53b31",
+  "this_source": "1135fd00d"
+ },
+ "repairs": {
+  "durable_verified_proof": "executor step results retain adapter verification/coverage; readiness also reads operation receipt remote_identity.verification and source.coverage",
+  "execution_negative_matrix": "absent, conflict, missing-field and truncated verified receipts leave the dependent action uncalled; complete twin executes",
+  "preserved_repairs": [
+   "verified receipt strength and Sent Items readback separation",
+   "full affected closure and active/uncertain operation protection",
+   "authoritative task_version base and CAS recheck",
+   "canonical material digest with changed-content conflict",
+   "stable fact identity and authority staleness"
+  ]
+ },
+ "schema": "atom-employee-repair-successor-1",
+ "source_hashes": {
+  "backend/core/assignment_executor.py": "423b34622ca5fd04042533d913069e339a80589c5992c30bc800b1bf95d0bac0",
+  "backend/core/assignment_readiness.py": "749c5a7cb14c3ecef8a834ab9d961ed1aaad027d831b2f6b4d0181e7316854f9",
+  "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
+  "backend/core/employee_patch.py": "d9e0fe893a3844b1596d52dfa46a02e119fb963d565e7e8f83034a04ffc739f9",
+  "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
+  "backend/core/task_outcome_contract.py": "098743b96f144a62adba9d926c0b36692d83e7ae681712db3a57187289b809dc",
+  "backend/tests/test_assignment_executor.py": "d5522127df916c3e3b5e37522970b9ab2d50346308146a6ed380853d6b032e3f",
+  "backend/tests/test_assignment_readiness.py": "659fba09d4ade9841b79834740f4ed4b9e5dc56aa5f42537bec88b0d1a3931d8",
+  "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
+  "backend/tests/test_employee_outcome.py": "1c74fc60280138f103c22538b14d39db2a13e9ecc57e2d01095d2a25abad028e",
+  "backend/tests/test_employee_patch_invariants.py": "331255af16c9db747c6bbd92671ba52a95590deae7d1db491950be5aa3e48fb3",
+  "backend/tests/test_employee_two_domain_campaign.py": "2daffbf4a56d2eae78c3eb1cf470be148cf0289da8b1f62c634ff0e6f530e8ec"
+ },
+ "status": "submitted-for-independent-verification",
+ "tests": {
+  "backend_integrated": {
+   "log": "backend-integrated.log",
+   "result": "681 passed, 8 deselected"
   },
-  "candidate": {
-    "branch": "codex/brennan-full-app-20261102",
-    "executed_source": "1135fd00dcf20dcbf58e98cb89b0a59cc1553c38",
-    "manifest_note": "Successor to employee_repair_b7ea53b31 for durable verified proof on real executor results. Deterministic only; served-model G5 level 2 and Batch A acceptance are not claimed.",
-    "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
-    "tree_clean_at_integrated_run": true,
-    "worktree": "/private/tmp/atom-full-app"
+  "corrected_patch_probe": {
+   "log": "corrected-patch-invariant-probe.log",
+   "result": "3 passed",
+   "script": "corrected-patch-invariant-probe.py"
   },
-  "changed_files": [
-    "backend/core/assignment_executor.py",
-    "backend/core/assignment_readiness.py",
-    "backend/core/employee_adaptation.py",
-    "backend/core/employee_patch.py",
-    "backend/core/employee_proposal.py",
-    "backend/core/task_outcome_contract.py",
-    "backend/tests/test_assignment_executor.py",
-    "backend/tests/test_assignment_readiness.py",
-    "backend/tests/test_assignment_routes.py",
-    "backend/tests/test_employee_outcome.py",
-    "backend/tests/test_employee_patch_invariants.py",
-    "backend/tests/test_employee_two_domain_campaign.py"
-  ],
-  "exclusions": [
-    "served-model adaptive-choice campaign and raw model traces not run",
-    "Batch A acceptance remains withheld pending independent re-verification",
-    "G4 broader event-order/recovery campaign beyond named controls not claimed",
-    "no live provider lookup/write/send/credential/consent/spend",
-    "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
-    "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
-    "historical 111/123 and accepted tags/sources unchanged"
-  ],
-  "known_pre_existing_failures": {
-    "log": "pre-existing-task-lifecycle-at-source.log",
-    "note": "Four test_task_lifecycle.py controls fail identically at the parent/base and at this source; disclosed, not counted.",
-    "result": "4 failed"
+  "evidence_contract_probes": {
+   "log": "evidence-contract-probes.log",
+   "result": "9 passed"
   },
-  "lineage": {
-    "durable_proof_source": "1135fd00d",
-    "parent_evidence": "employee_repair_b7ea53b31",
-    "parent_source": "b7ea53b31",
-    "this_source": "1135fd00d"
+  "focused_affected": {
+   "log": "focused-affected.log",
+   "result": "209 passed"
   },
-  "repairs": {
-    "durable_verified_proof": "executor step results retain adapter verification/coverage; readiness also reads operation receipt remote_identity.verification and source.coverage",
-    "execution_negative_matrix": "absent, conflict, missing-field and truncated verified receipts leave the dependent action uncalled; complete twin executes",
-    "preserved_repairs": [
-      "verified receipt strength and Sent Items readback separation",
-      "full affected closure and active/uncertain operation protection",
-      "authoritative task_version base and CAS recheck",
-      "canonical material digest with changed-content conflict",
-      "stable fact identity and authority staleness"
-    ]
+  "frontend_integrated": {
+   "log": "frontend-integrated.log",
+   "result": "54 passed"
   },
-  "schema": "atom-employee-repair-successor-1",
-  "source_hashes": {
-    "backend/core/assignment_executor.py": "871ea4bee315bd074f1583c84ef7ce984f69fe92dfa830e96ec6478f45acaea5",
-    "backend/core/assignment_readiness.py": "749c5a7cb14c3ecef8a834ab9d961ed1aaad027d831b2f6b4d0181e7316854f9",
-    "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
-    "backend/core/employee_patch.py": "d9e0fe893a3844b1596d52dfa46a02e119fb963d565e7e8f83034a04ffc739f9",
-    "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
-    "backend/core/task_outcome_contract.py": "098743b96f144a62adba9d926c0b36692d83e7ae681712db3a57187289b809dc",
-    "backend/tests/test_assignment_executor.py": "be4cff03fd54a4ed6399b3f62eade7c57ccf2333bee4ba9c47e05b1126af4012",
-    "backend/tests/test_assignment_readiness.py": "659fba09d4ade9841b79834740f4ed4b9e5dc56aa5f42537bec88b0d1a3931d8",
-    "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
-    "backend/tests/test_employee_outcome.py": "1c74fc60280138f103c22538b14d39db2a13e9ecc57e2d01095d2a25abad028e",
-    "backend/tests/test_employee_patch_invariants.py": "331255af16c9db747c6bbd92671ba52a95590deae7d1db491950be5aa3e48fb3",
-    "backend/tests/test_employee_two_domain_campaign.py": "2daffbf4a56d2eae78c3eb1cf470be148cf0289da8b1f62c634ff0e6f530e8ec"
+  "patch_invariants": {
+   "log": "patch-invariants.log",
+   "result": "8 passed"
   },
-  "status": "submitted-for-independent-verification",
-  "tests": {
-    "backend_integrated": {
-      "log": "backend-integrated.log",
-      "result": "557 passed"
-    },
-    "corrected_patch_probe": {
-      "log": "corrected-patch-invariant-probe.log",
-      "result": "3 passed",
-      "script": "corrected-patch-invariant-probe.py"
-    },
-    "evidence_contract_probes": {
-      "log": "evidence-contract-probes.log",
-      "result": "9 passed"
-    },
-    "focused_affected": {
-      "log": "focused-affected.log",
-      "result": "209 passed"
-    },
-    "frontend_integrated": {
-      "log": "frontend-integrated.log",
-      "result": "54 passed"
-    },
-    "patch_invariants": {
-      "log": "patch-invariants.log",
-      "result": "8 passed"
-    },
-    "two_domain_campaign": {
-      "log": "two-domain-campaign.log",
-      "result": "4 passed"
-    }
-  },
-  "version_field_note": "The original independent patch probe builds base_task_version from task_revision.revision (the obsolete objective revision), so its first apply is correctly refused as stale. The corrected helper uses record.task_version and passes 3/3."
+  "two_domain_campaign": {
+   "log": "two-domain-campaign.log",
+   "result": "4 passed"
+  }
+ },
+ "version_field_note": "The original independent patch probe builds base_task_version from task_revision.revision (the obsolete objective revision), so its first apply is correctly refused as stale. The corrected helper uses record.task_version and passes 3/3."
 }
