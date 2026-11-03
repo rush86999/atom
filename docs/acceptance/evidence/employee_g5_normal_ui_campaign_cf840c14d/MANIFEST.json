@@ -1,0 +1,61 @@
+{
+ "schema": "atom-employee-g5-normal-ui-campaign-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "cf840c14d51628cf45066e7ee74006727ae6e0c5",
+  "tree_clean_at_run": true,
+  "world": "backend/data/acceptance_worlds/g5-ui-final-20261103",
+  "manifest_note": "Normal UI quote 370.00; procurement question/real restart/same-run answer 270.00; UI cancellation.",
+  "sources_via": "ordinary UI upload and multi-source selection"
+ },
+ "local_model": {
+  "declared": "llama3.1:8b",
+  "base_url": "http://127.0.0.1:11436",
+  "context_window": 16384,
+  "pin": "ollama:llama3.1:8b"
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "ce98c3913cfbe392b8347c80860fbba234615558a78bb418da473116f388bd5d",
+  "backend/api/document_routes.py": "127a10ad543cbb5f8dcac8861f0829aaf8d516912b534ffcd54a4bc9046550fe",
+  "backend/core/assignment_executor.py": "daca0aadc2fa9f7f9dbfae3f0e22857cb7221405c75603eac4ab203bebbd7475",
+  "backend/core/assignment_planner.py": "04765e03a6c6cce65709e4dbbfbc047eeff093997f80b84b073abe32fcf95040",
+  "backend/core/assignment_resources.py": "970dc2fab70f985faaa57f6c41ae55e430055403f65a130dac3e9978895ced33",
+  "backend/core/employee_proposal.py": "0575c4a0bc8a2004501fcc5b0486eea5a4a493cd878b8c1c25adabf71b823293",
+  "backend/core/employee_work_compiler.py": "8d84472988146e9bb56939586d9abbbdc7eb3fded1de2d3035b6642cbe1a65aa",
+  "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "0ed109516b9d63393de90593b000478b70e2704eb749ff4421ba0ac73f40af30",
+  "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0"
+ },
+ "artifacts": {
+  "README.md": "81d4c34070112c0b53317fcb0777e0e9c10612f0d02ed5fb13cb487285bcb812",
+  "TEST_RESULTS.md": "c93d6518631426637f603aa1424b6e0b9056a5870232fe012a364327a8f4f376",
+  "attempts.jsonl": "5e8963de2e3b52b2a1c65b6652869afcaae4c509632dd47adba8e35d7ea9ed54",
+  "cancellation.png": "59811debcba9a477d5887e6ddc4f3e4c6be9aaef6b68ad8278992e02a7f1f5e0",
+  "cancellation.txt": "ebbe9817300e285476b1697a1a283094d7c9949aab571645c622d6d9e97202ed",
+  "procurement-completed.png": "10528d5ba47f726d43e8ec3a319e40337c0bce1cc230e7130de19a218127a05d",
+  "procurement-final.txt": "72c4f094d41a8a4411eafb39d193cb083d42d286a7df8747f77a31cf5d923668",
+  "procurement-question-after-restart.png": "100a47f68a9a1ab6d58a9db6494c1ce5441654a9ef727af35a889362b80f6503",
+  "procurement-question-after-restart.txt": "d2217ae36bade7e09dbf660b38575d70f14a34d1f9d1cd34b25846a59bab23c6",
+  "procurement-question-before.png": "5c513c27437a206410edff77a163f1519f9bc08e8076f5847eeb042e545f6420",
+  "procurement-question-before.txt": "76965d687f867e65adbea910ddc3e9146ff997fd05c492af8a7cd2fcd3f21a78",
+  "procurement-summary.json": "50c787a7b62a07c14a50e4678c790a4736ca08a417a3328d390c9570d1986d46",
+  "quote-completed.png": "609e263410e6f839338549e578c3b5f91cbe9251988f6f04b2b38dc706c1cad3",
+  "quote-page.txt": "0b3aa1f45a11e27f465cb97f70c86d3387c9008b77e6ef8595f2c43d24370764",
+  "server.log": "8d54b775ac1a7799a030e6a310a4cd29b9014ada12146d199a00af5b4497745a"
+ },
+ "results": {
+  "quote": "370.00 satisfied",
+  "procurement_question": "actionable",
+  "restart_while_waiting": "question persisted",
+  "same_run_recovery": "270.00 satisfied",
+  "cancellation": "cancelled",
+  "ui_uploads": "ordinary",
+  "multi_source": "ordinary"
+ },
+ "exclusions": [
+  "general employee judgment remains unqualified",
+  "controlled provider-lost effect is separate API-level normal-application evidence",
+  "no cloud/live provider, credential, consent, send, spend or deployment",
+  "prior acceptance and historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}
