@@ -1,0 +1,4460 @@
+{
+  "schema": "atom-employee-g5-normal-campaign-1",
+  "model": "llama3.1:8b",
+  "ollama_url": "http://127.0.0.1:11436/v1",
+  "world": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-g5-normal-45432-f54c7d07",
+  "scenarios": {
+    "quote_initial": {
+      "run_id": "3c6f3bb1-6566-4c98-9535-477740a7250b",
+      "assignment": {
+        "run_id": "3c6f3bb1-6566-4c98-9535-477740a7250b",
+        "assignment": {
+          "assignment_id": "asg-ddd82c6199814e65",
+          "objective": "Prepare an exact customer quote from the approved price book",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 2,
+          "status": "completed",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "355eccd15469a854b858a83369c50029",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "workbook",
+              "binding": {
+                "resource_id": "fixture:price-book.xlsx",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "price-book.xlsx",
+                "representation": "xlsx",
+                "source_version": "ff5a2910ff0d37aff41b42770f33d1505a19bbbb1b8c9cbfe7e6775e4b60aba5",
+                "sheet": "Prices",
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 9,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 3,
+            "started_at": "2026-11-03T19:15:17.908797+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 80.678,
+            "wall_seconds": 80.678
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read price-book.xlsx",
+              "operation_type": "retrieve",
+              "adapter": "workbook.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "12b76872-3a0a-486f-aa40-37df623643d7",
+              "attempts": 0,
+              "result_summary": "read 2 of 2 matching record(s) from Prices",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "quote-lines",
+              "title": "Map accepted evidence to quote lines",
+              "operation_type": "calculate",
+              "adapter": "quote.lines_from_rows",
+              "depends_on": [
+                "source-1"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "20b355f8-cabc-4255-a37f-19b09a80f2ee",
+              "attempts": 0,
+              "result_summary": "mapped 2 quote row(s)",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "quote-total",
+              "title": "Calculate the evidence-backed quote total",
+              "operation_type": "calculate",
+              "adapter": "quote.calculate",
+              "depends_on": [
+                "quote-lines"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "c803700b-4305-441a-b910-38caf237e08b",
+              "attempts": 0,
+              "result_summary": "quote total 370.00 USD (2 lines)",
+              "result_value": "370.00",
+              "result_unit": "USD",
+              "readiness": null,
+              "result_measure": "quote_total",
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:15:17.895388+00:00",
+          "updated_at": "2026-11-03T19:16:38.577565+00:00",
+          "completed_at": "2026-11-03T19:16:38.577571+00:00",
+          "progress": {
+            "total_steps": 3,
+            "required_steps": 3,
+            "completed_steps": 3,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "12b76872-3a0a-486f-aa40-37df623643d7",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read 2 of 2 matching record(s) from Prices"
+          },
+          {
+            "operation_id": "20b355f8-cabc-4255-a37f-19b09a80f2ee",
+            "step_id": "quote-lines",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "mapped 2 quote row(s)"
+          },
+          {
+            "operation_id": "c803700b-4305-441a-b910-38caf237e08b",
+            "step_id": "quote-total",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "quote total 370.00 USD (2 lines)"
+          }
+        ]
+      },
+      "employee_job": {
+        "objective": "Prepare an exact customer quote from the approved price book",
+        "identity": {
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "execution_owner": "assignment"
+        },
+        "criteria": [
+          {
+            "criterion_id": "required_work_complete:assignment",
+            "kind": "required_work_complete",
+            "required": true,
+            "verifier": "required_work_complete",
+            "scope": {
+              "workspace_id": "default"
+            }
+          },
+          {
+            "criterion_id": "employee_result:objective",
+            "kind": "employee_result",
+            "required": true,
+            "verifier": "employee_result",
+            "scope": {
+              "workspace_id": "default"
+            }
+          }
+        ],
+        "facts": [],
+        "sources": [
+          {
+            "source_id": "fixture:price-book.xlsx",
+            "kind": "workbook",
+            "representation": "xlsx",
+            "file_name": "price-book.xlsx",
+            "sheet": "Prices",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "ff5a2910ff0d37aff41b42770f33d1505a19bbbb1b8c9cbfe7e6775e4b60aba5",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read price-book.xlsx",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read 2 of 2 matching record(s) from Prices"
+          },
+          {
+            "step_id": "quote-lines",
+            "title": "Map accepted evidence to quote lines",
+            "status": "applied",
+            "required": true,
+            "effect": "local",
+            "requires": [
+              {
+                "kind": "receipt",
+                "step_id": "source-1",
+                "require": "verified"
+              }
+            ],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "mapped 2 quote row(s)"
+          },
+          {
+            "step_id": "quote-total",
+            "title": "Calculate the evidence-backed quote total",
+            "status": "applied",
+            "required": true,
+            "effect": "local",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "quote total 370.00 USD (2 lines)"
+          }
+        ],
+        "open_obligations": [],
+        "budget": {
+          "max_steps": 9,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 3,
+          "started_at": "2026-11-03T19:15:17.908797+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {}
+        },
+        "status": "completed",
+        "task_version": 33,
+        "plan_revision": 2,
+        "business_outcome": {
+          "basis": "criteria_met",
+          "verdict": true,
+          "state": "satisfied",
+          "declared_state": "completed",
+          "outcome": {
+            "contract_version": 2,
+            "recorded_at": 1793733398.587208,
+            "execution_id": null,
+            "turn_id": null,
+            "objective": "Prepare an exact customer quote from the approved price book",
+            "objective_state": {
+              "goal": "Prepare an exact customer quote from the approved price book",
+              "target_entities": [],
+              "requested_attributes": [],
+              "source_constraints": {},
+              "authorized_actions": []
+            },
+            "objective_met": true,
+            "completion_criteria": [
+              {
+                "criterion_id": "required_work_complete:assignment",
+                "kind": "required_work_complete",
+                "required": true,
+                "verifier": "required_work_complete",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              },
+              {
+                "criterion_id": "employee_result:objective",
+                "kind": "employee_result",
+                "required": true,
+                "verifier": "employee_result",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              }
+            ],
+            "criterion_results": [
+              {
+                "criterion": "required_work_complete",
+                "met": true,
+                "verifier": "required_work_complete",
+                "evidence_refs": []
+              },
+              {
+                "criterion": "employee_result",
+                "met": true,
+                "verifier": "employee_result",
+                "evidence_refs": []
+              }
+            ],
+            "requested": {},
+            "source_constraints": {},
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "tool_outcomes": [
+              {
+                "tool": "workbook.read",
+                "verified": true,
+                "outcome": "read 2 of 2 matching record(s) from Prices",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "quote.lines_from_rows",
+                "verified": true,
+                "outcome": "mapped 2 quote row(s)",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "quote.calculate",
+                "verified": true,
+                "outcome": "quote total 370.00 USD (2 lines)",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              }
+            ],
+            "evidence_refs": [],
+            "evidence_ledger": {},
+            "gaps": [],
+            "implications": [],
+            "actions": [
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "calculate",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "calculate",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              }
+            ],
+            "calculation": {
+              "computed": "370.00",
+              "unit": "USD",
+              "verified": true,
+              "step_id": "quote-total",
+              "adapter": "quote.calculate"
+            },
+            "mutation": {},
+            "delivery": {
+              "calculation_verified": true,
+              "calculated_value": "370.00"
+            },
+            "user_corrections": [],
+            "limitations": [],
+            "latency_s": null,
+            "cost_usd": null,
+            "scope": {
+              "workspace_id": "default",
+              "teaching_revision": "untrained",
+              "plan_revision": 2
+            },
+            "policy_version": null,
+            "candidate_versions": {},
+            "learning_layers": {
+              "general_capability": {
+                "policy_version": null,
+                "candidate_versions": {}
+              },
+              "user_business_configuration": {
+                "scope": {
+                  "workspace_id": "default",
+                  "teaching_revision": "untrained",
+                  "plan_revision": 2
+                }
+              },
+              "task_evidence": {
+                "requested": {},
+                "evidence_refs": [],
+                "evidence_ledger": {},
+                "gap_count": 0,
+                "corrections": []
+              }
+            },
+            "failure_layer": null,
+            "failure_owner": null,
+            "success_kinds": {
+              "task_success": null,
+              "tool_success": true,
+              "delivery_success": null,
+              "task_success_basis": "delivery_unknown"
+            }
+          }
+        }
+      },
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "Prepare an exact customer quote from the approved price book",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Retrieve prices from price-book.xlsx",
+            "source_id": "fixture:price-book.xlsx",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          }
+        ],
+        "clarification": null
+      },
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "proposal_errors": [],
+      "adaptive_rounds": [
+        {
+          "source": "model",
+          "technical_fallback": false,
+          "decision": "replan",
+          "errors": [],
+          "failure_stage": null,
+          "attempt_id": "5af11951b3cf4f28ad0c6ca587e548e1",
+          "observation_ids": [
+            "evidence-ed55ee296d89ccc69d3d"
+          ],
+          "adoption_status": "applied",
+          "work_request_operation": "quote_calculation",
+          "execution_status": "completed"
+        }
+      ],
+      "plan_revision": 1,
+      "teaching_revision": "untrained"
+    },
+    "quote_changed": {
+      "status": "invalidated",
+      "affected_steps": [
+        "source-1",
+        "quote-lines",
+        "quote-total"
+      ],
+      "assignment": {
+        "run_id": "3c6f3bb1-6566-4c98-9535-477740a7250b",
+        "assignment": {
+          "assignment_id": "asg-ddd82c6199814e65",
+          "objective": "Prepare an exact customer quote from the approved price book",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 3,
+          "status": "completed",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "355eccd15469a854b858a83369c50029",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "workbook",
+              "binding": {
+                "resource_id": "fixture:price-book.xlsx",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "price-book.xlsx",
+                "representation": "xlsx",
+                "source_version": "ff5a2910ff0d37aff41b42770f33d1505a19bbbb1b8c9cbfe7e6775e4b60aba5",
+                "sheet": "Prices",
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 9,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 6,
+            "started_at": "2026-11-03T19:15:17.908797+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 80.808,
+            "wall_seconds": 80.808
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read price-book.xlsx",
+              "operation_type": "retrieve",
+              "adapter": "workbook.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "3b23f3a1-1124-45a9-a8d8-5f9f9d9e41a4",
+              "attempts": 0,
+              "result_summary": "read 2 of 2 matching record(s) from Prices",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 1,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "quote-lines",
+              "title": "Map accepted evidence to quote lines",
+              "operation_type": "calculate",
+              "adapter": "quote.lines_from_rows",
+              "depends_on": [
+                "source-1"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "18f22193-a26b-49b0-9fdd-c56014e6a8a5",
+              "attempts": 0,
+              "result_summary": "mapped 2 quote row(s)",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 1,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "quote-total",
+              "title": "Calculate the evidence-backed quote total",
+              "operation_type": "calculate",
+              "adapter": "quote.calculate",
+              "depends_on": [
+                "quote-lines"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "99c07934-ec8b-4416-a0b4-cd070f06da6d",
+              "attempts": 0,
+              "result_summary": "quote total 485.00 USD (2 lines)",
+              "result_value": "485.00",
+              "result_unit": "USD",
+              "readiness": null,
+              "result_measure": "quote_total",
+              "prior_result_count": 1,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:15:17.895388+00:00",
+          "updated_at": "2026-11-03T19:16:38.711217+00:00",
+          "completed_at": "2026-11-03T19:16:38.711219+00:00",
+          "progress": {
+            "total_steps": 3,
+            "required_steps": 3,
+            "completed_steps": 3,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "12b76872-3a0a-486f-aa40-37df623643d7",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read 2 of 2 matching record(s) from Prices"
+          },
+          {
+            "operation_id": "20b355f8-cabc-4255-a37f-19b09a80f2ee",
+            "step_id": "quote-lines",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "mapped 2 quote row(s)"
+          },
+          {
+            "operation_id": "c803700b-4305-441a-b910-38caf237e08b",
+            "step_id": "quote-total",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "quote total 370.00 USD (2 lines)"
+          },
+          {
+            "operation_id": "3b23f3a1-1124-45a9-a8d8-5f9f9d9e41a4",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read 2 of 2 matching record(s) from Prices"
+          },
+          {
+            "operation_id": "18f22193-a26b-49b0-9fdd-c56014e6a8a5",
+            "step_id": "quote-lines",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "mapped 2 quote row(s)"
+          },
+          {
+            "operation_id": "99c07934-ec8b-4416-a0b4-cd070f06da6d",
+            "step_id": "quote-total",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "quote total 485.00 USD (2 lines)"
+          }
+        ]
+      }
+    },
+    "quote_restart": {
+      "run_id": "3c6f3bb1-6566-4c98-9535-477740a7250b",
+      "assignment": {
+        "assignment_id": "asg-ddd82c6199814e65",
+        "objective": "Prepare an exact customer quote from the approved price book",
+        "employee_id": "browser-admin",
+        "workspace_id": "default",
+        "plan_revision": 3,
+        "status": "completed",
+        "teaching_revision": "untrained",
+        "teaching_fingerprint": "355eccd15469a854b858a83369c50029",
+        "teaching_history": [],
+        "effective_lesson_ids": [],
+        "mappings": [],
+        "mapping_history": [],
+        "deliverables": [],
+        "sources": [
+          {
+            "kind": "workbook",
+            "binding": {
+              "resource_id": "fixture:price-book.xlsx",
+              "dataset_name": null,
+              "source": null,
+              "source_kind": null,
+              "external_id": null,
+              "original_file_name": "price-book.xlsx",
+              "representation": "xlsx",
+              "source_version": "ff5a2910ff0d37aff41b42770f33d1505a19bbbb1b8c9cbfe7e6775e4b60aba5",
+              "sheet": "Prices",
+              "columns": [],
+              "numeric_columns": [],
+              "row_count": null,
+              "coverage": {
+                "known": true,
+                "truncated": false,
+                "controlled_fixture": true
+              },
+              "access_scope": {
+                "user_id": "browser-admin",
+                "workspace_id": "default",
+                "tenant_id": "default"
+              },
+              "workspace_id": "default",
+              "tenant_id": "default",
+              "internal_fixture": true
+            }
+          }
+        ],
+        "authorized_actions": [
+          "calculate",
+          "retrieve"
+        ],
+        "standing_authority": null,
+        "budget": {
+          "max_steps": 9,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 6,
+          "started_at": "2026-11-03T19:15:17.908797+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {},
+          "working_seconds": 83.322,
+          "wall_seconds": 83.322
+        },
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read price-book.xlsx",
+            "operation_type": "retrieve",
+            "adapter": "workbook.read",
+            "depends_on": [],
+            "required": true,
+            "effect": "read_only",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "3b23f3a1-1124-45a9-a8d8-5f9f9d9e41a4",
+            "attempts": 0,
+            "result_summary": "read 2 of 2 matching record(s) from Prices",
+            "result_value": null,
+            "result_unit": null,
+            "readiness": null,
+            "result_measure": null,
+            "prior_result_count": 1,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {},
+            "standing_authority_receipt": {},
+            "failure": {}
+          },
+          {
+            "step_id": "quote-lines",
+            "title": "Map accepted evidence to quote lines",
+            "operation_type": "calculate",
+            "adapter": "quote.lines_from_rows",
+            "depends_on": [
+              "source-1"
+            ],
+            "required": true,
+            "effect": "local",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "18f22193-a26b-49b0-9fdd-c56014e6a8a5",
+            "attempts": 0,
+            "result_summary": "mapped 2 quote row(s)",
+            "result_value": null,
+            "result_unit": null,
+            "readiness": null,
+            "result_measure": null,
+            "prior_result_count": 1,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {},
+            "standing_authority_receipt": {},
+            "failure": {}
+          },
+          {
+            "step_id": "quote-total",
+            "title": "Calculate the evidence-backed quote total",
+            "operation_type": "calculate",
+            "adapter": "quote.calculate",
+            "depends_on": [
+              "quote-lines"
+            ],
+            "required": true,
+            "effect": "local",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "99c07934-ec8b-4416-a0b4-cd070f06da6d",
+            "attempts": 0,
+            "result_summary": "quote total 485.00 USD (2 lines)",
+            "result_value": "485.00",
+            "result_unit": "USD",
+            "readiness": null,
+            "result_measure": "quote_total",
+            "prior_result_count": 1,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {},
+            "standing_authority_receipt": {},
+            "failure": {}
+          }
+        ],
+        "created_at": "2026-11-03T19:15:17.895388+00:00",
+        "updated_at": "2026-11-03T19:16:38.711217+00:00",
+        "completed_at": "2026-11-03T19:16:38.711219+00:00",
+        "progress": {
+          "total_steps": 3,
+          "required_steps": 3,
+          "completed_steps": 3,
+          "waiting_steps": 0,
+          "failed_steps": 0,
+          "uncertain_steps": 0,
+          "open_gap_count": 0
+        }
+      },
+      "open_gaps": [],
+      "operations": [
+        {
+          "operation_id": "12b76872-3a0a-486f-aa40-37df623643d7",
+          "step_id": "source-1",
+          "type": "retrieve",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "read 2 of 2 matching record(s) from Prices"
+        },
+        {
+          "operation_id": "20b355f8-cabc-4255-a37f-19b09a80f2ee",
+          "step_id": "quote-lines",
+          "type": "calculate",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "mapped 2 quote row(s)"
+        },
+        {
+          "operation_id": "c803700b-4305-441a-b910-38caf237e08b",
+          "step_id": "quote-total",
+          "type": "calculate",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "quote total 370.00 USD (2 lines)"
+        },
+        {
+          "operation_id": "3b23f3a1-1124-45a9-a8d8-5f9f9d9e41a4",
+          "step_id": "source-1",
+          "type": "retrieve",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "read 2 of 2 matching record(s) from Prices"
+        },
+        {
+          "operation_id": "18f22193-a26b-49b0-9fdd-c56014e6a8a5",
+          "step_id": "quote-lines",
+          "type": "calculate",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "mapped 2 quote row(s)"
+        },
+        {
+          "operation_id": "99c07934-ec8b-4416-a0b4-cd070f06da6d",
+          "step_id": "quote-total",
+          "type": "calculate",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "quote total 485.00 USD (2 lines)"
+        }
+      ],
+      "employee_job": {
+        "objective": "Prepare an exact customer quote from the approved price book",
+        "identity": {
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "execution_owner": "assignment"
+        },
+        "criteria": [
+          {
+            "criterion_id": "required_work_complete:assignment",
+            "kind": "required_work_complete",
+            "required": true,
+            "verifier": "required_work_complete",
+            "scope": {
+              "workspace_id": "default"
+            }
+          },
+          {
+            "criterion_id": "employee_result:objective",
+            "kind": "employee_result",
+            "required": true,
+            "verifier": "employee_result",
+            "scope": {
+              "workspace_id": "default"
+            }
+          }
+        ],
+        "facts": [],
+        "sources": [
+          {
+            "source_id": "fixture:price-book.xlsx",
+            "kind": "workbook",
+            "representation": "xlsx",
+            "file_name": "price-book.xlsx",
+            "sheet": "Prices",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "ff5a2910ff0d37aff41b42770f33d1505a19bbbb1b8c9cbfe7e6775e4b60aba5",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read price-book.xlsx",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read 2 of 2 matching record(s) from Prices"
+          },
+          {
+            "step_id": "quote-lines",
+            "title": "Map accepted evidence to quote lines",
+            "status": "applied",
+            "required": true,
+            "effect": "local",
+            "requires": [
+              {
+                "kind": "receipt",
+                "step_id": "source-1",
+                "require": "verified"
+              }
+            ],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "mapped 2 quote row(s)"
+          },
+          {
+            "step_id": "quote-total",
+            "title": "Calculate the evidence-backed quote total",
+            "status": "applied",
+            "required": true,
+            "effect": "local",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "quote total 485.00 USD (2 lines)"
+          }
+        ],
+        "open_obligations": [],
+        "budget": {
+          "max_steps": 9,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 6,
+          "started_at": "2026-11-03T19:15:17.908797+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {}
+        },
+        "status": "completed",
+        "task_version": 62,
+        "plan_revision": 3,
+        "business_outcome": {
+          "basis": "criteria_met",
+          "verdict": true,
+          "state": "satisfied",
+          "declared_state": "completed",
+          "outcome": {
+            "contract_version": 2,
+            "recorded_at": 1793733401.2318232,
+            "execution_id": null,
+            "turn_id": null,
+            "objective": "Prepare an exact customer quote from the approved price book",
+            "objective_state": {
+              "goal": "Prepare an exact customer quote from the approved price book",
+              "target_entities": [],
+              "requested_attributes": [],
+              "source_constraints": {},
+              "authorized_actions": []
+            },
+            "objective_met": true,
+            "completion_criteria": [
+              {
+                "criterion_id": "required_work_complete:assignment",
+                "kind": "required_work_complete",
+                "required": true,
+                "verifier": "required_work_complete",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              },
+              {
+                "criterion_id": "employee_result:objective",
+                "kind": "employee_result",
+                "required": true,
+                "verifier": "employee_result",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              }
+            ],
+            "criterion_results": [
+              {
+                "criterion": "required_work_complete",
+                "met": true,
+                "verifier": "required_work_complete",
+                "evidence_refs": []
+              },
+              {
+                "criterion": "employee_result",
+                "met": true,
+                "verifier": "employee_result",
+                "evidence_refs": []
+              }
+            ],
+            "requested": {},
+            "source_constraints": {},
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "tool_outcomes": [
+              {
+                "tool": "workbook.read",
+                "verified": true,
+                "outcome": "read 2 of 2 matching record(s) from Prices",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "quote.lines_from_rows",
+                "verified": true,
+                "outcome": "mapped 2 quote row(s)",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "quote.calculate",
+                "verified": true,
+                "outcome": "quote total 485.00 USD (2 lines)",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              }
+            ],
+            "evidence_refs": [],
+            "evidence_ledger": {},
+            "gaps": [],
+            "implications": [],
+            "actions": [
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "calculate",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "calculate",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              }
+            ],
+            "calculation": {
+              "computed": "485.00",
+              "unit": "USD",
+              "verified": true,
+              "step_id": "quote-total",
+              "adapter": "quote.calculate"
+            },
+            "mutation": {},
+            "delivery": {
+              "calculation_verified": true,
+              "calculated_value": "485.00"
+            },
+            "user_corrections": [],
+            "limitations": [],
+            "latency_s": null,
+            "cost_usd": null,
+            "scope": {
+              "workspace_id": "default",
+              "teaching_revision": "untrained",
+              "plan_revision": 3
+            },
+            "policy_version": null,
+            "candidate_versions": {},
+            "learning_layers": {
+              "general_capability": {
+                "policy_version": null,
+                "candidate_versions": {}
+              },
+              "user_business_configuration": {
+                "scope": {
+                  "workspace_id": "default",
+                  "teaching_revision": "untrained",
+                  "plan_revision": 3
+                }
+              },
+              "task_evidence": {
+                "requested": {},
+                "evidence_refs": [],
+                "evidence_ledger": {},
+                "gap_count": 0,
+                "corrections": []
+              }
+            },
+            "failure_layer": null,
+            "failure_owner": null,
+            "success_kinds": {
+              "task_success": null,
+              "tool_success": true,
+              "delivery_success": null,
+              "task_success_basis": "delivery_unknown"
+            }
+          }
+        }
+      }
+    },
+    "cancel": {
+      "run_id": "f76264be-0f8b-48e1-8f3a-494e10063e8c",
+      "assignment": {
+        "assignment_id": "asg-beb96aeaed2e473d",
+        "objective": "Cancel this independent evidence read",
+        "employee_id": "browser-admin",
+        "workspace_id": "default",
+        "plan_revision": 1,
+        "status": "cancelled",
+        "teaching_revision": "untrained",
+        "teaching_fingerprint": "9ce509878bb47d0d8a2a8d05c32fcfbe",
+        "teaching_history": [],
+        "effective_lesson_ids": [],
+        "mappings": [],
+        "mapping_history": [],
+        "deliverables": [],
+        "sources": [
+          {
+            "kind": "document",
+            "binding": {
+              "resource_id": "fixture:cancel-note.json",
+              "dataset_name": null,
+              "source": null,
+              "source_kind": null,
+              "external_id": null,
+              "original_file_name": "cancel-note.json",
+              "representation": "file",
+              "source_version": "ecd59a9ef96a1f7e37d0cc11959ff2ab761d4ea99a727c70771399257c98e1ba",
+              "sheet": null,
+              "columns": [],
+              "numeric_columns": [],
+              "row_count": null,
+              "coverage": {
+                "known": true,
+                "truncated": false,
+                "controlled_fixture": true
+              },
+              "access_scope": {
+                "user_id": "browser-admin",
+                "workspace_id": "default",
+                "tenant_id": "default"
+              },
+              "workspace_id": "default",
+              "tenant_id": "default",
+              "internal_fixture": true
+            }
+          }
+        ],
+        "authorized_actions": [
+          "retrieve"
+        ],
+        "standing_authority": null,
+        "budget": {
+          "max_steps": 9,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 1,
+          "started_at": "2026-11-03T19:16:41.246876+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {},
+          "working_seconds": 0.029,
+          "wall_seconds": 0.029
+        },
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read cancel-note.json",
+            "operation_type": "retrieve",
+            "adapter": "document.read",
+            "depends_on": [],
+            "required": true,
+            "effect": "read_only",
+            "status": "applied",
+            "recovery_class": "terminal",
+            "operation_id": "fb3c4dbd-0c95-4b1b-8111-3e0dcf2ad67d",
+            "attempts": 0,
+            "result_summary": "read structured cancel-note.json",
+            "result_value": null,
+            "result_unit": null,
+            "readiness": null,
+            "result_measure": null,
+            "prior_result_count": 0,
+            "artifact_revision": null,
+            "gap_ids": [],
+            "waiting": {},
+            "external_response": {},
+            "approval_request": {},
+            "standing_authority_receipt": {},
+            "failure": {}
+          }
+        ],
+        "created_at": "2026-11-03T19:16:41.234600+00:00",
+        "updated_at": "2026-11-03T19:16:41.266822+00:00",
+        "completed_at": "2026-11-03T19:16:41.272861+00:00",
+        "progress": {
+          "total_steps": 1,
+          "required_steps": 1,
+          "completed_steps": 1,
+          "waiting_steps": 0,
+          "failed_steps": 0,
+          "uncertain_steps": 0,
+          "open_gap_count": 0
+        }
+      },
+      "open_gaps": [],
+      "operations": [
+        {
+          "operation_id": "fb3c4dbd-0c95-4b1b-8111-3e0dcf2ad67d",
+          "step_id": "source-1",
+          "type": "retrieve",
+          "status": "applied",
+          "needs_reconciliation": false,
+          "approval": {},
+          "uncertainty_reason": null,
+          "remote_id": null,
+          "provider_ref": null,
+          "result_summary": "read structured cancel-note.json"
+        }
+      ]
+    },
+    "invoice_initial": {
+      "run_id": "37fd7cb3-83e1-4959-829b-ed89ef9be9f3",
+      "assignment": {
+        "run_id": "37fd7cb3-83e1-4959-829b-ed89ef9be9f3",
+        "assignment": {
+          "assignment_id": "asg-21285282efeb46c3",
+          "objective": "Reconcile the supplier invoice against the purchase order and receiving record; prepare only supported bookkeeping work",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 2,
+          "status": "completed",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "34ce338eb5fa08f9b0ca8811712a088b",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:purchase-order.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "purchase-order.json",
+                "representation": "file",
+                "source_version": "4f00573949c49fb300f7f1828324abee1681cf0195108b25a708d2e9ed37202d",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:invoice.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "invoice.json",
+                "representation": "file",
+                "source_version": "7f62844e6009a36a3c07adc3afe5cbb90396b8932ccc98be1c043bee765b0e6b",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:receiving.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "receiving.json",
+                "representation": "file",
+                "source_version": "53ac722e0f102f358af7281c265b6bc674046d6c76d48aa9490c499b74b88efe",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 11,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 4,
+            "started_at": "2026-11-03T19:17:17.793754+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 66.639,
+            "wall_seconds": 66.639
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read purchase-order.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "a6e106d8-c638-41c5-b214-3ae4a28cc1d4",
+              "attempts": 0,
+              "result_summary": "read structured purchase-order.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-2",
+              "title": "Read invoice.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "4edecfd1-0d08-4626-95df-e46d6c33bb18",
+              "attempts": 0,
+              "result_summary": "read structured invoice.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-3",
+              "title": "Read receiving.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "2343c622-63f8-481f-bf82-d82d3c083949",
+              "attempts": 0,
+              "result_summary": "read structured receiving.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "invoice-reconcile",
+              "title": "Reconcile invoice against purchase and receiving evidence",
+              "operation_type": "calculate",
+              "adapter": "invoice.reconcile",
+              "depends_on": [
+                "source-2",
+                "source-1",
+                "source-3"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "9caba7a7-2d61-4af4-9006-de28b8620f99",
+              "attempts": 0,
+              "result_summary": "reconciled invoice total 270.00 USD against received quantity 2",
+              "result_value": "270.00",
+              "result_unit": "USD",
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:17:17.782631+00:00",
+          "updated_at": "2026-11-03T19:18:24.423671+00:00",
+          "completed_at": "2026-11-03T19:18:24.423673+00:00",
+          "progress": {
+            "total_steps": 4,
+            "required_steps": 4,
+            "completed_steps": 4,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "a6e106d8-c638-41c5-b214-3ae4a28cc1d4",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured purchase-order.json"
+          },
+          {
+            "operation_id": "4edecfd1-0d08-4626-95df-e46d6c33bb18",
+            "step_id": "source-2",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured invoice.json"
+          },
+          {
+            "operation_id": "2343c622-63f8-481f-bf82-d82d3c083949",
+            "step_id": "source-3",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured receiving.json"
+          },
+          {
+            "operation_id": "9caba7a7-2d61-4af4-9006-de28b8620f99",
+            "step_id": "invoice-reconcile",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "reconciled invoice total 270.00 USD against received quantity 2"
+          }
+        ]
+      },
+      "employee_job": {
+        "objective": "Reconcile the supplier invoice against the purchase order and receiving record; prepare only supported bookkeeping work",
+        "identity": {
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "execution_owner": "assignment"
+        },
+        "criteria": [
+          {
+            "criterion_id": "required_work_complete:assignment",
+            "kind": "required_work_complete",
+            "required": true,
+            "verifier": "required_work_complete",
+            "scope": {
+              "workspace_id": "default"
+            }
+          },
+          {
+            "criterion_id": "employee_result:objective",
+            "kind": "employee_result",
+            "required": true,
+            "verifier": "employee_result",
+            "scope": {
+              "workspace_id": "default"
+            }
+          }
+        ],
+        "facts": [],
+        "sources": [
+          {
+            "source_id": "fixture:purchase-order.json",
+            "kind": "document",
+            "representation": "file",
+            "file_name": "purchase-order.json",
+            "sheet": "",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "4f00573949c49fb300f7f1828324abee1681cf0195108b25a708d2e9ed37202d",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          },
+          {
+            "source_id": "fixture:invoice.json",
+            "kind": "document",
+            "representation": "file",
+            "file_name": "invoice.json",
+            "sheet": "",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "7f62844e6009a36a3c07adc3afe5cbb90396b8932ccc98be1c043bee765b0e6b",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          },
+          {
+            "source_id": "fixture:receiving.json",
+            "kind": "document",
+            "representation": "file",
+            "file_name": "receiving.json",
+            "sheet": "",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "53ac722e0f102f358af7281c265b6bc674046d6c76d48aa9490c499b74b88efe",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read purchase-order.json",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read structured purchase-order.json"
+          },
+          {
+            "step_id": "source-2",
+            "title": "Read invoice.json",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read structured invoice.json"
+          },
+          {
+            "step_id": "source-3",
+            "title": "Read receiving.json",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read structured receiving.json"
+          },
+          {
+            "step_id": "invoice-reconcile",
+            "title": "Reconcile invoice against purchase and receiving evidence",
+            "status": "applied",
+            "required": true,
+            "effect": "local",
+            "requires": [
+              {
+                "kind": "receipt",
+                "step_id": "source-2",
+                "require": "verified"
+              },
+              {
+                "kind": "receipt",
+                "step_id": "source-1",
+                "require": "verified"
+              },
+              {
+                "kind": "receipt",
+                "step_id": "source-3",
+                "require": "verified"
+              }
+            ],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "reconciled invoice total 270.00 USD against received quantity 2"
+          }
+        ],
+        "open_obligations": [],
+        "budget": {
+          "max_steps": 11,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 4,
+          "started_at": "2026-11-03T19:17:17.793754+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {}
+        },
+        "status": "completed",
+        "task_version": 42,
+        "plan_revision": 2,
+        "business_outcome": {
+          "basis": "criteria_met",
+          "verdict": true,
+          "state": "satisfied",
+          "declared_state": "completed",
+          "outcome": {
+            "contract_version": 2,
+            "recorded_at": 1793733504.4336529,
+            "execution_id": null,
+            "turn_id": null,
+            "objective": "Reconcile the supplier invoice against the purchase order and receiving record; prepare only supported bookkeeping work",
+            "objective_state": {
+              "goal": "Reconcile the supplier invoice against the purchase order and receiving record; prepare only supported bookkeeping work",
+              "target_entities": [],
+              "requested_attributes": [],
+              "source_constraints": {},
+              "authorized_actions": []
+            },
+            "objective_met": true,
+            "completion_criteria": [
+              {
+                "criterion_id": "required_work_complete:assignment",
+                "kind": "required_work_complete",
+                "required": true,
+                "verifier": "required_work_complete",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              },
+              {
+                "criterion_id": "employee_result:objective",
+                "kind": "employee_result",
+                "required": true,
+                "verifier": "employee_result",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              }
+            ],
+            "criterion_results": [
+              {
+                "criterion": "required_work_complete",
+                "met": true,
+                "verifier": "required_work_complete",
+                "evidence_refs": [
+                  {
+                    "kind": "bookkeeping_reconciliation",
+                    "resource_id": "invoice"
+                  }
+                ]
+              },
+              {
+                "criterion": "employee_result",
+                "met": true,
+                "verifier": "employee_result",
+                "evidence_refs": [
+                  {
+                    "kind": "bookkeeping_reconciliation",
+                    "resource_id": "invoice"
+                  }
+                ]
+              }
+            ],
+            "requested": {},
+            "source_constraints": {},
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "tool_outcomes": [
+              {
+                "tool": "document.read",
+                "verified": true,
+                "outcome": "read structured purchase-order.json",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "document.read",
+                "verified": true,
+                "outcome": "read structured invoice.json",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "document.read",
+                "verified": true,
+                "outcome": "read structured receiving.json",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "invoice.reconcile",
+                "verified": true,
+                "outcome": "reconciled invoice total 270.00 USD against received quantity 2",
+                "required": true,
+                "evidence_refs": [
+                  {
+                    "kind": "bookkeeping_reconciliation",
+                    "resource_id": "invoice"
+                  }
+                ],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              }
+            ],
+            "evidence_refs": [
+              {
+                "kind": "bookkeeping_reconciliation",
+                "resource_id": "invoice"
+              }
+            ],
+            "evidence_ledger": {},
+            "gaps": [],
+            "implications": [],
+            "actions": [
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "calculate",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": [
+                  {
+                    "kind": "bookkeeping_reconciliation",
+                    "resource_id": "invoice"
+                  }
+                ]
+              }
+            ],
+            "calculation": {
+              "computed": "270.00",
+              "unit": "USD",
+              "verified": true,
+              "step_id": "invoice-reconcile",
+              "adapter": "invoice.reconcile"
+            },
+            "mutation": {},
+            "delivery": {
+              "calculation_verified": true,
+              "calculated_value": "270.00"
+            },
+            "user_corrections": [],
+            "limitations": [],
+            "latency_s": null,
+            "cost_usd": null,
+            "scope": {
+              "workspace_id": "default",
+              "teaching_revision": "untrained",
+              "plan_revision": 2
+            },
+            "policy_version": null,
+            "candidate_versions": {},
+            "learning_layers": {
+              "general_capability": {
+                "policy_version": null,
+                "candidate_versions": {}
+              },
+              "user_business_configuration": {
+                "scope": {
+                  "workspace_id": "default",
+                  "teaching_revision": "untrained",
+                  "plan_revision": 2
+                }
+              },
+              "task_evidence": {
+                "requested": {},
+                "evidence_refs": [
+                  {
+                    "kind": "bookkeeping_reconciliation",
+                    "resource_id": "invoice"
+                  }
+                ],
+                "evidence_ledger": {},
+                "gap_count": 0,
+                "corrections": []
+              }
+            },
+            "failure_layer": null,
+            "failure_owner": null,
+            "success_kinds": {
+              "task_success": null,
+              "tool_success": true,
+              "delivery_success": null,
+              "task_success_basis": "delivery_unknown"
+            }
+          }
+        }
+      },
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "Reconcile the supplier invoice against the purchase order and receiving record.",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Verify Purchase Order",
+            "source_id": "fixture:purchase-order.json",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-2",
+            "title": "Verify Invoice",
+            "source_id": "fixture:invoice.json",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-3",
+            "title": "Verify Receiving Record",
+            "source_id": "fixture:receiving.json",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          }
+        ],
+        "clarification": null
+      },
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "proposal_errors": [],
+      "adaptive_rounds": [
+        {
+          "source": "model",
+          "technical_fallback": false,
+          "decision": "replan",
+          "errors": [],
+          "failure_stage": null,
+          "attempt_id": "ab9857f4ad0d4a9db50dcb999081f98b",
+          "observation_ids": [
+            "evidence-91189afcfe6d759162b6",
+            "evidence-06eb3370e19442b1045c",
+            "evidence-3c1d180ef32aa4d487d5"
+          ],
+          "adoption_status": "applied",
+          "work_request_operation": "invoice_reconciliation",
+          "execution_status": "completed"
+        }
+      ],
+      "plan_revision": 1,
+      "teaching_revision": "untrained"
+    },
+    "missing_invoice": {
+      "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+      "assignment": {
+        "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+        "assignment": {
+          "assignment_id": "asg-cca55eeef6a64cc0",
+          "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 1,
+          "status": "blocked",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-po.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-po.json",
+                "representation": "file",
+                "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-receiving.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-receiving.json",
+                "representation": "file",
+                "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 10,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 2,
+            "started_at": "2026-11-03T19:18:57.178042+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 74.189,
+            "wall_seconds": 74.189
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read missing-po.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "attempts": 0,
+              "result_summary": "read structured missing-po.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-2",
+              "title": "Read missing-receiving.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "attempts": 0,
+              "result_summary": "read structured missing-receiving.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:18:57.169721+00:00",
+          "updated_at": "2026-11-03T19:18:57.221208+00:00",
+          "completed_at": "2026-11-03T19:18:57.220446+00:00",
+          "progress": {
+            "total_steps": 2,
+            "required_steps": 2,
+            "completed_steps": 2,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 1
+          }
+        },
+        "open_gaps": [
+          {
+            "question_id": "42447fbf-d93c-4c7f-92a0-c13ccd12804b",
+            "item": "invoice reconciliation",
+            "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+            "kind": "missing_evidence",
+            "evidence": "",
+            "next_action": "Confirm the missing business fact.",
+            "decision_owner": null,
+            "inputs": {
+              "operation": "invoice_reconciliation",
+              "missing": [
+                "invoice"
+              ],
+              "known_identities": {
+                "purchase_order.po_id": "PO-8",
+                "purchase_order.vendor_id": "V-9",
+                "receiving.po_id": "PO-8"
+              }
+            },
+            "concept": "invoice_reconciliation",
+            "reason": "missing prerequisite: invoice",
+            "affected_subjects": [],
+            "checked_evidence": [],
+            "next_retrieval": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+            "resolver": null,
+            "step_id": null,
+            "waiting": null,
+            "status": "open",
+            "attempts": 0,
+            "opened_at": "2026-11-03T19:20:11.364723+00:00",
+            "resolved_at": null,
+            "resolution": null,
+            "source_operation": null
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-po.json"
+          },
+          {
+            "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+            "step_id": "source-2",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-receiving.json"
+          }
+        ]
+      },
+      "employee_job": {
+        "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+        "identity": {
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "execution_owner": "assignment"
+        },
+        "criteria": [
+          {
+            "criterion_id": "required_work_complete:assignment",
+            "kind": "required_work_complete",
+            "required": true,
+            "verifier": "required_work_complete",
+            "scope": {
+              "workspace_id": "default"
+            }
+          },
+          {
+            "criterion_id": "employee_result:objective",
+            "kind": "employee_result",
+            "required": true,
+            "verifier": "employee_result",
+            "scope": {
+              "workspace_id": "default"
+            }
+          }
+        ],
+        "facts": [],
+        "sources": [
+          {
+            "source_id": "fixture:missing-po.json",
+            "kind": "document",
+            "representation": "file",
+            "file_name": "missing-po.json",
+            "sheet": "",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          },
+          {
+            "source_id": "fixture:missing-receiving.json",
+            "kind": "document",
+            "representation": "file",
+            "file_name": "missing-receiving.json",
+            "sheet": "",
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "truncated": false,
+              "controlled_fixture": true
+            },
+            "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+            "preview": {
+              "sampled": true,
+              "kind": "source_metadata_not_rows",
+              "total_count": null,
+              "shown_count": 0,
+              "omitted_count": null,
+              "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "step_id": "source-1",
+            "title": "Read missing-po.json",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read structured missing-po.json"
+          },
+          {
+            "step_id": "source-2",
+            "title": "Read missing-receiving.json",
+            "status": "applied",
+            "required": true,
+            "effect": "read_only",
+            "requires": [],
+            "readiness": null,
+            "readiness_blocker": null,
+            "result_summary": "read structured missing-receiving.json"
+          }
+        ],
+        "open_obligations": [
+          {
+            "question_id": "42447fbf-d93c-4c7f-92a0-c13ccd12804b",
+            "item": "invoice reconciliation",
+            "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+            "kind": "missing_evidence",
+            "evidence": "",
+            "next_action": "Confirm the missing business fact.",
+            "decision_owner": null,
+            "inputs": {
+              "operation": "invoice_reconciliation",
+              "missing": [
+                "invoice"
+              ],
+              "known_identities": {
+                "purchase_order.po_id": "PO-8",
+                "purchase_order.vendor_id": "V-9",
+                "receiving.po_id": "PO-8"
+              }
+            },
+            "concept": "invoice_reconciliation",
+            "reason": "missing prerequisite: invoice",
+            "affected_subjects": [],
+            "checked_evidence": [],
+            "next_retrieval": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+            "resolver": null,
+            "step_id": null,
+            "waiting": null,
+            "status": "open",
+            "attempts": 0,
+            "opened_at": "2026-11-03T19:20:11.364723+00:00",
+            "resolved_at": null,
+            "resolution": null,
+            "source_operation": null
+          }
+        ],
+        "budget": {
+          "max_steps": 10,
+          "max_attempts_per_step": 3,
+          "max_wall_seconds": 900.0,
+          "max_cost_usd": 0.0,
+          "deadline": null,
+          "cost_mode": "hard",
+          "soft_limit_authorized_by": null,
+          "reserved_cost_usd": 0.0,
+          "cost_reservations": [],
+          "cost_overrun_usd": 0.0,
+          "cost_violation": null,
+          "soft_limit_exceeded": false,
+          "steps_started": 2,
+          "started_at": "2026-11-03T19:18:57.178042+00:00",
+          "elapsed_seconds": 0.0,
+          "paused_seconds": 0.0,
+          "waiting_since": null,
+          "wait_credits": {},
+          "wait_credits_schema": 1,
+          "active_wait": null,
+          "cost_usd": 0.0,
+          "idle_ledger_schema": 2,
+          "idle_intervals": {}
+        },
+        "status": "blocked",
+        "task_version": 23,
+        "plan_revision": 1,
+        "business_outcome": {
+          "basis": "criteria_unknown",
+          "verdict": null,
+          "state": "unresolved",
+          "declared_state": "blocked",
+          "outcome": {
+            "contract_version": 2,
+            "recorded_at": 1793733611.368078,
+            "execution_id": null,
+            "turn_id": null,
+            "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+            "objective_state": {
+              "goal": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+              "target_entities": [],
+              "requested_attributes": [],
+              "source_constraints": {},
+              "authorized_actions": []
+            },
+            "objective_met": null,
+            "completion_criteria": [
+              {
+                "criterion_id": "required_work_complete:assignment",
+                "kind": "required_work_complete",
+                "required": true,
+                "verifier": "required_work_complete",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              },
+              {
+                "criterion_id": "employee_result:objective",
+                "kind": "employee_result",
+                "required": true,
+                "verifier": "employee_result",
+                "scope": {
+                  "workspace_id": "default"
+                }
+              }
+            ],
+            "criterion_results": [
+              {
+                "criterion": "required_work_complete",
+                "met": true,
+                "verifier": "required_work_complete",
+                "evidence_refs": []
+              },
+              {
+                "criterion": "employee_result",
+                "met": null,
+                "verifier": "employee_result",
+                "evidence_refs": []
+              }
+            ],
+            "requested": {},
+            "source_constraints": {},
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "tool_outcomes": [
+              {
+                "tool": "document.read",
+                "verified": true,
+                "outcome": "read structured missing-po.json",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              },
+              {
+                "tool": "document.read",
+                "verified": true,
+                "outcome": "read structured missing-receiving.json",
+                "required": true,
+                "evidence_refs": [],
+                "criterion_ids": [],
+                "failure_layer": null,
+                "failure_owner": null
+              }
+            ],
+            "evidence_refs": [],
+            "evidence_ledger": {},
+            "gaps": [
+              {
+                "criterion_id": "",
+                "status": "open",
+                "reasons": [
+                  "missing prerequisite: invoice"
+                ],
+                "next_evidence_needed": "Which authorized source contains the missing invoice evidence for purchase order PO-8?"
+              }
+            ],
+            "implications": [],
+            "actions": [
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              },
+              {
+                "action_type": "retrieve",
+                "criterion_id": "",
+                "status": "applied",
+                "authorized": true,
+                "applied": true,
+                "required": true,
+                "evidence_refs": []
+              }
+            ],
+            "calculation": {},
+            "mutation": {},
+            "delivery": {},
+            "user_corrections": [],
+            "limitations": [],
+            "latency_s": null,
+            "cost_usd": null,
+            "scope": {
+              "workspace_id": "default",
+              "teaching_revision": "untrained",
+              "plan_revision": 1
+            },
+            "policy_version": null,
+            "candidate_versions": {},
+            "learning_layers": {
+              "general_capability": {
+                "policy_version": null,
+                "candidate_versions": {}
+              },
+              "user_business_configuration": {
+                "scope": {
+                  "workspace_id": "default",
+                  "teaching_revision": "untrained",
+                  "plan_revision": 1
+                }
+              },
+              "task_evidence": {
+                "requested": {},
+                "evidence_refs": [],
+                "evidence_ledger": {},
+                "gap_count": 1,
+                "corrections": []
+              }
+            },
+            "failure_layer": null,
+            "failure_owner": null,
+            "success_kinds": {
+              "task_success": null,
+              "tool_success": null,
+              "delivery_success": null,
+              "task_success_basis": "criteria_unknown"
+            }
+          }
+        }
+      },
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Retrieve missing PO-8 data from fixture:missing-po.json",
+            "source_id": "fixture:missing-po.json",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-2",
+            "title": "Retrieve missing receiving data from fixture:missing-receiving.json",
+            "source_id": "fixture:missing-receiving.json",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          }
+        ],
+        "clarification": null
+      },
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "proposal_errors": [],
+      "adaptive_rounds": [
+        {
+          "source": "model",
+          "technical_fallback": false,
+          "decision": "clarify",
+          "errors": [],
+          "failure_stage": null,
+          "attempt_id": "e1b36310b02d490481f88f4d332802fa",
+          "observation_ids": [
+            "evidence-c2a617e8f73266651d01",
+            "evidence-af08e577116872dca531"
+          ],
+          "clarification": {
+            "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+            "concept": "",
+            "unblocks": "",
+            "expected_answer_type": ""
+          }
+        }
+      ],
+      "plan_revision": 1,
+      "teaching_revision": "untrained"
+    },
+    "missing_invoice_source": {
+      "status": "applied",
+      "patch_id": "source-add-5f335369cfb0f66e",
+      "material_digest": "cb66225de91c1352b47749a7a12c421011d7a38c6567d31666124ec7f41a8c0b",
+      "affected_steps": [],
+      "updated_steps": [],
+      "retained_steps": [
+        "source-1",
+        "source-2"
+      ],
+      "plan_revision": 2,
+      "assignment": {
+        "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+        "assignment": {
+          "assignment_id": "asg-cca55eeef6a64cc0",
+          "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 2,
+          "status": "blocked",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-po.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-po.json",
+                "representation": "file",
+                "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-receiving.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-receiving.json",
+                "representation": "file",
+                "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 10,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 3,
+            "started_at": "2026-11-03T19:18:57.178042+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 74.24,
+            "wall_seconds": 74.24
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read missing-po.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "attempts": 0,
+              "result_summary": "read structured missing-po.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-2",
+              "title": "Read missing-receiving.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "attempts": 0,
+              "result_summary": "read structured missing-receiving.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-3",
+              "title": "Read supplied-invoice.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+              "attempts": 0,
+              "result_summary": "read structured supplied-invoice.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:18:57.169721+00:00",
+          "updated_at": "2026-11-03T19:20:11.409334+00:00",
+          "completed_at": "2026-11-03T19:20:11.408171+00:00",
+          "progress": {
+            "total_steps": 3,
+            "required_steps": 3,
+            "completed_steps": 3,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-po.json"
+          },
+          {
+            "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+            "step_id": "source-2",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-receiving.json"
+          },
+          {
+            "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+            "step_id": "source-3",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured supplied-invoice.json"
+          }
+        ]
+      },
+      "resolved_question_ids": [
+        "42447fbf-d93c-4c7f-92a0-c13ccd12804b"
+      ],
+      "mismatched_question_ids": [],
+      "observed_purchase_order": "PO-8"
+    },
+    "missing_invoice_duplicate": {
+      "status": "already_present",
+      "reason": "the authorized source version is already present",
+      "step_id": "source-3",
+      "assignment": {
+        "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+        "assignment": {
+          "assignment_id": "asg-cca55eeef6a64cc0",
+          "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 2,
+          "status": "blocked",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-po.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-po.json",
+                "representation": "file",
+                "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-receiving.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-receiving.json",
+                "representation": "file",
+                "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 10,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 3,
+            "started_at": "2026-11-03T19:18:57.178042+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 74.243,
+            "wall_seconds": 74.243
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read missing-po.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "attempts": 0,
+              "result_summary": "read structured missing-po.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-2",
+              "title": "Read missing-receiving.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "attempts": 0,
+              "result_summary": "read structured missing-receiving.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-3",
+              "title": "Read supplied-invoice.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+              "attempts": 0,
+              "result_summary": "read structured supplied-invoice.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:18:57.169721+00:00",
+          "updated_at": "2026-11-03T19:20:11.409334+00:00",
+          "completed_at": "2026-11-03T19:20:11.408171+00:00",
+          "progress": {
+            "total_steps": 3,
+            "required_steps": 3,
+            "completed_steps": 3,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-po.json"
+          },
+          {
+            "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+            "step_id": "source-2",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-receiving.json"
+          },
+          {
+            "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+            "step_id": "source-3",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured supplied-invoice.json"
+          }
+        ]
+      }
+    },
+    "missing_invoice_recovery": {
+      "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+      "assignment": {
+        "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+        "assignment": {
+          "assignment_id": "asg-cca55eeef6a64cc0",
+          "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+          "employee_id": "browser-admin",
+          "workspace_id": "default",
+          "plan_revision": 3,
+          "status": "completed",
+          "teaching_revision": "untrained",
+          "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+          "teaching_history": [],
+          "effective_lesson_ids": [],
+          "mappings": [],
+          "mapping_history": [],
+          "deliverables": [],
+          "sources": [
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-po.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-po.json",
+                "representation": "file",
+                "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            },
+            {
+              "kind": "document",
+              "binding": {
+                "resource_id": "fixture:missing-receiving.json",
+                "dataset_name": null,
+                "source": null,
+                "source_kind": null,
+                "external_id": null,
+                "original_file_name": "missing-receiving.json",
+                "representation": "file",
+                "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                "sheet": null,
+                "columns": [],
+                "numeric_columns": [],
+                "row_count": null,
+                "coverage": {
+                  "known": true,
+                  "truncated": false,
+                  "controlled_fixture": true
+                },
+                "access_scope": {
+                  "user_id": "browser-admin",
+                  "workspace_id": "default",
+                  "tenant_id": "default"
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "internal_fixture": true
+              }
+            }
+          ],
+          "authorized_actions": [
+            "calculate",
+            "retrieve"
+          ],
+          "standing_authority": null,
+          "budget": {
+            "max_steps": 10,
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900.0,
+            "max_cost_usd": 0.0,
+            "deadline": null,
+            "cost_mode": "hard",
+            "soft_limit_authorized_by": null,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": null,
+            "soft_limit_exceeded": false,
+            "steps_started": 4,
+            "started_at": "2026-11-03T19:18:57.178042+00:00",
+            "elapsed_seconds": 0.0,
+            "paused_seconds": 0.0,
+            "waiting_since": null,
+            "wait_credits": {},
+            "wait_credits_schema": 1,
+            "active_wait": null,
+            "cost_usd": 0.0,
+            "idle_ledger_schema": 2,
+            "idle_intervals": {},
+            "working_seconds": 128.53,
+            "wall_seconds": 128.53
+          },
+          "steps": [
+            {
+              "step_id": "source-1",
+              "title": "Read missing-po.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "attempts": 0,
+              "result_summary": "read structured missing-po.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-2",
+              "title": "Read missing-receiving.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "attempts": 0,
+              "result_summary": "read structured missing-receiving.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "source-3",
+              "title": "Read supplied-invoice.json",
+              "operation_type": "retrieve",
+              "adapter": "document.read",
+              "depends_on": [],
+              "required": true,
+              "effect": "read_only",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+              "attempts": 0,
+              "result_summary": "read structured supplied-invoice.json",
+              "result_value": null,
+              "result_unit": null,
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            },
+            {
+              "step_id": "invoice-reconcile",
+              "title": "Reconcile invoice against purchase and receiving evidence",
+              "operation_type": "calculate",
+              "adapter": "invoice.reconcile",
+              "depends_on": [
+                "source-3",
+                "source-1",
+                "source-2"
+              ],
+              "required": true,
+              "effect": "local",
+              "status": "applied",
+              "recovery_class": "terminal",
+              "operation_id": "29a470fe-7a91-42b3-a094-f59afd473e49",
+              "attempts": 0,
+              "result_summary": "reconciled invoice total 270.00 USD against received quantity 2",
+              "result_value": "270.00",
+              "result_unit": "USD",
+              "readiness": null,
+              "result_measure": null,
+              "prior_result_count": 0,
+              "artifact_revision": null,
+              "gap_ids": [],
+              "waiting": {},
+              "external_response": {},
+              "approval_request": {},
+              "standing_authority_receipt": {},
+              "failure": {}
+            }
+          ],
+          "created_at": "2026-11-03T19:18:57.169721+00:00",
+          "updated_at": "2026-11-03T19:21:05.698735+00:00",
+          "completed_at": "2026-11-03T19:21:05.698739+00:00",
+          "progress": {
+            "total_steps": 4,
+            "required_steps": 4,
+            "completed_steps": 4,
+            "waiting_steps": 0,
+            "failed_steps": 0,
+            "uncertain_steps": 0,
+            "open_gap_count": 0
+          }
+        },
+        "open_gaps": [],
+        "operations": [
+          {
+            "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+            "step_id": "source-1",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-po.json"
+          },
+          {
+            "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+            "step_id": "source-2",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured missing-receiving.json"
+          },
+          {
+            "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+            "step_id": "source-3",
+            "type": "retrieve",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "read structured supplied-invoice.json"
+          },
+          {
+            "operation_id": "29a470fe-7a91-42b3-a094-f59afd473e49",
+            "step_id": "invoice-reconcile",
+            "type": "calculate",
+            "status": "applied",
+            "needs_reconciliation": false,
+            "approval": {},
+            "uncertainty_reason": null,
+            "remote_id": null,
+            "provider_ref": null,
+            "result_summary": "reconciled invoice total 270.00 USD against received quantity 2"
+          }
+        ]
+      },
+      "rounds": [
+        {
+          "source": "model",
+          "technical_fallback": false,
+          "decision": "replan",
+          "errors": [],
+          "failure_stage": null,
+          "attempt_id": "2797c0694eec4c9aadbe159dec73cac8",
+          "observation_ids": [
+            "evidence-c2a617e8f73266651d01",
+            "evidence-af08e577116872dca531",
+            "evidence-1f876663cd4b50d60f98"
+          ],
+          "adoption_status": "applied",
+          "work_request_operation": "invoice_reconciliation",
+          "execution_status": "completed"
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "quote initial model proposal",
+      "ok": true,
+      "detail": "model"
+    },
+    {
+      "name": "quote typed work adopted",
+      "ok": true,
+      "detail": {
+        "source": "model",
+        "technical_fallback": false,
+        "decision": "replan",
+        "errors": [],
+        "failure_stage": null,
+        "attempt_id": "5af11951b3cf4f28ad0c6ca587e548e1",
+        "observation_ids": [
+          "evidence-ed55ee296d89ccc69d3d"
+        ],
+        "adoption_status": "applied",
+        "work_request_operation": "quote_calculation",
+        "execution_status": "completed"
+      }
+    },
+    {
+      "name": "quote initial total",
+      "ok": true,
+      "detail": "370.00"
+    },
+    {
+      "name": "quote initial completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote changed total",
+      "ok": true,
+      "detail": "485.00"
+    },
+    {
+      "name": "quote changed completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote survives restart",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "quote value survives restart",
+      "ok": true,
+      "detail": "485.00"
+    },
+    {
+      "name": "cancellation is terminal",
+      "ok": true,
+      "detail": "cancelled"
+    },
+    {
+      "name": "invoice typed work adopted",
+      "ok": true,
+      "detail": {
+        "source": "model",
+        "technical_fallback": false,
+        "decision": "replan",
+        "errors": [],
+        "failure_stage": null,
+        "attempt_id": "ab9857f4ad0d4a9db50dcb999081f98b",
+        "observation_ids": [
+          "evidence-91189afcfe6d759162b6",
+          "evidence-06eb3370e19442b1045c",
+          "evidence-3c1d180ef32aa4d487d5"
+        ],
+        "adoption_status": "applied",
+        "work_request_operation": "invoice_reconciliation",
+        "execution_status": "completed"
+      }
+    },
+    {
+      "name": "invoice reconciled value",
+      "ok": true,
+      "detail": "270.00"
+    },
+    {
+      "name": "invoice initial completed",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "missing invoice not fabricated",
+      "ok": true,
+      "detail": [
+        "clarify"
+      ]
+    },
+    {
+      "name": "missing invoice produces actionable obligation",
+      "ok": true,
+      "detail": [
+        {
+          "question_id": "42447fbf-d93c-4c7f-92a0-c13ccd12804b",
+          "item": "invoice reconciliation",
+          "question": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+          "kind": "missing_evidence",
+          "evidence": "",
+          "next_action": "Confirm the missing business fact.",
+          "decision_owner": null,
+          "inputs": {
+            "operation": "invoice_reconciliation",
+            "missing": [
+              "invoice"
+            ],
+            "known_identities": {
+              "purchase_order.po_id": "PO-8",
+              "purchase_order.vendor_id": "V-9",
+              "receiving.po_id": "PO-8"
+            }
+          },
+          "concept": "invoice_reconciliation",
+          "reason": "missing prerequisite: invoice",
+          "affected_subjects": [],
+          "checked_evidence": [],
+          "next_retrieval": "Which authorized source contains the missing invoice evidence for purchase order PO-8?",
+          "resolver": null,
+          "step_id": null,
+          "waiting": null,
+          "status": "open",
+          "attempts": 0,
+          "opened_at": "2026-11-03T19:20:11.364723+00:00",
+          "resolved_at": null,
+          "resolution": null,
+          "source_operation": null
+        }
+      ]
+    },
+    {
+      "name": "source answer resolves the obligation",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "patch_id": "source-add-5f335369cfb0f66e",
+        "material_digest": "cb66225de91c1352b47749a7a12c421011d7a38c6567d31666124ec7f41a8c0b",
+        "affected_steps": [],
+        "updated_steps": [],
+        "retained_steps": [
+          "source-1",
+          "source-2"
+        ],
+        "plan_revision": 2,
+        "assignment": {
+          "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+          "assignment": {
+            "assignment_id": "asg-cca55eeef6a64cc0",
+            "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+            "employee_id": "browser-admin",
+            "workspace_id": "default",
+            "plan_revision": 2,
+            "status": "blocked",
+            "teaching_revision": "untrained",
+            "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+            "teaching_history": [],
+            "effective_lesson_ids": [],
+            "mappings": [],
+            "mapping_history": [],
+            "deliverables": [],
+            "sources": [
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-po.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-po.json",
+                  "representation": "file",
+                  "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              },
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-receiving.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-receiving.json",
+                  "representation": "file",
+                  "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              }
+            ],
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "standing_authority": null,
+            "budget": {
+              "max_steps": 10,
+              "max_attempts_per_step": 3,
+              "max_wall_seconds": 900.0,
+              "max_cost_usd": 0.0,
+              "deadline": null,
+              "cost_mode": "hard",
+              "soft_limit_authorized_by": null,
+              "reserved_cost_usd": 0.0,
+              "cost_reservations": [],
+              "cost_overrun_usd": 0.0,
+              "cost_violation": null,
+              "soft_limit_exceeded": false,
+              "steps_started": 3,
+              "started_at": "2026-11-03T19:18:57.178042+00:00",
+              "elapsed_seconds": 0.0,
+              "paused_seconds": 0.0,
+              "waiting_since": null,
+              "wait_credits": {},
+              "wait_credits_schema": 1,
+              "active_wait": null,
+              "cost_usd": 0.0,
+              "idle_ledger_schema": 2,
+              "idle_intervals": {},
+              "working_seconds": 74.24,
+              "wall_seconds": 74.24
+            },
+            "steps": [
+              {
+                "step_id": "source-1",
+                "title": "Read missing-po.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+                "attempts": 0,
+                "result_summary": "read structured missing-po.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-2",
+                "title": "Read missing-receiving.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+                "attempts": 0,
+                "result_summary": "read structured missing-receiving.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-3",
+                "title": "Read supplied-invoice.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+                "attempts": 0,
+                "result_summary": "read structured supplied-invoice.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              }
+            ],
+            "created_at": "2026-11-03T19:18:57.169721+00:00",
+            "updated_at": "2026-11-03T19:20:11.409334+00:00",
+            "completed_at": "2026-11-03T19:20:11.408171+00:00",
+            "progress": {
+              "total_steps": 3,
+              "required_steps": 3,
+              "completed_steps": 3,
+              "waiting_steps": 0,
+              "failed_steps": 0,
+              "uncertain_steps": 0,
+              "open_gap_count": 0
+            }
+          },
+          "open_gaps": [],
+          "operations": [
+            {
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "step_id": "source-1",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured missing-po.json"
+            },
+            {
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "step_id": "source-2",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured missing-receiving.json"
+            },
+            {
+              "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+              "step_id": "source-3",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured supplied-invoice.json"
+            }
+          ]
+        },
+        "resolved_question_ids": [
+          "42447fbf-d93c-4c7f-92a0-c13ccd12804b"
+        ],
+        "mismatched_question_ids": [],
+        "observed_purchase_order": "PO-8"
+      }
+    },
+    {
+      "name": "duplicate source is idempotent",
+      "ok": true,
+      "detail": {
+        "status": "already_present",
+        "reason": "the authorized source version is already present",
+        "step_id": "source-3",
+        "assignment": {
+          "run_id": "e30ec371-2321-48fc-af99-9d0a9f7bfa02",
+          "assignment": {
+            "assignment_id": "asg-cca55eeef6a64cc0",
+            "objective": "Reconcile the supplier invoice for PO-8 and prepare only supported bookkeeping work",
+            "employee_id": "browser-admin",
+            "workspace_id": "default",
+            "plan_revision": 2,
+            "status": "blocked",
+            "teaching_revision": "untrained",
+            "teaching_fingerprint": "78786447fe775f92377d7122eec09317",
+            "teaching_history": [],
+            "effective_lesson_ids": [],
+            "mappings": [],
+            "mapping_history": [],
+            "deliverables": [],
+            "sources": [
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-po.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-po.json",
+                  "representation": "file",
+                  "source_version": "c3e777d2eb65bb3976b15e85985de01c276f51e6284e98e0287da3a9439f47a9",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              },
+              {
+                "kind": "document",
+                "binding": {
+                  "resource_id": "fixture:missing-receiving.json",
+                  "dataset_name": null,
+                  "source": null,
+                  "source_kind": null,
+                  "external_id": null,
+                  "original_file_name": "missing-receiving.json",
+                  "representation": "file",
+                  "source_version": "9f8c396248e1539e877014014a20ec408cb6c0a3866587b8cee60aa431f0b14e",
+                  "sheet": null,
+                  "columns": [],
+                  "numeric_columns": [],
+                  "row_count": null,
+                  "coverage": {
+                    "known": true,
+                    "truncated": false,
+                    "controlled_fixture": true
+                  },
+                  "access_scope": {
+                    "user_id": "browser-admin",
+                    "workspace_id": "default",
+                    "tenant_id": "default"
+                  },
+                  "workspace_id": "default",
+                  "tenant_id": "default",
+                  "internal_fixture": true
+                }
+              }
+            ],
+            "authorized_actions": [
+              "calculate",
+              "retrieve"
+            ],
+            "standing_authority": null,
+            "budget": {
+              "max_steps": 10,
+              "max_attempts_per_step": 3,
+              "max_wall_seconds": 900.0,
+              "max_cost_usd": 0.0,
+              "deadline": null,
+              "cost_mode": "hard",
+              "soft_limit_authorized_by": null,
+              "reserved_cost_usd": 0.0,
+              "cost_reservations": [],
+              "cost_overrun_usd": 0.0,
+              "cost_violation": null,
+              "soft_limit_exceeded": false,
+              "steps_started": 3,
+              "started_at": "2026-11-03T19:18:57.178042+00:00",
+              "elapsed_seconds": 0.0,
+              "paused_seconds": 0.0,
+              "waiting_since": null,
+              "wait_credits": {},
+              "wait_credits_schema": 1,
+              "active_wait": null,
+              "cost_usd": 0.0,
+              "idle_ledger_schema": 2,
+              "idle_intervals": {},
+              "working_seconds": 74.243,
+              "wall_seconds": 74.243
+            },
+            "steps": [
+              {
+                "step_id": "source-1",
+                "title": "Read missing-po.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+                "attempts": 0,
+                "result_summary": "read structured missing-po.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-2",
+                "title": "Read missing-receiving.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+                "attempts": 0,
+                "result_summary": "read structured missing-receiving.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              },
+              {
+                "step_id": "source-3",
+                "title": "Read supplied-invoice.json",
+                "operation_type": "retrieve",
+                "adapter": "document.read",
+                "depends_on": [],
+                "required": true,
+                "effect": "read_only",
+                "status": "applied",
+                "recovery_class": "terminal",
+                "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+                "attempts": 0,
+                "result_summary": "read structured supplied-invoice.json",
+                "result_value": null,
+                "result_unit": null,
+                "readiness": null,
+                "result_measure": null,
+                "prior_result_count": 0,
+                "artifact_revision": null,
+                "gap_ids": [],
+                "waiting": {},
+                "external_response": {},
+                "approval_request": {},
+                "standing_authority_receipt": {},
+                "failure": {}
+              }
+            ],
+            "created_at": "2026-11-03T19:18:57.169721+00:00",
+            "updated_at": "2026-11-03T19:20:11.409334+00:00",
+            "completed_at": "2026-11-03T19:20:11.408171+00:00",
+            "progress": {
+              "total_steps": 3,
+              "required_steps": 3,
+              "completed_steps": 3,
+              "waiting_steps": 0,
+              "failed_steps": 0,
+              "uncertain_steps": 0,
+              "open_gap_count": 0
+            }
+          },
+          "open_gaps": [],
+          "operations": [
+            {
+              "operation_id": "c979d008-cdb5-4e47-a2f6-a2e9e6531c3a",
+              "step_id": "source-1",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured missing-po.json"
+            },
+            {
+              "operation_id": "3aa395f5-b627-4d96-8755-6475f31fc534",
+              "step_id": "source-2",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured missing-receiving.json"
+            },
+            {
+              "operation_id": "6e1bb44a-6c23-4a09-b4ee-852757fb0438",
+              "step_id": "source-3",
+              "type": "retrieve",
+              "status": "applied",
+              "needs_reconciliation": false,
+              "approval": {},
+              "uncertainty_reason": null,
+              "remote_id": null,
+              "provider_ref": null,
+              "result_summary": "read structured supplied-invoice.json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "missing invoice recovery adopted",
+      "ok": true,
+      "detail": {
+        "source": "model",
+        "technical_fallback": false,
+        "decision": "replan",
+        "errors": [],
+        "failure_stage": null,
+        "attempt_id": "2797c0694eec4c9aadbe159dec73cac8",
+        "observation_ids": [
+          "evidence-c2a617e8f73266651d01",
+          "evidence-af08e577116872dca531",
+          "evidence-1f876663cd4b50d60f98"
+        ],
+        "adoption_status": "applied",
+        "work_request_operation": "invoice_reconciliation",
+        "execution_status": "completed"
+      }
+    },
+    {
+      "name": "missing invoice recovered value",
+      "ok": true,
+      "detail": "270.00"
+    }
+  ],
+  "serving_identity": {
+    "ok": true,
+    "pid": 45433,
+    "process_start": "2026-11-03T19:15:05.857545+00:00",
+    "identity": {
+      "source_id": "7df7ad08d05d",
+      "instance_id": "7df7ad08d05d.45433.1793733305",
+      "revision": "7df7ad08d05d43ee663f89d33731668eea0ada3f",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-03T19:15:05.857546+00:00",
+      "process_started_at": "2026-11-03T19:15:05.857545+00:00",
+      "pid": 45433,
+      "port": null,
+      "repo_path": "/private/tmp/atom-full-app",
+      "backend_path": "/private/tmp/atom-full-app/backend",
+      "error": null
+    },
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-g5-normal-45432-f54c7d07",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-g5-normal-45432-f54c7d07/atom.db",
+    "repo_root": "/private/tmp/atom-full-app",
+    "backend_root": "/private/tmp/atom-full-app/backend",
+    "agent_id": "browser-agent-94e2b293",
+    "dataset_name": "scotch_parts_price_list",
+    "dataset_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "outbox_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-g5-normal-45432-f54c7d07/outbox.jsonl",
+    "outbox_lines": 0,
+    "hitl_assignment_approvals": 0
+  },
+  "ok": true
+}

@@ -1,0 +1,85 @@
+{
+  "artifacts": {
+    "README.md": "5997ff8fff76bc61c574bdd8f326ba1cd85030abc882640e07f82a2ee08e51af",
+    "TEST_RESULTS.md": "aa830534c729d4519b5238ce3eff90d5831d2e7f33756d0efbba8328cc818879",
+    "attempts.jsonl": "52a329a55741f75fa5a4366669211c91f612872588b5dbb5d01e8802d544847d",
+    "campaign-run.log": "235581bf89d35f587bbe0d96929ed11364fea7a0a16e199d78bc37da9dd34b5d",
+    "campaign.json": "87599fda42f151c652f44e1e8d84d5bef6f27c91eab448f86fdafe96773f2c2a",
+    "eligibility-probe.log": "fc28717f150a1e6de1a6d18131eff4326a5a0ee3fa9e166682ff1839148d4886",
+    "focused-tests.log": "b2144ae21b27007a4af09a29ef7c045ccdcdc62350ff5ec6305316745c3ccf8d",
+    "server.log": "59b03e7e87d6a9ce31ba9e67606fba923be3b96b547f1d89a2d22ee2e72d1a4a",
+    "world-guard.log": "dca1bc73a94d4055158667385545de4ed2bf1284c3cb7775f1e7a80a3866d715"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "7df7ad08d05d43ee663f89d33731668eea0ada3f",
+    "manifest_note": "Contract-based eligibility, actionable missing prerequisites, same-job source settlement, mechanical mapping safety and harness world guard. API-level evidence, not UI.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_resources.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_job_runner.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/core/task_lifecycle.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/test_employee_g5_campaign_guard.py",
+    "backend/tests/test_employee_prerequisite_eligibility.py",
+    "backend/tests/test_employee_work_requests.py",
+    "frontend-nextjs/lib/assignment-api.ts",
+    "scripts/acceptance/employee_g5_normal_campaign.py"
+  ],
+  "exclusions": [
+    "normal app/login/browser UI journey not run",
+    "general employee judgment unqualified",
+    "API-level acceptance only",
+    "no cloud/live provider, credential, consent, send, spend or deployment",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436",
+    "context_window": 16384,
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "schema": "atom-employee-g5-capability-batch2-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "1d92754a3d68678e9420462564a82d34e24a541dacda16cee4b342baf9a5eafc",
+    "backend/core/assignment_executor.py": "0fce15d15b8e1772a107599f40e1bfc02efdcc78bac95193bc445046c164da34",
+    "backend/core/assignment_resources.py": "46003e96d18c1f1b7b383ea3a51a0cae91ece795001c55f0bb4ff881ec5331d8",
+    "backend/core/employee_adaptation.py": "ff5cd060c1743e43c4f2e64def243f692dcdf979384e86eb6475f62530e4f3ac",
+    "backend/core/employee_job_runner.py": "e1506ad433ec54dfbe9d6acc497f7dc26a2b40b8ef3101f4ce11bc2553436830",
+    "backend/core/employee_proposal.py": "0575c4a0bc8a2004501fcc5b0486eea5a4a493cd878b8c1c25adabf71b823293",
+    "backend/core/employee_work_compiler.py": "6d3070b02f59e36f2bce346b2aa07ebe1827197b32eec4d6ca1d4f45915db025",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+    "backend/tests/test_assignment_routes.py": "7fc7df612c15073e049fef1bddac8ea1528577af41a8e42a7ca6689ae27b6fc1",
+    "backend/tests/test_employee_g5_campaign_guard.py": "106c734875d3dcc95cc2b3f52922c109921313d5942aed0dc944851bbe4b2687",
+    "backend/tests/test_employee_prerequisite_eligibility.py": "15ef917aa6a551cf9ed42635eaf560069a585c1361770d8f0f8b920619936887",
+    "backend/tests/test_employee_work_requests.py": "27ad27072a4c281a64613619a0531ceb18d288fb30ab2fad34a67ff0b137ba27",
+    "frontend-nextjs/lib/assignment-api.ts": "9efaf96eceaac51b833f40996acf89384bead8a8cb195ea9406eb07e12ebf7ad",
+    "scripts/acceptance/employee_g5_normal_campaign.py": "f78a98a0da20463862057403cc2a1c489d793f0be0e9e42fcc18c71b7439a086"
+  },
+  "status": "api-level-campaign-passed",
+  "tests": {
+    "campaign": {
+      "file": "campaign.json",
+      "result": "18/18 checks"
+    },
+    "eligibility_probe": {
+      "log": "eligibility-probe.log",
+      "result": "2 passed"
+    },
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "167 passed"
+    },
+    "world_guard": {
+      "log": "world-guard.log",
+      "result": "unmarked world refused; sentinel preserved"
+    }
+  }
+}
