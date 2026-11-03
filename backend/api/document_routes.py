@@ -323,6 +323,7 @@ async def upload_document(
             "pg_document_id": doc_id,
             "source_type": "upload",
             "integration_id": "manual_upload",
+            "source_content_hash": hash_text(content),
             "author": current_user.email if current_user else "unknown"
         }
 

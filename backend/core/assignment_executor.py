@@ -7568,33 +7568,148 @@ async def _document_text_read(
     from core.database import get_db_session
     from core.models import IngestedDocument
 
-    version = str(
-        (document.get("metadata") or {}).get("source_content_hash") or "")
+    metadata = document.get("metadata") if isinstance(
+        document.get("metadata"), dict) else {}
+    indexed_version = str(
+        metadata.get("source_content_hash")
+        or metadata.get("content_hash")
+        or metadata.get("version") or "").strip()
+    if not indexed_version:
+        raise NeedsContext({
+            "concept": "document_extraction_version",
+            "reason": (
+                "the indexed extraction does not prove which source version "
+                "produced it"),
+            "question": (
+                "Which current source version should be read for this "
+                "document?"),
+            "next_retrieval": "re-index the authorized document and retry",
+            "kind": "missing_evidence",
+        })
+    indexed_document_id = str(metadata.get("pg_document_id") or "").strip()
+    if indexed_document_id and indexed_document_id != document_id:
+        raise NeedsContext({
+            "concept": "document_identity",
+            "reason": "the indexed extraction belongs to a different document",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "re-index the document and retry",
+            "kind": "missing_evidence",
+        })
     try:
         with get_db_session() as db:
             row = db.query(IngestedDocument).filter(
                 IngestedDocument.id == document_id).first()
-            if row is not None and row.source_content_hash:
-                version = str(row.source_content_hash)
-    except Exception:  # noqa: BLE001 - version falls back to metadata
-        pass
+    except Exception as exc:  # noqa: BLE001 - unverifiable authority
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": f"the authoritative document record is unavailable: {exc}",
+            "question": "The document authority is unavailable.",
+            "next_retrieval": "restore the document store and retry",
+            "kind": "missing_evidence",
+        }) from exc
+    if row is None:
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": "the authoritative document record is missing",
+            "question": "The document authority is unavailable.",
+            "next_retrieval": "re-upload or re-index the document",
+            "kind": "missing_evidence",
+        })
+    authoritative_version = str(row.source_content_hash or "").strip()
+    if not authoritative_version:
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": "the authoritative document has no source version",
+            "question": "Which current document version should be read?",
+            "next_retrieval": "re-index the document and retry",
+            "kind": "missing_evidence",
+        })
+    if indexed_version != authoritative_version:
+        raise NeedsContext({
+            "concept": "document_extraction_stale",
+            "reason": (
+                f"the indexed extraction is from {indexed_version!r} but the "
+                f"authoritative source is {authoritative_version!r}"),
+            "question": "The cached document text is stale; re-index it now?",
+            "next_retrieval": "re-extract the current authorized document",
+            "kind": "missing_evidence",
+        })
+    expected_version = str(
+        binding.get("source_version") or inputs.get("source_version")
+        or "").strip()
+    if expected_version and indexed_version != expected_version:
+        raise NeedsContext({
+            "concept": "document_extraction_stale",
+            "reason": (
+                f"the requested extraction version {expected_version!r} does "
+                "not match the indexed source version"),
+            "question": "Read the requested current document version?",
+            "next_retrieval": "re-index the requested source version",
+            "kind": "missing_evidence",
+        })
+    expected_workspace = str(
+        binding.get("workspace_id") or context.get("workspace_id") or "")
+    expected_tenant = str(
+        binding.get("tenant_id") or context.get("tenant_id") or "")
+    row_workspace = str(getattr(row, "workspace_id", "") or "")
+    row_tenant = str(getattr(row, "tenant_id", "") or "")
+    if expected_workspace and row_workspace and (
+            row_workspace != expected_workspace):
+        raise NeedsContext({
+            "concept": "document_scope",
+            "reason": "the document belongs to another workspace",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "select a document in this workspace",
+            "kind": "missing_evidence",
+        })
+    if expected_tenant and row_tenant and row_tenant != expected_tenant:
+        raise NeedsContext({
+            "concept": "document_scope",
+            "reason": "the document belongs to another tenant",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "select a document in this tenant",
+            "kind": "missing_evidence",
+        })
+    freshness = str(
+        getattr(row, "freshness_status", "fresh") or "fresh").lower()
+    if freshness not in ("fresh", "current", "active"):
+        raise NeedsContext({
+            "concept": "document_freshness",
+            "reason": f"the authoritative document is {freshness}",
+            "question": "Should the stale document be refreshed before use?",
+            "next_retrieval": "refresh the authorized source and retry",
+            "kind": "missing_evidence",
+        })
     truncated = len(text) > 20000
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     result = {
         "status": "applied",
         "summary": f"read extracted text from {document.get('source') or document_id}",
         "text": text[:20000],
         "truncated": truncated,
-        "source_version": version or None,
+        "source_version": indexed_version,
         "resource_id": document_id,
         "coverage": coverage,
+        "extraction": {
+            "source_version": indexed_version,
+            "authoritative_version": authoritative_version,
+            "text_sha256": text_hash,
+            "source": document.get("source"),
+        },
         "verification": {
             "status": "verified",
             "resource_id": document_id,
-            "version": version or None,
+            "version": indexed_version,
             "coverage": coverage,
         },
+        "evidence": [{
+            "kind": "document_extraction",
+            "resource_id": document_id,
+            "version": indexed_version,
+            "text_sha256": text_hash,
+        }],
     }
     if data is not None:
         result["data"] = data
