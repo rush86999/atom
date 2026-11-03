@@ -7368,7 +7368,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         records = [record for record in records
                    if _matches(record.get(field))]
     limit = max(1, min(int(inputs.get("max_rows") or 500), 5000))
-    source_version = _sha256_file(path)
+    content_hash = _sha256_file(path)
     truncated = len(records) > limit
     binding = next((
         inputs.get(key) for key in (
@@ -7378,10 +7378,11 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         inputs.get("resource_id") or inputs.get("source_id")
         or binding.get("resource_id") or binding.get("source_id")
         or binding.get("id") or f"file:{path}")
-    version = str(
+    source_version = str(
         inputs.get("source_version") or inputs.get("version")
         or binding.get("source_version") or binding.get("version")
-        or source_version)
+        or content_hash)
+    version = source_version
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
     return {
@@ -7394,6 +7395,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "matched_count": len(records),
         "truncated": truncated,
         "source_version": source_version,
+        "sha256": content_hash,
         "resource_id": resource_id,
         "coverage": coverage,
         "verification": {
@@ -7406,7 +7408,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
             "kind": "workbook",
             "path": path,
             "sheet": sheet.title,
-            "content_hash": source_version,
+            "content_hash": content_hash,
         }],
     }
 
@@ -7454,7 +7456,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
             if isinstance(payload, dict):
                 structured = payload
                 text = json.dumps(payload, indent=2, sort_keys=True)
-    source_version = _sha256_file(path)
+    content_hash = _sha256_file(path)
     truncated = len(text) > 20000
     data = None
     if suffix == ".json":
@@ -7472,10 +7474,11 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         inputs.get("resource_id") or inputs.get("source_id")
         or binding.get("resource_id") or binding.get("source_id")
         or binding.get("id") or f"file:{path}")
-    version = str(
+    source_version = str(
         inputs.get("source_version") or inputs.get("version")
         or binding.get("source_version") or binding.get("version")
-        or source_version)
+        or content_hash)
+    version = source_version
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
     result = {
@@ -7487,6 +7490,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "text": text[:20000],
         "truncated": truncated,
         "source_version": source_version,
+        "sha256": content_hash,
         "resource_id": resource_id,
         "coverage": coverage,
         "data": data or {},
@@ -7502,7 +7506,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "evidence": [{
             "kind": "document",
             "path": path,
-            "content_hash": source_version,
+            "content_hash": content_hash,
         }],
     }
     if structured is not None:
