@@ -1,0 +1,89 @@
+{
+ "schema": "atom-structured-planning-final-1",
+ "provider": {
+  "base_url": "http://127.0.0.1:11436/v1",
+  "model": "llama3.1:8b",
+  "pin": "ollama:llama3.1:8b",
+  "serialized_owner": "Agent 1",
+  "other_servers_untouched": [
+   "11434"
+  ]
+ },
+ "planner": {
+  "status": "passed",
+  "model_backed_passes": 5,
+  "cases": [
+   {
+    "id": "inventory_stock",
+    "matched": true,
+    "model_backed": true,
+    "seconds": 17.07,
+    "actual_use_tool": true
+   },
+   {
+    "id": "outlook_rfq",
+    "matched": true,
+    "model_backed": true,
+    "seconds": 9.25,
+    "actual_use_tool": true
+   },
+   {
+    "id": "dataset_price",
+    "matched": true,
+    "model_backed": true,
+    "seconds": 14.35,
+    "actual_use_tool": true
+   },
+   {
+    "id": "no_tool_chat",
+    "matched": true,
+    "model_backed": true,
+    "seconds": 7.76,
+    "actual_use_tool": false
+   },
+   {
+    "id": "explicit_email_search",
+    "matched": true,
+    "model_backed": true,
+    "seconds": 5.11,
+    "actual_use_tool": true
+   }
+  ]
+ },
+ "goal": {
+  "status": "failed",
+  "cases": [
+   {
+    "id": "ambiguous_quote",
+    "valid": false,
+    "fallback": true,
+    "seconds": 16.9,
+    "decision": "ASK_HUMAN",
+    "new_plan": null,
+    "rationale": "router returned an unusable decision after one repair: decision='REPLAN' rationale=\"The current plan is empty, indicating that we have not yet started working on the lead's request. We need to rewrite the remaining plan with a new list of steps.\" parameter_updates={'lead': 'Acme', 'request': 'prepar"
+   },
+   {
+    "id": "research_finished",
+    "valid": true,
+    "fallback": false,
+    "seconds": 10.45,
+    "decision": "REPLAN",
+    "new_plan": [
+     {
+      "id": "step-2",
+      "kind": "canvas_work",
+      "title": "Draft the quote",
+      "canvas_type": "spreadsheet"
+     }
+    ],
+    "rationale": "The lead needs 2 units of A-1, but no pricing constraint has been found yet. The current step is 'Research the lead', which is a document-based canvas. To proceed, we need to draft a quote, which requires a spreadsheet-based canvas. However, the goal is not met yet, so we should replan the remaining"
+   }
+  ]
+ },
+ "notes": [
+  "planner no-tool is now a typed ToolPlan(use_tool=false)",
+  "ambiguous_quote remains a genuine model failure: empty REPLAN after one repair -> ASK_HUMAN, no execution",
+  "research_finished returns a valid concrete REPLAN",
+  "alignment is Agent 2 scope and is not claimed here"
+ ]
+}
