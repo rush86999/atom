@@ -1,0 +1,26 @@
+{
+  "accepted_source": "36fd2670b3cc918f64113df1fc1b675690c3f07c",
+  "followup_successor_source": "c55cc945036e3bd38c9f296597bb0e15c9bfc9f1",
+  "logs_added": {
+    "affected-suite.log": "c0c91b6aa14c1cef287923fb74c8d6361e4ead692f2391ac1a46af60bb2947d3",
+    "focused-tests.log": "21b242558f0e7ac8e2d368bb94b398224b5a2f6aa1fb5b168a4031e0da249c5f",
+    "independent-probes.log": "108e9e48caf18ff717a3d583b3ad22f6b3add1b414048eeab7704fcccbee59b9",
+    "verifier-term-probe.log": "ec48ff7956dcff902a3e4d9221f60ab3d2a83b6642af1b39f847ebfb1e1bd423"
+  },
+  "notes": [
+    "Original README, TEST_RESULTS and MANIFEST are unchanged.",
+    "Four logs are exact existing bytes; none regenerated.",
+    "Runtime accepted at 36fd2670b is unchanged by this packaging follow-up.",
+    "Successor hardening and its served smokes are bound in employee_term_contract_followup_c55cc9450."
+  ],
+  "original_evidence": "f086d499985e7a611f89b493fb77b822ec7cb2e2",
+  "schema": "atom-employee-term-repair-packaging-followup-1",
+  "test_file_correction": {
+    "committed_source_at_36fd": "130e18a93f1dc90ef640af089a574831abf33a99b6a336745f372e56fbdbe549e",
+    "original_manifest_hash": "1d53f1e1991bb611a03fee49689f58a719e3e90b7e66323e728ea76986e59312",
+    "original_manifest_hash_status": "dirty-worktree-not-committed",
+    "path": "backend/tests/test_employee_work_request_bindings.py",
+    "successor_test_file_hash": "7bc693caa6a6acf1605c0b4b2ed914a5c0a98fd4d24ad177803a1f8e267d59ee",
+    "successor_test_file_source": "c55cc945036e3bd38c9f296597bb0e15c9bfc9f1"
+  }
+}

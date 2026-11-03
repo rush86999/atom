@@ -1,0 +1,34 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____________________ test_tax_rate_cannot_authorize_freight ____________________
+
+    def test_tax_rate_cannot_authorize_freight():
+        a=_assignment(_verified_quote_evidence(),terms={'currency':'USD','freight':'20.00','tax_rate':'0.07','tax_basis':'none'})
+        r=_term_request(freight=MoneyTerm(value='0.07',authority_ref='tax_rate'))
+>       with pytest.raises(WorkRequestCompileError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkRequestCompileError
+
+../../test_verifier_terms_20f.py:15: Failed
+__________ test_term_expired_between_compile_and_consumption_refuses ___________
+
+    def test_term_expired_between_compile_and_consumption_refuses():
+        fact={'fact_id':'freight','value':'20.00','evidence_state':'established','source_refs':[{'resource_id':'agreement-1','version':'v1'}],'authority_ref':'freight','validity':{'currency':'USD','expires_at':'2020-01-01T00:00:00+00:00'}}
+        a=_assignment(_verified_quote_evidence(),terms={'currency':'USD','tax_basis':'none'},facts=[fact])
+        class Earlier(datetime):
+            @classmethod
+            def now(cls,tz=None):return cls(2019,1,1,tzinfo=timezone.utc)
+        with patch('core.employee_work_compiler.datetime',Earlier):
+            inputs=compile_work_request_patch(_term_request(),a,context={})['add_steps'][1]['inputs']
+        inputs['line_items']=[{'item_id':'A','quantity':'2','unit_price':'100','unit':'each','pack_size':'1','price_basis':'list','currency':'USD'}]
+        # The compiled receipt was valid at compile time; actual consumption now
+        # occurs after expiry. No clock patch is active at consumption.
+>       with pytest.raises(NeedsContext):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE NeedsContext
+
+../../test_verifier_terms_20f.py:29: Failed
+=========================== short test summary info ============================
+FAILED ../../test_verifier_terms_20f.py::test_tax_rate_cannot_authorize_freight
+FAILED ../../test_verifier_terms_20f.py::test_term_expired_between_compile_and_consumption_refuses
+2 failed, 5 warnings in 0.93s

@@ -1,0 +1,243 @@
+
+tests/test_employee_work_requests.py::test_quote_request_compiles_and_executes_from_full_evidence 
+-------------------------------- live log setup --------------------------------
+2026-11-03 10:40:00 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-03 10:40:00 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-03 10:40:00 [    INFO] EscalationManager initialized
+2026-11-03 10:40:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 10:40:00 [    INFO] EscalationManager initialized
+2026-11-03 10:40:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 10:40:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-03 10:40:00 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:01 [    INFO] runtime identity: source_id=99dd640255b3-dirty.af45acbf510c revision=99dd640255b3 dirty=True (4 modified, 1 untracked)
+PASSED                                                                   [  0%]
+tests/test_employee_work_requests.py::test_quote_mapping_rejects_unknown_column_and_bad_terms PASSED [  1%]
+tests/test_employee_work_requests.py::test_invoice_request_compiles_and_reconciles_full_evidence PASSED [  1%]
+tests/test_employee_work_requests.py::test_work_request_rejects_model_authored_steps_and_bad_references PASSED [  2%]
+tests/test_employee_work_requests.py::test_context_previews_are_labeled_and_discovery_is_not_followup PASSED [  2%]
+tests/test_employee_work_requests.py::test_money_terms_must_resolve_and_match_the_proposed_value PASSED [  3%]
+tests/test_employee_work_requests.py::test_expired_fact_term_is_not_authority PASSED [  3%]
+tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_match_accepted_values PASSED [  4%]
+tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [  5%]
+tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:01 [    INFO] Created HITL action 48ad9939-51cd-4387-9db0-70bd3f4663b8 for agent None
+PASSED                                                                   [  5%]
+tests/test_employee_work_request_matrix.py::test_preview_is_labeled_but_execution_uses_full_durable_rows PASSED [  6%]
+tests/test_employee_work_request_matrix.py::test_stale_compiled_patch_refuses_after_task_state_advance PASSED [  6%]
+tests/test_employee_work_request_matrix.py::test_duplicate_work_request_is_idempotent PASSED [  7%]
+tests/test_employee_work_request_matrix.py::test_unknown_or_ambiguous_request_fields_refuse_compilation PASSED [  7%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-False] PASSED [  8%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-True] PASSED [  8%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-None] PASSED [  9%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-0] PASSED [ 10%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-false] PASSED [ 10%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[unknown_field-x] PASSED [ 11%]
+tests/test_employee_work_request_bindings.py::test_unverified_and_skipped_evidence_are_not_proof PASSED [ 11%]
+tests/test_employee_work_request_bindings.py::test_compiled_steps_keep_mandatory_verified_receipts PASSED [ 12%]
+tests/test_employee_work_request_bindings.py::test_executor_negative_preserves_independent_progress PASSED [ 12%]
+tests/test_employee_work_request_bindings.py::test_valid_twin_still_compiles_and_completes PASSED [ 13%]
+tests/test_employee_work_request_bindings.py::test_term_must_resolve_scope_revision_currency_and_value PASSED [ 13%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_tax_modes_bind_their_taught_term PASSED [ 14%]
+tests/test_employee_work_request_bindings.py::test_role_comparison_is_normalized_and_cross_field_is_refused PASSED [ 15%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[expired] PASSED [ 15%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[stale] PASSED [ 16%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[wrong_scope] PASSED [ 16%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[value_changed] PASSED [ 17%]
+tests/test_employee_work_request_bindings.py::test_fact_term_scope_revision_dates_and_currency PASSED [ 17%]
+tests/test_employee_work_request_bindings.py::test_term_provenance_is_revalidated_at_consumption PASSED [ 18%]
+tests/test_employee_work_request_bindings.py::test_money_term_roles_are_not_interchangeable PASSED [ 18%]
+tests/test_employee_work_request_bindings.py::test_explicit_role_metadata_and_aliases_are_trusted PASSED [ 19%]
+tests/test_employee_work_request_bindings.py::test_fact_role_must_be_declared_and_match_the_field PASSED [ 20%]
+tests/test_employee_work_request_bindings.py::test_expiry_between_compile_and_consumption_refuses PASSED [ 20%]
+tests/test_employee_work_request_bindings.py::test_source_replacement_and_teaching_revision_refuse_at_consumption PASSED [ 21%]
+tests/test_employee_work_request_bindings.py::test_binding_survives_a_restart_context_round_trip PASSED [ 21%]
+tests/test_employee_work_request_bindings.py::test_executor_blocks_expired_term_between_compile_and_dispatch PASSED [ 22%]
+tests/test_employee_adaptation_contract.py::test_final_transport_request_uses_the_selected_schema PASSED [ 22%]
+tests/test_employee_adaptation_contract.py::test_raw_malformed_completion_is_preserved_under_one_attempt 
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:01 [ WARNING] employee adaptation call raised: InstructorRetryException: validation error
+PASSED                                                                   [ 23%]
+tests/test_employee_adaptation_contract.py::test_bounded_repair_shares_deadline_and_selected_schema PASSED [ 24%]
+tests/test_employee_adaptation_contract.py::test_exhausted_deadline_is_typed_and_does_not_start_repair PASSED [ 24%]
+tests/test_employee_adaptation_contract.py::test_legacy_context_keeps_legacy_schema_separate PASSED [ 25%]
+tests/test_employee_g5_model_proposal.py::test_model_proposed_work_request_is_compiled_and_executed PASSED [ 25%]
+tests/test_employee_g5_model_proposal.py::test_followup_transport_contract_and_repair_feedback PASSED [ 26%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote PASSED [ 26%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_waits_corrects_and_posts_supported_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:03 [    INFO] Created HITL action a8386a62-70ae-4c1b-976f-39ecb86b0a14 for agent None
+PASSED                                                                   [ 27%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_period_close_blocks_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:03 [    INFO] Created HITL action 5f1a732e-4de4-4b86-8c78-cb48f4ac4bca for agent None
+PASSED                                                                   [ 27%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refuses_infeasible_delivery PASSED [ 28%]
+tests/test_assignment_quote.py::test_exact_362_50_fixture_with_discount_only_on_b PASSED [ 29%]
+tests/test_assignment_quote.py::test_more_specific_taught_exception_wins_over_broad_rule PASSED [ 29%]
+tests/test_assignment_quote.py::test_equally_specific_conflicting_rules_do_not_arbitrarily_win PASSED [ 30%]
+tests/test_assignment_quote.py::test_scoped_rule_with_missing_qualifier_asks_instead_of_ignoring_it PASSED [ 30%]
+tests/test_assignment_quote.py::test_expired_discount_rule_is_not_applied PASSED [ 31%]
+tests/test_assignment_quote.py::test_same_sku_with_different_packaging_requires_clarification PASSED [ 31%]
+tests/test_assignment_quote.py::test_missing_currency_and_tax_are_never_defaulted PASSED [ 32%]
+tests/test_assignment_quote.py::test_invalid_amounts_are_refused_without_implicit_repair PASSED [ 32%]
+tests/test_assignment_quote.py::test_adapter_maps_invalid_inputs_to_a_typed_gap PASSED [ 33%]
+tests/test_assignment_quote.py::test_missing_qualification_blocks_a_lower_specificity_established_rule PASSED [ 34%]
+tests/test_assignment_quote.py::test_established_qualification_selects_the_governing_rule[licensed-0.10-90.00] PASSED [ 34%]
+tests/test_assignment_quote.py::test_established_qualification_selects_the_governing_rule[unlicensed-0.05-95.00] PASSED [ 35%]
+tests/test_assignment_quote.py::test_more_specific_unknown_rule_with_a_different_result_clarifies PASSED [ 35%]
+tests/test_assignment_quote.py::test_equally_specific_established_rules_disagree_is_a_conflict PASSED [ 36%]
+tests/test_assignment_quote.py::test_known_false_condition_excludes_the_exception_without_asking PASSED [ 36%]
+tests/test_assignment_quote.py::test_missing_field_no_rule_uses_is_not_a_question PASSED [ 37%]
+tests/test_assignment_quote.py::test_decimal_equivalent_rates_do_not_conflict_or_ask PASSED [ 37%]
+tests/test_assignment_quote.py::test_missing_effective_date_that_changes_applicability_clarifies PASSED [ 38%]
+tests/test_assignment_quote.py::test_unknown_rules_with_equivalent_pricing_need_no_redundant_question PASSED [ 39%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported0] PASSED [ 39%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported1] PASSED [ 40%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported2] PASSED [ 40%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported3] PASSED [ 41%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported4] PASSED [ 41%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported5] PASSED [ 42%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported6] PASSED [ 43%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported7] PASSED [ 43%]
+tests/test_assignment_quote.py::test_unsupported_pricing_semantics_are_rejected_before_arithmetic[unsupported8] PASSED [ 44%]
+tests/test_assignment_quote.py::test_unsupported_rule_maps_to_a_typed_gap_not_a_completed_quote PASSED [ 44%]
+tests/test_assignment_quote.py::test_dated_unknown_rule_with_equivalent_pricing_is_not_a_question PASSED [ 45%]
+tests/test_assignment_quote.py::test_missing_qualifier_is_never_treated_as_false PASSED [ 45%]
+tests/test_assignment_quote.py::test_resolved_discount_answer_resumes_the_bound_line PASSED [ 46%]
+tests/test_assignment_quote.py::test_wrong_line_answer_is_refused_instead_of_transferred PASSED [ 46%]
+tests/test_assignment_quote.py::test_stale_answer_triggers_reassessment_not_transfer[change0-teaching revision changed] PASSED [ 47%]
+tests/test_assignment_quote.py::test_stale_answer_triggers_reassessment_not_transfer[change1-source version changed] PASSED [ 48%]
+tests/test_assignment_quote.py::test_conflict_answer_selects_one_candidate_and_resumes PASSED [ 48%]
+tests/test_employee_proof_binding.py::test_source_profile_requires_identity_and_coverage_not_only_status PASSED [ 49%]
+tests/test_employee_proof_binding.py::test_source_profile_rejects_each_wrong_binding PASSED [ 49%]
+tests/test_employee_proof_binding.py::test_source_profile_rejects_incomplete_population_and_malformed_coverage PASSED [ 50%]
+tests/test_employee_proof_binding.py::test_fact_qualification_requires_stable_evidence_or_authority PASSED [ 50%]
+tests/test_employee_proof_binding.py::test_sent_items_requires_each_correlated_identity PASSED [ 51%]
+tests/test_employee_proof_binding.py::test_source_profile_rejects_wrong_subject_and_operation_identity PASSED [ 51%]
+tests/test_employee_proof_binding.py::test_source_profile_rejects_non_finite_and_incomplete_population PASSED [ 52%]
+tests/test_employee_proof_binding.py::test_external_profile_requires_operation_and_remote_identity PASSED [ 53%]
+tests/test_employee_proof_binding.py::test_artifact_and_local_profiles_require_their_material_result PASSED [ 53%]
+tests/test_employee_proof_binding.py::test_sent_items_rejects_swapped_namespaces_and_boolean_shortcuts PASSED [ 54%]
+tests/test_employee_proof_binding.py::test_artifact_and_local_receipts_use_their_durable_proof PASSED [ 54%]
+tests/test_employee_proof_binding.py::test_generated_source_profile_requires_every_material_category PASSED [ 55%]
+tests/test_employee_proof_binding.py::test_generated_source_coverage_matrix_accepts_only_consistent_profiles PASSED [ 55%]
+tests/test_employee_proof_binding.py::test_generated_sent_items_minimum_schema PASSED [ 56%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_complete_profile_is_true PASSED [ 56%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[present] PASSED [ 57%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[operation_id] PASSED [ 58%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[request_id] PASSED [ 58%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[provider_ref] PASSED [ 59%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[message_id] PASSED [ 59%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[present-yes] PASSED [ 60%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[operation_id-1] PASSED [ 60%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[request_id-False] PASSED [ 61%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[provider_ref-value3] PASSED [ 62%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[message_id-value4] PASSED [ 62%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[operation_id-op-other] PASSED [ 63%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[request_id-req-other] PASSED [ 63%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[provider_ref-msg-other] PASSED [ 64%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[message_id-mid-other] PASSED [ 64%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[account-other@example.invalid] PASSED [ 65%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_swapped_identity_namespaces_refute PASSED [ 65%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_bare_boolean_shortcuts_are_unknown PASSED [ 66%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage0] PASSED [ 67%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage1] PASSED [ 67%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage2] PASSED [ 68%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage3] PASSED [ 68%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage0] PASSED [ 69%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage1] PASSED [ 69%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage2] PASSED [ 70%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage3] PASSED [ 70%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage4] PASSED [ 71%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage5] PASSED [ 72%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage6] PASSED [ 72%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage7] PASSED [ 73%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage8] PASSED [ 73%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage9] PASSED [ 74%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage10] PASSED [ 74%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage11] PASSED [ 75%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage12] PASSED [ 75%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage13] PASSED [ 76%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage14] PASSED [ 77%]
+tests/test_employee_proof_schema_executor.py::test_sent_items_missing_correlation_blocks_completion 
+-------------------------------- live log call ---------------------------------
+2026-11-03 10:40:04 [    INFO] Created HITL action d2ce650d-3972-41ab-beb8-7ebb7dacb241 for agent None
+PASSED                                                                   [ 77%]
+tests/test_employee_proof_schema_executor.py::test_source_malformed_coverage_blocks_dependent_execution PASSED [ 78%]
+tests/test_employee_patch_invariants.py::test_transitive_uncertain_descendant_refuses_upstream_invalidation PASSED [ 78%]
+tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[facts] PASSED [ 79%]
+tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[teaching] PASSED [ 79%]
+tests/test_employee_patch_invariants.py::test_duplicate_patch_content_conflict_and_concurrent_adoption PASSED [ 80%]
+tests/test_employee_patch_invariants.py::test_requirements_cannot_be_weakened_and_facts_need_provenance PASSED [ 81%]
+tests/test_employee_patch_invariants.py::test_registered_mutation_cannot_be_relabelled_read_only PASSED [ 81%]
+tests/test_employee_patch_invariants.py::test_forced_cas_retry_keeps_the_callback_pure PASSED [ 82%]
+tests/test_employee_patch_invariants.py::test_authority_change_advances_task_state_and_refuses_old_patch PASSED [ 82%]
+tests/test_assignment_readiness.py::test_unknown_fact_blocks_only_dependent_branch PASSED [ 83%]
+tests/test_assignment_readiness.py::test_established_true_and_false_are_distinct PASSED [ 83%]
+tests/test_assignment_readiness.py::test_all_or_unknown_and_not_truth_tables PASSED [ 84%]
+tests/test_assignment_readiness.py::test_receipt_requires_applied_with_result PASSED [ 84%]
+tests/test_assignment_readiness.py::test_expired_fact_and_authority_are_not_ready PASSED [ 85%]
+tests/test_assignment_readiness.py::test_requirements_and_facts_validate PASSED [ 86%]
+tests/test_assignment_readiness.py::test_verified_receipt_accepts_complete_explicit_verification PASSED [ 86%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result0-unknown-applied_without_result] PASSED [ 87%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result1-unknown-verified_proof_missing] PASSED [ 87%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result2-false-verified_proof_refuted] PASSED [ 88%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result3-false-verified_proof_refuted] PASSED [ 88%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result4-false-verified_proof_missing_fields] PASSED [ 89%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result5-false-verified_proof_mismatches] PASSED [ 89%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result6-unknown-verified_identity_missing] PASSED [ 90%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result7-unknown-verified_coverage_missing] PASSED [ 91%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result8-unknown-verified_coverage_incomplete] PASSED [ 91%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result9-unknown-verified_coverage_unknown] PASSED [ 92%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result10-unknown-verified_proof_missing] PASSED [ 92%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result11-unknown-verified_coverage_truncated] PASSED [ 93%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result12-unknown-verified_proof_incomplete] PASSED [ 93%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_must_match_a_declared_applied_step PASSED [ 94%]
+tests/test_assignment_readiness.py::test_unknown_receipt_requirement_names_refuse_normalization PASSED [ 94%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_must_match_the_receipt_identity PASSED [ 95%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_absent_from_receipt_stays_unknown PASSED [ 96%]
+tests/test_assignment_readiness.py::test_fact_source_ref_must_resolve_against_the_accepted_source_scope PASSED [ 96%]
+::test_tax_rate_cannot_authorize_freight PASSED                          [ 97%]
+::test_term_expired_between_compile_and_consumption_refuses PASSED       [ 97%]
+::test_model_cannot_disable_server_proof_requirement[quote] PASSED       [ 98%]
+::test_model_cannot_disable_server_proof_requirement[invoice] PASSED     [ 98%]
+::test_followup_prompt_declares_only_response_schema_fields PASSED       [ 99%]
+::test_unknown_money_authority_does_not_compile_with_verified_source PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 358 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 179 passed, 364 warnings in 23.09s ======================
