@@ -1,0 +1,71 @@
+{
+ "schema": "atom-employee-batch-b-core-1",
+ "status": "submitted-for-independent-verification; G5 adaptive campaign not run",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "worktree": "/private/tmp/atom-full-app",
+  "executed_source": "dfd05cbfc068c9ca5961bc41e58d9cbb31fae3c8",
+  "tree_clean_at_integrated_run": true,
+  "manifest_note": "Batch B deterministic core only; served adaptive and two-domain acceptance are not claimed."
+ },
+ "changed_files": [
+  "backend/core/employee_patch.py",
+  "backend/core/employee_adaptation.py",
+  "backend/core/employee_proposal.py",
+  "backend/core/assignment_executor.py",
+  "backend/core/task_outcome_contract.py",
+  "backend/api/assignment_routes.py",
+  "backend/tests/test_assignment_executor.py",
+  "backend/tests/test_assignment_routes.py"
+ ],
+ "source_hashes": {
+  "backend/core/employee_patch.py": "f115811b343fd5942bac94928df96177abe5b14af34467da094c4f8e146cdd0a",
+  "backend/core/employee_adaptation.py": "ec5cd68cd87cd1a08d2f4ea1fca4e4f05fba41aa9a083dc8c5ccc869e47bd63b",
+  "backend/core/employee_proposal.py": "3de087ea2485a5c83f492d1da8a9203497f9a8935a77ccbd8f593f786d13c9ac",
+  "backend/core/assignment_executor.py": "c0738beb201a974e5212992ad2384bb6c8a3d0e74688d2e58c7bbdaa054997a3",
+  "backend/core/task_outcome_contract.py": "50b615bcccc9680bde44779652a10ebea4d1348dc8e52d767c013bbaaa733804",
+  "backend/api/assignment_routes.py": "e2c4cec53f2ffbacbd2687efbd354d15a848a2e708016da2da4789d922290618",
+  "backend/tests/test_assignment_executor.py": "dbdb6acfe9be2f06184dd5aea4e474ed3eea389704e2c6754973fe8b542c3451",
+  "backend/tests/test_assignment_routes.py": "040961878066ecba5fc11c8fe750e10208798429c8e5399d9f0b5410063b20dc"
+ },
+ "delivered": {
+  "patch": "validated atomic plan patch through TaskLifecycle CAS; pure callback",
+  "adaptation": "retain/clarify/invalidate/replan/reconcile from observations; deterministic affected closure",
+  "outcome": "criteria + durable receipts decide completion; applied step alone insufficient",
+  "consumer": "POST /api/assignments/{run_id}/patch"
+ },
+ "tests": {
+  "backend_integrated": {
+   "log": "backend-integrated.log",
+   "result": "638 passed, 8 deselected"
+  },
+  "frontend_integrated": {
+   "log": "frontend-integrated.log",
+   "result": "54 passed"
+  },
+  "verifier_boundaries": {
+   "log": "verifier-boundary-probes.log",
+   "result": "3 passed"
+  },
+  "patch_adaptation_controls": {
+   "log": "patch-adaptation-controls.log",
+   "result": "7 passed"
+  }
+ },
+ "exclusions": [
+  "no served model adaptive choice",
+  "no held-out two-domain G5 campaign",
+  "no full event-order/restart/recovery campaign beyond focused controls",
+  "no live provider lookup/write/send/credential/consent/spend",
+  "planner 5/5, goal router 1/2, alignment gap 3.0 unchanged",
+  "historical 111/123 unchanged"
+ ],
+ "artifacts": {
+  "README.md": "858a0b6b418ba71467cf2a56acde3214af34b5106712b75d0ef40b1be880ee6e",
+  "TEST_RESULTS.md": "11f6364bc3e43d8acb510ae7ae4b8807dd21d6d68d92a6a304b7193de8a20b82",
+  "backend-integrated.log": "c3ff9cd3b2c24bcacff905205c74116b78655323c7c72f6be888d7d2b3b4fd30",
+  "frontend-integrated.log": "c84e62e7bb9954ce962413001bd1bb473dddf73f8f847aba2cbd312420442b3b",
+  "patch-adaptation-controls.log": "11535e6621831271ecf2e003ea27e8315cfbd69e9239a31972e8a94e49adb34f",
+  "verifier-boundary-probes.log": "83be76e6a7f338dda290b548cd142f0ac947627e6a85fe432b785721d41b6cef"
+ }
+}
