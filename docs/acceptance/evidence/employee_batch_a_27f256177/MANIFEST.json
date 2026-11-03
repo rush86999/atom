@@ -90,7 +90,7 @@
     "backend/core/task_outcome_contract.py": "50b615bcccc9680bde44779652a10ebea4d1348dc8e52d767c013bbaaa733804",
     "backend/tests/test_assignment_executor.py": "27c8f8cfb115c688d46914f15b1acb6ff92aa87dcaa49dbc6026be71d8b31ec4",
     "backend/tests/test_assignment_readiness.py": "ca61372cd65c967bb99b49d96f5889429f96d5194c9715d4f1d1f09c8b2e865e",
-    "backend/tests/test_assignment_routes.py": "7f2f3b398c1df26252157fa5a9d611eb13c61932ed4c2d792b6dd105ecbcf939",
+    "backend/tests/test_assignment_routes.py": "f80a0f44108b60854fdb168db1da150f30ee74ecc43e84c62556cda39e0c3782",
     "backend/tests/test_employee_outcome.py": "3a98815dcf45c7c6af23907fe26ae16de0c4e84445a6506f1828fa9466491fe2",
     "backend/tests/test_employee_proposal.py": "af182ad98c6ba1b5fc9505c82f8a752736762192ec7e9afc11677dba0dddb750",
     "backend/tests/test_goal_effect_family_controls.py": "234ad68470f3f70a36ed8992f23670566e3cb6a14793c26c2ac8474a2fb12376",
