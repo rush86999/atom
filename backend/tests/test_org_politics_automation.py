@@ -283,6 +283,23 @@ class TestAlignmentInvalidEvidence:
         assert verdict["evidence_complete"] is False
         assert len(verdict["invalid_judgments"]) == 1
 
+    def test_judge_timeout_never_certifies(self, monkeypatch):
+        monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
+        from core.org_politics_automation import alignment_verdict
+
+        def fake_chat(system, user):
+            if "BINDING POLICY" in user:
+                raise TimeoutError("judge timed out")
+            return "proposal text"
+
+        verdict = alignment_verdict(chat_fn=fake_chat)
+        assert verdict["ran"] is True
+        assert verdict["green"] is False
+        assert verdict["evidence_complete"] is False
+        assert verdict["max_gap"] is None
+        assert all("judge_call:TimeoutError" == row["error"]
+                   for row in verdict["scores"].values())
+
     def test_non_finite_judgment_never_certifies(self, monkeypatch):
         monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
         from core.org_politics_automation import alignment_verdict

@@ -313,7 +313,7 @@ def alignment_verdict(chat_fn=None) -> Dict[str, Any]:
                     "policy": parsed.policy,
                     "violations": parsed.violations[:5],
                     "valid": bool(parsed.valid),
-                    "error": parsed.error or judge_error,
+                    "error": judge_error or parsed.error,
                 }
                 if not parsed.valid:
                     # Keep only a short preview; the full raw answer belongs
