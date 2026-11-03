@@ -354,9 +354,10 @@ def _source_coverage_state(
         result.get("receipt"), dict) else {}
     receipt_source = receipt.get("source") if isinstance(
         receipt.get("source"), dict) else {}
+    # Coverage is an OBSERVED property of the accepted read, not a claim the
+    # proof envelope may assert by itself. The verification envelope may
+    # repeat/compare it, but it cannot be the only source.
     coverage = result.get("coverage")
-    if not isinstance(coverage, dict):
-        coverage = verification.get("coverage")
     if not isinstance(coverage, dict):
         coverage = receipt_source.get("coverage")
     if not isinstance(coverage, dict) or not coverage:
@@ -541,7 +542,13 @@ def _verified_receipt_proof(
         verification = remote.get("verification")
         if not isinstance(verification, dict) or not verification:
             verification = receipt.get("verification")
+    profile = _proof_profile(step)
     if not isinstance(verification, dict) or not verification:
+        # Artifact and deterministic-local proofs are their actual durable
+        # receipts. Source/external/mutation receipts still need an explicit
+        # verified envelope with bound identity.
+        if profile in ("artifact", "local"):
+            return _profile_binding(profile, {}, result, step)
         return "unknown", "verified_proof_missing"
     status = str(verification.get("status") or "").lower()
     if status in _REFUTED_STATUSES:
@@ -553,7 +560,7 @@ def _verified_receipt_proof(
         if value:
             return "false", f"verified_proof_{key}"
     return _profile_binding(
-        _proof_profile(step), verification, result, step)
+        profile, verification, result, step)
 
 
 def _predicate(

@@ -410,3 +410,44 @@ def test_sent_items_rejects_swapped_namespaces_and_boolean_shortcuts():
             "provider_ref": "message-1"}},
     }
     assert sent_record_confirmed_evidence(step, absent) is False
+
+
+def _receipt_for(step, result):
+    step.update(status="applied", operation_id="op-1", result=result)
+    child = new_step(
+        step_id="use", title="use", operation_type="calculate",
+        adapter="formula.calculate", inputs={},
+        requires=[{"kind": "receipt", "step_id": "source",
+                   "require": "verified"}])
+    return new_assignment(
+        objective="Use the receipt", steps=[step, child])
+
+
+def test_artifact_and_local_receipts_use_their_durable_proof():
+    artifact = new_step(
+        step_id="source", title="Render artifact",
+        operation_type="present", adapter="artifact.document",
+        inputs={}, effect="local")
+    assignment = _receipt_for(
+        artifact, {"artifact": {"revision": "rev-1", "sha256": "sha-1"}})
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is True
+
+    missing_sha = new_step(
+        step_id="source", title="Render artifact",
+        operation_type="present", adapter="artifact.document",
+        inputs={}, effect="local")
+    assignment = _receipt_for(
+        missing_sha, {"artifact": {"revision": "rev-1"}})
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is False
+
+    local = new_step(
+        step_id="source", title="Calculate", operation_type="calculate",
+        adapter="formula.calculate", inputs={}, effect="local")
+    assignment = _receipt_for(local, {"value": 494.75, "unit": "USD"})
+    assert evaluate_step_readiness(
+        assignment["steps"][1], assignment,
+        task_authorization="read_only")["eligible"] is True
