@@ -311,22 +311,11 @@ def _resolve_quote_columns(
             and item not in identity_text):
         item = identity_text[0] if len(identity_text) == 1 else item
 
-    # Currency is a unit/code, not a quantity. If the model chose a numeric
-    # column, prefer a text code column or fall back to the request currency.
+    # A mapped currency column is observed evidence. Never discard it to
+    # make the request default apply; preserve it so the caller can refuse a
+    # conflict or the calculator can reject it before arithmetic.
     currency_column = columns.get("currency")
     if currency_column not in available:
-        currency_column = None
-    if currency_column in numeric:
-        codes = [
-            column for column in text
-            if set(by_column[column]) and all(
-                len(value) == 3 and value.isalpha()
-                for value in by_column[column])
-        ]
-        currency_column = codes[0] if len(codes) == 1 else None
-    if currency_column and any(
-            value.upper() != str(currency or "USD").upper()
-            for value in by_column.get(currency_column) or []):
         currency_column = None
 
     candidates = [
@@ -428,21 +417,59 @@ def _quote_patch(
         columns, sample_rows, list(available), currency=request.currency)
     if resolved_columns != columns:
         columns = resolved_columns
+    currency_column = columns.get("currency")
+    if currency_column:
+        currency_values = [
+            str(row.get(currency_column)).strip()
+            for row in sample_rows
+            if row.get(currency_column) not in (None, "")
+        ]
+        if not currency_values:
+            raise WorkRequestCompileError(
+                f"quote mapping 'currency' column {currency_column!r} has no "
+                "explicit values in the accepted rows")
+        malformed = sorted({
+            value for value in currency_values
+            if len(value) != 3 or not value.isalpha()
+        })
+        if malformed:
+            raise WorkRequestCompileError(
+                f"quote currency column {currency_column!r} contains "
+                f"malformed value(s) {malformed}; no default substitution")
+        conflicts = sorted({
+            value.upper() for value in currency_values
+            if value.upper() != str(request.currency).strip().upper()
+        })
+        if conflicts:
+            raise WorkRequestCompileError(
+                f"source currency {conflicts!r} conflicts with the requested "
+                f"quote currency {request.currency!r}; implicit FX or default "
+                "substitution is not allowed")
     for semantic, column in columns.items():
-        if semantic not in ("quantity", "unit_price"):
-            continue
-        for index, row in enumerate(sample_rows):
-            value = row.get(column)
-            try:
-                number = Decimal(str(value))
-            except (InvalidOperation, ValueError) as exc:
+        if semantic in ("quantity", "unit_price", "discount"):
+            for index, row in enumerate(sample_rows):
+                value = row.get(column)
+                if semantic == "discount" and value in (None, ""):
+                    continue
+                try:
+                    number = Decimal(str(value))
+                except (InvalidOperation, ValueError) as exc:
+                    raise WorkRequestCompileError(
+                        f"quote mapping {semantic!r} column {column!r} is not "
+                        f"numeric in accepted row {index + 1}") from exc
+                if not number.is_finite():
+                    raise WorkRequestCompileError(
+                        f"quote mapping {semantic!r} column {column!r} is not "
+                        f"finite in accepted row {index + 1}")
+        if semantic in ("unit", "pack_size", "price_basis"):
+            empty = [
+                index + 1 for index, row in enumerate(sample_rows)
+                if str(row.get(column) or "").strip() == ""
+            ]
+            if empty:
                 raise WorkRequestCompileError(
-                    f"quote mapping {semantic!r} column {column!r} is not "
-                    f"numeric in accepted row {index + 1}") from exc
-            if not number.is_finite():
-                raise WorkRequestCompileError(
-                    f"quote mapping {semantic!r} column {column!r} is not "
-                    f"finite in accepted row {index + 1}")
+                    f"quote mapping {semantic!r} column {column!r} is empty "
+                    f"in accepted row(s) {empty}; no default substitution")
     if "item_id" in columns:
         for index, row in enumerate(sample_rows):
             if str(row.get(columns["item_id"]) or "").strip() == "":

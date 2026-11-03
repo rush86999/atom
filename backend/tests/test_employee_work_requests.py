@@ -556,3 +556,119 @@ def test_quote_mapping_resolves_type_swapped_unfamiliar_headers():
     assert any(
         item.get("kind") == "resolved_quote_columns"
         for item in patch["observations"])
+
+
+def _currency_read(currencies):
+    read = _verified_quote_evidence()
+    for row, currency in zip(read["result"]["rows"], currencies):
+        row["Currency"] = currency
+    return read
+
+
+def test_quote_currency_preserves_observed_values_and_refuses_conflicts():
+    # Same-currency positive: the mapped column is preserved.
+    usd = compile_work_request_patch(
+        _quote_request(),
+        _quote_assignment(_terms_teaching(), read=_currency_read(
+            ["USD", "USD"])), context={})
+    assert usd["add_steps"][0]["inputs"]["columns"]["currency"] == "Currency"
+
+    # CAD source under a USD request must refuse, never relabel.
+    with pytest.raises(WorkRequestCompileError, match="conflicts"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["CAD", "CAD"])), context={})
+
+    # Mixed currencies are also a conflict, not a majority vote.
+    with pytest.raises(WorkRequestCompileError, match="conflicts"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["USD", "CAD"])), context={})
+
+    # Malformed observed currency refuses instead of inheriting USD.
+    with pytest.raises(WorkRequestCompileError, match="malformed"):
+        compile_work_request_patch(
+            _quote_request(),
+            _quote_assignment(_terms_teaching(), read=_currency_read(
+                ["US", "USD"])), context={})
+
+    # A valid CAD twin is supported when the job itself is CAD.
+    cad_teaching = _terms_teaching()
+    cad_teaching["terms"]["currency"] = "CAD"
+    cad_request = _quote_request().model_copy(update={"currency": "CAD"})
+    cad = compile_work_request_patch(
+        cad_request,
+        _quote_assignment(cad_teaching, read=_currency_read(
+            ["CAD", "CAD"])), context={})
+    assert cad["add_steps"][0]["inputs"]["columns"]["currency"] == "Currency"
+    assert cad["add_steps"][1]["inputs"]["currency"] == "CAD"
+
+
+def test_quote_missing_currency_column_inherits_only_explicit_job_default():
+    read = _verified_quote_evidence()
+    read["result"]["rows"] = [
+        {"Item": "A", "Qty": 2, "Price": 100},
+        {"Item": "B", "Qty": 3, "Price": 50},
+    ]
+    read["result"]["schema"] = [
+        {"column": column} for column in ("Item", "Qty", "Price")]
+    request = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="Item", quantity="Qty", unit_price="Price")})
+    patch = compile_work_request_patch(
+        request, _quote_assignment(_terms_teaching(), read=read), context={})
+    assert "currency" not in patch["add_steps"][0]["inputs"]["columns"]
+    assert patch["add_steps"][0]["inputs"]["defaults"]["currency"] == "USD"
+
+
+def test_executor_refuses_currency_changed_after_compilation(env):
+    import asyncio
+
+    from core.employee_adaptation import AdaptationProposal, adopt_adaptation
+
+    assignment = _quote_assignment(_terms_teaching())
+    record = env["executor"].create_assignment(
+        "conv-currency-change", assignment["objective"],
+        assignment=assignment)
+    run_id = record["run_id"]
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id,
+        AdaptationProposal(
+            decision="replan", reason="quote from accepted USD evidence",
+            observation_ids=["currency-change-1"],
+            work_request=_quote_request()))
+    assert adopted["status"] == "applied", adopted
+
+    def change_currency(record, current):
+        for step in current.get("steps") or []:
+            if step.get("step_id") == "read":
+                for row in (step.get("result") or {}).get("rows") or []:
+                    row["Currency"] = "CAD"
+        return current, None
+
+    env["lifecycle"].mutate_assignment(
+        run_id, change_currency, rationale="source currency changed")
+    result = asyncio.run(env["executor"].execute(run_id))
+    final = env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in final["steps"]
+        if step.get("adapter") == "quote.calculate")
+    assert result["assignment"]["status"] != "completed"
+    assert calculate["status"] != "applied"
+    assert not (calculate.get("result") or {}).get("value")
+
+
+def test_mapped_unit_cannot_be_defaulted_over_empty_source_value():
+    read = _verified_quote_evidence()
+    read["result"]["rows"][0]["Unit"] = ""
+    read["result"]["schema"].append({"column": "Unit"})
+    request = _quote_request().model_copy(update={
+        "columns": QuoteColumns(
+            item_id="Item", quantity="Qty", unit_price="Price",
+            currency="Currency", unit="Unit")})
+    with pytest.raises(WorkRequestCompileError, match="no default substitution"):
+        compile_work_request_patch(
+            request, _quote_assignment(_terms_teaching(), read=read),
+            context={})
