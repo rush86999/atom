@@ -1,0 +1,99 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
+Test order randomisation NOT enabled. Enable with --random-order or --random-order-bucket=<bucket_type>
+benchmark: 5.3.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /private/tmp/atom-full-app/backend
+configfile: pytest.ini
+plugins: mock-3.15.1, freezegun-0.4.2, repeat-0.9.4, locust-2.46.5, allure-pytest-2.16.0, json-report-1.5.0, random-order-1.2.0, timeout-2.4.0, schemathesis-3.39.16, asyncio-1.4.0, metadata-3.1.1, benchmark-5.3.0, cov-4.1.0, rerunfailures-14.0, html-4.2.0, base-url-2.1.0, hypothesis-6.167.1, playwright-0.5.2, anyio-4.15.1, Faker-22.7.0, xdist-3.6.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 39 items
+
+tests/test_employee_proof_schema_matrix.py::test_sent_items_complete_profile_is_true 
+-------------------------------- live log setup --------------------------------
+2026-11-03 07:54:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-03 07:54:21 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-03 07:54:21 [    INFO] EscalationManager initialized
+2026-11-03 07:54:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 07:54:21 [    INFO] EscalationManager initialized
+2026-11-03 07:54:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 07:54:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-03 07:54:21 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[present] PASSED [  5%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[operation_id] PASSED [  7%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[request_id] PASSED [ 10%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[provider_ref] PASSED [ 12%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_required_field_omission_is_unknown[message_id] PASSED [ 15%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[present-yes] PASSED [ 17%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[operation_id-1] PASSED [ 20%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[request_id-False] PASSED [ 23%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[provider_ref-value3] PASSED [ 25%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_wrong_types_are_unknown[message_id-value4] PASSED [ 28%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[operation_id-op-other] PASSED [ 30%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[request_id-req-other] PASSED [ 33%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[provider_ref-msg-other] PASSED [ 35%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[message_id-mid-other] PASSED [ 38%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_each_wrong_identity_refutes[account-other@example.invalid] PASSED [ 41%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_swapped_identity_namespaces_refute PASSED [ 43%]
+tests/test_employee_proof_schema_matrix.py::test_sent_items_bare_boolean_shortcuts_are_unknown PASSED [ 46%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage0] PASSED [ 48%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage1] PASSED [ 51%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage2] PASSED [ 53%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_supported_complete_variants[coverage3] PASSED [ 56%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage0] PASSED [ 58%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage1] PASSED [ 61%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage2] PASSED [ 64%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage3] PASSED [ 66%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage4] PASSED [ 69%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage5] PASSED [ 71%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage6] PASSED [ 74%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage7] PASSED [ 76%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage8] PASSED [ 79%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage9] PASSED [ 82%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage10] PASSED [ 84%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage11] PASSED [ 87%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage12] PASSED [ 89%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage13] PASSED [ 92%]
+tests/test_employee_proof_schema_matrix.py::test_source_coverage_malformed_incomplete_or_contradictory_is_unknown[coverage14] PASSED [ 94%]
+tests/test_employee_proof_schema_executor.py::test_sent_items_missing_correlation_blocks_completion 
+-------------------------------- live log call ---------------------------------
+2026-11-03 07:54:21 [    INFO] Created HITL action 14c0a1db-0aa1-44e9-9764-45d8de0c4c85 for agent None
+2026-11-03 07:54:21 [    INFO] runtime identity: source_id=c75e1e9fe16b revision=c75e1e9fe16b dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 97%]
+tests/test_employee_proof_schema_executor.py::test_source_malformed_coverage_blocks_dependent_execution PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 78 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 39 passed, 84 warnings in 9.96s ========================

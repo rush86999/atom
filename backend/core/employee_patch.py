@@ -269,6 +269,16 @@ def validate_plan_patch(
                         f"added step {step_id} requires actions "
                         f"{sorted(required_actions)} outside the accepted "
                         f"authority")
+                required_inputs = set(
+                    metadata.get("required_inputs") or [])
+                missing_inputs = sorted(
+                    key for key in required_inputs
+                    if key not in (raw.inputs or {})
+                    or raw.inputs.get(key) in (None, "", [], {}))
+                if missing_inputs:
+                    errors.append(
+                        f"added step {step_id} is missing required adapter "
+                        f"inputs {missing_inputs}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"added step {step_id} adapter contract: {exc}")
         if raw.adapter == "action.registry":
@@ -346,6 +356,20 @@ def validate_plan_patch(
                 depends_on=depends, inputs=merged_inputs,
                 effect=step.get("effect") or "local",
                 requires=merged_requires)
+            from core.assignment_executor import default_adapter_registry
+            adapter = default_adapter_registry.get(
+                step.get("adapter") or "")
+            if adapter is not None:
+                required_inputs = set(
+                    (adapter.metadata or {}).get("required_inputs") or [])
+                missing_inputs = sorted(
+                    key for key in required_inputs
+                    if key not in (merged_inputs or {})
+                    or merged_inputs.get(key) in (None, "", [], {}))
+                if missing_inputs:
+                    errors.append(
+                        f"updated step {step_id} is missing required adapter "
+                        f"inputs {missing_inputs}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"updated step {step_id}: {exc}")
     # The FULL affected closure, not only explicitly named roots. Validate

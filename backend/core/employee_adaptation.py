@@ -20,6 +20,7 @@ from core.employee_patch import (
     StepPatch,
     StepUpdate,
     apply_plan_patch,
+    validate_plan_patch,
 )
 from core.employee_proposal import ClarificationProposal
 
@@ -32,7 +33,8 @@ class Observation(BaseModel):
     observation_id: str = Field(min_length=1, max_length=120)
     kind: Literal[
         "source_version", "quantity", "qualification", "external_response",
-        "uncertain_effect", "user_correction", "expiry", "revocation",
+        "evidence_result", "uncertain_effect", "user_correction", "expiry",
+        "revocation",
     ]
     subject_id: str = Field(default="", max_length=200)
     resource_id: str = Field(default="", max_length=200)
@@ -104,6 +106,15 @@ def deterministic_adaptation(
                 obs.reason or
                 "The correlated response is consumed by the existing "
                 "operation; no plan change is needed."),
+        }
+    if obs.kind == "evidence_result":
+        return {
+            "decision": "retain",
+            **base,
+            "reason": (
+                obs.reason or
+                "Evidence was read; the deterministic floor does not invent "
+                "a next work plan from content."),
         }
     if obs.kind == "qualification":
         if obs.evidence_state != "established" or obs.value is None:
@@ -181,6 +192,64 @@ def deterministic_adaptation(
     }
 
 
+def _adaptation_patch_proposal(
+    normalized: AdaptationProposal,
+    assignment: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    observations = [
+        {"observation_id": item} for item in normalized.observation_ids
+    ] or [{"kind": "observation"}]
+    return {
+        "patch_id": "adaptation-validation",
+        "base_task_version": int(context.get("task_version") or 0),
+        "base_plan_revision": int(
+            context.get("plan_revision")
+            or assignment.get("plan_revision") or 1),
+        "reason": normalized.reason or "model adaptation proposal",
+        "observations": observations,
+        "invalidate_steps": list(normalized.step_ids),
+        "add_facts": list(normalized.facts),
+        "add_steps": [
+            item.model_dump() for item in normalized.new_steps
+        ],
+        "update_steps": [
+            item.model_dump() for item in normalized.update_steps
+        ],
+    }
+
+
+def _adaptation_errors(
+    normalized: AdaptationProposal,
+    assignment: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> List[str]:
+    if normalized.decision != "replan":
+        return []
+    record = {
+        "task_version": int(context.get("task_version") or 0),
+        "assignment": dict(assignment),
+        "operations": [],
+    }
+    checked = validate_plan_patch(
+        _adaptation_patch_proposal(normalized, assignment, context), record)
+    return list(checked.get("errors") or [])
+
+
+def _adaptation_retry_prompt(
+    context: Mapping[str, Any], observations: List[Mapping[str, Any]],
+    invalid_output: Any, errors: List[str],
+) -> str:
+    return (
+        _adaptation_prompt(context, observations)
+        + "\n\nYour previous proposal was invalid:\n"
+        + json.dumps(invalid_output, sort_keys=True, default=str)[:4000]
+        + "\nValidation errors:\n- " + "\n- ".join(errors[:20])
+        + "\nReturn one corrected JSON proposal. Do not repeat existing "
+          "step IDs; use unique IDs and complete adapter inputs."
+    )
+
+
 def _adaptation_prompt(
     context: Mapping[str, Any], observations: List[Mapping[str, Any]],
 ) -> str:
@@ -189,6 +258,14 @@ def _adaptation_prompt(
         "bounded response to the observation(s).\n"
         "Rules:\n"
         "- retain: no material change.\n"
+        "- For an evidence_result, you may replan with supported new steps "
+        "that consume the returned rows/values; do not invent rows, prices, "
+        "ids or authority.\n"
+        "- Every new_steps[].step_id must be NEW and must not reuse any id in "
+        "context.existing_step_ids. Reference existing completed steps by "
+        "their step_id in depends_on and inputs.\n"
+        "- A calculation step must carry complete typed inputs; an empty-input "
+        "calculation is invalid.\n"
         "- clarify: one targeted business fact/choice is missing.\n"
         "- invalidate/replan: reopen only work affected by the observation; "
         "preserve unrelated completed receipts.\n"
@@ -196,6 +273,12 @@ def _adaptation_prompt(
         "reconciled; never resend.\n"
         "- Do not invent source/action IDs or authority; do not remove "
         "criteria or budget.\n"
+        "- New step IDs must not repeat any entry in existing_step_ids. Use "
+        "the adapter_views.input_schema for inputs and ${step.field} "
+        "references for prior results.\n"
+        "- A step's `requires` must be [] or a list of predicate objects "
+        "whose kind is one of fact, receipt, authority, time, all, any, not. "
+        "Never use {id, type} result descriptors.\n"
         "- Return JSON only: {decision, reason, observation_ids, step_ids, "
         "facts, new_steps, clarification}.\n\n"
         "CONTEXT:\n" + json.dumps(context, sort_keys=True, default=str)
@@ -210,6 +293,7 @@ async def propose_adaptation(
     *,
     assignment: Mapping[str, Any],
     llm_service: Any = None,
+    provider_model: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Propose a response; a provider failure falls back deterministically."""
     if llm_service is not None and observations:
@@ -222,7 +306,9 @@ async def propose_adaptation(
                 system_instruction=(
                     "You propose bounded, read-only employee plan changes. "
                     "You never execute or grant authority. Return JSON only."),
-                call_kwargs=None,
+                call_kwargs=(
+                    {"provider_model": tuple(provider_model)}
+                    if provider_model else None),
                 extra_kwargs={
                     "output_mode": "json",
                     "cascade": False,
@@ -242,12 +328,63 @@ async def propose_adaptation(
                     result.model_dump()
                     if isinstance(result, BaseModel) else dict(result))
                 proposal = AdaptationProposal.model_validate(normalized)
-                return {
-                    "proposal": proposal.model_dump(),
-                    "source": "model",
-                    "technical_fallback": False,
-                    "errors": [],
-                }
+                errors = _adaptation_errors(proposal, assignment, context)
+                if errors:
+                    try:
+                        repaired = await pinned_structured_call(
+                            llm_service,
+                            prompt=_adaptation_retry_prompt(
+                                context, observations, normalized, errors),
+                            response_model=AdaptationProposal,
+                            system_instruction=(
+                                "You propose bounded, read-only employee "
+                                "plan changes. You never execute or grant "
+                                "authority. Return corrected JSON only."),
+                            call_kwargs=(
+                                {"provider_model": tuple(provider_model)}
+                                if provider_model else None),
+                            extra_kwargs={
+                                "output_mode": "json", "cascade": False,
+                                "allow_moa": False, "max_tokens": 1800,
+                            },
+                            log_label="employee adaptation repair",
+                            task_type="planning",
+                            workspace_id=context.get(
+                                "identity", {}).get("workspace_id"),
+                            tenant_id=context.get(
+                                "identity", {}).get("tenant_id"),
+                        )
+                        if repaired is not None:
+                            repaired_norm = (
+                                repaired.model_dump()
+                                if isinstance(repaired, BaseModel)
+                                else dict(repaired))
+                            repaired_prop = AdaptationProposal.model_validate(
+                                repaired_norm)
+                            repair_errors = _adaptation_errors(
+                                repaired_prop, assignment, context)
+                            if not repair_errors:
+                                return {
+                                    "proposal": repaired_prop.model_dump(),
+                                    "source": "model_repaired",
+                                    "technical_fallback": False,
+                                    "errors": [],
+                                    "repair": {
+                                        "first_errors": errors,
+                                        "recovered": True,
+                                    },
+                                }
+                            errors = repair_errors
+                    except Exception as exc:  # noqa: BLE001
+                        errors = errors + [f"repair call: {exc}"]
+                    checked_errors = errors
+                else:
+                    return {
+                        "proposal": proposal.model_dump(),
+                        "source": "model",
+                        "technical_fallback": False,
+                        "errors": [],
+                    }
             except Exception as exc:  # noqa: BLE001
                 checked_errors = [str(exc)]
         else:

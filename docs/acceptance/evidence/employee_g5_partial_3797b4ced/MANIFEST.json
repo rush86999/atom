@@ -1,0 +1,102 @@
+{
+ "schema": "atom-employee-g5-partial-1",
+ "status": "partial; served adaptive G5 not qualified",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "worktree": "/private/tmp/atom-full-app",
+  "executed_source": "3797b4cedd457618ec6b0d94ec60b31111a6e064",
+  "tree_clean_at_integrated_run": true
+ },
+ "changed_files": [
+  "backend/core/assignment_quote.py",
+  "backend/core/employee_adaptation.py",
+  "backend/core/employee_patch.py",
+  "backend/core/employee_proposal.py",
+  "backend/core/quote_rows.py",
+  "backend/tests/test_employee_g5_model_proposal.py",
+  "scripts/acceptance/employee_g5_model_probe.py",
+  "scripts/acceptance/employee_g5_served_probe.py"
+ ],
+ "source_hashes": {
+  "backend/core/assignment_quote.py": "66e6b2b3dc796a1c6e2ac89d8a28b7f296f257bafa226a438e4c594b3cd2b8aa",
+  "backend/core/employee_adaptation.py": "67c6405ba754d274674105dbac3defc1629a8de4ecfd3dee0707c4a474ae1d31",
+  "backend/core/employee_patch.py": "3093d7d7fba67a4e512332755369f58bccf223ba6373ee0db0d15ad72882f67b",
+  "backend/core/employee_proposal.py": "badbdad29be3d76c3e3f3a148267042c16180c81ce9457173e38d1c6e88ba30e",
+  "backend/core/quote_rows.py": "8e0fa9c0cba82380a85cdc60d3f49c0100d222eb1e80521e1bc2c9c2b5df5941",
+  "backend/tests/test_employee_g5_model_proposal.py": "e99ef73da2650853b15ca7e19cfa10d427f0d94c6fea5bcc45bde3a994121fde",
+  "scripts/acceptance/employee_g5_model_probe.py": "002429d93d174c2487e30d5078ca7ae2e24459fe630570378d00d50928f6456e",
+  "scripts/acceptance/employee_g5_served_probe.py": "2954e70531ee24972f185426322d1e2c16aa303260c04f1f98943524fd15b03f"
+ },
+ "model": {
+  "base_url": "http://127.0.0.1:11436/v1",
+  "model": "llama3.1:8b",
+  "pin": "ollama:llama3.1:8b",
+  "calls": 4
+ },
+ "served_choices": {
+  "industrial_quote": {
+   "source": "model",
+   "required_found": [
+    "price-workbook",
+    "terms-agreement"
+   ],
+   "required_total": 2
+  },
+  "procurement": {
+   "source": "model",
+   "required_found": [
+    "purchase-order",
+    "receiving-records"
+   ],
+   "required_missing": [
+    "invoice-v1"
+   ]
+  },
+  "follow_up": {
+   "result": "negative",
+   "adopted_value": null,
+   "reason": "malformed mapping inputs + missing-evidence gap + timeout"
+  }
+ },
+ "tests": {
+  "focused_affected": {
+   "log": "focused-affected.log",
+   "result": "271 passed"
+  },
+  "probes": {
+   "log": "evidence-binding-probes.log",
+   "result": "16 passed"
+  },
+  "two_domain_campaign": {
+   "log": "two-domain-campaign.log",
+   "result": "4 passed"
+  },
+  "model_selection": {
+   "report": "model-evidence-selection-report.json",
+   "calls": "model-evidence-selection-calls.jsonl",
+   "result": "2 model calls; partial"
+  },
+  "served_follow_up": {
+   "report": "served-calculation-negative-report.json",
+   "calls": "served-calculation-negative-calls.jsonl",
+   "result": "negative preserved"
+  }
+ },
+ "exclusions": [
+  "no held-out model campaign completion",
+  "no ordinary-product two-domain UI journey",
+  "no live provider action/credential/send/spend",
+  "planner 5/5, goal router 1/2, alignment gap 3.0 and historical 111/123 unchanged"
+ ],
+ "artifacts": {
+  "README.md": "d6ea4350f2eafcfc416d2156515cef55ab77b02bad22e91845d39371d73963af",
+  "TEST_RESULTS.md": "3e89c375d80cac15ffdf13822f9fda6167843bdbe52829988d77e494761e1712",
+  "evidence-binding-probes.log": "f5c0c30277437429cc8fd3c45289b32c572e98f91bc38f5b34660851e47d9b1d",
+  "focused-affected.log": "fa5da4f734134aece7ef1b7eabd2ab73864432e9648bd3b628e5319aeae0f9df",
+  "model-evidence-selection-calls.jsonl": "a31b538c1834e6f0bd10a2ed2342312018d92756af545b08e2fdeae84759474c",
+  "model-evidence-selection-report.json": "c3dd0a162f75b0d83e3ca38d4a95e5932e9d2c8dc89d1334704aa7607f942581",
+  "served-calculation-negative-calls.jsonl": "013e323d8016383691e9fc73ee114e8866c08b8f3f8c10830d17c030b3af869b",
+  "served-calculation-negative-report.json": "8cfdd89c699546b3a77ce1846cab96622934f3a94a4392278552f3f138d1ff76",
+  "two-domain-campaign.log": "7540711931086d3b9461d5f7a50fba7ea961448315871924899e7247a21fa7dc"
+ }
+}
