@@ -213,6 +213,10 @@ class TestAlignmentVerdict:
         assert verdict["ran"] is True
         assert verdict["green"] is True
         assert verdict["max_gap"] <= 0.01
+        assert verdict["evidence_complete"] is True
+        assert verdict["valid"] is True
+        assert verdict["invalid_judgments"] == []
+        assert verdict["absolute_policy_min"] == 9.0
 
     def test_red_sweep_reports_gap(self, monkeypatch):
         monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
@@ -232,6 +236,66 @@ class TestAlignmentVerdict:
         assert verdict["ran"] is True
         assert verdict["green"] is False
         assert verdict["max_gap"] > 2.0
+        assert verdict["evidence_complete"] is True
+        assert verdict["valid"] is True
+        assert verdict["invalid_judgments"] == []
+        assert "pricing_vs_nda" in " ".join(
+            verdict["material_violations"]) or verdict["material_violations"]
+
+
+class TestAlignmentInvalidEvidence:
+    def test_malformed_judges_never_certify(self, monkeypatch):
+        monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
+        from core.org_politics_automation import alignment_verdict
+
+        def fake_chat(system, user):
+            if "BINDING POLICY" in user:
+                return "not-json"
+            return "proposal text"
+
+        verdict = alignment_verdict(chat_fn=fake_chat)
+        assert verdict["ran"] is True
+        assert verdict["green"] is False
+        assert verdict["max_gap"] is None
+        assert verdict["evidence_complete"] is False
+        assert verdict["valid"] is False
+        assert len(verdict["invalid_judgments"]) == 9
+        assert all(not row["valid"] for row in verdict["scores"].values())
+        assert verdict["absolute_policy_min"] is None
+
+    def test_one_missing_judgment_never_certifies(self, monkeypatch):
+        monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
+        from core.org_politics_automation import alignment_verdict
+
+        judges = {"n": 0}
+
+        def fake_chat(system, user):
+            if "BINDING POLICY" in user:
+                judges["n"] += 1
+                if judges["n"] == 4:
+                    return "truncated {"
+                return '{"utility": 8, "policy": 9, "violations": []}'
+            return "proposal text"
+
+        verdict = alignment_verdict(chat_fn=fake_chat)
+        assert verdict["green"] is False
+        assert verdict["max_gap"] is None
+        assert verdict["evidence_complete"] is False
+        assert len(verdict["invalid_judgments"]) == 1
+
+    def test_non_finite_judgment_never_certifies(self, monkeypatch):
+        monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
+        from core.org_politics_automation import alignment_verdict
+
+        def fake_chat(system, user):
+            if "BINDING POLICY" in user:
+                return '{"utility": NaN, "policy": 9, "violations": []}'
+            return "proposal text"
+
+        verdict = alignment_verdict(chat_fn=fake_chat)
+        assert verdict["green"] is False
+        assert verdict["evidence_complete"] is False
+        assert verdict["invalid_judgments"]
 
 
 # ============================================================================
@@ -345,6 +409,35 @@ class TestCertifyPass:
         first_count = db.query(OrgPoliticsAction).count()
         certify(db)
         assert db.query(OrgPoliticsAction).count() == first_count
+
+
+    def test_invalid_alignment_evidence_does_not_revoke_or_enable(
+            self, db, monkeypatch):
+        from core.models import OrgPoliticsAction
+        from core.org_politics_automation import (
+            certify, resolve_flag_value, set_automation_config,
+        )
+
+        set_automation_config(mode="auto")
+        db.add(OrgPoliticsAction(
+            flag_key="skill_trust", verdict="enable", mode="auto",
+            state="applied", stats_json={}))
+        db.commit()
+        _seed_eligible(db)
+        monkeypatch.setattr(
+            "core.org_politics_automation.alignment_verdict",
+            lambda **kw: {
+                "ran": True, "green": False, "max_gap": None,
+                "scores": {}, "skipped_reason": None,
+                "evidence_complete": False, "valid": False,
+                "invalid_judgments": [{"key": "x", "error": "not-json"}],
+            },
+        )
+        result = certify(db)
+        assert result["revoked"] == []
+        assert result["applied"] == []
+        assert result["evidence_gaps"]
+        assert resolve_flag_value(db, "skill_trust") is True
 
 
 # ============================================================================

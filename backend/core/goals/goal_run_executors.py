@@ -262,6 +262,15 @@ class GoalRunExecutors:
         if not name:
             return {"error": "integration_action step missing 'action'"}
         arguments = dict(step.get("arguments") or {})
+        # Durable operation identity for connected actions: the same reviewed
+        # decision/step must resolve to the same operation, so an uncertain
+        # provider effect can be reconciled instead of resent. The action
+        # registry's existing operation arbiter/readback consumes this; no
+        # second queue or store is introduced.
+        decision_id = str(decision.get("decision_id") or "").strip()
+        step_id = str(step.get("id") or run.get("cursor") or "step")
+        operation_id = (
+            f"goal-run:{run['id']}:{decision_id or 'turn'}:{step_id}")
         try:
             result = await action_registry.execute_action(
                 str(name), arguments,
@@ -269,8 +278,10 @@ class GoalRunExecutors:
                          "tenant_id": run.get("tenant_id"),
                          "agent_id": run.get("agent_id"),
                          "goal_run_id": run["id"],
-                         "goal_id": run.get("goal_id")})
-            return {"action": name, "result": result}
+                         "goal_id": run.get("goal_id"),
+                         "operation_id": operation_id})
+            return {"action": name, "operation_id": operation_id,
+                    "result": result}
         except ActionNotFoundError as exc:
             return {"error": str(exc), "action": name}
 

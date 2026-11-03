@@ -758,3 +758,42 @@ def test_new_checkpoint_created_during_execution_stays_pending(
     assert a_row.status == HITLActionStatus.APPROVED.value
     db.close()
     engine.dispose()
+
+
+def test_integration_action_carries_reviewed_operation_identity(monkeypatch):
+    """The same reviewed decision/step resolves to one durable operation id."""
+    from core.action_registry import action_registry
+    from core.goals.goal_run_executors import GoalRunExecutors
+
+    captured = {}
+
+    async def fake_execute(name, arguments, context):
+        captured.update({
+            "name": name, "arguments": arguments, "context": context})
+        return {"success": True, "remote_id": "remote-1"}
+
+    monkeypatch.setattr(action_registry, "execute_action", fake_execute)
+    run = {
+        "id": "run-op", "workspace_id": "ws-a", "tenant_id": "t-a",
+        "agent_id": "agent-a", "goal_id": "goal-a",
+    }
+    decision = {"decision": "ADVANCE", "decision_id": "dec-a"}
+    step = {
+        "id": "step-op", "action": "inventory.search",
+        "arguments": {"query": "A-1"},
+    }
+    result = asyncio.run(
+        GoalRunExecutors(None)._integration_action(run, decision, step))
+    assert captured["context"]["operation_id"] == (
+        "goal-run:run-op:dec-a:step-op")
+    assert result["operation_id"] == "goal-run:run-op:dec-a:step-op"
+    assert captured["context"]["goal_run_id"] == "run-op"
+
+    # Retry of the SAME reviewed decision/step is the same operation; a new
+    # decision generation is a different one.
+    retry = asyncio.run(
+        GoalRunExecutors(None)._integration_action(run, decision, step))
+    assert retry["operation_id"] == result["operation_id"]
+    other = asyncio.run(GoalRunExecutors(None)._integration_action(
+        run, {**decision, "decision_id": "dec-b"}, step))
+    assert other["operation_id"] != result["operation_id"]
