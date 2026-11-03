@@ -1,7 +1,8 @@
 {
   "artifacts": {
-    "README.md": "1a13bb9cd6437360e83e2e84fa29b2488766c3b07d7f5fabd95a8fff90598817",
-    "TEST_RESULTS.md": "93c5e771e49db3a0805181b9263ccd7a473eafca7b1e4c919bdc847329dd95a5",
+    "README.md": "d023ec58024cebd49543e42f38c4dd1c8af89167cfed330537d170628e3ac76e",
+    "TEST_RESULTS.md": "983667b1623e3b90fc750dbd4f80abf66144defa7407e394baa2aa43891dacd7",
+    "goal-approval-broad-tests.log": "a690132527646af2d1277cbfefae39a09c9a7b8f1b7e35e33f27d569227e2ccf",
     "goal-approval-frontend-tests.log": "0368839907eb83259ad7dff4de965db6ef60cf81c7b03867ec99d7674c873ede",
     "goal-approval-integrated-tests.log": "0229078d27afbae2b064cae7ff6912f61441aee64bc005ab7047c1b5cb5ec616",
     "goal-approval-tests.log": "9cf1a7221744bec8f313ee079f4e8c702dc169f872f1ad49d0f33e3874a501a0",
@@ -102,6 +103,11 @@
       "command": "pytest adapted verifier HTTP replay probe",
       "log": "goal-http-binding-adapted.log",
       "result": "1 passed"
+    },
+    "backend_broad_integrated": {
+      "command": "pytest goal/approval + structured + chat/assignment/reviewed/oracle/canvas neighborhood -q",
+      "log": "goal-approval-broad-tests.log",
+      "result": "368 passed"
     },
     "backend_goal_slice_clean": {
       "command": "pytest goal/approval suite -q",

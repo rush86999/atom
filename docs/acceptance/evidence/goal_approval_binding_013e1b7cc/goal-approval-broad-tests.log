@@ -1,0 +1,2007 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 19:06:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 19:06:40 [    INFO] MCP Service initialized
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:40 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-02 19:06:40 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-02 19:06:40 [    INFO] No token storage file found, starting empty
+2026-11-02 19:06:40 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:40 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:40 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:40 [    INFO] EscalationManager initialized
+2026-11-02 19:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:40 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:40 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:40 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_goal_effect_family_controls.py::test_wrong_workspace_supervisor_reads_and_mutations_are_404 
+-------------------------------- live log setup --------------------------------
+2026-11-02 19:06:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d
+2026-11-02 19:06:41 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:41 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d
+2026-11-02 19:06:41 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d/decisions "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:41 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d/advance "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:41 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d/resume "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:41 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/96e8e3ac-dd4a-4a27-b6a3-3727d5fa150d/cancel "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  0%]
+tests/test_goal_effect_family_controls.py::test_terminal_run_advance_is_409_and_appends_no_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f7ff0c2d-a5d1-4b61-ab96-e63c2462527c/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  0%]
+tests/test_goal_effect_family_controls.py::test_duplicate_resume_executes_once_and_keeps_first_reviewer 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a0a7f4ca-e108-4c5f-af03-157182844bf8/resume "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a0a7f4ca-e108-4c5f-af03-157182844bf8/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_goal_effect_family_controls.py::test_two_simultaneous_resumes_execute_one_turn PASSED [  1%]
+tests/test_goal_effect_family_controls.py::test_stale_resume_snapshot_cannot_claim_newer_pending PASSED [  1%]
+tests/test_goal_effect_family_controls.py::test_fresh_session_resumes_persisted_pending_once PASSED [  1%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_wrong_workspace_refuses_without_rows PASSED [  1%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_refuses_self_impersonation PASSED [  2%]
+tests/test_goal_effect_family_controls.py::test_goal_action_duplicate_active_run_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [ WARNING] plan seeding fell back (playbook match failed): (sqlite3.OperationalError) no such table: playbooks
+[SQL: SELECT playbooks.id AS playbooks_id, playbooks.tenant_id AS playbooks_tenant_id, playbooks.workspace_id AS playbooks_workspace_id, playbooks.name AS playbooks_name, playbooks.description AS playbooks_description, playbooks.trigger_canvas_type AS playbooks_trigger_canvas_type, playbooks.trigger_keywords AS playbooks_trigger_keywords, playbooks.steps AS playbooks_steps, playbooks.template_questions AS playbooks_template_questions, playbooks.examples AS playbooks_examples, playbooks.source AS playbooks_source, playbooks.approval_state AS playbooks_approval_state, playbooks.version AS playbooks_version, playbooks.fingerprint AS playbooks_fingerprint, playbooks.origin_ids AS playbooks_origin_ids, playbooks.last_eval_result AS playbooks_last_eval_result, playbooks.embedding AS playbooks_embedding, playbooks.embedding_model AS playbooks_embedding_model, playbooks.created_by AS playbooks_created_by, playbooks.approved_by AS playbooks_approved_by, playbooks.created_at AS playbooks_created_at, playbooks.updated_at AS playbooks_updated_at 
+FROM playbooks 
+WHERE playbooks.tenant_id = ? AND playbooks.approval_state = ? ORDER BY playbooks.updated_at DESC]
+[parameters: ('t-a', 'approved')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [  2%]
+tests/test_goal_effect_family_controls.py::test_public_resume_replay_cannot_execute_a_newer_pending_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2a033e76-7ffd-4cdd-81fd-4b88d055f277/resume "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2a033e76-7ffd-4cdd-81fd-4b88d055f277/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  2%]
+tests/test_goal_effect_family_controls.py::test_public_resume_without_review_binding_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/126d031a-a13a-4c94-8b78-0fa9e5ea689a/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  2%]
+tests/test_goal_effect_family_controls.py::test_changed_plan_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/386e9488-1df5-466c-8dc5-8b5b2582e853/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_goal_effect_family_controls.py::test_duplicate_rejection_of_one_reviewed_decision_is_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:41 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 19:06:41 [    INFO] EscalationManager initialized
+2026-11-02 19:06:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:41 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:06:41 [   ERROR] Reflection pool table not available
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a1487c03-056d-4f78-a46b-c3237460abd7/resume "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a1487c03-056d-4f78-a46b-c3237460abd7/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_goal_effect_family_controls.py::test_changed_decision_material_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a3d2a6ce-d741-4efa-8653-fde183ded19b/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_goal_effect_family_controls.py::test_new_checkpoint_created_during_execution_stays_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/cee862ea-88ce-4a11-902f-bca310c1f3c7/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_list_goals_is_any_signed_in 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: GET http://testserver/api/goals "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_member_creates_simple_goal_but_not_criteria 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: GET http://testserver/api/goals/ab9437a9-3211-4132-af65-b14098ee7dcf "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_goal_rejects_blank_title 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  4%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_run_accepts_inline_new_goal_id 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:06:41 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_starts_own_role_based_run 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_role_derived_from_the_business_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_author_plan_or_self_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  5%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_governance_params_stripped 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_without_role_or_agent_is_422 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  6%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_acts_other_member_refused_supervisor_can 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/6a79907d-733f-4a58-a4b7-21b16dfaaa18/advance "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/6a79907d-733f-4a58-a4b7-21b16dfaaa18/cancel "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/6a79907d-733f-4a58-a4b7-21b16dfaaa18/checkpoints/h1/resolve "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/6a79907d-733f-4a58-a4b7-21b16dfaaa18/advance "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/6a79907d-733f-4a58-a4b7-21b16dfaaa18/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_resolves_own_held_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/27aa3fdc-982a-493d-bc97-94d5abbc6617/resume "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/27aa3fdc-982a-493d-bc97-94d5abbc6617/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_change_mode_or_distill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/5050c190-2665-4572-87ba-26be62b744b6/mode "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/5050c190-2665-4572-87ba-26be62b744b6/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_kicks_off_first_loop_turn 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/c9414198-f06b-4e0d-b0a7-3ac11a5a27d4/canvases "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_start_false_leaves_run_dormant 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_training_mode_kickoff_holds_first_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f82b3023-dcb7-4742-ae5a-ade7e64ad5cb/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_advance_on_terminal_run_is_409_not_silent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/55fb3ef0-ab1d-4532-9755-f4a73e95a415/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_distill_allowed_for_failed_and_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/ee489ac7-6971-48b3-9eaa-d7c9fa8eb51b/distill "HTTP/1.1 409 Conflict"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/b0a900ed-89bc-4fa7-83fd-4e67a6e0572a/distill "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-02 19:06:42 [    INFO] EscalationManager initialized
+2026-11-02 19:06:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:42 [    INFO] LanceDBHandler initialized. ID: 5227938192. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:06:42 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:06:42 [    INFO] LanceDB connected successfully
+2026-11-02 19:06:42 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-02 19:06:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:06:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:06:42 [    INFO] EscalationManager initialized
+2026-11-02 19:06:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:42 [   ERROR] AUDIT GAP for execution ca439856-6c17-4b16-b281-697b39cf8cfd: {'complete': False, 'execution_id': 'ca439856-6c17-4b16-b281-697b39cf8cfd', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-03T00:06:42.326077+00:00'}
+2026-11-02 19:06:42 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:06:42 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+PASSED                                                                   [  8%]
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Try different inputs.
+2026-11-02 19:06:42 [    INFO] EscalationManager initialized
+2026-11-02 19:06:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:42 [    INFO] LanceDBHandler initialized. ID: 5228533776. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:06:42 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:06:42 [    INFO] LanceDB connected successfully
+2026-11-02 19:06:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:06:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:06:42 [   ERROR] AUDIT GAP for execution 39ef67db-7999-470e-afea-3f72525ff3c7: {'complete': False, 'execution_id': '39ef67db-7999-470e-afea-3f72525ff3c7', 'expected_events': 12, 'actual_events': 2, 'coverage_percentage': 16.7, 'checked_at': '2026-11-03T00:06:42.339438+00:00'}
+2026-11-02 19:06:42 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:06:42 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+PASSED                                                                   [  9%]
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-02 19:06:42 [    INFO] EscalationManager initialized
+2026-11-02 19:06:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:42 [    INFO] LanceDBHandler initialized. ID: 5244928688. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:06:42 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:06:42 [    INFO] LanceDB connected successfully
+2026-11-02 19:06:42 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-02 19:06:42 [    INFO] Added critique 6088919d-460d-46ae-ab8c-22c29b76e271 for agent goal04-agent
+2026-11-02 19:06:42 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:06:42 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:06:42 [   ERROR] AUDIT GAP for execution 9d6d9864-d9b3-4857-b32e-f6c977bc9266: {'complete': False, 'execution_id': '9d6d9864-d9b3-4857-b32e-f6c977bc9266', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-03T00:06:42.351772+00:00'}
+2026-11-02 19:06:42 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:06:42 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+PASSED                                                                   [  9%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_other_workspace_service_cannot_read_the_run PASSED [  9%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_own_workspace_service_reads_it PASSED [ 10%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_other_workspace_service_cannot_mutate PASSED [ 10%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_advance_from_wrong_workspace_is_a_no_op_not_found PASSED [ 10%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_cross_workspace_reads_are_404_not_data 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:42 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/decisions "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:42 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/canvases "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_cross_workspace_writes_are_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 404 Not Found"
+2026-11-02 19:06:42 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/cancel "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 11%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_same_workspace_member_non_owner_is_403 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_owner_and_workspace_supervisor_can_act 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_run_still_visible_to_its_owner_after_scoping 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 200 OK"
+2026-11-02 19:06:42 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/decisions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_run_access_control.py::TestAgentListDetailScoping::test_goal_runs_list_detail_is_workspace_scoped PASSED [ 12%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_start_creates_working_run_bound_to_the_agent PASSED [ 12%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_role_explicit_beats_agent_derivation PASSED [ 12%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_training_mode_holds_first_decision_for_the_owner PASSED [ 13%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_supervision_follows_earned_maturity PASSED [ 13%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_trusted_agent_may_request_any_mode PASSED [ 13%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_start_false_stages_a_dormant_run PASSED [ 13%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_governance_params_stripped PASSED [ 14%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_no_self_promotion_to_autonomous PASSED [ 14%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_agent_directs_only_itself PASSED [ 14%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_agentless_context_refused PASSED [ 14%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_unknown_goal PASSED [ 15%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_goal_from_another_workspace_refused PASSED [ 15%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_duplicate_active_run_refused PASSED [ 15%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_finished_run_does_not_block_a_new_one PASSED [ 16%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_router_sees_agent_identity_and_maturity PASSED [ 16%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_step_work_delegates_to_the_agent PASSED [ 16%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_delegation_flag_forces_off PASSED [ 16%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_unavailable_agent_falls_back_to_co_editing 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] goal run a09bd218-c96c-4a64-9dff-eba1f20383e4: agent agent-sales is paused — canvas stays on the co-editing path
+PASSED                                                                   [ 17%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_list_shows_the_run_summary PASSED [ 17%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_run_detail_carries_plan_and_decisions PASSED [ 17%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_goal_filter_and_unknown_run PASSED [ 17%]
+tests/test_goal_run_bugfixes.py::test_checkpoint_owns_cursor_until_resolved PASSED [ 18%]
+tests/test_goal_run_bugfixes.py::test_skip_over_checkpoint_still_advances PASSED [ 18%]
+tests/test_goal_run_bugfixes.py::test_skip_returns_structured_result PASSED [ 18%]
+tests/test_goal_run_bugfixes.py::test_approving_replan_budget_hold_replays_replan PASSED [ 19%]
+tests/test_goal_run_bugfixes.py::test_approving_major_replan_hold_applies_replan PASSED [ 19%]
+tests/test_goal_run_bugfixes.py::test_approving_wait_ceiling_hold_sets_wait PASSED [ 19%]
+tests/test_goal_run_bugfixes.py::test_approving_failed_done_marks_achieved PASSED [ 19%]
+tests/test_goal_run_events.py::test_ingest_wakes_matching_run_only 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:42 [    INFO] EscalationManager initialized
+2026-11-02 19:06:42 [    INFO] CognitiveTierService initialized for workspace: ws_test
+2026-11-02 19:06:42 [ WARNING] No LLM clients available
+2026-11-02 19:06:42 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "email_reply", "from": "acme@x.com", "subject": "Re: quote"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Research"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{"event": {"event": "email_reply", "from": "acme@x.com", "subject": "Re: quote"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:42 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 20%]
+tests/test_goal_run_events.py::test_ingest_ignores_non_matching PASSED   [ 20%]
+tests/test_goal_run_events.py::test_ingest_is_fault_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [ WARNING] No LLM clients available
+2026-11-02 19:06:43 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "email_reply", "from": "acme@x.com"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Research"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{}, {"event": {"event": "email_reply", "from": "acme@x.com"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:43 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 20%]
+tests/test_goal_run_events.py::test_due_timer_wake 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [ WARNING] No LLM clients available
+2026-11-02 19:06:43 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "timer", "source": "deadline", "summary": "wait deadline reached (2026-11-02T23:06:43.056397+00:00)"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Follow up"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{"event": {"event": "timer", "source": "deadline"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:43 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 20%]
+tests/test_goal_run_events.py::test_unparseable_deadline_is_skipped_not_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [ WARNING] unparseable goal-run wait deadline: 'not-a-date'
+PASSED                                                                   [ 21%]
+tests/test_goal_run_events.py::test_notify_canvas_done_no_link_is_noop PASSED [ 21%]
+tests/test_goal_run_events.py::test_notify_canvas_done_advances_active_run PASSED [ 21%]
+tests/test_goal_run_events.py::test_notify_canvas_done_leaves_waiting_run_asleep PASSED [ 22%]
+tests/test_goal_run_fixes.py::test_rewait_from_waiting_is_legal PASSED   [ 22%]
+tests/test_goal_run_fixes.py::test_wake_does_not_execute_around_unresolved_hold PASSED [ 22%]
+tests/test_goal_run_fixes.py::test_revise_current_reuses_step_canvas PASSED [ 22%]
+tests/test_goal_run_fixes.py::test_checkpoint_rejection_rewinds_to_work PASSED [ 23%]
+tests/test_goal_run_fixes.py::test_wait_ceiling_forces_human_signoff PASSED [ 23%]
+tests/test_goal_run_fixes.py::test_wait_within_ceiling_and_override PASSED [ 23%]
+tests/test_goal_run_learning.py::test_override_records_lesson_with_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:43 [    INFO] EscalationManager initialized
+2026-11-02 19:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:43 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:06:43 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 23%]
+tests/test_goal_run_learning.py::test_override_without_agent_or_guidance_is_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:43 [    INFO] EscalationManager initialized
+2026-11-02 19:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:43 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:06:43 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 24%]
+tests/test_goal_run_learning.py::test_distill_creates_deduped_playbook_draft PASSED [ 24%]
+tests/test_goal_run_learning.py::test_distill_skips_thin_runs PASSED     [ 24%]
+tests/test_goal_run_learning.py::test_seeding_from_fallback_includes_checkpoint PASSED [ 25%]
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [    INFO] Creating isolated LanceDBHandler for workspace: ws_test at ./data/atom_memory/ws_test
+2026-11-02 19:06:43 [    INFO] EscalationManager initialized
+2026-11-02 19:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:43 [    INFO] LanceDBHandler initialized. ID: 5244939632. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:06:43 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory/ws_test with storage_options=None
+2026-11-02 19:06:43 [    INFO] LanceDB connected successfully
+2026-11-02 19:06:43 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-02 19:06:43 [    INFO] Document added to 'agent_experience': goalrun-4c1692d9-c2b7-4485-baf4-1fdb1de7f764
+2026-11-02 19:06:43 [ WARNING] goal run 4c1692d9-c2b7-4485-baf4-1fdb1de7f764: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-02 19:06:43 [    INFO] Document added to 'agent_experience': goalrun-c7c6b5d9-f044-48f8-b048-4480a2d3c1b4
+2026-11-02 19:06:43 [ WARNING] goal run c7c6b5d9-f044-48f8-b048-4480a2d3c1b4: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-02 19:06:43 [    INFO] Document added to 'agent_experience': goalrun-92ad1b9d-6f43-46e2-9fb5-f6c8cc8d53ba
+2026-11-02 19:06:43 [ WARNING] goal run 92ad1b9d-6f43-46e2-9fb5-f6c8cc8d53ba: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 25%]
+tests/test_goal_run_learning.py::test_lesson_taught_in_chat_reaches_the_next_goal_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 25%]
+tests/test_goal_run_learning.py::test_goal_override_lesson_and_chat_lesson_land_in_the_same_journal 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:43 [    INFO] Learning skipped for goal-both-0bacdf4e: status intern (not STUDENT)
+2026-11-02 19:06:43 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:43 [    INFO] EscalationManager initialized
+2026-11-02 19:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:43 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:06:43 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 25%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_advance_persists_decision_and_executes_canvas_step PASSED [ 26%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_parameter_updates_applied_and_logged PASSED [ 26%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_wait_decision_suspends_run PASSED [ 26%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_done_requires_criteria_verification PASSED [ 26%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_holds_every_decision PASSED [ 27%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_checkpoint_passes_through_human_checkpoints PASSED [ 27%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_budget_forces_ask_human PASSED [ 27%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_magnitude_gate_holds_major_replans PASSED [ 27%]
+tests/test_goal_run_loop.py::TestGuardrails::test_minor_replan_applies PASSED [ 28%]
+tests/test_goal_run_loop.py::TestGuardrails::test_stuck_detector_pauses_after_identical_decisions PASSED [ 28%]
+tests/test_goal_run_loop.py::TestExecutors::test_human_checkpoint_step_creates_hitl_and_waits PASSED [ 28%]
+tests/test_goal_run_loop.py::TestExecutors::test_integration_action_via_action_registry PASSED [ 29%]
+tests/test_goal_run_loop.py::TestExecutors::test_unknown_action_is_reported_not_raised PASSED [ 29%]
+tests/test_goal_run_loop.py::TestExecutors::test_branch_new_canvas_creates_linked_canvas PASSED [ 29%]
+tests/test_goal_run_loop.py::TestExecutors::test_skip_advances_cursor PASSED [ 29%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_canvas_state_criterion PASSED [ 30%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_action_dispatched_criterion PASSED [ 30%]
+tests/test_goal_run_notifications.py::test_hold_notifies_with_guidance_and_action_url PASSED [ 30%]
+tests/test_goal_run_notifications.py::test_no_creator_no_notification PASSED [ 30%]
+tests/test_goal_run_notifications.py::test_wait_notifies_with_deadline PASSED [ 31%]
+tests/test_goal_run_notifications.py::test_checkpoint_notifies_approval_needed PASSED [ 31%]
+tests/test_goal_run_notifications.py::test_achieved_notifies_and_mentions_distill PASSED [ 31%]
+tests/test_goal_run_notifications.py::test_cancel_notifies_stopped PASSED [ 32%]
+tests/test_goal_run_routes.py::test_member_create_requires_role_based_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_goal_run_routes.py::test_create_run_seeds_plan_and_kickoff 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_goal_run_routes.py::test_create_unknown_goal_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] API Error: NOT_FOUND - Goal not found: nope
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/test_goal_run_routes.py::test_list_and_detail 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/4411928a-c67f-4bc1-9194-6da72f92a03f "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [ WARNING] API Error: NOT_FOUND - GoalRun not found: does-not-exist
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/does-not-exist "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/test_goal_run_routes.py::test_advance_and_resume_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/5c58a9b2-fb9b-4dc6-9cfa-6c2cf0142cbf/resume "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/5c58a9b2-fb9b-4dc6-9cfa-6c2cf0142cbf/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_goal_run_routes.py::test_checkpoint_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/7d4d563a-3317-4769-9eee-ee130b23b7b6/advance "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/7d4d563a-3317-4769-9eee-ee130b23b7b6 "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/7d4d563a-3317-4769-9eee-ee130b23b7b6/checkpoints/0dcba23c-48af-4541-80aa-88aa2b457167/resolve "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/7d4d563a-3317-4769-9eee-ee130b23b7b6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_goal_run_routes.py::test_event_ingestion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_goal_run_routes.py::test_event_ingestion_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 34%]
+tests/test_goal_run_routes.py::test_mode_change_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/ead8c2f4-6771-4851-ace2-26441e5b5158/mode "HTTP/1.1 403 Forbidden"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/ead8c2f4-6771-4851-ace2-26441e5b5158/mode "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/ead8c2f4-6771-4851-ace2-26441e5b5158/mode "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 34%]
+tests/test_goal_run_routes.py::test_distill_route 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8392cff4-f667-462a-9a36-ce624f5f7dd3/distill "HTTP/1.1 409 Conflict"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8392cff4-f667-462a-9a36-ce624f5f7dd3/distill "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8392cff4-f667-462a-9a36-ce624f5f7dd3/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 34%]
+tests/test_goal_run_routes.py::test_promotion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/promotion/agent-x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_goal_run_service.py::TestCreateRun::test_creates_planning_run_with_cursor PASSED [ 35%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_supervision_mode PASSED [ 35%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_goal PASSED [ 35%]
+tests/test_goal_run_service.py::TestStateMachine::test_full_lifecycle PASSED [ 36%]
+tests/test_goal_run_service.py::TestStateMachine::test_illegal_transitions_rejected PASSED [ 36%]
+tests/test_goal_run_service.py::TestStateMachine::test_terminal_states_have_no_exits PASSED [ 36%]
+tests/test_goal_run_service.py::TestStateMachine::test_pause_hitl_round_trip PASSED [ 36%]
+tests/test_goal_run_service.py::TestPersistence::test_run_survives_fresh_service PASSED [ 37%]
+tests/test_goal_run_service.py::TestPersistence::test_decision_log_append_only PASSED [ 37%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_active PASSED [ 37%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_event_key PASSED [ 38%]
+tests/test_goal_run_service.py::TestWaits::test_wake_consumed_once PASSED [ 38%]
+tests/test_goal_run_service.py::TestWaits::test_timer_wake_without_constraints PASSED [ 38%]
+tests/test_goal_run_service.py::TestParameters::test_patch_merges_top_level_and_nested PASSED [ 38%]
+tests/test_goal_run_service.py::TestCanvasBackLinks::test_canvas_goal_run_link_persists PASSED [ 39%]
+tests/test_goal_run_service.py::TestHITLHold::test_hold_creates_hitl_row_and_resume_executes PASSED [ 39%]
+tests/test_goal_run_service.py::TestHITLHold::test_reject_override_recorded 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:44 [    INFO] EscalationManager initialized
+2026-11-02 19:06:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:44 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:06:44 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 39%]
+tests/test_goal_run_service.py::TestHITLHold::test_resume_without_pending_is_noop PASSED [ 39%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_operator_wait_carries_a_deadline PASSED [ 40%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_expired_operator_wait_wakes_with_honest_error PASSED [ 40%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_future_deadline_does_not_wake PASSED [ 40%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_timer_waits_are_not_touched_by_the_watchdog_path PASSED [ 41%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_stale_active_run_is_interrupted_not_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] goal runs interrupted as stalled: ['run-stale']
+PASSED                                                                   [ 41%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_fresh_active_runs_are_left_alone PASSED [ 41%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_terminal_runs_are_never_swept PASSED [ 41%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_listing_carries_the_verified_record 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 25730293-b89b-4fae-9fc5-0d15e6f76763 (achieved=2, steps=8)
+PASSED                                                                   [ 42%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_guidance_and_playbooks_ride_along 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 87d8a8a9-3a43-4909-b9be-9cbc7c5d2586 (achieved=2, steps=8)
+PASSED                                                                   [ 42%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_entity_names_and_pii_never_ship 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template bad320bb-4f6c-41b0-874a-7b22316089a0 (achieved=2, steps=8)
+PASSED                                                                   [ 42%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_paid_listing_needs_a_verified_achieved_run 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 6e9ef91c-f9be-4f82-b961-25b62575c6d3 (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] packaged agent agent-fresh as template d3b4e03a-0593-4527-8041-48d34a589726 (achieved=0, steps=0)
+PASSED                                                                   [ 42%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_managed_installs_cannot_be_republished PASSED [ 43%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_sale_readiness_is_advisory PASSED [ 43%]
+tests/test_agent_marketplace_goal_runs.py::TestEvidenceHonestInstall::test_local_install_seeds_from_the_record 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template bd3e857c-b8cf-47f2-b15c-2223e9b83d9a (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] Successfully installed marketplace agent bd3e857c-b8cf-47f2-b15c-2223e9b83d9a as managed agent 2fca7085-e0c2-447f-baa2-162996d256b8
+2026-11-02 19:06:44 [    INFO] Successfully installed marketplace agent bd3e857c-b8cf-47f2-b15c-2223e9b83d9a as managed agent cbf7cbea-0c28-4df0-8971-e5e7a2353947
+PASSED                                                                   [ 43%]
+tests/test_agent_marketplace_goal_runs.py::TestRunOutcomesFeedTheListing::test_terminal_run_reports_usage_for_managed_agents PASSED [ 44%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_owner_publishes_and_listing_is_buyer_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/agents/agent-quota/sale-readiness "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template dac6756a-ea9a-4f6e-b7f9-c393c8492293 (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/templates/dac6756a-ea9a-4f6e-b7f9-c393c8492293 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_non_owner_cannot_publish 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 44%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_paid_gate_maps_to_409 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-fresh/publish "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 44%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_sends_the_packaged_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 82e58f19-ca4d-404d-984b-6be67fc77728 (achieved=2, steps=8)
+PASSED                                                                   [ 45%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_requires_a_packaged_template PASSED [ 45%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_second_push_is_idempotent_by_default 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template de514bdc-ca9d-4dfb-af04-88c8a21e2f0a (achieved=2, steps=8)
+PASSED                                                                   [ 45%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_marker_is_recorded_on_the_template 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 3f22a39f-dc2e-4af1-a78b-817c2ceffd67 (achieved=2, steps=8)
+PASSED                                                                   [ 45%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_publisher_pushes_and_non_publisher_is_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template f2838dbe-cdc2-4607-8065-591759de18f2 (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f2838dbe-cdc2-4607-8065-591759de18f2/push "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f2838dbe-cdc2-4607-8065-591759de18f2/push "HTTP/1.1 200 OK"
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f2838dbe-cdc2-4607-8065-591759de18f2/push "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 46%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_paid_needs_the_override 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 4f4ed70c-0890-4d03-961b-8a088663e571 (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 409 Conflict"
+2026-11-02 19:06:44 [    INFO] Successfully installed marketplace agent 4f4ed70c-0890-4d03-961b-8a088663e571 as managed agent 72ef3125-4e07-4a61-8d1b-88d4cce435f9
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_free_listing_needs_no_override 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [    INFO] packaged agent agent-quota as template 3125d969-637a-4b45-9c5a-d543c4743aaf (achieved=2, steps=8)
+2026-11-02 19:06:44 [    INFO] Successfully installed marketplace agent 3125d969-637a-4b45-9c5a-d543c4743aaf as managed agent 1aa96879-6ab8-4883-96b2-ca9905d208ae
+2026-11-02 19:06:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes PASSED [ 47%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [ 47%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+PASSED                                                                   [ 47%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 47%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [ 48%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [ 48%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:44 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [ 48%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [ 48%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [ 49%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [ 49%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_denied_below_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action 2287d8e1-8674-49f7-96e4-a9396a9b9a7b for agent None
+PASSED                                                                   [ 49%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action da7def13-4d0f-46bd-b482-894f29f82a8c for agent None
+PASSED                                                                   [ 50%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_required_role_matching_is_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action 555bff58-40ce-443f-8285-38578b22daab for agent None
+PASSED                                                                   [ 50%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unknown_required_role_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action 41d0cb9a-2c03-4aa1-b6b4-85617570906e for agent None
+2026-11-02 19:06:45 [   ERROR] HITL action 41d0cb9a-2c03-4aa1-b6b4-85617570906e requires unknown role 'grand_wizard'; denying (fail closed)
+PASSED                                                                   [ 50%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unverified_approver_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action f4d28a16-a613-45f3-8552-d7b39b2ac806 for agent None
+PASSED                                                                   [ 50%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_enforces_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action e92f819b-a078-417a-a5b1-645f4fbcae12 for agent None
+PASSED                                                                   [ 51%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:45 [    INFO] Created HITL action 1cbc9480-b7fc-4bbc-969a-da6a0dce45e3 for agent None
+PASSED                                                                   [ 51%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_cannot_reject_non_pending_action 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] Created HITL action 2c34aeed-6eca-4a8c-9cfa-a58715a915c4 for agent None
+PASSED                                                                   [ 51%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_modified_params_persist_on_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] Created HITL action 9d64f296-6fd3-410e-bc40-bde99436ae33 for agent None
+PASSED                                                                   [ 51%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_returns_plain_array 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d85ee1c4-71e5-45a0-8e3c-ce31c6aba475 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/bee716cf-95e5-48c6-aab7-3fad9e79f8ff "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/some-action "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 52%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_respects_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:46 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/dd536692-a95b-4f19-a111-691a4bc60eab "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 53%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_modified_params_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/834a7baf-bed9-460d-b1b0-0dbb5b23dd73 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_stale_goal_decision_is_refused_before_hitl_change 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/025ee580-5138-424f-a106-64592cacfdf6 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 54%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: reject_workflow on Workflow Approval
+2026-11-02 19:06:47 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 54%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_supervisor_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_member_cannot_approve_proposal PASSED [ 54%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_supervisor_can_approve_proposal PASSED [ 55%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_intervention_approve_uses_working_service_and_gates PASSED [ 55%]
+tests/test_structured_consumer_contracts.py::test_invalid_replan_gets_one_repair_and_returns_the_plan 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:47 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='need a new plan' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 55%]
+tests/test_structured_consumer_contracts.py::test_unrepaired_invalid_replan_falls_back_to_human 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:47 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='bad' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 55%]
+tests/test_structured_consumer_contracts.py::test_transport_none_is_not_repaired_as_replan 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:47 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:47 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 56%]
+tests/test_structured_consumer_contracts.py::test_execute_decision_never_applies_an_invalid_replan PASSED [ 56%]
+tests/test_structured_consumer_contracts.py::test_planner_typed_no_tool_is_not_transport_none PASSED [ 56%]
+tests/test_chat_teaching_route.py::test_public_chat_compound_request_keeps_email_obligation 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:48 [    INFO] EscalationManager initialized
+2026-11-02 19:06:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:48 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:48 [    INFO] EscalationManager initialized
+2026-11-02 19:06:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:48 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:48 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:48 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:48 [    INFO] runtime identity: source_id=fd286eadbdab revision=fd286eadbdab dirty=False (0 modified, 0 untracked)
+2026-11-02 19:06:48 [    INFO] Processing chat message from user user-1: len=63 fp=b4e6199ae422
+2026-11-02 19:06:48 [    INFO] [CHATCTX] request.agent_id='agent-1' context=shape shape={"task_context": {"qualification": "str(len=8)"}}
+2026-11-02 19:06:48 [    INFO] canvas action proposal filed: e28b0fc3-30c9-49d0-9f13-b60006400fd3 (send_email, canvas=1da0820b-e942-42d7-9cbd-b96e0b6853b7)
+2026-11-02 19:06:48 [    INFO] Recorded outcome for agent-1: success
+2026-11-02 19:06:48 [ WARNING] [apply-dbg] state=partial work_turn=True noop=None success_in=True
+2026-11-02 19:06:48 [    INFO] EscalationManager initialized
+2026-11-02 19:06:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:48 [   ERROR] Session s1 not found
+2026-11-02 19:06:48 [    INFO] HTTP Request: POST http://testserver/api/chat/message "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_chat_teaching_route.py::test_compound_email_draft_clarification_and_approval_resume 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:49 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:49 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:49 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-64474b
+2026-11-02 19:06:49 [    INFO] canvas action proposal filed: 1e2b95a3-0806-46b2-b3a3-898a41a5f395 (send_email, canvas=5ff8a5a8-f627-4330-ba69-787a2e7367c8)
+2026-11-02 19:06:49 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:49 [    INFO] LanceDBHandler initialized. ID: 5278421872. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:49 [    INFO] Executing action send_email from proposal 1e2b95a3-0806-46b2-b3a3-898a41a5f395
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] Created proposal episode f9b475d8-ca0d-49ca-8850-5106ba8615a5 for proposal 1e2b95a3-0806-46b2-b3a3-898a41a5f395 (outcome: approved)
+2026-11-02 19:06:49 [    INFO] Approved and executed proposal 1e2b95a3-0806-46b2-b3a3-898a41a5f395 by user user-1
+PASSED                                                                   [ 57%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[to-different-recipient@example.invalid] 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:49 [    INFO] EscalationManager initialized
+2026-11-02 19:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:49 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:49 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:49 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-e430e3
+2026-11-02 19:06:49 [    INFO] canvas action proposal filed: 8af15d99-e5de-4644-a52a-138925ceb90e (send_email, canvas=e3b739ed-8928-443b-9557-aa445dd26cd1)
+2026-11-02 19:06:49 [ WARNING] HITL bfb0856c-fd40-4b56-b974-074a99406fd2 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '8af15d99-e5de-4644-a52a-138925ceb90e', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 57%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[body-A different body that was never reviewed.] 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:50 [    INFO] EscalationManager initialized
+2026-11-02 19:06:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:50 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:50 [    INFO] EscalationManager initialized
+2026-11-02 19:06:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:50 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:50 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:50 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:50 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-8d4c70
+2026-11-02 19:06:50 [    INFO] canvas action proposal filed: 77745e18-d65c-4894-bc4d-065d27be5837 (send_email, canvas=b10c425f-c75e-470d-8c5a-ab02299e132c)
+2026-11-02 19:06:50 [ WARNING] HITL 35a050e8-d6d4-40fa-b01b-a0186b18ff92 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '77745e18-d65c-4894-bc4d-065d27be5837', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 57%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[attachment_hashes-value2] 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:51 [    INFO] EscalationManager initialized
+2026-11-02 19:06:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:51 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:51 [    INFO] EscalationManager initialized
+2026-11-02 19:06:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:51 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:51 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:51 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-ca5901
+2026-11-02 19:06:51 [    INFO] canvas action proposal filed: 45890b73-c2b3-4184-baea-05633c3ae082 (send_email, canvas=f17cf428-f079-400e-b25e-5789997b8329)
+2026-11-02 19:06:51 [ WARNING] HITL e9249cc9-3d35-4027-a697-451b2aa101ce decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '45890b73-c2b3-4184-baea-05633c3ae082', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 58%]
+tests/test_chat_teaching_route.py::test_chat_obligation_rejection_has_no_transport 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:51 [    INFO] EscalationManager initialized
+2026-11-02 19:06:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:51 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:51 [    INFO] EscalationManager initialized
+2026-11-02 19:06:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:51 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:51 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:51 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-36308b
+2026-11-02 19:06:51 [    INFO] canvas action proposal filed: 3859b73b-a7cb-4d32-a2f7-ee062dcdb311 (send_email, canvas=7d27637d-138d-453d-befb-b3ca212ec588)
+2026-11-02 19:06:51 [    INFO] EscalationManager initialized
+2026-11-02 19:06:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:51 [    INFO] Created proposal episode 02c1e2bb-285c-4785-b636-9c492ae0e2c8 for proposal 3859b73b-a7cb-4d32-a2f7-ee062dcdb311 (outcome: rejected)
+2026-11-02 19:06:51 [    INFO] Updated learning parameters for agent agent-1
+2026-11-02 19:06:51 [    INFO] autonomy cycle reset: agent-1 lost earned send_email autonomy (proposal rejected: not this one)
+2026-11-02 19:06:51 [    INFO] Rejected proposal 3859b73b-a7cb-4d32-a2f7-ee062dcdb311 by user user-1. Reason: not this one
+2026-11-02 19:06:51 [ WARNING] HITL df503290-c04f-4b2d-8652-81355e67a130 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '3859b73b-a7cb-4d32-a2f7-ee062dcdb311', 'status': 'rejected'}
+PASSED                                                                   [ 58%]
+tests/test_chat_teaching_route.py::test_chat_obligation_change_between_read_and_claim_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:52 [    INFO] EscalationManager initialized
+2026-11-02 19:06:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:52 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:52 [    INFO] EscalationManager initialized
+2026-11-02 19:06:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:52 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:52 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:52 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-0e2dc1
+2026-11-02 19:06:52 [    INFO] canvas action proposal filed: 07b70856-0c22-482e-b69d-2377b9917fe7 (send_email, canvas=5a16dd4d-fe9b-4201-9207-4bf10ed1b1ca)
+2026-11-02 19:06:52 [ WARNING] HITL ee934bff-96b9-492e-a3fe-cb202305f2bd decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '07b70856-0c22-482e-b69d-2377b9917fe7', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 58%]
+tests/test_chat_teaching_route.py::test_chat_obligation_canvas_change_between_read_and_claim_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:53 [    INFO] EscalationManager initialized
+2026-11-02 19:06:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:53 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-02 19:06:53 [    INFO] EscalationManager initialized
+2026-11-02 19:06:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-02 19:06:53 [    INFO] Slack Enhanced Service initialized
+2026-11-02 19:06:53 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-02 19:06:53 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-16c657
+2026-11-02 19:06:53 [    INFO] canvas action proposal filed: 85842be9-3f03-44a9-b405-fc66d5826eb0 (send_email, canvas=dae8bbfb-8748-42db-9e77-2401537ee8d9)
+2026-11-02 19:06:53 [ WARNING] HITL 0c3b2cf6-2564-47f1-9a06-7c0156ca4f90 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '85842be9-3f03-44a9-b405-fc66d5826eb0', 'status': 'payload_changed', 'reason': 'the canvas/artifact changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 58%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 59%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 59%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 59%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 60%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 60%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 60%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 60%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 61%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 61%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 61%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 61%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 62%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 62%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 62%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 63%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 63%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 63%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 63%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 64%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 64%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 64%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 64%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 65%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 65%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 65%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 66%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 66%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 66%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 66%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 67%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 67%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 67%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 67%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 68%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 68%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 68%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 69%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 69%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 69%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 69%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:56 [    INFO] Created HITL action 53ba0b09-d482-4fba-bdc6-b5d5dfec2e1a for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:56 [    INFO] Created HITL action 0ed1d521-9e9e-49f2-87fc-1d3f4a1a2d4c for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:57 [    INFO] Created HITL action 1d19deef-be08-4e8d-8671-b1d923cbac69 for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:57 [    INFO] Created HITL action 9bb7055f-f59c-443e-9391-316a553c0aae for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:57 [    INFO] Created HITL action 6cbcf897-4703-4dc2-a400-8981a8156048 for agent None
+PASSED                                                                   [ 71%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 71%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 71%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 72%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 72%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 72%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 72%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 73%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 73%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 73%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 73%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 74%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 74%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 74%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 75%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 75%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 75%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 75%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 76%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 76%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 76%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 76%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 77%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 77%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 77%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] Created HITL action 2936ecd3-1a48-442a-8116-7d4f102d8850 for agent None
+2026-11-02 19:06:59 [    INFO] Created HITL action 98e96cd8-d425-422e-a1fe-308a775e9c10 for agent None
+PASSED                                                                   [ 77%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-applied] PASSED [ 78%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 78%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 78%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 79%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 79%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 79%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 79%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 80%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 80%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 80%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 80%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] Created HITL action c917b0fe-0876-4393-8fc9-5b970cdb3abd for agent None
+PASSED                                                                   [ 81%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 81%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] Created HITL action 50a0ab36-4987-47a1-891a-e83f55848443 for agent None
+PASSED                                                                   [ 81%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 82%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_reaches_the_real_agent_prompt 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:06:59 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:06:59 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:06:59 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:06:59 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:06:59 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:06:59 [    INFO] Imported skill 'repair_outlook_search' (id: cecc2f12-6935-4eea-9357-28bd4bef24f0, status: Untrusted)
+2026-11-02 19:06:59 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 19:06:59 [    INFO] Creating isolated LanceDBHandler for workspace: ws-review at ./data/atom_memory/ws-review
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:59 [    INFO] LanceDBHandler initialized. ID: 4996673568. LANCEDB_AVAILABLE: True
+2026-11-02 19:06:59 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 82%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_is_consumed_after_a_new_session 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:06:59 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:06:59 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:06:59 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:06:59 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:06:59 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:06:59 [    INFO] Imported skill 'repair_outlook_search' (id: 5d275445-9b93-4f94-974a-174cf70814f8, status: Untrusted)
+2026-11-02 19:06:59 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 19:06:59 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 82%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_does_not_leak_to_another_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:06:59 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:06:59 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:06:59 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:06:59 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:06:59 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:06:59 [    INFO] Imported skill 'repair_outlook_search' (id: 8270b8eb-4640-4955-a7bc-94407eb1f908, status: Untrusted)
+2026-11-02 19:06:59 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 82%]
+tests/test_reviewed_skill_agent_consumption.py::test_meta_agent_consumes_the_promoted_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:06:59 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:06:59 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:06:59 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:06:59 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:06:59 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:06:59 [    INFO] Imported skill 'repair_outlook_search' (id: 580fc127-d46a-4d46-9e9a-f283f0c2170f, status: Untrusted)
+2026-11-02 19:06:59 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] EscalationManager initialized
+2026-11-02 19:06:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:59 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 83%]
+tests/test_reviewed_skill_agent_consumption.py::test_react_step_final_model_request_contains_the_reviewed_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:00 [    INFO] EscalationManager initialized
+2026-11-02 19:07:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:00 [    INFO] EscalationManager initialized
+2026-11-02 19:07:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:00 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:00 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:00 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:00 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:00 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:00 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:00 [    INFO] Imported skill 'repair_outlook_search' (id: c7a7e62b-803d-4927-b535-3120b77ab3d2, status: Untrusted)
+2026-11-02 19:07:00 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:00 [    INFO] EscalationManager initialized
+2026-11-02 19:07:00 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-02 19:07:00 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:07:00 [    INFO] EscalationManager initialized
+2026-11-02 19:07:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:07:00 [    INFO] Initializing tool registry...
+2026-11-02 19:07:00 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-02 19:07:00 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-02 19:07:00 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-02 19:07:00 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-02 19:07:00 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-02 19:07:00 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-02 19:07:00 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-02 19:07:00 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-02 19:07:00 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-02 19:07:00 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-02 19:07:00 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-02 19:07:00 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-02 19:07:00 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-02 19:07:00 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-02 19:07:00 [    INFO] Media control tools registered with tool registry
+2026-11-02 19:07:00 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-02 19:07:00 [    INFO] FFmpeg Python library loaded successfully
+2026-11-02 19:07:00 [    INFO] FFmpegService initialized
+2026-11-02 19:07:00 [    INFO] FFmpegTool initialized
+2026-11-02 19:07:00 [    INFO] Registered tool: ffmpeg_edit v1.0.0 (creative)
+2026-11-02 19:07:00 [    INFO] FFmpeg creative tool registered
+2026-11-02 19:07:00 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-02 19:07:00 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-02 19:07:00 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-02 19:07:00 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-02 19:07:00 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] python-hue-v2 library loaded - Hue integration enabled
+2026-11-02 19:07:00 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-02 19:07:00 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-02 19:07:00 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-02 19:07:00 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-02 19:07:00 [    INFO] Tool discovery complete. Discovered 131 new tools. Total tools: 149
+2026-11-02 19:07:00 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-02 19:07:00 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-02 19:07:00 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-02 19:07:00 [   ERROR] No Google Calendar credentials provided
+2026-11-02 19:07:00 [    INFO] CalendarTool initialized
+2026-11-02 19:07:00 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-02 19:07:00 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-02 19:07:00 [    INFO] NotionTool initialized
+2026-11-02 19:07:00 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-02 19:07:00 [    INFO] NotionTool registered with ToolRegistry
+2026-11-02 19:07:00 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-02 19:07:00 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-02 19:07:00 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-02 19:07:00 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-02 19:07:00 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-02 19:07:00 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-02 19:07:00 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-02 19:07:00 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-02 19:07:00 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-02 19:07:00 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-02 19:07:00 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-02 19:07:00 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-02 19:07:00 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-02 19:07:00 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-02 19:07:00 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-02 19:07:00 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-02 19:07:00 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-02 19:07:00 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-02 19:07:00 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-02 19:07:00 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-02 19:07:00 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-02 19:07:00 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-02 19:07:00 [    INFO] Tool registry initialized with 161 tools
+2026-11-02 19:07:00 [    INFO] ✓ Tool Registry integrated with MCP Service
+2026-11-02 19:07:00 [    INFO] Core MCP Service initialized
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 19:07:01 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+PASSED                                                                   [ 83%]
+tests/test_reviewed_improvement_apply.py::test_pending_candidate_cannot_be_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 83%]
+tests/test_reviewed_improvement_apply.py::test_validation_alone_changes_nothing PASSED [ 83%]
+tests/test_reviewed_improvement_apply.py::test_apply_writes_typed_skill_and_ordinary_work_consumes_it 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:01 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:01 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:01 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:01 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:01 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:01 [    INFO] Imported skill 'repair_outlook_search' (id: f54ce4bc-0619-4d2f-baea-47332e9b30f2, status: Untrusted)
+2026-11-02 19:07:01 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 84%]
+tests/test_reviewed_improvement_apply.py::test_duplicate_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:01 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:01 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:01 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:01 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:01 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:01 [    INFO] Imported skill 'repair_outlook_search' (id: 64cf3f76-9b02-478e-bc32-790bafa5e1e2, status: Untrusted)
+2026-11-02 19:07:01 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 84%]
+tests/test_reviewed_improvement_apply.py::test_route_requires_reviewer_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:01 [ WARNING] Access denied: user viewer-user has role viewer (level 2), required team_lead (level 4)
+2026-11-02 19:07:01 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-viewer_candidate/apply "HTTP/1.1 403 Forbidden"
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] EscalationManager initialized
+2026-11-02 19:07:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:01 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:01 [    INFO] Parsed skill 'admin_candidate' (type: prompt_only, packages: 0)
+2026-11-02 19:07:01 [    INFO] Scanning skill 'admin_candidate' (SHA: 02acab77...)
+2026-11-02 19:07:01 [    INFO] LLM scan completed for 'admin_candidate'
+2026-11-02 19:07:01 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:01 [ WARNING] Skill 'admin_candidate' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:01 [    INFO] Imported skill 'admin_candidate' (id: 97d82e6b-3656-421b-a15d-9c3494a68944, status: Untrusted)
+2026-11-02 19:07:01 [    INFO] Promoted skill 'admin_candidate' from Untrusted to Active
+2026-11-02 19:07:01 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-admin_candidate/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_reviewed_improvement_boundaries.py::test_viewer_cannot_validate_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:01 [ WARNING] Access denied: user reviewer has role viewer (level 2), required team_lead (level 4)
+2026-11-02 19:07:01 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 85%]
+tests/test_reviewed_improvement_boundaries.py::test_moved_employee_does_not_redirect_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/apply "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 85%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_leaves_no_active_registry_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:02 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:02 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:02 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:02 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:02 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:02 [    INFO] Imported skill 'repair_outlook_search' (id: 20d3dea9-937f-48d4-bbb9-a93f538435fb, status: Untrusted)
+2026-11-02 19:07:02 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 85%]
+tests/test_reviewed_improvement_boundaries.py::test_stale_second_session_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:02 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:02 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:02 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:02 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:02 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:02 [    INFO] Imported skill 'repair_outlook_search' (id: ebd9c9d2-a4d9-4851-9e79-f4991742d8ce, status: Untrusted)
+2026-11-02 19:07:02 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 85%]
+tests/test_reviewed_improvement_boundaries.py::test_changed_material_requires_fresh_review 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 200 OK"
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 86%]
+tests/test_reviewed_improvement_boundaries.py::test_new_review_between_validation_and_claim_is_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 86%]
+tests/test_reviewed_improvement_boundaries.py::test_identical_material_rereview_invalidates_older_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 86%]
+tests/test_reviewed_improvement_boundaries.py::test_rejection_between_validation_and_claim_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:02 [    INFO] EscalationManager initialized
+2026-11-02 19:07:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 86%]
+tests/test_reviewed_improvement_boundaries.py::test_employee_move_between_validation_and_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 87%]
+tests/test_reviewed_improvement_boundaries.py::test_two_applies_same_review_produce_one_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:03 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:03 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:03 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:03 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:03 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:03 [    INFO] Imported skill 'repair_outlook_search' (id: a1b43b42-fcf9-4046-b432-4174c0ef4233, status: Untrusted)
+2026-11-02 19:07:03 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 87%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_retry_reuses_package_and_stays_inert 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:03 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:03 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:03 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:03 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:03 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:03 [    INFO] Imported skill 'repair_outlook_search' (id: ae12ff2c-9643-405b-8a04-8f2fc9b908a8, status: Untrusted)
+2026-11-02 19:07:03 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Importing skill from source: raw_content
+2026-11-02 19:07:03 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 19:07:03 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 19:07:03 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 19:07:03 [    INFO] Security scan result: UNKNOWN
+2026-11-02 19:07:03 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 19:07:03 [    INFO] Imported skill 'repair_outlook_search' (id: 5599c28f-ae92-4ccb-871e-8251b0924809, status: Untrusted)
+2026-11-02 19:07:03 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 87%]
+tests/test_tool_error_memento_lifecycle.py::test_tool_errors_feed_the_canonical_memento_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-02 19:07:03 [    INFO] Creating isolated LanceDBHandler for workspace: ws-memento at ./data/atom_memory/ws-memento
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:07:03 [    INFO] LanceDBHandler initialized. ID: 5305233168. LANCEDB_AVAILABLE: True
+2026-11-02 19:07:03 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:07:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-02 19:07:03 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-02 19:07:03 [    INFO] Created episode f782f48d-181e-4da4-86a6-0152b8f6c284 for agent memento-agent (outcome=partial, constitutional_score=1.00)
+2026-11-02 19:07:03 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-02 19:07:03 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode f782f48d-181e-4da4-86a6-0152b8f6c284
+2026-11-02 19:07:03 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-02 19:07:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 88%]
+tests/test_tool_error_memento_lifecycle.py::test_raised_dispatch_error_is_recorded_too 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-02 19:07:03 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:07:03 [    INFO] EscalationManager initialized
+2026-11-02 19:07:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:07:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+PASSED                                                                   [ 88%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 88%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 88%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 89%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 89%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 89%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 89%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 90%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 90%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 90%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 91%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 91%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 91%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [ 91%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 92%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 92%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 92%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 92%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 93%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 93%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 93%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 94%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 94%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 94%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [ 94%]
+tests/test_presentation_binding_controls.py::test_concurrent_presentations_bind_their_own_audits PASSED [ 95%]
+tests/test_presentation_binding_controls.py::test_missing_audit_id_is_unverified PASSED [ 95%]
+tests/test_presentation_binding_controls.py::test_forged_result_digest_cannot_rescue_a_wrong_audit PASSED [ 95%]
+tests/test_presentation_binding_controls.py::test_goal_evaluate_without_an_observation_is_refuted PASSED [ 95%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-232d538970aa "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_deleted_returns_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-c4a57312efbb "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_404_for_other_user 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1cbfa4b5'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Updated canvas c-125f2d2aae18 (generic)
+2026-11-02 19:07:07 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-125f2d2aae18 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_persists_exact_material_and_one_new_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ec5d9573'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Updated canvas c-2a4da680fc87 (generic)
+2026-11-02 19:07:07 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-2a4da680fc87 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_accepts_string_and_list_content 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-00497b86'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Updated canvas c-e4077792b567 (markdown)
+2026-11-02 19:07:07 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e4077792b567?canvas_type=markdown&title=Md "HTTP/1.1 200 OK"
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-00497b86'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Updated canvas c-5ea084978d64 (sheet)
+2026-11-02 19:07:07 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-5ea084978d64?canvas_type=sheet "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3b49c027'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Deleted canvas c-08a29dd9826a
+2026-11-02 19:07:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-08a29dd9826a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_400_without_audit_id 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-29c4ca84f55e/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 99%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_unknown_version 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-8f6f5082ca7f/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 99%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_refuses_delete_marker 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-0e53359a0c61/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 99%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_appends_new_version_with_old_content 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:07:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-d322ca4e'. type='canvas:update'
+2026-11-02 19:07:07 [    INFO] Restored canvas c-be1292ce968b to version eee91a2c-24a2-4f15-a6bd-3a2470098820 (email) — appended as a new version
+2026-11-02 19:07:07 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-be1292ce968b/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-full-app/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 736 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal_effect_family_controls.py: 3 warnings
+tests/test_goal_journey_gaps.py: 17 warnings
+tests/test_goal_run_access_control.py: 10 warnings
+tests/test_goal_run_agent_start.py: 21 warnings
+tests/test_goal_run_learning.py: 2 warnings
+tests/test_goal_run_routes.py: 11 warnings
+tests/test_goal_run_watchdog_sweep.py: 7 warnings
+tests/test_agent_marketplace_goal_runs.py: 18 warnings
+tests/test_covpush_canvasroutes.py: 15 warnings
+  /private/tmp/atom-full-app/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_goal_no_progress_loop.py: 6 warnings
+tests/test_goal_run_learning.py: 5 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+  /private/tmp/atom-full-app/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+  /private/tmp/atom-full-app/backend/core/generic_agent.py:756: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    complexity = QueryComplexity.MODERATE
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/agent_world_model.py:132: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.table_name not in self.db.db.table_names():
+
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/agent_world_model.py:137: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.facts_table_name not in self.db.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 368 passed, 873 warnings in 48.66s ======================

@@ -83,6 +83,7 @@ not changed before the refusal.
 | Scope | Result |
 |---|---|
 | Integrated backend goal/approval + structured consumer suite | **209 passed** |
+| Integrated broad backend neighborhood | **368 passed** |
 | Clean goal/approval slice (without Agent 1 slice) | **204 passed** |
 | Clean frontend goal-run + approvals suites | **46 passed** |
 | Adapted verifier HTTP probe (legitimately bound A, replay A) | **passed** |

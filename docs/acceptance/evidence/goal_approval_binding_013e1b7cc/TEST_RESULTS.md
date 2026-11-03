@@ -7,6 +7,10 @@ Agent 1 structured consumer slice `bf9de381b`) in the clean
 `goal-approval-integrated-tests.log` — **209 passed** in one integrated run
 (goal/approval suites plus `test_structured_consumer_contracts.py`).
 
+`goal-approval-broad-tests.log` — **368 passed** across the goal/approval,
+structured consumer, chat-teaching, assignment, reviewed-skill, Memento,
+oracle/presentation and direct-canvas neighborhoods.
+
 ## Backend
 
 `goal-approval-tests.log` — **204 passed** in the clean goal/approval-only
