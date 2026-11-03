@@ -1,0 +1,74 @@
+PASS normal upload creates an authorized document "dbedb116-6c27-4f35-b9a8-1c5b07523d45"
+PASS outbound effect awaits explicit approval "awaiting_approval"
+PASS provider accepted then lost confirmation {"reason": "external_outcome_unknown", "message": "controlled transport lost the response after acceptance"}
+PASS assignment is blocked, not completed "blocked"
+PASS exactly one controlled effect exists 1
+PASS uncertain original operation survives restart "uncertain"
+PASS no second effect after restart "7e2fa234ab630d3ad19f69ff1e97a08d17adf7a1f058c39d29e3c317a88227be"
+PASS original operation reconciles to applied "applied"
+PASS reconciled assignment completes "completed"
+PASS no resend after reconciliation 1
+PASS same original operation identity retained "6b11210d-8f5d-4d61-b868-54c9368a9a23"
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "normal upload creates an authorized document",
+      "ok": true,
+      "detail": "dbedb116-6c27-4f35-b9a8-1c5b07523d45"
+    },
+    {
+      "name": "outbound effect awaits explicit approval",
+      "ok": true,
+      "detail": "awaiting_approval"
+    },
+    {
+      "name": "provider accepted then lost confirmation",
+      "ok": true,
+      "detail": {
+        "reason": "external_outcome_unknown",
+        "message": "controlled transport lost the response after acceptance"
+      }
+    },
+    {
+      "name": "assignment is blocked, not completed",
+      "ok": true,
+      "detail": "blocked"
+    },
+    {
+      "name": "exactly one controlled effect exists",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "name": "uncertain original operation survives restart",
+      "ok": true,
+      "detail": "uncertain"
+    },
+    {
+      "name": "no second effect after restart",
+      "ok": true,
+      "detail": "7e2fa234ab630d3ad19f69ff1e97a08d17adf7a1f058c39d29e3c317a88227be"
+    },
+    {
+      "name": "original operation reconciles to applied",
+      "ok": true,
+      "detail": "applied"
+    },
+    {
+      "name": "reconciled assignment completes",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "no resend after reconciliation",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "name": "same original operation identity retained",
+      "ok": true,
+      "detail": "6b11210d-8f5d-4d61-b868-54c9368a9a23"
+    }
+  ]
+}

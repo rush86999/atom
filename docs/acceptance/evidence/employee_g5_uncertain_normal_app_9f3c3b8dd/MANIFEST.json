@@ -1,0 +1,57 @@
+{
+  "artifacts": {
+    "README.md": "3ff850cc615bcfa06a5eec2cfd5a288da50591cba7cb6a40dcb5f9954f76c9c9",
+    "TEST_RESULTS.md": "91965f129865d3e6e7543f8fd6a425895b3bf25ec0dfe34ca4b1730b6a8354e0",
+    "focused-tests.log": "5ed0537bb2e1747f0ff042d1e4ba9a3d0d42ce212e376278005d03dca7c4bc5d",
+    "harness-run.log": "dc4ece21d582921437858ff02efa62b68136bbae481a134eb2500984fcf18bc3",
+    "report.json": "d4ecf0fa18b4d78ae385f6ff4fa0f68b8830d5bde2ea00f35474d978cb1e792d",
+    "server.log": "80498085086b4b9668e013edd7bd1516408d7f03509f465842aa549f02e70ae0"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "9f3c3b8ddadd88dad75b6b0372500ab725ea9c27",
+    "manifest_note": "Normal application backend/API controlled provider-lost-confirmation recovery across restart. Not browser UI; no live provider.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_planner.py",
+    "backend/core/assignment_resources.py",
+    "backend/tests/test_assignment_routes.py",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx",
+    "frontend-nextjs/lib/assignment-api.ts",
+    "scripts/acceptance/employee_g5_uncertain_normal_app.py"
+  ],
+  "exclusions": [
+    "normal browser UI journey remains with the product owner",
+    "no live provider/send authority",
+    "API-level normal-app support only",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "schema": "atom-employee-g5-uncertain-normal-app-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "3c3030f33459a536b03b15af97f9827cf46834fb6248ca446202f03ca51318d5",
+    "backend/core/assignment_executor.py": "8b754e9a30205a09b17bf6ff7c663ae65520185e84ac5a2ad50faa0f49fc069c",
+    "backend/core/assignment_planner.py": "04765e03a6c6cce65709e4dbbfbc047eeff093997f80b84b073abe32fcf95040",
+    "backend/core/assignment_resources.py": "970dc2fab70f985faaa57f6c41ae55e430055403f65a130dac3e9978895ced33",
+    "backend/tests/test_assignment_routes.py": "7f92275a0803f5788d470a69829281f41adca53232b81813bb7a2dd34053926d",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "2e57e04213405e0a305eaac05f5a3de0d610db867afe8b53167aee0319102dc5",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx": "a57656c4634be16d993212307cd00ffbe1f53c381dc21b560d6786b8635bdaed",
+    "frontend-nextjs/lib/assignment-api.ts": "484b48cd0efafc4f973415df5108a724c555b015c1202b800d6de82ab47ded81",
+    "scripts/acceptance/employee_g5_uncertain_normal_app.py": "e668e90034584c3b58dfe7782173dcac6cb08f99af218d9e1c3f728d4cfb7ae8"
+  },
+  "status": "controlled-recovery-verified",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "175 passed"
+    },
+    "uncertain_recovery": {
+      "report": "report.json",
+      "result": "11/11 checks"
+    }
+  }
+}
