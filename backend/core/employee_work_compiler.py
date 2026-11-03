@@ -8,12 +8,24 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from pydantic import ValidationError
 
 from core.assignment_plan import canonical_sha256, step_by_id
 from core.assignment_readiness import evaluate_step_readiness
+from core.employee_money_terms import (
+    ROLE_CURRENCY,
+    ROLE_FREIGHT_AMOUNT,
+    ROLE_TAX_AMOUNT,
+    ROLE_TAX_EXEMPTION,
+    ROLE_TAX_RATE,
+    TermContractError,
+    canonical_role,
+    resolve_accepted_term,
+    role_dimension,
+    validate_role_value,
+)
 from core.employee_work_requests import (
     InvoiceReconciliationRequest,
     QuoteCalculationRequest,
@@ -129,168 +141,65 @@ def _term_candidate(
     assignment: Mapping[str, Any], context: Mapping[str, Any],
     authority_ref: str, label: str,
 ) -> Dict[str, Any]:
-    """Resolve one term id against accepted teaching/facts.
-
-    A free-form label is not authority: the reference must name a taught term
-    or an accepted assignment fact carrying a stable source/authored identity.
-    """
-    ref = str(authority_ref or "").strip()
-    if not ref:
-        raise WorkRequestCompileError(f"{label} requires an authority term")
-    key = ref
-    for prefix in ("term:", "teaching:", "authored:", "fact:"):
-        if key.startswith(prefix):
-            key = key[len(prefix):]
-            break
-    snapshot = assignment.get("teaching_snapshot") or {}
-    teaching_terms = dict(snapshot.get("terms") or {})
-    if not teaching_terms:
-        teaching_terms = dict((context.get("teaching") or {}).get("terms") or {})
-    if key in teaching_terms:
-        return {
-            "term_id": ref,
-            "value": teaching_terms[key],
-            "currency": None,
-            "basis": key,
-            "source": "teaching",
-            "source_refs": [],
-            "teaching_revision": str(snapshot.get("revision") or ""),
-            "teaching_fingerprint": str(snapshot.get("fingerprint") or ""),
-            "validity": {},
-        }
-    for fact in assignment.get("facts") or []:
-        if not isinstance(fact, Mapping):
-            continue
-        if str(fact.get("fact_id") or "") == key or (
-                fact.get("authority_ref")
-                and str(fact.get("authority_ref")) == ref):
-            if str(fact.get("evidence_state") or "") != "established":
-                continue
-            validity = fact.get("validity") or {}
-            if not isinstance(validity, Mapping):
-                raise WorkRequestCompileError(
-                    f"{label} authority {ref!r} has an invalid validity object")
-            return {
-                "term_id": ref,
-                "value": fact.get("value"),
-                "currency": (
-                    validity.get("currency") or validity.get("unit")
-                    or fact.get("currency") or fact.get("unit")),
-                "basis": fact.get("field_id") or key,
-                "source": "fact",
-                "source_refs": list(fact.get("source_refs") or []),
-                "subject": dict(fact.get("subject") or {}),
-                "teaching_revision": str(
-                    validity.get("teaching_revision") or ""),
-                "teaching_fingerprint": "",
-                "validity": dict(validity),
-            }
-    raise WorkRequestCompileError(
-        f"{label} authority {ref!r} is not an accepted teaching/fact term")
-
-
-def _parse_time(value: Any, label: str, ref: str) -> datetime:
+    """Resolve one term id against the job's accepted teaching/facts."""
+    teaching = (
+        assignment.get("teaching_snapshot")
+        or context.get("teaching") or {})
+    facts = assignment.get("facts") or context.get("facts") or []
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except (TypeError, ValueError) as exc:
-        raise WorkRequestCompileError(
-            f"{label} authority {ref!r} has invalid validity") from exc
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed
+        return resolve_accepted_term(
+            authority_ref, teaching=teaching, facts=facts,
+            assignment=assignment, now=datetime.now(timezone.utc))
+    except TermContractError as exc:
+        raise WorkRequestCompileError(f"{label} {exc}") from exc
 
 
-def _term_scope_check(
-    assignment: Mapping[str, Any], term: Mapping[str, Any], label: str,
-) -> None:
-    """Reject a term that was accepted for another scope or revision."""
-    ref = str(term.get("term_id") or "")
-    subject = term.get("subject") or {}
-    if isinstance(subject, Mapping):
-        for key in ("workspace_id", "tenant_id"):
-            actual = subject.get(key)
-            if actual not in (None, "") and str(actual) != str(
-                    assignment.get(key) or ""):
-                raise WorkRequestCompileError(
-                    f"{label} authority {ref!r} belongs to another {key}")
-    validity = term.get("validity") or {}
-    scope = validity.get("scope") if isinstance(validity, Mapping) else None
-    if isinstance(scope, Mapping):
-        for key in ("workspace_id", "tenant_id"):
-            actual = scope.get(key)
-            if actual not in (None, "") and str(actual) != str(
-                    assignment.get(key) or ""):
-                raise WorkRequestCompileError(
-                    f"{label} authority {ref!r} is outside the assignment "
-                    f"{key} scope")
-        subject_id = scope.get("subject_id") or scope.get("subject")
-        fact_subject = (term.get("subject") or {}).get("id")
-        if subject_id not in (None, "") and fact_subject not in (None, "") and (
-                str(subject_id) != str(fact_subject)):
-            raise WorkRequestCompileError(
-                f"{label} authority {ref!r} is outside the accepted subject "
-                f"scope")
-        plan_revision = scope.get("plan_revision")
-        if plan_revision not in (None, "") and int(plan_revision) != int(
-                assignment.get("plan_revision") or 1):
-            raise WorkRequestCompileError(
-                f"{label} authority {ref!r} belongs to an earlier plan "
-                f"revision")
-    snapshot = assignment.get("teaching_snapshot") or {}
-    snapshot_revision = str(snapshot.get("revision") or "")
-    for key in ("teaching_revision",):
-        actual = validity.get(key) if isinstance(validity, Mapping) else None
-        if actual not in (None, "") and snapshot_revision and str(
-                actual) != snapshot_revision:
-            raise WorkRequestCompileError(
-                f"{label} authority {ref!r} belongs to teaching revision "
-                f"{actual!r}, not {snapshot_revision!r}")
-    planned = term.get("teaching_revision")
-    if planned and snapshot_revision and planned != snapshot_revision:
+def _require_role(
+    term: Mapping[str, Any], roles: Any, label: str,
+) -> str:
+    """Compare normalized roles, never raw alias spellings.
+
+    ``resolve_accepted_term`` already canonicalizes the term's declared role
+    (for example ``freight_amount``/``shipping`` -> freight). Normalizing the
+    expected set the same way means a valid alias can never be rejected just
+    because the two sides spell the same business role differently.
+    """
+    allowed = (roles,) if isinstance(roles, str) else tuple(roles or ())
+    canonical_allowed = {
+        canonical for canonical in (
+            canonical_role(role) for role in allowed)
+        if canonical
+    }
+    actual = canonical_role(term.get("role"))
+    if actual is None or actual not in canonical_allowed:
         raise WorkRequestCompileError(
-            f"{label} authority {ref!r} belongs to teaching revision "
-            f"{planned!r}, not {snapshot_revision!r}")
-    now = datetime.now(timezone.utc)
-    for key in ("effective_from", "not_before", "starts_at"):
-        value = validity.get(key) if isinstance(validity, Mapping) else None
-        if value:
-            if now < _parse_time(value, label, ref):
-                raise WorkRequestCompileError(
-                    f"{label} authority {ref!r} is not yet effective")
-    for key in ("expires_at", "expires", "valid_until"):
-        value = validity.get(key) if isinstance(validity, Mapping) else None
-        if value:
-            if now >= _parse_time(value, label, ref):
-                raise WorkRequestCompileError(
-                    f"{label} authority {ref!r} is expired")
+            f"{label} term {term.get('term_id')!r} has semantic role "
+            f"{term.get('role')!r}; expected one of "
+            f"{sorted(canonical_allowed)!r}. A money term cannot authorize "
+            "a different field.")
+    return actual
 
 
 def _resolved_money(
     assignment: Mapping[str, Any], context: Mapping[str, Any],
-    authority_ref: str, label: str, currency: str,
+    authority_ref: str, label: str, currency: str, roles: Any,
 ) -> Dict[str, Any]:
     term = _term_candidate(assignment, context, authority_ref, label)
-    _term_scope_check(assignment, term, label)
+    canonical = _require_role(term, roles, label)
     ref = str(term.get("term_id") or "")
     term_currency = str(term.get("currency") or "").strip().upper()
     if term_currency and str(currency or "").strip().upper() != term_currency:
         raise WorkRequestCompileError(
             f"{label} authority {ref!r} is denominated in {term_currency!r}, "
             f"not the quote currency {currency!r}")
-    text = str(term.get("value") if term.get("value") is not None else "")
-    if not text.strip():
-        raise WorkRequestCompileError(
-            f"{label} authority {ref!r} has no monetary value")
     try:
-        value = Decimal(text)
-    except (InvalidOperation, ValueError) as exc:
-        raise WorkRequestCompileError(
-            f"{label} authority {ref!r} is not a finite decimal") from exc
-    if not value.is_finite() or value < 0:
-        raise WorkRequestCompileError(
-            f"{label} authority {ref!r} is not a finite nonnegative value")
+        value = validate_role_value(canonical, term.get("value"))
+    except TermContractError as exc:
+        raise WorkRequestCompileError(f"{label} {exc}") from exc
     term["value"] = str(value)
     term["currency"] = term_currency or str(currency or "").strip().upper()
+    term["role"] = canonical
+    term["dimension"] = role_dimension(canonical)
     return term
 
 
@@ -299,13 +208,33 @@ def _resolved_currency(
     authority_ref: str, label: str,
 ) -> Dict[str, Any]:
     term = _term_candidate(assignment, context, authority_ref, label)
-    _term_scope_check(assignment, term, label)
-    text = str(term.get("value") if term.get("value") is not None else "").strip()
-    if not text or len(text) > 20:
-        raise WorkRequestCompileError(
-            f"{label} authority {term.get('term_id')!r} has no currency unit")
-    term["value"] = text.upper()
-    term["currency"] = text.upper()
+    canonical = _require_role(term, (ROLE_CURRENCY,), label)
+    try:
+        value = validate_role_value(ROLE_CURRENCY, term.get("value"))
+    except TermContractError as exc:
+        raise WorkRequestCompileError(f"{label} {exc}") from exc
+    term["value"] = value
+    term["currency"] = value
+    term["role"] = canonical
+    term["dimension"] = "currency"
+    return term
+
+
+def _resolved_exemption(
+    assignment: Mapping[str, Any], context: Mapping[str, Any],
+    authority_ref: str, label: str,
+) -> Dict[str, Any]:
+    term = _term_candidate(assignment, context, authority_ref, label)
+    canonical = _require_role(term, (ROLE_TAX_EXEMPTION,), label)
+    try:
+        value = validate_role_value(
+            ROLE_TAX_EXEMPTION, term.get("value"))
+    except TermContractError as exc:
+        raise WorkRequestCompileError(f"{label} {exc}") from exc
+    term["value"] = value
+    term["currency"] = ""
+    term["role"] = canonical
+    term["dimension"] = "exemption"
     return term
 
 
@@ -357,7 +286,7 @@ def _quote_patch(
             f"accepted teaching currency {currency_term['value']!r}")
     freight = _resolved_money(
         assignment, context, request.freight.authority_ref, "quote freight",
-        request.currency)
+        request.currency, (ROLE_FREIGHT_AMOUNT,))
     if not _same_money(request.freight.value, freight["value"]):
         raise WorkRequestCompileError(
             f"quote freight {request.freight.value!r} does not match the "
@@ -368,20 +297,14 @@ def _quote_patch(
         raise WorkRequestCompileError(
             "quote freight currency must match the quote currency")
     if request.tax.basis == "none":
-        tax = _term_candidate(
+        tax = _resolved_exemption(
             assignment, context, request.tax.authority_ref,
             "quote tax none")
-        _term_scope_check(assignment, tax, "quote tax none")
-        if str(tax.get("value")).strip().lower() not in (
-                "0", "0.00", "none", "zero", "exempt", "false"):
-            raise WorkRequestCompileError(
-                "quote tax basis 'none' is not supported by the accepted "
-                f"term {tax.get('value')!r}")
         tax_input = {"basis": "none"}
     elif request.tax.basis == "rate":
         tax = _resolved_money(
             assignment, context, request.tax.authority_ref,
-            "quote tax rate", request.currency)
+            "quote tax rate", request.currency, (ROLE_TAX_RATE,))
         if not str(request.tax.value).strip():
             raise WorkRequestCompileError(
                 "quote tax rate requires the taught rate value")
@@ -394,7 +317,7 @@ def _quote_patch(
     else:
         tax = _resolved_money(
             assignment, context, request.tax.authority_ref,
-            "quote tax amount", request.currency)
+            "quote tax amount", request.currency, (ROLE_TAX_AMOUNT,))
         if not str(request.tax.value).strip():
             raise WorkRequestCompileError(
                 "quote tax amount requires the taught amount value")
