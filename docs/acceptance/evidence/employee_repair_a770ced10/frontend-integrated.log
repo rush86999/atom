@@ -1,0 +1,9 @@
+PASS components/assignments/__tests__/AssignmentPanel.test.tsx
+PASS tests/pages/goal-runs/detail.test.tsx
+PASS tests/pages/approvals-page.test.tsx
+PASS tests/pages/goal-runs/index.test.tsx
+
+Test Suites: 4 passed, 4 total
+Tests:       54 passed, 54 total
+Snapshots:   0 total
+Time:        3.856 s
