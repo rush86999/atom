@@ -3992,6 +3992,18 @@ def test_adaptation_invalidates_only_affected_branch(env):
     assert step_by_id(after, "read-b") == before_b
     assert after["plan_revision"] == assignment["plan_revision"] + 1
 
+    restarted = TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]),
+        GoalService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]))
+    fresh = restarted.get_assignment(run_id)
+    assert step_by_id(fresh, "read-a")["status"] == "pending"
+    assert step_by_id(fresh, "use-a")["status"] == "pending"
+    assert step_by_id(fresh, "read-b") == before_b
+
 
 def test_adaptation_missing_qualification_asks_instead_of_guessing(env):
     from core.employee_adaptation import (
