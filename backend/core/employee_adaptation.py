@@ -32,7 +32,8 @@ class Observation(BaseModel):
     observation_id: str = Field(min_length=1, max_length=120)
     kind: Literal[
         "source_version", "quantity", "qualification", "external_response",
-        "uncertain_effect", "user_correction", "expiry", "revocation",
+        "evidence_result", "uncertain_effect", "user_correction", "expiry",
+        "revocation",
     ]
     subject_id: str = Field(default="", max_length=200)
     resource_id: str = Field(default="", max_length=200)
@@ -104,6 +105,15 @@ def deterministic_adaptation(
                 obs.reason or
                 "The correlated response is consumed by the existing "
                 "operation; no plan change is needed."),
+        }
+    if obs.kind == "evidence_result":
+        return {
+            "decision": "retain",
+            **base,
+            "reason": (
+                obs.reason or
+                "Evidence was read; the deterministic floor does not invent "
+                "a next work plan from content."),
         }
     if obs.kind == "qualification":
         if obs.evidence_state != "established" or obs.value is None:
@@ -189,6 +199,14 @@ def _adaptation_prompt(
         "bounded response to the observation(s).\n"
         "Rules:\n"
         "- retain: no material change.\n"
+        "- For an evidence_result, you may replan with supported new steps "
+        "that consume the returned rows/values; do not invent rows, prices, "
+        "ids or authority.\n"
+        "- Every new_steps[].step_id must be NEW and must not reuse any id in "
+        "context.existing_step_ids. Reference existing completed steps by "
+        "their step_id in depends_on and inputs.\n"
+        "- A calculation step must carry complete typed inputs; an empty-input "
+        "calculation is invalid.\n"
         "- clarify: one targeted business fact/choice is missing.\n"
         "- invalidate/replan: reopen only work affected by the observation; "
         "preserve unrelated completed receipts.\n"
@@ -210,6 +228,7 @@ async def propose_adaptation(
     *,
     assignment: Mapping[str, Any],
     llm_service: Any = None,
+    provider_model: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Propose a response; a provider failure falls back deterministically."""
     if llm_service is not None and observations:
@@ -222,7 +241,9 @@ async def propose_adaptation(
                 system_instruction=(
                     "You propose bounded, read-only employee plan changes. "
                     "You never execute or grant authority. Return JSON only."),
-                call_kwargs=None,
+                call_kwargs=(
+                    {"provider_model": tuple(provider_model)}
+                    if provider_model else None),
                 extra_kwargs={
                     "output_mode": "json",
                     "cascade": False,

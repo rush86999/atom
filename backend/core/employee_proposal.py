@@ -136,9 +136,12 @@ def build_employee_context(
     open_obligations: Optional[Sequence[Mapping[str, Any]]] = None,
     authorized_actions: Optional[Sequence[str]] = None,
     action_views: Optional[Sequence[Mapping[str, Any]]] = None,
+    adapter_views: Optional[Sequence[Mapping[str, Any]]] = None,
+    evidence_results: Optional[Sequence[Mapping[str, Any]]] = None,
     budget: Optional[Mapping[str, Any]] = None,
     task_version: Optional[int] = None,
     plan_revision: Optional[int] = None,
+    existing_step_ids: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -218,6 +221,47 @@ def build_employee_context(
             for item in (action_views or [])[:40]
             if isinstance(item, Mapping)
         ],
+        "adapter_views": [
+            {
+                "adapter": _text(item.get("adapter") or item.get("name"), 120),
+                "effect": _text(item.get("effect") or "declared", 40),
+                "operation_type": _text(item.get("operation_type"), 40),
+                "required_actions": list(
+                    item.get("required_actions") or [])[:10],
+                "description": _text(item.get("description"), 300),
+                "input_schema": dict(item.get("input_schema") or {}),
+            }
+            for item in (adapter_views or [])[:60]
+            if isinstance(item, Mapping)
+        ],
+        "existing_step_ids": [
+            _text(item, 80) for item in (existing_step_ids or [])
+            if str(item).strip()
+        ][:80],
+        "evidence_results": [
+            {
+                "step_id": _text(item.get("step_id"), 80),
+                "adapter": _text(item.get("adapter"), 120),
+                "status": _text(item.get("status"), 20),
+                "summary": _text(item.get("summary"), 500),
+                "value": item.get("value"),
+                "unit": _text(item.get("unit"), 40) or None,
+                "rows": [
+                    dict(row) for row in (item.get("rows") or [])[:20]
+                    if isinstance(row, Mapping)
+                ],
+                "schema": [
+                    dict(field) for field in (item.get("schema") or [])[:40]
+                    if isinstance(field, Mapping)
+                ],
+                "coverage": dict(item.get("coverage") or {}),
+                "verification": dict(item.get("verification") or {}),
+                "artifact": dict(item.get("artifact") or {}),
+                "truncated": bool(item.get("truncated")),
+            }
+            for item in (evidence_results or [])[:20]
+            if isinstance(item, Mapping)
+        ],
         "budget": dict(budget or {}),
         "rules": {
             "allowed_proposal_kinds": [
@@ -230,6 +274,72 @@ def build_employee_context(
             "clarify_only_when_material": True,
         },
     }
+
+
+def context_from_record(
+    record: Mapping[str, Any],
+    *,
+    teaching: Optional[Mapping[str, Any]] = None,
+    task_context: Optional[Mapping[str, Any]] = None,
+    action_views: Optional[Sequence[Mapping[str, Any]]] = None,
+    adapter_views: Optional[Sequence[Mapping[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Build the bounded context from the durable task/assignment record.
+
+    Includes only completed-evidence summaries and bounded row samples; large
+    source content stays behind the existing resource handles.
+    """
+    assignment = dict(record.get("assignment") or {})
+    evidence = []
+    for step in assignment.get("steps") or []:
+        result = step.get("result") if isinstance(
+            step.get("result"), dict) else {}
+        if not result:
+            continue
+        evidence.append({
+            "step_id": step.get("step_id"),
+            "adapter": step.get("adapter"),
+            "status": step.get("status"),
+            "summary": result.get("summary"),
+            "value": result.get("value"),
+            "unit": result.get("unit"),
+            "rows": result.get("rows") or [],
+            "schema": result.get("schema") or [],
+            "coverage": result.get("coverage") or {},
+            "verification": result.get("verification") or {},
+            "artifact": result.get("artifact") or {},
+            "truncated": result.get("truncated"),
+        })
+    obligations = []
+    for question in (record.get("task_revision") or {}).get(
+            "unresolved") or []:
+        if question.get("status") == "open":
+            obligations.append(question)
+    return build_employee_context(
+        objective=assignment.get("objective") or "",
+        employee_id=assignment.get("employee_id") or "",
+        agent_id=(assignment.get("provenance") or {}).get("agent_id"),
+        workspace_id=assignment.get("workspace_id") or "",
+        tenant_id=assignment.get("tenant_id") or "",
+        teaching=teaching or assignment.get("teaching_snapshot") or {},
+        sources=assignment.get("sources") or [],
+        task_context=task_context or {},
+        criteria=assignment.get("completion_criteria") or [],
+        facts=assignment.get("facts") or [],
+        open_obligations=obligations,
+        authorized_actions=assignment.get("authorized_actions") or [],
+        action_views=action_views,
+        adapter_views=adapter_views,
+        evidence_results=evidence,
+        budget=assignment.get("budget") or {},
+        task_version=record.get("task_version"),
+        plan_revision=assignment.get("plan_revision"),
+        existing_step_ids=[
+            str(step.get("step_id") or "")
+            for step in assignment.get("steps") or []
+            if step.get("step_id")
+        ],
+    )
 
 
 def _context_source(context: Mapping[str, Any], source_id: str) -> Optional[Dict]:
@@ -361,6 +471,10 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
         "business clarification, or both.\n"
         "- You cannot execute a tool, create an external effect, grant "
         "permission, invent source/action IDs, or provide receipts.\n"
+        "- Each evidence read is EITHER a source read or a registered read "
+        "action, never both: set source_id and leave action empty, or set "
+        "action and leave source_id empty. Do not write 'retrieve' in action "
+        "when using source_id.\n"
         "- Use only source_id values and action names present in the context.\n"
         "- Ask a question only when the missing fact materially changes the "
         "result or allowed action and cannot be read from an authorized "
@@ -372,8 +486,8 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
         '{"proposal_kind":"evidence_read|clarification|'
         'evidence_and_clarification","reason":"...",'
         '"evidence_reads":[{"step_id":"evidence-1","title":"...",'
-        '"source_id":"...|","action":"...|","arguments":{},'
-        '"requires":[],"reason":"..."}],'
+        '"source_id":"..." OR "", "action":"..." OR "", '
+        '"arguments":{},"requires":[],"reason":"..."}],'
         '"clarification":{"question":"...","concept":"...",'
         '"unblocks":"...","expected_answer_type":"..."}|null}\n\n'
         "CONTEXT:\n" + json.dumps(context, sort_keys=True, default=str)
@@ -385,6 +499,7 @@ async def propose_employee_work(
     *,
     llm_service: Any = None,
     deadline_seconds: float = 120.0,
+    provider_model: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
@@ -402,7 +517,9 @@ async def propose_employee_work(
                 system_instruction=(
                     "You are a read-only employee work planner. You never "
                     "execute, authorize or invent facts. Return JSON only."),
-                call_kwargs=None,
+                call_kwargs=(
+                    {"provider_model": tuple(provider_model)}
+                    if provider_model else None),
                 extra_kwargs={
                     "output_mode": "json",
                     "cascade": False,
