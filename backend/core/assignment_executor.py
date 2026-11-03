@@ -7398,6 +7398,14 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
                 text = json.dumps(payload, indent=2, sort_keys=True)
     source_version = _sha256_file(path)
     truncated = len(text) > 20000
+    data = None
+    if suffix == ".json":
+        try:
+            parsed = json.loads(text)
+        except (TypeError, ValueError):
+            parsed = None
+        if isinstance(parsed, dict):
+            data = _json_safe(parsed)
     binding = next((
         inputs.get(key) for key in (
             "resource_binding", "source_binding", "binding", "source")
@@ -7423,6 +7431,10 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "source_version": source_version,
         "resource_id": resource_id,
         "coverage": coverage,
+        "data": data or {},
+        "schema": [
+            {"column": str(key)} for key in (data or {})
+        ],
         "verification": {
             "status": "verified",
             "resource_id": resource_id,

@@ -156,6 +156,7 @@ def _evidence_preview(item: Mapping[str, Any]) -> Dict[str, Any]:
         "value": item.get("value"),
         "unit": _text(item.get("unit"), 40) or None,
         "rows": rows,
+        "data": dict(item.get("data") or {}),
         "schema": [
             dict(field) for field in (item.get("schema") or [])[:40]
             if isinstance(field, Mapping)
@@ -461,20 +462,39 @@ def context_from_record(
             step.get("result"), dict) else {}
         if not result:
             continue
-        evidence.append({
+        evidence_item = {
             "step_id": step.get("step_id"),
+            "title": step.get("title"),
             "adapter": step.get("adapter"),
             "status": step.get("status"),
             "summary": result.get("summary"),
             "value": result.get("value"),
             "unit": result.get("unit"),
             "rows": result.get("rows") or [],
+            "data": result.get("data") or {},
             "schema": result.get("schema") or [],
             "coverage": result.get("coverage") or {},
             "verification": result.get("verification") or {},
             "artifact": result.get("artifact") or {},
             "truncated": result.get("truncated"),
-        })
+        }
+        data = result.get("data")
+        if isinstance(data, Mapping):
+            keys = {str(key) for key in data}
+            evidence_item["data_keys"] = sorted(keys)[:40]
+            evidence_item["data_preview"] = {
+                str(key): value for key, value in list(data.items())[:20]
+                if isinstance(value, (str, int, float, bool, type(None)))
+            }
+            if "invoice_id" in keys or "invoice_number" in keys:
+                evidence_item["business_role"] = "invoice"
+            elif "received_quantity" in keys:
+                evidence_item["business_role"] = "receiving"
+            elif "po_id" in keys or "purchase_order_id" in keys:
+                evidence_item["business_role"] = "purchase_order"
+        elif evidence_item.get("rows"):
+            evidence_item["business_role"] = "quote_rows"
+        evidence.append(evidence_item)
     obligations = []
     for question in (record.get("task_revision") or {}).get(
             "unresolved") or []:
