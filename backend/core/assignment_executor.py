@@ -7645,7 +7645,16 @@ async def _document_text_read(
             "next_retrieval": "re-index the document and retry",
             "kind": "missing_evidence",
         })
-    if indexed_version != authoritative_version:
+    def _normalize_extraction_version(value: str) -> str:
+        text = str(value or "").strip()
+        for prefix in ("ev3:", "ev4:"):
+            if text.startswith(prefix):
+                return text[len(prefix):]
+        return text
+
+    if _normalize_extraction_version(
+            indexed_version) != _normalize_extraction_version(
+            authoritative_version):
         raise NeedsContext({
             "concept": "document_extraction_stale",
             "reason": (
@@ -7658,7 +7667,9 @@ async def _document_text_read(
     expected_version = str(
         binding.get("source_version") or inputs.get("source_version")
         or "").strip()
-    if expected_version and indexed_version != expected_version:
+    if expected_version and _normalize_extraction_version(
+            indexed_version) != _normalize_extraction_version(
+            expected_version):
         raise NeedsContext({
             "concept": "document_extraction_stale",
             "reason": (
