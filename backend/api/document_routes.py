@@ -311,6 +311,8 @@ async def upload_document(
         # same row (skip/replace); DIFFERENT files sharing a filename → two
         # rows (a filename is metadata, never an identity key).
         doc_id = _content_doc_key(content)
+        from core.doc_freshness_service import hash_text
+
         metadata = {
             "source": "upload",
             "size": len(content_bytes),
