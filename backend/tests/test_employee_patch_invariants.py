@@ -58,6 +58,9 @@ def test_transitive_uncertain_descendant_refuses_upstream_invalidation(env):
     assert after["plan_revision"] == before["plan_revision"]
     assert step_by_id(after, "use-a") == step_by_id(before, "use-a")
     assert step_by_id(after, "read-a") == step_by_id(before, "read-a")
+    assert after["authorized_actions"] == before["authorized_actions"]
+    assert after["budget"] == before["budget"]
+    assert env["lifecycle"].get_task(run_id)["operations"] == []
 
 
 @pytest.mark.parametrize("mutation", ["facts", "teaching"])
@@ -193,3 +196,34 @@ def test_registered_mutation_cannot_be_relabelled_read_only(env):
     assert step_by_id(
         env["lifecycle"].get_assignment(run_id),
         "relabelled-create") is None
+
+
+def test_forced_cas_retry_keeps_the_callback_pure(env, monkeypatch):
+    from core.assignment_executor import default_adapter_registry
+
+    run_id = _patch_ready_assignment(env)
+    effects = []
+
+    async def side_effect(inputs, context):
+        effects.append("called")
+        return {"status": "applied"}
+
+    default_adapter_registry.register("test.inv.pure", side_effect)
+    attempts = []
+    original = env["lifecycle"]._cas_write
+
+    def flaky_cas(run_id, expected, lifecycle, decision):
+        attempts.append(int(expected))
+        if len(attempts) == 1:
+            return False
+        return original(run_id, expected, lifecycle, decision)
+
+    monkeypatch.setattr(env["lifecycle"], "_cas_write", flaky_cas)
+    result = apply_plan_patch(
+        env["lifecycle"], run_id,
+        _patch(env, run_id, patch_id="inv-cas-retry"))
+    assert result["status"] == "applied"
+    assert len(attempts) == 2
+    assert effects == []
+    assert env["lifecycle"].get_assignment(
+        run_id)["plan_revision"] == 2
