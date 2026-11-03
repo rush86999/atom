@@ -1,0 +1,38 @@
+PASS components/assignments/__tests__/AssignmentPanel.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/detail.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/approvals-page.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/index.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 4 passed, 4 total
+Tests:       54 passed, 54 total
+Snapshots:   0 total
+Time:        2.807 s, estimated 3 s
+Ran all test suites matching components/assignments/__tests__/AssignmentPanel.test.tsx|tests/pages/goal-runs/detail.test.tsx|tests/pages/goal-runs/index.test.tsx|tests/pages/approvals-page.test.tsx.
