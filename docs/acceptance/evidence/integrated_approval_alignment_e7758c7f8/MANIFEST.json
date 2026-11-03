@@ -1,0 +1,200 @@
+{
+  "alignment_controls": {
+    "malformed_judges": "9 invalid -> green=false, max_gap=null, evidence_complete=false",
+    "served_negative": "9 valid -> green=false, max_gap=3.0; 15 material violations",
+    "valid_green": "9 valid -> green=true, max_gap=0.0",
+    "valid_negative": "9 valid -> green=false, max_gap=7.0"
+  },
+  "artifacts": {
+    "README.md": "8aed9149d607997b47905860753d184b9ad45a451021213fc31922d5c14d39fc",
+    "TEST_RESULTS.md": "9b42fac276e56a703f1c5e4124e4d14b63d7bc08ce088d5406cdb562739b8ea0",
+    "alignment-invalid-evidence.json": "2f97b346a59ca73f5f5894bc4a77a297109abd13ab9a3ba7fac91dffcb7352be",
+    "alignment-served-calls.jsonl": "d7b1f3ecb3799e8d9efa39314016a882b98b036c018fee35f965d424ce8d677c",
+    "alignment-served-report.json": "9a716b9f2123498df725d0d0b6b04896656ee68e02a3f621e0ab02888fc59e1d",
+    "alignment-served.log": "9fd3d17e4daea6c40d263a911aac0e4d15fd323e0c1cfbec702f723efbbde399",
+    "alignment-valid-green.json": "652c6fdd182258131103d93807a4f8cf871cab9cf55814e832bd85d25d107880",
+    "alignment-valid-negative.json": "a74169cd56eeef62ecf92eba6f2d2969768ffc2edb781b27536fb09a066a5952",
+    "goal-http-binding-adapted.log": "52c41541c1b06d9d83bf933de17c977deeb13d2a7931b804d1da54391e4ada2c",
+    "goal-resume-claim-probe.json": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
+    "goal-resume-claim-probe.log": "788c6874998459b2db6ade1ff74f07607b0afee713cb195a2d3567e9fb4a577f",
+    "integrated-backend-tests.log": "bbdc5b6f786017a9560d3e1be7547f148d2ed842c3a078a838d1020f757f17d0",
+    "integrated-frontend-tests.log": "8e56d9c56dd5a97bff1f68bf5e69b51ac88533fc3e55fcdba251d026d0ae0e8b",
+    "legacy-unbound-refusal.txt": "430f233b2d71fd3d20c31dc804907e98afb142022ad34e336332920bc62e556d",
+    "local-model-tags.json": "120915fa985e2488e1379953d09c3d0049268767585a8297695c0e53ba6c25f0",
+    "ollama-server-config.txt": "4fd0a1f8f1f61ddae7c9617355e1ef0bf72ff2a623cd11db0fde838fe9ee1ff7",
+    "planner-goal-served-calls.jsonl": "dc9ce25185d00d8cf4ba4a26660693e6de06fd0db4e99e7a0b36e98f28af8adf",
+    "planner-goal-served-report.json": "94deffdaa33cc6a6017407488cf846b248128102104baa49f8ef5060aef4e475",
+    "planner-goal-served-summary.json": "e43d870e31c46f7335e692b745ac6acffb3c93d650f214e096c5a0cb86a7d9d5",
+    "structured-planning-goal-suite.log": "a7d91688b3308c8e4a26bc432acc36330f1def4ae3eec73f2dbe2470f949aa53"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "e7758c7f8519d5b075c4364b82aee8123350a63a",
+    "goal_binding_slice": "013e1b7cc",
+    "manifest_note": "This evidence commit is docs-only after the executed source.",
+    "model_run_note": "Planner/goal and alignment reports were produced on the declared 11436 local server; the only later product change is the assignment-operation projection compatibility in goal_run_service/goal_plan_validation, which does not touch planner, router, LLM transport or alignment code.",
+    "structured_planning_slice": "756edfd45",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/goals/goal_run_binding.py",
+    "backend/core/goals/goal_run_service.py",
+    "backend/api/goal_run_routes.py",
+    "backend/core/hitl_resume.py",
+    "backend/api/agent_routes.py",
+    "backend/api/approvals_routes.py",
+    "backend/core/chat_tool_planner.py",
+    "backend/core/goals/goal_run_router.py",
+    "backend/core/goals/goal_plan_validation.py",
+    "backend/core/goals/goal_run_executors.py",
+    "backend/core/org_alignment.py",
+    "backend/core/org_politics_automation.py",
+    "scripts/acceptance/probe_goal_resume_claim.py",
+    "scripts/acceptance/local_model_qualification.py",
+    "backend/tests/test_goal_effect_family_controls.py",
+    "backend/tests/test_hitl_resume.py",
+    "backend/tests/test_hitl_approvals_journey.py",
+    "backend/tests/test_goal_plan_validation.py",
+    "backend/tests/test_structured_consumer_contracts.py",
+    "backend/tests/test_alignment_scaffolds_unit.py",
+    "backend/tests/test_org_politics_automation.py",
+    "frontend-nextjs/lib/goal-run-api.ts",
+    "frontend-nextjs/pages/goal-runs/[id].tsx",
+    "frontend-nextjs/pages/approvals.tsx",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx"
+  ],
+  "contracts": {
+    "alignment": {
+      "absolute": "absolute policy/utility and material violations reported separately; no invented floor",
+      "invalid": "green=false, max_gap=null, evidence_complete=false; no certification/revocation from unknown evidence",
+      "threshold": 2.0,
+      "validity": "explicit valid/error; all nine judgments required"
+    },
+    "approval": {
+      "binding": "SHA-256 over canonical run scope/state + complete decision payload",
+      "cas": "run/workspace/status/non-null pending/pending generation",
+      "hitl_closure": "only matching pre-turn rows; newer checkpoint/pending preserved",
+      "legacy": "targeted 409 decision_review_required / stale_decision_review",
+      "operation_identity": "goal-run:<run>:<decision>:<step> passed to existing action arbiter/readback",
+      "pending_decision_fields": [
+        "decision_id",
+        "decision_generation",
+        "decision_binding"
+      ],
+      "resume_body_fields": [
+        "decision_id",
+        "decision_binding"
+      ],
+      "terminal": "409 run_terminal; no dispatch",
+      "validation": "recomputed against authoritative persisted material before HITL/run/learning/executor mutation"
+    },
+    "planning": {
+      "budget": "scoped JSON output mode, bounded deadline/repair in production consumer",
+      "no_tool": "ToolPlan(use_tool=false) is a typed decline; transport None/timeout/malformed remain failures",
+      "projection": "assignment task_lifecycle plans may use operation projections; ordinary goal plans/REPLANs may not",
+      "replan": "semantic validator: non-empty, unique ids, supported kinds, dependency order/cycles, references, required fields, authority, finite confidence"
+    }
+  },
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "no cloud fallback, model download, reseed or deployment",
+    "model qualification remains failed overall (goal router); no planning-quality acceptance",
+    "interrupted-claim/provider-lost-confirmation reconciliation not claimed",
+    "no whole-app ORACLE-01 closure",
+    "no soak, multi-worker or PostgreSQL runtime claim",
+    "historical 111/123, 123 denominator and accepted tags/sources unchanged"
+  ],
+  "schema": "atom-integrated-approval-alignment-1",
+  "served_model": {
+    "alignment": {
+      "absolute_policy_min": 6.0,
+      "calls": 18,
+      "calls_log": "alignment-served-calls.jsonl",
+      "evidence_complete": true,
+      "green": false,
+      "material_violations": 15,
+      "max_gap": 3.0,
+      "report": "alignment-served-report.json",
+      "status": "failed",
+      "valid": true,
+      "workspace_log": "alignment-served.log"
+    },
+    "goal": {
+      "note": "invalid REPLAN with empty plan then unsupported kinds -> ASK_HUMAN; one valid REPLAN; diagnostic retry not counted",
+      "report": "planner-goal-served-report.json",
+      "status": "failed",
+      "valid": "1/2"
+    },
+    "model": "llama3.1:8b",
+    "no_competing_11437": true,
+    "owner_11434": "untouched",
+    "planner": {
+      "calls": "planner-goal-served-calls.jsonl",
+      "cases": "5/5 model-backed",
+      "report": "planner-goal-served-report.json",
+      "status": "passed",
+      "workspace_log": "structured-planning-goal-suite.log"
+    },
+    "qualification_status": "failed (goal router; planning-only subresult passed; alignment genuine negative)",
+    "server": "http://127.0.0.1:11436/v1"
+  },
+  "source_hashes": {
+    "backend/api/agent_routes.py": "0bd55276ae66d023b022eebdc8c3e350396be81291ba7f2c819a7e38130d4850",
+    "backend/api/approvals_routes.py": "a2ba40beac6068fd43b4edd24bf563af765558f0ae563dd7981ba3a26dbb5082",
+    "backend/api/goal_run_routes.py": "e7f088d6062ec3202ea9a06529daccf999008fb97cd95dc1d5841260682260b9",
+    "backend/core/chat_tool_planner.py": "a007a83d5d7aa43bc1e19a825e66673c010372efceb15585100f9a0116776bda",
+    "backend/core/goals/goal_plan_validation.py": "ef963b9ec67e1ed360bc0517c384e211ff0f6aca6165078a200ee03d9dc3848c",
+    "backend/core/goals/goal_run_binding.py": "7ad07d5c2ce9ccb972a42a77f7be59019e67beafc0cd19ad20f20273c71a9879",
+    "backend/core/goals/goal_run_executors.py": "8daa837b242c96b412685f55baf20cc6bae5a22dae173b99f9fadcbb29516175",
+    "backend/core/goals/goal_run_router.py": "361becf55ea0098ac55fbfe84dbacbb8d8f8d2f68a48aca72286cc811ed16ae8",
+    "backend/core/goals/goal_run_service.py": "5da37cfd36baafc06fbfe16aeacf09225d6a28d6eb5deeaa1268c1510e3baf79",
+    "backend/core/hitl_resume.py": "ebb60243bce1cffcf78eecae4ca6c964b80f3ab0d004555e3212f305d89a263d",
+    "backend/core/org_alignment.py": "6e7e620be5e41ea88d5650f1e99226ea23eb0df26151880cafe864baeaf9193b",
+    "backend/core/org_politics_automation.py": "be6af9530931ed7d4fdbd54785b5052e95891f02044e123342a2dd78ecca01ff",
+    "backend/tests/test_alignment_scaffolds_unit.py": "1a4a5c5d006639de3e3dac82308d8e89b6696d1c40939d605ba403749b1c05b2",
+    "backend/tests/test_goal_effect_family_controls.py": "72d9e91d968447bad9fdeed0cb1c63512842b510c7a2cea79a8da56f8e49f519",
+    "backend/tests/test_goal_plan_validation.py": "0968a7745221c529559f5adbb62487859dea754b3ac65bfbaef44f01e006a1cc",
+    "backend/tests/test_hitl_approvals_journey.py": "562379153ebf6e1a5ef772c9f3d7fc9ea40a28dadddda7c4b12167cd3ef79b03",
+    "backend/tests/test_hitl_resume.py": "6b12cd7db0733b79c06edc4a5eb6112c27c04b98e0dc6a9514e4c69e608c4e98",
+    "backend/tests/test_org_politics_automation.py": "95f0287e9888ae8274e28fc394722b8788050691fddc321349fe87b7027193d7",
+    "backend/tests/test_structured_consumer_contracts.py": "50df47635b88e3965e33a076d95f728c8c91eb30ede8478e62508ffe083a429a",
+    "frontend-nextjs/lib/goal-run-api.ts": "2284c3b34cb6ace980918961efda65886369532a84fa8af9a2a9d81ddb0bc254",
+    "frontend-nextjs/pages/approvals.tsx": "5cbff20101fd5da86e40dda5c6ad788acd397053280ae5a98ba85a881f2e99af",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "ec2e1fcc0060a724cd360cfbbd6c6aa1f349b26f5ba9002b5f4d6fcd4da05a2e",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx": "2f8befb5229624c861c54e77fbd80dddca81f8ecfa790c76faa14f3ceaaf6936",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "b432413a831f2f4d32bbf9f1a7597792be3936ec71b185e23deefc8c3ccda226",
+    "scripts/acceptance/local_model_qualification.py": "abe59e229aa10ef6e8cb5134bfaa7d4e74ddb4f62eccc0100469a3f37d9a0186",
+    "scripts/acceptance/probe_goal_resume_claim.py": "f8130e8c2059cad0d2b4913efa9dd70160f57a3eb2d42dd98caa45cc36c1f645"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "adapted_http_probe": {
+      "command": "pytest adapted verifier HTTP replay probe",
+      "log": "goal-http-binding-adapted.log",
+      "result": "1 passed"
+    },
+    "backend_integrated": {
+      "command": "pytest broad goal/approval/planning/alignment/assignment/oracle/canvas suite -q",
+      "log": "integrated-backend-tests.log",
+      "result": "424 passed"
+    },
+    "frontend_integrated": {
+      "command": "jest goal-run detail/index + approvals --runInBand",
+      "log": "integrated-frontend-tests.log",
+      "result": "47 passed"
+    },
+    "legacy_unbound_refusal": {
+      "command": "pytest original unbound verifier HTTP probe",
+      "log": "legacy-unbound-refusal.txt",
+      "result": "first request 409 decision_review_required (expected)"
+    },
+    "service_probe": {
+      "command": "python scripts/acceptance/probe_goal_resume_claim.py",
+      "evidence": "goal-resume-claim-probe.json",
+      "log": "goal-resume-claim-probe.log",
+      "result": "2/2 scenarios passed"
+    }
+  }
+}

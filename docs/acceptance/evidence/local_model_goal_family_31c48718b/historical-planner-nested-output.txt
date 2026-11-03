@@ -1,0 +1,18 @@
+.00048782816156744957, top_logprobs=None), ChatCompletionTokenLogprob(token='"\n', bytes=[34, 10], logprob=-2.038954257965088, top_logprobs=None), ChatCompletionTokenLogprob(token='}}', bytes=[125, 125], logprob=-0.08891309052705765, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "ToolPlan", \n"parameters": {\n    "intent": "search",\n    "query": "item A-1",\n    "service": "inventory",\n    "use_tool": True,\n    "retrieval_operation": None,\n    "presentation_preference": None,\n    "field_preference": None,\n    "routing_confidence": 0.9,\n    "suggested_intent": "search_request"\n}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793659545, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=89, prompt_tokens=3558, total_tokens=3647, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tok
+
+--- plan/secondary markers ---
+
+Max retries exceeded. Total attempts: 4, Last error: No tool calls or function call found in response (mode: TOOLS)
+Max retries exceeded. Total attempts: 4, Last error: No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+    No tool calls or function call found in response (mode: TOOLS)
+PLAN null
+SECONDS 112.2

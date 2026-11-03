@@ -1,0 +1,7 @@
+$ pytest /private/tmp/test_verifier_goal_http_replay_binding.py -q
+
+E       AssertionError: {"detail":{"error":"decision_review_required","message":"Refresh the run and review the current pending decision before approving it."}}
+E       assert 409 == 200
+../../test_verifier_goal_http_replay_binding.py:31: AssertionError
+
+Expected: the old unbound request is refused 409.

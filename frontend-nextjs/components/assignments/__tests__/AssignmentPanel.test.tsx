@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 jest.mock("@/lib/assignment-api", () => ({
   __esModule: true,
   listAssignments: jest.fn(),
+  createEmployeeAssignment: jest.fn(),
   getAssignment: jest.fn(),
   resumeAssignment: jest.fn(),
   cancelAssignment: jest.fn(),
@@ -16,6 +17,7 @@ jest.mock("@/lib/assignment-api", () => ({
 
 import {
   approveAssignmentStep,
+  createEmployeeAssignment,
   getAssignment,
   listAssignments,
   reconcileAssignmentStep,
@@ -108,6 +110,35 @@ const detail = {
       resolver: "owner",
     },
   ],
+  employee_job: {
+    objective: "Prepare the controlled response",
+    status: "waiting",
+    business_outcome: {
+      state: "unresolved",
+      basis: "criteria_unknown",
+      verdict: null,
+    },
+    steps: [
+      {
+        step_id: "doc",
+        title: "Render response",
+        status: "applied",
+        readiness: null,
+      },
+      {
+        step_id: "send",
+        title: "Send response",
+        status: "pending",
+        readiness: {
+          truth: "unknown",
+          blockers: [
+            { kind: "qualification", fact_id: "expiry", reason: "missing" },
+          ],
+        },
+      },
+    ],
+    open_obligations: [],
+  },
   operations: [],
 };
 
@@ -143,6 +174,10 @@ test("shows objective, completed work, gaps, waiting party and approval payload"
   expect(within(detailNode).getByText("What expiry applies?")).toBeInTheDocument();
   expect(within(detailNode).getByText(/Approval required/)).toBeInTheDocument();
   expect(within(detailNode).getByText(/Send the prepared response/)).toBeInTheDocument();
+  expect(within(detailNode).getByTestId("assignment-employee-job").textContent)
+    .toContain("unresolved");
+  expect(within(detailNode).getByTestId("assignment-readiness-reasons").textContent)
+    .toContain("expiry");
   expect(resumeAssignment).not.toHaveBeenCalled();
 });
 
@@ -196,4 +231,33 @@ test("uncertain effect reconciliation sends evidence and verdict", async () => {
       "provider receipt row 42"
     )
   );
+});
+
+
+test("employee-decides starts objective-only work without a supplied DAG", async () => {
+  (createEmployeeAssignment as jest.Mock).mockResolvedValue({
+    run_id: "run-2",
+    assignment: detail,
+  });
+  render(<AssignmentPanel />);
+  await screen.findByTestId("assignment-start");
+
+  fireEvent.change(screen.getByTestId("assignment-objective-input"), {
+    target: { value: "Prepare a delivery answer for the customer" },
+  });
+  fireEvent.click(screen.getByTestId("assignment-employee-decides-checkbox"));
+  fireEvent.click(screen.getByTestId("assignment-discover-checkbox"));
+  fireEvent.change(screen.getByTestId("assignment-scope-input"), {
+    target: { value: "commercial notes" },
+  });
+  fireEvent.click(screen.getByTestId("assignment-start-button"));
+
+  await waitFor(() => expect(createEmployeeAssignment).toHaveBeenCalledWith(
+    expect.objectContaining({
+      objective: "Prepare a delivery answer for the customer",
+      source_scope: { query: "commercial notes" },
+      authorized_actions: ["retrieve"],
+      use_model: true,
+    }),
+  ));
 });

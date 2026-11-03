@@ -1,0 +1,101 @@
+
+tests/test_reviewed_improvement_boundaries.py::test_viewer_cannot_validate_candidate 
+-------------------------------- live log setup --------------------------------
+2026-11-02 16:41:02 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 16:41:02 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 16:41:02 [    INFO] EscalationManager initialized
+2026-11-02 16:41:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:02 [    INFO] EscalationManager initialized
+2026-11-02 16:41:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 16:41:02 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:41:02 [ WARNING] Access denied: user reviewer has role viewer (level 2), required team_lead (level 4)
+2026-11-02 16:41:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/test_reviewed_improvement_boundaries.py::test_moved_employee_does_not_redirect_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:41:03 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/apply "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 40%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_leaves_no_active_registry_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:41:03 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:41:03 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:41:03 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:41:03 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:41:03 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:41:03 [    INFO] Imported skill 'repair_outlook_search' (id: eda8bc29-07d1-410d-ba37-6be733c4e0a9, status: Untrusted)
+2026-11-02 16:41:03 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 60%]
+tests/test_reviewed_improvement_boundaries.py::test_stale_second_session_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:41:03 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:41:03 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:41:03 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:41:03 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:41:03 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:41:03 [    INFO] Imported skill 'repair_outlook_search' (id: 0fdd1082-3450-4d29-b25b-412fbb094402, status: Untrusted)
+2026-11-02 16:41:03 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 80%]
+tests/test_reviewed_improvement_boundaries.py::test_changed_material_requires_fresh_review 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:41:03 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 200 OK"
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:41:03 [    INFO] EscalationManager initialized
+2026-11-02 16:41:03 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 passed, 17 warnings in 12.58s ========================

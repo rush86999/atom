@@ -1,0 +1,57 @@
+{
+ "schema": "atom-reviewed-skill-consumption-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "5538a654dd1660fb20c9882eed74e51c3fe7c0b0",
+  "product_source": "c1074f0a9ecb057275b6990ef24eef1742c724a1 (accepted)",
+  "product_diff": "zero across backend/core, backend/api, frontend-nextjs, scripts",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "source_files": {
+   "backend/tests/test_reviewed_skill_agent_consumption.py": "66475720f0d74b8e50b5184210456eff4bf96defeac759f1713c9c8d24606c67"
+  }
+ },
+ "consumption": {
+  "generic_agent_prompt": "promoted prompt skill reaches _retrieve_skill_instructions; generated code absent",
+  "workspace_block": "Skill name appears in WORKSPACE-ASSIGNED SKILLS",
+  "new_session": "fresh session still injects the skill",
+  "meta_agent": "AtomMetaAgent._retrieve_skill_instructions consumes the skill",
+  "workspace_isolation": "non-owning workspace gets empty; owner retrieves"
+ },
+ "tests": {
+  "backend_combined": {
+   "command": "TESTING=1 pytest <31 files> -q",
+   "result": "491 passed",
+   "log": "backend-tests.log"
+  },
+  "consumption_controls": {
+   "command": "pytest tests/test_reviewed_skill_agent_consumption.py -q",
+   "result": "4 passed",
+   "log": "consumption-controls.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "exclusions": [
+  "no live provider call, credential, spend, send or reseed",
+  "prompt injection/retrieval consumption only, not arbitrary behavior quality or generated-code execution",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/reviewed_improvement_claim_cas_20261102/",
+  "docs/acceptance/evidence/reviewed_improvement_boundaries_52549c51a/",
+  "docs/acceptance/evidence/reviewed_improvement_20261102/"
+ ],
+ "artifacts": {
+  "README.md": "7d2705ad6c4a74bf74eea6214a0645b3cda45ccab62f3472fd19bf7bb79501f1",
+  "TEST_RESULTS.md": "6ebf9d0288594d20e50acfe0454ef36ab26ae2a74c2aaea1f5a6d33dedb210ad",
+  "backend-tests.log": "748fd04cf6bb3526c17e29d3c2a5ca19de122e5de7f98e39a74518fb568bad3d",
+  "consumption-controls.log": "8b800666426be5ecc162d46b4ed3d435bc15c1ef8f60f75fcf0a0cf3dbbc9241",
+  "frontend-tests.log": "e33fe67cf78d05a423c6fc89bccc9c2063d4acc169fc8185983a27f4a31a068d"
+ }
+}

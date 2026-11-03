@@ -1,0 +1,493 @@
+
+tests/test_reviewed_improvement_apply.py::test_pending_candidate_cannot_be_applied 
+-------------------------------- live log setup --------------------------------
+2026-11-02 16:42:14 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 16:42:14 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 16:42:14 [    INFO] EscalationManager initialized
+2026-11-02 16:42:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:14 [    INFO] EscalationManager initialized
+2026-11-02 16:42:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 16:42:14 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  0%]
+tests/test_reviewed_improvement_apply.py::test_validation_alone_changes_nothing PASSED [  1%]
+tests/test_reviewed_improvement_apply.py::test_apply_writes_typed_skill_and_ordinary_work_consumes_it 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:15 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:15 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:15 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:15 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:15 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:15 [    INFO] Imported skill 'repair_outlook_search' (id: 2ff2b8ab-f8cb-4816-ad44-24bea266c7be, status: Untrusted)
+2026-11-02 16:42:15 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [  1%]
+tests/test_reviewed_improvement_apply.py::test_duplicate_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:15 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:15 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:15 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:15 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:15 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:15 [    INFO] Imported skill 'repair_outlook_search' (id: 9346b67e-3808-472f-8229-800e0263adfc, status: Untrusted)
+2026-11-02 16:42:15 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  2%]
+tests/test_reviewed_improvement_apply.py::test_route_requires_reviewer_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:15 [ WARNING] Access denied: user viewer-user has role viewer (level 2), required team_lead (level 4)
+2026-11-02 16:42:15 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-viewer_candidate/apply "HTTP/1.1 403 Forbidden"
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] EscalationManager initialized
+2026-11-02 16:42:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:15 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:15 [    INFO] Parsed skill 'admin_candidate' (type: prompt_only, packages: 0)
+2026-11-02 16:42:15 [    INFO] Scanning skill 'admin_candidate' (SHA: 02acab77...)
+2026-11-02 16:42:15 [    INFO] LLM scan completed for 'admin_candidate'
+2026-11-02 16:42:15 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:15 [ WARNING] Skill 'admin_candidate' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:15 [    INFO] Imported skill 'admin_candidate' (id: 1437c752-2c5d-4eac-98db-aa9c0e23421a, status: Untrusted)
+2026-11-02 16:42:15 [    INFO] Promoted skill 'admin_candidate' from Untrusted to Active
+2026-11-02 16:42:15 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-admin_candidate/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_reviewed_improvement_boundaries.py::test_viewer_cannot_validate_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:15 [ WARNING] Access denied: user reviewer has role viewer (level 2), required team_lead (level 4)
+2026-11-02 16:42:15 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  3%]
+tests/test_reviewed_improvement_boundaries.py::test_moved_employee_does_not_redirect_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:16 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/apply "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  4%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_leaves_no_active_registry_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:16 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:16 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:16 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:16 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:16 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:16 [    INFO] Imported skill 'repair_outlook_search' (id: 7270804c-de47-4bbe-aa69-b3518547e9ea, status: Untrusted)
+2026-11-02 16:42:16 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [  5%]
+tests/test_reviewed_improvement_boundaries.py::test_stale_second_session_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:16 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:16 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:16 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:16 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:16 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:16 [    INFO] Imported skill 'repair_outlook_search' (id: 9290b399-4161-490b-aa52-f24b36b9dc32, status: Untrusted)
+2026-11-02 16:42:16 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  5%]
+tests/test_reviewed_improvement_boundaries.py::test_changed_material_requires_fresh_review 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:16 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 200 OK"
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  6%]
+tests/test_tool_error_memento_lifecycle.py::test_tool_errors_feed_the_canonical_memento_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:16 [    INFO] MCP Service initialized
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-02 16:42:16 [    INFO] Creating isolated LanceDBHandler for workspace: ws-memento at ./data/atom_memory/ws-memento
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 16:42:16 [    INFO] LanceDBHandler initialized. ID: 5006717520. LANCEDB_AVAILABLE: True
+2026-11-02 16:42:16 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 16:42:16 [    INFO] EscalationManager initialized
+2026-11-02 16:42:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 16:42:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-02 16:42:16 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-02 16:42:16 [    INFO] Created episode f68fc1e0-5791-4e3d-8c8e-4d1baead08a8 for agent memento-agent (outcome=partial, constitutional_score=1.00)
+2026-11-02 16:42:16 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-02 16:42:16 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode f68fc1e0-5791-4e3d-8c8e-4d1baead08a8
+2026-11-02 16:42:16 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-02 16:42:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [  6%]
+tests/test_tool_error_memento_lifecycle.py::test_raised_dispatch_error_is_recorded_too 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:17 [    INFO] EscalationManager initialized
+2026-11-02 16:42:17 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-02 16:42:17 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 16:42:17 [    INFO] EscalationManager initialized
+2026-11-02 16:42:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+PASSED                                                                   [  7%]
+tests/test_memento_candidate_review.py::test_tool_error_candidate_stays_pending_and_review_does_not_mutate_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:17 [    INFO] Generated skill candidate 'repair_outlook_search' from episode episode-tool-error
+PASSED                                                                   [  8%]
+tests/test_memento_candidate_review.py::test_runtime_tool_failure_trigger_files_the_pending_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:17 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-02 16:42:17 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode episode-runtime-tool-error
+2026-11-02 16:42:17 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-02 16:42:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [  8%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [  9%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 10%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 10%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 11%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 12%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 12%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 13%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 13%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 15%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 15%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 16%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [ 17%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 17%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 18%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 18%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 19%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 20%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 20%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 21%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 22%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 22%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 23%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [ 24%]
+tests/test_presentation_binding_controls.py::test_concurrent_presentations_bind_their_own_audits PASSED [ 24%]
+tests/test_presentation_binding_controls.py::test_missing_audit_id_is_unverified PASSED [ 25%]
+tests/test_presentation_binding_controls.py::test_forged_result_digest_cannot_rescue_a_wrong_audit PASSED [ 25%]
+tests/test_presentation_binding_controls.py::test_goal_evaluate_without_an_observation_is_refuted PASSED [ 26%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:21 [    INFO] runtime identity: source_id=52549c51a217 revision=52549c51a217 dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 27%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 27%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 28%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 29%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 29%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 30%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 31%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 31%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 32%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 32%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 33%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 34%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 34%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 35%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 36%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 36%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 37%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 37%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 38%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 39%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 39%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 40%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 41%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 41%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 42%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 43%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 43%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 44%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 44%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 45%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 46%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 46%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 47%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 48%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 48%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 49%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 50%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 50%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 51%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 51%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:25 [    INFO] Created HITL action 97eddfd7-0bcd-41f9-99b3-bf29cd95e4e8 for agent None
+PASSED                                                                   [ 52%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:25 [    INFO] Created HITL action a45c6663-bc2f-4c05-8e2a-a7e86a9815d7 for agent None
+PASSED                                                                   [ 53%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:26 [    INFO] Created HITL action 614b69e3-2257-47f9-b245-9413db445e36 for agent None
+PASSED                                                                   [ 53%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:26 [    INFO] Created HITL action 9cc02916-2067-4b62-8c48-6efb12f6f850 for agent None
+PASSED                                                                   [ 54%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:26 [    INFO] Created HITL action 30638e06-3ee6-47bc-b747-f5c6a57358d2 for agent None
+PASSED                                                                   [ 55%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 55%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 56%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 56%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 57%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 58%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 58%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 59%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 60%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 60%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 61%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 62%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 62%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 63%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 63%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 64%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 65%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 65%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 66%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 67%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 67%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 68%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 68%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 69%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 70%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:27 [    INFO] Created HITL action 37e7f816-8cf1-422a-8f6d-77d1724e7def for agent None
+2026-11-02 16:42:27 [    INFO] Created HITL action d9b98914-8b03-4dc9-81ca-d5d65db9888d for agent None
+PASSED                                                                   [ 70%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-applied] PASSED [ 71%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 72%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 72%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 73%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 74%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 74%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 75%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 75%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 76%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 77%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 77%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] Created HITL action 3f0fc9df-e99e-4ba8-bbc9-3a05e0f7a9d7 for agent None
+PASSED                                                                   [ 78%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 79%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] Created HITL action bb929929-402c-4504-a138-0144d6266a23 for agent None
+PASSED                                                                   [ 79%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 80%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-6373ed49a3e9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_deleted_returns_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-040731a8370a "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 82%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_404_for_other_user 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 83%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-37ef1a59'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Updated canvas c-8101397950a2 (generic)
+2026-11-02 16:42:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8101397950a2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_persists_exact_material_and_one_new_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0692b5ae'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Updated canvas c-0916cc86ae1d (generic)
+2026-11-02 16:42:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-0916cc86ae1d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_accepts_string_and_list_content 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-810debb7'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Updated canvas c-3099a4f905cb (markdown)
+2026-11-02 16:42:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-3099a4f905cb?canvas_type=markdown&title=Md "HTTP/1.1 200 OK"
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-810debb7'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Updated canvas c-04531a3f21d2 (sheet)
+2026-11-02 16:42:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-04531a3f21d2?canvas_type=sheet "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-35ed18fd'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Deleted canvas c-3e8d74bb6785
+2026-11-02 16:42:28 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-3e8d74bb6785 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 86%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_400_without_audit_id 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-460d96c5c82e/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 87%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_unknown_version 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ae89cc0e7808/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 88%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_refuses_delete_marker 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-dafa95ff04f7/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 89%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_appends_new_version_with_old_content 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-28da096d'. type='canvas:update'
+2026-11-02 16:42:28 [    INFO] Restored canvas c-08b8b79451ed to version 05d681c4-2f32-4c82-94eb-b4e7db35eabb (email) — appended as a new version
+2026-11-02 16:42:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-08b8b79451ed/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+::test_oracle_refuses_unverified_or_inconsistent_receipt[missing_verification] PASSED [ 90%]
+::test_oracle_refuses_unverified_or_inconsistent_receipt[empty_verification] PASSED [ 91%]
+::test_oracle_refuses_unverified_or_inconsistent_receipt[digest_disagreement] PASSED [ 91%]
+::test_oracle_exception_after_effect_is_not_applied PASSED               [ 92%]
+::test_result_digest_cannot_replace_expected_request_digest PASSED       [ 93%]
+::test_outlook_readback_requires_same_remote_object PASSED               [ 93%]
+::test_request_binding_is_captured_before_handler_mutation[body] PASSED  [ 94%]
+::test_request_binding_is_captured_before_handler_mutation[nested_recipient] PASSED [ 94%]
+::test_old_or_wrong_material_presentation_does_not_verify[canvas.present_markdown-args0-details0] PASSED [ 95%]
+::test_old_or_wrong_material_presentation_does_not_verify[canvas.present_chart-args1-details1] PASSED [ 96%]
+::test_old_or_wrong_material_presentation_does_not_verify[canvas.present_markdown-args2-details2] PASSED [ 96%]
+::test_viewer_cannot_validate_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:29 [ WARNING] Access denied: user reviewer has role viewer (level 2), required team_lead (level 4)
+2026-11-02 16:42:29 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 97%]
+::test_moved_agent_does_not_redirect_apply_to_other_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:29 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/apply "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 98%]
+::test_failed_apply_leaves_no_active_registry_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:29 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:29 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:29 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:29 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:29 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:29 [    INFO] Imported skill 'repair_outlook_search' (id: 54c09ee4-d76d-4f64-8a36-ca28ca40b1e7, status: Untrusted)
+2026-11-02 16:42:29 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 98%]
+::test_stale_second_session_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] Importing skill from source: raw_content
+2026-11-02 16:42:29 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-02 16:42:29 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-02 16:42:29 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-02 16:42:29 [    INFO] Security scan result: UNKNOWN
+2026-11-02 16:42:29 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-02 16:42:29 [    INFO] Imported skill 'repair_outlook_search' (id: d8fe0857-12d5-4491-95e3-517396fbdad2, status: Untrusted)
+2026-11-02 16:42:29 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 99%]
+::test_changed_material_requires_fresh_review 
+-------------------------------- live log call ---------------------------------
+2026-11-02 16:42:29 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 200 OK"
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 16:42:29 [    INFO] EscalationManager initialized
+2026-11-02 16:42:29 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 316 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_canvasroutes.py: 15 warnings
+  /private/tmp/atom-full-app/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 158 passed, 338 warnings in 30.13s ======================

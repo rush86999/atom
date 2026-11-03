@@ -34,6 +34,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
+from core.assignment_readiness import evaluate_step_readiness
 from core.assignment_plan import (
     ASSIGNMENT_STATES,
     TERMINAL_ASSIGNMENT_STATES,
@@ -1586,6 +1587,14 @@ class AssignmentExecutor:
         """Attach a plan to an existing task (inspection/import/tests)."""
         self.lifecycle.put_assignment(
             run_id, assignment, rationale="assignment attached")
+        # Trusted ownership association: this is the only attach path and it
+        # writes through the server-side decision log, never through caller
+        # parameters. The native goal loop refuses the resulting projection.
+        self.lifecycle.runs.append_decision(run_id, {
+            "kind": "assignment_attached",
+            "assignment_id": assignment.get("assignment_id"),
+            "plan_revision": assignment.get("plan_revision"),
+        })
         self._sync_run_plan(run_id, assignment)
         return self.lifecycle.get_task(run_id) or {}
 
@@ -1597,6 +1606,10 @@ class AssignmentExecutor:
         The plan is an inspection/continuation projection, not a second
         execution truth: effect status still lives on the operation records.
         """
+        from core.goals.goal_plan_validation import (
+            validate_assignment_projection,
+        )
+
         plan = []
         for step in assignment.get("steps") or []:
             plan.append({
@@ -1608,6 +1621,11 @@ class AssignmentExecutor:
                 "depends_on": list(step.get("depends_on") or []),
                 "status": step.get("status"),
             })
+        projection_errors = validate_assignment_projection(plan)
+        if projection_errors:
+            raise AssignmentError(
+                "invalid assignment projection: "
+                + "; ".join(projection_errors))
         try:
             self.lifecycle.runs.set_plan(run_id, plan)
         except Exception as exc:  # noqa: BLE001 — plan projection is auxiliary
@@ -1836,11 +1854,25 @@ class AssignmentExecutor:
                 or "read_only")
             state = derive_state(
                 assignment, task_authorization=task_authorization)
-            if state in ("failed", "partial") and ready_steps(assignment):
+            if state in ("failed", "partial") and ready_steps(
+                    assignment, task_authorization=task_authorization):
                 # Independent ready work may continue even when one branch
                 # has failed; only the branch is blocked.
                 state = "running"
             assignment = self._set_state(assignment, state)
+            if state == "completed" and assignment.get(
+                    "completion_criteria"):
+                from core.task_outcome_contract import (
+                    build_assignment_outcome,
+                )
+                business = build_assignment_outcome(
+                    assignment, record, state=state)
+                if business.get("verdict") is not True:
+                    # Every step applied is necessary, never sufficient.
+                    state = "partial" if any(
+                        step.get("status") == "applied"
+                        for step in assignment.get("steps") or []) else "blocked"
+                    assignment = self._set_state(assignment, state)
             if state in TERMINAL_ASSIGNMENT_STATES:
                 assignment = self._attach_outcome(
                     record, assignment, state)
@@ -1889,9 +1921,27 @@ class AssignmentExecutor:
             assignment = self._sync_assignment(record, assignment)
             assignment = self._ensure_idle_ledger(assignment)
             assignment = self._checkpoint_idle(assignment)
-            readiness = ready_steps(assignment)
+            readiness = ready_steps(
+                assignment, task_authorization=task_authorization)
             if not readiness:
-                if self._waiting_steps(assignment):
+                # Persist typed readiness blockers for pending work. A
+                # scheduler miss is a business reason (unknown qualification,
+                # missing receipt, expired evidence, authority), not a silent
+                # idle state; the read projection exposes it.
+                for pending_step in assignment.get("steps") or []:
+                    if pending_step.get("status") != "pending":
+                        continue
+                    if not pending_step.get("requires"):
+                        continue
+                    decision = evaluate_step_readiness(
+                        pending_step, assignment,
+                        task_authorization=task_authorization)
+                    if not decision["eligible"]:
+                        pending_step["readiness"] = decision
+                waiting = self._waiting_steps(assignment)
+                assignment = self._set_state(
+                    assignment, "waiting" if waiting else "blocked")
+                if waiting:
                     assignment = self._open_idle(
                         assignment,
                         reason="all runnable branches are waiting")
@@ -1900,7 +1950,7 @@ class AssignmentExecutor:
                 else:
                     self._persist_assignment(
                         run_id, assignment,
-                        "assignment stopped: no ready step")
+                        "assignment blocked: no ready step")
                 return self.status(run_id)
 
             # Work can progress: any open idle interval ends now, before the
@@ -1923,6 +1973,7 @@ class AssignmentExecutor:
             assignment = self._mark_step(assignment, step["step_id"], {
                 "status": "running",
                 "pre_dispatch_budget_refusal": False,
+                "readiness": None,
                 "updated_at": _utc_now_iso(),
             })
             assignment = self._bump_steps_started(assignment)
@@ -3689,7 +3740,9 @@ class AssignmentExecutor:
         """
         try:
             from core.task_lifecycle import open_unresolved_questions
-            from core.task_outcome_contract import build_task_outcome
+            from core.task_outcome_contract import (
+                build_task_outcome, sent_record_confirmed_evidence,
+            )
         except Exception:
             return assignment
         steps = assignment.get("steps") or []
@@ -3737,15 +3790,32 @@ class AssignmentExecutor:
                 delivery["draft_revision"] = (
                     step.get("result") or {}).get("artifact", {}).get(
                         "revision")
-            if step.get("adapter") in (
-                    "email.send_outlook", "outbound.send") and applied:
+            if step.get("effect") == "external" and applied:
                 result = step.get("result") or {}
+                receipt = result.get("receipt") if isinstance(
+                    result.get("receipt"), dict) else {}
+                outbound = receipt.get("outbound") if isinstance(
+                    receipt.get("outbound"), dict) else {}
+                remote = result.get("remote_identity") if isinstance(
+                    result.get("remote_identity"), dict) else {}
                 provider_state = str(
-                    result.get("provider_state") or "sent")
-                delivery["provider_accepted"] = provider_state == "sent"
-                delivery["provider_ref"] = result.get("provider_ref")
-                delivery["sent_record_confirmed"] = provider_state == "sent"
-                delivery["delivery_confirmed"] = False
+                    result.get("provider_state")
+                    or outbound.get("provider_state") or "")
+                if provider_state:
+                    accepted = provider_state.lower() in (
+                        "sent", "accepted", "applied", "provider_accepted")
+                    delivery["provider_accepted"] = accepted
+                    delivery["provider_ref"] = (
+                        result.get("provider_ref")
+                        or outbound.get("provider_ref")
+                        or outbound.get("remote_id")
+                        or remote.get("provider_ref"))
+                # Stronger observations stand on their own evidence. Neither
+                # is inferred from provider acceptance; unobserved delivery
+                # stays unknown instead of being asserted false.
+                sent_record = sent_record_confirmed_evidence(step, result)
+                if sent_record is not None:
+                    delivery["sent_record_confirmed"] = sent_record
             if (step.get("result") or {}).get("value") is not None:
                 calculation = {
                     "computed": (step.get("result") or {}).get("value"),
@@ -3773,6 +3843,13 @@ class AssignmentExecutor:
                         or (step.get("failure") or {}).get("reason")],
                     "next_evidence_needed": "retry or resolve the named gap",
                 })
+        objective_met = None
+        if assignment.get("completion_criteria"):
+            from core.task_outcome_contract import build_assignment_outcome
+            objective_met = build_assignment_outcome(
+                assignment, record, state=state).get("verdict")
+        else:
+            objective_met = state == "completed"
         outcome = build_task_outcome(
             objective=assignment.get("objective") or "",
             completion_criteria=assignment.get("completion_criteria") or [],
@@ -3783,7 +3860,7 @@ class AssignmentExecutor:
             gaps=gaps,
             actions=actions,
             calculation=calculation,
-            objective_met=state == "completed",
+            objective_met=objective_met,
             scope={
                 "workspace_id": assignment.get("workspace_id"),
                 "teaching_revision": (
@@ -4945,6 +5022,31 @@ class AssignmentExecutor:
         assignment: Dict[str, Any],
         step: Dict[str, Any],
     ) -> None:
+        # Re-evaluate business readiness against the CURRENT durable record
+        # immediately before the operation claim. Scheduling is only a hint;
+        # facts/qualifications may have changed since the scheduler read.
+        fresh_record = self.lifecycle.get_task(run_id) or record
+        fresh_assignment = self._sync_assignment(
+            fresh_record, fresh_record.get("assignment") or assignment)
+        fresh_step = step_by_id(
+            fresh_assignment, step.get("step_id")) or step
+        fresh_auth = str(
+            (fresh_record.get("task_revision") or {}).get("authorization")
+            or "read_only")
+        decision = evaluate_step_readiness(
+            fresh_step, fresh_assignment, task_authorization=fresh_auth)
+        if not decision["eligible"]:
+            fresh_assignment = self._mark_step(
+                fresh_assignment, fresh_step["step_id"], {
+                    "status": "pending",
+                    "readiness_blocker": decision,
+                    "updated_at": _utc_now_iso(),
+                })
+            self._persist_assignment(
+                run_id, fresh_assignment,
+                f"step {fresh_step['step_id']} readiness changed before claim")
+            return
+        record, assignment, step = fresh_record, fresh_assignment, fresh_step
         operation = self._ensure_operation(run_id, record, assignment, step)
         operation_id = operation["operation_id"]
         assignment = self._mark_step(assignment, step["step_id"], {
@@ -5531,6 +5633,19 @@ class AssignmentExecutor:
             "artifact_revision": (
                 (result.get("artifact") or {}).get("revision")
                 if isinstance(result.get("artifact"), dict) else None),
+            # Preserve the material proof/coverage on the durable step result.
+            # The operation receipt also carries it, but dependent readiness
+            # evaluates the step result and must not lose the proof.
+            "verification": result.get("verification"),
+            "coverage": result.get("coverage"),
+            "readback": result.get("readback"),
+            "resource_id": result.get("resource_id"),
+            "request_id": result.get("request_id"),
+            "subject": result.get("subject"),
+            "subject_id": result.get("subject_id"),
+            "message_id": result.get("message_id"),
+            "account": result.get("account"),
+            "mailbox": result.get("mailbox"),
             "value": result.get("value"),
             "unit": result.get("unit"),
             "expression": result.get("expression"),

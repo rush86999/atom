@@ -1,0 +1,8 @@
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+INFO core.goals.goal_run_router goal_run_router raw output:
+{'decision': 'REPLAN', 'rationale': "The goal is to prepare a quote, but we don't have any information about the lead's requirements. We need to replan and add more steps to gather this information.", 'parameter_updates': {}, 'target_step': None, 'new_plan': None, 'wait_spec': None, 'confidence': 0.5}
+    "decision": "ASK_HUMAN",
+    "rationale": "router returned an unusable decision: {'decision': 'REPLAN', 'rationale': \"The goal is to prepare a quote, but we don't have any information about the lead's requirements. We need to replan and add more steps to gather this information.\", 'parameter_updates': {}, 'target_step': None, 'new_plan': None, 'wait_spec': None, 'confidence': 0.",
+  "seconds": 11.43,

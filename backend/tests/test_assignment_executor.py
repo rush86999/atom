@@ -3758,3 +3758,847 @@ def test_plan_shape_output_is_not_a_durable_mutation():
     assert create is not None
     assert _registered_action_mutates(
         create, {"step": {"effect": "local"}}) is True
+
+
+@pytest.mark.parametrize("proof,expected_reason", [
+    ({}, "verified_proof_missing"),
+    ({"verification": {"status": "conflict"}}, "verified_proof_refuted"),
+    ({"verification": {"status": "verified",
+                       "missing_fields": ["currency"]}},
+     "verified_proof_missing_fields"),
+    ({"resource_id": "source-1", "source_version": "v1",
+      "verification": {"status": "verified"},
+      "coverage": {"truncated": True}}, "verified_coverage_truncated"),
+    ({"resource_id": "source-1", "source_version": "v1",
+      "verification": {"status": "verified"},
+      "coverage": {"complete": True, "known": "unknown"}},
+     "verified_coverage_unknown"),
+])
+def test_verified_receipt_gates_dependent_execution(
+        env, proof, expected_reason):
+    calls = []
+
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "row", **proof}
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": "dependent-result"}
+
+    async def independent(inputs, context):
+        calls.append("independent")
+        return {"status": "applied", "value": "independent-result"}
+
+    env["registry"].register("test.receipt.source", source)
+    env["registry"].register("test.receipt.dependent", dependent)
+    env["registry"].register("test.receipt.independent", independent)
+    steps = [
+        new_step(
+            step_id="independent", title="Independent work",
+            operation_type="retrieve",
+            adapter="test.receipt.independent", effect="read_only"),
+        new_step(
+            step_id="source", title="Read verified source",
+            operation_type="retrieve", adapter="test.receipt.source",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Use verified evidence",
+            operation_type="calculate", adapter="test.receipt.dependent",
+            depends_on=["source"], effect="local",
+            requires=[{"kind": "receipt", "step_id": "source",
+                       "require": "verified"}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Use verified evidence", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"])
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "source")["status"] == "applied"
+    assert calls == ["independent"], calls
+    dependent_step = step_by_id(assignment, "dependent")
+    assert dependent_step["status"] == "pending"
+    assert dependent_step["readiness"]["truth"] in ("unknown", "false")
+    assert dependent_step["readiness"]["blockers"][0]["reason"] == (
+        expected_reason)
+    assert result["assignment"]["status"] != "completed"
+
+
+def test_verified_receipt_positive_twin_executes_dependent(env):
+    calls = []
+
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "verified source",
+            "value": "row",
+            "resource_id": "source-1", "source_version": "v1",
+            "verification": {"status": "verified",
+                             "resource_id": "source-1",
+                             "version": "v1",
+                             "coverage": {"complete": True,
+                                          "truncated": False}},
+            "coverage": {"complete": True, "truncated": False},
+        }
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": "dependent-result"}
+
+    env["registry"].register("test.receipt.strong_source", source)
+    env["registry"].register("test.receipt.strong_dependent", dependent)
+    steps = [
+        new_step(
+            step_id="source", title="Read verified source",
+            operation_type="retrieve", adapter="test.receipt.strong_source",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Use verified evidence",
+            operation_type="calculate",
+            adapter="test.receipt.strong_dependent",
+            depends_on=["source"], effect="local",
+            requires=[{"kind": "receipt", "step_id": "source",
+                       "require": "verified"}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Use verified evidence", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"])
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["dependent"]
+    assert step_by_id(assignment, "dependent")["status"] == "applied"
+    assert result["assignment"]["status"] == "completed"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    fresh = restarted.lifecycle.get_assignment(run_id)
+    assert step_by_id(fresh, "source")["result"]["verification"][
+        "status"] == "verified"
+    assert step_by_id(fresh, "source")["result"]["coverage"][
+        "complete"] is True
+    assert step_by_id(fresh, "dependent")["status"] == "applied"
+    assert _run(restarted.execute(run_id))["assignment"]["status"] == (
+        "completed")
+
+
+def test_provider_acceptance_never_confirms_sent_items_through_executor(env):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+        }
+
+    env["registry"].register("test.sent.accepted", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound", adapter="test.sent.accepted",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "send")["status"] == "applied"
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    results = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert results["provider_accepted"]["met"] is True
+    assert results["sent_record_confirmed"]["met"] is None
+    assert verdict["verdict"] is not True
+    assert "sent_record_confirmed" not in (
+        verdict["outcome"].get("delivery") or {})
+    assert result["assignment"]["status"] != "completed"
+
+
+@pytest.mark.parametrize("readback_kind", ["operation_only", "message_only"])
+def test_sent_items_minimum_schema_gates_executor(env, readback_kind):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        operation_id = (context.get("step") or {}).get("operation_id")
+        sent_items = {"present": True}
+        if readback_kind == "operation_only":
+            sent_items["operation_id"] = operation_id
+        else:
+            sent_items["provider_ref"] = "prov-1"
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+            "readback": {"sent_items": sent_items},
+        }
+
+    env["registry"].register(f"test.sent.minimum.{readback_kind}", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound",
+        adapter=f"test.sent.minimum.{readback_kind}",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(assignment, "send")["status"] == "applied"
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    criteria = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert criteria["provider_accepted"]["met"] is True
+    assert criteria["sent_record_confirmed"]["met"] is None
+    assert verdict["verdict"] is not True
+    assert result["assignment"]["status"] != "completed"
+
+
+def test_explicit_sent_items_readback_confirms_through_executor(env):
+    from core.task_outcome_contract import build_assignment_outcome
+
+    async def send(inputs, context):
+        operation_id = (context.get("step") or {}).get("operation_id")
+        return {
+            "status": "applied", "summary": "provider accepted",
+            "provider_state": "accepted", "provider_ref": "prov-1",
+            "remote_id": "prov-1",
+            "readback": {"sent_items": {
+                "present": True,
+                "operation_id": operation_id,
+                "provider_ref": "prov-1"}},
+        }
+
+    env["registry"].register("test.sent.readback", send)
+    steps = [new_step(
+        step_id="send", title="Send the reply",
+        operation_type="outbound", adapter="test.sent.readback",
+        effect="external", approval_required=True,
+        approval_purpose="Send the reply")]
+    run_id, _ = _create(
+        env, objective="Send and confirm the reply", steps=steps,
+        teaching=_teaching(), authorized_actions=["outbound"],
+        completion_criteria=[
+            {"kind": "provider_accepted"},
+            {"kind": "sent_record_confirmed"},
+        ])
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(
+        run_id, "send", approved_by="owner")
+    result = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    verdict = build_assignment_outcome(
+        assignment, env["lifecycle"].get_task(run_id),
+        state=result["assignment"]["status"])
+    results = {
+        item["criterion"]: item
+        for item in verdict["outcome"]["criterion_results"]
+    }
+    assert results["provider_accepted"]["met"] is True
+    assert results["sent_record_confirmed"]["met"] is True
+    assert verdict["verdict"] is True
+    assert result["assignment"]["status"] == "completed"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    fresh = restarted.lifecycle.get_assignment(run_id)
+    fresh_send = step_by_id(fresh, "send")
+    readback = fresh_send["result"]["readback"]["sent_items"]
+    assert readback["operation_id"] == fresh_send["operation_id"]
+    assert readback["provider_ref"] == "prov-1"
+    fresh_verdict = build_assignment_outcome(
+        fresh, restarted.lifecycle.get_task(run_id), state="completed")
+    fresh_results = {
+        item["criterion"]: item
+        for item in fresh_verdict["outcome"]["criterion_results"]
+    }
+    assert fresh_results["sent_record_confirmed"]["met"] is True
+    assert fresh_verdict["verdict"] is True
+
+
+def test_business_readiness_blocks_dependent_while_independent_runs(env):
+    """Unknown qualification blocks one branch; useful work still completes."""
+    calls = []
+
+    async def independent(inputs, context):
+        calls.append("independent")
+        return {"status": "applied", "value": 1}
+
+    async def dependent(inputs, context):
+        calls.append("dependent")
+        return {"status": "applied", "value": 2}
+
+    env["registry"].register("test.readiness.independent", independent)
+    env["registry"].register("test.readiness.dependent", dependent)
+    steps = [
+        new_step(
+            step_id="independent", title="Independent work",
+            operation_type="retrieve", adapter="test.readiness.independent",
+            effect="read_only"),
+        new_step(
+            step_id="dependent", title="Qualification-dependent work",
+            operation_type="retrieve", adapter="test.readiness.dependent",
+            effect="read_only", depends_on=["independent"],
+            requires=[{"kind": "fact", "fact_id": "eligible",
+                       "equals": True}]),
+    ]
+    run_id, _ = _create(
+        env, objective="Prepare a quote with a qualification",
+        steps=steps, teaching=_teaching(),
+        authorized_actions=["retrieve"])
+    first = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["independent"]
+    assert step_by_id(assignment, "independent")["status"] == "applied"
+    dependent_step = step_by_id(assignment, "dependent")
+    assert dependent_step["status"] == "pending"
+    assert dependent_step["readiness"]["truth"] == "unknown"
+    assert dependent_step["readiness"]["blockers"][0]["kind"] == "qualification"
+
+    def add_fact(record, assignment):
+        new_assignment = copy.deepcopy(assignment)
+        new_assignment["facts"] = [{
+            "fact_id": "eligible", "subject": {"kind": "customer",
+                                               "id": "cust-1"},
+            "field_id": "eligible", "value": True,
+            "value_type": "boolean", "evidence_state": "established",
+            "source_refs": [{"resource_id": "agreement-1",
+                             "version": "v3"}],
+            "authority_ref": "agreement:eligibility",
+            "validity": {"policy": "current"},
+        }]
+        return new_assignment, {"added": "eligible"}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, add_fact, rationale="qualified via agreement")
+    second = _run(env["executor"].execute(run_id))
+    assignment = env["lifecycle"].get_assignment(run_id)
+    assert calls == ["independent", "dependent"]
+    assert step_by_id(assignment, "dependent")["status"] == "applied"
+    assert second["assignment"]["status"] == "completed"
+
+
+def _patch_ready_assignment(env):
+    steps = []
+    for step_id, value in (("read-a", "A"), ("read-b", "B")):
+        step = new_step(
+            step_id=step_id, title=f"Read {value}",
+            operation_type="retrieve", adapter="workbook.read",
+            inputs={"resource_binding": {"resource_id": f"fixture:{value}"}},
+            effect="read_only")
+        step["status"] = "applied"
+        step["operation_id"] = f"op-{step_id}"
+        step["result"] = {"value": value, "summary": f"read {value}"}
+        steps.append(step)
+    dependent = new_step(
+        step_id="use-a", title="Use A", operation_type="calculate",
+        adapter="formula.calculate", depends_on=["read-a"], inputs={})
+    dependent["status"] = "applied"
+    dependent["operation_id"] = "op-use-a"
+    dependent["result"] = {"value": "A-used", "summary": "used A"}
+    steps.append(dependent)
+    plan = new_assignment(
+        objective="Patch the affected branch only",
+        employee_id="user-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+        teaching_snapshot=_teaching(), steps=steps,
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+        budget={"max_steps": 40, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600})
+    record = env["executor"].create_assignment(
+        f"conv-patch-{uuid.uuid4().hex[:8]}",
+        "Patch the affected branch only", assignment=plan)
+    return record["run_id"]
+
+
+def test_plan_patch_invalidates_only_affected_branch_and_preserves_budget(env):
+    from core.employee_patch import apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    before_b = copy.deepcopy(step_by_id(assignment, "read-b"))
+    before_budget = copy.deepcopy(assignment["budget"])
+    before_criteria = copy.deepcopy(assignment["completion_criteria"])
+    before_actions = list(assignment["authorized_actions"])
+
+    result = apply_plan_patch(env["lifecycle"], run_id, {
+        "patch_id": "patch-a-1",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "source A changed; preserve unrelated B",
+        "observations": [{"kind": "source_version", "resource_id": "A"}],
+        "invalidate_steps": ["read-a"],
+    })
+    assert result["status"] == "applied"
+    after = env["lifecycle"].get_assignment(run_id)
+    assert after["plan_revision"] == assignment["plan_revision"] + 1
+    assert step_by_id(after, "read-a")["status"] == "pending"
+    assert step_by_id(after, "use-a")["status"] == "pending"
+    assert step_by_id(after, "read-a")["prior_results"]
+    assert step_by_id(after, "use-a")["prior_results"]
+    assert step_by_id(after, "read-b") == before_b
+    assert after["budget"] == before_budget
+    assert after["completion_criteria"] == before_criteria
+    assert after["authorized_actions"] == before_actions
+    assert after["patch_history"][-1]["patch_id"] == "patch-a-1"
+    assert "read-b" in after["patch_history"][-1]["retained_steps"]
+
+
+def test_plan_patch_rewires_invalidated_work_and_refuses_applied_update(env):
+    from core.employee_patch import PlanPatchError, apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    result = apply_plan_patch(env["lifecycle"], run_id, {
+        "patch_id": "rewire-1",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "rewire A after the governing source changed",
+        "observations": [{"kind": "source_version", "id": "A-v2"}],
+        "invalidate_steps": ["read-a"],
+        "update_steps": [{
+            "step_id": "read-a",
+            "inputs": {"resource_binding": {"resource_id": "fixture:A2"}},
+            "requires": [],
+        }],
+    })
+    assert result["status"] == "applied"
+    assert result["updated_steps"] == ["read-a"]
+    updated = env["lifecycle"].get_assignment(run_id)
+    read_a = step_by_id(updated, "read-a")
+    assert read_a["status"] == "pending"
+    assert read_a["inputs"]["resource_binding"]["resource_id"] == "fixture:A2"
+    assert read_a["prior_results"]
+    assert updated["patch_history"][-1]["updated_steps"] == ["read-a"]
+    assert step_by_id(updated, "read-b")["status"] == "applied"
+
+    fresh = env["lifecycle"].get_task(run_id)
+    refused = {
+        "patch_id": "rewire-applied",
+        "base_task_version": int(fresh.get("task_version") or 0),
+        "base_plan_revision": fresh["assignment"]["plan_revision"],
+        "reason": "do not silently rewrite applied work",
+        "observations": [{"kind": "source_version", "id": "B-v2"}],
+        "update_steps": [{
+            "step_id": "read-b",
+            "inputs": {"resource_binding": {"resource_id": "fixture:B2"}},
+        }],
+    }
+    with pytest.raises(PlanPatchError, match="only pending"):
+        apply_plan_patch(env["lifecycle"], run_id, refused)
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "read-b") == step_by_id(
+            fresh["assignment"], "read-b")
+
+    cyclic = {
+        "patch_id": "rewire-cycle",
+        "base_task_version": int(fresh.get("task_version") or 0),
+        "base_plan_revision": fresh["assignment"]["plan_revision"],
+        "reason": "a cycle must be refused",
+        "observations": [{"kind": "source_version", "id": "A-v3"}],
+        "invalidate_steps": ["read-a"],
+        "update_steps": [{
+            "step_id": "read-a", "depends_on": ["use-a"]}],
+    }
+    with pytest.raises(Exception, match="cycle"):
+        apply_plan_patch(env["lifecycle"], run_id, cyclic)
+    after_cycle = env["lifecycle"].get_assignment(run_id)
+    assert after_cycle["plan_revision"] == fresh["assignment"]["plan_revision"]
+
+
+def test_plan_patch_rejects_stale_base_and_immutable_effects(env):
+    from core.employee_patch import PlanPatchError, apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    stale = {
+        "patch_id": "stale-1",
+        "base_task_version": 0,
+        "base_plan_revision": assignment["plan_revision"],
+        "reason": "stale proposal",
+        "observations": [{"kind": "event", "id": "e1"}],
+        "invalidate_steps": ["read-a"],
+    }
+    with pytest.raises(PlanPatchError, match="stale"):
+        apply_plan_patch(env["lifecycle"], run_id, stale)
+
+    def mark_running(record, current):
+        updated = copy.deepcopy(current)
+        step_by_id(updated, "read-b")["status"] = "running"
+        return updated, {"marked": "running"}
+
+    env["lifecycle"].mutate_assignment(
+        run_id, mark_running, rationale="simulate in-flight effect")
+    running = env["lifecycle"].get_task(run_id)
+    immutable = {
+        "patch_id": "running-1",
+        "base_task_version": int(running.get("task_version") or 0),
+        "base_plan_revision": running["assignment"]["plan_revision"],
+        "reason": "do not replace an in-flight effect",
+        "observations": [{"kind": "event", "id": "e2"}],
+        "remove_steps": ["read-b"],
+    }
+    with pytest.raises(PlanPatchError, match="only pending|running"):
+        apply_plan_patch(env["lifecycle"], run_id, immutable)
+
+
+def test_plan_patch_duplicate_is_idempotent_and_survives_restart(env):
+    from core.employee_patch import PlanPatchError, apply_plan_patch
+
+    run_id = _patch_ready_assignment(env)
+    record = env["lifecycle"].get_task(run_id)
+    patch = {
+        "patch_id": "patch-dup-1",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": record["assignment"]["plan_revision"],
+        "reason": "add qualification fact",
+        "observations": [{"kind": "qualification", "id": "eligible"}],
+        "add_facts": [{
+            "fact_id": "eligible", "value": True,
+            "evidence_state": "established",
+            "subject": {"kind": "customer", "id": "cust-1"},
+            "source_refs": [{"resource_id": "agreement-1",
+                             "version": "v3"}],
+            "authority_ref": "agreement:eligibility",
+        }],
+    }
+    first = apply_plan_patch(env["lifecycle"], run_id, patch)
+    assert first["status"] == "applied"
+    revision = first["assignment"]["plan_revision"]
+    second = apply_plan_patch(env["lifecycle"], run_id, patch)
+    assert second["status"] == "already_applied"
+    assert second["assignment"]["plan_revision"] == revision
+
+    changed = {**patch, "invalidate_steps": ["read-b"],
+               "reason": "different requested patch"}
+    with pytest.raises(PlanPatchError, match="conflict|different"):
+        apply_plan_patch(env["lifecycle"], run_id, changed)
+
+    restarted = TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]),
+        GoalService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]))
+    fresh = restarted.get_assignment(run_id)
+    assert fresh["patch_history"][-1]["patch_id"] == "patch-dup-1"
+    assert fresh["facts"][0]["fact_id"] == "eligible"
+
+
+def test_adaptation_invalidates_only_affected_branch(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    before_b = copy.deepcopy(step_by_id(assignment, "read-b"))
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-source-1",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "governing A source version changed",
+    }, assignment)
+    assert proposal["decision"] == "invalidate"
+    assert set(proposal["step_ids"]) == {"read-a", "use-a"}
+
+    result = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert result["status"] == "applied"
+    after = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(after, "read-a")["status"] == "pending"
+    assert step_by_id(after, "use-a")["status"] == "pending"
+    assert step_by_id(after, "read-b") == before_b
+    assert after["plan_revision"] == assignment["plan_revision"] + 1
+
+    restarted = TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]),
+        GoalService(
+            workspace_id="ws_assign", tenant_id="tenant_assign",
+            session_factory=env["factory"]))
+    fresh = restarted.get_assignment(run_id)
+    assert step_by_id(fresh, "read-a")["status"] == "pending"
+    assert step_by_id(fresh, "use-a")["status"] == "pending"
+    assert step_by_id(fresh, "read-b") == before_b
+
+
+def test_replayed_observation_does_not_reopen_work_twice(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-replay-1",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "source A revision changed",
+    }, assignment)
+    first = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert first["status"] == "applied"
+    after_first = env["lifecycle"].get_assignment(run_id)
+    revision = after_first["plan_revision"]
+
+    replay = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert replay["status"] == "already_applied", replay
+    after_replay = env["lifecycle"].get_assignment(run_id)
+    assert after_replay["plan_revision"] == revision
+    assert step_by_id(after_replay, "read-a")["status"] == "pending"
+    assert step_by_id(after_replay, "use-a")["status"] == "pending"
+    assert len(after_replay["patch_history"]) == len(
+        after_first["patch_history"])
+
+    second_observation = deterministic_adaptation({
+        "observation_id": "obs-replay-2",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "a newer source A revision changed",
+    }, after_replay)
+    second = adopt_adaptation(
+        env["lifecycle"], run_id, second_observation)
+    assert second["status"] == "applied"
+    assert env["lifecycle"].get_assignment(
+        run_id)["plan_revision"] == revision + 1
+
+
+def test_observation_reopens_affected_work_and_reruns_only_that_branch(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    calls = {"read-a": 0, "read-b": 0, "use-a": 0}
+
+    async def read_a(inputs, context):
+        calls["read-a"] += 1
+        return {
+            "status": "applied", "value": "A",
+            "source_version": "v1",
+            "verification": {"status": "verified",
+                             "version": "v1"},
+        }
+
+    async def read_b(inputs, context):
+        calls["read-b"] += 1
+        return {"status": "applied", "value": "B",
+                "source_version": "v9"}
+
+    async def use_a(inputs, context):
+        calls["use-a"] += 1
+        return {"status": "applied", "value": f"{inputs['value']}-used"}
+
+    env["registry"].register("test.campaign.read_a", read_a)
+    env["registry"].register("test.campaign.read_b", read_b)
+    env["registry"].register("test.campaign.use_a", use_a)
+    steps = [
+        new_step(step_id="read-a", title="Read A",
+                 operation_type="retrieve",
+                 adapter="test.campaign.read_a", effect="read_only"),
+        new_step(step_id="read-b", title="Read B",
+                 operation_type="retrieve",
+                 adapter="test.campaign.read_b", effect="read_only"),
+        new_step(step_id="use-a", title="Use A",
+                 operation_type="calculate",
+                 adapter="test.campaign.use_a", depends_on=["read-a"],
+                 inputs={"value": "${read-a.value}"}, effect="local"),
+    ]
+    run_id, _ = _create(
+        env, objective="Campaign branch retention", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}])
+    completed = _run(env["executor"].execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert calls == {"read-a": 1, "read-b": 1, "use-a": 1}
+    before = env["lifecycle"].get_assignment(run_id)
+    read_b_before = copy.deepcopy(step_by_id(before, "read-b"))
+    budget_before = copy.deepcopy(before["budget"])
+
+    proposal = deterministic_adaptation({
+        "observation_id": "campaign-source-2",
+        "kind": "source_version",
+        "step_id": "read-a",
+        "reason": "governing A source changed to v2",
+    }, before)
+    adopted = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert adopted["status"] == "applied"
+    reopened = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(reopened, "read-a")["status"] == "pending"
+    assert step_by_id(reopened, "use-a")["status"] == "pending"
+    assert step_by_id(reopened, "read-a")["prior_results"]
+    assert step_by_id(reopened, "use-a")["prior_results"]
+    assert step_by_id(reopened, "read-b") == read_b_before
+    assert reopened["budget"]["max_steps"] == budget_before["max_steps"]
+    assert reopened["budget"]["max_wall_seconds"] == (
+        budget_before["max_wall_seconds"])
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    rerun = _run(restarted.execute(run_id))
+    assert rerun["assignment"]["status"] == "completed", rerun
+    assert calls == {"read-a": 2, "read-b": 1, "use-a": 2}
+    final = env["lifecycle"].get_assignment(run_id)
+    assert step_by_id(final, "read-b") == read_b_before
+    assert step_by_id(final, "read-a")["result"]["value"] == "A"
+    assert step_by_id(final, "use-a")["result"]["value"] == "A-used"
+
+    replay = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert replay["status"] == "already_applied", replay
+    final_replay = env["lifecycle"].get_assignment(run_id)
+    assert final_replay["plan_revision"] == final["plan_revision"]
+    assert step_by_id(final_replay, "read-a")["status"] == "applied"
+    assert step_by_id(final_replay, "use-a")["status"] == "applied"
+
+
+def test_adaptation_missing_qualification_asks_instead_of_guessing(env):
+    from core.employee_adaptation import (
+        adopt_adaptation,
+        deterministic_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+    before = assignment["plan_revision"]
+    proposal = deterministic_adaptation({
+        "observation_id": "obs-qual-1",
+        "kind": "qualification",
+        "fact_id": "agreement_eligible",
+        "value": None,
+        "evidence_state": "missing",
+    }, assignment)
+    assert proposal["decision"] == "clarify"
+    result = adopt_adaptation(env["lifecycle"], run_id, proposal)
+    assert result["status"] == "clarification_required"
+    assert result["clarification"]["question"]
+    assert env["lifecycle"].get_assignment(run_id)["plan_revision"] == before
+
+
+def test_adaptation_model_choice_is_scoped_and_uncertain_reconciles(env):
+    from core.employee_adaptation import (
+        AdaptationProposal,
+        adopt_adaptation,
+        deterministic_adaptation,
+        propose_adaptation,
+    )
+
+    run_id = _patch_ready_assignment(env)
+    assignment = env["lifecycle"].get_assignment(run_id)
+
+    class FakeLLM:
+        def __init__(self):
+            self.kwargs = {}
+
+        async def generate_structured_response(self, **kwargs):
+            self.kwargs = kwargs
+            return AdaptationProposal(
+                decision="reconcile",
+                reason="provider may have accepted before confirmation",
+                observation_ids=["obs-effect-1"],
+            )
+
+    fake = FakeLLM()
+    result = asyncio.run(propose_adaptation(
+        {"identity": {"workspace_id": "ws_assign",
+                      "tenant_id": "tenant_assign"}},
+        [{"observation_id": "obs-effect-1",
+          "kind": "uncertain_effect"}],
+        assignment=assignment, llm_service=fake))
+    assert result["source"] == "model"
+    assert result["proposal"]["decision"] == "reconcile"
+    assert fake.kwargs["output_mode"] == "json"
+    assert fake.kwargs["cascade"] is False
+    assert fake.kwargs["allow_moa"] is False
+
+    before = env["lifecycle"].get_assignment(run_id)["plan_revision"]
+    adopted = adopt_adaptation(
+        env["lifecycle"], run_id, result["proposal"])
+    assert adopted["status"] == "reconcile"
+    assert env["lifecycle"].get_assignment(run_id)["plan_revision"] == before
+
+    local = deterministic_adaptation({
+        "observation_id": "obs-effect-2", "kind": "uncertain_effect"},
+        assignment)
+    assert local["decision"] == "reconcile"
+
+
+def test_plan_patch_validation_refuses_weakening_and_effect_relabel():
+    from core.employee_patch import validate_plan_patch
+
+    required_step = new_step(
+        step_id="dependent", title="Dependent work",
+        operation_type="retrieve", adapter="document.read",
+        inputs={}, effect="read_only",
+        requires=[{"kind": "fact", "fact_id": "eligible", "equals": True}])
+    assignment = new_assignment(
+        objective="Do not weaken requirements",
+        workspace_id="ws_assign", tenant_id="tenant_assign",
+        teaching_snapshot=_teaching(), steps=[required_step],
+        authorized_actions=["retrieve"])
+    record = {
+        "task_version": 3,
+        "task_revision": {"revision": 1},
+        "assignment": assignment,
+        "operations": [],
+    }
+    base = {
+        "patch_id": "weaken-1",
+        "base_task_version": 3,
+        "base_plan_revision": 1,
+        "reason": "attempt to weaken the requirement",
+        "observations": [{"kind": "event", "id": "e1"}],
+    }
+    weakened = validate_plan_patch(
+        {**base, "set_requires": {"dependent": []}}, record)
+    assert weakened["valid"] is False
+    assert any("erase" in error for error in weakened["errors"])
+
+    relabel = validate_plan_patch({
+        **base,
+        "patch_id": "relabel-1",
+        "add_steps": [{
+            "step_id": "fake-read", "title": "Fake read",
+            "operation_type": "retrieve", "adapter": "email.draft",
+            "inputs": {"to": ["x@example.invalid"], "body": "x"},
+            "effect": "read_only",
+        }],
+    }, record)
+    assert relabel["valid"] is False
+    assert any("declares effect" in error for error in relabel["errors"])
+
+    bare_fact = validate_plan_patch({
+        **base,
+        "patch_id": "bare-fact-1",
+        "add_facts": [{
+            "fact_id": "eligible", "value": True,
+            "evidence_state": "established",
+        }],
+    }, record)
+    assert bare_fact["valid"] is False
+    assert any("without accepted evidence" in error
+               for error in bare_fact["errors"])

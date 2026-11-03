@@ -248,8 +248,12 @@ class TestRoleBasedRunAccess:
         other = _make_app(env, "gj-emp2")
         assert other.post(f"/api/goal-runs/{run_id}/resume",
                           json={"approved": True}).status_code == 403
-        resumed = owner.post(f"/api/goal-runs/{run_id}/resume",
-                             json={"approved": True})
+        reviewed = created["run"]["pending_decision"]
+        resumed = owner.post(
+            f"/api/goal-runs/{run_id}/resume",
+            json={"approved": True,
+                  "decision_id": reviewed["decision_id"],
+                  "decision_binding": reviewed["decision_binding"]})
         assert resumed.status_code == 200, resumed.text
         assert resumed.json()["resumed"] is True
 
@@ -320,8 +324,12 @@ class TestRunStartsOnCreate:
         assert run["status"] == "paused_hitl"
         assert run["pending_decision"]["decision"] == "ADVANCE"
         # and the held decision is resolvable through the normal journey
-        resumed = client.post(f"/api/goal-runs/{run['id']}/resume",
-                              json={"approved": True}).json()
+        reviewed = run["pending_decision"]
+        resumed = client.post(
+            f"/api/goal-runs/{run['id']}/resume",
+            json={"approved": True,
+                  "decision_id": reviewed["decision_id"],
+                  "decision_binding": reviewed["decision_binding"]}).json()
         assert resumed["resumed"] is True
 
 

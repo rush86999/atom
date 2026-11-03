@@ -1,0 +1,73 @@
+{
+ "schema": "atom-structured-consumer-repair-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "bf9de381b08c5f0f2d7b3aa6fddc5cfc4f13a61f",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "included_product_commits": [
+   "1e0aa0339 (public approval binding)",
+   "013e1b7cc (approvals stale-conflict UI)"
+  ],
+  "source_files": {
+   "backend/core/chat_tool_planner.py": "9c07696e16cb2d3a7c001d7f2091387e6ff9184115932b2bb9cb07d6dbedd4c4",
+   "backend/core/goals/goal_run_router.py": "cd564e726098f74d57a751e39c48f97d47eb54683ad9f0da882961d60439ff9b",
+   "backend/core/goals/goal_run_service.py": "f4842c69340b9d409631956a7be9262e4d8f92b8d40b51169ddbcb5e7aa958ec",
+   "backend/tests/test_structured_consumer_contracts.py": "910a83ad5a7486db6e78266bad485670ba813a3bff8b118afb84a317a30ce563"
+  }
+ },
+ "repairs": {
+  "typed_no_tool": "successful planner decline -> ToolPlan(use_tool=false); transport None stays None",
+  "replan_repair": "one bounded corrective pass with defect/invalid output preserved; still invalid -> ASK_HUMAN",
+  "replan_validation": "_coerce rejects empty/invalid id-bearing new_plan lists",
+  "replan_guard": "execute_decision holds invalid REPLAN without plan/cursor/replan_count change or execution"
+ },
+ "tests": {
+  "goal_family": {
+   "command": "TESTING=1 pytest <12 files> -q",
+   "result": "132 passed",
+   "log": "goal-suite.log"
+  },
+  "structured_controls": {
+   "command": "pytest tests/test_structured_consumer_contracts.py -q",
+   "result": "5 passed",
+   "log": "contracts.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "controls_json": {
+  "path": "structured-transport-controls.json",
+  "sha256": "ac8a7337675f0d26c8f3bcf1246316ee54d271f1db9725c6dde406cf772e0a5e"
+ },
+ "model_qualification": {
+  "status": "failed reports preserved",
+  "planner": "4/5",
+  "goal": "0/2",
+  "alignment": "green=false, max_gap=3.0",
+  "rerun": "not by this slice; serialized owner Agent 2"
+ },
+ "exclusions": [
+  "no live provider call, credential, spend, send or reseed",
+  "controlled fake transport; no model-behavior or planning-quality claim",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/goal_approval_binding_013e1b7cc/",
+  "docs/acceptance/evidence/reviewed_skill_model_request_20261102/",
+  "docs/acceptance/evidence/reviewed_improvement_claim_cas_20261102/"
+ ],
+ "artifacts": {
+  "README.md": "668a6d14a35107c905064d157904f08d5e1978026c6d58de5ec1a1b7d08ce54a",
+  "TEST_RESULTS.md": "c6997c3895d80cd8d828dd6eec53014cd70cc1676bad8ad81c57e1f203ff1590",
+  "contracts.log": "61b9b551d6bc7752bfda6ce4c9af76d0a15bea6cc99a950e7d25da7a72935a8a",
+  "frontend-tests.log": "bced2fc49b49a6cede1b99e6cf72a4e1dee5bf00c2aad7ba6c27580a7b8a6143",
+  "goal-suite.log": "d6775c64d652044b2c8a4ad756c3f3e7b215317b71542f15133e458b4c671223",
+  "structured-transport-controls.json": "ac8a7337675f0d26c8f3bcf1246316ee54d271f1db9725c6dde406cf772e0a5e"
+ }
+}

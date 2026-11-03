@@ -1,0 +1,98 @@
+{
+  "artifacts": {
+    "README.md": "19be7df9dc0bd345fd63a8c6578b8fee3f45bec588eb296237ad9553fbe1b343",
+    "TEST_RESULTS.md": "f39381979c16d627d67b85decb23df1812cc3bed2758f75b0b0b59ac552c6e6b",
+    "backend-tests.log": "ee8e801ab5d8a7f9cc0992ad023dba7c8e701e07196e5a3b1ee5cc94cce88ccb",
+    "frontend-tests.log": "10e476d3267c32819e5f0eeafa9b5ccd9f3684144cd37d14e82d48a4aa6862ed",
+    "reachable_mutation_map/README.md": "a36149ec76491d7d742aced85bfd01fad82b35f322a2107ba41301a264349db9",
+    "reachable_mutation_map/reachable_mutation_map.json": "1df63d41afcbf51d7425592f275396be5c989cb30c4fd0a644271fc4ee426245",
+    "reviewed-improvement.log": "25ad86d54a2d9dcf86d2be3619651a510b2a9d51dbb72dd7087114a0faedc5ea"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "dirty": false,
+    "executed_source": "6926ffa24445dfab5fafc187b3eaab0fea19c0a8",
+    "integration_commits": [
+      "94c7eaa9d reviewed candidate apply as typed prompt skill",
+      "6926ffa24 reachable mutation map and direct canvas family control"
+    ],
+    "manifest_note": "This evidence commit is docs-only after the executed source.",
+    "map_api": "http://127.0.0.1:8100/api/v1/openapi.json",
+    "runtime_identity": "source_id=6926ffa24445",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/autodev_review_routes.py",
+    "backend/core/reviewed_improvement.py",
+    "backend/tests/test_reviewed_improvement_apply.py",
+    "backend/tests/test_covpush_canvasroutes.py",
+    "scripts/acceptance/reachable_mutation_map.py"
+  ],
+  "claims": [
+    "reviewed-improvement explicit apply and ordinary-work consumption",
+    "reachable mutation/dispatch map for the active core profile",
+    "direct canvas HTTP write family control"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "reachable map is discovery evidence, not proof every route is reachable/effectful",
+    "no whole-app ORACLE-01 closure",
+    "historical 111/123 unchanged",
+    "accepted source 0d8767e3a and its bundles remain unchanged"
+  ],
+  "reachable_map": {
+    "bypass_candidates": 693,
+    "dispatch_counts": {
+      "assignment_executor": 16,
+      "direct_canvas_service": 69,
+      "direct_goal_service": 9,
+      "direct_or_unknown": 530,
+      "direct_provider_service": 168,
+      "oracle_consumer": 4,
+      "shared_action_registry": 25
+    },
+    "inventory": "reachable_mutation_map/reachable_mutation_map.json",
+    "mutation_shaped": 821,
+    "mutation_shaped_effect": 411,
+    "openapi_paths": 1605,
+    "read_only_likely_post": 84,
+    "unknown_effect": 326
+  },
+  "reviewed_improvement": {
+    "applied_material": "typed prompt skill only; generated executable code not written/imported/run",
+    "apply_path": "POST /api/autodev/skills/{candidate_id}/apply",
+    "authority": "team lead / workspace admin",
+    "consumption": "SkillRetrievalService fresh-session retrieval + workspace_skills",
+    "duplicate": "idempotent",
+    "pending_requires_review": true,
+    "restart": "fresh session sees promoted candidate and retrieval",
+    "validated_alone_changes_nothing": true
+  },
+  "schema": "atom-reviewed-improvement-reachable-map-1",
+  "source_hashes": {
+    "backend/api/autodev_review_routes.py": "3189b790c64c0a2ee95b3d9a475c427624acc7c6f391efefd5aa2ccb747c63ff",
+    "backend/core/reviewed_improvement.py": "9c4915dc57b65f6cc6783c4cae3b776cc90b129c8db95a8b0617028ac0a8f1fc",
+    "backend/tests/test_covpush_canvasroutes.py": "95c6841276fb6049675b460e08674a14ca25db6e224bd33ad0dcdf36b33f4ce6",
+    "backend/tests/test_reviewed_improvement_apply.py": "a46338b001046c32c1743efba164e0e0977530a7b50352da068e95700e93eab7",
+    "scripts/acceptance/reachable_mutation_map.py": "3eeb1c3d56fe80f37088e61dc06f3721a3b5ec9fb8819f9a417107f2b10e8efd"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_combined": {
+      "command": "pytest <15 files/classes including probes> -q",
+      "log": "backend-tests.log",
+      "result": "172 passed"
+    },
+    "frontend_canvas": {
+      "command": "jest three canvas suites --runInBand --silent",
+      "log": "frontend-tests.log",
+      "result": "7 passed"
+    },
+    "reviewed_improvement": {
+      "command": "pytest tests/test_reviewed_improvement_apply.py -q",
+      "log": "reviewed-improvement.log",
+      "result": "5 passed"
+    }
+  }
+}

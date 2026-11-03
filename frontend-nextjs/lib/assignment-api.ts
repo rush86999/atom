@@ -94,6 +94,29 @@ export interface AssignmentDetail {
   };
   open_gaps: Array<Record<string, any>>;
   operations: Array<Record<string, any>>;
+  employee_job?: {
+    objective?: string | null;
+    status?: string | null;
+    business_outcome?: {
+      state?: string;
+      basis?: string;
+      verdict?: boolean | null;
+    } | null;
+    steps?: Array<{
+      step_id?: string;
+      title?: string;
+      status?: string;
+      readiness?: {
+        truth?: string;
+        blockers?: Array<Record<string, any>>;
+      } | null;
+      readiness_blocker?: {
+        truth?: string;
+        blockers?: Array<Record<string, any>>;
+      } | null;
+    }>;
+    open_obligations?: Array<Record<string, any>>;
+  };
 }
 
 export interface AssignmentSummary {
@@ -187,6 +210,28 @@ export async function createAssignment(payload: {
     timeout: 60000,
     retry: false,
   });
+  return data;
+}
+
+export async function createEmployeeAssignment(payload: {
+  objective: string;
+  conversation_id?: string;
+  agent_id?: string;
+  employee_id?: string;
+  sources?: Record<string, unknown>[];
+  source_scope?: Record<string, unknown>;
+  task_context?: Record<string, unknown>;
+  authorized_actions?: string[];
+  budget?: Record<string, unknown>;
+  use_model?: boolean;
+}): Promise<Record<string, any>> {
+  // Objective-only start: the employee proposes read-only evidence work or
+  // one targeted business question. Never retry creation on timeout.
+  const { data } = await apiClient.post(
+    "/api/assignments/from-objective",
+    payload,
+    { timeout: 120000, retry: false },
+  );
   return data;
 }
 

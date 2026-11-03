@@ -25,6 +25,12 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from core.goals.goal_plan_validation import (
+    confidence_is_valid,
+    validate_goal_plan,
+    validate_replan_decision,
+)
+
 from core.goals.goal_run_service import DECISION_TYPES
 
 logger = logging.getLogger(__name__)
@@ -59,39 +65,130 @@ class GoalRunRouter:
 
     # ------------------------------------------------------------------ api
 
-    async def decide(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def decide(
+        self, context: Dict[str, Any], *,
+        deadline_seconds: float = 180.0,
+    ) -> Dict[str, Any]:
+        import time as _time
+
+        deadline = _time.monotonic() + max(0.0, float(deadline_seconds))
         prompt = self._build_prompt(context)
+        raw, error = await self._structured(prompt, deadline)
+        trace = {
+            "deadline_seconds": float(deadline_seconds),
+            "attempts": 1,
+            "output_mode": "default",
+            "errors": [str(error)] if error else [],
+        }
+        if error:
+            logger.warning(f"goal run router unavailable: {error}")
+            fallback = self._fallback(f"router unavailable: {error}")
+            fallback["trace"] = trace
+            return fallback
+        logger.info("goal_run_router request:\n%s", prompt[-2000:])
+        logger.info("goal_run_router raw output:\n%s", str(raw)[:2000])
+
+        decision = self._coerce(raw)
+        if decision is not None:
+            decision["trace"] = trace
+            return decision
+
+        defect = self._replan_defect(raw)
+        if not defect:
+            fallback = self._fallback(
+                f"router returned an unusable decision: {str(raw)[:300]}")
+            fallback["trace"] = trace
+            return fallback
+        # One explicit corrective pass, same schema and consumer prompt. The
+        # invalid output is preserved in the returned decision metadata; no
+        # plan is fabricated and no execution follows an unrepaired REPLAN.
+        repair_prompt = (
+            prompt
+            + "\n\nREPAIR REQUIRED: the previous decision was rejected: "
+            + defect
+            + "\nReturn a corrected object. If no concrete plan can be "
+              "produced, choose ASK_HUMAN instead of REPLAN.\n\nPrevious "
+              "invalid output:\n"
+            + str(raw)[:2000]
+        )
+        repaired_raw, repair_error = await self._structured(
+            repair_prompt, deadline)
+        repaired = self._coerce(repaired_raw)
+        trace["attempts"] = 2
+        if repair_error:
+            trace["errors"].append(str(repair_error))
+        repair_meta = {
+            "attempted": True,
+            "recovered": repaired is not None,
+            "defect": defect,
+            "invalid_output": str(raw)[:800],
+            "repair_error": repair_error,
+        }
+        if repaired is not None:
+            repaired["repair"] = repair_meta
+            repaired["trace"] = trace
+            return repaired
+        fallback = self._fallback(
+            f"router returned an unusable decision after one repair: "
+            f"{str(raw)[:300]}")
+        fallback["repair"] = repair_meta
+        fallback["trace"] = trace
+        return fallback
+
+    async def _structured(self, prompt: str, deadline: Optional[float] = None):
+        """One structured router call inside the shared decision deadline."""
+        import asyncio
+        import time as _time
+
+        if deadline is not None:
+            remaining = deadline - _time.monotonic()
+            if remaining <= 0:
+                return None, "deadline_exhausted: no time for model generation"
+        else:
+            remaining = None
         try:
             llm = self._get_llm()
             kwargs: Dict[str, Any] = {}
-            # §8.1 resolution: routing/judgment is classification work —
-            # the cheapest capable structured-output model, not the frontier
-            # reasoning model. Operators pin one via env ("provider:model",
-            # like the canvas editor's openrouter pin) after benchmarking on
-            # the §6 scenario set; unset → the platform cost router decides.
-            pin = os.environ.get("ATOM_GOAL_RUN_ROUTER_PROVIDER_MODEL", "").strip()
+            pin = os.environ.get(
+                "ATOM_GOAL_RUN_ROUTER_PROVIDER_MODEL", "").strip()
             if pin and ":" in pin:
                 provider, model = pin.split(":", 1)
                 kwargs["provider_model"] = (provider, model)
-            raw = await llm.generate_structured_response(
+            call = llm.generate_structured_response(
                 disable_reasoning=True,
                 prompt=prompt,
                 response_model=RouterDecisionModel,
                 system_instruction="You return only the requested JSON object.",
                 temperature=0.0,
+                output_mode="json",
+                cascade=False,
+                allow_moa=False,
+                max_tokens=1200,
                 **kwargs,
             )
-        except Exception as exc:
-            logger.warning(f"goal run router unavailable: {exc}")
-            return self._fallback(f"router unavailable: {exc}")
-        logger.info("goal_run_router request:\n%s", prompt[-2000:])
-        logger.info("goal_run_router raw output:\n%s", str(raw)[:2000])
+            if remaining is None:
+                raw = await call
+            else:
+                raw = await asyncio.wait_for(call, timeout=remaining)
+            return raw, None
+        except asyncio.TimeoutError:
+            return None, "deadline_exhausted"
+        except Exception as exc:  # noqa: BLE001 - unavailable is reported
+            return None, exc
 
-        decision = self._coerce(raw)
-        if decision is None:
-            return self._fallback(f"router returned an unusable decision: "
-                                  f"{str(raw)[:300]}")
-        return decision
+    @staticmethod
+    def _replan_defect(raw: Any) -> Optional[str]:
+        """The exact invalid-REPLAN defect, or None for other outputs."""
+        if isinstance(raw, RouterDecisionModel):
+            data = raw.model_dump()
+        elif isinstance(raw, dict):
+            data = raw
+        else:
+            return None
+        if str(data.get("decision") or "").strip().upper() != "REPLAN":
+            return None
+        errors = validate_replan_decision(data)
+        return "; ".join(errors) if errors else None
 
     # ------------------------------------------------------------- prompt
 
@@ -234,12 +331,18 @@ class GoalRunRouter:
         if kind not in DECISION_TYPES:
             return None
         required = _DECISIONS_REQUIRING_SPEC.get(kind)
-        if required and not isinstance(data.get(required), (dict, list)):
+        if required:
+            value = data.get(required)
+            if required == "new_plan":
+                if validate_goal_plan(
+                        value, target_step=data.get("target_step")):
+                    return None
+            elif not isinstance(value, (dict, list)):
+                return None
+        confidence = data.get("confidence", 0.5)
+        if not confidence_is_valid(confidence):
             return None
-        try:
-            confidence = float(data.get("confidence", 0.5))
-        except (TypeError, ValueError):
-            confidence = 0.5
+        confidence = float(confidence)
         if (confidence < MIN_CONFIDENCE
                 and kind in DECISIONS_REQUIRING_HUMAN_WHEN_UNCERTAIN):
             return self._fallback(

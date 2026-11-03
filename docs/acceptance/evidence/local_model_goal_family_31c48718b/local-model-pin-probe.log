@@ -1,0 +1,31 @@
+⚠️ Generated temporary SECRET_KEY for development: _EgQTU-r...
+⚠️ Generated temporary SECRET_KEY for development: ZRdFErbJ...
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-02T23:14:11.712470+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": true, "blocked_services": 23, "local_allowed_services": 18}}
+{
+  "ollama_base_url": "http://127.0.0.1:11436/v1",
+  "model": "llama3.1:8b",
+  "handler_clients": [
+    "ollama"
+  ],
+  "pin": {
+    "provider_model": [
+      "ollama",
+      "llama3.1:8b"
+    ]
+  },
+  "policy_mode": "unset",
+  "payload": {
+    "assessments": [
+      {
+        "subject": "Ref A-1",
+        "decision": "APPROVE"
+      }
+    ]
+  },
+  "served_provider": "ollama",
+  "served_model": "llama3.1:8b",
+  "status": "passed"
+}
+real 6.41
+user 2.92
+sys 0.31

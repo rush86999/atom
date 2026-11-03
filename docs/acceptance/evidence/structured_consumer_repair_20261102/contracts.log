@@ -1,0 +1,137 @@
+
+tests/test_structured_consumer_contracts.py::test_invalid_replan_gets_one_repair_and_returns_the_plan 
+-------------------------------- live log setup --------------------------------
+2026-11-02 19:06:22 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 19:06:22 [    INFO] EscalationManager initialized
+2026-11-02 19:06:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:22 [    INFO] EscalationManager initialized
+2026-11-02 19:06:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:06:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:06:22 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:22 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:22 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='need a new plan' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 20%]
+tests/test_structured_consumer_contracts.py::test_unrepaired_invalid_replan_falls_back_to_human 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:22 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:22 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='bad' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 40%]
+tests/test_structured_consumer_contracts.py::test_transport_none_is_not_repaired_as_replan 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:06:22 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:06:22 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 60%]
+tests/test_structured_consumer_contracts.py::test_execute_decision_never_applies_an_invalid_replan PASSED [ 80%]
+tests/test_structured_consumer_contracts.py::test_planner_typed_no_tool_is_not_transport_none PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 5 passed, 16 warnings in 8.50s ========================

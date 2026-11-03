@@ -1,0 +1,144 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 21:20:52 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_goal_effect_family_controls.py::test_wrong_workspace_supervisor_reads_and_mutations_are_404 
+-------------------------------- live log setup --------------------------------
+2026-11-02 21:20:52 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 21:20:52 [    INFO] EscalationManager initialized
+2026-11-02 21:20:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 21:20:52 [    INFO] EscalationManager initialized
+2026-11-02 21:20:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 21:20:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 21:20:52 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:52 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 3bdc746d-5060-41ff-b1e7-4fcbc263eb9d
+2026-11-02 21:20:52 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/3bdc746d-5060-41ff-b1e7-4fcbc263eb9d "HTTP/1.1 404 Not Found"
+2026-11-02 21:20:52 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 3bdc746d-5060-41ff-b1e7-4fcbc263eb9d
+2026-11-02 21:20:52 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/3bdc746d-5060-41ff-b1e7-4fcbc263eb9d/decisions "HTTP/1.1 404 Not Found"
+2026-11-02 21:20:52 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 3bdc746d-5060-41ff-b1e7-4fcbc263eb9d
+2026-11-02 21:20:52 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3bdc746d-5060-41ff-b1e7-4fcbc263eb9d/advance "HTTP/1.1 404 Not Found"
+2026-11-02 21:20:52 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 3bdc746d-5060-41ff-b1e7-4fcbc263eb9d
+2026-11-02 21:20:52 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3bdc746d-5060-41ff-b1e7-4fcbc263eb9d/resume "HTTP/1.1 404 Not Found"
+2026-11-02 21:20:52 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 3bdc746d-5060-41ff-b1e7-4fcbc263eb9d
+2026-11-02 21:20:52 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3bdc746d-5060-41ff-b1e7-4fcbc263eb9d/cancel "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  3%]
+tests/test_goal_effect_family_controls.py::test_terminal_run_advance_is_409_and_appends_no_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:52 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/812f3418-f9c3-4a55-a77b-4ce4f492a6d6/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_goal_effect_family_controls.py::test_duplicate_resume_executes_once_and_keeps_first_reviewer 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:52 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/39246e73-7650-463c-bf75-8ca432f1646c/resume "HTTP/1.1 200 OK"
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/39246e73-7650-463c-bf75-8ca432f1646c/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_effect_family_controls.py::test_two_simultaneous_resumes_execute_one_turn PASSED [ 15%]
+tests/test_goal_effect_family_controls.py::test_stale_resume_snapshot_cannot_claim_newer_pending PASSED [ 19%]
+tests/test_goal_effect_family_controls.py::test_fresh_session_resumes_persisted_pending_once PASSED [ 23%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_wrong_workspace_refuses_without_rows PASSED [ 26%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_refuses_self_impersonation PASSED [ 30%]
+tests/test_goal_effect_family_controls.py::test_goal_action_duplicate_active_run_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [ WARNING] plan seeding fell back (playbook match failed): (sqlite3.OperationalError) no such table: playbooks
+[SQL: SELECT playbooks.id AS playbooks_id, playbooks.tenant_id AS playbooks_tenant_id, playbooks.workspace_id AS playbooks_workspace_id, playbooks.name AS playbooks_name, playbooks.description AS playbooks_description, playbooks.trigger_canvas_type AS playbooks_trigger_canvas_type, playbooks.trigger_keywords AS playbooks_trigger_keywords, playbooks.steps AS playbooks_steps, playbooks.template_questions AS playbooks_template_questions, playbooks.examples AS playbooks_examples, playbooks.source AS playbooks_source, playbooks.approval_state AS playbooks_approval_state, playbooks.version AS playbooks_version, playbooks.fingerprint AS playbooks_fingerprint, playbooks.origin_ids AS playbooks_origin_ids, playbooks.last_eval_result AS playbooks_last_eval_result, playbooks.embedding AS playbooks_embedding, playbooks.embedding_model AS playbooks_embedding_model, playbooks.created_by AS playbooks_created_by, playbooks.approved_by AS playbooks_approved_by, playbooks.created_at AS playbooks_created_at, playbooks.updated_at AS playbooks_updated_at 
+FROM playbooks 
+WHERE playbooks.tenant_id = ? AND playbooks.approval_state = ? ORDER BY playbooks.updated_at DESC]
+[parameters: ('t-a', 'approved')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 34%]
+tests/test_goal_effect_family_controls.py::test_public_resume_replay_cannot_execute_a_newer_pending_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/e018d00c-8b19-4e61-829c-cc343425b2a5/resume "HTTP/1.1 200 OK"
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/e018d00c-8b19-4e61-829c-cc343425b2a5/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_goal_effect_family_controls.py::test_public_resume_without_review_binding_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/0f478029-7378-43c0-b46c-c6d1e66045f1/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 42%]
+tests/test_goal_effect_family_controls.py::test_changed_plan_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/d30f2790-cef7-4d0c-a3b3-a7eca0d512f3/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 46%]
+tests/test_goal_effect_family_controls.py::test_duplicate_rejection_of_one_reviewed_decision_is_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 21:20:53 [    INFO] EscalationManager initialized
+2026-11-02 21:20:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 21:20:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 21:20:53 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 21:20:53 [   ERROR] Reflection pool table not available
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a03a4bdb-80ab-4aa5-83d5-d93550df9582/resume "HTTP/1.1 200 OK"
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/a03a4bdb-80ab-4aa5-83d5-d93550df9582/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_goal_effect_family_controls.py::test_changed_decision_material_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/de0222d3-6cdc-4fbd-81db-cd14e70f51fc/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_goal_effect_family_controls.py::test_new_checkpoint_created_during_execution_stays_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/c99adfbf-fc27-458c-89ac-be453fab3315/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_goal_effect_family_controls.py::test_integration_action_carries_reviewed_operation_identity PASSED [ 61%]
+tests/test_goal_effect_family_controls.py::test_cancelled_run_cannot_dispatch_its_old_held_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/7214552c-4f40-4937-82cd-a2aa028b9d9f/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+tests/test_goal_effect_family_controls.py::test_restart_review_effect_and_replay_journey 
+-------------------------------- live log call ---------------------------------
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ec60634-4c82-4597-999b-62467c9b723f/resume "HTTP/1.1 200 OK"
+2026-11-02 21:20:53 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ec60634-4c82-4597-999b-62467c9b723f/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 69%]
+tests/test_goal_effect_family_controls.py::test_material_change_after_validation_cannot_win_claim[plan] PASSED [ 73%]
+tests/test_goal_effect_family_controls.py::test_material_change_after_validation_cannot_win_claim[parameters] PASSED [ 76%]
+tests/test_goal_effect_family_controls.py::test_material_change_after_validation_cannot_win_claim[cursor] PASSED [ 80%]
+tests/test_goal_effect_family_controls.py::test_material_change_after_validation_cannot_win_claim[mode] PASSED [ 84%]
+tests/test_goal_effect_family_controls.py::test_material_change_after_validation_cannot_win_claim[wait] PASSED [ 88%]
+tests/test_goal_effect_family_controls.py::test_assignment_operation_projection_is_not_native_canvas_work PASSED [ 92%]
+tests/test_goal_effect_family_controls.py::test_unknown_native_kind_does_not_fall_through_to_canvas PASSED [ 96%]
+tests/test_goal_effect_family_controls.py::test_material_revision_advances_on_every_material_writer PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 52 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal_effect_family_controls.py::test_wrong_workspace_supervisor_reads_and_mutations_are_404
+tests/test_goal_effect_family_controls.py::test_terminal_run_advance_is_409_and_appends_no_decision
+tests/test_goal_effect_family_controls.py::test_duplicate_resume_executes_once_and_keeps_first_reviewer
+  /private/tmp/atom-full-app/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 26 passed, 62 warnings in 9.67s ========================

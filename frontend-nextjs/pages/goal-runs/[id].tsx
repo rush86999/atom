@@ -11,7 +11,7 @@ import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info, Tren
 import {
     getGoalRun, getGoalRunCanvases, resumeGoalRun, resolveCheckpoint,
     advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
-    getPromotionEvidence, getGoal,
+    getPromotionEvidence, getGoal, isAssignmentOwnedRun,
     GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode, Goal,
     AgentLesson, listAgentLessons, teachAgentFromRun,
 } from "@/lib/goal-run-api";
@@ -146,6 +146,7 @@ export default function GoalRunDetailPage() {
         userId && run?.created_by && String(userId) === String(run.created_by));
     const canActOnRun = canSupervise || isOwner;
     const runStatus = run?.status;
+    const assignmentOwned = isAssignmentOwnedRun(run);
 
     const load = useCallback(async (silent = false) => {
         if (typeof id !== "string") return;
@@ -239,6 +240,13 @@ export default function GoalRunDetailPage() {
             if (successMsg) toast.success(successMsg);
             await load();
         } catch (e: any) {
+            // A stale review conflict means the run now shows a NEWER pending
+            // decision. Refresh it (without clearing the message) so the
+            // supervisor reviews the updated text and deliberately clicks
+            // again; never silently attach the new binding to the old click.
+            if (e?.status === 409) {
+                await load(true);
+            }
             setError(e?.message || "Action failed");
             toast.error(e?.message || "Action failed");
         } finally {
@@ -273,6 +281,15 @@ export default function GoalRunDetailPage() {
     if (!run) return null;
 
     const pending = run.pending_decision;
+    // The exact reviewed binding for the public approval. The backend refuses
+    // an unbound/stale approval instead of applying it to a newer decision.
+    const pendingReview = pending
+        ? {
+            decision_id: pending.decision_id,
+            decision_generation: pending.decision_generation,
+            decision_binding: pending.decision_binding,
+        }
+        : null;
     const terminal = ["achieved", "failed", "cancelled"].includes(run.status);
     const pendingCheckpointHitl = run.status === "waiting" &&
         (run.waiting_on as { event?: string; match?: { hitl_id?: string } } | null)?.event === "human_checkpoint"
@@ -325,10 +342,12 @@ export default function GoalRunDetailPage() {
                             )}
                             {!terminal && (
                                 <>
-                                    <Button size="sm" variant="outline" disabled={busy}
-                                            onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
-                                        <Play className="h-4 w-4" /> Advance
-                                    </Button>
+                                    {!assignmentOwned && (
+                                        <Button size="sm" variant="outline" disabled={busy}
+                                                onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
+                                            <Play className="h-4 w-4" /> Advance
+                                        </Button>
+                                    )}
                                     <Button size="sm" variant="outline" disabled={busy}
                                             onClick={() => void act(async () => {
                                                 await cancelGoalRun(run.id);
@@ -350,6 +369,17 @@ export default function GoalRunDetailPage() {
                     Read-only view — this run is worked by whoever started it and by
                     supervisors (team_lead or higher). The timeline below is the full
                     record of what this agent decided and why.
+                </div>
+            )}
+
+            {assignmentOwned && (
+                <div className="mb-6 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                     data-testid="assignment-continuation">
+                    This run is driven by its durable assignment. The plan here is a
+                    read-only projection — continue the work and any approvals in the{" "}
+                    <Link href="/assignments" className="underline">
+                        assignment panel
+                    </Link>.
                 </div>
             )}
 
@@ -379,7 +409,13 @@ export default function GoalRunDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <p className="text-sm">{pending.rationale}</p>
-                        {canActOnRun && (
+                        {assignmentOwned && (
+                            <p className="text-sm text-muted-foreground" data-testid="assignment-pending-note">
+                                This decision belongs to the durable assignment. Resolve it
+                                from the assignment panel, not the native goal loop.
+                            </p>
+                        )}
+                        {canActOnRun && !assignmentOwned && (
                             <>
                                 <Textarea
                                     placeholder="Guidance (optional) — overriding teaches the agent instantly"
@@ -389,13 +425,13 @@ export default function GoalRunDetailPage() {
                                 />
                                 <div className="flex gap-2">
                                     <Button size="sm" disabled={busy}
-                                            onClick={() => void act(() => resumeGoalRun(run.id, true), "Approved — the run continues")}>
+                                            onClick={() => void act(() => resumeGoalRun(run.id, true, undefined, undefined, pendingReview), "Approved — the run continues")}>
                                         <Check className="h-4 w-4" /> Approve
                                     </Button>
                                     <Button size="sm" variant="destructive" disabled={busy}
                                             data-testid="override-with-guidance"
                                             onClick={() => void act(
-                                                () => resumeGoalRun(run.id, false, guidance, guidanceScope),
+                                                () => resumeGoalRun(run.id, false, guidance, guidanceScope, pendingReview),
                                                 "Overridden — your guidance became the agent's instant lesson",
                                             ).then(loadLessons)}>
                                         <X className="h-4 w-4" /> Override with guidance

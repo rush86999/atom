@@ -75,7 +75,9 @@ def test_tool_error_candidate_stays_pending_and_review_does_not_mutate_agent(db)
     assert agent.configuration == {"system_prompt": "original"}
 
     tenant = SimpleNamespace(id="tenant-memento")
-    user = SimpleNamespace(id="reviewer")
+    user = SimpleNamespace(
+        id="reviewer", role="workspace_admin",
+        workspace_id="ws-memento", tenant_id="tenant-memento")
     listed = asyncio.run(list_candidates(
         agent_id=agent.id, status="pending", tenant=tenant,
         current_user=user, db=db))
@@ -168,7 +170,9 @@ def test_runtime_tool_failure_trigger_files_the_pending_candidate(db, monkeypatc
     listed = asyncio.run(list_candidates(
         agent_id=agent.id, status="pending",
         tenant=SimpleNamespace(id=tenant.id),
-        current_user=SimpleNamespace(id="reviewer"), db=db))
+        current_user=SimpleNamespace(
+            id="reviewer", role="workspace_admin",
+            workspace_id="ws-memento", tenant_id="tenant-memento"), db=db))
     assert listed["data"]["count"] == 1
     assert listed["data"]["candidates"][0]["id"] == str(candidate.id)
 

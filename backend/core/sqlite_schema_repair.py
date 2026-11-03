@@ -49,7 +49,7 @@ def ensure_sqlite_columns(engine: Any, model: Any) -> None:
     try:
         if engine.dialect.name != "sqlite":
             return
-        from sqlalchemy import inspect, text
+        from sqlalchemy import Integer, inspect, text
 
         insp = inspect(engine)
         if not insp.has_table(model.__tablename__):
@@ -61,7 +61,16 @@ def ensure_sqlite_columns(engine: Any, model: Any) -> None:
             if name not in existing
         ]
         for name, col in missing:
-            nullable = "NULL" if col.nullable else "NOT NULL DEFAULT ''"
+            if col.nullable:
+                nullable = "NULL"
+            elif isinstance(col.type, Integer):
+                # SQLite stores '' as TEXT even in an INTEGER column. A
+                # numeric NOT NULL column must default to a number, or every
+                # pre-existing row reads back as '' and integer CAS filters
+                # (e.g. goal_runs.material_revision) stop matching.
+                nullable = "NOT NULL DEFAULT 0"
+            else:
+                nullable = "NOT NULL DEFAULT ''"
             ddl = _sqlite_column_ddl(col) or "TEXT"
             with engine.begin() as conn:
                 conn.execute(text(

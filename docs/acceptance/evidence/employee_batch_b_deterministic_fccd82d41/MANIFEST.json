@@ -1,0 +1,163 @@
+{
+  "artifacts": {
+    "README.md": "fdb88eb7b71b1a22b76a949636d99fdfb00fc3555366ce4a233616ed02866fb4",
+    "TEST_RESULTS.md": "444451d57132133ac1b0c32632a35e125585ddf1039e3eca47507a3c36718ae5",
+    "assignment-employee-suite.log": "4f6e8b95cebc10ce4aba6d63f481728fa6b58d05260abc28315a51829554e996",
+    "backend-integrated.log": "7fbc4c4da0eb6997f8d1c6ad8e1082e1040b5b9ec93e48ccd4532a62200a581e",
+    "evidence-and-g0-probes.log": "b4185ad04a355033c3876c4599d39a96663a4d1d6e197ce2c9917f1d95a1d71f",
+    "frontend-integrated.log": "421f06f48554ced1e5c5c3ffa53d7b07adafd063e9d7b6700d0e0d1cda345476",
+    "g3-g4-focused-controls.log": "21bbbec5ac235717b3646ce0f83b9a5e89b85fb4dd859c45825e8394d6f87ba0",
+    "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+    "independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
+    "pre-existing-task-lifecycle-at-base.log": "ea05b318c2608679b709afd3e6f0c9530cf970c0a552ce99aec71341ceeed0b5",
+    "pre-existing-task-lifecycle-at-source.log": "b9bf14800c677abf2796dfc2b389544a9765906045bcd6dd1f59d4fae75d38c0",
+    "two-domain-campaign.log": "f1a313f13331e525d43444cefadf5a6652c3eb94e27ee5316d681cdc07351b01"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "fccd82d416bc34b9219607972755d2e8bb985515",
+    "manifest_note": "Deterministic mechanism campaign only. Served-model adaptive choice (G5 level 2), Batch A acceptance and broad adaptive employee capability are not claimed.",
+    "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/alembic/versions/20261102_goal_run_material_revision.py",
+    "backend/api/agent_routes.py",
+    "backend/api/approvals_routes.py",
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_plan.py",
+    "backend/core/assignment_planner.py",
+    "backend/core/assignment_readiness.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_patch.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/goals/goal_plan_validation.py",
+    "backend/core/goals/goal_run_binding.py",
+    "backend/core/goals/goal_run_executors.py",
+    "backend/core/goals/goal_run_ownership.py",
+    "backend/core/goals/goal_run_service.py",
+    "backend/core/hitl_resume.py",
+    "backend/core/models.py",
+    "backend/core/task_outcome_contract.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_readiness.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/test_employee_outcome.py",
+    "backend/tests/test_employee_proposal.py",
+    "backend/tests/test_goal_effect_family_controls.py",
+    "backend/tests/test_goal_projection_boundaries.py",
+    "backend/tests/test_hitl_resume.py",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx",
+    "frontend-nextjs/lib/assignment-api.ts",
+    "frontend-nextjs/lib/goal-run-api.ts",
+    "frontend-nextjs/pages/approvals.tsx",
+    "frontend-nextjs/pages/goal-runs/[id].tsx",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx",
+    "backend/core/task_lifecycle.py",
+    "backend/tests/test_employee_two_domain_campaign.py"
+  ],
+  "delivered": {
+    "authoritative_patch_binding": "task_version CAS base, canonical material digest, conflict on patch-id reuse with different material content",
+    "observation_idempotence": "stable observation patch identity; replay is already_applied; affected-only rerun preserves independent receipts",
+    "patch_safety": "registered adapter/action, effect and authority validation; required work/requirement weakening refused; active/uncertain closure refused; established facts require provenance",
+    "step_rewiring": "bounded StepUpdate for inputs/dependencies/requirements of pending, failed or invalidated work",
+    "two_domain_campaign": "industrial quote 494.75 with artifact/draft and infeasible negative; procurement corrected 270.00 bill and closed-period negative; restart/out-of-order/duplicate controls"
+  },
+  "exclusions": [
+    "G5 served-model adaptive-choice campaign not run; no raw model traces",
+    "Batch A acceptance remains withheld pending independent re-verification",
+    "G4 broader event-order/recovery campaign beyond named controls not claimed",
+    "no live provider lookup/write/send/credential/consent/spend",
+    "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
+    "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
+    "historical 111/123 and accepted tags/sources unchanged"
+  ],
+  "known_pre_existing_failures": {
+    "base_log": "pre-existing-task-lifecycle-at-base.log",
+    "note": "Four test_task_lifecycle.py controls fail identically at base 93650be55 and at this source; disclosed, not counted as passing.",
+    "result": "4 failed",
+    "source_log": "pre-existing-task-lifecycle-at-source.log"
+  },
+  "lineage": {
+    "batch_a_repair_evidence": "f0b1ad23a",
+    "batch_a_repair_source": "046fe0bf3",
+    "batch_b_core": [
+      "52e0919b1",
+      "dfd05cbfc",
+      "93650be55"
+    ],
+    "observation_replay_fix": "8312c890d",
+    "this_source": "fccd82d41"
+  },
+  "schema": "atom-employee-batch-b-deterministic-1",
+  "source_hashes": {
+    "backend/alembic/versions/20261102_goal_run_material_revision.py": "72dd0ebd646b41be749f0f8de0c0aecdbf71bf05df3d832e0b301f2859be8d8a",
+    "backend/api/agent_routes.py": "6cbb2f795faa67e987780382a1aac5104e182bfff957bf795255887ffe8de059",
+    "backend/api/approvals_routes.py": "0e8cf3bb767f5bf2ca9a28e36dc3f1c8c0a6922d3a328b3e2536b9a13b243003",
+    "backend/api/assignment_routes.py": "e2c4cec53f2ffbacbd2687efbd354d15a848a2e708016da2da4789d922290618",
+    "backend/core/assignment_executor.py": "9652ae76a501c05f31e7aeecec732a3275f117c6015108cb5a65bba1c281d918",
+    "backend/core/assignment_plan.py": "1030129c25887fdd2b33a1cd9e7bdc9f833d1a4fb29777996e10a76fe86a79ae",
+    "backend/core/assignment_planner.py": "ac5eacf10b3f863730ed99e82af8f36694d599825bd513fd24249513c3131074",
+    "backend/core/assignment_readiness.py": "50adad46f1ee7cd8698ea52b71163b4f54ec54a5439ffc4e42aa44973c349e02",
+    "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
+    "backend/core/employee_patch.py": "617c0d88e685711deb1bffe37cd251e5179f3b335a5b327c181e3599142dda92",
+    "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
+    "backend/core/goals/goal_plan_validation.py": "0a206d583a02672081ab39d9638ad60e04b0c29191257934ea9aa23379d1e8cf",
+    "backend/core/goals/goal_run_binding.py": "75d93b8bf507328cecdf18b13f48158e765fec13da911df7dc66237912efd012",
+    "backend/core/goals/goal_run_executors.py": "9813eb886a2da78fd0ad2d9e9dcb5e6326f9dd43e73ab092f1f61c3838ddb6e5",
+    "backend/core/goals/goal_run_ownership.py": "45c5c8947108b30e6a84ee50294861ab6a13e53d0312fd0f99b1c455af0d66db",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+    "backend/core/hitl_resume.py": "9ac02465fcd12a39560cc99ffd267ea504d1518463e262fb96f6345a3a3c829f",
+    "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
+    "backend/core/task_lifecycle.py": "0a682e3936b80cfc3dcdfaa8c531bd32d2517c26cb2e056734bc12f71348c3c8",
+    "backend/core/task_outcome_contract.py": "098743b96f144a62adba9d926c0b36692d83e7ae681712db3a57187289b809dc",
+    "backend/tests/test_assignment_executor.py": "17fd9298be3efe73de8dc5336ae5f4f59d1f5c8beb1b2c737702a0c56eacd7ee",
+    "backend/tests/test_assignment_readiness.py": "659fba09d4ade9841b79834740f4ed4b9e5dc56aa5f42537bec88b0d1a3931d8",
+    "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
+    "backend/tests/test_employee_outcome.py": "1c74fc60280138f103c22538b14d39db2a13e9ecc57e2d01095d2a25abad028e",
+    "backend/tests/test_employee_proposal.py": "af182ad98c6ba1b5fc9505c82f8a752736762192ec7e9afc11677dba0dddb750",
+    "backend/tests/test_employee_two_domain_campaign.py": "2daffbf4a56d2eae78c3eb1cf470be148cf0289da8b1f62c634ff0e6f530e8ec",
+    "backend/tests/test_goal_effect_family_controls.py": "234ad68470f3f70a36ed8992f23670566e3cb6a14793c26c2ac8474a2fb12376",
+    "backend/tests/test_goal_projection_boundaries.py": "509cb18b0ca4f74a2206b00895f40f19abfc7a9d9eaf3924f48b54ae29635f9d",
+    "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "dfcb55e85b7a1c8fd8118805750c1d74dd83f7c0ac96ff84a0e17fc3245da94e",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx": "46fce05047f0c9aacaf90bee4192f2ea10452dc5abdbf97fe163a8cde58627e2",
+    "frontend-nextjs/lib/assignment-api.ts": "30a2c7aee53b3d59fd9c3252927ff67861bc4565d99728ba857484107ea7b121",
+    "frontend-nextjs/lib/goal-run-api.ts": "713e66e223484b98d96bcdf0be6ec684fa2abb8be1e5fcd622170cfaca371da8",
+    "frontend-nextjs/pages/approvals.tsx": "5cbff20101fd5da86e40dda5c6ad788acd397053280ae5a98ba85a881f2e99af",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "e4c14e230b90a8a8c37b8df0a046b21c7a513c04be62fb2b17228bf029fd5bb6",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx": "2f8befb5229624c861c54e77fbd80dddca81f8ecfa790c76faa14f3ceaaf6936",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "9aa40e24a239c1cb1ecc84f7b3f121616f68e1ed2b54378fcd7a2510138a56dc"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "assignment_employee_suite": {
+      "log": "assignment-employee-suite.log",
+      "result": "295 passed"
+    },
+    "backend_integrated": {
+      "log": "backend-integrated.log",
+      "result": "544 passed"
+    },
+    "evidence_g0_blocked_route_probes": {
+      "log": "evidence-and-g0-probes.log",
+      "result": "9 passed"
+    },
+    "frontend_integrated": {
+      "log": "frontend-integrated.log",
+      "result": "54 passed"
+    },
+    "g3_g4_focused_controls": {
+      "log": "g3-g4-focused-controls.log",
+      "result": "7 passed"
+    },
+    "two_domain_campaign": {
+      "log": "two-domain-campaign.log",
+      "result": "4 passed"
+    }
+  }
+}

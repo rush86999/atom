@@ -369,7 +369,25 @@ export default function ApprovalsPage() {
         body: JSON.stringify({ decision, ...(modifiedParams ? { modified_params: modifiedParams } : {}) }),
       });
       if (!res.ok) {
-        setError(`Decision failed (${res.status})`);
+        let message = `Decision failed (${res.status})`;
+        try {
+          const body = await res.json();
+          const detail = body?.detail;
+          if (detail && typeof detail === "object" && detail.message) {
+            message = detail.message;
+          }
+        } catch {
+          /* keep the status fallback */
+        }
+        setError(message);
+        // A stale binding leaves the newer decision pending; refresh the
+        // queue so the supervisor sees the current review rather than acting
+        // on the old card again. load() clears error first, so restore the
+        // targeted message after it completes.
+        if (res.status === 409) {
+          await load();
+          setError(message);
+        }
         return;
       }
       setNotice(`Action ${decision}.`);

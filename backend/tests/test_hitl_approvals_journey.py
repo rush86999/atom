@@ -35,7 +35,9 @@ from sqlalchemy.pool import StaticPool
 
 from core.auth import get_current_user as auth_get_current_user
 from core.database import Base, get_db
-from core.models import HITLAction, HITLActionStatus, User, UserRole
+from core.models import (
+    GoalObjective, HITLAction, HITLActionStatus, User, UserRole,
+)
 
 
 @pytest.fixture()
@@ -288,6 +290,44 @@ class TestApprovalsAliasSurface:
         assert resp.status_code == 200, resp.text
         hitl_db.refresh(action)
         assert action.params == {"to": "fixed@y.com"}
+
+    def test_stale_goal_decision_is_refused_before_hitl_change(
+            self, hitl_db, alias_svc):
+        from core.goals.goal_run_service import GoalRunService
+
+        @contextmanager
+        def _session():
+            yield hitl_db
+
+        hitl_db.add(GoalObjective(
+            id="goal-alias", workspace_id="ws-1", tenant_id="default",
+            title="Prepare a quote", status="active"))
+        hitl_db.commit()
+        svc = GoalRunService(
+            workspace_id="ws-1", tenant_id="default",
+            session_factory=_session)
+        run_id = svc.create_run("goal-alias", role="sales", plan=[])["id"]
+        svc.transition(run_id, "active")
+        held_a = svc._hold_for_approval(
+            run_id, {"decision": "ADVANCE", "rationale": "A"},
+            reason="review A")
+        svc._hold_for_approval(
+            run_id, {"decision": "REPLAN", "rationale": "B",
+                     "new_plan": [{"id": "new", "title": "new"}]},
+            reason="review B")
+        action = hitl_db.query(HITLAction).filter(
+            HITLAction.id == held_a["hitl_id"]).one()
+        assert action.status == HITLActionStatus.PENDING.value
+        client = make_alias_client(hitl_db)
+        resp = client.post(
+            f"/api/agents/approvals/{action.id}",
+            json={"decision": "approved"})
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"]["error"] == "stale_decision_review"
+        hitl_db.refresh(action)
+        assert action.status == HITLActionStatus.PENDING.value
+        current = svc.get_run(run_id)["pending_decision"]
+        assert current["rationale"] == "B"
 
     def test_pending_requires_auth(self):
         from api.approvals_routes import router as approvals_router

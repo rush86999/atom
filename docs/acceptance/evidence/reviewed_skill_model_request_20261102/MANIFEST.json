@@ -1,0 +1,68 @@
+{
+ "schema": "atom-reviewed-skill-final-model-request-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "4f93f069ece7fce5270fc024e0d39ed63fe01a75",
+  "accepted_product_base": "c1074f0a9ecb057275b6990ef24eef1742c724a1",
+  "other_product_commit": "635df02e4 (goal pending-decision CAS; Agent 2)",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "source_files": {
+   "backend/tests/test_reviewed_skill_agent_consumption.py": "b10f43eb0cc08992b14ca5b700a8cdafbe9e0ce811519d0ef7487da2a3e1eded"
+  }
+ },
+ "final_model_request": {
+  "path": "final-model-request.json",
+  "sha256": "3c259159bfbb7e0dd38604dfcfd8d701bb1db8aed9c92af7788d73f3490c6172",
+  "system_chars": 4392,
+  "prompt_chars": 138,
+  "reviewed_skill_present": true,
+  "generated_code_present": false,
+  "producer": "GenericAgent._react_step -> generate_structured"
+ },
+ "local_serving": {
+  "base_url": "http://127.0.0.1:11437",
+  "models": "/Users/rushiparikh/.ollama/models-local",
+  "result": "timeout/500 under load 34-45; no model-behavior claim",
+  "evidence": "local-model-serve-attempt.log"
+ },
+ "tests": {
+  "backend_combined": {
+   "command": "TESTING=1 pytest <31 files> -q",
+   "result": "492 passed",
+   "log": "backend-tests.log"
+  },
+  "consumption_controls": {
+   "command": "pytest tests/test_reviewed_skill_agent_consumption.py -q",
+   "result": "5 passed",
+   "log": "consumption-controls.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "exclusions": [
+  "no live provider call, credential, spend, send or reseed",
+  "request capture and prompt consumption only; no model-quality/behavior claim",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/reviewed_skill_consumption_20261102/",
+  "docs/acceptance/evidence/reviewed_improvement_claim_cas_20261102/",
+  "docs/acceptance/evidence/reviewed_improvement_boundaries_52549c51a/"
+ ],
+ "artifacts": {
+  "README.md": "aef9094e9657582d4554ed74b664cdb8bbd434ca8b08c617e84bfe9f378f82ed",
+  "TEST_RESULTS.md": "f92ef92376622277e585497cfde4006743b988cec11b4578256a5743b67cb218",
+  "backend-tests.log": "c935ef91dbee6057d74005ca6b25ab0ce90c7dba52d8f62c6553c2aac4bd51fa",
+  "consumption-controls.log": "4fe5015071f57cc6104a6972fd388ffbf674e1f3a30128e3214ca6b230379807",
+  "final-model-request.json": "3c259159bfbb7e0dd38604dfcfd8d701bb1db8aed9c92af7788d73f3490c6172",
+  "final-model-response.json": "690266ff459b9dc07f089244f8ff9e1e7765c89217a8855dc275534b374b938a",
+  "frontend-tests.log": "6ec43b19411ca76f3fe43d6624055fc78d0498d8c9a11b1a2e5aa19f61c87e86",
+  "local-model-serve-attempt.log": "c86042684341a8117da618e47b9d6a5a36ff435961faea071af05aff65aa303b"
+ }
+}

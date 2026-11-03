@@ -1,0 +1,75 @@
+{
+ "schema": "atom-reviewed-improvement-1",
+ "status": "submitted for independent verification; no claim verdict changed",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "94c7eaa9d55318b71a6b872bcbe8efdfcaf8d90c",
+  "worktree": "/private/tmp/atom-consolidated-clean",
+  "dirty": false,
+  "tree_clean_at_execution": true,
+  "source_files": {
+   "backend/core/reviewed_improvement.py": "9c4915dc57b65f6cc6783c4cae3b776cc90b129c8db95a8b0617028ac0a8f1fc",
+   "backend/api/autodev_review_routes.py": "3189b790c64c0a2ee95b3d9a475c427624acc7c6f391efefd5aa2ccb747c63ff",
+   "backend/tests/test_reviewed_improvement_apply.py": "a46338b001046c32c1743efba164e0e0977530a7b50352da068e95700e93eab7"
+  }
+ },
+ "lifecycle": {
+  "pending": "apply refused 409 candidate_not_reviewed; no state change",
+  "validated": "review only; no package/registry/agent change",
+  "apply": "TEAM_LEAD+; prompt-only SKILL.md; canonical registry import/activate; skills + workspace_skills mirror; candidate promoted",
+  "generated_code": "never written, imported or executed by this path",
+  "duplicate": "idempotent, same skill id, one registry execution",
+  "consumption": "SkillRetrievalService returns the Active workspace-assigned skill; survives a new session"
+ },
+ "tests": {
+  "backend_combined": {
+   "command": "TESTING=1 pytest <29 files> -q",
+   "result": "475 passed",
+   "log": "backend-tests.log"
+  },
+  "lifecycle_neighborhood": {
+   "command": "pytest <8 auto-dev/skill/evolution files> -q",
+   "result": "72 passed, 28 skipped",
+   "log": "lifecycle-neighborhood.log"
+  },
+  "frontend": {
+   "command": "jest <3 canvas suites> --runInBand",
+   "result": "7 passed",
+   "log": "frontend-tests.log"
+  }
+ },
+ "local_model": {
+  "env": "OLLAMA_MODELS=/Volumes/Seagate Portable Drive/ollama/models",
+  "probe": "GET http://127.0.0.1:11434/api/tags",
+  "error": "{\"error\":\"mkdir /Volumes/Seagate Portable Drive: permission denied: ensure path elements are traversable\"}",
+  "volume_mounted": false,
+  "model_call_attempted": false,
+  "qualification": "planning/goal discretionary judgment remains unqualified",
+  "log": "local-model-probe.log"
+ },
+ "exclusions": [
+  "no live provider call, credential, consent, spend or send",
+  "no database reseed",
+  "no change to 123 denominator or historical 111/123"
+ ],
+ "open_items": [
+  "local-model planning/goal qualification blocked by missing model volume",
+  "whole-app HTTP/provider oracle coverage",
+  "TEAM-05 real sweep",
+  "MINI Linux/KVM",
+  "INT/ROUTE live authorization"
+ ],
+ "related_evidence_unchanged": [
+  "docs/acceptance/evidence/oracle_presentation_binding_20261102/",
+  "docs/acceptance/evidence/full_app_consolidated_integrated_20261102/",
+  "docs/acceptance/evidence/full_app_integrated_f8f8de387/"
+ ],
+ "artifacts": {
+  "README.md": "1f0fa9bbf489f118f4f01498fe692b8afebdc0ab66c5952fa4a2e8610d6cde2e",
+  "TEST_RESULTS.md": "063e9105a4b338c007f1840f12d3e1675240e4ed84b634eeb9e7bda65eb000b4",
+  "backend-tests.log": "606c7cdba136d6855d02a3202116583657ba518f98b063f2063b560e2a57fb01",
+  "frontend-tests.log": "da8660651adbf59928d40ce959e860e1ed14b91ae1768a1f3de82b52d9180c17",
+  "lifecycle-neighborhood.log": "d885c8a693a17aeab24a9e246bb69aacb345130c0b35248b3160629ac375d547",
+  "local-model-probe.log": "6603e93d41902084d279e6d83cd8f7255c72536645075bc240cc637906d04eaf"
+ }
+}

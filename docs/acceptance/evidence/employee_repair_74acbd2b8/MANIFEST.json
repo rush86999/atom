@@ -1,0 +1,129 @@
+{
+  "artifacts": {
+    "README.md": "d963d89b0f85b70e1045933bed753320e919db1ba6e01d157cc4098be70da9dd",
+    "TEST_RESULTS.md": "e936d33ef8fad5b74288a8046b75df85ccf8648b13953d48d454ab7de30744fa",
+    "backend-integrated.log": "cc02fffa6d5f8565dc7ac9985c3ce2c7425701cf6fb5fbef170671bdebf45b78",
+    "corrected-patch-invariant-probe.log": "8c68d0ecc0e75ab1032b72ecb4dbbd060618cf0b761bba3250356b6b49e4d54b",
+    "corrected-patch-invariant-probe.py": "2318d35cf15a694c29744af7ab087b879070b6ba274a595b63485a3dd5e803d5",
+    "evidence-g0-binding-probes.log": "88129d2b43a04d3864d9c3ee39d67d354c098d6622387b809b62f85d77de93d0",
+    "focused-affected.log": "19ab83afe5c03fba06d942962a5d86ddf815347baaad98e4811e1c678472ecf4",
+    "frontend-integrated.log": "522f3d266999732d17061917c00726d52a8e5c5ccf97fcd321f3792aef6dc091",
+    "independent-binding-probe.py": "5ef8fd5e3f4fe115bd2b14597b0f7c1f665c1045fba94dfe7560c0e45fcc940d",
+    "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+    "independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
+    "patch-invariants.log": "43ae08cb80720e74c18907c06b9080513575445965552c4595ffc50738ab4c5c",
+    "pre-existing-task-lifecycle-at-source.log": "926c8f104319253908faae52b70b3f770f902966b09f929eae1305225983873e",
+    "proof-binding-matrix.log": "eabac8cba9ca054389caac3ec5792f92df2e060d79861cdc3ffe0a69fa286995",
+    "two-domain-campaign.log": "d6694a9c62f4c96b5a79ff0f1fd79d8fb73eb62b45212b04508008ee8d74dd98"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "74acbd2b8ceff34d2042493f161d62af8fcf29ec",
+    "manifest_note": "Historical intermediate bundle for 74acbd2b8 before observed-coverage hardening; superseded by the c6ac292f3 bundle. Its tests were run at 74ac.",
+    "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_readiness.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_patch.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/task_outcome_contract.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_readiness.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/test_employee_outcome.py",
+    "backend/tests/test_employee_patch_invariants.py",
+    "backend/tests/test_employee_two_domain_campaign.py",
+    "backend/tests/test_employee_proof_binding.py"
+  ],
+  "exclusions": [
+    "served-model adaptive-choice campaign and raw model traces not run",
+    "Batch A acceptance remains withheld pending independent re-verification",
+    "G4 broader event-order/recovery campaign beyond named controls not claimed",
+    "no live provider lookup/write/send/credential/consent/spend",
+    "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
+    "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
+    "historical 111/123 and accepted tags/sources unchanged"
+  ],
+  "independent_binding_probe": {
+    "cases": [
+      "verified status with no identity/coverage -> unknown",
+      "Sent Items presence with no correlation -> unknown",
+      "correct operation id with wrong message id -> false"
+    ],
+    "result": "3/3 passed inside independent_probes",
+    "script": "independent-binding-probe.py"
+  },
+  "known_pre_existing_failures": {
+    "log": "pre-existing-task-lifecycle-at-source.log",
+    "note": "Four test_task_lifecycle.py controls fail identically at the parent/base and at this source; disclosed, not counted.",
+    "result": "4 failed"
+  },
+  "lineage": {
+    "prior_evidence_tip": "aa5fca387",
+    "prior_reviewed_source": "a770ced10",
+    "this_source": "74acbd2b8"
+  },
+  "repairs": {
+    "durable_proof": "executor step results retain verification/coverage/readback and identity fields across restart",
+    "fact_scope": "stable fact source refs resolve against the accepted source scope or an authored authority",
+    "sent_items_correlation": "operation/message/account identities compared per namespace; uncorrelated presence unknown; wrong message refuted; boolean shortcuts removed",
+    "typed_proof_profiles": "source/external/artifact/local profiles require applicable identity, version/hash, coverage and population; missing is unknown, mismatch false"
+  },
+  "schema": "atom-employee-proof-binding-repair-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "2f7732d74b49904f8e197e62959a4c1bbf0c61afa89685631290b8ef2976f39d",
+    "backend/core/assignment_readiness.py": "b3796b1106f5cdd45cb1f4bfbc0f13539d5ef8d7216a557ca0b3a91f3229f28f",
+    "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
+    "backend/core/employee_patch.py": "d9e0fe893a3844b1596d52dfa46a02e119fb963d565e7e8f83034a04ffc739f9",
+    "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
+    "backend/core/task_outcome_contract.py": "565606841f70851e2a50ddf78e3e02136ade971d2cd627d9bfbb8f979c30e1ef",
+    "backend/tests/test_assignment_executor.py": "1939ce29985606f170cca2e0ab668f4780a69b0e66dc216f869c6a9e9b2260d4",
+    "backend/tests/test_assignment_readiness.py": "5466294c6ab27470815b09c1b3afc346b3d0b7386cf2508a7a181f9f825257ac",
+    "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
+    "backend/tests/test_employee_outcome.py": "209fc76d8233cbe5704f122264033e9f23c9a1bfe1313eaa3db392e7364fb858",
+    "backend/tests/test_employee_patch_invariants.py": "331255af16c9db747c6bbd92671ba52a95590deae7d1db491950be5aa3e48fb3",
+    "backend/tests/test_employee_proof_binding.py": "97a9b21de3bcebc645d407813d96d4fadc5b8013af9f9cf64196cb797143c9b4",
+    "backend/tests/test_employee_two_domain_campaign.py": "90cd3fd38a62780a41619544c677d62a7ddb197ded6f64e2ed3f019ac4a993df"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_integrated": {
+      "log": "backend-integrated.log",
+      "result": "572 passed"
+    },
+    "corrected_patch_probe": {
+      "log": "corrected-patch-invariant-probe.log",
+      "result": "3 passed",
+      "script": "corrected-patch-invariant-probe.py"
+    },
+    "focused_affected": {
+      "log": "focused-affected.log",
+      "result": "224 passed"
+    },
+    "frontend_integrated": {
+      "log": "frontend-integrated.log",
+      "result": "54 passed"
+    },
+    "independent_probes": {
+      "log": "evidence-g0-binding-probes.log",
+      "result": "12 passed"
+    },
+    "patch_invariants": {
+      "log": "patch-invariants.log",
+      "result": "8 passed"
+    },
+    "proof_binding_matrix": {
+      "log": "proof-binding-matrix.log",
+      "result": "11 passed"
+    },
+    "two_domain_campaign": {
+      "log": "two-domain-campaign.log",
+      "result": "4 passed"
+    }
+  },
+  "version_field_note": "The original independent patch probe builds base_task_version from task_revision.revision (the obsolete objective revision); the corrected helper uses record.task_version and passes 3/3."
+}

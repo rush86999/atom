@@ -1,0 +1,85 @@
+{
+  "schema": "atom-goal-resume-claim-probe-1",
+  "scenario_simultaneous": {
+    "run_id": "47cad580-ccca-4ffb-b45a-34c75623dbba",
+    "results": [
+      {
+        "resumed": false,
+        "reason": "no pending decision"
+      },
+      {
+        "resumed": true,
+        "approved": true,
+        "advanced": true,
+        "decision": "ADVANCE",
+        "result": {
+          "executed": "ADVANCE"
+        },
+        "run": {
+          "id": "47cad580-ccca-4ffb-b45a-34c75623dbba",
+          "tenant_id": "t-probe",
+          "workspace_id": "ws-probe",
+          "goal_id": "goal-probe",
+          "agent_id": null,
+          "role": "sales",
+          "status": "active",
+          "supervision_mode": "shadow",
+          "plan": [
+            {
+              "id": "step-1",
+              "kind": "canvas_work",
+              "title": "Research"
+            }
+          ],
+          "cursor": "step-1",
+          "parameters": {},
+          "waiting_on": null,
+          "pending_decision": null,
+          "decision_log": [
+            {
+              "ts": "2026-11-02T23:14:04.533761+00:00",
+              "kind": "held_for_approval",
+              "decision": "ADVANCE",
+              "rationale": "probe checkpoint",
+              "hitl_id": "436e474d-baad-471b-ad5f-243bb77a9286"
+            },
+            {
+              "ts": "2026-11-02T23:14:04.537641+00:00",
+              "kind": "approved",
+              "decision": "ADVANCE",
+              "rationale": "",
+              "reviewer": "review-b"
+            }
+          ],
+          "replan_count": 0,
+          "steps_executed": 1,
+          "human_interventions": 1,
+          "created_by": null,
+          "created_at": "2026-11-02T23:14:04",
+          "updated_at": "2026-11-02T23:14:04"
+        }
+      }
+    ],
+    "executor_calls": 1,
+    "approved_entries": 1,
+    "pending": null,
+    "passed": true
+  },
+  "scenario_stale_snapshot": {
+    "run_id": "89477d01-0241-42d1-8787-3d206adf8259",
+    "result": {
+      "resumed": false,
+      "reason": "no pending decision"
+    },
+    "executor_calls": 0,
+    "old_generation": 1,
+    "current_generation": 2,
+    "pending": {
+      "decision": "ADVANCE",
+      "rationale": "newer"
+    },
+    "approved_entries": 0,
+    "passed": true
+  },
+  "status": "passed"
+}

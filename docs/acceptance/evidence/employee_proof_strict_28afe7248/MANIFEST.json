@@ -1,0 +1,84 @@
+{
+ "schema": "atom-employee-strict-proof-1",
+ "status": "submitted-for-independent-verification; adaptive G5 unqualified",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "worktree": "/private/tmp/atom-full-app",
+  "executed_source": "28afe7248cdf5079b7d439d766788fa17bb6f407",
+  "tree_clean_at_integrated_run": true,
+  "manifest_note": "Strict proof schemas + generated omission/type/identity matrix."
+ },
+ "changed_files": [
+  "backend/core/assignment_readiness.py",
+  "backend/core/task_outcome_contract.py",
+  "backend/tests/test_assignment_executor.py",
+  "backend/tests/test_employee_proof_binding.py",
+  "backend/tests/test_employee_proof_schema_executor.py",
+  "backend/tests/test_employee_proof_schema_matrix.py"
+ ],
+ "source_hashes": {
+  "backend/core/assignment_readiness.py": "d0af6d4711ec89f91dec1a9ec1445a95e034fd911607eaa56d1e26b22b1daa6a",
+  "backend/core/task_outcome_contract.py": "65dfa6fd78928e898c09939173a1b2d1a68ee7f99b4cddd079ca7bf15d8feadc",
+  "backend/tests/test_assignment_executor.py": "aaf22c799647e93e02df846e60755814a86214be23df799aae21af141ba7c79a",
+  "backend/tests/test_employee_proof_binding.py": "64d9e06de7537780801b8923285e6ec81bda8dbcab7f9210ecb9d0c10354d298",
+  "backend/tests/test_employee_proof_schema_executor.py": "72ae0d0955f8e64e036b9175c879a3d65034c9ecba4616fcc87341db21558f49",
+  "backend/tests/test_employee_proof_schema_matrix.py": "b2702aace214fc8de282e07c1ce02a34ba57c2c84b576f293dbb67c31765bf62"
+ },
+ "profiles": {
+  "source": "observed identity/version/hash + verified status + complete observed coverage/flags/counts",
+  "external": "operation + remote/message/account namespaces",
+  "sent_items": "presence + operation/request correlation + observed message identity",
+  "artifact": "persisted revision + sha256",
+  "local": "durable value or calculation receipt",
+  "fact": "accepted source scope identity or authored authority"
+ },
+ "tests": {
+  "backend_integrated": {
+   "log": "backend-integrated.log",
+   "result": "742 passed, 8 deselected"
+  },
+  "frontend_integrated": {
+   "log": "frontend-integrated.log",
+   "result": "54 passed"
+  },
+  "evidence_binding_probes": {
+   "log": "evidence-binding-probes.log",
+   "result": "16 passed"
+  },
+  "patch_invariants": {
+   "log": "patch-invariants.log",
+   "result": "8 passed"
+  },
+  "two_domain_campaign": {
+   "log": "two-domain-campaign.log",
+   "result": "4 passed"
+  },
+  "proof_schema_matrix": {
+   "log": "proof-schema-matrix.log",
+   "result": "53 passed"
+  },
+  "focused_affected": {
+   "log": "focused-affected.log",
+   "result": "270 passed"
+  }
+ },
+ "exclusions": [
+  "no served adaptive model choice",
+  "no held-out two-domain G5 campaign",
+  "no live provider lookup/write/send/credential/consent/spend/reseed/deploy",
+  "planner 5/5, goal router 1/2, alignment gap 3.0 unchanged",
+  "historical 111/123 unchanged"
+ ],
+ "artifacts": {
+  "README.md": "b384c8539f380c58d2d8474210a9e4de324ba039c695464b27b0fe9d4a96d7c3",
+  "TEST_RESULTS.md": "46b78525c70f32119c8e8c1ccc40ff406bc3d6e2ac42c3da5bbf1ae7faf8256c",
+  "backend-integrated.log": "65973f585b8d55667e18e5fce3a664a2de01dae5b39e56757c1e717901f9521c",
+  "evidence-binding-probes.log": "22d33357fd0aba6cbb9143378cbf98e0187fefd8b5d0c7111ff8dda6b7010af7",
+  "focused-affected.log": "86b40ea21e87337623e2c95950dfa88e4c8e73810d85687e627b5a4841bf0650",
+  "frontend-integrated.log": "95c90347745aeeb578ef219b571d227d862bfa13840fbe050b7eb83799438766",
+  "independent-profile-minima-probe.py": "292b801b0447bcb776a13431df30094957ec312df7dbb4e8394cc153a9a6bf5f",
+  "patch-invariants.log": "62bc9b1d052fef63ac091880271a5e2f3b7272df953f9bb6926fb1b7497bb105",
+  "proof-schema-matrix.log": "a261c2f6f7deb0aeac5ae1b50997cd2bd6b78644e852573135c473a90ad18f17",
+  "two-domain-campaign.log": "8ed7cbbf0fdc69bc6e4beb3476650eafc013a63f63c4a5b7d62f368edabc4bac"
+ }
+}

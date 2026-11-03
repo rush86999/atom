@@ -136,6 +136,30 @@ async def decide_approval(
     if denial:
         raise HTTPException(status_code=403, detail=denial)
 
+    # Same preflight as the legacy approvals surface: validate the exact
+    # reviewed goal decision before approve_intervention/reject_intervention
+    # mutates the HITL row. Non-goal actions are unaffected.
+    from core.hitl_resume import preflight_hitl_decision
+
+    preflight = preflight_hitl_decision(
+        approval_id, body.modified_params, action=action, db=db)
+    if not preflight.get("valid", True):
+        reason = preflight.get("reason") or "stale_decision_review"
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": (
+                    "decision_review_required"
+                    if reason == "decision_review_required"
+                    else "stale_decision_review"),
+                "message": preflight.get("message") or (
+                    "The pending decision changed after it was reviewed. "
+                    "Refresh the run and review the current decision."),
+                "reason": reason,
+                "current_decision_id": preflight.get("current_decision_id"),
+            },
+        )
+
     if decision == "approved":
         result = await intervention_service.approve_intervention(
             approval_id, user.id, modified_params=body.modified_params

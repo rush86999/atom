@@ -1,0 +1,450 @@
+{
+  "schema": "atom-local-model-qualification-1",
+  "generated_at": "2026-11-02T23:03:04.697771+00:00",
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared_model": "llama3.1:8b",
+    "provider_pin": "ollama:llama3.1:8b",
+    "scratch_root": "/private/tmp/atom-local-ollama/qualification"
+  },
+  "boundaries": [
+    "local Ollama only; no cloud/provider key was used",
+    "no live provider effect/write/send/credential/spend",
+    "availability/pin is not planning-quality acceptance",
+    "deterministic floor/recovery is reported as degraded, not a model pass",
+    "failed discretionary-judgment verdict remains"
+  ],
+  "planner": {
+    "consumer": "core.chat_tool_planner.plan_tool_use",
+    "cases": [
+      {
+        "id": "inventory_stock",
+        "message": "Look up the current stock for item A-1 in inventory.",
+        "connected": [
+          "inventory",
+          "outlook",
+          "datasets"
+        ],
+        "expected": {
+          "use_tool": true,
+          "service": "inventory"
+        },
+        "actual": {
+          "use_tool": true,
+          "service": "inventory",
+          "intent": "search",
+          "query": "item A-1",
+          "reason": "",
+          "suggested_intent": "search_request",
+          "routing_confidence": 0.9,
+          "mentioned_date": null,
+          "relevance_verdict": "relevant",
+          "relevance_basis": "identifier-corroborated",
+          "retrieval_operation": null,
+          "presentation_preference": null,
+          "field_preference": null
+        },
+        "matched": true,
+        "model_backed": true,
+        "seconds": 31.72,
+        "error": null,
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "ToolPlan",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": "planning",
+            "result_type": "ToolPlan",
+            "parsed": {
+              "use_tool": true,
+              "service": "inventory",
+              "intent": "search",
+              "query": "item A-1",
+              "reason": "",
+              "suggested_intent": "search_request",
+              "routing_confidence": 0.9,
+              "mentioned_date": null,
+              "relevance_verdict": null,
+              "relevance_basis": null,
+              "retrieval_operation": null,
+              "presentation_preference": null,
+              "field_preference": null
+            },
+            "seconds": 31.55
+          }
+        ]
+      },
+      {
+        "id": "outlook_rfq",
+        "message": "Find the customer email in Outlook about the RFQ and tell me who sent it.",
+        "connected": [
+          "outlook",
+          "datasets"
+        ],
+        "expected": {
+          "use_tool": true,
+          "service": "outlook"
+        },
+        "actual": {
+          "use_tool": true,
+          "service": "outlook",
+          "intent": "search",
+          "query": "RFQ customer email",
+          "reason": "",
+          "suggested_intent": "search_request",
+          "routing_confidence": 0.9,
+          "mentioned_date": null,
+          "relevance_verdict": "relevant",
+          "relevance_basis": "identifier-corroborated",
+          "retrieval_operation": null,
+          "presentation_preference": null,
+          "field_preference": null
+        },
+        "matched": true,
+        "model_backed": true,
+        "seconds": 12.96,
+        "error": null,
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "ToolPlan",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": "planning",
+            "result_type": "ToolPlan",
+            "parsed": {
+              "use_tool": true,
+              "service": "outlook",
+              "intent": "search",
+              "query": "RFQ customer email",
+              "reason": "",
+              "suggested_intent": "search_request",
+              "routing_confidence": 0.9,
+              "mentioned_date": null,
+              "relevance_verdict": null,
+              "relevance_basis": null,
+              "retrieval_operation": null,
+              "presentation_preference": null,
+              "field_preference": null
+            },
+            "seconds": 12.94
+          }
+        ]
+      },
+      {
+        "id": "dataset_price",
+        "message": "What's the price of WG-350DSAV?",
+        "connected": [
+          "datasets"
+        ],
+        "expected": {
+          "use_tool": true,
+          "service": "datasets"
+        },
+        "actual": {
+          "use_tool": true,
+          "service": "datasets",
+          "intent": "search",
+          "query": "WG-350DSAV",
+          "reason": "",
+          "suggested_intent": null,
+          "routing_confidence": 1.0,
+          "mentioned_date": null,
+          "relevance_verdict": "relevant",
+          "relevance_basis": "identifier-only-message",
+          "retrieval_operation": null,
+          "presentation_preference": null,
+          "field_preference": null
+        },
+        "matched": true,
+        "model_backed": true,
+        "seconds": 12.24,
+        "error": null,
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "ToolPlan",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": "planning",
+            "result_type": "ToolPlan",
+            "parsed": {
+              "use_tool": true,
+              "service": "datasets",
+              "intent": "search",
+              "query": "WG-350DSAV",
+              "reason": "",
+              "suggested_intent": null,
+              "routing_confidence": 1.0,
+              "mentioned_date": null,
+              "relevance_verdict": null,
+              "relevance_basis": null,
+              "retrieval_operation": null,
+              "presentation_preference": null,
+              "field_preference": null
+            },
+            "seconds": 12.24
+          }
+        ]
+      },
+      {
+        "id": "no_tool_chat",
+        "message": "Thanks, that's all for now.",
+        "connected": [
+          "outlook",
+          "datasets"
+        ],
+        "expected": {
+          "use_tool": false
+        },
+        "actual": null,
+        "matched": false,
+        "model_backed": false,
+        "seconds": 114.87,
+        "error": null,
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "ToolPlan",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": "planning",
+            "result_type": "NoneType",
+            "parsed": null,
+            "seconds": 114.87
+          }
+        ],
+        "json_retry": {
+          "kind": "planner_json_retry",
+          "case": "no_tool_chat",
+          "system_instruction": "You return only the requested JSON object.",
+          "parsed": {
+            "use_tool": false,
+            "service": null,
+            "intent": null,
+            "query": null,
+            "reason": "No lookup needed",
+            "suggested_intent": null,
+            "routing_confidence": 1.0,
+            "mentioned_date": null,
+            "relevance_verdict": null,
+            "relevance_basis": null,
+            "retrieval_operation": null,
+            "presentation_preference": null,
+            "field_preference": null
+          },
+          "seconds": 33.18
+        }
+      },
+      {
+        "id": "explicit_email_search",
+        "message": "Search my email for the Acme quote thread.",
+        "connected": [
+          "outlook"
+        ],
+        "expected": {
+          "use_tool": true,
+          "service": "outlook"
+        },
+        "actual": {
+          "use_tool": true,
+          "service": "outlook",
+          "intent": "search",
+          "query": "Acme quote thread",
+          "reason": "",
+          "suggested_intent": "search_request",
+          "routing_confidence": 1.0,
+          "mentioned_date": null,
+          "relevance_verdict": "relevant",
+          "relevance_basis": "token-overlap",
+          "retrieval_operation": null,
+          "presentation_preference": null,
+          "field_preference": null
+        },
+        "matched": true,
+        "model_backed": true,
+        "seconds": 16.48,
+        "error": null,
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "ToolPlan",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": "planning",
+            "result_type": "ToolPlan",
+            "parsed": {
+              "use_tool": true,
+              "service": "outlook",
+              "intent": "search_request",
+              "query": "Acme quote thread",
+              "reason": "",
+              "suggested_intent": "search_request",
+              "routing_confidence": 1.0,
+              "mentioned_date": null,
+              "relevance_verdict": null,
+              "relevance_basis": null,
+              "retrieval_operation": null,
+              "presentation_preference": null,
+              "field_preference": null
+            },
+            "seconds": 16.48
+          }
+        ]
+      }
+    ],
+    "model_backed_passes": 4,
+    "degraded_floor_passes": 0,
+    "failures": 1,
+    "status": "failed"
+  },
+  "goal": {
+    "consumer": "core.goals.goal_run_router.GoalRunRouter.decide",
+    "cases": [
+      {
+        "id": "ambiguous_quote",
+        "expected": "valid decision; REPLAN requires a non-empty new_plan",
+        "decision": {
+          "decision": "ASK_HUMAN",
+          "rationale": "router returned an unusable decision: decision='REPLAN' rationale='The goal is to prepare a quote for Acme, but we are currently in the research phase. We need to replan the steps to move forward.' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5",
+          "parameter_updates": {},
+          "target_step": null,
+          "new_plan": null,
+          "wait_spec": null,
+          "confidence": 0.0,
+          "model": null
+        },
+        "valid": false,
+        "fallback": true,
+        "seconds": 18.78,
+        "error": null,
+        "model_outputs": [
+          {
+            "decision": "REPLAN",
+            "rationale": "The goal is to prepare a quote for Acme, but we are currently in the research phase. We need to replan the steps to move forward.",
+            "parameter_updates": {},
+            "target_step": null,
+            "new_plan": null,
+            "wait_spec": null,
+            "confidence": 0.5
+          }
+        ],
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "RouterDecisionModel",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": null,
+            "result_type": "RouterDecisionModel",
+            "parsed": {
+              "decision": "REPLAN",
+              "rationale": "The goal is to prepare a quote for Acme, but we are currently in the research phase. We need to replan the steps to move forward.",
+              "parameter_updates": {},
+              "target_step": null,
+              "new_plan": null,
+              "wait_spec": null,
+              "confidence": 0.5
+            },
+            "seconds": 18.78
+          }
+        ],
+        "replan_retry": {
+          "kind": "goal_replan_retry",
+          "case": "ambiguous_quote",
+          "system_instruction": "You return only the requested JSON object.",
+          "parsed": {
+            "decision": "REPLAN",
+            "rationale": "The goal is not met yet, but we have a clear path forward. We need to rewrite the remaining plan to reflect this.",
+            "parameter_updates": {},
+            "target_step": null,
+            "new_plan": [
+              {
+                "id": "step-2",
+                "kind": "email_work",
+                "title": "Send an email to the lead"
+              },
+              {
+                "id": "step-3",
+                "kind": "follow_up_work",
+                "title": "Follow up with a phone call if no response"
+              }
+            ],
+            "wait_spec": null,
+            "confidence": 0.8
+          },
+          "valid": true,
+          "seconds": 12.98
+        }
+      },
+      {
+        "id": "research_finished",
+        "expected": "ADVANCE or a valid REPLAN with a concrete new_plan",
+        "decision": {
+          "decision": "ASK_HUMAN",
+          "rationale": "router returned an unusable decision: None",
+          "parameter_updates": {},
+          "target_step": null,
+          "new_plan": null,
+          "wait_spec": null,
+          "confidence": 0.0,
+          "model": null
+        },
+        "valid": false,
+        "fallback": true,
+        "seconds": 127.55,
+        "error": null,
+        "model_outputs": [],
+        "structured_calls": [
+          {
+            "kind": "structured",
+            "response_model": "RouterDecisionModel",
+            "temperature": 0.0,
+            "output_mode": null,
+            "provider_model": [
+              "ollama",
+              "llama3.1:8b"
+            ],
+            "task_type": null,
+            "result_type": "NoneType",
+            "parsed": null,
+            "seconds": 127.54
+          }
+        ]
+      }
+    ],
+    "valid": 0,
+    "failures": 2,
+    "status": "failed"
+  },
+  "capability_status": {
+    "planner": "failed",
+    "goal": "failed"
+  },
+  "status": "failed"
+}

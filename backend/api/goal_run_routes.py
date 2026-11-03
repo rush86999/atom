@@ -142,6 +142,12 @@ class ResumeBody(BaseModel):
     # applies to all of this agent's work) or "goal" (true only for THIS run's
     # goal). See core/student_learning_service lesson scope.
     guidance_scope: Optional[str] = None
+    # The EXACT pending decision the human reviewed. Both fields are exposed
+    # on the run's pending_decision. A legacy client that sends only
+    # {"approved": true} is refused with refresh-required rather than
+    # approving whichever decision happens to be current.
+    decision_id: Optional[str] = None
+    decision_binding: Optional[str] = None
 
 
 class ModeBody(BaseModel):
@@ -350,36 +356,91 @@ async def resume_goal_run(
         raise router.not_found_error("GoalRun", run_id)
     _require_run_access(db, current_user, run)
 
-    # The run page resumes through this endpoint; close the matching HITL
-    # rows too, otherwise the generic Approvals queue keeps showing a
-    # decision that was already made ("no pending decision" on decide).
-    from datetime import datetime, timezone
-
-    decision_status = (HITLActionStatus.APPROVED.value if payload.approved
-                       else HITLActionStatus.REJECTED.value)
-    pending = (
-        db.query(HITLAction)
-        .filter(
-            HITLAction.status == HITLActionStatus.PENDING.value,
-            HITLAction.action_type == "goal_run_decision",
+    if not payload.decision_id or not payload.decision_binding:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "decision_review_required",
+                "message": (
+                    "Refresh the run and review the current pending decision "
+                    "before approving it."),
+            },
         )
-        .all()
-    )
-    for action in pending:
-        if (action.params or {}).get("run_id") == run_id:
-            action.status = decision_status
-            action.reviewed_by = str(current_user.id)
-            action.reviewed_at = datetime.now(timezone.utc)
-            action.user_feedback = payload.guidance
-    db.commit()
+
+    if run["status"] in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "run_terminal",
+                "message": (
+                    "This run is finished or cancelled; the held decision "
+                    "cannot be dispatched."),
+            },
+        )
+
+    # Snapshot the exact approval rows this decision owns BEFORE the loop
+    # turn runs. Closing "all pending rows for this run" afterwards could
+    # close a NEW checkpoint row created by the executed step; a different
+    # decision's row must remain pending with its own reviewer/history.
+    pending_hitl_ids = [
+        action.id for action in (
+            db.query(HITLAction)
+            .filter(
+                HITLAction.status == HITLActionStatus.PENDING.value,
+                HITLAction.action_type == "goal_run_decision",
+            )
+            .all())
+        if (action.params or {}).get("run_id") == run_id
+        and (
+            ((action.params or {}).get("decision") or {})
+            if isinstance((action.params or {}).get("decision"), dict)
+            else {}
+        ).get("decision_id") == payload.decision_id
+    ]
 
     try:
-        return await svc.resume(run_id, approved=payload.approved,
-                                reviewer=str(current_user.id),
-                                guidance=payload.guidance,
-                                guidance_scope=payload.guidance_scope)
+        result = await svc.resume(
+            run_id, approved=payload.approved,
+            reviewer=str(current_user.id),
+            guidance=payload.guidance,
+            guidance_scope=payload.guidance_scope,
+            expected_decision_id=payload.decision_id,
+            expected_decision_binding=payload.decision_binding)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+    if result.get("stale_review"):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "stale_decision_review",
+                "message": (
+                    "The pending decision changed after it was reviewed. "
+                    "Refresh the run and review the current decision."),
+                "current_decision_id": result.get("current_decision_id"),
+            },
+        )
+
+    # Close only those exact rows, and only after the service won the
+    # pending-generation claim. A duplicate resume gets resumed=False and
+    # must not rewrite the winner's reviewer/feedback; a stale request must
+    # not close a newer decision's row.
+    if result.get("resumed") and pending_hitl_ids:
+        from datetime import datetime, timezone
+
+        decision_status = (HITLActionStatus.APPROVED.value if payload.approved
+                           else HITLActionStatus.REJECTED.value)
+        db.query(HITLAction).filter(
+            HITLAction.id.in_(pending_hitl_ids),
+            HITLAction.status == HITLActionStatus.PENDING.value,
+        ).update({
+            HITLAction.status: decision_status,
+            HITLAction.reviewed_by: str(current_user.id),
+            HITLAction.reviewed_at: datetime.now(timezone.utc),
+            HITLAction.user_feedback: payload.guidance,
+        }, synchronize_session=False)
+        db.commit()
+    return result
 
 
 @router.post("/{run_id}/checkpoints/{hitl_id}/resolve")

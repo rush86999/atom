@@ -1,0 +1,1 @@
+{"models":[{"name":"llama3.1:8b","model":"llama3.1:8b","modified_at":"2026-10-13T07:22:34.703453483-04:00","size":4920753328,"digest":"46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e","details":{"parent_model":"","format":"gguf","family":"llama","families":["llama"],"parameter_size":"8.0B","quantization_level":"Q4_K_M"}}]}

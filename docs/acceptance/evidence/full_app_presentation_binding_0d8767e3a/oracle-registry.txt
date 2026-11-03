@@ -1,0 +1,17 @@
+brennan.books.create_bill
+brennan.books.create_estimate
+brennan.outlook.create_draft
+canvas.present_chart
+canvas.present_markdown
+canvas.restore_version
+canvas.update
+connected.books.create_bill
+connected.books.create_estimate
+connected.outlook.create_draft
+goal_runs.start
+goals.create
+goals.decompose
+goals.evaluate
+tasks.create
+trigger_workflow
+count=16

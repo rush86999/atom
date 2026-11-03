@@ -1858,12 +1858,23 @@ async def _structured_with_fallback(
     """
     from core.llm.pinned_planning import pinned_structured_call
 
+    # SUPPORTED MODE FOR THIS WORKLOAD (2026-11-02): the frozen no-tool
+    # case returned None in 114.87s through the default TOOLS transport,
+    # while the same schema/prompt in explicit JSON mode produced a valid
+    # ToolPlan(use_tool=false) in 33.18s. Ollama tool-choice handling is
+    # the unstable leg; JSON mode is the scoped supported option.
     return await pinned_structured_call(
         llm_service,
         prompt=prompt,
         response_model=response_model,
         system_instruction=system_instruction,
         call_kwargs=None,  # no pin — BPC ranks the candidates
+        extra_kwargs={
+            "output_mode": "json",
+            "cascade": False,
+            "allow_moa": False,
+            "max_tokens": 3000,
+        },
         log_label="tool planner",
         task_type="planning",
     )
@@ -2210,11 +2221,13 @@ async def plan_tool_use(
                     f"{repaired.service}.{repaired.intent}")
                 plan = repaired
                 plan_meta.update(source="service_repair", recovered=True)
-            elif repaired and not repaired.use_tool:
+            elif repaired is not None and not repaired.use_tool:
                 # The repair pass looked at the context and concluded no
-                # tool can help — honor that instead of forcing memory.
+                # tool can help. This is a LEGITIMATE TYPED decline
+                # (use_tool=false), distinct from a transport/parse None;
+                # callers can audit it instead of treating it as failure.
                 logger.info("tool planner: LLM repair declined tool use")
-                return None
+                return repaired
         if not plan.service or plan.service not in allowed:
             if plan.service is None and "memory" in allowed:
                 # Terminal rung after BOTH passes failed to name a service:
@@ -2362,11 +2375,12 @@ async def plan_tool_use(
                 plan_meta.update(source="relevance_repair", recovered=True)
             elif repaired is not None and not repaired.use_tool:
                 # The corrective pass looked at the CURRENT request and
-                # concluded no tool can help — the same contract as the
-                # null-service repair above.
+                # concluded no tool can help. Preserve the typed decline
+                # (use_tool=false) instead of conflating it with a failed
+                # transport.
                 logger.info(
                     "tool planner: relevance repair declined tool use")
-                return None
+                return repaired
             # Otherwise (repair failed or still off-target) keep the
             # original plan: the consumption-side off-request gate then
             # declines its execution, so the stale result cannot be

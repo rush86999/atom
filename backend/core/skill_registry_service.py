@@ -94,7 +94,9 @@ class SkillRegistryService:
         self,
         source: str,
         content: str,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
+        *,
+        commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Import a community skill from various sources.
@@ -200,7 +202,10 @@ class SkillRegistryService:
             )
 
             self.db.add(skill_record)
-            self.db.commit()
+            if commit:
+                self.db.commit()
+            else:
+                self.db.flush()
 
             logger.info(f"Imported skill '{skill_name}' (id: {skill_id}, status: {status})")
 
@@ -214,7 +219,8 @@ class SkillRegistryService:
 
         except Exception as e:
             logger.error(f"Failed to import skill: {e}")
-            self.db.rollback()
+            if commit:
+                self.db.rollback()
             raise
 
     def list_skills(
@@ -1190,7 +1196,7 @@ class SkillRegistryService:
                 "error": str(e)
             }
 
-    def promote_skill(self, skill_id: str) -> Dict[str, Any]:
+    def promote_skill(self, skill_id: str, *, commit: bool = True) -> Dict[str, Any]:
         """
         Promote a skill from Untrusted to Active status.
 
@@ -1225,7 +1231,10 @@ class SkillRegistryService:
 
         previous_status = skill.status
         skill.status = "Active"
-        self.db.commit()
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
 
         skill_name = skill.input_params.get("skill_name", "Unknown")
         logger.info(f"Promoted skill '{skill_name}' from {previous_status} to Active")

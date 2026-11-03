@@ -1,0 +1,6 @@
+{
+  "kind": "atom-final-model-response",
+  "served_base_url": "http://127.0.0.1:11437",
+  "endpoint": "/api/chat",
+  "error": "timed out"
+}

@@ -1,0 +1,94 @@
+{
+  "schema": "atom-goal-resume-claim-probe-1",
+  "scenario_simultaneous": {
+    "run_id": "94db0b7f-3baa-4f2b-8402-0a1969145c9d",
+    "results": [
+      {
+        "resumed": false,
+        "stale_review": true,
+        "reason": "stale_decision_review",
+        "current_decision_id": "97ad2032-7a9a-4199-8789-d351590a0375"
+      },
+      {
+        "resumed": true,
+        "approved": true,
+        "advanced": true,
+        "decision": "ADVANCE",
+        "result": {
+          "executed": "ADVANCE"
+        },
+        "run": {
+          "id": "94db0b7f-3baa-4f2b-8402-0a1969145c9d",
+          "tenant_id": "t-probe",
+          "workspace_id": "ws-probe",
+          "goal_id": "goal-probe",
+          "agent_id": null,
+          "role": "sales",
+          "status": "active",
+          "supervision_mode": "shadow",
+          "plan": [
+            {
+              "id": "step-1",
+              "kind": "canvas_work",
+              "title": "Research"
+            }
+          ],
+          "cursor": "step-1",
+          "parameters": {},
+          "waiting_on": null,
+          "pending_decision": null,
+          "decision_log": [
+            {
+              "ts": "2026-11-03T00:05:43.609059+00:00",
+              "kind": "held_for_approval",
+              "decision": "ADVANCE",
+              "rationale": "probe checkpoint",
+              "hitl_id": "2a396105-7730-45eb-be79-f6f1473bbbc1",
+              "decision_id": "97ad2032-7a9a-4199-8789-d351590a0375",
+              "decision_generation": 1
+            },
+            {
+              "ts": "2026-11-03T00:05:43.613243+00:00",
+              "kind": "approved",
+              "decision": "ADVANCE",
+              "rationale": "",
+              "reviewer": "review-a"
+            }
+          ],
+          "replan_count": 0,
+          "steps_executed": 1,
+          "human_interventions": 1,
+          "created_by": null,
+          "created_at": "2026-11-03T00:05:43",
+          "updated_at": "2026-11-03T00:05:43"
+        }
+      }
+    ],
+    "executor_calls": 1,
+    "approved_entries": 1,
+    "pending": null,
+    "passed": true
+  },
+  "scenario_stale_snapshot": {
+    "run_id": "1f4b4114-c40e-4ca3-b6aa-2572ddef17b9",
+    "result": {
+      "resumed": false,
+      "stale_review": true,
+      "reason": "stale_decision_review",
+      "current_decision_id": "46b319bc-a75d-4ee1-b4f7-6cd0ff2020be"
+    },
+    "executor_calls": 0,
+    "old_generation": 1,
+    "current_generation": 2,
+    "pending": {
+      "decision": "ADVANCE",
+      "rationale": "newer",
+      "decision_id": "46b319bc-a75d-4ee1-b4f7-6cd0ff2020be",
+      "decision_generation": 2,
+      "decision_binding": "5a6f08913bbfc16431f51f98f44e1e69457dd21d3dec9bc189ee3ae7a2797450"
+    },
+    "approved_entries": 0,
+    "passed": true
+  },
+  "status": "passed"
+}

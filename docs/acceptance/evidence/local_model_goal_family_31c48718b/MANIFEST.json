@@ -1,0 +1,156 @@
+{
+  "artifacts": {
+    "README.md": "41b2ecf4ace251562071b9a6569b05a1ce38231ebd457d35d0b52719d6eea27f",
+    "TEST_RESULTS.md": "66b203ba1ca44e25c993f7cbd4face75667351ab644d7a2c4a7059a69fdfe51e",
+    "frontend-canvas-tests.log": "cfd5fa0a62b00462cb14ae3a4dc3c2d4debc3ad23c0b7344d035b40e950e22e8",
+    "goal-family-tests.log": "f5858cee86ca88ca67225e0471c384fd76e6da7522380a5c9de7d638fc1fb7ea",
+    "goal-resume-claim-probe.json": "ca9b098ddf46974bf60107e80de509341701f06900d52120ddb5fcbbb8f299d1",
+    "goal-resume-claim-probe.log": "ca9b098ddf46974bf60107e80de509341701f06900d52120ddb5fcbbb8f299d1",
+    "historical-goal-invalid-replan.txt": "6ee4d3c5f1289350334240587b68ed655404f2a6b1ec54d412c5e8be8ba6d818",
+    "historical-planner-nested-output.txt": "19ccad3a57cc27ed9af3765086f082f2d570ee37695cfea9ebc0cd41bb34a700",
+    "local-model-pin-probe.log": "2c77583657863549df4f4cdffe8299742281fbb6885e1490ccea7054ea210c86",
+    "local-model-qualification-alignment-calls.jsonl": "fd2012944cdaa89153926ac0f5f4061b547230d40b354b7eb4b62caf1fac4924",
+    "local-model-qualification-alignment-report.json": "1283a1b8c6d65a1020ce1010471a338806ee2a54e7a14bebf84bff9c097e4d76",
+    "local-model-qualification-alignment.log": "ab43a45423fc63a96dd7b0e0458e3ca6cd5b590c2c2c8d9dbf9245dd86c5b9c1",
+    "local-model-qualification-planner-goal-calls.jsonl": "d0907358d37f6e2c066461ff3513a8dd385b46a064a28c152f549ea2fddf3dbc",
+    "local-model-qualification-planner-goal-report.json": "6db6d1d9fc6a7a2a15a7efc39512d5f05e29b1a795e58de90822c6e28eab9894",
+    "local-model-qualification-planner-goal.log": "0985a6b7c91a5fcca4aac6cd922c3eae4188dded7cc4071bd5f4bc6ca5dc17d0",
+    "local-model-tags.json": "120915fa985e2488e1379953d09c3d0049268767585a8297695c0e53ba6c25f0",
+    "ollama-server-config.txt": "4fd0a1f8f1f61ddae7c9617355e1ef0bf72ff2a623cd11db0fde838fe9ee1ff7"
+  },
+  "candidate": {
+    "base_for_model_qualification": "635df02e4 (consumer code unchanged at 31c48718b)",
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "31c48718bb10b78b49b6545a2ad5a08c65a00300",
+    "manifest_note": "This evidence commit is docs-only after the executed source.",
+    "model_qualification_note": "Planner/goal run predates only the alignment-gate/seam script fix; backend/core/chat_tool_planner.py, backend/core/goals/goal_run_router.py, backend/core/org_politics_automation.py and backend/core/org_alignment.py are identical at 635df02e4 and 31c48718b.",
+    "tree_clean_at_final_test_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/goals/goal_run_service.py",
+    "backend/api/goal_run_routes.py",
+    "backend/tests/test_goal_effect_family_controls.py",
+    "scripts/acceptance/probe_goal_resume_claim.py",
+    "scripts/acceptance/local_model_qualification.py"
+  ],
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "no cloud fallback, model download, reseed or deployment",
+    "local-model planner/goal/alignment results are negative and not an acceptance",
+    "no whole-app ORACLE-01 closure",
+    "no process-restart, multi-worker, soak or PostgreSQL runtime claim",
+    "failed discretionary-judgment verdict remains",
+    "historical 111/123, 123 denominator and accepted tags/sources unchanged",
+    "accepted source 0d8767e3a and earlier evidence bundles remain unchanged"
+  ],
+  "goal_family": {
+    "controls": {
+      "action_start_duplicate": "refused; one run row",
+      "action_start_foreign_workspace": "refused before run row",
+      "action_start_self_impersonation": "refused; no run row",
+      "duplicate_resume": "one executor; one approval; first reviewer preserved",
+      "fresh_session": "pending consumed once; second resume no-op",
+      "simultaneous_resume": "one winner; one executor; one approval",
+      "stale_snapshot": "newer pending retained; no approval/executor",
+      "terminal_advance": "409; no decision/executor",
+      "wrong_workspace": "404; no decision/effect"
+    },
+    "hitl_closure": "exact pre-turn row ids, only after successful claim",
+    "loser": "returns before learning/execution; no HITL closure",
+    "repair": "conditional resume claim bound to workspace, status, non-null pending decision and human_interventions generation",
+    "writers_incrementing_generation": [
+      "_hold_for_approval",
+      "interrupt_stalled"
+    ]
+  },
+  "goals": [
+    "claim the exact pending-decision generation on goal-run resume",
+    "control wrong-scope/no-effect/duplicate/fresh-session goal family effects",
+    "qualify the declared local model through planner, goal router and alignment"
+  ],
+  "local_model": {
+    "alignment": {
+      "calls": 18,
+      "green": false,
+      "max_gap": 3.0,
+      "ran": true,
+      "report": "local-model-qualification-alignment-report.json",
+      "seconds": 111.67,
+      "status": "failed",
+      "threshold": 2.0
+    },
+    "base_url": "http://127.0.0.1:11436/v1",
+    "claim": "availability/pin plus negative consumer qualification only; not planning-quality acceptance",
+    "failure_controls": {
+      "goal_invalid_replan": "ASK_HUMAN",
+      "goal_unavailable": "ASK_HUMAN",
+      "planner_empty_output": "safe None",
+      "planner_timeout": "safe None"
+    },
+    "goal": {
+      "cases": 2,
+      "failures": [
+        "invalid REPLAN without new_plan -> ASK_HUMAN",
+        "structured output None -> ASK_HUMAN"
+      ],
+      "repair_retry": "valid REPLAN produced only after an explicit corrective retry not present in the consumer",
+      "report": "local-model-qualification-planner-goal-report.json",
+      "status": "failed",
+      "valid": 0
+    },
+    "model": "llama3.1:8b",
+    "pin_probe": {
+      "log": "local-model-pin-probe.log",
+      "seconds": 6.41,
+      "served_model": "llama3.1:8b",
+      "served_provider": "ollama",
+      "status": "passed"
+    },
+    "planner": {
+      "cases": 5,
+      "failure": "no-tool turn consumer returned None; JSON-mode retry produced use_tool=false",
+      "model_backed_passes": 4,
+      "report": "local-model-qualification-planner-goal-report.json",
+      "status": "failed"
+    },
+    "qualification_status": "failed",
+    "quantization": "Q4_K_M",
+    "server": "Metal Apple M4 Pro, 37.4 GiB, default context 32768, separate port 11436; owner 11434 untouched",
+    "size_bytes": 4920753328,
+    "store": "/Users/rushiparikh/.ollama/models-local"
+  },
+  "schema": "atom-goal-family-local-model-1",
+  "source_hashes": {
+    "backend/api/goal_run_routes.py": "de8eb0e3429241ace0a413cac68185fff40207f6d7c4bfd128ff649f6dfd2e0c",
+    "backend/core/goals/goal_run_service.py": "c28318f41ebcd3b0fa757a79141f836aec819b63d73000d93ab0fe3f328483e5",
+    "backend/tests/test_goal_effect_family_controls.py": "59ac22ffe79950e3def8a909dd80b8e0375fc148d7aeeaf47da3988f0989eb62",
+    "scripts/acceptance/local_model_qualification.py": "abe59e229aa10ef6e8cb5134bfaa7d4e74ddb4f62eccc0100469a3f37d9a0186",
+    "scripts/acceptance/probe_goal_resume_claim.py": "82eb025dccff93b002c4bef7ea3ddfcd935268626c9b121ede1da9e14582d12f"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_combined": {
+      "command": "pytest goal/reviewed-skill/oracle/canvas neighborhood -q",
+      "log": "goal-family-tests.log",
+      "result": "319 passed"
+    },
+    "frontend_canvas": {
+      "command": "jest three canvas suites --runInBand --silent",
+      "log": "frontend-canvas-tests.log",
+      "result": "7 passed"
+    },
+    "independent_goal_probe": {
+      "command": "python scripts/acceptance/probe_goal_resume_claim.py",
+      "evidence": "goal-resume-claim-probe.json",
+      "log": "goal-resume-claim-probe.log",
+      "result": "2/2 scenarios passed",
+      "status": "passed"
+    },
+    "new_goal_controls": {
+      "command": "pytest tests/test_goal_effect_family_controls.py -q",
+      "log": "goal-family-tests.log",
+      "result": "9 passed"
+    }
+  }
+}

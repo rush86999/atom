@@ -27,6 +27,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.goals.goal_plan_validation import (
+    normalize_step_kind,
+    validate_assignment_projection,
+    validate_goal_plan,
+    validate_replan_decision,
+)
+
 logger = logging.getLogger(__name__)
 
 GOAL_RUN_STATUSES = (
@@ -108,6 +115,22 @@ class GoalRunService:
         if supervision_mode not in SUPERVISION_MODES:
             raise ValueError(
                 f"supervision_mode must be one of {SUPERVISION_MODES}")
+        if plan:
+            # A caller-supplied task_lifecycle marker is not ownership. At
+            # create time an operation-only list is accepted as an inert
+            # projection (native execution refuses it); a mixed list is an
+            # ordinary goal plan and cannot smuggle projection steps in.
+            projection_plan = all(
+                normalize_step_kind(step) == "operation"
+                for step in plan if isinstance(step, dict))
+            if projection_plan:
+                errors = validate_assignment_projection(plan)
+            else:
+                errors = validate_goal_plan(
+                    plan, require_non_empty=True)
+            if errors:
+                raise ValueError(
+                    "invalid goal plan: " + "; ".join(errors))
         with self._sessions()() as session:
             goal = session.query(GoalObjective).filter(
                 GoalObjective.id == goal_id).first()
@@ -180,6 +203,11 @@ class GoalRunService:
             GoalRun.id == run_id,
             GoalRun.workspace_id == self.workspace_id).first()
 
+    @staticmethod
+    def _bump_material(run) -> None:
+        """Advance the monotonic revision after any binding-material write."""
+        run.material_revision = int(run.material_revision or 0) + 1
+
     # ------------------------------------------------------------ surfaces
 
     def set_supervision_mode(self, run_id: str, mode: str) -> Dict[str, Any]:
@@ -193,6 +221,7 @@ class GoalRunService:
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
             run.supervision_mode = mode
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -204,16 +233,23 @@ class GoalRunService:
         resume flow (approve → active again, reject → guidance becomes the
         correction). Never cancels: the state is surfaced, the human
         decides. No-op unless the run is currently active."""
+        from core.goals.goal_run_binding import install_pending_decision
         from core.models import GoalRun
         with self._sessions()() as session:
             run = self._load(session, run_id)
             if not run or run.status != "active":
                 return None
             run.status = "paused_hitl"
-            run.pending_decision = {
+            self._bump_material(run)
+            pending = install_pending_decision(run, {
                 "decision": "ASK_HUMAN",
                 "rationale": (reason or "run stalled")[:2000],
-            }
+            })
+            run.pending_decision = pending
+            # install_pending_decision computes and returns the exact next
+            # generation; persist the same value so the review binding and
+            # the resume CAS agree on it.
+            run.human_interventions = pending["decision_generation"]
             log = list(run.decision_log or [])
             log.append({"ts": _iso(), "kind": "stalled_interrupted",
                         "rationale": (reason or "run stalled")[:2000]})
@@ -288,6 +324,7 @@ class GoalRunService:
                 # run's live waiting projection is cleared. Without this, a
                 # cancelled run stays publicly "waiting for input" forever.
                 run.waiting_on = None
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             result = self._to_dict(run)
@@ -361,19 +398,53 @@ class GoalRunService:
             run = self._load(session, run_id)
             if run:
                 run.cursor = step_id
+                self._bump_material(run)
                 session.commit()
 
     # ------------------------------------------------------------- plan
 
     def set_plan(self, run_id: str, plan: List[Dict[str, Any]]) -> Dict[str, Any]:
         from core.models import GoalRun
+        # Cheap structural refusal before any DB session. A projection-shaped
+        # list is validated as a read model; a goal plan is validated as
+        # executable vocabulary. Ownership is established below from the
+        # trusted server-side association, never from caller parameters.
+        projection_plan = bool(plan) and all(
+            normalize_step_kind(step) == "operation"
+            for step in plan if isinstance(step, dict))
+        if projection_plan:
+            pre_errors = validate_assignment_projection(plan)
+        else:
+            pre_errors = validate_goal_plan(plan, require_non_empty=True)
+        if pre_errors:
+            raise ValueError(
+                "invalid goal plan: " + "; ".join(pre_errors))
         with self._sessions()() as session:
             run = self._load(session, run_id)
             if not run:
                 raise ValueError(f"goal run {run_id} not found")
+            # Assignment/task runs store an inspection projection whose steps
+            # are operation records, not goal-executor steps. Only a run with
+            # the trusted task_created/assignment_attached association may
+            # write that projection; ordinary goal plans and REPLANs, and
+            # forged task_lifecycle markers, still face the executable
+            # vocabulary.
+            from core.goals.goal_run_ownership import is_assignment_owned
+            if projection_plan and not is_assignment_owned(run):
+                raise ValueError(
+                    "invalid goal plan: an operation projection requires "
+                    "trusted assignment ownership")
+            if projection_plan:
+                errors = validate_assignment_projection(plan)
+            else:
+                errors = validate_goal_plan(plan, require_non_empty=True)
+            if errors:
+                raise ValueError(
+                    "invalid goal plan: " + "; ".join(errors))
             run.plan = list(plan or [])
             if run.status == "planning" and run.plan:
                 run.cursor = run.plan[0].get("id")
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -398,6 +469,7 @@ class GoalRunService:
                 else:
                     merged[key] = value
             run.parameters = merged
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             return self._to_dict(run)
@@ -442,6 +514,7 @@ class GoalRunService:
                     if step.get("id") == (step_id or run.cursor):
                         step["done"] = True
                 run.plan = plan
+                self._bump_material(run)
                 session.commit()
         self._advance_cursor(run_id, {})
 
@@ -465,6 +538,7 @@ class GoalRunService:
                     f"cannot wait from status '{run.status}'")
             run.waiting_on = {**spec, "created_at": _iso()}
             run.status = "waiting"
+            self._bump_material(run)
             session.commit()
             session.refresh(run)
             result = self._to_dict(run)
@@ -515,7 +589,8 @@ class GoalRunService:
                 GoalRun.waiting_on.isnot(None),
             ).update(
                 {"waiting_on": None, "status": "active",
-                 "decision_log": log},
+                 "decision_log": log,
+                 "material_revision": GoalRun.material_revision + 1},
                 synchronize_session=False,
             )
             if updated != 1:
@@ -588,6 +663,18 @@ class GoalRunService:
             # the supervisor — never execute around an unresolved hold.
             return {"advanced": False,
                     "reason": "held decision awaiting approval"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # The assignment owns its plan and effects. Do not spend a router
+            # call or execute any native decision against its projection.
+            return {
+                "advanced": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "run": run,
+            }
 
         # 1. Goal evaluation drives termination/escalation (§3.4).
         goal_state = self._evaluate_goal(run)
@@ -649,6 +736,22 @@ class GoalRunService:
         run = self.get_run(run_id)
         if not run:
             return {"advanced": False, "reason": "run not found"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # Includes held/approved native decisions: approval replay can
+            # never turn an assignment projection into native work.
+            return {
+                "advanced": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "result": {
+                    "not_executed": True,
+                    "assignment_continuation_required": True,
+                },
+                "run": run,
+            }
         kind = decision.get("decision")
 
         if kind == "ASK_HUMAN":
@@ -673,28 +776,43 @@ class GoalRunService:
 
         if kind == "REPLAN":
             new_plan = decision.get("new_plan")
-            if isinstance(new_plan, list) and new_plan:
-                # Magnitude guardrail (§3.5): a replan that discards more
-                # than half the remaining plan is a direction change big
-                # enough to require a human before it takes effect. A
-                # supervisor-approved replay skips the re-check.
-                if (not decision.get("human_approved")
-                        and self._replan_is_major(run, new_plan)):
-                    return self._hold_for_approval(
-                        run_id,
-                        {**decision, "decision": "ASK_HUMAN",
-                         "original_decision": decision,
-                         "rationale": f"major replan (drops most of the "
-                                      f"remaining plan) — human approval "
-                                      f"required: {decision.get('rationale')}"},
-                        reason="major replan gate")
-                self.set_plan(run_id, new_plan)
+            validation_errors = validate_replan_decision(decision)
+            if validation_errors:
+                # A REPLAN without a semantically consumable plan is not
+                # executable. Hold it for human input; do not bump
+                # replan_count or change the cursor/plan. No
+                # original_decision is set, so approving this hold cannot
+                # replay the invalid REPLAN.
+                return self._hold_for_approval(
+                    run_id,
+                    {**decision, "decision": "ASK_HUMAN",
+                     "rationale": (
+                         "invalid REPLAN: " + "; ".join(validation_errors)),
+                     "invalid_decision": decision,
+                     "validation_errors": validation_errors},
+                    reason="invalid replan")
+            # Magnitude guardrail (§3.5): a replan that discards more
+            # than half the remaining plan is a direction change big
+            # enough to require a human before it takes effect. A
+            # supervisor-approved replay skips the re-check.
+            if (not decision.get("human_approved")
+                    and self._replan_is_major(run, new_plan)):
+                return self._hold_for_approval(
+                    run_id,
+                    {**decision, "decision": "ASK_HUMAN",
+                     "original_decision": decision,
+                     "rationale": f"major replan (drops most of the "
+                                  f"remaining plan) — human approval "
+                                  f"required: {decision.get('rationale')}"},
+                    reason="major replan gate")
+            self.set_plan(run_id, new_plan)
             with self._sessions()() as session:
                 db_run = self._load(session, run_id)
                 if db_run:
                     db_run.replan_count = (db_run.replan_count or 0) + 1
                     if db_run.plan and not db_run.cursor:
                         db_run.cursor = db_run.plan[0].get("id")
+                    self._bump_material(db_run)
                     session.commit()
             return {"advanced": True, "decision": "REPLAN",
                     "run": self.get_run(run_id)}
@@ -703,6 +821,11 @@ class GoalRunService:
             return self._finish_done(run_id, decision)
 
         result = await executors.execute(run, decision)
+        if isinstance(result, dict) and result.get("not_executed"):
+            # Refused before any canvas/effect/counter: a non-executable
+            # assignment projection or unknown kind is not native work.
+            return {"advanced": False, "decision": kind, "result": result,
+                    "run": self.get_run(run_id)}
         # Non-terminal canvas work updates the counters; REVISE_CURRENT
         # stays on the step (that is what "revise" means) — only ADVANCE /
         # BRANCH / SKIP move the cursor.
@@ -720,15 +843,19 @@ class GoalRunService:
                            reason: str) -> Dict[str, Any]:
         """Hold a decision for human approval (§3.7B training checkpoints and
         ASK_HUMAN): pending_decision + HITLAction row, status → paused_hitl."""
+        from core.goals.goal_run_binding import install_pending_decision
         from core.models import HITLAction, HITLActionStatus
         run = self.get_run(run_id)
+        pending = dict(decision)
         with self._sessions()() as session:
             db_run = self._load(session, run_id)
             if db_run:
-                db_run.pending_decision = decision
                 if db_run.status == "active":
                     db_run.status = "paused_hitl"
-                db_run.human_interventions = (db_run.human_interventions or 0) + 1
+                self._bump_material(db_run)
+                pending = install_pending_decision(db_run, decision)
+                db_run.pending_decision = pending
+                db_run.human_interventions = pending["decision_generation"]
                 session.commit()
         hitl_id = None
         try:
@@ -739,11 +866,16 @@ class GoalRunService:
                     agent_id=run.get("agent_id"),
                     action_type="goal_run_decision",
                     platform="in_app",
-                    params={"run_id": run_id, "decision": decision},
+                    params={"run_id": run_id, "decision": pending},
                     status=HITLActionStatus.PENDING.value,
                     reason=(reason or "")[:500],
-                    context_snapshot={"goal_id": run.get("goal_id"),
-                                      "cursor": run.get("cursor")},
+                    context_snapshot={
+                        "goal_id": run.get("goal_id"),
+                        "cursor": run.get("cursor"),
+                        "decision_id": pending.get("decision_id"),
+                        "decision_generation": pending.get(
+                            "decision_generation"),
+                    },
                 )
                 session.add(hitl)
                 session.commit()
@@ -751,39 +883,134 @@ class GoalRunService:
         except Exception as exc:
             logger.warning(f"goal run {run_id}: HITL row create failed: {exc}")
         self.append_decision(run_id, {
-            "kind": "held_for_approval", "decision": decision.get("decision"),
+            "kind": "held_for_approval", "decision": pending.get("decision"),
             "rationale": reason, "hitl_id": hitl_id,
+            "decision_id": pending.get("decision_id"),
+            "decision_generation": pending.get("decision_generation"),
         })
         # Nothing-silent (§6): the supervisor learns NOW — with the decision,
         # its rationale, and what approve/override each mean.
+        held_run = self.get_run(run_id) or run
         try:
             from core.goals.goal_run_notifications import (
                 notify_run_event, schedule_notification)
             schedule_notification(notify_run_event(
-                "decision_held", run, decision=decision))
+                "decision_held", held_run, decision=pending))
         except Exception as exc:
             logger.warning(f"goal run {run_id}: held notification failed: {exc}")
-        return {"advanced": True, "decision": decision.get("decision"),
+        return {"advanced": True, "decision": pending.get("decision"),
                 "held": True, "hitl_id": hitl_id, "reason": reason,
-                "run": self.get_run(run_id)}
+                "decision_id": pending.get("decision_id"),
+                "decision_generation": pending.get("decision_generation"),
+                "decision_binding": pending.get("decision_binding"),
+                "run": held_run}
 
     async def resume(self, run_id: str, approved: bool,
                      reviewer: Optional[str] = None,
                      guidance: Optional[str] = None,
-                     guidance_scope: Optional[str] = None) -> Dict[str, Any]:
-        """Resolve a held decision: approve → execute it; reject/override →
-        the run continues from the supervisor's guidance (the override is a
-        correction — goal_run_learning, fault-isolated)."""
+                     guidance_scope: Optional[str] = None,
+                     expected_decision_id: Optional[str] = None,
+                     expected_decision_binding: Optional[str] = None,
+                     ) -> Dict[str, Any]:
+        """Resolve the EXACT held decision a human reviewed.
+
+        The caller must present the decision identity and canonical binding
+        exposed on ``pending_decision``. Missing or stale bindings are refused
+        before any run/HITL/learning/executor mutation; the service never
+        approves "whatever is pending now" for an old client request.
+        """
         run = self.get_run(run_id)
         if not run:
             return {"resumed": False, "reason": "run not found"}
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if is_assignment_owned(run):
+            # No HITL closure, learning, or executor work for a projection
+            # owned by the assignment driver.
+            return {
+                "resumed": False,
+                "assignment_continuation_required": True,
+                "reason": (
+                    "assignment-owned run: continue through the assignment "
+                    "executor, not the native goal loop"),
+                "run": run,
+            }
         pending = run.get("pending_decision")
         if not pending:
             return {"resumed": False, "reason": "no pending decision"}
 
+        from core.goals.goal_run_binding import validate_pending_decision
+        valid, validation_reason = validate_pending_decision(
+            run, pending,
+            expected_decision_id=expected_decision_id,
+            expected_decision_binding=expected_decision_binding)
+        if not valid:
+            return {
+                "resumed": False,
+                "stale_review": True,
+                "reason": validation_reason,
+                "current_decision_id": pending.get("decision_id"),
+                "run": run,
+            }
+
+        # Claim the exact pending-decision generation with one conditional
+        # UPDATE. Two supervisors (or a retried request) can both read the
+        # same pending decision; only the first may clear it, record an
+        # override, or execute it. human_interventions is the persisted
+        # generation: every writer that installs a new pending decision
+        # increments it (_hold_for_approval / interrupt_stalled). A resume
+        # that loses the race returns before learning/execution, so a
+        # duplicate approval can never run the loop turn twice. The expected
+        # generation comes from the REVIEWED pending decision, not from a
+        # fresh read of whatever is current.
+        from core.models import GoalRun
+        try:
+            expected_generation = int(
+                pending.get("decision_generation") or 0)
+        except (TypeError, ValueError):
+            return {
+                "resumed": False,
+                "stale_review": True,
+                "reason": "stale_decision_review",
+                "current_decision_id": pending.get("decision_id"),
+                "run": run,
+            }
+        with self._sessions()() as session:
+            db_run = self._load(session, run_id)
+            if db_run is None or db_run.pending_decision is None:
+                session.rollback()
+                return {"resumed": False, "reason": "no pending decision"}
+            current_decision = db_run.pending_decision or {}
+            expected_material_revision = int(
+                run.get("material_revision") or 0)
+            values: Dict[str, Any] = {
+                "pending_decision": None,
+                "material_revision": GoalRun.material_revision + 1,
+            }
+            if db_run.status == "paused_hitl":
+                values["status"] = "waiting" if db_run.waiting_on else "active"
+            updated = session.query(GoalRun).filter(
+                GoalRun.id == run_id,
+                GoalRun.workspace_id == self.workspace_id,
+                GoalRun.pending_decision.isnot(None),
+                GoalRun.human_interventions == expected_generation,
+                GoalRun.material_revision == expected_material_revision,
+                GoalRun.status == run.get("status"),
+            ).update(values, synchronize_session=False)
+            if updated != 1:
+                session.rollback()
+                return {
+                    "resumed": False,
+                    "stale_review": True,
+                    "reason": "stale_decision_review",
+                    "current_decision_id": current_decision.get(
+                        "decision_id"),
+                }
+            session.commit()
+
         if not approved:
             # The override is a correction (§3.7C) — but a learning-pipeline
-            # failure must never block the supervisor's resume.
+            # failure must never block the supervisor's resume. Recorded only
+            # by the generation-claim winner.
             try:
                 from core.goals.goal_run_learning import record_decision_override
                 record_decision_override(self, run, pending,
@@ -792,13 +1019,6 @@ class GoalRunService:
             except Exception as exc:
                 logger.warning(f"goal run {run_id}: override learning "
                                f"recording failed: {exc}")
-        with self._sessions()() as session:
-            db_run = self._load(session, run_id)
-            if db_run:
-                db_run.pending_decision = None
-                if db_run.status == "paused_hitl":
-                    db_run.status = "waiting" if db_run.waiting_on else "active"
-                session.commit()
         self.append_decision(run_id, {
             "kind": "override" if not approved else "approved",
             "decision": pending.get("decision"),
@@ -953,6 +1173,7 @@ class GoalRunService:
             db_run = self._load(session, run_id)
             if db_run:
                 db_run.steps_executed = (db_run.steps_executed or 0) + 1
+                self._bump_material(db_run)
                 session.commit()
 
     def _advance_cursor(self, run_id: str, decision: Dict[str, Any]) -> None:
@@ -1035,6 +1256,7 @@ class GoalRunService:
             "replan_count": run.replan_count,
             "steps_executed": run.steps_executed,
             "human_interventions": run.human_interventions,
+            "material_revision": run.material_revision,
             "created_by": run.created_by,
             "created_at": run.created_at.isoformat() if run.created_at else None,
             "updated_at": run.updated_at.isoformat() if run.updated_at else None,

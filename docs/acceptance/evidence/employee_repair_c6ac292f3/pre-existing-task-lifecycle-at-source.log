@@ -1,0 +1,160 @@
+
+tests/test_task_lifecycle.py::TestRecordTurns::test_second_retrieval_revises_without_union 
+-------------------------------- live log setup --------------------------------
+2026-11-03 06:12:28 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-03 06:12:28 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-03 06:12:28 [    INFO] EscalationManager initialized
+2026-11-03 06:12:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:28 [    INFO] EscalationManager initialized
+2026-11-03 06:12:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-03 06:12:28 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 25%]
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on 
+-------------------------------- live log call ---------------------------------
+2026-11-03 06:12:29 [    INFO] MCP Service initialized
+2026-11-03 06:12:29 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-03 06:12:29 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-03 06:12:29 [    INFO] No token storage file found, starting empty
+2026-11-03 06:12:29 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-03 06:12:29 [    INFO] EscalationManager initialized
+2026-11-03 06:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:29 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-03 06:12:29 [    INFO] EscalationManager initialized
+2026-11-03 06:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:29 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-03 06:12:29 [    INFO] Slack Enhanced Service initialized
+2026-11-03 06:12:29 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-03 06:12:29 [    INFO] EscalationManager initialized
+2026-11-03 06:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:29 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-03 06:12:29 [    INFO] EscalationManager initialized
+2026-11-03 06:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:29 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-03 06:12:29 [    INFO] Slack Enhanced Service initialized
+2026-11-03 06:12:29 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-03 06:12:29 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-03 06:12:29 [    INFO] EscalationManager initialized
+2026-11-03 06:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-03 06:12:29 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-03 06:12:29 [    INFO] LocalOnlyGuard initialized
+2026-11-03 06:12:29 [ WARNING] No LLM clients available
+2026-11-03 06:12:29 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-03 06:12:29 [    INFO] [job-work-ledger] settled run=efe4e92e op=1d28f653 added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)
+2026-11-03 06:12:29 [    INFO] [source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+2026-11-03 06:12:29 [    INFO] [file-ask] spreadsheet ask answered directly by the file-scoped reader (no narration path)
+FAILED                                                                   [ 50%]
+tests/test_task_lifecycle.py::TestOverlapSafety::test_concurrent_turns_single_task_no_lost_updates FAILED [ 75%]
+tests/test_task_lifecycle.py::TestRetrievalGateOrdering::test_gate_runs_after_revision_settle FAILED [100%]
+
+=================================== FAILURES ===================================
+E   assert 5 == 4
+------------------------------ Captured log setup ------------------------------
+INFO     core.auth:auth.py:56 Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/tmp/atom-full-app/backend/tests/test_task_lifecycle.py:347: assert 5 == 4
+E   assert 2 == 3
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-03T11:12:29.345127+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+------------------------------ Captured log call -------------------------------
+INFO     integrations.mcp_service:mcp_service.py:123 MCP Service initialized
+INFO     services.agent_service:agent_service.py:46 ComputerUseAgent initialized for tenant default
+WARNING  core.token_storage:token_storage.py:31 Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+INFO     core.token_storage:token_storage.py:45 No token storage file found, starting empty
+INFO     ai.workflow_scheduler:workflow_scheduler.py:42 WorkflowScheduler using SQLAlchemyJobStore
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:10239 [DBG4] continuation-detection reached; bare=False
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:11743 [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+INFO     core.privsec.local_only_guard:structured_logger.py:118 LocalOnlyGuard initialized
+WARNING  core.llm.byok_handler:byok_handler.py:7770 No LLM clients available
+INFO     core.turn_decision:turn_decision.py:2662 [turn-interpretation] empty reason=missing_scope
+INFO     core.task_lifecycle:task_lifecycle.py:4028 [job-work-ledger] settled run=efe4e92e op=1d28f653 added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:36878 [source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:13886 [file-ask] spreadsheet ask answered directly by the file-scoped reader (no narration path)
+/private/tmp/atom-full-app/backend/tests/test_task_lifecycle.py:487: assert 2 == 3
+E   AssertionError: assert 2 == 1
+     +  where 2 = len([{'id': 'M-0', 'label': 'M-0', 'aliases': [], 'provenance_turn': None, ...}, {'id': 'M-1', 'label': 'M-1', 'aliases': [], 'provenance_turn': None, ...}])
+/private/tmp/atom-full-app/backend/tests/test_task_lifecycle.py:1209: AssertionError: assert 2 == 1
+E   assert 3 == (1 + 1)
+/private/tmp/atom-full-app/backend/tests/test_task_lifecycle.py:1656: assert 3 == (1 + 1)
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+  /private/tmp/atom-full-app/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/schema.py:3627: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_task_lifecycle.py::TestRecordTurns::test_second_retrieval_revises_without_union
+FAILED tests/test_task_lifecycle.py::TestOrchestratorWiring::test_ask_lane_records_task_when_flag_on
+FAILED tests/test_task_lifecycle.py::TestOverlapSafety::test_concurrent_turns_single_task_no_lost_updates
+FAILED tests/test_task_lifecycle.py::TestRetrievalGateOrdering::test_gate_runs_after_revision_settle
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 4 failed, 19 warnings in 13.67s ========================

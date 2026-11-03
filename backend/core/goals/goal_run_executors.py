@@ -93,6 +93,21 @@ class GoalRunExecutors:
     async def execute(self, run: Dict[str, Any],
                       decision: Dict[str, Any]) -> Dict[str, Any]:
         kind = decision.get("decision")
+        # A task-lifecycle assignment owns its plan and effects. The native
+        # loop must not execute ANY of its steps, including a canvas-shaped
+        # one: the assignment executor is the only continuation driver.
+        from core.goals.goal_run_ownership import is_assignment_owned
+        if (str(kind or "").upper() in ("ADVANCE", "REVISE_CURRENT",
+                                        "BRANCH_NEW_CANVAS", "SKIP")
+                and is_assignment_owned(run)):
+            return {
+                "not_executed": True,
+                "assignment_continuation_required": True,
+                "error": (
+                    "assignment-owned run: native goal execution is refused; "
+                    "continue through the assignment executor"),
+                "step_id": run.get("cursor"),
+            }
         if kind in ("ADVANCE", "REVISE_CURRENT"):
             return await self._run_current_step(run, decision,
                                                 revise=(kind == "REVISE_CURRENT"))
@@ -128,7 +143,12 @@ class GoalRunExecutors:
             # Plan exhausted (e.g. last step was the checkpoint just
             # resolved): the router re-decides with an empty remaining plan.
             return {"plan_exhausted": True}
-        kind = (step or {}).get("kind", "canvas_work")
+        from core.goals.goal_plan_validation import normalize_step_kind
+
+        kind = normalize_step_kind(step or {})
+        if kind == "canvas_work":
+            return await self._canvas_work(
+                run, decision, step or {}, revise=revise)
         if kind == "integration_action":
             return await self._integration_action(run, decision, step or {})
         if kind == "computer_use_work":
@@ -139,7 +159,23 @@ class GoalRunExecutors:
             spec = (step or {}).get("wait_spec") or {"event": "timer"}
             self.service.set_wait(run["id"], spec)
             return {"wait": spec}
-        return await self._canvas_work(run, decision, step or {}, revise=revise)
+        # Assignment task_lifecycle plans store a read-only operation
+        # projection in the shared GoalRun row. It is not a native goal step
+        # and must never fall through to canvas work or a second executor.
+        if kind == "operation":
+            return {
+                "not_executed": True,
+                "error": (
+                    "assignment-owned operation projection is not executable "
+                    "by the native goal loop; use the assignment executor"),
+                "projection": True,
+                "step_id": step.get("id"),
+            }
+        return {
+            "not_executed": True,
+            "error": f"unsupported native goal step kind {kind!r}",
+            "step_id": step.get("id"),
+        }
 
     async def _canvas_work(self, run, decision, step, revise: bool = False) -> Dict[str, Any]:
         workspace_id = run.get("workspace_id") or self.service.workspace_id
@@ -258,10 +294,24 @@ class GoalRunExecutors:
 
     async def _integration_action(self, run, decision, step) -> Dict[str, Any]:
         from core.action_registry import action_registry, ActionNotFoundError
+        from core.goals.goal_plan_validation import validate_goal_plan
+        errors = validate_goal_plan(
+            [step], require_non_empty=True, action_registry=action_registry)
+        if errors:
+            return {"error": "invalid integration step: " + "; ".join(errors)}
         name = step.get("action") or step.get("title")
         if not name:
             return {"error": "integration_action step missing 'action'"}
         arguments = dict(step.get("arguments") or {})
+        # Durable operation identity for connected actions: the same reviewed
+        # decision/step must resolve to the same operation, so an uncertain
+        # provider effect can be reconciled instead of resent. The action
+        # registry's existing operation arbiter/readback consumes this; no
+        # second queue or store is introduced.
+        decision_id = str(decision.get("decision_id") or "").strip()
+        step_id = str(step.get("id") or run.get("cursor") or "step")
+        operation_id = (
+            f"goal-run:{run['id']}:{decision_id or 'turn'}:{step_id}")
         try:
             result = await action_registry.execute_action(
                 str(name), arguments,
@@ -269,8 +319,10 @@ class GoalRunExecutors:
                          "tenant_id": run.get("tenant_id"),
                          "agent_id": run.get("agent_id"),
                          "goal_run_id": run["id"],
-                         "goal_id": run.get("goal_id")})
-            return {"action": name, "result": result}
+                         "goal_id": run.get("goal_id"),
+                         "operation_id": operation_id})
+            return {"action": name, "operation_id": operation_id,
+                    "result": result}
         except ActionNotFoundError as exc:
             return {"error": str(exc), "action": name}
 

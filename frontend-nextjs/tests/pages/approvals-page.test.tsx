@@ -322,6 +322,34 @@ describe("ApprovalsPage", () => {
     );
   });
 
+  it("surfaces a stale goal-approval conflict with the refresh message", async () => {
+    mockFetch.mockImplementation((url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("/api/agents/approvals/act-1") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          statusText: "Conflict",
+          json: async () => ({
+            detail: {
+              error: "stale_decision_review",
+              message: "The pending decision changed after it was reviewed. Refresh the run and review the current decision.",
+            },
+          }),
+        });
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [] }));
+      }
+      return Promise.resolve(okJson([pendingActions]));
+    });
+    render(<ApprovalsPage />);
+    await waitFor(() => expect(screen.getByText("send_message")).toBeInTheDocument());
+    const card = screen.getByText("send_message").closest(".rounded-xl") as HTMLElement;
+    fireEvent.click(within(card).getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText(/pending decision changed after it was reviewed/)).toBeInTheDocument();
+  });
+
   it("shows the empty states when nothing is waiting", async () => {
     mockFetch.mockResolvedValue(okJson([]));
     render(<ApprovalsPage />);

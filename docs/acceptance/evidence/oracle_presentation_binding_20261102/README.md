@@ -69,15 +69,15 @@ provider writes remain explicitly unqualified.
   pending operation/payload identity survives a real restart; all three DOCX
   files carry their totals, provenance and Georgia 18.
 
-## Books dependency
+## Books rerun on this source
 
-The invoice-to-Books journey was not repeated: the shared dispatch change in
-this source is the canvas-presentation pre-dispatch freeze, and the connected
-readback path is unchanged. The affected connected/Books suites
-(`test_oracle_connected_mutations`, `test_brennan_joint_real_connected_effect`,
-`test_brennan_agent2_connected_operations`) are inside the 470-test matrix.
-If the shared dispatch/readback contract changes again, the Books campaign
-must be repeated.
+The invoice-to-Books journey was rerun on the same source in a separate world
+(`full-app-bookkeeping-presentation-fix`, API 8100): **12/12 passed**. One
+governed create with verified readback, provider `creates=1/readbacks=1`, and
+both duplicate controls leave `creates=1` (second step `failed` with a
+duplicate message). The connected readback path is unchanged by the
+presentation pre-dispatch freeze; its focused suites are also inside the
+470-test matrix.
 
 ## Open
 
