@@ -1,0 +1,60 @@
+{
+ "schema": "atom-employee-g5-two-domain-probe-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "80e3bd702dc7e07d921f8082a20ab06926a062a6",
+  "worktree": "/private/tmp/atom-g5-clean",
+  "tree_clean_at_run": true,
+  "manifest_note": "Served quote typed work passed at 370.00; procurement evidence selection returned a parsed but semantically invalid proposal (mixed source_id/action, missing invoice-v1). Full two-domain adaptive journey not established."
+ },
+ "local_model": {
+  "declared": "llama3.1:8b",
+  "base_url": "http://127.0.0.1:11436/v1",
+  "pin": "ollama:llama3.1:8b"
+ },
+ "source_hashes": {
+  "backend/core/employee_proposal.py": "b8c8e209fb4f88291faa2ac1098a68767c6f516c9af1ca4dafc31c7e5398710a",
+  "backend/core/employee_work_compiler.py": "a000460540cd455f306e99aa84f49bf02bfd8795c26669e865d53b02e3ad126e",
+  "backend/core/employee_work_requests.py": "7bb6283ced9bbf7649dd7728e09283d76ccd57a3d9490d78a8698aa982305daf",
+  "backend/core/employee_adaptation.py": "41487e212763d8d18c1cb59c345bd8e2792cade40485367e78d13f23d71c9db4",
+  "backend/core/employee_attempt_journal.py": "d011ca3cb22d97f1cbd9f267ea0f73edabde2daad3e09d502b0bf68141e6b765",
+  "scripts/acceptance/employee_g5_model_probe.py": "002429d93d174c2487e30d5078ca7ae2e24459fe630570378d00d50928f6456e",
+  "scripts/acceptance/employee_g5_served_probe.py": "c706c02eca1f9f0b622e54cfe8630726e494b2ec4bd56fc2a5cf08501b9f3989"
+ },
+ "artifacts": {
+  "README.md": "acaaf9aba45920edd8ad3a5c2f253b66a8ed4bb89a9de257384e84e7cb93abfa",
+  "TEST_RESULTS.md": "f36e23f321c0d1cdb8d35f21253a88a3e7c16799c4fa1aefd2b96d8068a01419",
+  "frozen-source-campaign.log": "5beb1f577bebaf6cedf0ab428b5bbd0123f3ddf2c3636fd8df803ad9a721d223",
+  "frozen-source-focused.log": "cdfe0ed9a5ea8fa91607eea7452d48dad819157d18bb9da6942a8aa06e6a20ef",
+  "frozen-source-probes.log": "6b5baaa1ae3f5385c861b3258ecec37b189c609e0b1ceeee77dcdef9b419234a",
+  "served-quote-smoke-attempts.jsonl": "83a2242deeb16e8096ef778a162cd6eddbf4095aeee4e2455f46c706fbf78fa7",
+  "served-quote-smoke-calls.jsonl": "65a14369f9f70a62a8edacce867ab2616223faeb683925aeda0497354ba2fd0a",
+  "served-quote-smoke-report.json": "d12e282521a5adb4f98e2f8e0d162395602dd1000b1ad99491c835a315ae006c",
+  "two-domain-evidence-calls.jsonl": "28b3e624dca555d7594e08400a313930bbffb66ce61308646dbe40a7fe0a8006",
+  "two-domain-evidence-report.json": "74eca663ef3c9f56b972b4c85f84f92533c1d9aeb6fe49c4e291633d898b9cab"
+ },
+ "results": {
+  "served_quote_smoke": {
+   "source": "model",
+   "operation": "quote_calculation",
+   "calculated_value": "370.00",
+   "adoption_status": "applied"
+  },
+  "served_two_domain_evidence_selection": {
+   "industrial_quote": "model; required sources selected",
+   "procurement_bookkeeping": "negative; parsed proposal mixed source_id and action and omitted invoice-v1; production fallback selected purchase-order only"
+  },
+  "deterministic_two_domain_campaign": "4 passed",
+  "frozen_source_probes": "20 passed",
+  "frozen_source_focused": "124 passed",
+  "g5_qualified": false
+ },
+ "exclusions": [
+  "full held-out two-domain adaptive journey not run to completion",
+  "procurement invoice reconciliation/bill not reached",
+  "adaptive employee judgment remains unqualified",
+  "no cloud provider, credential, consent, send, spend or deployment",
+  "prior deterministic acceptance 28afe7248 remains intact",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ]
+}
