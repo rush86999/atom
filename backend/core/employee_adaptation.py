@@ -328,7 +328,13 @@ def _adaptation_prompt(
         "If no listed operation is supported, choose clarify when one fact "
         "is missing, otherwise retain. On a replan, return one work_request "
         "from context.work_request_schemas.\n"
-        if typed else "")
+        if typed else (
+            "- The accepted evidence does not yet support a listed business "
+            "operation. If the objective still requires a specific missing "
+            "business record or source, choose clarify and ask for that exact "
+            "evidence; do not retain while the objective remains unresolved "
+            "and one authorized source could supply it.\n"
+            if context.get("stage") == "follow_up" else ""))
     return (
         "You are the accountable employee's adaptation reasoner. Choose the "
         "bounded response to the observation(s).\n"
