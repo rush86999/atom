@@ -5741,6 +5741,10 @@ class AssignmentExecutor:
             gap["question"] = (
                 f"Provide the missing information to continue "
                 f"'{step.get('title')}'.")
+        if not str(gap.get("next_action") or "").strip():
+            gap["next_action"] = (
+                str(gap.get("next_retrieval") or "").strip()
+                or "Provide the missing evidence and retry the step.")
         waiting = gap.get("waiting") or {
             "state": "waiting_for_person",
             "party": gap.get("resolver") or "owner",
