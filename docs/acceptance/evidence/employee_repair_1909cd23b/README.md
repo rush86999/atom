@@ -13,7 +13,7 @@ the old manifests as historical records.
 |---|---|
 | Branch | `codex/brennan-full-app-20261102` |
 | Worktree | `/private/tmp/atom-full-app` |
-| Executed source | `f94cc8603` (full SHA in `MANIFEST.json`) |
+| Executed source | `1909cd23b` (full SHA in `MANIFEST.json`) |
 | Tree at integrated run | clean |
 | Transport | controlled local service/DB; no live provider |
 
