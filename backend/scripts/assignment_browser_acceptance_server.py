@@ -47,7 +47,8 @@ from core.goals.goal_run_service import GoalRunService  # noqa: E402
 from core.goals.goal_service import GoalService  # noqa: E402
 from core.models import (  # noqa: E402
     AgentRegistry, Base, DatasetEntry, GoalObjective, GoalRun, HITLAction,
-    IntegrationToken, TaskOperationRecord, Tenant, User, Workspace,
+    IntegrationToken, RuntimeSetting, TaskOperationRecord, Tenant, User,
+    Workspace,
 )
 from core.student_learning_service import deliver_teacher_lesson  # noqa: E402
 from core.task_lifecycle import TaskLifecycle  # noqa: E402
@@ -66,7 +67,8 @@ for table in (User.__table__, AgentRegistry.__table__,
               GoalObjective.__table__, GoalRun.__table__,
               TaskOperationRecord.__table__, HITLAction.__table__,
               Tenant.__table__, Workspace.__table__,
-              DatasetEntry.__table__, IntegrationToken.__table__):
+              DatasetEntry.__table__, IntegrationToken.__table__,
+              RuntimeSetting.__table__):
     table.create(engine, checkfirst=True)
 factory = sessionmaker(bind=engine, expire_on_commit=False)
 db = factory()

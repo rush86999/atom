@@ -137,7 +137,12 @@ class EmployeeObjectiveStart(BaseModel):
 class EmployeeAdvance(BaseModel):
     use_model: bool = True
     max_adaptations: int = 1
-    deadline_seconds: float = 120.0
+    deadline_seconds: float = 240.0
+
+
+class EmployeeSourceAdd(BaseModel):
+    source: Dict[str, Any]
+    reason: str = "authorized source added to answer the employee question"
 
 
 class AssignmentStart(BaseModel):
@@ -853,7 +858,7 @@ def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
 
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
-    deadline_seconds: float = 90.0,
+    deadline_seconds: float = 240.0,
     provider_model: Optional[tuple] = None,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
@@ -1120,8 +1125,11 @@ async def start_employee_objective(
     status = await executor.execute(run_id, max_steps=12)
     adaptive_rounds = []
     if llm is not None:
+        deadline_seconds = float(os.getenv(
+            "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
         adaptive_rounds = await _advance_employee_work(
-            executor, run_id, llm, provider_model=provider_model)
+            executor, run_id, llm, provider_model=provider_model,
+            deadline_seconds=deadline_seconds)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
@@ -1364,6 +1372,83 @@ async def advance_assignment(
         }
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/{run_id}/sources")
+async def add_assignment_source(
+    run_id: str,
+    body: EmployeeSourceAdd,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Add one authorized source after a targeted evidence question.
+
+    The source is resolved through the same connected/internal binding as the
+    objective start, read by the normal adapter, and then the existing
+    adaptive consumer decides whether the new evidence supports business work.
+    No rows, expected values or step mechanics are supplied by the caller.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    allow_internal = os.getenv(
+        "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS") == "1"
+    try:
+        resolved = resolve_assignment_source(
+            db, current_user, dict(body.source or {}),
+            allow_internal=allow_internal)
+    except AssignmentResourceError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"error": exc.code, "message": str(exc)}) from exc
+    record = executor.lifecycle.get_task(run_id) or {}
+    assignment = record.get("assignment") or {}
+    from core.assignment_planner import _source_step
+    from core.employee_patch import apply_plan_patch
+    import hashlib as _hashlib
+
+    indexes = []
+    for step in assignment.get("steps") or []:
+        step_id = str(step.get("step_id") or "")
+        if step_id.startswith("source-"):
+            try:
+                indexes.append(int(step_id.split("-", 1)[1]))
+            except ValueError:
+                pass
+    raw_step = _source_step(resolved, (max(indexes) if indexes else 0) + 1)
+    step = {
+        key: raw_step.get(key) for key in (
+            "step_id", "title", "operation_type", "adapter", "depends_on",
+            "inputs", "effect", "requires", "required")
+        if raw_step.get(key) is not None
+    }
+    identity = _hashlib.sha256(json.dumps(
+        {"resource_id": resolved.get("resource_id"),
+         "source_version": resolved.get("source_version")},
+        sort_keys=True, default=str).encode()).hexdigest()[:16]
+    patch = {
+        "patch_id": f"source-add-{identity}",
+        "base_task_version": int(record.get("task_version") or 0),
+        "base_plan_revision": int(assignment.get("plan_revision") or 1),
+        "reason": body.reason,
+        "observations": [{
+            "kind": "authorized_source_added",
+            "resource_id": resolved.get("resource_id"),
+            "source_version": resolved.get("source_version"),
+        }],
+        "invalidate_steps": [],
+        "remove_steps": [],
+        "add_steps": [step],
+        "update_steps": [],
+        "add_facts": [],
+        "set_requires": {},
+    }
+    try:
+        adopted = apply_plan_patch(
+            executor.lifecycle, run_id, patch, rationale=body.reason)
+        status = await executor.execute(run_id, max_steps=12)
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {**adopted, "assignment": status}
 
 
 @router.post("/{run_id}/reassess")
