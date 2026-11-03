@@ -19,6 +19,7 @@ from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequen
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.assignment_resources import resource_binding
+from core.employee_work_requests import work_request_schemas
 
 PROPOSAL_SCHEMA = "atom-employee-work-proposal-1"
 MAX_EVIDENCE_READS = 5
@@ -118,6 +119,72 @@ def _source_view(source: Mapping[str, Any]) -> Dict[str, Any]:
         "coverage": dict(source.get("coverage") or {}),
         "source_version": _text(
             source.get("source_version") or binding.get("source_version"), 160),
+        "preview": {
+            "sampled": True,
+            "kind": "source_metadata_not_rows",
+            "total_count": source.get("row_count"),
+            "shown_count": 0,
+            "omitted_count": source.get("row_count"),
+            "note": (
+                "reasoning handle only; execution resolves full durable "
+                "evidence under the existing proof rules"),
+        },
+    }
+
+
+def _evidence_preview(item: Mapping[str, Any]) -> Dict[str, Any]:
+    rows_all = [
+        dict(row) for row in (item.get("rows") or [])
+        if isinstance(row, Mapping)
+    ]
+    rows = rows_all[:20]
+    total = item.get("total_count")
+    if total is None:
+        total = item.get("row_count")
+    if total is None:
+        total = len(rows_all)
+    try:
+        total = int(total)
+    except (TypeError, ValueError):
+        total = len(rows_all)
+    shown = len(rows)
+    return {
+        "step_id": _text(item.get("step_id"), 80),
+        "adapter": _text(item.get("adapter"), 120),
+        "status": _text(item.get("status"), 20),
+        "summary": _text(item.get("summary"), 500),
+        "value": item.get("value"),
+        "unit": _text(item.get("unit"), 40) or None,
+        "rows": rows,
+        "schema": [
+            dict(field) for field in (item.get("schema") or [])[:40]
+            if isinstance(field, Mapping)
+        ],
+        "coverage": dict(item.get("coverage") or {}),
+        "verification": dict(item.get("verification") or {}),
+        "artifact": dict(item.get("artifact") or {}),
+        "truncated": bool(item.get("truncated")),
+        "source_identity": {
+            "resource_id": _text(
+                item.get("resource_id")
+                or (item.get("source") or {}).get("resource_id"), 200),
+            "version": _text(
+                item.get("source_version")
+                or (item.get("source") or {}).get("source_version"), 160),
+            "sha256": _text(
+                item.get("sha256")
+                or (item.get("source") or {}).get("sha256"), 160),
+        },
+        "preview": {
+            "sampled": True,
+            "total_count": total,
+            "shown_count": shown,
+            "omitted_count": max(0, total - shown),
+            "note": (
+                "preview rows for reasoning only; compiled execution resolves "
+                "full durable evidence and must not use these rows as the "
+                "calculation population"),
+        },
     }
 
 
@@ -142,6 +209,8 @@ def build_employee_context(
     task_version: Optional[int] = None,
     plan_revision: Optional[int] = None,
     existing_step_ids: Optional[Sequence[str]] = None,
+    stage: str = "discovery",
+    available_work_requests: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -172,6 +241,17 @@ def build_employee_context(
                 teaching.get("effective_lesson_ids") or [])[:20],
             "applicable_conditions": dict(
                 teaching.get("applicable_conditions") or {}),
+            "rules": [
+                _text(item, 500) for item in (teaching.get("rules") or [])[:20]
+                if str(item or "").strip()
+            ],
+            "terms": {
+                _text(key, 80): value
+                for key, value in list(
+                    (teaching.get("terms") or {}).items())[:20]
+                if _text(key, 80) and isinstance(
+                    value, (str, int, float, bool, type(None), dict, list))
+            },
         },
         "task_context": dict(task_context or {}),
         "sources": [
@@ -239,41 +319,110 @@ def build_employee_context(
             if str(item).strip()
         ][:80],
         "evidence_results": [
-            {
-                "step_id": _text(item.get("step_id"), 80),
-                "adapter": _text(item.get("adapter"), 120),
-                "status": _text(item.get("status"), 20),
-                "summary": _text(item.get("summary"), 500),
-                "value": item.get("value"),
-                "unit": _text(item.get("unit"), 40) or None,
-                "rows": [
-                    dict(row) for row in (item.get("rows") or [])[:20]
-                    if isinstance(row, Mapping)
-                ],
-                "schema": [
-                    dict(field) for field in (item.get("schema") or [])[:40]
-                    if isinstance(field, Mapping)
-                ],
-                "coverage": dict(item.get("coverage") or {}),
-                "verification": dict(item.get("verification") or {}),
-                "artifact": dict(item.get("artifact") or {}),
-                "truncated": bool(item.get("truncated")),
-            }
+            _evidence_preview(item)
             for item in (evidence_results or [])[:20]
             if isinstance(item, Mapping)
         ],
         "budget": dict(budget or {}),
-        "rules": {
-            "allowed_proposal_kinds": [
-                "evidence_read", "clarification",
-                "evidence_and_clarification"],
-            "can_execute": False,
-            "can_grant_authority": False,
-            "can_supply_receipts": False,
-            "evidence_only": True,
-            "clarify_only_when_material": True,
-        },
+        "stage": stage,
+        "work_request_schemas": (
+            [
+                schema for schema in work_request_schemas()
+                if not available_work_requests
+                or schema.get("operation") in set(available_work_requests)
+            ]
+            if stage in ("follow_up", "adaptation", "result")
+            else []
+        ),
+        "available_business_operations": (
+            _operation_views(available_work_requests)
+            if stage in ("follow_up", "adaptation", "result")
+            else []
+        ),
+        "rules": (
+            {
+                "allowed_proposal_kinds": ["replan"],
+                "allowed_work_requests": [
+                    item["operation"] for item in
+                    _operation_views(available_work_requests)],
+                "can_execute": False,
+                "can_grant_authority": False,
+                "can_supply_receipts": False,
+                "can_propose_supported_work": True,
+                "evidence_only": False,
+                "clarify_only_when_material": True,
+                "execution_mechanics": "compiler",
+            }
+            if stage in ("follow_up", "adaptation", "result")
+            else {
+                "allowed_proposal_kinds": [
+                    "evidence_read", "clarification",
+                    "evidence_and_clarification"],
+                "can_execute": False,
+                "can_grant_authority": False,
+                "can_supply_receipts": False,
+                "can_propose_supported_work": False,
+                "evidence_only": True,
+                "clarify_only_when_material": True,
+            }
+        ),
     }
+
+
+def _operation_views(available: Optional[Sequence[str]]) -> List[Dict[str, Any]]:
+    definitions = [
+        {
+            "operation": "quote_calculation",
+            "when": (
+                "accepted price rows and taught/authorized currency, freight "
+                "and tax terms are available"),
+            "supports": ["exact quote line items and total from full rows"],
+        },
+        {
+            "operation": "invoice_reconciliation",
+            "when": (
+                "accepted invoice, purchase order and receiving evidence are "
+                "available"),
+            "supports": [
+                "quantity/amount reconciliation",
+                "one targeted correction obligation when mismatched"],
+        },
+    ]
+    allowed = set(available or [])
+    return [
+        item for item in definitions
+        if not allowed or item["operation"] in allowed
+    ]
+
+
+def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
+    quote = False
+    invoice = False
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        result = step.get("result") if isinstance(
+            step.get("result"), Mapping) else {}
+        data = result.get("data") if isinstance(
+            result.get("data"), Mapping) else {}
+        keys = set(data)
+        if ({"invoice_id", "quantity", "unit_price"} <= keys
+                or "received_quantity" in keys):
+            invoice = True
+        rows = result.get("rows") or []
+        if isinstance(rows, list) and rows and isinstance(rows[0], Mapping):
+            row_keys = set(rows[0])
+            if ({"Item", "Qty", "Price"} & row_keys
+                    or {"item_id", "quantity", "unit_price"} & row_keys):
+                quote = True
+        if result.get("line_items"):
+            quote = True
+    operations = []
+    if quote:
+        operations.append("quote_calculation")
+    if invoice:
+        operations.append("invoice_reconciliation")
+    return operations
 
 
 def context_from_record(
@@ -339,6 +488,8 @@ def context_from_record(
             for step in assignment.get("steps") or []
             if step.get("step_id")
         ],
+        stage="follow_up" if evidence else "discovery",
+        available_work_requests=_operations_from_evidence(assignment),
     )
 
 
@@ -396,6 +547,11 @@ def validate_employee_proposal(
             seen_steps.add(step_id)
         source_id = read.source_id.strip()
         action = read.action.strip()
+        if source_id and action.lower() in ("retrieve", "read"):
+            # A source read plus the generic operation name is one intent, not
+            # two capabilities. Normalize the redundant operation label.
+            read.action = ""
+            action = ""
         if source_id and action:
             errors.append(
                 f"{where} must choose a source read or an action, not both")

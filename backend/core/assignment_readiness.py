@@ -401,11 +401,12 @@ def _verification_binding(
     verification: Dict[str, Any],
     result: Dict[str, Any],
     step: Dict[str, Any],
+    fields: Optional[Sequence[str]] = None,
 ) -> tuple:
     """Every identity the proof declares must match the receipt it verifies."""
-    for field in ("operation_id", "request_id", "resource_id", "subject",
-                  "version", "sha256", "provider_ref", "message_id",
-                  "account"):
+    for field in fields or (
+            "operation_id", "request_id", "resource_id", "subject",
+            "version", "sha256", "provider_ref", "message_id", "account"):
         if field not in verification:
             continue
         declared = verification.get(field)
@@ -429,7 +430,14 @@ def _profile_binding(
     result: Dict[str, Any],
     step: Dict[str, Any],
 ) -> tuple:
-    declared = _verification_binding(verification, result, step)
+    # A deterministic local calculation has no provider resource identity; its
+    # material proof is the value/receipt plus any operation/request binding.
+    # Do not reject a local verification merely because it carries a resource
+    # label the local result does not repeat.
+    binding_fields = (
+        ("operation_id", "request_id") if profile == "local" else None)
+    declared = _verification_binding(
+        verification, result, step, binding_fields)
     if declared[0] != "true":
         return declared
 

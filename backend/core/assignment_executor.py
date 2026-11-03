@@ -4732,6 +4732,8 @@ class AssignmentExecutor:
             "provenance": copy.deepcopy(
                 assignment.get("provenance") or {}),
             "objective": assignment.get("objective"),
+            "assignment": copy.deepcopy(assignment),
+            "facts": copy.deepcopy(assignment.get("facts") or []),
             "teaching": copy.deepcopy(
                 assignment.get("teaching_snapshot") or {}),
             "sources": copy.deepcopy(assignment.get("sources") or []),
@@ -7853,4 +7855,5 @@ default_adapter_registry.register(
 # cycle; registries cloned after this point carry the adapter.
 import core.assignment_quote  # noqa: E402,F401
 import core.quote_rows  # noqa: E402,F401
+import core.assignment_invoice  # noqa: E402,F401
 import core.canvas_assignment  # noqa: E402,F401

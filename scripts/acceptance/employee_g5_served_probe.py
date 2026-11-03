@@ -69,15 +69,25 @@ class RecordingLLM:
             "task_type": kwargs.get("task_type"),
         }
         started = time.time()
+        record["attempt"] = len(self.calls) + 1
         try:
             result = await self.inner.generate_structured_response(**kwargs)
             record["parsed"] = (
                 result.model_dump() if hasattr(result, "model_dump")
                 else result)
+            raw = getattr(result, "_raw_response", None)
+            record["raw_available"] = raw is not None
+            if raw is not None:
+                record["raw"] = str(raw)[:20000]
             return result
         except Exception as exc:  # noqa: BLE001
-            record["error_type"] = type(exc).__name__
-            record["error"] = str(exc)[:12000]
+            try:
+                from core.employee_attempt_journal import _exception_detail
+
+                record.update(_exception_detail(exc))
+            except Exception:  # noqa: BLE001
+                record["error_type"] = type(exc).__name__
+                record["error"] = str(exc)[:12000]
             return None
         finally:
             record["seconds"] = round(time.time() - started, 3)
@@ -106,12 +116,15 @@ async def main() -> int:
     from core.goals.goal_service import GoalService
     from core.task_lifecycle import TaskLifecycle
     from core.assignment_executor import AssignmentExecutor, default_adapter_registry
-    from core.assignment_plan import new_assignment, new_step
+    from core.assignment_plan import (
+        new_assignment, new_step, new_teaching_snapshot,
+    )
     import core.quote_rows  # noqa: F401  (registers quote.lines_from_rows)
     from core.employee_proposal import (
         build_employee_context, context_from_record, propose_employee_work,
     )
     from core.employee_adaptation import propose_adaptation, adopt_adaptation
+    from core.employee_attempt_journal import AttemptJournal
 
     engine = create_engine(f"sqlite:///{tmp}/atom.db")
     Base.metadata.create_all(engine)
@@ -175,11 +188,40 @@ async def main() -> int:
                    {"column": "Price"}, {"column": "Currency"}],
         "coverage": {"complete": True, "known": True, "truncated": False},
         "source_version": "heldout-v1",
+        "resource_id": "heldout:price-book.xlsx",
+        "verification": {
+            "status": "verified",
+            "resource_id": "heldout:price-book.xlsx",
+            "version": "heldout-v1",
+            "coverage": {"complete": True, "truncated": False},
+        },
     }
+    terms = new_step(
+        step_id="terms", title="Read the taught commercial terms",
+        operation_type="retrieve", adapter="document.read",
+        inputs={}, effect="read_only")
+    terms["status"] = "applied"
+    terms["operation_id"] = "op-g5-terms"
+    terms["result"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        "rounding_authority": "held-out agreement",
+        "verification": {
+            "status": "verified", "resource_id": "heldout:terms.docx",
+            "version": "terms-v1"},
+    }
+    teaching = new_teaching_snapshot(revision="heldout-teach-1")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        "rounding_authority": "held-out agreement",
+    }
+    teaching["rules"] = [
+        "Use the accepted price rows and taught terms; no tax is inferred.",
+    ]
     plan = new_assignment(
         objective="Quote the held-out customer request using approved prices",
         employee_id="employee-1", workspace_id="ws-g5",
-        tenant_id="tenant-g5", steps=[read],
+        tenant_id="tenant-g5", steps=[read, terms],
+        teaching_snapshot=teaching,
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[{"kind": "required_work_complete"}])
     created = executor.create_assignment(
@@ -218,17 +260,26 @@ async def main() -> int:
         "step_id": "read",
         "reason": "the authorized price rows were read",
     }
+    adaptation_journal = AttemptJournal(
+        path=out / "attempts.jsonl", stage="evidence-adaptation")
     try:
         proposal = await asyncio.wait_for(propose_adaptation(
             context, [observation], assignment=record["assignment"],
-            llm_service=llm, provider_model=("ollama", args.model)),
-            timeout=args.deadline)
+            llm_service=llm, provider_model=("ollama", args.model),
+            deadline=time.monotonic() + args.deadline,
+            attempt_journal=adaptation_journal),
+            timeout=args.deadline + 10)
     except asyncio.TimeoutError:
         proposal = {
             "proposal": None, "source": "timeout",
             "technical_fallback": False,
             "errors": ["deadline_exceeded: evidence adaptation"],
+            "failure_stage": "outer-deadline",
         }
+    adaptation_journal.record(
+        "proposal-result", source=proposal.get("source"),
+        failure_stage=proposal.get("failure_stage"),
+        errors=proposal.get("errors"))
     report: Dict[str, Any] = {
         "schema": "atom-g5-served-probe-1",
         "provider": {
@@ -305,14 +356,23 @@ async def main() -> int:
                      "tax": "explicit descriptor, e.g. {basis: none}"}},
             ])
         try:
+            round_journal = AttemptJournal(
+                path=out / "attempts.jsonl",
+                stage=f"round-{round_index + 1}")
             current = await asyncio.wait_for(propose_adaptation(
                 context,
                 [{"observation_id": f"round-{round_index + 1}",
                   "kind": "evidence_result",
                   "reason": "the newly adopted steps completed"}],
                 assignment=assignment, llm_service=llm,
-                provider_model=("ollama", args.model)),
-                timeout=args.deadline)
+                provider_model=("ollama", args.model),
+                deadline=time.monotonic() + args.deadline,
+                attempt_journal=round_journal),
+                timeout=args.deadline + 10)
+            round_journal.record(
+                "proposal-result", source=current.get("source"),
+                failure_stage=current.get("failure_stage"),
+                errors=current.get("errors"))
         except asyncio.TimeoutError:
             rounds.append({
                 "round": round_index + 1,

@@ -1,0 +1,83 @@
+{
+  "artifacts": {
+    "README.md": "a4bd44f7325731399093100790893dcb693a7641da21138b1750549d703c663d",
+    "TEST_RESULTS.md": "6a8051809b756e2ba8da574319936640b8c68ebb524b088897e719e9fabccf39",
+    "affected-suite.log": "2d9f9948cff85eaeaf13d5e556f7e434c49306544d4d975adf08181400103d99",
+    "evidence-selection-calls.jsonl": "a31b538c1834e6f0bd10a2ed2342312018d92756af545b08e2fdeae84759474c",
+    "evidence-selection-report.json": "c3dd0a162f75b0d83e3ca38d4a95e5932e9d2c8dc89d1334704aa7607f942581",
+    "focused-tests.log": "6443a7078bea90618737e82185470027b36fa5eb61d55419c9d33cef90a4f2b2",
+    "served-work-request-negative-calls.jsonl": "49d7353200532078a7cdb893d58b990ffa7523a8a3180760ad23d71556ccbff0",
+    "served-work-request-negative-report.json": "cfea2f9c7d675e6ab17707e39b2912edca82eac173104fb7184e00e47bee948f",
+    "work-request-matrix.log": "b504fb271767c79ec276aaccc832abe27679f991f26a60530d4e257618fb8dfe"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "2ce023cc79abae713b552f8e85429e1a9cde105d",
+    "manifest_note": "Typed work compiler verified deterministically; the declared 8B follow-up work_request path timed out and is preserved as a negative. G5 is not qualified.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/employee_work_requests.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/core/assignment_invoice.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/assignment_executor.py",
+    "backend/tests/test_employee_work_requests.py",
+    "backend/tests/test_employee_work_request_matrix.py",
+    "backend/tests/test_employee_g5_model_proposal.py",
+    "scripts/acceptance/employee_g5_served_probe.py",
+    "scripts/acceptance/employee_g5_model_probe.py"
+  ],
+  "exclusions": [
+    "G5 adaptive employee capability not qualified",
+    "no served two-domain campaign",
+    "no cloud provider, credential, consent, send, spend or deployment",
+    "planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged",
+    "historical 111/123 unchanged",
+    "deterministic acceptance at 28afe7248 remains intact"
+  ],
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "schema": "atom-employee-g5-typed-work-preparation-1",
+  "served_negative": {
+    "calls": "served-work-request-negative-calls.jsonl",
+    "evidence_selection_calls": "evidence-selection-calls.jsonl",
+    "evidence_selection_report": "evidence-selection-report.json",
+    "report": "served-work-request-negative-report.json",
+    "result": "timeout; no work_request adopted; no calculated value",
+    "stage": "follow-up work_request generation"
+  },
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "04f28dc8b79cb2c4c0ab3bcf12a99c833097edb8595720ee2ebf8829b0965047",
+    "backend/core/assignment_invoice.py": "5f765bfa7bc5026ca95dfe2cbc23e1ba1d5448237d96ddd144df282a8a971d87",
+    "backend/core/employee_adaptation.py": "96a86665f38a371835783e069f211b56842b1258d557ab5450073ca44e1d41bf",
+    "backend/core/employee_proposal.py": "b8c8e209fb4f88291faa2ac1098a68767c6f516c9af1ca4dafc31c7e5398710a",
+    "backend/core/employee_work_compiler.py": "7e0f74d13b389a63b52284e03afa437ab86d8df6d490ba7bad22050015c50ef7",
+    "backend/core/employee_work_requests.py": "e9c9b0daecdf8f7fddff6906aef395bce74d32ea4da43808d7a86edc31040f8d",
+    "backend/tests/test_employee_g5_model_proposal.py": "e99ef73da2650853b15ca7e19cfa10d427f0d94c6fea5bcc45bde3a994121fde",
+    "backend/tests/test_employee_work_request_matrix.py": "310ae928976243bca1441894e1ae5c82c562ca95f9c6a40051babd4be71d2de9",
+    "backend/tests/test_employee_work_requests.py": "e01423382d85651f651d75e18dff85c9aebeecf8ba95d3a75bae1caa414ab987",
+    "scripts/acceptance/employee_g5_model_probe.py": "002429d93d174c2487e30d5078ca7ae2e24459fe630570378d00d50928f6456e",
+    "scripts/acceptance/employee_g5_served_probe.py": "d42831a60c6e4d726a40ea8087839952ecbfa849c52c33e7ebda749178d61d25"
+  },
+  "status": "preserved-negative-preparation",
+  "tests": {
+    "affected": {
+      "log": "affected-suite.log",
+      "result": "276 passed"
+    },
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "22 passed"
+    },
+    "work_request_matrix": {
+      "log": "work-request-matrix.log",
+      "result": "4 passed"
+    }
+  }
+}

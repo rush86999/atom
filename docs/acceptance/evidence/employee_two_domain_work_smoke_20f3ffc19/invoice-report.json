@@ -1,0 +1,684 @@
+{
+ "schema": "atom-g5-invoice-smoke-1",
+ "provider": {
+  "base_url": "http://127.0.0.1:11436/v1",
+  "model": "llama3.1:8b"
+ },
+ "proposal": {
+  "proposal": {
+   "decision": "replan",
+   "reason": "The available business operations support the accepted evidence.",
+   "observation_ids": [
+    "invoice-evidence-1"
+   ],
+   "step_ids": [],
+   "facts": [],
+   "new_steps": [],
+   "update_steps": [],
+   "work_request": {
+    "operation": "invoice_reconciliation",
+    "invoice_step_id": "invoice",
+    "purchase_order_step_id": "purchase-order",
+    "receiving_step_id": "receiving",
+    "vendor_step_id": null,
+    "coa_step_id": null,
+    "period_step_id": null,
+    "invoice_fields": {},
+    "purchase_order_fields": {},
+    "receiving_fields": {},
+    "currency": null,
+    "bill_action": null,
+    "evidence": [],
+    "reason": ""
+   },
+   "clarification": null
+  },
+  "source": "model",
+  "technical_fallback": false,
+  "errors": [],
+  "attempt_id": "c1faaeb785f041ef8c0978ea70b7a795"
+ },
+ "adoption": {
+  "status": "applied",
+  "patch_id": "work-a9f4edbf717dbb31e6c8-7904b39e38c903bb",
+  "material_digest": "c25895a7610d18eb487c07dcbcada86f11da9a44afdf80c6eaa473df9ed9c76f",
+  "affected_steps": [],
+  "updated_steps": [],
+  "retained_steps": [
+   "purchase-order",
+   "invoice",
+   "receiving"
+  ],
+  "plan_revision": 2,
+  "assignment": {
+   "schema_version": 1,
+   "assignment_id": "asg-161c2be902f44282",
+   "objective": "Reconcile the supplier invoice against the approved purchase order and receiving evidence and prepare only the supported bill",
+   "employee_id": "employee-books-1",
+   "workspace_id": "ws-g5",
+   "tenant_id": "tenant-g5",
+   "plan_revision": 2,
+   "status": "planned",
+   "teaching_snapshot": {
+    "revision": "",
+    "effective_lesson_ids": [],
+    "applicable_conditions": {},
+    "matched_context": {},
+    "unresolved_conditions": [],
+    "conflicting_conditions": [],
+    "field_mappings": [],
+    "source_versions": {},
+    "output_requirements": {},
+    "decision_schema": [],
+    "artifact_requirements": {},
+    "captured_at": "2026-11-03T15:14:10.478596+00:00",
+    "fingerprint_version": 2,
+    "fingerprint": "bd6a6de34acf06ebd66a8a32b54c1112"
+   },
+   "steps": [
+    {
+     "step_id": "purchase-order",
+     "title": "purchase-order",
+     "operation_type": "retrieve",
+     "adapter": "document.read",
+     "depends_on": [],
+     "inputs": {},
+     "instruction": "",
+     "required": true,
+     "effect": "read_only",
+     "approval": {
+      "required": false,
+      "purpose": ""
+     },
+     "standing_authorization": null,
+     "max_attempts": 3,
+     "invalidate_on_revision_change": true,
+     "requires": [],
+     "status": "applied",
+     "operation_id": "op-purchase-order",
+     "attempts": 0,
+     "result": {
+      "data": {
+       "po_id": "PO-7",
+       "vendor_id": "V-9"
+      },
+      "resource_id": "purchase-order-1",
+      "source_version": "purchase-order-v1",
+      "coverage": {
+       "complete": true,
+       "known": true,
+       "truncated": false
+      },
+      "verification": {
+       "status": "verified",
+       "resource_id": "purchase-order-1",
+       "version": "purchase-order-v1",
+       "coverage": {
+        "complete": true,
+        "truncated": false
+       }
+      }
+     },
+     "evidence_refs": [],
+     "gap_ids": [],
+     "artifact_revision": null,
+     "prior_results": [],
+     "created_at": "2026-11-03T15:14:10.478511+00:00",
+     "updated_at": "2026-11-03T15:14:10.478520+00:00"
+    },
+    {
+     "step_id": "invoice",
+     "title": "invoice",
+     "operation_type": "retrieve",
+     "adapter": "document.read",
+     "depends_on": [],
+     "inputs": {},
+     "instruction": "",
+     "required": true,
+     "effect": "read_only",
+     "approval": {
+      "required": false,
+      "purpose": ""
+     },
+     "standing_authorization": null,
+     "max_attempts": 3,
+     "invalidate_on_revision_change": true,
+     "requires": [],
+     "status": "applied",
+     "operation_id": "op-invoice",
+     "attempts": 0,
+     "result": {
+      "data": {
+       "invoice_id": "INV-7",
+       "po_id": "PO-7",
+       "quantity": "2",
+       "unit_price": "120.00",
+       "freight": "30.00",
+       "currency": "USD"
+      },
+      "resource_id": "invoice-1",
+      "source_version": "invoice-v1",
+      "coverage": {
+       "complete": true,
+       "known": true,
+       "truncated": false
+      },
+      "verification": {
+       "status": "verified",
+       "resource_id": "invoice-1",
+       "version": "invoice-v1",
+       "coverage": {
+        "complete": true,
+        "truncated": false
+       }
+      }
+     },
+     "evidence_refs": [],
+     "gap_ids": [],
+     "artifact_revision": null,
+     "prior_results": [],
+     "created_at": "2026-11-03T15:14:10.478536+00:00",
+     "updated_at": "2026-11-03T15:14:10.478537+00:00"
+    },
+    {
+     "step_id": "receiving",
+     "title": "receiving",
+     "operation_type": "retrieve",
+     "adapter": "workbook.read",
+     "depends_on": [],
+     "inputs": {},
+     "instruction": "",
+     "required": true,
+     "effect": "read_only",
+     "approval": {
+      "required": false,
+      "purpose": ""
+     },
+     "standing_authorization": null,
+     "max_attempts": 3,
+     "invalidate_on_revision_change": true,
+     "requires": [],
+     "status": "applied",
+     "operation_id": "op-receiving",
+     "attempts": 0,
+     "result": {
+      "data": {
+       "po_id": "PO-7",
+       "received_quantity": "2"
+      },
+      "resource_id": "receiving-1",
+      "source_version": "receiving-v1",
+      "coverage": {
+       "complete": true,
+       "known": true,
+       "truncated": false
+      },
+      "verification": {
+       "status": "verified",
+       "resource_id": "receiving-1",
+       "version": "receiving-v1",
+       "coverage": {
+        "complete": true,
+        "truncated": false
+       }
+      }
+     },
+     "evidence_refs": [],
+     "gap_ids": [],
+     "artifact_revision": null,
+     "prior_results": [],
+     "created_at": "2026-11-03T15:14:10.478546+00:00",
+     "updated_at": "2026-11-03T15:14:10.478547+00:00"
+    },
+    {
+     "step_id": "invoice-reconcile",
+     "title": "Reconcile invoice against purchase and receiving evidence",
+     "operation_type": "calculate",
+     "adapter": "invoice.reconcile",
+     "depends_on": [
+      "invoice",
+      "purchase-order",
+      "receiving"
+     ],
+     "inputs": {
+      "invoice": "${invoice.data}",
+      "purchase_order": "${purchase-order.data}",
+      "receiving": "${receiving.data}",
+      "invoice_fields": {
+       "po_id": "po_id",
+       "invoice_id": "invoice_id",
+       "quantity": "quantity",
+       "unit_price": "unit_price",
+       "freight": "freight",
+       "currency": "currency",
+       "version": "version",
+       "resource_id": "resource_id"
+      },
+      "purchase_order_fields": {
+       "po_id": "po_id",
+       "vendor_id": "vendor_id"
+      },
+      "receiving_fields": {
+       "po_id": "po_id",
+       "received_quantity": "received_quantity",
+       "version": "version"
+      },
+      "currency": ""
+     },
+     "instruction": "",
+     "required": true,
+     "effect": "local",
+     "approval": {
+      "required": false,
+      "purpose": ""
+     },
+     "standing_authorization": null,
+     "max_attempts": 3,
+     "invalidate_on_revision_change": true,
+     "requires": [
+      {
+       "kind": "receipt",
+       "step_id": "invoice",
+       "require": "verified"
+      },
+      {
+       "kind": "receipt",
+       "step_id": "purchase-order",
+       "require": "verified"
+      },
+      {
+       "kind": "receipt",
+       "step_id": "receiving",
+       "require": "verified"
+      }
+     ],
+     "status": "pending",
+     "operation_id": null,
+     "attempts": 0,
+     "result": null,
+     "evidence_refs": [],
+     "gap_ids": [],
+     "artifact_revision": null,
+     "prior_results": [],
+     "created_at": "2026-11-03T15:14:48.511939+00:00",
+     "updated_at": "2026-11-03T15:14:48.511941+00:00"
+    }
+   ],
+   "deliverables": [],
+   "sources": [],
+   "authorized_actions": [
+    "retrieve",
+    "calculate",
+    "outbound"
+   ],
+   "standing_authority": null,
+   "approval_policy": {},
+   "completion_criteria": [
+    {
+     "kind": "required_work_complete"
+    }
+   ],
+   "facts": [],
+   "budget": {
+    "max_steps": 40,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 3600.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 0,
+    "started_at": null,
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 0.0,
+    "waiting_since": null,
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": null,
+    "cost_usd": 0.0
+   },
+   "provenance": {
+    "run_id": "f25a95d2-ccb0-4daf-878b-4d05a38caf4e",
+    "conversation_id": "conv-g5-invoice"
+   },
+   "created_at": "2026-11-03T15:14:10.478695+00:00",
+   "updated_at": "2026-11-03T15:14:48.511959+00:00",
+   "completed_at": null,
+   "last_transition": {
+    "kind": "plan_patch",
+    "patch_id": "work-a9f4edbf717dbb31e6c8-7904b39e38c903bb",
+    "material_digest": "c25895a7610d18eb487c07dcbcada86f11da9a44afdf80c6eaa473df9ed9c76f",
+    "reason": "Compiled invoice_reconciliation request from typed work",
+    "affected_steps": [],
+    "updated_steps": [],
+    "retained_steps": [
+     "purchase-order",
+     "invoice",
+     "receiving"
+    ],
+    "at": "2026-11-03T15:14:48.511945+00:00"
+   },
+   "patch_history": [
+    {
+     "patch_id": "work-a9f4edbf717dbb31e6c8-7904b39e38c903bb",
+     "base_task_version": 2,
+     "base_plan_revision": 1,
+     "material_digest": "c25895a7610d18eb487c07dcbcada86f11da9a44afdf80c6eaa473df9ed9c76f",
+     "reason": "Compiled invoice_reconciliation request from typed work",
+     "observations": [
+      {
+       "observation_id": "invoice-evidence-1"
+      },
+      {
+       "kind": "work_request",
+       "operation": "invoice_reconciliation"
+      },
+      {
+       "kind": "evidence",
+       "step_id": "invoice"
+      },
+      {
+       "kind": "evidence",
+       "step_id": "purchase-order"
+      },
+      {
+       "kind": "evidence",
+       "step_id": "receiving"
+      }
+     ],
+     "affected_steps": [],
+     "updated_steps": [],
+     "retained_steps": [
+      "purchase-order",
+      "invoice",
+      "receiving"
+     ],
+     "at": "2026-11-03T15:14:48.511952+00:00"
+    }
+   ],
+   "patch_registry": {
+    "work-a9f4edbf717dbb31e6c8-7904b39e38c903bb": {
+     "material_digest": "c25895a7610d18eb487c07dcbcada86f11da9a44afdf80c6eaa473df9ed9c76f",
+     "base_task_version": 2,
+     "base_plan_revision": 1,
+     "result": {
+      "status": "applied",
+      "patch_id": "work-a9f4edbf717dbb31e6c8-7904b39e38c903bb",
+      "material_digest": "c25895a7610d18eb487c07dcbcada86f11da9a44afdf80c6eaa473df9ed9c76f",
+      "affected_steps": [],
+      "updated_steps": [],
+      "retained_steps": [
+       "purchase-order",
+       "invoice",
+       "receiving"
+      ],
+      "plan_revision": 2
+     },
+     "at": "2026-11-03T15:14:48.511957+00:00"
+    }
+   }
+  },
+  "decision": "replan",
+  "reason": "The available business operations support the accepted evidence.",
+  "work_request": {
+   "operation": "invoice_reconciliation",
+   "invoice_step_id": "invoice",
+   "purchase_order_step_id": "purchase-order",
+   "receiving_step_id": "receiving",
+   "vendor_step_id": null,
+   "coa_step_id": null,
+   "period_step_id": null,
+   "invoice_fields": {},
+   "purchase_order_fields": {},
+   "receiving_fields": {},
+   "currency": null,
+   "bill_action": null,
+   "evidence": [],
+   "reason": ""
+  },
+  "compiled": {
+   "request_digest": "a9f4edbf717dbb31",
+   "step_ids": [
+    "invoice-reconcile"
+   ]
+  }
+ },
+ "execution": {
+  "run_id": "f25a95d2-ccb0-4daf-878b-4d05a38caf4e",
+  "assignment": {
+   "assignment_id": "asg-161c2be902f44282",
+   "objective": "Reconcile the supplier invoice against the approved purchase order and receiving evidence and prepare only the supported bill",
+   "employee_id": "employee-books-1",
+   "workspace_id": "ws-g5",
+   "plan_revision": 2,
+   "status": "completed",
+   "teaching_revision": "",
+   "teaching_fingerprint": "bd6a6de34acf06ebd66a8a32b54c1112",
+   "teaching_history": [],
+   "effective_lesson_ids": [],
+   "mappings": [],
+   "mapping_history": [],
+   "deliverables": [],
+   "sources": [],
+   "authorized_actions": [
+    "retrieve",
+    "calculate",
+    "outbound"
+   ],
+   "standing_authority": null,
+   "budget": {
+    "max_steps": 40,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 3600.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 1,
+    "started_at": "2026-11-03T15:14:48.514802+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 0.0,
+    "waiting_since": null,
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": null,
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {},
+    "working_seconds": 0.202,
+    "wall_seconds": 0.202
+   },
+   "steps": [
+    {
+     "step_id": "purchase-order",
+     "title": "purchase-order",
+     "operation_type": "retrieve",
+     "adapter": "document.read",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "op-purchase-order",
+     "attempts": 0,
+     "result_summary": null,
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "invoice",
+     "title": "invoice",
+     "operation_type": "retrieve",
+     "adapter": "document.read",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "op-invoice",
+     "attempts": 0,
+     "result_summary": null,
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "receiving",
+     "title": "receiving",
+     "operation_type": "retrieve",
+     "adapter": "workbook.read",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "op-receiving",
+     "attempts": 0,
+     "result_summary": null,
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "invoice-reconcile",
+     "title": "Reconcile invoice against purchase and receiving evidence",
+     "operation_type": "calculate",
+     "adapter": "invoice.reconcile",
+     "depends_on": [
+      "invoice",
+      "purchase-order",
+      "receiving"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "d7582264-5b70-4d0b-8f5e-51869507244c",
+     "attempts": 0,
+     "result_summary": "reconciled invoice total 270.00 USD against received quantity 2",
+     "result_value": "270.00",
+     "result_unit": "USD",
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    }
+   ],
+   "created_at": "2026-11-03T15:14:10.478695+00:00",
+   "updated_at": "2026-11-03T15:14:48.704352+00:00",
+   "completed_at": "2026-11-03T15:14:48.704356+00:00",
+   "progress": {
+    "total_steps": 4,
+    "required_steps": 4,
+    "completed_steps": 4,
+    "waiting_steps": 0,
+    "failed_steps": 0,
+    "uncertain_steps": 0,
+    "open_gap_count": 0
+   }
+  },
+  "open_gaps": [],
+  "operations": [
+   {
+    "operation_id": "d7582264-5b70-4d0b-8f5e-51869507244c",
+    "step_id": "invoice-reconcile",
+    "type": "calculate",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "reconciled invoice total 270.00 USD against received quantity 2"
+   }
+  ]
+ },
+ "bill_calls": [],
+ "calls": [
+  {
+   "kind": "structured",
+   "prompt": "You are the accountable employee's adaptation reasoner. Choose the bounded response to the observation(s).\nRules:\n- For an evidence_result, if a listed context.available_business_operations is supported by the accepted evidence and taught terms, choose replan and return that work_request. Do not return retain merely because evidence was read. If no listed operation is supported, choose clarify when one fact is missing, otherwise retain. On a replan, return one work_request from context.work_request_schemas.\n- retain: no material change.\n- clarify: one targeted business fact/choice is missing.\n- reconcile: a possible external effect needs the existing operation reconciled; never resend.\n- Bind evidence by existing durable step_id. Do not invent rows, prices, totals, facts or authority.\n- quote_calculation.columns values are exact column NAMES from the evidence schema (for example 'Item', 'Qty', 'Price'), never cell values such as 'A', '2' or '100'.\n- freight/tax/currency authority_ref is the taught TERM KEY (for example 'freight', 'tax_basis'), never the term value or a free-form label; the compiler resolves and compares it.\n- Do not invent source/action IDs or authority; do not remove criteria or budget.\n- The compiler supplies execution mechanics. Do not author executable step JSON, step IDs, adapters, references or inputs on this supported path.\n- Return JSON only with this shape: {decision, reason, observation_ids, work_request, clarification}.\n- The response schema is WorkAdaptationProposal; fields outside that schema are rejected.\n\nCONTEXT:\n{\"action_views\": [{\"action\": \"books.create_bill\", \"description\": \"Create one reviewed bill\", \"effect\": \"external\"}], \"adapter_views\": [], \"authorized_actions\": [\"retrieve\", \"calculate\", \"outbound\"], \"available_business_operations\": [{\"operation\": \"invoice_reconciliation\", \"supports\": [\"quantity/amount reconciliation\", \"one targeted correction obligation when mismatched\"], \"when\": \"accepted invoice, purchase order and receiving evidence are available\"}], \"budget\": {\"active_wait\": null, \"cost_mode\": \"hard\", \"cost_overrun_usd\": 0.0, \"cost_reservations\": [], \"cost_usd\": 0.0, \"cost_violation\": null, \"deadline\": null, \"elapsed_seconds\": 0.0, \"max_attempts_per_step\": 3, \"max_cost_usd\": 0.0, \"max_steps\": 40, \"max_wall_seconds\": 3600.0, \"paused_seconds\": 0.0, \"reserved_cost_usd\": 0.0, \"soft_limit_authorized_by\": null, \"soft_limit_exceeded\": false, \"started_at\": null, \"steps_started\": 0, \"wait_credits\": {}, \"wait_credits_schema\": 1, \"waiting_since\": null}, \"criteria\": [{\"kind\": \"required_work_complete\"}], \"evidence_results\": [{\"adapter\": \"document.read\", \"artifact\": {}, \"coverage\": {\"complete\": true, \"known\": true, \"truncated\": false}, \"preview\": {\"note\": \"preview rows for reasoning only; compiled execution resolves full durable evidence and must not use these rows as the calculation population\", \"omitted_count\": 0, \"sampled\": true, \"shown_count\": 0, \"total_count\": 0}, \"rows\": [], \"schema\": [], \"source_identity\": {\"resource_id\": \"\", \"sha256\": \"\", \"version\": \"\"}, \"status\": \"applied\", \"step_id\": \"purchase-order\", \"summary\": \"\", \"truncated\": false, \"unit\": null, \"value\": null, \"verification\": {\"coverage\": {\"complete\": true, \"truncated\": false}, \"resource_id\": \"purchase-order-1\", \"status\": \"verified\", \"version\": \"purchase-order-v1\"}}, {\"adapter\": \"document.read\", \"artifact\": {}, \"coverage\": {\"complete\": true, \"known\": true, \"truncated\": false}, \"preview\": {\"note\": \"preview rows for reasoning only; compiled execution resolves full durable evidence and must not use these rows as the calculation population\", \"omitted_count\": 0, \"sampled\": true, \"shown_count\": 0, \"total_count\": 0}, \"rows\": [], \"schema\": [], \"source_identity\": {\"resource_id\": \"\", \"sha256\": \"\", \"version\": \"\"}, \"status\": \"applied\", \"step_id\": \"invoice\", \"summary\": \"\", \"truncated\": false, \"unit\": null, \"value\": null, \"verification\": {\"coverage\": {\"complete\": true, \"truncated\": false}, \"resource_id\": \"invoice-1\", \"status\": \"verified\", \"version\": \"invoice-v1\"}}, {\"adapter\": \"workbook.read\", \"artifact\": {}, \"coverage\": {\"complete\": true, \"known\": true, \"truncated\": false}, \"preview\": {\"note\": \"preview rows for reasoning only; compiled execution resolves full durable evidence and must not use these rows as the calculation population\", \"omitted_count\": 0, \"sampled\": true, \"shown_count\": 0, \"total_count\": 0}, \"rows\": [], \"schema\": [], \"source_identity\": {\"resource_id\": \"\", \"sha256\": \"\", \"version\": \"\"}, \"status\": \"applied\", \"step_id\": \"receiving\", \"summary\": \"\", \"truncated\": false, \"unit\": null, \"value\": null, \"verification\": {\"coverage\": {\"complete\": true, \"truncated\": false}, \"resource_id\": \"receiving-1\", \"status\": \"verified\", \"version\": \"receiving-v1\"}}], \"existing_step_ids\": [\"purchase-order\", \"invoice\", \"receiving\"], \"facts\": [], \"identity\": {\"agent_id\": null, \"employee_id\": \"employee-books-1\", \"execution_owner\": \"assignment\", \"tenant_id\": \"tenant-g5\", \"workspace_id\": \"ws-g5\"}, \"objective\": \"Reconcile the supplier invoice against the approved purchase order and receiving evidence and prepare only the supported bill\", \"open_obligations\": [], \"plan_revision\": 1, \"rules\": {\"allowed_proposal_kinds\": [\"replan\"], \"allowed_work_requests\": [\"invoice_reconciliation\"], \"can_execute\": false, \"can_grant_authority\": false, \"can_propose_supported_work\": true, \"can_supply_receipts\": false, \"clarify_only_when_material\": true, \"evidence_only\": false, \"execution_mechanics\": \"compiler\"}, \"schema\": \"atom-employee-work-proposal-1\", \"sources\": [], \"stage\": \"follow_up\", \"task_context\": {}, \"task_version\": 2, \"teaching\": {\"applicable_conditions\": {}, \"effective_lesson_ids\": [], \"revision\": \"\", \"rules\": [], \"terms\": {}}, \"work_request_schemas\": [{\"description\": \"Reconcile invoice quantity and amount against accepted purchase-order and receiving evidence.\", \"operation\": \"invoice_reconciliation\", \"schema\": {\"$defs\": {\"EvidenceRef\": {\"additionalProperties\": false, \"properties\": {\"role\": {\"default\": \"evidence\", \"maxLength\": 80, \"title\": \"Role\", \"type\": \"string\"}, \"step_id\": {\"maxLength\": 80, \"minLength\": 1, \"title\": \"Step Id\", \"type\": \"string\"}}, \"required\": [\"step_id\"], \"title\": \"EvidenceRef\", \"type\": \"object\"}}, \"additionalProperties\": false, \"properties\": {\"bill_action\": {\"anyOf\": [{\"maxLength\": 200, \"type\": \"string\"}, {\"type\": \"null\"}], \"default\": null, \"title\": \"Bill Action\"}, \"coa_step_id\": {\"anyOf\": [{\"maxLength\": 80, \"type\": \"string\"}, {\"type\": \"null\"}], \"default\": null, \"title\": \"Coa Step Id\"}, \"currency\": {\"anyOf\": [{\"maxLength\": 20, \"type\": \"string\"}, {\"type\": \"null\"}], \"default\": null, \"title\": \"Currency\"}, \"evidence\": {\"items\": {\"$ref\": \"#/$defs/EvidenceRef\"}, \"title\": \"Evidence\", \"type\": \"array\"}, \"invoice_fields\": {\"additionalProperties\": {\"type\": \"string\"}, \"title\": \"Invoice Fields\", \"type\": \"object\"}, \"invoice_step_id\": {\"maxLength\": 80, \"minLength\": 1, \"title\": \"Invoice Step Id\", \"type\": \"string\"}, \"operation\": {\"const\": \"invoice_reconciliation\", \"title\": \"Operation\", \"type\": \"string\"}, \"period_step_id\": {\"anyOf\": [{\"maxLength\": 80, \"type\": \"string\"}, {\"type\": \"null\"}], \"default\": null, \"title\": \"Period Step Id\"}, \"purchase_order_fields\": {\"additionalProperties\": {\"type\": \"string\"}, \"title\": \"Purchase Order Fields\", \"type\": \"object\"}, \"purchase_order_step_id\": {\"maxLength\": 80, \"minLength\": 1, \"title\": \"Purchase Order Step Id\", \"type\": \"string\"}, \"reason\": {\"default\": \"\", \"maxLength\": 800, \"title\": \"Reason\", \"type\": \"string\"}, \"receiving_fields\": {\"additionalProperties\": {\"type\": \"string\"}, \"title\": \"Receiving Fields\", \"type\": \"object\"}, \"receiving_step_id\": {\"maxLength\": 80, \"minLength\": 1, \"title\": \"Receiving Step Id\", \"type\": \"string\"}, \"vendor_step_id\": {\"anyOf\": [{\"maxLength\": 80, \"type\": \"string\"}, {\"type\": \"null\"}], \"default\": null, \"title\": \"Vendor Step Id\"}}, \"required\": [\"operation\", \"invoice_step_id\", \"purchase_order_step_id\", \"receiving_step_id\"], \"title\": \"InvoiceReconciliationRequest\", \"type\": \"object\"}}]}\n\nOBSERVATIONS:\n[{\"kind\": \"evidence_result\", \"observation_id\": \"invoice-evidence-1\", \"reason\": \"PO, invoice and receiving evidence are accepted\", \"step_id\": \"invoice\"}]",
+   "system_instruction": "You choose bounded business work and plan changes. You never execute, author execution plumbing or grant authority. Return JSON only.",
+   "response_model": "WorkAdaptationProposal",
+   "output_mode": "json",
+   "provider_model": [
+    "ollama",
+    "llama3.1:8b"
+   ],
+   "task_type": "planning",
+   "attempt": 1,
+   "parsed": {
+    "decision": "replan",
+    "reason": "The available business operations support the accepted evidence.",
+    "observation_ids": [
+     "invoice-evidence-1"
+    ],
+    "work_request": {
+     "operation": "invoice_reconciliation",
+     "invoice_step_id": "invoice",
+     "purchase_order_step_id": "purchase-order",
+     "receiving_step_id": "receiving",
+     "vendor_step_id": null,
+     "coa_step_id": null,
+     "period_step_id": null,
+     "invoice_fields": {},
+     "purchase_order_fields": {},
+     "receiving_fields": {},
+     "currency": null,
+     "bill_action": null,
+     "evidence": [],
+     "reason": ""
+    },
+    "clarification": null
+   },
+   "raw_available": true,
+   "raw": "ChatCompletion(id='chatcmpl-317', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{\\n', bytes=[123, 10], logprob=-3.307741641998291, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.11032107472419739, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0001519495708635077, top_logprobs=None), ChatCompletionTokenLogprob(token='decision', bytes=[100, 101, 99, 105, 115, 105, 111, 110], logprob=-0.0003355200169607997, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-0.00015302897372748703, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.9683038772200234e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='re', bytes=[114, 101], logprob=-0.03805914521217346, top_logprobs=None), ChatCompletionTokenLogprob(token='plan', bytes=[112, 108, 97, 110], logprob=-0.0029779840260744095, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.0007691731443628669, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-7.0463061092596035e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-8.611605153419077e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-0.001084699179045856, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-8.467677616863512e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.08092925697565079, top_logprobs=None), ChatCompletionTokenLogprob(token='The', bytes=[84, 104, 101], logprob=-1.7894988059997559, top_logprobs=None), ChatCompletionTokenLogprob(token=' available', bytes=[32, 97, 118, 97, 105, 108, 97, 98, 108, 101], logprob=-1.8698793649673462, top_logprobs=None), ChatCompletionTokenLogprob(token=' business', bytes=[32, 98, 117, 115, 105, 110, 101, 115, 115], logprob=-0.37016743421554565, top_logprobs=None), ChatCompletionTokenLogprob(token=' operations', bytes=[32, 111, 112, 101, 114, 97, 116, 105, 111, 110, 115], logprob=-0.659294605255127, top_logprobs=None), ChatCompletionTokenLogprob(token=' support', bytes=[32, 115, 117, 112, 112, 111, 114, 116], logprob=-1.8559484481811523, top_logprobs=None), ChatCompletionTokenLogprob(token=' the', bytes=[32, 116, 104, 101], logprob=-0.1750836968421936, top_logprobs=None), ChatCompletionTokenLogprob(token=' accepted', bytes=[32, 97, 99, 99, 101, 112, 116, 101, 100], logprob=-0.43411844968795776, top_logprobs=None), ChatCompletionTokenLogprob(token=' evidence', bytes=[32, 101, 118, 105, 100, 101, 110, 99, 101], logprob=-0.008653741329908371, top_logprobs=None), ChatCompletionTokenLogprob(token='.\",\\n', bytes=[46, 34, 44, 10], logprob=-0.8020632266998291, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-5.1889119276893325e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.6920473576174118e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='observation', bytes=[111, 98, 115, 101, 114, 118, 97, 116, 105, 111, 110], logprob=-8.593044913141057e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_ids', bytes=[95, 105, 100, 115], logprob=-3.027071761607658e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-7.4117792792094406e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' [\"', bytes=[32, 91, 34], logprob=-0.04194411262869835, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice', bytes=[105, 110, 118, 111, 105, 99, 101], logprob=-0.0002489368198439479, top_logprobs=None), ChatCompletionTokenLogprob(token='-e', bytes=[45, 101], logprob=-7.065216050250456e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='vidence', bytes=[118, 105, 100, 101, 110, 99, 101], logprob=-3.5205786730330146e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='-', bytes=[45], logprob=-2.398919036750158e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='1', bytes=[49], logprob=-6.597745993985882e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='\"],\\n', bytes=[34, 93, 44, 10], logprob=-0.000126179467770271, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-1.0222951459581964e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.3207210940890945e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='work', bytes=[119, 111, 114, 107], logprob=-0.00015229552809614688, top_logprobs=None), ChatCompletionTokenLogprob(token='_request', bytes=[95, 114, 101, 113, 117, 101, 115, 116], logprob=-9.662516094977036e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-0.00024290147121064365, top_logprobs=None), ChatCompletionTokenLogprob(token=' {\\n', bytes=[32, 123, 10], logprob=-0.011200137436389923, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-0.0003924438788089901, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.005800293758511543, top_logprobs=None), ChatCompletionTokenLogprob(token='operation', bytes=[111, 112, 101, 114, 97, 116, 105, 111, 110], logprob=-0.0027385216671973467, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.1913972230104264e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00017335887241642922, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice', bytes=[105, 110, 118, 111, 105, 99, 101], logprob=-0.0005739880725741386, top_logprobs=None), ChatCompletionTokenLogprob(token='_re', bytes=[95, 114, 101], logprob=-0.00020344565564300865, top_logprobs=None), ChatCompletionTokenLogprob(token='conciliation', bytes=[99, 111, 110, 99, 105, 108, 105, 97, 116, 105, 111, 110], logprob=-2.7476955892780097e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.0007119568763300776, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-4.194326538708992e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00015476795670110732, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice', bytes=[105, 110, 118, 111, 105, 99, 101], logprob=-0.10227078944444656, top_logprobs=None), ChatCompletionTokenLogprob(token='_step', bytes=[95, 115, 116, 101, 112], logprob=-0.011846468783915043, top_logprobs=None), ChatCompletionTokenLogprob(token='_id', bytes=[95, 105, 100], logprob=-9.964321634470252e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.2105527275707573e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0024130186066031456, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice', bytes=[105, 110, 118, 111, 105, 99, 101], logprob=-0.03302823752164841, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.007892364636063576, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-5.065932327852352e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.9240754290403856e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='purchase', bytes=[112, 117, 114, 99, 104, 97, 115, 101], logprob=-0.004781042225658894, top_logprobs=None), ChatCompletionTokenLogprob(token='_order', bytes=[95, 111, 114, 100, 101, 114], logprob=-1.0242268217552919e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_step', bytes=[95, 115, 116, 101, 112], logprob=-0.00026596756651997566, top_logprobs=None), ChatCompletionTokenLogprob(token='_id', bytes=[95, 105, 100], logprob=-4.6835211264806276e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.9007774199053529e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00041006263927556574, top_logprobs=None), ChatCompletionTokenLogprob(token='purchase', bytes=[112, 117, 114, 99, 104, 97, 115, 101], logprob=-0.002932714531198144, top_logprobs=None), ChatCompletionTokenLogprob(token='-order', bytes=[45, 111, 114, 100, 101, 114], logprob=-0.0004455488233361393, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-6.162127829156816e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-7.768354066683969e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.0070498862878594e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='re', bytes=[114, 101], logprob=-5.0222264690091833e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='ceiving', bytes=[99, 101, 105, 118, 105, 110, 103], logprob=-1.2658213677241292e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='_step', bytes=[95, 115, 116, 101, 112], logprob=-1.8141336113330908e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_id', bytes=[95, 105, 100], logprob=-2.0180051762963558e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.0748666454674094e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.739107225759653e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='re', bytes=[114, 101], logprob=-0.0001544327533338219, top_logprobs=None), ChatCompletionTokenLogprob(token='ceiving', bytes=[99, 101, 105, 118, 105, 110, 103], logprob=-7.161324333537777e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='\"\\n', bytes=[34, 10], logprob=-1.5021052360534668, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.00014589914644602686, top_logprobs=None), ChatCompletionTokenLogprob(token=' },\\n', bytes=[32, 125, 44, 10], logprob=-0.02835037373006344, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-2.3462594981538132e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.072876122838352e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='clar', bytes=[99, 108, 97, 114], logprob=-0.001098243403248489, top_logprobs=None), ChatCompletionTokenLogprob(token='ification', bytes=[105, 102, 105, 99, 97, 116, 105, 111, 110], logprob=-1.0281819413648918e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-9.578521712683141e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.02475629560649395, top_logprobs=None), ChatCompletionTokenLogprob(token='\\n', bytes=[10], logprob=-4.487419573706575e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='}', bytes=[125], logprob=-0.003432367229834199, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{\\n  \"decision\": \"replan\",\\n  \"reason\": \"The available business operations support the accepted evidence.\",\\n  \"observation_ids\": [\"invoice-evidence-1\"],\\n  \"work_request\": {\\n    \"operation\": \"invoice_reconciliation\",\\n    \"invoice_step_id\": \"invoice\",\\n    \"purchase_order_step_id\": \"purchase-order\",\\n    \"receiving_step_id\": \"receiving\"\\n  },\\n  \"clarification\": null\\n}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793718887, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=92, prompt_tokens=4876, total_tokens=4968, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))",
+   "seconds": 37.688
+  }
+ ],
+ "reconcile_value": "270.00"
+}

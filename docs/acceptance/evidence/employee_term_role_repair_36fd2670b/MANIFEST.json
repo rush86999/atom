@@ -1,0 +1,57 @@
+{
+ "schema": "atom-employee-term-role-repair-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "36fd2670b",
+  "tree_clean_at_run": false,
+  "manifest_note": "Role/dimension enforcement and consumption-time revalidation for accepted money terms; deterministic repair evidence only.",
+  "runtime_files_clean_at_run": true,
+  "evidence_run_note": "Runtime source files were clean at 36fd2670b. The binding test file had uncommitted added controls, so the original manifest test hash was not checkout-verifiable. The intended controls are committed separately at c55cc9450; this manifest now records the committed 36fd2670b test hash."
+ },
+ "source_hashes": {
+  "backend/core/employee_money_terms.py": "bf75728944fcb9990114ccfe634112429c8a2c9a695bfa3876527ee926273995",
+  "backend/core/employee_work_compiler.py": "b8922f0a0eb1db320980e8ed23a1451faa29c07d9e42d8f4204b87961e693e32",
+  "backend/core/assignment_quote.py": "80044b16471feee87fbe277d9935376cd95ba98c34686ac52cac5ef2ab5ef9be",
+  "backend/core/assignment_executor.py": "4bdb2a9d0ea855df7fb9fe3db9ebe4dc9cf2cd4fbacd9f26f7359fa7dc1de369",
+  "backend/tests/test_employee_work_request_bindings.py": "130e18a93f1dc90ef640af089a574831abf33a99b6a336745f372e56fbdbe549"
+ },
+ "artifacts": {
+  "README.md": "1b50d9c7515adae7cae4aa69269b5ca70694ac9bbb59a6363223b289421d5335",
+  "TEST_RESULTS.md": "1a6c43f1dae330c6fe06d477ec9b3b6d44b4718adc2a29230d7a7c3fa96af322",
+  "affected-suite.log": "c0c91b6aa14c1cef287923fb74c8d6361e4ead692f2391ac1a46af60bb2947d3",
+  "focused-tests.log": "21b242558f0e7ac8e2d368bb94b398224b5a2f6aa1fb5b168a4031e0da249c5f",
+  "independent-probes.log": "108e9e48caf18ff717a3d583b3ad22f6b3add1b414048eeab7704fcccbee59b9",
+  "verifier-term-probe.log": "ec48ff7956dcff902a3e4d9221f60ab3d2a83b6642af1b39f847ebfb1e1bd423",
+  "PACKAGING_FOLLOWUP.md": "07bb98a72e2a98b8afba19437c21d6aa555c6b9ef9eed25d61453ff61472628a",
+  "PACKAGING_FOLLOWUP.json": "9f3de8ad6c777082fea1ee43d9debca51b71ef46bf82ab92ddafe3d741180476",
+  "PACKAGING_VERIFICATION.log": "5522d64dada50c99b833e45d5c5c52b6a2b8e2ddacea12cf4a915f0ab1709e5f"
+ },
+ "results": {
+  "verifier_terms": "2 passed",
+  "independent_probes": "22 passed",
+  "focused": "179 passed",
+  "affected": "789 passed, 8 deselected",
+  "g5_qualified": false
+ },
+ "exclusions": [
+  "full G5 adaptive campaign not run",
+  "no model inference used for this repair",
+  "no cloud provider, credential, consent, send, spend or deployment",
+  "prior acceptance 28afe7248 and historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ],
+ "packaging_correction": {
+  "corrected_from_commit": "f086d4999",
+  "corrected_at_evidence_tip": "current checkout",
+  "test_file": {
+   "path": "backend/tests/test_employee_work_request_bindings.py",
+   "original_manifest_hash": "1d53f1e1991bb611a03fee49689f58a719e3e90b7e66323e728ea76986e59312",
+   "original_hash_status": "dirty-worktree-not-committed",
+   "committed_hash_at_36fd2670b": "130e18a93f1dc90ef640af089a574831abf33a99b6a336745f372e56fbdbe549"
+  },
+  "logs": {
+   "status": "present and verified",
+   "note": "The four logs listed in artifacts were added by evidence follow-up 3482137aa; their bytes match the original manifest hashes."
+  },
+  "note": "Manifest correction only. Runtime source remains 36fd2670b; no log was regenerated, no runtime hash was altered, and the accepted source is unchanged. The intended added test controls are bound to successor c55cc9450, not to this manifest."
+ }
+}

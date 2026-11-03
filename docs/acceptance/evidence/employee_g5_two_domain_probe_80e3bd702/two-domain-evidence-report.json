@@ -1,0 +1,118 @@
+{
+  "schema": "atom-g5-model-probe-1",
+  "generated_at": "2026-11-03T15:14:03.603313+00:00",
+  "model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "boundaries": [
+    "local Ollama only; no cloud/provider key",
+    "proposal consumer only; no effect/send",
+    "deterministic fallback is not adaptive success"
+  ],
+  "cases": [
+    {
+      "name": "industrial_quote",
+      "objective": "Prepare an accurate, cited industrial quote for customer C-104 using approved commercial sources. The customer requires delivery within 10 calendar days and a total no greater than 500 USD. Apply only established eligibility and approved equivalents.",
+      "proposal_source": "model",
+      "technical_fallback": false,
+      "errors": [],
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "To prepare an accurate, cited industrial quote for customer C-104 using approved commercial sources.",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Retrieve price list from heldout-price-list.xlsx",
+            "source_id": "price-workbook",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-2",
+            "title": "Verify customer terms in customer-terms.docx",
+            "source_id": "terms-agreement",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-3",
+            "title": "Check customer record in customer-C-104.json",
+            "source_id": "customer-record",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          },
+          {
+            "step_id": "evidence-4",
+            "title": "Verify approved equivalence in approved-equivalence.pdf",
+            "source_id": "equivalence-record",
+            "action": "",
+            "arguments": {},
+            "requires": [],
+            "reason": ""
+          }
+        ],
+        "clarification": null
+      },
+      "selected_handles": [
+        "price-workbook",
+        "terms-agreement",
+        "customer-record",
+        "equivalence-record"
+      ],
+      "required_prerequisites": [
+        "price-workbook",
+        "terms-agreement"
+      ],
+      "discovered_required": [
+        "price-workbook",
+        "terms-agreement"
+      ],
+      "model_backed": true,
+      "seconds": 18.21
+    },
+    {
+      "name": "procurement_bookkeeping",
+      "objective": "Reconcile supplier invoice INV-2210 against approved purchase order PO-8841 and receiving records. Prepare or post only the supported reviewed bill; do not infer tax or rewrite quantities.",
+      "proposal_source": "deterministic",
+      "technical_fallback": true,
+      "errors": [
+        "evidence_reads[0] must choose a source read or an action, not both",
+        "evidence_reads[0] names unknown action 'calculate'"
+      ],
+      "proposal": {
+        "proposal_kind": "evidence_read",
+        "reason": "No model proposal is available; read the strongest authorized source so the employee can establish evidence without guessing.",
+        "evidence_reads": [
+          {
+            "step_id": "evidence-1",
+            "title": "Read PO-8841.pdf (source)",
+            "source_id": "purchase-order",
+            "reason": "Authorized evidence is the safest useful first step."
+          }
+        ]
+      },
+      "selected_handles": [
+        "purchase-order"
+      ],
+      "required_prerequisites": [
+        "invoice-v1",
+        "purchase-order",
+        "receiving-records"
+      ],
+      "discovered_required": [
+        "purchase-order"
+      ],
+      "model_backed": false,
+      "seconds": 43.4
+    }
+  ],
+  "calls": 2
+}

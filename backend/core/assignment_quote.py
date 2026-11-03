@@ -23,6 +23,18 @@ from core.assignment_executor import (
     NeedsContext,
     register_assignment_adapter,
 )
+from core.employee_money_terms import (
+    ROLE_CURRENCY,
+    ROLE_FREIGHT_AMOUNT,
+    ROLE_TAX_AMOUNT,
+    ROLE_TAX_EXEMPTION,
+    ROLE_TAX_RATE,
+    TermContractError,
+    canonical_role,
+    resolve_accepted_term,
+    same_role_value,
+    source_identity,
+)
 
 #: Currencies are data. They are validated for structural identity, never
 #: converted implicitly.
@@ -1094,6 +1106,157 @@ def _bind_quote_gap(
     raw_inputs["binding_key"] = binding.get("binding_key") or ""
 
 
+def _resolve_current_term(
+    term: Dict[str, Any], *, context: Dict[str, Any], label: str,
+    expected_value: Any, expected_currency: str,
+    roles: Sequence[str],
+) -> Dict[str, Any]:
+    """Re-resolve a compiled term from current accepted job state.
+
+    The copied receipt is integrity evidence only. The authoritative teaching
+    snapshot/fact is looked up again and its role, scope, revision, source
+    identity, validity, value and currency are checked at this boundary.
+    """
+    source = str(term.get("source") or "").strip().lower()
+    term_id = str(term.get("term_id") or "").strip()
+    assignment = context.get("assignment") if isinstance(
+        context.get("assignment"), dict) else {}
+    facts = context.get("facts") or assignment.get("facts") or []
+    teaching = context.get("teaching") or assignment.get(
+        "teaching_snapshot") or {}
+    try:
+        resolved = resolve_accepted_term(
+            term_id, teaching=teaching, facts=facts,
+            assignment=assignment)
+    except TermContractError as exc:
+        raise QuoteInputError(
+            f"{label} term is no longer authoritative: {exc}") from exc
+    if str(resolved.get("source") or "") != source:
+        raise QuoteInputError(
+            f"{label} term source changed from {source!r} to "
+            f"{resolved.get('source')!r}")
+    role = canonical_role(resolved.get("role")) or str(
+        resolved.get("role") or "")
+    allowed = {
+        canonical_role(item) or str(item).strip().lower()
+        for item in roles
+    }
+    receipt_role = canonical_role(term.get("role")) or str(
+        term.get("role") or "").strip().lower()
+    if role not in allowed or (receipt_role and receipt_role not in allowed):
+        raise QuoteInputError(
+            f"{label} term role {role or receipt_role!r} is not compatible "
+            "with this field")
+    receipt_refs = source_identity(term.get("source_refs") or [])
+    resolved_refs = source_identity(resolved.get("source_refs") or [])
+    if receipt_refs and resolved_refs and receipt_refs != resolved_refs:
+        raise QuoteInputError(
+            f"{label} term source identity changed from its accepted state")
+    receipt_revision = str(term.get("teaching_revision") or "")
+    resolved_revision = str(resolved.get("teaching_revision") or "")
+    if receipt_revision and resolved_revision and (
+            receipt_revision != resolved_revision):
+        raise QuoteInputError(
+            f"{label} term teaching revision changed from its accepted state")
+    receipt_fingerprint = str(term.get("teaching_fingerprint") or "")
+    resolved_fingerprint = str(resolved.get("teaching_fingerprint") or "")
+    if receipt_fingerprint and resolved_fingerprint and (
+            receipt_fingerprint != resolved_fingerprint):
+        raise QuoteInputError(
+            f"{label} term teaching fingerprint changed from its accepted "
+            "state")
+    canonical = role
+    if not same_role_value(
+            canonical, resolved.get("value"), term.get("value")):
+        raise QuoteInputError(
+            f"{label} term value changed from its accepted state")
+    if not same_role_value(canonical, resolved.get("value"), expected_value):
+        raise QuoteInputError(
+            f"{label} term value does not match the calculation input")
+    current_currency = str(resolved.get("currency") or "")
+    if expected_currency and current_currency and str(
+            current_currency).strip().upper() != str(
+            expected_currency).strip().upper():
+        raise QuoteInputError(
+            f"{label} term currency changed or does not match")
+    return {
+        "term_id": term_id, "role": role,
+        "value": resolved.get("value"),
+        "currency": current_currency, "source": source,
+    }
+
+
+def _validate_term_receipt(
+    receipt: Any, currency: str, freight: Any, tax: Any,
+    context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Revalidate compiled money-term provenance at consumption.
+
+    The receipt is an integrity check, not authorization. The bound term is
+    re-resolved from the current accepted job teaching/facts and its expiry/
+    scope/role/value are checked again at the consumption boundary.
+    """
+    if not isinstance(receipt, dict) or not receipt:
+        raise QuoteInputError(
+            "quote term provenance is missing; recompile the work request")
+    context = context or {}
+    currency_term = receipt.get("currency")
+    if not isinstance(currency_term, dict):
+        raise QuoteInputError("quote term receipt has no currency provenance")
+    if str(currency_term.get("value") or "").strip().upper() != str(
+            currency or "").strip().upper():
+        raise QuoteInputError(
+            "quote currency differs from its accepted term provenance")
+    _resolve_current_term(
+        currency_term, context=context, label="quote currency",
+        expected_value=currency, expected_currency="",
+        roles=(ROLE_CURRENCY,))
+    freight_term = receipt.get("freight")
+    if not isinstance(freight_term, dict):
+        raise QuoteInputError("quote term receipt has no freight provenance")
+    try:
+        if Decimal(str(freight_term.get("value"))) != Decimal(str(freight)):
+            raise QuoteInputError(
+                "quote freight differs from its accepted term provenance")
+    except (InvalidOperation, ValueError) as exc:
+        raise QuoteInputError(
+            "quote freight provenance is not a finite decimal") from exc
+    _resolve_current_term(
+        freight_term, context=context, label="quote freight",
+        expected_value=freight, expected_currency=currency,
+        roles=(ROLE_FREIGHT_AMOUNT,))
+    tax_term = receipt.get("tax")
+    if not isinstance(tax_term, dict):
+        raise QuoteInputError("quote term receipt has no tax provenance")
+    basis = str((tax or {}).get("basis") or "").strip().lower()
+    taught = str(tax_term.get("value") or "").strip()
+    if basis in ("none", "zero", "exempt"):
+        if taught.lower() not in ("0", "0.00", "none", "zero", "exempt",
+                                  "false"):
+            raise QuoteInputError(
+                "quote tax exemption differs from its accepted term")
+        _resolve_current_term(
+            tax_term, context=context, label="quote tax exemption",
+            expected_value=taught, expected_currency=currency,
+            roles=(ROLE_TAX_EXEMPTION,))
+    else:
+        expected = (tax or {}).get("rate") if basis == "rate" else (
+            tax or {}).get("amount")
+        try:
+            if Decimal(taught) != Decimal(str(expected)):
+                raise QuoteInputError(
+                    "quote tax differs from its accepted term provenance")
+        except (InvalidOperation, ValueError) as exc:
+            raise QuoteInputError(
+                "quote tax provenance is not a finite decimal") from exc
+        _resolve_current_term(
+            tax_term, context=context, label="quote tax",
+            expected_value=expected, expected_currency=currency,
+            roles=((ROLE_TAX_RATE,) if basis == "rate"
+                   else (ROLE_TAX_AMOUNT,)))
+    return receipt
+
+
 @register_assignment_adapter(
     "quote.calculate",
     description="Calculate evidence-backed line items with exact decimals",
@@ -1106,7 +1269,7 @@ async def _quote_calculate(
 ) -> Dict[str, Any]:
     try:
         merged_inputs = _merge_resolved_discount_inputs(inputs, context)
-        return calculate_line_items(
+        result = calculate_line_items(
             line_items=merged_inputs.get("line_items") or [],
             currency=str(merged_inputs.get("currency") or ""),
             freight=merged_inputs.get("freight"),
@@ -1120,6 +1283,17 @@ async def _quote_calculate(
                 or "currency_minor_unit"),
             source_evidence=merged_inputs.get("source_evidence") or [],
         )
+        receipt = merged_inputs.get("term_receipt")
+        if receipt is None and merged_inputs.get("term_binding_required"):
+            raise QuoteInputError(
+                "compiled quote term provenance is missing; recompile the "
+                "work request")
+        if receipt is not None:
+            result["term_receipt"] = _validate_term_receipt(
+                receipt, str(merged_inputs.get("currency") or ""),
+                merged_inputs.get("freight"), merged_inputs.get("tax"),
+                context)
+        return result
     except NeedsContext as exc:
         _bind_quote_gap(exc.gap, inputs, context)
         raise
