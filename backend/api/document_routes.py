@@ -4,6 +4,8 @@ Document Routes - API endpoints for document ingestion and search
 import asyncio
 from datetime import datetime, timezone
 import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 import uuid
 import json
@@ -311,6 +313,12 @@ async def upload_document(
         # same row (skip/replace); DIFFERENT files sharing a filename → two
         # rows (a filename is metadata, never an identity key).
         doc_id = _content_doc_key(content)
+        upload_root = Path(
+            os.getenv("ATOM_OFFICE_DIR") or "data/office").expanduser()
+        upload_root = upload_root / "uploads"
+        upload_root.mkdir(parents=True, exist_ok=True)
+        materialized_path = upload_root / f"{doc_id}.{file_ext or 'bin'}"
+        materialized_path.write_bytes(content_bytes)
         from core.doc_freshness_service import hash_text
 
         metadata = {
@@ -370,7 +378,7 @@ async def upload_document(
                     )
                     db.add(_row)
                 _row.file_name = filename
-                _row.file_path = f"upload:{filename}"
+                _row.file_path = str(materialized_path)
                 _row.file_type = file_ext
                 _row.file_size_bytes = len(content_bytes)
                 _row.content_preview = content[:500]
