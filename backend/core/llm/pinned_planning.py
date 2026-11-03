@@ -251,6 +251,17 @@ def _parsed_payload(result: Any) -> Any:
         return None
 
 
+def _raw_payload(result: Any) -> Any:
+    """Best-effort raw provider completion for the attempt journal."""
+    raw = getattr(result, "_raw_response", None)
+    if raw is None:
+        return None
+    try:
+        return str(raw)[:12000]
+    except Exception:  # noqa: BLE001
+        return None
+
+
 async def pinned_structured_call(
     llm_service: Any,
     *,
@@ -429,7 +440,8 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
-                parsed=_parsed_payload(direct_result))
+                parsed=_parsed_payload(direct_result),
+                raw=_raw_payload(direct_result))
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(
