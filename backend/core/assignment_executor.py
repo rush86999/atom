@@ -7003,8 +7003,15 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
     source_label = _source_label(source)
     truncated = matched > limit
     coverage = dict(source.get("coverage") or {})
-    coverage.update({"complete": not truncated, "known": True,
-                     "truncated": truncated})
+    expected_count = coverage.get(
+        "source_row_count", coverage.get("expected_count"))
+    coverage.update({
+        "complete": not truncated,
+        "known": True,
+        "truncated": truncated,
+        "expected_count": expected_count if expected_count is not None else matched,
+        "observed_count": matched,
+    })
     resource_id = str(source.get("resource_id") or "")
     version = str(source.get("source_version") or "")
     return {
