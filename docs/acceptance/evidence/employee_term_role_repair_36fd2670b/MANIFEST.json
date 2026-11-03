@@ -3,8 +3,10 @@
  "candidate": {
   "branch": "codex/brennan-full-app-20261102",
   "executed_source": "36fd2670b",
-  "tree_clean_at_run": true,
-  "manifest_note": "Role/dimension enforcement and consumption-time revalidation for accepted money terms; deterministic repair evidence only."
+  "tree_clean_at_run": false,
+  "manifest_note": "Role/dimension enforcement and consumption-time revalidation for accepted money terms; deterministic repair evidence only.",
+  "runtime_files_clean_at_run": true,
+  "evidence_run_note": "Runtime source files were clean at 36fd2670b. The binding test file had uncommitted added controls, so the original manifest test hash was not checkout-verifiable. The intended controls are committed separately at c55cc9450; this manifest now records the committed 36fd2670b test hash."
  },
  "source_hashes": {
   "backend/core/employee_money_terms.py": "bf75728944fcb9990114ccfe634112429c8a2c9a695bfa3876527ee926273995",
@@ -21,7 +23,8 @@
   "independent-probes.log": "108e9e48caf18ff717a3d583b3ad22f6b3add1b414048eeab7704fcccbee59b9",
   "verifier-term-probe.log": "ec48ff7956dcff902a3e4d9221f60ab3d2a83b6642af1b39f847ebfb1e1bd423",
   "PACKAGING_FOLLOWUP.md": "07bb98a72e2a98b8afba19437c21d6aa555c6b9ef9eed25d61453ff61472628a",
-  "PACKAGING_FOLLOWUP.json": "9f3de8ad6c777082fea1ee43d9debca51b71ef46bf82ab92ddafe3d741180476"
+  "PACKAGING_FOLLOWUP.json": "9f3de8ad6c777082fea1ee43d9debca51b71ef46bf82ab92ddafe3d741180476",
+  "PACKAGING_VERIFICATION.log": "afeaf3ca04886cb1daff381115dff997a6cf503f823a37ab21388c6d341d03a6"
  },
  "results": {
   "verifier_terms": "2 passed",
