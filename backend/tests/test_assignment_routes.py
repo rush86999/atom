@@ -37,7 +37,7 @@ from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_service import GoalService
 from core.models import (
     Base, DatasetEntry, GoalRun, HITLAction, HITLActionStatus,
-    IntegrationToken, User,
+    IngestedDocument, IntegrationToken, User,
 )
 from core.task_lifecycle import TaskLifecycle
 
@@ -3105,6 +3105,61 @@ def test_objective_only_reads_authorized_evidence(route_env, tmp_path, monkeypat
     assert fresh_record["assignment"]["employee_id"]
     assert fresh_record["assignment"]["completion_criteria"]
     assert fresh_record["assignment"]["sources"]
+
+
+def test_objective_uploaded_document_is_selectable_and_readable(
+        route_env, tmp_path, monkeypatch):
+    payload = tmp_path / "purchase-order.json"
+    payload.write_text(
+        '{"po_id": "PO-9", "vendor_id": "V-2", "quantity": "2", '
+        '"unit_price": "10.00", "currency": "USD"}')
+    doc = IngestedDocument(
+        id="doc-upload-1", workspace_id="ws-1", tenant_id="tenant-1",
+        file_name="purchase-order.json", file_path=str(payload),
+        file_type="json", integration_id="upload", external_id="upload-1",
+        source_content_hash="v1", freshness_status="fresh")
+    route_env["db"].add(doc)
+    route_env["db"].commit()
+
+    sources = route_env["client"].get("/api/assignments/sources")
+    assert sources.status_code == 200, sources.text
+    uploaded = next(
+        item for item in sources.json()
+        if item.get("document_id") == "doc-upload-1")
+    assert uploaded["kind"] == "document"
+
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the uploaded purchase order.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read purchase order",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Read the uploaded purchase order",
+            "sources": [{"document_id": "doc-upload-1"}],
+            "authorized_actions": ["retrieve"],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    step = internal["steps"][0]
+    assert step["status"] == "applied", step
+    assert step["result"]["data"]["po_id"] == "PO-9"
 
 
 def test_objective_only_returns_one_targeted_business_question(

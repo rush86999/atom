@@ -7500,6 +7500,18 @@ async def _document_text_read(
         inputs.get("resource_binding"), dict) else {}
     document_id = str(
         binding.get("resource_id") or inputs.get("document_id") or "").strip()
+    path = str(inputs.get("path") or binding.get("path") or "").strip()
+    if path and os.path.isfile(path):
+        result = await _document_read(inputs, context)
+        text = str(result.get("text") or "")
+        if text.strip().startswith("{"):
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                result["data"] = payload
+        return result
     if not document_id:
         raise NeedsContext({
             "concept": "document_identity",
