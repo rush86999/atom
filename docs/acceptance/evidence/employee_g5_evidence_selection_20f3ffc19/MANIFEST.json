@@ -1,0 +1,40 @@
+{
+ "schema": "atom-employee-g5-evidence-selection-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "20f3ffc19ef3c22e42cc8e5bc5faba1abfbfbf90",
+  "evidence_tip_at_run": "ce0b69626a9f8b80531db82c37f9a4f86f6ea0dd",
+  "tree_clean_at_run": true,
+  "manifest_note": "Current-source evidence selection: industrial quote passes; procurement returns a parsed but invalid proposal (mixed source_id/action, missing invoice-v1) and falls back to purchase-order only."
+ },
+ "local_model": {
+  "declared": "llama3.1:8b",
+  "base_url": "http://127.0.0.1:11436/v1",
+  "pin": "ollama:llama3.1:8b"
+ },
+ "source_hashes": {
+  "backend/core/employee_proposal.py": "46d67a6adcaf423812fe2730fd703088d9ede5d218e022b182274bb8043acf36",
+  "backend/core/employee_work_compiler.py": "09a764a1225c5a5f5e25426752fd6f206d1c1181fe25b5c729804206dc02eabd",
+  "backend/core/employee_work_requests.py": "880d7597f23bc7d32e0e9efc3ae3f0d231dc22fa95bf000344c7efafb91e7a1b",
+  "backend/core/employee_adaptation.py": "4a74c46301835d189dbd9eccf166ac3e5e00b127c656e5c84d0685d485c33c79",
+  "scripts/acceptance/employee_g5_model_probe.py": "002429d93d174c2487e30d5078ca7ae2e24459fe630570378d00d50928f6456e"
+ },
+ "artifacts": {
+  "README.md": "ba48d3c5a22827e631a06cf7257bb5f1dbd02cd88c476eb4242c72fc36160c51",
+  "evidence-selection-calls.jsonl": "772ed0b7423c7ffd9bef8630e0975a8e58139a33371e743d7e1def475c2ed987",
+  "evidence-selection-report.json": "866cd2b8425dcdb9e3546eaa36c04e18d4863597977dd2d0fbe4b2b0d36d927d"
+ },
+ "results": {
+  "industrial_quote": "model source; required sources selected",
+  "procurement_bookkeeping": "negative; parsed proposal mixed source_id and action and omitted invoice-v1; production fallback selected purchase-order only",
+  "typed_work_smokes_on_same_code": "quote 370.00 and invoice 270.00 passed in employee_two_domain_work_smoke_20f3ffc19",
+  "g5_qualified": false
+ },
+ "exclusions": [
+  "full held-out two-domain adaptive journey not run to completion",
+  "procurement evidence selection remains a model-semantic gap",
+  "no cloud provider, credential, consent, send, spend or deployment",
+  "prior deterministic acceptance 28afe7248 remains intact",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ]
+}
