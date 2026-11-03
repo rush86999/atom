@@ -51,6 +51,10 @@ class Observation(BaseModel):
     evidence_state: str = Field(default="established", max_length=20)
     source_refs: List[Dict[str, Any]] = Field(default_factory=list)
     reason: str = Field(default="", max_length=500)
+    shape: str = Field(default="", max_length=40)
+    columns: List[str] = Field(default_factory=list)
+    data_keys: List[str] = Field(default_factory=list)
+    verified: Optional[bool] = None
 
 
 class AdaptationProposal(BaseModel):
