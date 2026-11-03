@@ -432,10 +432,10 @@ def _invoice_patch(
         "version": "version"}
     _invoice_evidence_shape(
         assignment, request.invoice_step_id, invoice_fields, invoice_fields,
-        ("invoice_id", "quantity", "unit_price"), "invoice")
+        ("invoice_id", "po_id", "quantity", "unit_price"), "invoice")
     _invoice_evidence_shape(
         assignment, request.purchase_order_step_id, po_fields, po_fields,
-        ("po_id",), "purchase order")
+        ("po_id", "vendor_id"), "purchase order")
     _invoice_evidence_shape(
         assignment, request.receiving_step_id, receiving_fields,
         receiving_fields, ("po_id", "received_quantity"), "receiving")
