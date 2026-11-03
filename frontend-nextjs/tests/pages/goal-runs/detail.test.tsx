@@ -362,6 +362,39 @@ describe("GoalRun detail — coaching", () => {
     expect(screen.getByTestId("run-lesson-scope-goal")).toHaveTextContent("this goal");
   });
 
+  it("refreshes to the newer decision after a stale approval conflict", async () => {
+    const pendingA = {
+      decision: "ADVANCE", rationale: "reviewed A",
+      decision_id: "dec-a", decision_generation: 1,
+      decision_binding: "bind-a",
+    } as any;
+    const pendingB = {
+      decision: "REPLAN", rationale: "newer B",
+      decision_id: "dec-b", decision_generation: 2,
+      decision_binding: "bind-b",
+    } as any;
+    getGoalRun
+      .mockResolvedValueOnce(run({ status: "active", pending_decision: pendingA }))
+      .mockResolvedValueOnce(run({ status: "active", pending_decision: pendingB }));
+    resumeGoalRun.mockRejectedValue(
+      Object.assign(new Error("The pending decision changed after it was reviewed."),
+                    { status: 409, code: "stale_decision_review" }));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("guidance-input"));
+    expect(screen.getByTestId("pending-decision").textContent).toContain("reviewed A");
+
+    fireEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    await waitFor(() => expect(resumeGoalRun).toHaveBeenCalledWith(
+      "run-1", true, undefined, undefined,
+      { decision_id: "dec-a", decision_generation: 1, decision_binding: "bind-a" },
+    ));
+    await waitFor(() => expect(screen.getByTestId("pending-decision").textContent)
+      .toContain("newer B"));
+    expect(screen.getByText(/pending decision changed after it was reviewed/i))
+      .toBeInTheDocument();
+  });
+
   it("sends the override's lesson scope with the resume call", async () => {
     getGoalRun.mockResolvedValue(run({
       status: "active",

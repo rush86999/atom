@@ -239,6 +239,13 @@ export default function GoalRunDetailPage() {
             if (successMsg) toast.success(successMsg);
             await load();
         } catch (e: any) {
+            // A stale review conflict means the run now shows a NEWER pending
+            // decision. Refresh it (without clearing the message) so the
+            // supervisor reviews the updated text and deliberately clicks
+            // again; never silently attach the new binding to the old click.
+            if (e?.status === 409) {
+                await load(true);
+            }
             setError(e?.message || "Action failed");
             toast.error(e?.message || "Action failed");
         } finally {

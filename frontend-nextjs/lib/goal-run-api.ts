@@ -299,20 +299,30 @@ export async function resumeGoalRun(
   });
   if (!res.ok) {
     let message = `Failed to resume goal run (${res.status})`;
+    let code: string | undefined;
     try {
       const body = await res.json();
       const detail = body?.detail;
       if (detail && typeof detail === 'object') {
+        if (typeof detail.error === 'string') code = detail.error;
         if (detail.error === 'stale_decision_review') {
           message = 'The pending decision changed after it was reviewed. Refresh the run and review the current decision.';
         } else if (detail.error === 'decision_review_required') {
           message = 'Refresh the run and review the current pending decision before approving it.';
+        } else if (typeof detail.message === 'string') {
+          message = detail.message;
         }
       }
     } catch {
       /* keep the status fallback */
     }
-    throw new Error(message);
+    const error = new Error(message) as Error & {
+      status?: number;
+      code?: string;
+    };
+    error.status = res.status;
+    error.code = code;
+    throw error;
   }
 }
 
