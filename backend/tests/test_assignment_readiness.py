@@ -16,11 +16,13 @@ from core.assignment_readiness import (
 def _assignment(**overrides):
     facts = overrides.pop("facts", [])
     steps = overrides.pop("steps", [])
+    sources = overrides.pop("sources", [
+        {"resource_id": "agreement-1", "kind": "document"}])
     return new_assignment(
         objective="Prepare a quote",
         workspace_id="ws-a", tenant_id="t-a",
         teaching_snapshot=new_teaching_snapshot(revision="teach-1"),
-        steps=steps, facts=facts, **overrides)
+        sources=sources, steps=steps, facts=facts, **overrides)
 
 
 def _fact(fact_id="eligible", value=True, state="established", **extra):
@@ -153,10 +155,12 @@ def test_requirements_and_facts_validate():
         raise AssertionError("duplicate facts accepted")
 
 
-def _receipt_assignment(result, require="applied"):
+def _receipt_assignment(result, require="applied", source_inputs=None):
     source = _step("source")
     source["status"] = "applied"
     source["operation_id"] = "op-source"
+    if source_inputs is not None:
+        source["inputs"] = dict(source_inputs)
     source["result"] = result
     return _assignment(steps=[
         source,
@@ -167,9 +171,17 @@ def _receipt_assignment(result, require="applied"):
 
 def test_verified_receipt_accepts_complete_explicit_verification():
     assignment = _receipt_assignment(
-        {"verification": {"status": "verified",
-                          "coverage": {"complete": True}}},
-        require="verified")
+        {
+            "resource_id": "res-1", "source_version": "v1",
+            "coverage": {"complete": True},
+            "verification": {"status": "verified",
+                             "resource_id": "res-1",
+                             "version": "v1",
+                             "coverage": {"complete": True}},
+        },
+        require="verified",
+        source_inputs={"resource_binding": {
+            "resource_id": "res-1", "source_version": "v1"}})
     decision = evaluate_step_readiness(
         assignment["steps"][1], assignment, task_authorization="read_only")
     assert decision["eligible"] is True, decision
@@ -189,15 +201,23 @@ def test_verified_receipt_accepts_complete_explicit_verification():
     ({"verification": {"status": "verified",
                        "mismatches": ["amount"]}},
      "false", "verified_proof_mismatches"),
-    ({"verification": {"status": "verified",
+    ({"verification": {"status": "verified"}},
+     "unknown", "verified_identity_missing"),
+    ({"resource_id": "res-1", "source_version": "v1",
+      "verification": {"status": "verified"}},
+     "unknown", "verified_coverage_missing"),
+    ({"resource_id": "res-1", "source_version": "v1",
+      "verification": {"status": "verified",
                        "coverage": {"complete": False}}},
      "unknown", "verified_coverage_incomplete"),
-    ({"verification": {"status": "verified",
+    ({"resource_id": "res-1", "source_version": "v1",
+      "verification": {"status": "verified",
                        "coverage": {"known": False}}},
      "unknown", "verified_coverage_unknown"),
     ({"coverage": {"known": True, "truncated": True}},
      "unknown", "verified_proof_missing"),
-    ({"verification": {"status": "verified"}, "truncated": True},
+    ({"resource_id": "res-1", "source_version": "v1",
+      "verification": {"status": "verified"}, "truncated": True},
      "unknown", "verified_coverage_truncated"),
     ({"verification": {"status": "unverified"}},
      "unknown", "verified_proof_incomplete"),
@@ -247,12 +267,14 @@ def test_verified_receipt_binding_must_match_the_receipt_identity():
     }
     assignment = _receipt_assignment({
         **identity,
+        "coverage": {"complete": True},
         "verification": {
             "status": "verified",
             "operation_id": "op-source",
             "resource_id": "res-1",
             "version": "v3",
             "subject": {"kind": "invoice", "id": "INV-1"},
+            "coverage": {"complete": True},
         },
     }, require="verified")
     assert evaluate_step_readiness(
@@ -287,3 +309,21 @@ def test_verified_receipt_binding_absent_from_receipt_stays_unknown():
     assert decision["truth"] == "unknown"
     assert decision["blockers"][0]["reason"] == (
         "verified_binding_request_id_missing")
+
+
+def test_fact_source_ref_must_resolve_against_the_accepted_source_scope():
+    requirement = [{"kind": "fact", "fact_id": "eligible", "equals": True}]
+    foreign = _assignment(
+        steps=[_step(requires=requirement)],
+        facts=[_fact(source_refs=[{"resource_id": "foreign-1"}])])
+    decision = evaluate_step_readiness(
+        foreign["steps"][0], foreign, task_authorization="read_only")
+    assert decision["eligible"] is False
+    assert decision["truth"] == "unknown"
+
+    authored = _assignment(
+        steps=[_step(requires=requirement)],
+        facts=[_fact(source_refs=[], authority_ref="owner:eligibility")])
+    assert evaluate_step_readiness(
+        authored["steps"][0], authored,
+        task_authorization="read_only")["eligible"] is True

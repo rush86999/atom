@@ -3766,7 +3766,8 @@ def test_plan_shape_output_is_not_a_durable_mutation():
     ({"verification": {"status": "verified",
                        "missing_fields": ["currency"]}},
      "verified_proof_missing_fields"),
-    ({"verification": {"status": "verified"},
+    ({"resource_id": "source-1", "source_version": "v1",
+      "verification": {"status": "verified"},
       "coverage": {"truncated": True}}, "verified_coverage_truncated"),
 ])
 def test_verified_receipt_gates_dependent_execution(
@@ -3826,7 +3827,10 @@ def test_verified_receipt_positive_twin_executes_dependent(env):
         return {
             "status": "applied", "summary": "verified source",
             "value": "row",
+            "resource_id": "source-1", "source_version": "v1",
             "verification": {"status": "verified",
+                             "resource_id": "source-1",
+                             "version": "v1",
                              "coverage": {"complete": True,
                                           "truncated": False}},
             "coverage": {"complete": True, "truncated": False},
@@ -3859,6 +3863,16 @@ def test_verified_receipt_positive_twin_executes_dependent(env):
     assert calls == ["dependent"]
     assert step_by_id(assignment, "dependent")["status"] == "applied"
     assert result["assignment"]["status"] == "completed"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    fresh = restarted.lifecycle.get_assignment(run_id)
+    assert step_by_id(fresh, "source")["result"]["verification"][
+        "status"] == "verified"
+    assert step_by_id(fresh, "source")["result"]["coverage"][
+        "complete"] is True
+    assert step_by_id(fresh, "dependent")["status"] == "applied"
+    assert _run(restarted.execute(run_id))["assignment"]["status"] == (
+        "completed")
 
 
 def test_provider_acceptance_never_confirms_sent_items_through_executor(env):
@@ -3909,12 +3923,15 @@ def test_explicit_sent_items_readback_confirms_through_executor(env):
     from core.task_outcome_contract import build_assignment_outcome
 
     async def send(inputs, context):
+        operation_id = (context.get("step") or {}).get("operation_id")
         return {
             "status": "applied", "summary": "provider accepted",
             "provider_state": "accepted", "provider_ref": "prov-1",
             "remote_id": "prov-1",
             "readback": {"sent_items": {
-                "present": True, "provider_ref": "prov-1"}},
+                "present": True,
+                "operation_id": operation_id,
+                "provider_ref": "prov-1"}},
         }
 
     env["registry"].register("test.sent.readback", send)
@@ -3946,6 +3963,21 @@ def test_explicit_sent_items_readback_confirms_through_executor(env):
     assert results["sent_record_confirmed"]["met"] is True
     assert verdict["verdict"] is True
     assert result["assignment"]["status"] == "completed"
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    fresh = restarted.lifecycle.get_assignment(run_id)
+    fresh_send = step_by_id(fresh, "send")
+    readback = fresh_send["result"]["readback"]["sent_items"]
+    assert readback["operation_id"] == fresh_send["operation_id"]
+    assert readback["provider_ref"] == "prov-1"
+    fresh_verdict = build_assignment_outcome(
+        fresh, restarted.lifecycle.get_task(run_id), state="completed")
+    fresh_results = {
+        item["criterion"]: item
+        for item in fresh_verdict["outcome"]["criterion_results"]
+    }
+    assert fresh_results["sent_record_confirmed"]["met"] is True
+    assert fresh_verdict["verdict"] is True
 
 
 def test_business_readiness_blocks_dependent_while_independent_runs(env):

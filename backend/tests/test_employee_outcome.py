@@ -112,7 +112,8 @@ def test_matching_explicit_sent_items_readback_satisfies_confirmation():
             "provider_state": "accepted",
             "provider_ref": "prov-1",
             "receipt": {"readback": {"sent_items": {
-                "present": True, "provider_ref": "prov-1"}}},
+                "present": True, "operation_id": "op-send-1",
+                "provider_ref": "prov-1"}}},
         })],
         _send_criteria())
     verdict = build_assignment_outcome(assignment)
@@ -129,7 +130,8 @@ def test_mismatched_sent_items_binding_does_not_confirm():
             "provider_state": "accepted",
             "provider_ref": "prov-1",
             "receipt": {"readback": {"sent_items": {
-                "present": True, "provider_ref": "prov-OTHER"}}},
+                "present": True, "operation_id": "op-send-1",
+                "provider_ref": "prov-OTHER"}}},
         })],
         _send_criteria())
     verdict = build_assignment_outcome(assignment)
@@ -152,7 +154,8 @@ def test_explicit_sent_readback_stands_without_provider_state():
         [_send_step({
             "provider_ref": "prov-1",
             "readback": {"sent_items": {
-                "present": True, "provider_ref": "prov-1"}},
+                "present": True, "operation_id": "op-send-1",
+                "provider_ref": "prov-1"}},
         })],
         [{"criterion_id": "sent_record_confirmed:send",
           "kind": "sent_record_confirmed", "required": True}])

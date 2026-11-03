@@ -635,41 +635,65 @@ def sent_record_confirmed_evidence(step: Dict[str, Any],
     """Explicit authoritative Sent Items confirmation, never acceptance.
 
     Provider acceptance proves the request reached the provider, not that the
-    message is observable in Sent Items. Only an explicit correlated readback
-    (or a test/controlled readback seam) may set this stronger fact.
+    message is observable in Sent Items. The readback must carry the actual
+    correlated operation and message identities; a presence boolean without
+    correlation is unknown, and each identity is compared in its own namespace
+    so one correct field cannot cancel a wrong message id.
     """
     if not isinstance(result, dict):
         return None
-    explicit = result.get("sent_record_confirmed")
-    if isinstance(explicit, bool):
-        return explicit
     receipt = result.get("receipt") if isinstance(
         result.get("receipt"), dict) else {}
-    readback = result.get("readback") or receipt.get("readback")
+    outbound = receipt.get("outbound") if isinstance(
+        receipt.get("outbound"), dict) else {}
+    readback = result.get("readback")
+    if not isinstance(readback, dict):
+        readback = receipt.get("readback")
     if not isinstance(readback, dict):
         return None
-    direct = readback.get("sent_record_confirmed")
-    if isinstance(direct, bool):
-        return direct
     sent_items = readback.get("sent_items")
-    if isinstance(sent_items, bool):
-        return sent_items
     if not isinstance(sent_items, dict):
         return None
     present = sent_items.get("present", sent_items.get("found"))
     if not isinstance(present, bool):
         return None
+
     expected = {
-        str(value) for value in (
-            step.get("operation_id"), result.get("provider_ref"),
-            receipt.get("operation_id")) if value
+        "operation_id": (
+            step.get("operation_id") or result.get("operation_id")
+            or receipt.get("operation_id")),
+        "provider_ref": (
+            result.get("provider_ref") or result.get("remote_id")
+            or outbound.get("provider_ref") or outbound.get("remote_id")),
+        "message_id": (
+            result.get("message_id") or outbound.get("message_id")
+            or receipt.get("message_id")),
+        "account": (
+            result.get("account") or result.get("mailbox")
+            or outbound.get("account") or outbound.get("mailbox")),
+    }
+    expected = {
+        key: str(value) for key, value in expected.items()
+        if value not in (None, "", [], {})
+    }
+    if not expected:
+        # An uncorrelated presence boolean is not proof.
+        return None
+    observed = {
+        "operation_id": sent_items.get("operation_id"),
+        "provider_ref": sent_items.get("provider_ref"),
+        "message_id": (
+            sent_items.get("message_id")
+            or sent_items.get("internet_message_id")),
+        "account": sent_items.get("account") or sent_items.get("mailbox"),
     }
     observed = {
-        str(value) for value in (
-            sent_items.get("operation_id"),
-            sent_items.get("provider_ref")) if value
+        key: str(value) for key, value in observed.items()
+        if value not in (None, "", [], {})
     }
-    if expected and observed and not expected & observed:
+    if any(key not in observed for key in expected):
+        return None
+    if any(observed[key] != expected[key] for key in expected):
         return False
     return present
 

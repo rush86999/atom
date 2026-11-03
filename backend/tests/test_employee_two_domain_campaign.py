@@ -91,8 +91,15 @@ def _create(env, *, objective, steps, criteria, actions):
     plan = new_assignment(
         objective=objective, employee_id="employee-1",
         workspace_id="ws_campaign", tenant_id="tenant_campaign",
-        teaching_snapshot=_teaching(), steps=steps,
-        authorized_actions=actions, completion_criteria=criteria,
+        teaching_snapshot=_teaching(),
+        sources=[
+            {"resource_id": "agreement-1", "kind": "document"},
+            {"resource_id": "supplier-a", "kind": "dataset"},
+            {"resource_id": "supplier-b", "kind": "dataset"},
+            {"resource_id": "equivalence-1", "kind": "document"},
+        ],
+        steps=steps, authorized_actions=actions,
+        completion_criteria=criteria,
         budget={"max_steps": 60, "max_attempts_per_step": 3,
                 "max_wall_seconds": 900})
     record = env["executor"].create_assignment(
@@ -311,7 +318,9 @@ def _quote_campaign(env, *, delivery_limit=10):
                     "# Quote\n\n"
                     "Total: ${calculate.value} ${calculate.unit}\n"
                     "Delivery: ${select-a.data.lead_days} days\n"
-                    "A source: ${select-a.data.selected}\n"),
+                    "A source: ${select-a.data.selected}\n"
+                    "Sources: agreement-1, supplier-a, supplier-b, "
+                    "equivalence-1\n"),
             }),
         new_step(
             step_id="draft", title="Prepare the customer reply draft",

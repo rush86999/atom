@@ -156,11 +156,39 @@ def normalize_facts(value: Any) -> List[Dict[str, Any]]:
 
 
 def _fact_truth(fact: Optional[Dict[str, Any]], requirement: Dict[str, Any],
-                now: _dt.datetime) -> str:
+                now: _dt.datetime, *,
+                assignment: Optional[Dict[str, Any]] = None) -> str:
     if fact is None:
         return "unknown"
     if fact.get("evidence_state") != "established":
         return "unknown"
+    # An established fact must bind a stable source/evidence identity or an
+    # explicit authored authority. A free-form note or a bare boolean is not
+    # sufficient proof.
+    stable_keys = ("resource_id", "source_id", "id", "uri", "sha256")
+    stable_refs = [
+        str(next(
+            (ref.get(key) for key in stable_keys
+             if ref.get(key) not in (None, "", [], {})), ""))
+        for ref in (fact.get("source_refs") or [])
+        if isinstance(ref, dict)
+    ]
+    stable_refs = [item for item in stable_refs if item]
+    authored = bool(str(fact.get("authority_ref") or "").strip())
+    if not stable_refs and not authored:
+        return "unknown"
+    if not authored and assignment is not None:
+        # A source reference must resolve against the accepted source scope;
+        # a model-supplied identifier is not authority by itself.
+        accepted = {
+            str(source.get("resource_id") or source.get("source_id")
+                or source.get("id") or "")
+            for source in (assignment.get("sources") or [])
+            if isinstance(source, dict)
+        }
+        accepted.discard("")
+        if not accepted or not any(ref in accepted for ref in stable_refs):
+            return "unknown"
     validity = fact.get("validity") or {}
     expires = validity.get("expires_at") if isinstance(validity, dict) else None
     if expires:
@@ -180,6 +208,47 @@ def _fact_truth(fact: Optional[Dict[str, Any]], requirement: Dict[str, Any],
     return _truth(actual == expected)
 
 
+_SOURCE_ADAPTERS = frozenset({
+    "workbook.read", "document.read", "external.research",
+})
+_ARTIFACT_ADAPTERS = frozenset({
+    "artifact.document", "artifact.spreadsheet", "artifact.presentation",
+    "email.draft",
+})
+_EXTERNAL_ADAPTERS = frozenset({
+    "email.send_outlook", "outbound.send",
+    "assignment.controlled_outbox",
+})
+
+
+def _first_value(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, "", [], {}):
+            return value
+    return None
+
+
+def _bool_or_none(value: Any) -> Optional[bool]:
+    return value if isinstance(value, bool) else None
+
+
+def _proof_profile(step: Dict[str, Any]) -> str:
+    """Classify the material proof a receipt is expected to carry."""
+    operation_type = _text(step.get("operation_type"), 40).lower()
+    effect = _text(step.get("effect"), 20).lower()
+    adapter = _text(step.get("adapter"), 120).lower()
+    if effect == "external" or (
+            adapter in _EXTERNAL_ADAPTERS and effect != "local"):
+        return "external"
+    if operation_type == "present" or adapter.startswith("artifact.") or (
+            adapter in _ARTIFACT_ADAPTERS):
+        return "artifact"
+    if operation_type == "retrieve" or effect == "read_only" or (
+            adapter.endswith(".read") or adapter in _SOURCE_ADAPTERS):
+        return "source"
+    return "local"
+
+
 def _binding_actual(
     result: Dict[str, Any], step: Dict[str, Any], field: str,
 ) -> Any:
@@ -187,31 +256,141 @@ def _binding_actual(
         result.get("receipt"), dict) else {}
     outbound = receipt.get("outbound") if isinstance(
         receipt.get("outbound"), dict) else {}
+    remote = receipt.get("remote_identity") if isinstance(
+        receipt.get("remote_identity"), dict) else {}
     source = result.get("source") if isinstance(
         result.get("source"), dict) else {}
+    receipt_source = receipt.get("source") if isinstance(
+        receipt.get("source"), dict) else {}
     artifact = result.get("artifact") if isinstance(
         result.get("artifact"), dict) else {}
     binding = result.get("binding") if isinstance(
         result.get("binding"), dict) else {}
     return {
-        "operation_id": (
-            result.get("operation_id") or step.get("operation_id")
-            or receipt.get("operation_id")),
-        "request_id": result.get("request_id") or receipt.get("request_id"),
-        "resource_id": (
-            result.get("resource_id") or source.get("resource_id")
-            or source.get("id") or binding.get("resource_id")),
-        "subject": (
-            result.get("subject") or result.get("subject_id")
-            or binding.get("subject") or outbound.get("subject")),
-        "version": (
-            result.get("version") or result.get("source_version")
-            or source.get("version") or artifact.get("revision")
-            or outbound.get("version")),
-        "sha256": (
-            result.get("sha256") or artifact.get("sha256")
-            or receipt.get("sha256")),
+        "operation_id": _first_value(
+            result.get("operation_id"), step.get("operation_id"),
+            receipt.get("operation_id"), remote.get("operation_id")),
+        "request_id": _first_value(
+            result.get("request_id"), receipt.get("request_id"),
+            remote.get("request_id")),
+        "resource_id": _first_value(
+            result.get("resource_id"), source.get("resource_id"),
+            source.get("id"), binding.get("resource_id"),
+            receipt_source.get("resource_id"), remote.get("resource_id")),
+        "subject": _first_value(
+            result.get("subject"), result.get("subject_id"),
+            binding.get("subject"), outbound.get("subject")),
+        "version": _first_value(
+            result.get("version"), result.get("source_version"),
+            source.get("version"), source.get("source_version"),
+            receipt_source.get("source_version"),
+            receipt_source.get("version"), receipt_source.get("revision"),
+            artifact.get("revision"), remote.get("version")),
+        "sha256": _first_value(
+            result.get("sha256"), source.get("sha256"),
+            receipt_source.get("sha256"), artifact.get("sha256"),
+            remote.get("sha256")),
+        "provider_ref": _first_value(
+            result.get("provider_ref"), outbound.get("provider_ref"),
+            outbound.get("remote_id"), remote.get("provider_ref"),
+            remote.get("remote_id")),
+        "message_id": _first_value(
+            result.get("message_id"), outbound.get("message_id"),
+            receipt.get("message_id"), remote.get("message_id")),
+        "account": _first_value(
+            result.get("account"), result.get("mailbox"),
+            outbound.get("account"), outbound.get("mailbox"),
+            remote.get("account")),
     }.get(field)
+
+
+def _requested_source_binding(step: Dict[str, Any]) -> Dict[str, Any]:
+    """Identity the accepting plan asked the source read to establish."""
+    inputs = step.get("inputs") if isinstance(
+        step.get("inputs"), dict) else {}
+    requested: Dict[str, Any] = {}
+    for key in ("resource_binding", "source_binding", "binding", "source"):
+        value = inputs.get(key)
+        if isinstance(value, dict):
+            for field, item in value.items():
+                if item not in (None, "", [], {}):
+                    requested.setdefault(str(field), item)
+    for key in ("resource_id", "source_id", "file_id", "uri",
+                "version", "source_version", "sha256"):
+        value = inputs.get(key)
+        if value not in (None, "", [], {}):
+            requested.setdefault(key, value)
+    return requested
+
+
+def _observed_source_binding(
+    verification: Dict[str, Any],
+    result: Dict[str, Any],
+    step: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "resource_id": _binding_actual(result, step, "resource_id"),
+        "version": _binding_actual(result, step, "version"),
+        "sha256": _binding_actual(result, step, "sha256"),
+    }
+
+
+def _coverage_count(value: Any) -> Optional[int]:
+    if isinstance(value, bool) or value in (None, ""):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or not number.is_integer():
+        return None
+    return int(number)
+
+
+def _source_coverage_state(
+    result: Dict[str, Any], verification: Dict[str, Any],
+) -> str:
+    receipt = result.get("receipt") if isinstance(
+        result.get("receipt"), dict) else {}
+    receipt_source = receipt.get("source") if isinstance(
+        receipt.get("source"), dict) else {}
+    coverage = result.get("coverage")
+    if not isinstance(coverage, dict):
+        coverage = verification.get("coverage")
+    if not isinstance(coverage, dict):
+        coverage = receipt_source.get("coverage")
+    if not isinstance(coverage, dict) or not coverage:
+        return "missing"
+    complete = _bool_or_none(coverage.get("complete"))
+    known = _bool_or_none(coverage.get("known"))
+    truncated = _bool_or_none(coverage.get("truncated"))
+    if truncated is True:
+        return "truncated"
+    if complete is False:
+        return "incomplete"
+    if known is False:
+        return "unknown"
+    raw_expected = coverage.get(
+        "expected_count", coverage.get(
+            "requested_count", coverage.get(
+                "source_row_count", coverage.get("source_count"))))
+    raw_observed = coverage.get(
+        "observed_count", coverage.get(
+            "matched_count", coverage.get(
+                "selected_count", coverage.get(
+                    "accepted_count", coverage.get("returned_count")))))
+    if raw_expected is not None or raw_observed is not None:
+        expected_count = _coverage_count(raw_expected)
+        observed_count = _coverage_count(raw_observed)
+        if expected_count is None or observed_count is None:
+            return "unknown"
+        if observed_count < expected_count:
+            return "incomplete"
+    if complete is True:
+        return "complete"
+    if known is True and truncated is not True:
+        return "complete"
+    return "unknown"
 
 
 def _verification_binding(
@@ -219,9 +398,10 @@ def _verification_binding(
     result: Dict[str, Any],
     step: Dict[str, Any],
 ) -> tuple:
-    """Declared proof identity must match the receipt it claims to verify."""
+    """Every identity the proof declares must match the receipt it verifies."""
     for field in ("operation_id", "request_id", "resource_id", "subject",
-                  "version", "sha256"):
+                  "version", "sha256", "provider_ref", "message_id",
+                  "account"):
         if field not in verification:
             continue
         declared = verification.get(field)
@@ -239,6 +419,104 @@ def _verification_binding(
     return "true", ""
 
 
+def _profile_binding(
+    profile: str,
+    verification: Dict[str, Any],
+    result: Dict[str, Any],
+    step: Dict[str, Any],
+) -> tuple:
+    declared = _verification_binding(verification, result, step)
+    if declared[0] != "true":
+        return declared
+
+    if profile == "source":
+        requested = _requested_source_binding(step)
+        observed = _observed_source_binding(verification, result, step)
+        if not (observed["resource_id"] or observed["sha256"]):
+            return "unknown", "verified_identity_missing"
+        if not (observed["version"] or observed["sha256"]):
+            return "unknown", "verified_version_missing"
+        for field in ("resource_id", "version", "sha256"):
+            wanted = requested.get(field)
+            if field == "version" and wanted in (None, ""):
+                wanted = requested.get("source_version")
+            if wanted in (None, "", [], {}):
+                continue
+            actual = observed.get(field)
+            if actual in (None, "", [], {}):
+                return "unknown", f"verified_binding_{field}_missing"
+            if str(wanted) != str(actual):
+                return "false", f"verified_binding_{field}_mismatch"
+        if result.get("truncated") is True or (
+                verification.get("truncated") is True):
+            return "unknown", "verified_coverage_truncated"
+        coverage = _source_coverage_state(result, verification)
+        if coverage == "truncated":
+            return "unknown", "verified_coverage_truncated"
+        if coverage == "incomplete":
+            return "unknown", "verified_coverage_incomplete"
+        if coverage == "unknown":
+            return "unknown", "verified_coverage_unknown"
+        if coverage == "missing":
+            return "unknown", "verified_coverage_missing"
+        return "true", ""
+
+    if profile == "external":
+        receipt = result.get("receipt") if isinstance(
+            result.get("receipt"), dict) else {}
+        outbound = receipt.get("outbound") if isinstance(
+            receipt.get("outbound"), dict) else {}
+        remote = receipt.get("remote_identity") if isinstance(
+            receipt.get("remote_identity"), dict) else {}
+        observed_operation = _first_value(
+            result.get("operation_id"), receipt.get("operation_id"),
+            remote.get("operation_id"))
+        if not observed_operation:
+            return "unknown", "verified_operation_identity_missing"
+        expected_operation = _first_value(
+            step.get("operation_id"), step.get("inputs", {}).get(
+                "operation_id") if isinstance(step.get("inputs"), dict) else None)
+        if expected_operation and str(observed_operation) != str(
+                expected_operation):
+            return "false", "verified_binding_operation_id_mismatch"
+        observed_remote = _first_value(
+            result.get("provider_ref"), result.get("message_id"),
+            result.get("remote_id"), outbound.get("provider_ref"),
+            outbound.get("message_id"), outbound.get("remote_id"),
+            remote.get("provider_ref"), remote.get("message_id"),
+            remote.get("remote_id"))
+        if not observed_remote:
+            return "unknown", "verified_remote_identity_missing"
+        inputs = step.get("inputs") if isinstance(
+            step.get("inputs"), dict) else {}
+        target = inputs.get("target") if isinstance(
+            inputs.get("target"), dict) else {}
+        for field in ("provider_ref", "message_id", "account", "mailbox"):
+            wanted = inputs.get(field)
+            if wanted in (None, "", [], {}):
+                wanted = target.get(field)
+            if wanted in (None, "", [], {}):
+                continue
+            actual = _binding_actual(result, step, field)
+            if actual in (None, "", [], {}):
+                return "unknown", f"verified_binding_{field}_missing"
+            if str(actual) != str(wanted):
+                return "false", f"verified_binding_{field}_mismatch"
+        return "true", ""
+
+    if profile == "artifact":
+        artifact = result.get("artifact") if isinstance(
+            result.get("artifact"), dict) else {}
+        if not artifact.get("revision") or not artifact.get("sha256"):
+            return "unknown", "verified_artifact_receipt_missing"
+        return "true", ""
+
+    if result.get("value") is None and not isinstance(
+            result.get("calculation_receipt"), dict):
+        return "unknown", "verified_material_result_missing"
+    return "true", ""
+
+
 def _verified_receipt_proof(
     result: Dict[str, Any], step: Optional[Dict[str, Any]] = None,
 ) -> tuple:
@@ -246,9 +524,10 @@ def _verified_receipt_proof(
 
     A step status of ``applied`` is not material verification. The proof must
     say verified/confirmed, carry no missing/mismatched/conflicting fields,
-    bind to the operation/resource/version it claims to verify, and have
-    complete/non-truncated coverage when coverage is declared.
+    bind the applicable profile identity and coverage, and match the requested
+    resource/version where the accepting plan names one.
     """
+    step = step or {}
     verification = result.get("verification")
     receipt = result.get("receipt") if isinstance(
         result.get("receipt"), dict) else {}
@@ -273,26 +552,8 @@ def _verified_receipt_proof(
         value = verification.get(key)
         if value:
             return "false", f"verified_proof_{key}"
-    binding = _verification_binding(verification, result, step or {})
-    if binding[0] != "true":
-        return binding
-    coverage = result.get("coverage")
-    if not isinstance(coverage, dict):
-        coverage = verification.get("coverage")
-    if not isinstance(coverage, dict):
-        receipt_source = receipt.get("source") if isinstance(
-            receipt.get("source"), dict) else {}
-        coverage = receipt_source.get("coverage")
-    if isinstance(coverage, dict) and coverage:
-        if coverage.get("truncated") is True:
-            return "unknown", "verified_coverage_truncated"
-        if coverage.get("complete") is False:
-            return "unknown", "verified_coverage_incomplete"
-        if coverage.get("known") is False:
-            return "unknown", "verified_coverage_unknown"
-    if result.get("truncated") is True or verification.get("truncated") is True:
-        return "unknown", "verified_coverage_truncated"
-    return "true", ""
+    return _profile_binding(
+        _proof_profile(step), verification, result, step)
 
 
 def _predicate(
@@ -309,7 +570,7 @@ def _predicate(
         fact_id = predicate.get("fact_id")
         fact = next((item for item in assignment.get("facts") or []
                      if item.get("fact_id") == fact_id), None)
-        truth = _fact_truth(fact, predicate, now)
+        truth = _fact_truth(fact, predicate, now, assignment=assignment)
         if truth != "true":
             blockers.append({
                 "kind": "qualification",
