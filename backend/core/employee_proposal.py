@@ -249,7 +249,7 @@ def build_employee_context(
                 not eligibility
                 and available_work_requests is None
             )
-            or schema.get("operation") in set(operation_names)
+            or schema.get("operation") in ready_names
         ]
         if follow_up_stage else []
     )
@@ -560,16 +560,25 @@ def operation_capabilities(
                 "Which authorized source provides verified tabular price rows?"
                 if not proven else ""),
         })
-    elif structured or textual:
+    elif textual and not structured:
         capabilities.append({
             "operation": "quote_calculation",
             "label": "quote calculation",
             "status": "missing",
             "missing": ["tabular price rows"],
-            "evidence": structured + textual,
+            "evidence": textual,
             "question_hint": (
                 "Which authorized source contains the tabular price rows "
                 "needed for the quote?"),
+        })
+    else:
+        capabilities.append({
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "unavailable",
+            "missing": [],
+            "evidence": structured + textual,
+            "question_hint": "",
         })
 
     from core.employee_work_compiler import (
@@ -652,6 +661,15 @@ def operation_capabilities(
             },
             "known_identities": known_identities,
             "question_hint": hint,
+        })
+    else:
+        capabilities.append({
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "unavailable",
+            "missing": [],
+            "evidence": [],
+            "question_hint": "",
         })
     return capabilities
 
