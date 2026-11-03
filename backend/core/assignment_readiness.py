@@ -342,7 +342,7 @@ def _coverage_count(value: Any) -> Optional[int]:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    if not math.isfinite(number) or not number.is_integer():
+    if not math.isfinite(number) or not number.is_integer() or number < 0:
         return None
     return int(number)
 
@@ -362,9 +362,12 @@ def _source_coverage_state(
         coverage = receipt_source.get("coverage")
     if not isinstance(coverage, dict) or not coverage:
         return "missing"
-    complete = _bool_or_none(coverage.get("complete"))
-    known = _bool_or_none(coverage.get("known"))
-    truncated = _bool_or_none(coverage.get("truncated"))
+    for key in ("complete", "known", "truncated"):
+        if key in coverage and not isinstance(coverage[key], bool):
+            return "unknown"
+    complete = coverage.get("complete")
+    known = coverage.get("known")
+    truncated = coverage.get("truncated")
     if truncated is True:
         return "truncated"
     if complete is False:
@@ -448,9 +451,12 @@ def _profile_binding(
                 return "unknown", f"verified_binding_{field}_missing"
             if str(wanted) != str(actual):
                 return "false", f"verified_binding_{field}_mismatch"
-        if result.get("truncated") is True or (
-                verification.get("truncated") is True):
-            return "unknown", "verified_coverage_truncated"
+        for container in (result, verification):
+            if "truncated" in container and container["truncated"] is not None:
+                if not isinstance(container["truncated"], bool):
+                    return "unknown", "verified_coverage_unknown"
+                if container["truncated"] is True:
+                    return "unknown", "verified_coverage_truncated"
         coverage = _source_coverage_state(result, verification)
         if coverage == "truncated":
             return "unknown", "verified_coverage_truncated"

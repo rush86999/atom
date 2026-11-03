@@ -451,3 +451,122 @@ def test_artifact_and_local_receipts_use_their_durable_proof():
     assert evaluate_step_readiness(
         assignment["steps"][1], assignment,
         task_authorization="read_only")["eligible"] is True
+
+
+def _source_result(**overrides):
+    result = {
+        "resource_id": "file-1", "source_version": "v1",
+        "coverage": {"complete": True, "truncated": False},
+        "verification": {"status": "verified",
+                         "coverage": {"complete": True}},
+    }
+    result.update(overrides)
+    return result
+
+
+def test_generated_source_profile_requires_every_material_category():
+    invalid = []
+    for field in ("resource_id", "source_version", "coverage"):
+        omitted = _source_result()
+        omitted.pop(field)
+        invalid.append((f"{field}-omitted", omitted))
+        for value in (None, "", 0, 123, ["x"], {"bad": "type"}):
+            changed = _source_result()
+            changed[field] = value
+            invalid.append((f"{field}-{value!r}", changed))
+    for status in (None, "", "not-a-status", 123):
+        invalid.append((f"status-{status!r}",
+                        _source_result(verification={
+                            "status": status,
+                            "coverage": {"complete": True}})))
+    invalid.extend([
+        ("missing-verification", {
+            "resource_id": "file-1", "source_version": "v1",
+            "coverage": {"complete": True}}),
+        ("empty-verification", _source_result(verification={})),
+        ("malformed-verification", _source_result(verification=[])),
+    ])
+    for label, result in invalid:
+        decision = _eligible(_assignment(result))
+        assert decision["eligible"] is False, (label, decision)
+
+    assert _eligible(_assignment(_source_result()))["eligible"] is True
+
+
+def test_generated_source_coverage_matrix_accepts_only_consistent_profiles():
+    cases = []
+    for complete in (True, False):
+        for known in (True, False):
+            for truncated in (True, False):
+                cases.append((
+                    {"complete": complete, "known": known,
+                     "truncated": truncated},
+                    complete is True and known is True and truncated is False))
+    for value in ("true", "no", 1, 0, None, [], {}):
+        for key in ("complete", "known", "truncated"):
+            cases.append((
+                {"complete": True, "known": True, "truncated": False,
+                 key: value}, False))
+    cases.extend([
+        ({"complete": True}, True),
+        ({"complete": True, "truncated": False}, True),
+        ({"complete": True, "known": True}, True),
+        ({"known": True, "truncated": False}, True),
+        ({"known": True}, True),
+        ({"truncated": False}, False),
+        ({}, False),
+        ({"complete": False}, False),
+        ({"known": False}, False),
+        ({"truncated": True}, False),
+        ({"complete": True, "known": True, "truncated": False,
+          "expected_count": 10, "matched_count": 9}, False),
+        ({"complete": True, "known": True, "truncated": False,
+          "expected_count": 10}, False),
+        ({"complete": True, "known": True, "truncated": False,
+          "expected_count": "inf", "matched_count": 1}, False),
+    ])
+    for coverage, supported in cases:
+        result = _source_result(
+            coverage=coverage,
+            verification={"status": "verified", "coverage": coverage})
+        decision = _eligible(_assignment(result))
+        assert decision["eligible"] is supported, (coverage, decision)
+
+
+def test_generated_sent_items_minimum_schema():
+    cases = [
+        (True, "op-1", "message-1", True),
+        (True, "op-1", "message-foreign", False),
+        (True, "op-foreign", "message-1", False),
+        (True, "op-foreign", "message-foreign", False),
+        (False, "op-1", "message-1", False),
+        (None, "op-1", "message-1", None),
+        ("yes", "op-1", "message-1", None),
+        (True, None, "message-1", None),
+        (True, "op-1", None, None),
+        (True, None, None, None),
+    ]
+    for present, operation_id, provider_ref, expected in cases:
+        sent_items = {"present": present}
+        if operation_id is not None:
+            sent_items["operation_id"] = operation_id
+        if provider_ref is not None:
+            sent_items["provider_ref"] = provider_ref
+        result = {
+            "provider_ref": "message-1",
+            "readback": {"sent_items": sent_items},
+        }
+        assert sent_record_confirmed_evidence(
+            {"operation_id": "op-1"}, result) is expected, (
+                present, operation_id, provider_ref)
+
+    assert sent_record_confirmed_evidence(
+        {"operation_id": "op-1"},
+        {"readback": {"sent_items": {
+            "present": True, "operation_id": "op-1",
+            "provider_ref": "message-1"}}}) is None
+    assert sent_record_confirmed_evidence(
+        {},
+        {"provider_ref": "message-1",
+         "readback": {"sent_items": {
+             "present": True, "provider_ref": "message-1"}}}) is None

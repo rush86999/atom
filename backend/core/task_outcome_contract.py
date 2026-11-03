@@ -634,11 +634,11 @@ def sent_record_confirmed_evidence(step: Dict[str, Any],
                                    result: Dict[str, Any]) -> "bool | None":
     """Explicit authoritative Sent Items confirmation, never acceptance.
 
-    Provider acceptance proves the request reached the provider, not that the
-    message is observable in Sent Items. The readback must carry the actual
-    correlated operation and message identities; a presence boolean without
-    correlation is unknown, and each identity is compared in its own namespace
-    so one correct field cannot cancel a wrong message id.
+    Minimum proof schema: a presence observation, at least one correlation
+    identity for the governed operation/request, and at least one observed
+    stable message identity. Every expected identity in each namespace must be
+    present and match. A bare presence or operation flag is not enough, and a
+    correct operation cannot cancel a wrong message id.
     """
     if not isinstance(result, dict):
         return None
@@ -658,43 +658,72 @@ def sent_record_confirmed_evidence(step: Dict[str, Any],
     if not isinstance(present, bool):
         return None
 
-    expected = {
+    def identity_map(values):
+        # Stable provider/operation identities are non-empty strings. A
+        # numeric/boolean/structured value is malformed evidence, not a
+        # coercible match.
+        return {
+            key: value.strip() for key, value in values.items()
+            if isinstance(value, str) and value.strip()
+        }
+
+    expected_correlation = identity_map({
         "operation_id": (
             step.get("operation_id") or result.get("operation_id")
             or receipt.get("operation_id")),
+        "request_id": (
+            step.get("request_id") or result.get("request_id")
+            or receipt.get("request_id")),
+    })
+    expected_message = identity_map({
         "provider_ref": (
             result.get("provider_ref") or result.get("remote_id")
             or outbound.get("provider_ref") or outbound.get("remote_id")),
         "message_id": (
             result.get("message_id") or outbound.get("message_id")
             or receipt.get("message_id")),
+    })
+    expected_account = identity_map({
         "account": (
             result.get("account") or result.get("mailbox")
             or outbound.get("account") or outbound.get("mailbox")),
-    }
-    expected = {
-        key: str(value) for key, value in expected.items()
-        if value not in (None, "", [], {})
-    }
-    if not expected:
-        # An uncorrelated presence boolean is not proof.
+    })
+    if not expected_correlation or not expected_message:
+        # A presence observation needs both a governed operation/request and
+        # an actual message identity to correlate.
         return None
-    observed = {
+
+    observed_correlation = identity_map({
         "operation_id": sent_items.get("operation_id"),
+        "request_id": sent_items.get("request_id"),
+    })
+    observed_message = identity_map({
         "provider_ref": sent_items.get("provider_ref"),
         "message_id": (
             sent_items.get("message_id")
             or sent_items.get("internet_message_id")),
+    })
+    observed_account = identity_map({
         "account": sent_items.get("account") or sent_items.get("mailbox"),
-    }
-    observed = {
-        key: str(value) for key, value in observed.items()
-        if value not in (None, "", [], {})
-    }
-    if any(key not in observed for key in expected):
+    })
+    if not observed_correlation or not observed_message:
         return None
-    if any(observed[key] != expected[key] for key in expected):
-        return False
+
+    for key, value in expected_correlation.items():
+        if key not in observed_correlation:
+            return None
+        if observed_correlation[key] != value:
+            return False
+    for key, value in expected_message.items():
+        if key not in observed_message:
+            return None
+        if observed_message[key] != value:
+            return False
+    for key, value in expected_account.items():
+        if key not in observed_account:
+            return None
+        if observed_account[key] != value:
+            return False
     return present
 
 
