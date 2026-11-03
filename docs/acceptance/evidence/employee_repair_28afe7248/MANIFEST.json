@@ -1,0 +1,144 @@
+{
+  "artifacts": {
+    "README.md": "6c9e5a8795b95eb1cff945e142fbd5657052eea9b2770b328777f26b2b1247fd",
+    "TEST_RESULTS.md": "f2917c0dc26b0d9e09a98854467d5a4d084d72c9402ad591c6915bf0c1cadf5d",
+    "backend-integrated.log": "1afd38287eb803286fec17808e73783e6dadd0f4625d1af0e1863fa885813159",
+    "corrected-patch-invariant-probe.log": "be05096adc06e6a0e36c67313064fc8fcc35fe58cbf9d56ca1b0896ca0d01710",
+    "corrected-patch-invariant-probe.py": "2318d35cf15a694c29744af7ab087b879070b6ba274a595b63485a3dd5e803d5",
+    "focused-affected.log": "85457913d9aebe5dfce5a828741f861a3350b3d128ee308433f9d0e411d6a55d",
+    "frontend-integrated.log": "2e878f6d224ac97ce2b64b651417ee693f1c0bc80830364dbad47746520b49b8",
+    "generated-schema-matrix.log": "bdd29a1ad5e264ff65a6e6636b232ce35155bb9825f7a82decffba87d9db8c66",
+    "independent-binding-probe.py": "5ef8fd5e3f4fe115bd2b14597b0f7c1f665c1045fba94dfe7560c0e45fcc940d",
+    "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+    "independent-g0-boundary-probe.py": "16c199956245aecc171a40b3bdce4cfeaf4dc8da24c94f3793f687dc177e8c31",
+    "independent-probes.log": "e6902568de72dc19b7dd5fb5003657756f227999215d016004c07b91b45d6d1e",
+    "independent-schema-minima-probe.py": "292b801b0447bcb776a13431df30094957ec312df7dbb4e8394cc153a9a6bf5f",
+    "patch-invariants.log": "994737203ba7b9b9832aeb4c8201068db457cde801126fa6ba0a33551a200708",
+    "pre-existing-task-lifecycle-at-source.log": "f4127f3f51cb2a6e3590f8214cff84fafa20f61fe3c73da7cfb25f513851cc51",
+    "proof-binding-matrix.log": "0bdac1e6966a29d4180586f83c1767fd3354e73959c012d3b0ba86f3930a85f2",
+    "two-domain-campaign.log": "9089fe61862bc9bc5d043be389bbbe7ae98f213f13223a1e66e98acda28f1492"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "28afe7248cdf5079b7d439d766788fa17bb6f407",
+    "manifest_note": "New product source completing the strict Sent Items minimum and coverage type-validation schema with a generated omission matrix. Deterministic only; served-model G5 level 2 and Batch A acceptance are not claimed.",
+    "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_readiness.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_patch.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/task_outcome_contract.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_readiness.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/test_employee_outcome.py",
+    "backend/tests/test_employee_patch_invariants.py",
+    "backend/tests/test_employee_proof_binding.py",
+    "backend/tests/test_employee_two_domain_campaign.py",
+    "backend/tests/test_employee_proof_schema_matrix.py",
+    "backend/tests/test_employee_proof_schema_executor.py"
+  ],
+  "exclusions": [
+    "served-model adaptive-choice campaign and raw model traces not run",
+    "Batch A acceptance remains withheld pending independent re-verification",
+    "G4 broader event-order/recovery campaign beyond named controls not claimed",
+    "no live provider lookup/write/send/credential/consent/spend",
+    "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
+    "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
+    "historical 111/123 and accepted tags/sources unchanged"
+  ],
+  "independent_schema_minima": {
+    "cases": [
+      "Sent Items only operation correlation -> unknown",
+      "Sent Items only message identity -> unknown",
+      "complete=true with known malformed -> unknown",
+      "complete=true with truncated malformed -> unknown"
+    ],
+    "result": "4/4 passed inside independent_probes",
+    "script": "independent-schema-minima-probe.py"
+  },
+  "known_pre_existing_failures": {
+    "log": "pre-existing-task-lifecycle-at-source.log",
+    "note": "Four test_task_lifecycle.py controls fail identically at the parent/base and at this source; disclosed, not counted.",
+    "result": "4 failed"
+  },
+  "lineage": {
+    "prior_evidence_tip": "caff5f350",
+    "prior_reviewed_source": "c6ac292f3",
+    "this_source": "28afe7248"
+  },
+  "repairs": {
+    "coverage_strictness": "every explicit complete/known/truncated field must be a boolean; malformed flags unknown; counts finite/integral/nonnegative/paired/full; observed on the durable receipt",
+    "generated_matrix": "generated omission/type/identity/coverage combinations plus real-executor negatives and positive twins",
+    "preserved": [
+      "typed source/external/artifact/local proof profiles",
+      "fact qualification source scope or authored authority",
+      "durable verification/coverage/readback across restart",
+      "task_version patch binding, closure and material digest"
+    ],
+    "sent_items_minimum": "requires boolean presence + operation/request correlation + observed message identity; each expected namespace must match; missing category unknown; wrong message refuted"
+  },
+  "schema": "atom-employee-strict-proof-schema-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "2f7732d74b49904f8e197e62959a4c1bbf0c61afa89685631290b8ef2976f39d",
+    "backend/core/assignment_readiness.py": "d0af6d4711ec89f91dec1a9ec1445a95e034fd911607eaa56d1e26b22b1daa6a",
+    "backend/core/employee_adaptation.py": "d31f21df68168c07a399c6413ab8ba3e25fd43999fcc95b471d7cc862158f6a3",
+    "backend/core/employee_patch.py": "d9e0fe893a3844b1596d52dfa46a02e119fb963d565e7e8f83034a04ffc739f9",
+    "backend/core/employee_proposal.py": "d2233d36493ad46bd9c1bfa803bd1278e933e6bfe4975d36e10ba069236e6e57",
+    "backend/core/task_outcome_contract.py": "65dfa6fd78928e898c09939173a1b2d1a68ee7f99b4cddd079ca7bf15d8feadc",
+    "backend/tests/test_assignment_executor.py": "aaf22c799647e93e02df846e60755814a86214be23df799aae21af141ba7c79a",
+    "backend/tests/test_assignment_readiness.py": "1772496a7ff01af39f998351253fc5ba08e869bc0c8452be080f075d54f87713",
+    "backend/tests/test_assignment_routes.py": "5e36b7e93624c8450a693793ac29b4ce6ed83427e4902a8be33cd886bc683aab",
+    "backend/tests/test_employee_outcome.py": "209fc76d8233cbe5704f122264033e9f23c9a1bfe1313eaa3db392e7364fb858",
+    "backend/tests/test_employee_patch_invariants.py": "331255af16c9db747c6bbd92671ba52a95590deae7d1db491950be5aa3e48fb3",
+    "backend/tests/test_employee_proof_binding.py": "64d9e06de7537780801b8923285e6ec81bda8dbcab7f9210ecb9d0c10354d298",
+    "backend/tests/test_employee_proof_schema_executor.py": "72ae0d0955f8e64e036b9175c879a3d65034c9ecba4616fcc87341db21558f49",
+    "backend/tests/test_employee_proof_schema_matrix.py": "b2702aace214fc8de282e07c1ce02a34ba57c2c84b576f293dbb67c31765bf62",
+    "backend/tests/test_employee_two_domain_campaign.py": "90cd3fd38a62780a41619544c677d62a7ddb197ded6f64e2ed3f019ac4a993df"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "backend_integrated": {
+      "log": "backend-integrated.log",
+      "result": "618 passed"
+    },
+    "corrected_patch_probe": {
+      "log": "corrected-patch-invariant-probe.log",
+      "result": "3 passed",
+      "script": "corrected-patch-invariant-probe.py"
+    },
+    "focused_affected": {
+      "log": "focused-affected.log",
+      "result": "270 passed"
+    },
+    "frontend_integrated": {
+      "log": "frontend-integrated.log",
+      "result": "54 passed"
+    },
+    "generated_schema_matrix": {
+      "log": "generated-schema-matrix.log",
+      "result": "39 passed"
+    },
+    "independent_probes": {
+      "log": "independent-probes.log",
+      "result": "15 passed"
+    },
+    "patch_invariants": {
+      "log": "patch-invariants.log",
+      "result": "8 passed"
+    },
+    "proof_binding_matrix": {
+      "log": "proof-binding-matrix.log",
+      "result": "14 passed"
+    },
+    "two_domain_campaign": {
+      "log": "two-domain-campaign.log",
+      "result": "4 passed"
+    }
+  }
+}
