@@ -7720,16 +7720,21 @@ async def _document_text_read(
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
     text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    # ``indexed_version`` may carry an extraction-format prefix (ev3:/ev4:);
+    # the source version consumed by readiness is the normalized authoritative
+    # source hash. The raw indexed label stays in the extraction lineage.
+    source_version = _normalize_extraction_version(authoritative_version)
     result = {
         "status": "applied",
         "summary": f"read extracted text from {document.get('source') or document_id}",
         "text": text[:20000],
         "truncated": truncated,
-        "source_version": indexed_version,
+        "source_version": source_version,
         "resource_id": document_id,
         "coverage": coverage,
         "extraction": {
-            "source_version": indexed_version,
+            "indexed_version": indexed_version,
+            "source_version": source_version,
             "authoritative_version": authoritative_version,
             "text_sha256": text_hash,
             "source": document.get("source"),
@@ -7737,13 +7742,13 @@ async def _document_text_read(
         "verification": {
             "status": "verified",
             "resource_id": document_id,
-            "version": indexed_version,
+            "version": source_version,
             "coverage": coverage,
         },
         "evidence": [{
             "kind": "document_extraction",
             "resource_id": document_id,
-            "version": indexed_version,
+            "version": source_version,
             "text_sha256": text_hash,
         }],
     }
