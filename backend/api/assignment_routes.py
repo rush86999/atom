@@ -1291,6 +1291,10 @@ async def list_assignment_sources(
         limit=max(1, min(int(limit or 50), 100)),
     )
     rows: List[Dict[str, Any]] = []
+    existing_files = {
+        str(entry.get("file_name") or "").lower()
+        for entry in entries if entry.get("file_name")
+    }
     for entry in entries:
         if str(entry.get("workspace_id") or "") not in ("", workspace_id):
             continue
@@ -1328,6 +1332,10 @@ async def list_assignment_sources(
         if freshness in ("removed", "superseded", "outdated", "stale"):
             continue
         if query and query.lower() not in str(row.file_name or "").lower():
+            continue
+        if str(row.file_name or "").lower() in existing_files:
+            # A workbook upload also materializes a sheet dataset; expose the
+            # tabular source once, not the same file as a text document too.
             continue
         rows.append({
             "document_id": row.id,

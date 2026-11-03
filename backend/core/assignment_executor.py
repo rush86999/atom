@@ -7001,6 +7001,12 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
         load_formulas_for_parquet(path), row_numbers)
     source = _connected_source_block(resolved, binding)
     source_label = _source_label(source)
+    truncated = matched > limit
+    coverage = dict(source.get("coverage") or {})
+    coverage.update({"complete": not truncated, "known": True,
+                     "truncated": truncated})
+    resource_id = str(source.get("resource_id") or "")
+    version = str(source.get("source_version") or "")
     return {
         "status": "applied",
         "summary": (
@@ -7010,8 +7016,16 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
         "schema": [{"column": column} for column in physical if column],
         "formulas": formulas,
         "matched_count": matched,
-        "truncated": matched > limit,
+        "truncated": truncated,
         "source_version": source["source_version"],
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "source": source,
         "source_label": source_label,
         "evidence": [{
