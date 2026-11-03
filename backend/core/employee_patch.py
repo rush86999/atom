@@ -501,20 +501,10 @@ def apply_plan_patch(
     normalized = checked["patch"]
 
     def compute(record, assignment):
-        # Re-check inside the CAS callback: another writer may have changed
-        # the plan after the pre-check. task_version is the lifecycle CAS
-        # state version; task_revision.revision is the objective revision and
-        # is deliberately NOT used here.
-        current_task_version = _task_version(record)
-        if (current_task_version is None
-                or current_task_version != normalized["base_task_version"]):
-            raise PlanPatchError(
-                "stale task version: the durable task state changed after "
-                "the proposal")
-        if int(assignment.get("plan_revision") or 1) != int(
-                normalized["base_plan_revision"]):
-            raise PlanPatchError(
-                "stale plan revision: the plan changed after proposal")
+        # Duplicate identity is resolved BEFORE the version guard: a
+        # concurrent winner has already advanced task_version, but replaying
+        # the exact same material must return the first result, not look like
+        # a stale proposal.
         registry = assignment.get("patch_registry") or {}
         duplicate = registry.get(normalized["patch_id"]) if isinstance(
             registry, Mapping) else None
@@ -534,6 +524,20 @@ def apply_plan_patch(
                 }
             raise PlanPatchError(
                 "patch identity has no material digest; refresh the proposal")
+        # Re-check inside the CAS callback: another writer may have changed
+        # the plan after the pre-check. task_version is the lifecycle CAS
+        # state version; task_revision.revision is the objective revision and
+        # is deliberately NOT used here.
+        current_task_version = _task_version(record)
+        if (current_task_version is None
+                or current_task_version != normalized["base_task_version"]):
+            raise PlanPatchError(
+                "stale task version: the durable task state changed after "
+                "the proposal")
+        if int(assignment.get("plan_revision") or 1) != int(
+                normalized["base_plan_revision"]):
+            raise PlanPatchError(
+                "stale plan revision: the plan changed after proposal")
         history = list(assignment.get("patch_history") or [])
         steps = list(assignment.get("steps") or [])
         by_id = {str(step.get("step_id") or ""): step for step in steps}
