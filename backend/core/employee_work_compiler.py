@@ -276,6 +276,32 @@ def _quote_patch(
             raise WorkRequestCompileError(
                 f"quote mapping {key!r} names column {column!r} absent from "
                 f"the accepted source schema")
+    sample_rows = [
+        row for row in (result.get("rows") or [])
+        if isinstance(row, Mapping)
+    ][:25]
+    for semantic, column in columns.items():
+        if semantic not in ("quantity", "unit_price"):
+            continue
+        for index, row in enumerate(sample_rows):
+            value = row.get(column)
+            try:
+                number = Decimal(str(value))
+            except (InvalidOperation, ValueError) as exc:
+                raise WorkRequestCompileError(
+                    f"quote mapping {semantic!r} column {column!r} is not "
+                    f"numeric in accepted row {index + 1}") from exc
+            if not number.is_finite():
+                raise WorkRequestCompileError(
+                    f"quote mapping {semantic!r} column {column!r} is not "
+                    f"finite in accepted row {index + 1}")
+    if "item_id" in columns:
+        for index, row in enumerate(sample_rows):
+            if str(row.get(columns["item_id"]) or "").strip() == "":
+                raise WorkRequestCompileError(
+                    f"quote mapping 'item_id' column "
+                    f"{columns['item_id']!r} is empty in accepted row "
+                    f"{index + 1}")
     if not request.currency.strip():
         raise WorkRequestCompileError("quote currency must be explicit")
     currency_term = _resolved_currency(
