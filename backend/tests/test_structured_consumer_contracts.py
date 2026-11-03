@@ -140,3 +140,37 @@ def test_planner_typed_no_tool_is_not_transport_none(monkeypatch):
     failed = asyncio.run(plan_tool_use(
         "hello there", [], "user-1", object()))
     assert failed is None
+
+
+def test_planner_uses_the_scoped_json_output_mode():
+    from core.chat_tool_planner import _structured_with_fallback
+
+    class Fake:
+        def __init__(self):
+            self.kwargs = {}
+
+        async def generate_structured_response(self, **kwargs):
+            self.kwargs = kwargs
+            return ToolPlan(use_tool=False, reason="declined")
+
+    fake = Fake()
+    plan = asyncio.run(_structured_with_fallback(
+        fake, prompt="no tool", response_model=ToolPlan,
+        system_instruction="Return JSON."))
+    assert plan is not None and plan.use_tool is False
+    assert fake.kwargs["output_mode"] == "json"
+    assert fake.kwargs["cascade"] is False
+    assert fake.kwargs["allow_moa"] is False
+
+
+def test_router_deadline_exhaustion_is_a_protocol_failure():
+    class Slow:
+        async def generate_structured_response(self, **_kwargs):
+            await asyncio.sleep(5)
+
+    router = GoalRunRouter(llm_service=Slow())
+    decision = asyncio.run(router.decide(
+        _goal_context(), deadline_seconds=0.05))
+    assert decision["decision"] == "ASK_HUMAN"
+    assert decision["trace"]["attempts"] == 1
+    assert any("deadline" in error for error in decision["trace"]["errors"])

@@ -27,6 +27,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.goals.goal_plan_validation import (
+    validate_goal_plan,
+    validate_replan_decision,
+)
+
 logger = logging.getLogger(__name__)
 
 GOAL_RUN_STATUSES = (
@@ -108,6 +113,11 @@ class GoalRunService:
         if supervision_mode not in SUPERVISION_MODES:
             raise ValueError(
                 f"supervision_mode must be one of {SUPERVISION_MODES}")
+        if plan:
+            errors = validate_goal_plan(plan, require_non_empty=True)
+            if errors:
+                raise ValueError(
+                    "invalid goal plan: " + "; ".join(errors))
         with self._sessions()() as session:
             goal = session.query(GoalObjective).filter(
                 GoalObjective.id == goal_id).first()
@@ -373,6 +383,10 @@ class GoalRunService:
 
     def set_plan(self, run_id: str, plan: List[Dict[str, Any]]) -> Dict[str, Any]:
         from core.models import GoalRun
+        errors = validate_goal_plan(plan, require_non_empty=True)
+        if errors:
+            raise ValueError(
+                "invalid goal plan: " + "; ".join(errors))
         with self._sessions()() as session:
             run = self._load(session, run_id)
             if not run:
@@ -679,24 +693,20 @@ class GoalRunService:
 
         if kind == "REPLAN":
             new_plan = decision.get("new_plan")
-            valid_plan = (
-                isinstance(new_plan, list) and bool(new_plan)
-                and all(isinstance(item, dict)
-                        and str(item.get("id") or "").strip()
-                        for item in new_plan)
-            )
-            if not valid_plan:
-                # A REPLAN without a consumable plan is not executable.
-                # Hold it for human input; do not bump replan_count or
-                # change the cursor/plan. No original_decision is set, so
-                # approving this hold cannot replay the invalid REPLAN.
+            validation_errors = validate_replan_decision(decision)
+            if validation_errors:
+                # A REPLAN without a semantically consumable plan is not
+                # executable. Hold it for human input; do not bump
+                # replan_count or change the cursor/plan. No
+                # original_decision is set, so approving this hold cannot
+                # replay the invalid REPLAN.
                 return self._hold_for_approval(
                     run_id,
                     {**decision, "decision": "ASK_HUMAN",
                      "rationale": (
-                         "invalid REPLAN: a non-empty new_plan with ids is "
-                         "required; no plan was applied"),
-                     "invalid_decision": decision},
+                         "invalid REPLAN: " + "; ".join(validation_errors)),
+                     "invalid_decision": decision,
+                     "validation_errors": validation_errors},
                     reason="invalid replan")
             # Magnitude guardrail (§3.5): a replan that discards more
             # than half the remaining plan is a direction change big

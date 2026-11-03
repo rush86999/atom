@@ -1858,12 +1858,23 @@ async def _structured_with_fallback(
     """
     from core.llm.pinned_planning import pinned_structured_call
 
+    # SUPPORTED MODE FOR THIS WORKLOAD (2026-11-02): the frozen no-tool
+    # case returned None in 114.87s through the default TOOLS transport,
+    # while the same schema/prompt in explicit JSON mode produced a valid
+    # ToolPlan(use_tool=false) in 33.18s. Ollama tool-choice handling is
+    # the unstable leg; JSON mode is the scoped supported option.
     return await pinned_structured_call(
         llm_service,
         prompt=prompt,
         response_model=response_model,
         system_instruction=system_instruction,
         call_kwargs=None,  # no pin — BPC ranks the candidates
+        extra_kwargs={
+            "output_mode": "json",
+            "cascade": False,
+            "allow_moa": False,
+            "max_tokens": 3000,
+        },
         log_label="tool planner",
         task_type="planning",
     )

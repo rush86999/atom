@@ -258,6 +258,11 @@ class GoalRunExecutors:
 
     async def _integration_action(self, run, decision, step) -> Dict[str, Any]:
         from core.action_registry import action_registry, ActionNotFoundError
+        from core.goals.goal_plan_validation import validate_goal_plan
+        errors = validate_goal_plan(
+            [step], require_non_empty=True, action_registry=action_registry)
+        if errors:
+            return {"error": "invalid integration step: " + "; ".join(errors)}
         name = step.get("action") or step.get("title")
         if not name:
             return {"error": "integration_action step missing 'action'"}
