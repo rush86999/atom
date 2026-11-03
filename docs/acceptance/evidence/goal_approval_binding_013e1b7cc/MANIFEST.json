@@ -1,0 +1,119 @@
+{
+  "artifacts": {
+    "README.md": "e939173a6059bef0f72d90f262116f973cac37437427a66c11dc062e0e020799",
+    "TEST_RESULTS.md": "ebd8a1396262fc1f070ab09f6b2744d1c7bf51a6677c514e26bf9f8607ff4293",
+    "goal-approval-frontend-tests.log": "5cf4e79c19d2a3a2eefac12bb2ae597bfe6001e8ea72d1a87335514a16bb56e3",
+    "goal-approval-tests.log": "9cf1a7221744bec8f313ee079f4e8c702dc169f872f1ad49d0f33e3874a501a0",
+    "goal-http-binding-adapted.log": "8f14fe1992cbf46f6fc238a3cf5cc09e5b542fddb23d013fb8bb232a4b165b63",
+    "goal-resume-claim-probe.json": "5bdc82fd1ad9c19f50f8240a6a5fe3cea797b75b20d92f5aa015dc67e4f877ce",
+    "goal-resume-claim-probe.log": "5bdc82fd1ad9c19f50f8240a6a5fe3cea797b75b20d92f5aa015dc67e4f877ce",
+    "legacy-unbound-refusal.txt": "430f233b2d71fd3d20c31dc804907e98afb142022ad34e336332920bc62e556d"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "013e1b7cc6b0ed2432bd3e9e685d4882ae78168d",
+    "main_worktree": "/private/tmp/atom-full-app",
+    "manifest_note": "This evidence commit is docs-only after the executed source.",
+    "parallel_slice": "Agent 1 structured planner/goal consumer changes are a separate slice and are not part of these source hashes.",
+    "tree_clean_at_execution": true,
+    "worktree": "/private/tmp/atom-goal-bind-clean"
+  },
+  "changed_files": [
+    "backend/core/goals/goal_run_binding.py",
+    "backend/core/goals/goal_run_service.py",
+    "backend/api/goal_run_routes.py",
+    "backend/core/hitl_resume.py",
+    "backend/api/agent_routes.py",
+    "backend/api/approvals_routes.py",
+    "backend/tests/test_goal_effect_family_controls.py",
+    "backend/tests/test_hitl_resume.py",
+    "backend/tests/test_hitl_approvals_journey.py",
+    "scripts/acceptance/probe_goal_resume_claim.py",
+    "frontend-nextjs/lib/goal-run-api.ts",
+    "frontend-nextjs/pages/goal-runs/[id].tsx",
+    "frontend-nextjs/pages/approvals.tsx",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx"
+  ],
+  "contract": {
+    "binding": "SHA-256 over canonical run scope/state + complete decision payload",
+    "cas": "run/workspace/status/non-null pending/pending generation",
+    "hitl_closure": "only the pre-turn rows whose stored decision id matches the reviewed id, after the claim wins",
+    "legacy": "targeted 409 decision_review_required / stale_decision_review; no silent fallback",
+    "pending_decision_fields": [
+      "decision_id",
+      "decision_generation",
+      "decision_binding"
+    ],
+    "resume_body_fields": [
+      "decision_id",
+      "decision_binding"
+    ],
+    "validation": "recomputed against authoritative persisted run/pending material before any HITL/run/learning/executor mutation"
+  },
+  "controls": {
+    "bound_replay_after_new_pending": "one execution; A replay 409 stale; B remains pending",
+    "changed_decision": "409 stale; no executor",
+    "changed_plan": "409 stale; no executor",
+    "checkpoint_during_execution": "new checkpoint remains pending; A row closes",
+    "duplicate_rejection": "one override; second no-op/conflict",
+    "simultaneous_resume": "one winner/executor/approval",
+    "stale_generation_snapshot": "refused; newer pending retained",
+    "unbound_legacy": "409 decision_review_required; HITL unchanged"
+  },
+  "exclusions": [
+    "no live provider lookup, refresh, write, send, credential or consent change, or spend",
+    "interrupted-claim/provider-lost-confirmation reconciliation not claimed",
+    "no whole-app ORACLE-01 closure",
+    "no soak, multi-worker or PostgreSQL runtime claim",
+    "Agent 1 structured consumer slice not included in this hash set",
+    "historical 111/123, 123 denominator and accepted tags/sources unchanged"
+  ],
+  "schema": "atom-goal-approval-binding-1",
+  "source_hashes": {
+    "backend/api/agent_routes.py": "0bd55276ae66d023b022eebdc8c3e350396be81291ba7f2c819a7e38130d4850",
+    "backend/api/approvals_routes.py": "a2ba40beac6068fd43b4edd24bf563af765558f0ae563dd7981ba3a26dbb5082",
+    "backend/api/goal_run_routes.py": "3dad85d1ef2ff05a3121515ae596aa3e69503748ae4afdd2175e5ab165c367ce",
+    "backend/core/goals/goal_run_binding.py": "7ad07d5c2ce9ccb972a42a77f7be59019e67beafc0cd19ad20f20273c71a9879",
+    "backend/core/goals/goal_run_service.py": "f4842c69340b9d409631956a7be9262e4d8f92b8d40b51169ddbcb5e7aa958ec",
+    "backend/core/hitl_resume.py": "ebb60243bce1cffcf78eecae4ca6c964b80f3ab0d004555e3212f305d89a263d",
+    "backend/tests/test_goal_effect_family_controls.py": "f212dcc707ea9afdf8b020f0e575889b440e997f8ee219fd506bf38155ce3291",
+    "backend/tests/test_hitl_approvals_journey.py": "562379153ebf6e1a5ef772c9f3d7fc9ea40a28dadddda7c4b12167cd3ef79b03",
+    "backend/tests/test_hitl_resume.py": "6b12cd7db0733b79c06edc4a5eb6112c27c04b98e0dc6a9514e4c69e608c4e98",
+    "frontend-nextjs/lib/goal-run-api.ts": "2c8b66b4071087747b41543ce35e417cf89ebad9182d2e79b9ef4deb2ebb648a",
+    "frontend-nextjs/pages/approvals.tsx": "5cbff20101fd5da86e40dda5c6ad788acd397053280ae5a98ba85a881f2e99af",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "5f8ade9eb4d453175a58594d201c7ea6e7dc925702d79ece4f6d27093e1e7764",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx": "2f8befb5229624c861c54e77fbd80dddca81f8ecfa790c76faa14f3ceaaf6936",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "fd7c04019ddd28115777b6623725b9a3f143c497255ea54e60a5e5193d99cbee",
+    "scripts/acceptance/probe_goal_resume_claim.py": "f8130e8c2059cad0d2b4913efa9dd70160f57a3eb2d42dd98caa45cc36c1f645"
+  },
+  "status": "submitted-for-independent-verification",
+  "tests": {
+    "adapted_http_probe": {
+      "command": "pytest adapted verifier HTTP replay probe",
+      "log": "goal-http-binding-adapted.log",
+      "result": "1 passed"
+    },
+    "backend_clean": {
+      "command": "pytest goal/approval suite -q",
+      "log": "goal-approval-tests.log",
+      "result": "204 passed"
+    },
+    "frontend_clean": {
+      "command": "jest goal-run detail/index + approvals",
+      "log": "goal-approval-frontend-tests.log",
+      "result": "46 passed"
+    },
+    "legacy_unbound_refusal": {
+      "command": "pytest original unbound verifier HTTP probe",
+      "log": "legacy-unbound-refusal.txt",
+      "result": "first request 409 decision_review_required (expected)"
+    },
+    "service_probe": {
+      "command": "python scripts/acceptance/probe_goal_resume_claim.py",
+      "evidence": "goal-resume-claim-probe.json",
+      "log": "goal-resume-claim-probe.log",
+      "result": "2/2 scenarios passed"
+    }
+  }
+}
