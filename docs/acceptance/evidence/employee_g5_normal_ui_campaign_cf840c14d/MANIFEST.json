@@ -27,7 +27,7 @@
   "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0"
  },
  "artifacts": {
-  "README.md": "81d4c34070112c0b53317fcb0777e0e9c10612f0d02ed5fb13cb487285bcb812",
+  "README.md": "4bb66e6d66d3e336596b1a00ba9578797d506fa152874810ed562d8116da395c",
   "TEST_RESULTS.md": "c93d6518631426637f603aa1424b6e0b9056a5870232fe012a364327a8f4f376",
   "attempts.jsonl": "5e8963de2e3b52b2a1c65b6652869afcaae4c509632dd47adba8e35d7ea9ed54",
   "cancellation.png": "59811debcba9a477d5887e6ddc4f3e4c6be9aaef6b68ad8278992e02a7f1f5e0",
@@ -57,5 +57,23 @@
   "controlled provider-lost effect is separate API-level normal-application evidence",
   "no cloud/live provider, credential, consent, send, spend or deployment",
   "prior acceptance and historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
- ]
+ ],
+ "packaging": {
+  "build_id": "Sqe_aXJSKB66cAJQ3fniG",
+  "frontend_build": "next build --webpack",
+  "api_url": "http://127.0.0.1:8085",
+  "first_process": {
+   "backend_pid": 71839,
+   "frontend_pid": 71853
+  },
+  "restart_process": {
+   "backend_pid": 72066,
+   "frontend_pid": 72085
+  },
+  "ignored_patterns_force_added": [
+   "*.txt",
+   "*.log"
+  ],
+  "note": "Exact local bytes added without regeneration."
+ }
 }

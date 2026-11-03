@@ -69,3 +69,23 @@ artifact, so the displayed verified calculation is the requested output. No
 live/cloud provider, credential, consent, send, spend or deployment was used.
 Historical `111/123`, planner 5/5, goal router 1/2 and alignment gap 3.0 are
 unchanged.
+
+## Checkout packaging (successor)
+
+- The six text/log artifacts named by the manifest are force-tracked from the
+  original local browser run without regeneration: `quote-page.txt`,
+  `procurement-question-before.txt`, `procurement-question-after-restart.txt`,
+  `procurement-final.txt`, `cancellation.txt`, `server.log`. The legacy
+  `.gitignore` patterns (`*.txt`, `*.log`) caused them to be omitted from the
+  first evidence commit.
+- Frontend build identity: Next.js `BUILD_ID=Sqe_aXJSKB66cAJQ3fniG`, built
+  with `next build --webpack` and `NEXT_PUBLIC_API_URL=http://127.0.0.1:8085`.
+- First process identity: backend pid `71839`, frontend pid `71853`,
+  source `cf840c14d516`, world
+  `g5-ui-final-20261103`.
+- Browser-recovery process identity: backend pid `72066`, frontend pid
+  `72085`, same source and world. The procurement question survived this
+  restart and run `303d5db2-9727-4473-bc31-b66fcbac3ce9` recovered to 270.00.
+- Evidence remains at the original `cf840c14d` execution identity. The later
+  `637a6e178` extraction-identity repair is a successor source, not part of
+  this browser run and not relabelled here.

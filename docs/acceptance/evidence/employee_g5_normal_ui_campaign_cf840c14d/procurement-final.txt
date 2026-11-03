@@ -1,0 +1,72 @@
+A
+ATOM
+CORE
+Dashboard
+Chat
+Workspace
+Data
+Agents
+Learning
+Assignments
+Approvals
+Activity
+PLATFORM
+Settings
+
+admin
+
+admin@example.com
+
+No unread notifications
+Durable assignments
+
+This view reads the durable assignment projection. It does not infer progress from chat text and does not run restart recovery on load.
+
+Assignments
+
+Start durable work
+
+Refresh data
+No employee binding
+Demo Assistant · system
+invoice-v1.json
+receiving-records.json
+purchase-order.json
+Document
+Presentation
+Email draft
+No calculation / infer
+Count rows
+Other business concept…
+Let the employee decide the next supported work
+Let Atom choose from a permitted scope instead of the selected data
+Advanced (optional)
+Start assignment
+Reconcile the supplier invoice against the purchase order and receiving records (clean UI final)
+completed
+
+4/4 steps
+
+Reconcile the supplier invoice against the purchase order and receiving records (clean UI final)
+
+completed
+
+Plan revision 3 · teaching untrained
+
+Business outcome: satisfied · criteria_met
+
+4/4 required steps
+99s work · 0s paused
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Completed work
+
+Read purchase-order.json
+Read receiving-records.json
+Read invoice-v1.json
+Reconcile invoice against purchase and receiving evidence
+Result: 270.00 USD
+Resume
+Reassess teaching
+Cancel

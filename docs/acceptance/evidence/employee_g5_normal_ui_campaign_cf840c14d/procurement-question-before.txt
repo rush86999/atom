@@ -1,0 +1,84 @@
+A
+ATOM
+CORE
+Dashboard
+Chat
+Workspace
+Data
+Agents
+Learning
+Assignments
+Approvals
+Activity
+PLATFORM
+Settings
+
+admin
+
+admin@example.com
+
+No unread notifications
+Durable assignments
+
+This view reads the durable assignment projection. It does not infer progress from chat text and does not run restart recovery on load.
+
+Assignments
+Uploaded receiving-records.json; it is now selectable.
+
+Start durable work
+
+Refresh data
+No employee binding
+Demo Assistant · system
+receiving-records.json
+purchase-order.json
+Document
+Presentation
+Email draft
+No calculation / infer
+Count rows
+Other business concept…
+Let the employee decide the next supported work
+Let Atom choose from a permitted scope instead of the selected data
+Advanced (optional)
+Start assignment
+Reconcile the supplier invoice against the purchase order and receiving records (clean UI final)
+blocked
+
+2/2 steps
+
+Reconcile the supplier invoice against the purchase order and receiving records (clean UI final)
+
+blocked
+
+Plan revision 1 · teaching untrained
+
+Business outcome: unresolved · criteria_unknown
+
+Open question: Which authorized source contains the missing invoice evidence for purchase order PO-8841?
+
+receiving-records.json
+purchase-order.json
+Use selected source
+2/2 required steps
+29s work · 0s paused
+
+0 waiting · 1 open question(s)
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Completed work
+
+Read purchase-order.json
+Read receiving-records.json
+
+Missing information
+
+Which authorized source contains the missing invoice evidence for purchase order PO-8841?
+
+missing prerequisite: invoice · Next: Which authorized source contains the missing invoice evidence for purchase order PO-8841?
+
+Resume
+Reassess teaching
+Cancel
+Durable state persisted
