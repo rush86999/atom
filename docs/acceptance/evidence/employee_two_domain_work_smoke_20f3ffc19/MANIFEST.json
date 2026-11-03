@@ -1,0 +1,74 @@
+{
+  "artifacts": {
+    "README.md": "8990bfe14232b28f72c2c480b18d80daf318d1ee1c08829981fcb470793bc215",
+    "TEST_RESULTS.md": "34108a08addb6d4261ed721affc97fc18f287c54acc86e7aa6ba3fb8201618cc",
+    "focused-tests.log": "16927242ecae14f0709fdd8889c631dcfe16a884e1b5eb9e855ae1f189a2ec29",
+    "invoice-calls.jsonl": "bd12cd249db77a25653d4b73a143599e6dfc1c17a1960678234923f6395cdcc8",
+    "invoice-report.json": "4d917d2d269227021d888a7d8cd6fe250da0529d392225c171e183949d155fef",
+    "quote-calls.jsonl": "90539beb8e5e7f0e0c2fd0d092654f903397c64dfdcef6359b674bbbebf6bde2",
+    "quote-report.json": "46c1e0887387f1f8cc0ed5125ccbb5e7529ea06dbce4998fb8691a83510dcb50"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "20f3ffc19ef3c22e42cc8e5bc5faba1abfbfbf90",
+    "manifest_note": "Quote and invoice served work-request smokes passed. Full G5 ordinary-product campaign remains open.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_invoice.py",
+    "backend/core/assignment_readiness.py",
+    "backend/core/employee_adaptation.py",
+    "backend/core/employee_attempt_journal.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/core/employee_work_requests.py",
+    "backend/tests/test_employee_g5_model_proposal.py",
+    "backend/tests/test_employee_work_request_bindings.py",
+    "backend/tests/test_employee_work_requests.py",
+    "scripts/acceptance/employee_g5_invoice_smoke.py"
+  ],
+  "exclusions": [
+    "full G5 ordinary-product campaign not run",
+    "adaptive employee judgment remains unqualified",
+    "no cloud/live provider, credential, consent, send, spend or deployment",
+    "prior deterministic acceptance 28afe7248 remains intact",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "local_model": {
+    "base_url": "http://127.0.0.1:11436/v1",
+    "declared": "llama3.1:8b",
+    "pin": "ollama:llama3.1:8b"
+  },
+  "schema": "atom-employee-two-domain-work-smoke-1",
+  "source_hashes": {
+    "backend/core/assignment_invoice.py": "b38edc19dc85a52b7bcc35a3ed13360ceb2d07dfb054691feb1afa3aa6b7c0b1",
+    "backend/core/assignment_readiness.py": "1e85caa08b4c6d2188e0e45d82feced099a0440970f7c4d00d6c4c44d597bebc",
+    "backend/core/employee_adaptation.py": "4a74c46301835d189dbd9eccf166ac3e5e00b127c656e5c84d0685d485c33c79",
+    "backend/core/employee_attempt_journal.py": "aa7db0932df98415e63a2e8d73d16c0e40fed3a03ceb830d8d1ea2e429efe928",
+    "backend/core/employee_proposal.py": "46d67a6adcaf423812fe2730fd703088d9ede5d218e022b182274bb8043acf36",
+    "backend/core/employee_work_compiler.py": "09a764a1225c5a5f5e25426752fd6f206d1c1181fe25b5c729804206dc02eabd",
+    "backend/core/employee_work_requests.py": "880d7597f23bc7d32e0e9efc3ae3f0d231dc22fa95bf000344c7efafb91e7a1b",
+    "backend/tests/test_employee_g5_model_proposal.py": "7ab05d4f49dbdbc1623e628743ac073852c9012292cf43923cf01a7c8d8b7a6f",
+    "backend/tests/test_employee_work_request_bindings.py": "2ccfe557b04bfd140289ea9e55f9bfc0d4b7845dc45ce4b7d945b93450c258ca",
+    "backend/tests/test_employee_work_requests.py": "21f862d53e36a37471d0578b1fe68300f68f34510d869e328ef7fff426044904",
+    "scripts/acceptance/employee_g5_invoice_smoke.py": "fd4203d538256ba955a10291c305ba978756be56537913abbc2c2be8dd704e1f"
+  },
+  "status": "two-served-work-request-smokes-passed",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "218 passed"
+    },
+    "invoice_smoke": {
+      "calls": "invoice-calls.jsonl",
+      "report": "invoice-report.json",
+      "result": "model work_request; 270.00"
+    },
+    "quote_smoke": {
+      "calls": "quote-calls.jsonl",
+      "report": "quote-report.json",
+      "result": "model work_request; 370.00"
+    }
+  }
+}
