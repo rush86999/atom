@@ -1,11 +1,16 @@
 # Public goal approval binding — results
 
-Executed source: `013e1b7cc` in the clean detached worktree
-`/private/tmp/atom-goal-bind-clean`.
+Executed source: `4968a92aa` (integrated goal-binding slice `013e1b7cc` plus
+Agent 1 structured consumer slice `bf9de381b`) in the clean
+`/private/tmp/atom-full-app` worktree.
+
+`goal-approval-integrated-tests.log` — **209 passed** in one integrated run
+(goal/approval suites plus `test_structured_consumer_contracts.py`).
 
 ## Backend
 
-`goal-approval-tests.log` — **204 passed** in one clean run:
+`goal-approval-tests.log` — **204 passed** in the clean goal/approval-only
+slice run (retained as the binding slice's regression log):
 
 - goal effect-family controls (15), including bound replay, unbound refusal,
   changed decision, changed plan, duplicate rejection, checkpoint-during-

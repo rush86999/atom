@@ -5,4 +5,4 @@ PASS tests/pages/goal-runs/index.test.tsx
 Test Suites: 3 passed, 3 total
 Tests:       46 passed, 46 total
 Snapshots:   0 total
-Time:        3.331 s
+Time:        2.248 s, estimated 3 s

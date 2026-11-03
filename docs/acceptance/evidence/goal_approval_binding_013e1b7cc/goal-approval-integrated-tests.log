@@ -1,0 +1,976 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-02 19:05:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 19:05:22 [    INFO] MCP Service initialized
+
+tests/test_goal_effect_family_controls.py::test_wrong_workspace_supervisor_reads_and_mutations_are_404 
+-------------------------------- live log setup --------------------------------
+2026-11-02 19:05:22 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 19:05:22 [    INFO] EscalationManager initialized
+2026-11-02 19:05:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:22 [    INFO] EscalationManager initialized
+2026-11-02 19:05:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:22 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 0f4252f0-baa6-49a6-a394-7e3c6fae3589
+2026-11-02 19:05:22 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/0f4252f0-baa6-49a6-a394-7e3c6fae3589 "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:22 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 0f4252f0-baa6-49a6-a394-7e3c6fae3589
+2026-11-02 19:05:22 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/0f4252f0-baa6-49a6-a394-7e3c6fae3589/decisions "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:22 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 0f4252f0-baa6-49a6-a394-7e3c6fae3589
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/0f4252f0-baa6-49a6-a394-7e3c6fae3589/advance "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:22 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 0f4252f0-baa6-49a6-a394-7e3c6fae3589
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/0f4252f0-baa6-49a6-a394-7e3c6fae3589/resume "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:22 [ WARNING] API Error: NOT_FOUND - GoalRun not found: 0f4252f0-baa6-49a6-a394-7e3c6fae3589
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/0f4252f0-baa6-49a6-a394-7e3c6fae3589/cancel "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  0%]
+tests/test_goal_effect_family_controls.py::test_terminal_run_advance_is_409_and_appends_no_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2bfde4cc-f283-4485-ac8c-35539a56ef38/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  0%]
+tests/test_goal_effect_family_controls.py::test_duplicate_resume_executes_once_and_keeps_first_reviewer 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8a3f3001-aeca-4e41-a013-9fdb12eda902/resume "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8a3f3001-aeca-4e41-a013-9fdb12eda902/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_goal_effect_family_controls.py::test_two_simultaneous_resumes_execute_one_turn PASSED [  1%]
+tests/test_goal_effect_family_controls.py::test_stale_resume_snapshot_cannot_claim_newer_pending PASSED [  2%]
+tests/test_goal_effect_family_controls.py::test_fresh_session_resumes_persisted_pending_once PASSED [  2%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_wrong_workspace_refuses_without_rows PASSED [  3%]
+tests/test_goal_effect_family_controls.py::test_goal_action_start_refuses_self_impersonation PASSED [  3%]
+tests/test_goal_effect_family_controls.py::test_goal_action_duplicate_active_run_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [ WARNING] plan seeding fell back (playbook match failed): (sqlite3.OperationalError) no such table: playbooks
+[SQL: SELECT playbooks.id AS playbooks_id, playbooks.tenant_id AS playbooks_tenant_id, playbooks.workspace_id AS playbooks_workspace_id, playbooks.name AS playbooks_name, playbooks.description AS playbooks_description, playbooks.trigger_canvas_type AS playbooks_trigger_canvas_type, playbooks.trigger_keywords AS playbooks_trigger_keywords, playbooks.steps AS playbooks_steps, playbooks.template_questions AS playbooks_template_questions, playbooks.examples AS playbooks_examples, playbooks.source AS playbooks_source, playbooks.approval_state AS playbooks_approval_state, playbooks.version AS playbooks_version, playbooks.fingerprint AS playbooks_fingerprint, playbooks.origin_ids AS playbooks_origin_ids, playbooks.last_eval_result AS playbooks_last_eval_result, playbooks.embedding AS playbooks_embedding, playbooks.embedding_model AS playbooks_embedding_model, playbooks.created_by AS playbooks_created_by, playbooks.approved_by AS playbooks_approved_by, playbooks.created_at AS playbooks_created_at, playbooks.updated_at AS playbooks_updated_at 
+FROM playbooks 
+WHERE playbooks.tenant_id = ? AND playbooks.approval_state = ? ORDER BY playbooks.updated_at DESC]
+[parameters: ('t-a', 'approved')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [  4%]
+tests/test_goal_effect_family_controls.py::test_public_resume_replay_cannot_execute_a_newer_pending_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ff255ea-fa75-4d38-bc32-7243aaa984d6/resume "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ff255ea-fa75-4d38-bc32-7243aaa984d6/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_goal_effect_family_controls.py::test_public_resume_without_review_binding_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/044e408a-f347-4613-aeed-ff246796f107/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_goal_effect_family_controls.py::test_changed_plan_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/79eaf4b0-4f4f-4cd0-b183-ed873852443a/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_goal_effect_family_controls.py::test_duplicate_rejection_of_one_reviewed_decision_is_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:05:22 [    INFO] EscalationManager initialized
+2026-11-02 19:05:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:22 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:05:22 [   ERROR] Reflection pool table not available
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f06ce951-8876-4573-9511-091de36623f7/resume "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f06ce951-8876-4573-9511-091de36623f7/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_goal_effect_family_controls.py::test_changed_decision_material_after_review_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/bbb3a89a-5e63-4016-a873-f2cb7e277e67/resume "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_goal_effect_family_controls.py::test_new_checkpoint_created_during_execution_stays_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/eb9b7837-e3a8-4952-98ef-9fd7a8af7d9b/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_list_goals_is_any_signed_in 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: GET http://testserver/api/goals "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_member_creates_simple_goal_but_not_criteria 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: GET http://testserver/api/goals/7592779f-1622-4d5c-b477-353dc1528b85 "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_goal_rejects_blank_title 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  8%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_run_accepts_inline_new_goal_id 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_starts_own_role_based_run 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_role_derived_from_the_business_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_author_plan_or_self_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:22 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_governance_params_stripped 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_without_role_or_agent_is_422 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 11%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_acts_other_member_refused_supervisor_can 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f44a263e-365a-4fd8-a7fe-1c57cee8a9cd/advance "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f44a263e-365a-4fd8-a7fe-1c57cee8a9cd/cancel "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f44a263e-365a-4fd8-a7fe-1c57cee8a9cd/checkpoints/h1/resolve "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f44a263e-365a-4fd8-a7fe-1c57cee8a9cd/advance "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/f44a263e-365a-4fd8-a7fe-1c57cee8a9cd/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_resolves_own_held_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2e225400-d2fe-4856-9f17-68de11b422f6/resume "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2e225400-d2fe-4856-9f17-68de11b422f6/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_change_mode_or_distill 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ee8e9b1-5d11-47dc-b0c0-613ce59ce505/mode "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3ee8e9b1-5d11-47dc-b0c0-613ce59ce505/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 12%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_kicks_off_first_loop_turn 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/0a52c45f-7ef4-48e4-9101-dc3d3cc7665f/canvases "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_start_false_leaves_run_dormant 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_training_mode_kickoff_holds_first_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/597082b9-ce3f-45ea-aef0-b1ab002d7ff4/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_advance_on_terminal_run_is_409_not_silent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/733db0e9-e438-4d8a-9542-0fffff1973be/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_distill_allowed_for_failed_and_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/85f3e118-d8a0-40db-af5c-747c530b4e97/distill "HTTP/1.1 409 Conflict"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/d3bc563e-0da7-459d-a48a-43357be7259b/distill "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 15%]
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-02 19:05:23 [    INFO] EscalationManager initialized
+2026-11-02 19:05:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:23 [    INFO] LanceDBHandler initialized. ID: 4882278800. LANCEDB_AVAILABLE: True
+2026-11-02 19:05:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:05:23 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:05:23 [    INFO] LanceDB connected successfully
+2026-11-02 19:05:23 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-02 19:05:23 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:05:23 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:05:23 [    INFO] EscalationManager initialized
+2026-11-02 19:05:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:23 [   ERROR] AUDIT GAP for execution 1dd769e0-4f15-45db-ad91-733ec8abc7b9: {'complete': False, 'execution_id': '1dd769e0-4f15-45db-ad91-733ec8abc7b9', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-03T00:05:23.279744+00:00'}
+2026-11-02 19:05:23 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:05:23 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+PASSED                                                                   [ 15%]
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Try different inputs.
+2026-11-02 19:05:23 [    INFO] EscalationManager initialized
+2026-11-02 19:05:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:23 [    INFO] LanceDBHandler initialized. ID: 4852913872. LANCEDB_AVAILABLE: True
+2026-11-02 19:05:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:05:23 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:05:23 [    INFO] LanceDB connected successfully
+2026-11-02 19:05:23 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:05:23 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:05:23 [   ERROR] AUDIT GAP for execution 454f7823-0793-46c3-9f8b-3c301fe130c8: {'complete': False, 'execution_id': '454f7823-0793-46c3-9f8b-3c301fe130c8', 'expected_events': 12, 'actual_events': 2, 'coverage_percentage': 16.7, 'checked_at': '2026-11-03T00:05:23.290549+00:00'}
+2026-11-02 19:05:23 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:05:23 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+PASSED                                                                   [ 16%]
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] Agent Goal 04 Agent (goal04-agent) starting task: Keep retrying the same lookup.
+2026-11-02 19:05:23 [    INFO] EscalationManager initialized
+2026-11-02 19:05:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:23 [    INFO] LanceDBHandler initialized. ID: 4873625696. LANCEDB_AVAILABLE: True
+2026-11-02 19:05:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:05:23 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory with storage_options=None
+2026-11-02 19:05:23 [    INFO] LanceDB connected successfully
+2026-11-02 19:05:23 [ WARNING] Stuck-detector halted agent Goal 04 Agent at step 3 on calculator
+2026-11-02 19:05:23 [    INFO] Added critique a10b23d5-84de-4d07-aaef-369b41eb30ad for agent goal04-agent
+2026-11-02 19:05:23 [    INFO] Self-Evolution: Generated critique for Agent Goal 04 Agent failure.
+2026-11-02 19:05:23 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+2026-11-02 19:05:23 [   ERROR] AUDIT GAP for execution 9eb41682-0919-4446-bd18-4ee1741f9a51: {'complete': False, 'execution_id': '9eb41682-0919-4446-bd18-4ee1741f9a51', 'expected_events': 4, 'actual_events': 2, 'coverage_percentage': 50.0, 'checked_at': '2026-11-03T00:05:23.302893+00:00'}
+2026-11-02 19:05:23 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-02 19:05:23 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+PASSED                                                                   [ 16%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_other_workspace_service_cannot_read_the_run PASSED [ 17%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_own_workspace_service_reads_it PASSED [ 17%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_other_workspace_service_cannot_mutate PASSED [ 18%]
+tests/test_goal_run_access_control.py::TestServiceWorkspaceScoping::test_advance_from_wrong_workspace_is_a_no_op_not_found PASSED [ 18%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_cross_workspace_reads_are_404_not_data 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:23 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/decisions "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:23 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/canvases "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_cross_workspace_writes_are_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 404 Not Found"
+2026-11-02 19:05:23 [ WARNING] API Error: NOT_FOUND - GoalRun not found: run-a
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/cancel "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_same_workspace_member_non_owner_is_403 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_owner_and_workspace_supervisor_can_act 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/run-a/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_goal_run_access_control.py::TestRouteAccess::test_run_still_visible_to_its_owner_after_scoping 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a "HTTP/1.1 200 OK"
+2026-11-02 19:05:23 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/run-a/decisions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_goal_run_access_control.py::TestAgentListDetailScoping::test_goal_runs_list_detail_is_workspace_scoped PASSED [ 21%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_start_creates_working_run_bound_to_the_agent PASSED [ 22%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_role_explicit_beats_agent_derivation PASSED [ 22%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_training_mode_holds_first_decision_for_the_owner PASSED [ 22%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_supervision_follows_earned_maturity PASSED [ 23%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_trusted_agent_may_request_any_mode PASSED [ 23%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_start_false_stages_a_dormant_run PASSED [ 24%]
+tests/test_goal_run_agent_start.py::TestAgentStartsRun::test_governance_params_stripped PASSED [ 24%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_no_self_promotion_to_autonomous PASSED [ 25%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_agent_directs_only_itself PASSED [ 25%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_agentless_context_refused PASSED [ 26%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_unknown_goal PASSED [ 26%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_goal_from_another_workspace_refused PASSED [ 27%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_duplicate_active_run_refused PASSED [ 27%]
+tests/test_goal_run_agent_start.py::TestAgentStartGuards::test_finished_run_does_not_block_a_new_one PASSED [ 28%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_router_sees_agent_identity_and_maturity PASSED [ 28%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_step_work_delegates_to_the_agent PASSED [ 29%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_delegation_flag_forces_off PASSED [ 29%]
+tests/test_goal_run_agent_start.py::TestLoopBelongsToTheAgent::test_unavailable_agent_falls_back_to_co_editing 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] goal run c2959969-3e69-41f5-b9a6-fc7d0310844a: agent agent-sales is paused — canvas stays on the co-editing path
+PASSED                                                                   [ 30%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_list_shows_the_run_summary PASSED [ 30%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_run_detail_carries_plan_and_decisions PASSED [ 31%]
+tests/test_goal_run_agent_start.py::TestAgentListsRuns::test_goal_filter_and_unknown_run PASSED [ 31%]
+tests/test_goal_run_bugfixes.py::test_checkpoint_owns_cursor_until_resolved PASSED [ 32%]
+tests/test_goal_run_bugfixes.py::test_skip_over_checkpoint_still_advances PASSED [ 32%]
+tests/test_goal_run_bugfixes.py::test_skip_returns_structured_result PASSED [ 33%]
+tests/test_goal_run_bugfixes.py::test_approving_replan_budget_hold_replays_replan PASSED [ 33%]
+tests/test_goal_run_bugfixes.py::test_approving_major_replan_hold_applies_replan PASSED [ 33%]
+tests/test_goal_run_bugfixes.py::test_approving_wait_ceiling_hold_sets_wait PASSED [ 34%]
+tests/test_goal_run_bugfixes.py::test_approving_failed_done_marks_achieved PASSED [ 34%]
+tests/test_goal_run_events.py::test_ingest_wakes_matching_run_only 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [    INFO] EscalationManager initialized
+2026-11-02 19:05:23 [    INFO] CognitiveTierService initialized for workspace: ws_test
+2026-11-02 19:05:23 [ WARNING] No LLM clients available
+2026-11-02 19:05:23 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "email_reply", "from": "acme@x.com", "subject": "Re: quote"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Research"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{"event": {"event": "email_reply", "from": "acme@x.com", "subject": "Re: quote"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:23 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 35%]
+tests/test_goal_run_events.py::test_ingest_ignores_non_matching PASSED   [ 35%]
+tests/test_goal_run_events.py::test_ingest_is_fault_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [ WARNING] No LLM clients available
+2026-11-02 19:05:23 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "email_reply", "from": "acme@x.com"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Research"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{}, {"event": {"event": "email_reply", "from": "acme@x.com"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:23 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 36%]
+tests/test_goal_run_events.py::test_due_timer_wake 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [ WARNING] No LLM clients available
+2026-11-02 19:05:23 [    INFO] goal_run_router request:
+You are the judgment of a role agent working this process — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: unspecified
+
+MATURITY TIER: unknown — operational — act within the process; ask when the evidence is thin
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{}
+
+NEW EVENT THAT WOKE THIS RUN:
+{"event": "timer", "source": "deadline", "summary": "wait deadline reached (2026-11-02T23:05:23.959327+00:00)"}
+
+CURRENT STEP: {"id": "s1", "kind": "canvas_work", "title": "Follow up"}
+
+REMAINING PLAN (advisory):
+[]
+
+RECENT DECISIONS (oldest first):
+[{"event": {"event": "timer", "source": "deadline"}}]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:23 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 36%]
+tests/test_goal_run_events.py::test_unparseable_deadline_is_skipped_not_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:23 [ WARNING] unparseable goal-run wait deadline: 'not-a-date'
+PASSED                                                                   [ 37%]
+tests/test_goal_run_events.py::test_notify_canvas_done_no_link_is_noop PASSED [ 37%]
+tests/test_goal_run_events.py::test_notify_canvas_done_advances_active_run PASSED [ 38%]
+tests/test_goal_run_events.py::test_notify_canvas_done_leaves_waiting_run_asleep PASSED [ 38%]
+tests/test_goal_run_fixes.py::test_rewait_from_waiting_is_legal PASSED   [ 39%]
+tests/test_goal_run_fixes.py::test_wake_does_not_execute_around_unresolved_hold PASSED [ 39%]
+tests/test_goal_run_fixes.py::test_revise_current_reuses_step_canvas PASSED [ 40%]
+tests/test_goal_run_fixes.py::test_checkpoint_rejection_rewinds_to_work PASSED [ 40%]
+tests/test_goal_run_fixes.py::test_wait_ceiling_forces_human_signoff PASSED [ 41%]
+tests/test_goal_run_fixes.py::test_wait_within_ceiling_and_override PASSED [ 41%]
+tests/test_goal_run_learning.py::test_override_records_lesson_with_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:05:24 [    INFO] EscalationManager initialized
+2026-11-02 19:05:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:24 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:05:24 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 42%]
+tests/test_goal_run_learning.py::test_override_without_agent_or_guidance_is_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:05:24 [    INFO] EscalationManager initialized
+2026-11-02 19:05:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:24 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:05:24 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 42%]
+tests/test_goal_run_learning.py::test_distill_creates_deduped_playbook_draft PASSED [ 43%]
+tests/test_goal_run_learning.py::test_distill_skips_thin_runs PASSED     [ 43%]
+tests/test_goal_run_learning.py::test_seeding_from_fallback_includes_checkpoint PASSED [ 44%]
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:24 [    INFO] Creating isolated LanceDBHandler for workspace: ws_test at ./data/atom_memory/ws_test
+2026-11-02 19:05:24 [    INFO] EscalationManager initialized
+2026-11-02 19:05:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:24 [    INFO] LanceDBHandler initialized. ID: 4893648160. LANCEDB_AVAILABLE: True
+2026-11-02 19:05:24 [    INFO] Lazy loading LanceDB connection...
+2026-11-02 19:05:24 [    INFO] Connecting to LanceDB at /private/tmp/atom-full-app/backend/data/atom_memory/ws_test with storage_options=None
+2026-11-02 19:05:24 [    INFO] LanceDB connected successfully
+2026-11-02 19:05:24 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-02 19:05:24 [    INFO] Document added to 'agent_experience': goalrun-e17cab95-4b86-4a00-a4a6-2944005cfcb7
+2026-11-02 19:05:24 [ WARNING] goal run e17cab95-4b86-4a00-a4a6-2944005cfcb7: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-02 19:05:24 [    INFO] Document added to 'agent_experience': goalrun-8c19c761-31ac-4d90-8cc7-c22e8412f1a6
+2026-11-02 19:05:24 [ WARNING] goal run 8c19c761-31ac-4d90-8cc7-c22e8412f1a6: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-02 19:05:24 [    INFO] Document added to 'agent_experience': goalrun-48bae702-e31d-4b55-8346-3ef1b89ee015
+2026-11-02 19:05:24 [ WARNING] goal run 48bae702-e31d-4b55-8346-3ef1b89ee015: marketplace usage report failed: (sqlite3.OperationalError) no such table: agent_registry
+[SQL: SELECT agent_registry.id AS agent_registry_id, agent_registry.name AS agent_registry_name, agent_registry.display_name AS agent_registry_display_name, agent_registry.handle AS agent_registry_handle, agent_registry.description AS agent_registry_description, agent_registry.category AS agent_registry_category, agent_registry.role AS agent_registry_role, agent_registry.type AS agent_registry_type, agent_registry.capabilities AS agent_registry_capabilities, agent_registry.module_class AS agent_registry_module_class, agent_registry.module_path AS agent_registry_module_path, agent_registry.class_name AS agent_registry_class_name, agent_registry.user_id AS agent_registry_user_id, agent_registry.workspace_id AS agent_registry_workspace_id, agent_registry.tenant_id AS agent_registry_tenant_id, agent_registry.status AS agent_registry_status, agent_registry.confidence_score AS agent_registry_confidence_score, agent_registry.required_role_for_autonomy AS agent_registry_required_role_for_autonomy, agent_registry.self_healed_count AS agent_registry_self_healed_count, agent_registry.is_system_agent AS agent_registry_is_system_agent, agent_registry.enabled AS agent_registry_enabled, agent_registry.diversity_profile AS agent_registry_diversity_profile, agent_registry.division_id AS agent_registry_division_id, agent_registry.parent_agent_id AS agent_registry_parent_agent_id, agent_registry.specialty AS agent_registry_specialty, agent_registry.version AS agent_registry_version, agent_registry.created_at AS agent_registry_created_at, agent_registry.updated_at AS agent_registry_updated_at, agent_registry.configuration AS agent_registry_configuration, agent_registry.schedule_config AS agent_registry_schedule_config, agent_registry.training_period_days AS agent_registry_training_period_days, agent_registry.training_started_at AS agent_registry_training_started_at, agent_registry.training_ends_at AS agent_registry_training_ends_at, agent_registry.training_config AS agent_registry_training_config, agent_registry.last_promotion_at AS agent_registry_last_promotion_at, agent_registry.promotion_count AS agent_registry_promotion_count, agent_registry.promotion_episode_floor AS agent_registry_promotion_episode_floor, agent_registry.last_exam_id AS agent_registry_last_exam_id, agent_registry.exam_eligible_at AS agent_registry_exam_eligible_at, agent_registry.daily_requests_count AS agent_registry_daily_requests_count, agent_registry.last_request_date AS agent_registry_last_request_date 
+FROM agent_registry 
+WHERE agent_registry.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('agent-prom', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+PASSED                                                                   [ 44%]
+tests/test_goal_run_learning.py::test_lesson_taught_in_chat_reaches_the_next_goal_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:24 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 44%]
+tests/test_goal_run_learning.py::test_goal_override_lesson_and_chat_lesson_land_in_the_same_journal 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:24 [    INFO] Learning skipped for goal-both-ebcd42d6: status intern (not STUDENT)
+2026-11-02 19:05:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:05:24 [    INFO] EscalationManager initialized
+2026-11-02 19:05:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:24 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:05:24 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 45%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_advance_persists_decision_and_executes_canvas_step PASSED [ 45%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_parameter_updates_applied_and_logged PASSED [ 46%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_wait_decision_suspends_run PASSED [ 46%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_done_requires_criteria_verification PASSED [ 47%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_holds_every_decision PASSED [ 47%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_checkpoint_passes_through_human_checkpoints PASSED [ 48%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_budget_forces_ask_human PASSED [ 48%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_magnitude_gate_holds_major_replans PASSED [ 49%]
+tests/test_goal_run_loop.py::TestGuardrails::test_minor_replan_applies PASSED [ 49%]
+tests/test_goal_run_loop.py::TestGuardrails::test_stuck_detector_pauses_after_identical_decisions PASSED [ 50%]
+tests/test_goal_run_loop.py::TestExecutors::test_human_checkpoint_step_creates_hitl_and_waits PASSED [ 50%]
+tests/test_goal_run_loop.py::TestExecutors::test_integration_action_via_action_registry PASSED [ 51%]
+tests/test_goal_run_loop.py::TestExecutors::test_unknown_action_is_reported_not_raised PASSED [ 51%]
+tests/test_goal_run_loop.py::TestExecutors::test_branch_new_canvas_creates_linked_canvas PASSED [ 52%]
+tests/test_goal_run_loop.py::TestExecutors::test_skip_advances_cursor PASSED [ 52%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_canvas_state_criterion PASSED [ 53%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_action_dispatched_criterion PASSED [ 53%]
+tests/test_goal_run_notifications.py::test_hold_notifies_with_guidance_and_action_url PASSED [ 54%]
+tests/test_goal_run_notifications.py::test_no_creator_no_notification PASSED [ 54%]
+tests/test_goal_run_notifications.py::test_wait_notifies_with_deadline PASSED [ 55%]
+tests/test_goal_run_notifications.py::test_checkpoint_notifies_approval_needed PASSED [ 55%]
+tests/test_goal_run_notifications.py::test_achieved_notifies_and_mentions_distill PASSED [ 55%]
+tests/test_goal_run_notifications.py::test_cancel_notifies_stopped PASSED [ 56%]
+tests/test_goal_run_routes.py::test_member_create_requires_role_based_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 56%]
+tests/test_goal_run_routes.py::test_create_run_seeds_plan_and_kickoff 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_goal_run_routes.py::test_create_unknown_goal_404 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] API Error: NOT_FOUND - Goal not found: nope
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/test_goal_run_routes.py::test_list_and_detail 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/bf15b165-77f2-46e4-91de-430391acd7c4 "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [ WARNING] API Error: NOT_FOUND - GoalRun not found: does-not-exist
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/does-not-exist "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 58%]
+tests/test_goal_run_routes.py::test_advance_and_resume_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8c190f61-e1ad-4f42-ba14-829f331d8cd0/resume "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/8c190f61-e1ad-4f42-ba14-829f331d8cd0/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_goal_run_routes.py::test_checkpoint_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2abe1644-d4c0-449e-937d-00b5bd1abd92/advance "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/2abe1644-d4c0-449e-937d-00b5bd1abd92 "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2abe1644-d4c0-449e-937d-00b5bd1abd92/checkpoints/444edeee-fd76-46fa-a602-e5d8959fb9c5/resolve "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/2abe1644-d4c0-449e-937d-00b5bd1abd92 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_goal_run_routes.py::test_event_ingestion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_goal_run_routes.py::test_event_ingestion_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 60%]
+tests/test_goal_run_routes.py::test_mode_change_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2b8b2d66-06f0-40e4-aa8c-17deac1a029c/mode "HTTP/1.1 403 Forbidden"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2b8b2d66-06f0-40e4-aa8c-17deac1a029c/mode "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2b8b2d66-06f0-40e4-aa8c-17deac1a029c/mode "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 60%]
+tests/test_goal_run_routes.py::test_distill_route 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/dc3ffc2c-02fb-4e42-aade-d9c8d4d7c532/distill "HTTP/1.1 409 Conflict"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/dc3ffc2c-02fb-4e42-aade-d9c8d4d7c532/distill "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/dc3ffc2c-02fb-4e42-aade-d9c8d4d7c532/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 61%]
+tests/test_goal_run_routes.py::test_promotion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/promotion/agent-x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_goal_run_service.py::TestCreateRun::test_creates_planning_run_with_cursor PASSED [ 62%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_supervision_mode PASSED [ 62%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_goal PASSED [ 63%]
+tests/test_goal_run_service.py::TestStateMachine::test_full_lifecycle PASSED [ 63%]
+tests/test_goal_run_service.py::TestStateMachine::test_illegal_transitions_rejected PASSED [ 64%]
+tests/test_goal_run_service.py::TestStateMachine::test_terminal_states_have_no_exits PASSED [ 64%]
+tests/test_goal_run_service.py::TestStateMachine::test_pause_hitl_round_trip PASSED [ 65%]
+tests/test_goal_run_service.py::TestPersistence::test_run_survives_fresh_service PASSED [ 65%]
+tests/test_goal_run_service.py::TestPersistence::test_decision_log_append_only PASSED [ 66%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_active PASSED [ 66%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_event_key PASSED [ 66%]
+tests/test_goal_run_service.py::TestWaits::test_wake_consumed_once PASSED [ 67%]
+tests/test_goal_run_service.py::TestWaits::test_timer_wake_without_constraints PASSED [ 67%]
+tests/test_goal_run_service.py::TestParameters::test_patch_merges_top_level_and_nested PASSED [ 68%]
+tests/test_goal_run_service.py::TestCanvasBackLinks::test_canvas_goal_run_link_persists PASSED [ 68%]
+tests/test_goal_run_service.py::TestHITLHold::test_hold_creates_hitl_row_and_resume_executes PASSED [ 69%]
+tests/test_goal_run_service.py::TestHITLHold::test_reject_override_recorded 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-02 19:05:25 [    INFO] EscalationManager initialized
+2026-11-02 19:05:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 19:05:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 19:05:25 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-02 19:05:25 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 69%]
+tests/test_goal_run_service.py::TestHITLHold::test_resume_without_pending_is_noop PASSED [ 70%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_operator_wait_carries_a_deadline PASSED [ 70%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_expired_operator_wait_wakes_with_honest_error PASSED [ 71%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_future_deadline_does_not_wake PASSED [ 71%]
+tests/test_goal_run_watchdog_sweep.py::TestOperatorWaitWatchdog::test_timer_waits_are_not_touched_by_the_watchdog_path PASSED [ 72%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_stale_active_run_is_interrupted_not_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] goal runs interrupted as stalled: ['run-stale']
+PASSED                                                                   [ 72%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_fresh_active_runs_are_left_alone PASSED [ 73%]
+tests/test_goal_run_watchdog_sweep.py::TestStaleActiveSweep::test_terminal_runs_are_never_swept PASSED [ 73%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_listing_carries_the_verified_record 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template a0713944-237a-4568-a2be-adfd996de2d4 (achieved=2, steps=8)
+PASSED                                                                   [ 74%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_guidance_and_playbooks_ride_along 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 1f96cefc-b17d-4477-9222-fcc424fc64f9 (achieved=2, steps=8)
+PASSED                                                                   [ 74%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_entity_names_and_pii_never_ship 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template deae2225-ef99-44a4-bc7c-3cb1f02bf7ab (achieved=2, steps=8)
+PASSED                                                                   [ 75%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_paid_listing_needs_a_verified_achieved_run 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 9070d643-eaf2-4567-8518-0ac42f8d2a81 (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] packaged agent agent-fresh as template 2ba91ae4-71ba-4876-bc18-cf89be2213b1 (achieved=0, steps=0)
+PASSED                                                                   [ 75%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_managed_installs_cannot_be_republished PASSED [ 76%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_sale_readiness_is_advisory PASSED [ 76%]
+tests/test_agent_marketplace_goal_runs.py::TestEvidenceHonestInstall::test_local_install_seeds_from_the_record 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 1ef64463-f57f-4afd-9702-4a2039608388 (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] Successfully installed marketplace agent 1ef64463-f57f-4afd-9702-4a2039608388 as managed agent d7f7aec8-e31f-4364-8a03-5b42a4ab7ac5
+2026-11-02 19:05:25 [    INFO] Successfully installed marketplace agent 1ef64463-f57f-4afd-9702-4a2039608388 as managed agent 3193630a-8aa2-4111-bae2-68b8726b18b0
+PASSED                                                                   [ 77%]
+tests/test_agent_marketplace_goal_runs.py::TestRunOutcomesFeedTheListing::test_terminal_run_reports_usage_for_managed_agents PASSED [ 77%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_owner_publishes_and_listing_is_buyer_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/agents/agent-quota/sale-readiness "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 0cce9fdd-f916-45bf-9c3e-f6dc2d05b8cb (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/templates/0cce9fdd-f916-45bf-9c3e-f6dc2d05b8cb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_non_owner_cannot_publish 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 78%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_paid_gate_maps_to_409 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-fresh/publish "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 78%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_sends_the_packaged_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 8f7ced99-084a-4996-a444-5a246de9f42d (achieved=2, steps=8)
+PASSED                                                                   [ 79%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_requires_a_packaged_template PASSED [ 79%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_second_push_is_idempotent_by_default 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template a1782f8f-9ad7-44b2-ae9a-6ada72d2c47a (achieved=2, steps=8)
+PASSED                                                                   [ 80%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_marker_is_recorded_on_the_template 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 89e81a1c-bfbd-484a-b178-47264f0574d4 (achieved=2, steps=8)
+PASSED                                                                   [ 80%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_publisher_pushes_and_non_publisher_is_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 97f0c185-e215-45d0-b7f1-94dc5ff651c2 (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/97f0c185-e215-45d0-b7f1-94dc5ff651c2/push "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/97f0c185-e215-45d0-b7f1-94dc5ff651c2/push "HTTP/1.1 200 OK"
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/97f0c185-e215-45d0-b7f1-94dc5ff651c2/push "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 81%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_paid_needs_the_override 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template ed029523-b632-4983-b792-60a60c373095 (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 409 Conflict"
+2026-11-02 19:05:25 [    INFO] Successfully installed marketplace agent ed029523-b632-4983-b792-60a60c373095 as managed agent cabb65e7-2a53-4281-92fc-ac5f685f7a04
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_free_listing_needs_no_override 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [    INFO] packaged agent agent-quota as template 29fe3e80-78e7-4912-b675-1cec0f0a235b (achieved=2, steps=8)
+2026-11-02 19:05:25 [    INFO] Successfully installed marketplace agent 29fe3e80-78e7-4912-b675-1cec0f0a235b as managed agent b5b898a0-57c3-409b-a6c5-bab88917f33a
+2026-11-02 19:05:25 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes PASSED [ 82%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [ 83%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-02 19:05:25 [    INFO] No token storage file found, starting empty
+2026-11-02 19:05:25 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+PASSED                                                                   [ 83%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 84%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [ 84%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [ 85%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:25 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [ 85%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [ 86%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [ 86%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [ 87%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_denied_below_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 4b873598-2688-4cf7-bf1c-a1fac5aa173d for agent None
+PASSED                                                                   [ 87%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 228b5999-6d03-4220-adf7-e3a9d489bded for agent None
+PASSED                                                                   [ 88%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_required_role_matching_is_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 3483b323-53b7-48fd-9e1f-d602d526cba1 for agent None
+PASSED                                                                   [ 88%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unknown_required_role_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 756e36f9-e7b9-415a-9704-5dc5930a4850 for agent None
+2026-11-02 19:05:26 [   ERROR] HITL action 756e36f9-e7b9-415a-9704-5dc5930a4850 requires unknown role 'grand_wizard'; denying (fail closed)
+PASSED                                                                   [ 88%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unverified_approver_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action d79abc9c-5e0d-402b-b273-e0837256f8d7 for agent None
+PASSED                                                                   [ 89%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_enforces_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 019927e8-46d5-4a1f-953b-b29c64423386 for agent None
+PASSED                                                                   [ 89%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action cf8999c3-ed10-4844-b0d3-75aa15e6dba2 for agent None
+PASSED                                                                   [ 90%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_cannot_reject_non_pending_action 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:26 [    INFO] Created HITL action 36121ebc-5c21-4bde-b43f-584b636b0771 for agent None
+PASSED                                                                   [ 90%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_modified_params_persist_on_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] Created HITL action 794169c3-8249-457e-b910-b8815752c01b for agent None
+PASSED                                                                   [ 91%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_returns_plain_array 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2e03f113-402c-4992-bcbf-68f3e5882d34 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/251e0fe5-9e6f-4534-900a-a7956c2f658b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/some-action "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 93%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_respects_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/c48a93d4-169a-45e4-81b2-eeaafe03ee3a "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 93%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_modified_params_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/adda782e-a849-4300-8cb6-de6198dbeb36 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_stale_goal_decision_is_refused_before_hitl_change 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d94ceb6b-231e-4ed5-8607-3d330c240033 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 94%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 95%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: reject_workflow on Workflow Approval
+2026-11-02 19:05:28 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 95%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_supervisor_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_member_cannot_approve_proposal PASSED [ 96%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_supervisor_can_approve_proposal PASSED [ 97%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_intervention_approve_uses_working_service_and_gates PASSED [ 97%]
+tests/test_structured_consumer_contracts.py::test_invalid_replan_gets_one_repair_and_returns_the_plan 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:28 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='need a new plan' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 98%]
+tests/test_structured_consumer_contracts.py::test_unrepaired_invalid_replan_falls_back_to_human 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:28 [    INFO] goal_run_router raw output:
+decision='REPLAN' rationale='bad' parameter_updates={} target_step=None new_plan=None wait_spec=None confidence=0.5
+PASSED                                                                   [ 98%]
+tests/test_structured_consumer_contracts.py::test_transport_none_is_not_repaired_as_replan 
+-------------------------------- live log call ---------------------------------
+2026-11-02 19:05:28 [    INFO] goal_run_router request:
+You are Model Employee's own judgment — the agent working this process decides its next move through you — an INFORMAL, multi-touch-point process toward one goal, like an experienced employee, not a pipeline. Decide the next direction from the evidence below. The plan is a familiar path, not a schedule: deviate from it whenever the data says so.
+
+ROLE: operations
+
+MATURITY TIER: autonomous — fully trusted — act on your own judgment; reserve ASK_HUMAN for decisions that need a human regardless of your skill (sign-offs, external commitments, facts only the human has)
+
+GOAL: active (0/0 criteria satisfied) — goal-1
+
+EVOLVING PARAMETERS (the deal/project state as known so far):
+{"lead": "Acme"}
+
+CURRENT STEP: {"id": "step-1", "kind": "canvas_work", "title": "Research", "canvas_type": "document"}
+
+REMAINING PLAN (advisory):
+[]
+
+DECISION RULES:
+- DONE only when the evidence shows the goal is met.
+- WAIT suspends until an event (wait_spec: {event, match?, deadline?}) — e.g. email_reply from the lead, or a follow-up timer.
+- REPLAN rewrites the remaining plan (new_plan: full step list with stable ids).
+- BRANCH_NEW_CANVAS opens an additional canvas (target_step: short id; the step kind is canvas_work).
+- ASK_HUMAN when judgment, authority, or missing information warrants it.
+- ALWAYS explain the rationale in terms of the canvas data and the goal.
+Return the JSON object.
+2026-11-02 19:05:28 [    INFO] goal_run_router raw output:
+None
+PASSED                                                                   [ 99%]
+tests/test_structured_consumer_contracts.py::test_execute_decision_never_applies_an_invalid_replan PASSED [ 99%]
+tests/test_structured_consumer_contracts.py::test_planner_typed_no_tool_is_not_transport_none PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 418 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal_effect_family_controls.py: 3 warnings
+tests/test_goal_journey_gaps.py: 17 warnings
+tests/test_goal_run_access_control.py: 10 warnings
+tests/test_goal_run_agent_start.py: 21 warnings
+tests/test_goal_run_learning.py: 2 warnings
+tests/test_goal_run_routes.py: 11 warnings
+tests/test_goal_run_watchdog_sweep.py: 7 warnings
+tests/test_agent_marketplace_goal_runs.py: 18 warnings
+  /private/tmp/atom-full-app/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_goal_no_progress_loop.py: 6 warnings
+tests/test_goal_run_learning.py: 5 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+  /private/tmp/atom-full-app/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_goal_no_progress_loop.py::test_repeated_equivalent_observations_stop_and_record_the_reason
+tests/test_goal_no_progress_loop.py::test_different_arguments_are_real_progress
+tests/test_goal_no_progress_loop.py::test_stuck_critique_is_persisted_in_a_scratch_store
+  /private/tmp/atom-full-app/backend/core/generic_agent.py:756: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    complexity = QueryComplexity.MODERATE
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/agent_world_model.py:132: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.table_name not in self.db.db.table_names():
+
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+tests/test_goal_run_learning.py::test_promotion_evidence_thresholds
+  /private/tmp/atom-full-app/backend/core/agent_world_model.py:137: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.facts_table_name not in self.db.db.table_names():
+
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution
+  /private/tmp/atom-full-app/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 209 passed, 540 warnings in 23.37s ======================

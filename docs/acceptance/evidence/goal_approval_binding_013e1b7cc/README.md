@@ -12,15 +12,15 @@ decision, not to whichever decision is current.
 | Item | Value |
 |---|---|
 | Branch | `codex/brennan-full-app-20261102` |
-| Worktree | `/private/tmp/atom-goal-bind-clean` (detached, clean) |
-| Executed source | `013e1b7cc` (full SHA in `MANIFEST.json`) |
-| Main worktree | `/private/tmp/atom-full-app` |
-| Tree during clean run | clean |
+| Worktree | `/private/tmp/atom-full-app` (clean) |
+| Goal-binding slice | `013e1b7cc` |
+| Integrated source | `4968a92aa` (includes Agent 1's structured consumer slice `bf9de381b`) |
+| Tree at integrated run | clean |
 | Transport | controlled local service/DB; no live provider |
 
-Agent 1's structured planner/goal consumer changes are a parallel slice under
-its own ownership and are not included in this hash set. This bundle covers
-the goal public-approval binding only.
+The integrated source adds Agent 1's typed no-tool/REPLAN-repair consumer
+slice on top of the goal-binding source. Both slices are covered by this
+bundle's source hashes and combined test run.
 
 ## Contract
 
@@ -82,7 +82,8 @@ not changed before the refusal.
 
 | Scope | Result |
 |---|---|
-| Clean backend goal/approval suite | **204 passed** |
+| Integrated backend goal/approval + structured consumer suite | **209 passed** |
+| Clean goal/approval slice (without Agent 1 slice) | **204 passed** |
 | Clean frontend goal-run + approvals suites | **46 passed** |
 | Adapted verifier HTTP probe (legitimately bound A, replay A) | **passed** |
 | Service resume claim probe | **2/2 scenarios passed** |

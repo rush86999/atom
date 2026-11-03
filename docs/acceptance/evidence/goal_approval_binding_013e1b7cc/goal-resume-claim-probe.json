@@ -1,13 +1,13 @@
 {
   "schema": "atom-goal-resume-claim-probe-1",
   "scenario_simultaneous": {
-    "run_id": "08c8f800-f098-4aaf-9926-e7a38c6efe68",
+    "run_id": "94db0b7f-3baa-4f2b-8402-0a1969145c9d",
     "results": [
       {
         "resumed": false,
         "stale_review": true,
         "reason": "stale_decision_review",
-        "current_decision_id": "3fe1f0c9-5568-45a7-8e3f-f4ed825cb45b"
+        "current_decision_id": "97ad2032-7a9a-4199-8789-d351590a0375"
       },
       {
         "resumed": true,
@@ -18,7 +18,7 @@
           "executed": "ADVANCE"
         },
         "run": {
-          "id": "08c8f800-f098-4aaf-9926-e7a38c6efe68",
+          "id": "94db0b7f-3baa-4f2b-8402-0a1969145c9d",
           "tenant_id": "t-probe",
           "workspace_id": "ws-probe",
           "goal_id": "goal-probe",
@@ -39,28 +39,28 @@
           "pending_decision": null,
           "decision_log": [
             {
-              "ts": "2026-11-03T00:04:09.233044+00:00",
+              "ts": "2026-11-03T00:05:43.609059+00:00",
               "kind": "held_for_approval",
               "decision": "ADVANCE",
               "rationale": "probe checkpoint",
-              "hitl_id": "01623e36-352e-4955-91b7-197ed789872c",
-              "decision_id": "3fe1f0c9-5568-45a7-8e3f-f4ed825cb45b",
+              "hitl_id": "2a396105-7730-45eb-be79-f6f1473bbbc1",
+              "decision_id": "97ad2032-7a9a-4199-8789-d351590a0375",
               "decision_generation": 1
             },
             {
-              "ts": "2026-11-03T00:04:09.236484+00:00",
+              "ts": "2026-11-03T00:05:43.613243+00:00",
               "kind": "approved",
               "decision": "ADVANCE",
               "rationale": "",
-              "reviewer": "review-b"
+              "reviewer": "review-a"
             }
           ],
           "replan_count": 0,
           "steps_executed": 1,
           "human_interventions": 1,
           "created_by": null,
-          "created_at": "2026-11-03T00:04:09",
-          "updated_at": "2026-11-03T00:04:09"
+          "created_at": "2026-11-03T00:05:43",
+          "updated_at": "2026-11-03T00:05:43"
         }
       }
     ],
@@ -70,12 +70,12 @@
     "passed": true
   },
   "scenario_stale_snapshot": {
-    "run_id": "52f0fc83-1664-4843-bd4e-e32a2ec2e09e",
+    "run_id": "1f4b4114-c40e-4ca3-b6aa-2572ddef17b9",
     "result": {
       "resumed": false,
       "stale_review": true,
       "reason": "stale_decision_review",
-      "current_decision_id": "b9407a4b-ad25-4bca-937c-c209641f855d"
+      "current_decision_id": "46b319bc-a75d-4ee1-b4f7-6cd0ff2020be"
     },
     "executor_calls": 0,
     "old_generation": 1,
@@ -83,9 +83,9 @@
     "pending": {
       "decision": "ADVANCE",
       "rationale": "newer",
-      "decision_id": "b9407a4b-ad25-4bca-937c-c209641f855d",
+      "decision_id": "46b319bc-a75d-4ee1-b4f7-6cd0ff2020be",
       "decision_generation": 2,
-      "decision_binding": "5c92d5be1efc3b515753fc4e9fa36c59089ff9194a2842c3df529b4e4aaa8ab5"
+      "decision_binding": "5a6f08913bbfc16431f51f98f44e1e69457dd21d3dec9bc189ee3ae7a2797450"
     },
     "approved_entries": 0,
     "passed": true
