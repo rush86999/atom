@@ -779,8 +779,8 @@ def test_integration_action_carries_reviewed_operation_identity(monkeypatch):
     }
     decision = {"decision": "ADVANCE", "decision_id": "dec-a"}
     step = {
-        "id": "step-op", "action": "inventory.search",
-        "arguments": {"query": "A-1"},
+        "id": "step-op", "kind": "integration_action",
+        "action": "goal_runs.list", "arguments": {},
     }
     result = asyncio.run(
         GoalRunExecutors(None)._integration_action(run, decision, step))
