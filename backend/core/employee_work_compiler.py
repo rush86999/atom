@@ -409,16 +409,55 @@ def _invoice_evidence_shape(
     return dict(data)
 
 
+def _invoice_role_candidates(
+    assignment: Mapping[str, Any],
+    fields: Mapping[str, str],
+    required_keys: Sequence[str],
+) -> List[str]:
+    candidates = []
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping) or step.get("status") != "applied":
+            continue
+        result = step.get("result")
+        data = result.get("data") if isinstance(result, Mapping) else None
+        if not isinstance(data, Mapping):
+            continue
+        if all(
+            fields.get(key) and fields[key] in data
+            and data.get(fields[key]) not in (None, "")
+            for key in required_keys
+        ):
+            candidates.append(str(step.get("step_id") or ""))
+    return [item for item in candidates if item]
+
+
+def _bind_invoice_role(
+    assignment: Mapping[str, Any],
+    bound: str,
+    fields: Mapping[str, str],
+    required_keys: Sequence[str],
+    label: str,
+) -> str:
+    candidates = _invoice_role_candidates(
+        assignment, fields, required_keys)
+    if bound in candidates:
+        return bound
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise WorkRequestCompileError(
+            f"no accepted evidence step contains the {label} fields "
+            f"{list(required_keys)}; add or read the correct source")
+    raise WorkRequestCompileError(
+        f"{label} binding is ambiguous across accepted steps {candidates}; "
+        "name the exact step")
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
     context: Mapping[str, Any],
 ) -> Dict[str, Any]:
-    for step_id in (
-            request.invoice_step_id, request.purchase_order_step_id,
-            request.receiving_step_id):
-        _step_result(assignment, step_id)
-        _require_verified(assignment, step_id)
     invoice_fields = dict(request.invoice_fields) or {
         "po_id": "po_id", "invoice_id": "invoice_id",
         "quantity": "quantity", "unit_price": "unit_price",
@@ -430,14 +469,27 @@ def _invoice_patch(
     receiving_fields = dict(request.receiving_fields) or {
         "po_id": "po_id", "received_quantity": "received_quantity",
         "version": "version"}
+    invoice_step_id = _bind_invoice_role(
+        assignment, request.invoice_step_id, invoice_fields,
+        ("invoice_id", "po_id", "quantity", "unit_price"), "invoice")
+    purchase_order_step_id = _bind_invoice_role(
+        assignment, request.purchase_order_step_id, po_fields,
+        ("po_id", "vendor_id"), "purchase order")
+    receiving_step_id = _bind_invoice_role(
+        assignment, request.receiving_step_id, receiving_fields,
+        ("po_id", "received_quantity"), "receiving")
+    for step_id in (
+            invoice_step_id, purchase_order_step_id, receiving_step_id):
+        _step_result(assignment, step_id)
+        _require_verified(assignment, step_id)
     _invoice_evidence_shape(
-        assignment, request.invoice_step_id, invoice_fields, invoice_fields,
+        assignment, invoice_step_id, invoice_fields, invoice_fields,
         ("invoice_id", "po_id", "quantity", "unit_price"), "invoice")
     _invoice_evidence_shape(
-        assignment, request.purchase_order_step_id, po_fields, po_fields,
+        assignment, purchase_order_step_id, po_fields, po_fields,
         ("po_id", "vendor_id"), "purchase order")
     _invoice_evidence_shape(
-        assignment, request.receiving_step_id, receiving_fields,
+        assignment, receiving_step_id, receiving_fields,
         receiving_fields, ("po_id", "received_quantity"), "receiving")
     if request.bill_action:
         from core.action_registry import action_registry
@@ -456,23 +508,27 @@ def _invoice_patch(
                 "bill creation requires outbound authority")
     reconcile_id = _unique_id(assignment, "invoice-reconcile")
     patch = _base_patch(assignment, request, context)
+    patch["observations"].append({
+        "kind": "resolved_invoice_evidence",
+        "invoice_step_id": invoice_step_id,
+        "purchase_order_step_id": purchase_order_step_id,
+        "receiving_step_id": receiving_step_id,
+    })
     patch["add_steps"] = [{
         "step_id": reconcile_id,
         "title": "Reconcile invoice against purchase and receiving evidence",
         "operation_type": "calculate",
         "adapter": "invoice.reconcile",
         "depends_on": list(dict.fromkeys([
-            request.invoice_step_id, request.purchase_order_step_id,
-            request.receiving_step_id,
+            invoice_step_id, purchase_order_step_id, receiving_step_id,
             *([request.vendor_step_id] if request.vendor_step_id else []),
             *([request.coa_step_id] if request.coa_step_id else []),
             *([request.period_step_id] if request.period_step_id else []),
         ])),
         "inputs": {
-            "invoice": f"${{{request.invoice_step_id}.data}}",
-            "purchase_order": (
-                f"${{{request.purchase_order_step_id}.data}}"),
-            "receiving": f"${{{request.receiving_step_id}.data}}",
+            "invoice": f"${{{invoice_step_id}.data}}",
+            "purchase_order": f"${{{purchase_order_step_id}.data}}",
+            "receiving": f"${{{receiving_step_id}.data}}",
             "invoice_fields": dict(request.invoice_fields) or {
                 "po_id": "po_id", "invoice_id": "invoice_id",
                 "quantity": "quantity", "unit_price": "unit_price",
@@ -493,8 +549,7 @@ def _invoice_patch(
         "requires": [
             {"kind": "receipt", "step_id": step_id, "require": "verified"}
             for step_id in (
-                request.invoice_step_id, request.purchase_order_step_id,
-                request.receiving_step_id)
+                invoice_step_id, purchase_order_step_id, receiving_step_id)
         ],
         "required": True,
     }]

@@ -2327,6 +2327,22 @@ class AssignmentExecutor:
                         "reason": _bounded(reason, 300),
                     })
                 item["prior_results"] = prior[-10:]
+                if str(item.get("adapter") or "") in (
+                        "workbook.read", "document.read"):
+                    inputs = item.get("inputs") if isinstance(
+                        item.get("inputs"), dict) else {}
+                    source_path = str(inputs.get("path") or "")
+                    if source_path and os.path.isfile(source_path):
+                        refreshed = _sha256_file(source_path)
+                        binding = inputs.get("resource_binding")
+                        if isinstance(binding, dict) and binding.get(
+                                "source_version") not in (None, ""):
+                            binding = dict(binding)
+                            binding["source_version"] = refreshed
+                            inputs["resource_binding"] = binding
+                        if inputs.get("source_version") not in (None, ""):
+                            inputs["source_version"] = refreshed
+                        item["inputs"] = inputs
                 item["status"] = "pending"
                 item["operation_id"] = None
                 item["result"] = None
