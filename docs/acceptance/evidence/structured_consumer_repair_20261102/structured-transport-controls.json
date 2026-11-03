@@ -1,0 +1,12 @@
+{
+  "schema": "atom-structured-consumer-controls-1",
+  "transport": "controlled fake LLM (no local inference; serialized owner: Agent 2)",
+  "cases": [
+    {"id": "replan_repair_success", "first": "REPLAN new_plan=null", "repair": "REPLAN new_plan=[{id: step-2}]", "expected": "REPLAN with non-empty plan; repair.recovered=true; 2 calls", "actual": "REPLAN with plan; recovered true; exactly 2 calls"},
+    {"id": "replan_repair_failure", "first": "REPLAN new_plan=null", "repair": "REPLAN new_plan=[]", "expected": "ASK_HUMAN fallback; no plan; repair.recovered=false; 2 calls", "actual": "ASK_HUMAN; new_plan null; recovered false; 2 calls"},
+    {"id": "transport_none", "first": "structured None", "expected": "ASK_HUMAN; no repair call; no fabricated no-tool", "actual": "ASK_HUMAN; repair absent; 1 call"},
+    {"id": "execute_invalid_replan", "decision": "REPLAN new_plan=null", "expected": "held ASK_HUMAN; executor not called; plan/cursor unchanged", "actual": "held; invalid_decision preserved; executor calls 0"},
+    {"id": "planner_typed_decline", "transport": "ToolPlan(use_tool=false)", "expected": "typed plan with use_tool=false, not None", "actual": "typed ToolPlan(use_tool=false)"},
+    {"id": "planner_transport_none", "transport": "None", "expected": "None (failure), not a fabricated decline", "actual": "None"}
+  ]
+}
