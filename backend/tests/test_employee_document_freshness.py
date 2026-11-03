@@ -180,3 +180,41 @@ def test_stale_extraction_does_not_run_dependent_work(
     source_step = next(
         item for item in final["steps"] if item["step_id"] == "read")
     assert source_step["status"] != "applied"
+
+
+def test_current_versioned_extraction_is_eligible_and_preserved(
+        monkeypatch):
+    from core.doc_freshness_service import EXTRACTION_VERSION
+
+    version = f"ev{EXTRACTION_VERSION}:" + ("a" * 64)
+    binding = _fixture(monkeypatch, indexed=version, sql=version)
+    result = _run(binding)
+    assert result["source_version"] == version
+    assert result["verification"]["version"] == version
+    assert result["extraction"]["extractor_version"] == (
+        f"ev{EXTRACTION_VERSION}")
+
+
+def test_older_or_malformed_extractor_versions_refuse(monkeypatch):
+    from core.doc_freshness_service import EXTRACTION_VERSION
+
+    current = f"ev{EXTRACTION_VERSION}:" + ("a" * 64)
+    for indexed, sql in (
+            ("ev3:" + ("a" * 64), current),
+            ("ev3:" + ("a" * 64), "ev3:" + ("a" * 64)),
+            ("evX:" + ("a" * 64), current),
+            (current, current.replace("a", "b")),
+            (current, "a" * 64),
+    ):
+        binding = _fixture(monkeypatch, indexed=indexed, sql=sql)
+        with pytest.raises(NeedsContext):
+            _run(binding)
+
+
+def test_manual_opaque_revision_remains_supported(monkeypatch):
+    binding = _fixture(monkeypatch, indexed="manual-hash-1",
+                       sql="manual-hash-1")
+    result = _run(binding)
+    assert result["source_version"] == "manual-hash-1"
+    assert result["verification"]["version"] == "manual-hash-1"
+    assert result["extraction"]["extractor_version"] == "opaque"

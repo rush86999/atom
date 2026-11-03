@@ -7649,40 +7649,24 @@ async def _document_text_read(
             "next_retrieval": "re-index the document and retry",
             "kind": "missing_evidence",
         })
-    def _normalize_extraction_version(value: str) -> str:
-        text = str(value or "").strip()
-        for prefix in ("ev3:", "ev4:"):
-            if text.startswith(prefix):
-                return text[len(prefix):]
-        return text
-
-    if _normalize_extraction_version(
-            indexed_version) != _normalize_extraction_version(
-            authoritative_version):
-        raise NeedsContext({
-            "concept": "document_extraction_stale",
-            "reason": (
-                f"the indexed extraction is from {indexed_version!r} but the "
-                f"authoritative source is {authoritative_version!r}"),
-            "question": "The cached document text is stale; re-index it now?",
-            "next_retrieval": "re-extract the current authorized document",
-            "kind": "missing_evidence",
-        })
     expected_version = str(
         binding.get("source_version") or inputs.get("source_version")
         or "").strip()
-    if expected_version and _normalize_extraction_version(
-            indexed_version) != _normalize_extraction_version(
-            expected_version):
+    from core.doc_freshness_service import (
+        ExtractionIdentityError, current_extraction_revision,
+    )
+
+    try:
+        source_version = current_extraction_revision(
+            indexed_version, authoritative_version, expected_version or None)
+    except ExtractionIdentityError as exc:
         raise NeedsContext({
             "concept": "document_extraction_stale",
-            "reason": (
-                f"the requested extraction version {expected_version!r} does "
-                "not match the indexed source version"),
-            "question": "Read the requested current document version?",
-            "next_retrieval": "re-index the requested source version",
+            "reason": str(exc),
+            "question": "The cached document text is stale; re-index it now?",
+            "next_retrieval": "re-extract the current authorized document",
             "kind": "missing_evidence",
-        })
+        }) from exc
     expected_workspace = str(
         binding.get("workspace_id") or context.get("workspace_id") or "")
     expected_tenant = str(
@@ -7723,7 +7707,6 @@ async def _document_text_read(
     # ``indexed_version`` may carry an extraction-format prefix (ev3:/ev4:);
     # the source version consumed by readiness is the normalized authoritative
     # source hash. The raw indexed label stays in the extraction lineage.
-    source_version = _normalize_extraction_version(authoritative_version)
     result = {
         "status": "applied",
         "summary": f"read extracted text from {document.get('source') or document_id}",
@@ -7736,6 +7719,9 @@ async def _document_text_read(
             "indexed_version": indexed_version,
             "source_version": source_version,
             "authoritative_version": authoritative_version,
+            "extractor_version": (
+                "opaque" if not str(source_version).startswith("ev")
+                else str(source_version).split(":", 1)[0]),
             "text_sha256": text_hash,
             "source": document.get("source"),
         },
