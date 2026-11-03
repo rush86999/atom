@@ -219,6 +219,19 @@ def build_employee_context(
     bytes from the binding when the proposed read actually runs.
     """
     teaching = dict(teaching or {})
+    follow_up_stage = stage in ("follow_up", "adaptation", "result")
+    schemas = (
+        [
+            schema for schema in work_request_schemas()
+            if available_work_requests is None
+            or schema.get("operation") in set(available_work_requests)
+        ]
+        if follow_up_stage else []
+    )
+    operations = (
+        _operation_views(available_work_requests)
+        if follow_up_stage else []
+    )
     return {
         "schema": PROPOSAL_SCHEMA,
         "objective": _text(objective, 4000),
@@ -325,26 +338,13 @@ def build_employee_context(
         ],
         "budget": dict(budget or {}),
         "stage": stage,
-        "work_request_schemas": (
-            [
-                schema for schema in work_request_schemas()
-                if available_work_requests is None
-                or schema.get("operation") in set(available_work_requests)
-            ]
-            if stage in ("follow_up", "adaptation", "result")
-            else []
-        ),
-        "available_business_operations": (
-            _operation_views(available_work_requests)
-            if stage in ("follow_up", "adaptation", "result")
-            else []
-        ),
+        "work_request_schemas": schemas,
+        "available_business_operations": operations,
         "rules": (
             {
                 "allowed_proposal_kinds": ["replan"],
                 "allowed_work_requests": [
-                    item["operation"] for item in
-                    _operation_views(available_work_requests)],
+                    item["operation"] for item in operations],
                 "can_execute": False,
                 "can_grant_authority": False,
                 "can_supply_receipts": False,
@@ -353,18 +353,29 @@ def build_employee_context(
                 "clarify_only_when_material": True,
                 "execution_mechanics": "compiler",
             }
-            if stage in ("follow_up", "adaptation", "result")
-            else {
-                "allowed_proposal_kinds": [
-                    "evidence_read", "clarification",
-                    "evidence_and_clarification"],
-                "can_execute": False,
-                "can_grant_authority": False,
-                "can_supply_receipts": False,
-                "can_propose_supported_work": False,
-                "evidence_only": True,
-                "clarify_only_when_material": True,
-            }
+            if schemas else (
+                {
+                    "allowed_proposal_kinds": ["clarify", "retain"],
+                    "allowed_work_requests": [],
+                    "can_execute": False,
+                    "can_grant_authority": False,
+                    "can_supply_receipts": False,
+                    "can_propose_supported_work": False,
+                    "evidence_only": False,
+                    "clarify_only_when_material": True,
+                }
+                if follow_up_stage else {
+                    "allowed_proposal_kinds": [
+                        "evidence_read", "clarification",
+                        "evidence_and_clarification"],
+                    "can_execute": False,
+                    "can_grant_authority": False,
+                    "can_supply_receipts": False,
+                    "can_propose_supported_work": False,
+                    "evidence_only": True,
+                    "clarify_only_when_material": True,
+                }
+            )
         ),
     }
 
