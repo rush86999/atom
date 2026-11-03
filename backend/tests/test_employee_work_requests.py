@@ -8,7 +8,9 @@ import pytest
 import core.assignment_invoice  # noqa: F401,E402
 import core.assignment_quote  # noqa: F401,E402
 import core.quote_rows  # noqa: F401,E402
-from core.assignment_plan import new_assignment, new_step, step_by_id
+from core.assignment_plan import (
+    new_assignment, new_step, new_teaching_snapshot, step_by_id,
+)
 from core.employee_adaptation import (
     AdaptationProposal,
     _adaptation_errors,
@@ -48,26 +50,47 @@ def _quote_evidence():
     return read
 
 
+def _verified_quote_evidence():
+    read = _quote_evidence()
+    read["result"].update({
+        "resource_id": "heldout-prices",
+        "verification": {
+            "status": "verified", "resource_id": "heldout-prices",
+            "version": "heldout-v1",
+            "coverage": {"complete": True, "known": True,
+                         "truncated": False}},
+    })
+    return read
+
+
+def _terms_teaching():
+    snapshot = new_teaching_snapshot(revision="heldout-terms-1")
+    snapshot["terms"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        "rounding_authority": "held-out agreement",
+    }
+    return snapshot
+
+
 def _quote_request():
     return QuoteCalculationRequest(
         operation="quote_calculation",
         source_step_id="read",
-        require_verified_source=False,
         columns={"item_id": "Item", "quantity": "Qty",
                  "unit_price": "Price", "currency": "Currency"},
         currency="USD",
-        freight=MoneyTerm(value="20.00",
-                          authority_ref="held-out agreement"),
-        tax=TaxTerm(basis="none"),
+        freight=MoneyTerm(value="20.00", authority_ref="freight"),
+        tax=TaxTerm(basis="none", authority_ref="tax_basis"),
         reason="compute the exact quote from accepted rows and terms")
 
 
 def test_quote_request_compiles_and_executes_from_full_evidence(env):
-    read = _quote_evidence()
+    read = _verified_quote_evidence()
     plan = new_assignment(
         objective="Quote the held-out request",
         employee_id="employee-1", workspace_id="ws_assign",
         tenant_id="tenant_assign", steps=[read],
+        teaching_snapshot=_terms_teaching(),
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[{"kind": "required_work_complete"}])
     record = env["executor"].create_assignment(
@@ -99,7 +122,7 @@ def test_quote_request_compiles_and_executes_from_full_evidence(env):
 
 
 def test_quote_mapping_rejects_unknown_column_and_bad_terms():
-    read = _quote_evidence()
+    read = _verified_quote_evidence()
     assignment = new_assignment(
         objective="Quote", steps=[read],
         authorized_actions=["retrieve", "calculate"])
@@ -126,20 +149,58 @@ def _invoice_evidence():
         step_id="po", title="Read PO", operation_type="retrieve",
         adapter="document.read", inputs={}, effect="read_only")
     po.update(status="applied", operation_id="op-po", result={
-        "data": {"po_id": "PO-1", "vendor_id": "V-9"}})
+        "data": {"po_id": "PO-1", "vendor_id": "V-9"},
+        "source_version": "po-v1",
+        "coverage": {"complete": True, "known": True, "truncated": False}})
     invoice = new_step(
         step_id="invoice", title="Read invoice", operation_type="retrieve",
         adapter="document.read", inputs={}, effect="read_only")
     invoice.update(status="applied", operation_id="op-invoice", result={
         "data": {"invoice_id": "INV-1", "po_id": "PO-1", "quantity": "2",
                  "unit_price": "120.00", "freight": "30.00",
-                 "currency": "USD"}})
+                 "currency": "USD"},
+        "source_version": "inv-v1",
+        "coverage": {"complete": True, "known": True, "truncated": False}})
     receiving = new_step(
         step_id="receiving", title="Read receiving",
         operation_type="retrieve", adapter="workbook.read",
         inputs={}, effect="read_only")
     receiving.update(status="applied", operation_id="op-receiving", result={
-        "data": {"po_id": "PO-1", "received_quantity": "2"}})
+        "data": {"po_id": "PO-1", "received_quantity": "2"},
+        "source_version": "rec-v1",
+        "coverage": {"complete": True, "known": True, "truncated": False}})
+    return po, invoice, receiving
+
+
+def _verified_invoice_evidence():
+    po, invoice, receiving = _invoice_evidence()
+    for step, resource, version in (
+            (po, "po-1", "po-v1"),
+            (invoice, "invoice-1", "inv-v1"),
+            (receiving, "receiving-1", "rec-v1")):
+        step["result"]["resource_id"] = resource
+        step["result"]["verification"] = {
+            "status": "verified", "resource_id": resource,
+            "version": version,
+            "coverage": {"complete": True, "truncated": False}}
+    return po, invoice, receiving
+
+
+def _verified_invoice_evidence():
+    po, invoice, receiving = _invoice_evidence()
+    for step, resource_id, version in (
+            (po, "po-1", "po-v1"),
+            (invoice, "invoice-1", "inv-v1"),
+            (receiving, "receiving-1", "rec-v1")):
+        step["result"].update({
+            "resource_id": resource_id,
+            "source_version": version,
+            "coverage": {"complete": True, "known": True,
+                         "truncated": False},
+            "verification": {
+                "status": "verified", "resource_id": resource_id,
+                "version": version, "coverage": {"complete": True}},
+        })
     return po, invoice, receiving
 
 
@@ -149,12 +210,11 @@ def _invoice_request():
         invoice_step_id="invoice",
         purchase_order_step_id="po",
         receiving_step_id="receiving",
-        require_verified_evidence=False,
         reason="reconcile the corrected invoice against receiving")
 
 
 def test_invoice_request_compiles_and_reconciles_full_evidence(env):
-    po, invoice, receiving = _invoice_evidence()
+    po, invoice, receiving = _verified_invoice_evidence()
     plan = new_assignment(
         objective="Prepare the supported bill",
         employee_id="employee-1", workspace_id="ws_assign",
@@ -182,7 +242,7 @@ def test_invoice_request_compiles_and_reconciles_full_evidence(env):
 
 
 def test_work_request_rejects_model_authored_steps_and_bad_references():
-    read = _quote_evidence()
+    read = _verified_quote_evidence()
     assignment = new_assignment(
         objective="Quote", steps=[read],
         authorized_actions=["retrieve", "calculate"])
@@ -229,3 +289,129 @@ def test_context_previews_are_labeled_and_discovery_is_not_followup():
     assert preview["total_count"] == 25
     assert preview["shown_count"] == 20
     assert preview["omitted_count"] == 5
+
+
+def _term_assignment(read, *, terms=None, facts=None):
+    teaching = new_teaching_snapshot(revision="term-test")
+    if terms is not None:
+        teaching["terms"] = terms
+    return new_assignment(
+        objective="Quote with bound terms", workspace_id="ws_assign",
+        tenant_id="tenant_assign", teaching_snapshot=teaching,
+        steps=[read], facts=facts or [],
+        authorized_actions=["retrieve", "calculate"])
+
+
+def test_money_terms_must_resolve_and_match_the_proposed_value():
+    read = _verified_quote_evidence()
+    assignment = _term_assignment(read, terms={
+        "currency": "USD", "freight": "20.00", "tax_basis": "none"})
+    missing = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="20.00", authority_ref="missing-term")})
+    with pytest.raises(WorkRequestCompileError, match="authority|resolve"):
+        compile_work_request_patch(missing, assignment, context={})
+
+    wrong_value = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="21.00", authority_ref="freight")})
+    with pytest.raises(WorkRequestCompileError, match="does not match"):
+        compile_work_request_patch(wrong_value, assignment, context={})
+
+    wrong_currency = _quote_request().model_copy(update={"currency": "EUR"})
+    with pytest.raises(WorkRequestCompileError, match="currency"):
+        compile_work_request_patch(wrong_currency, assignment, context={})
+
+    missing_tax = _quote_request().model_copy(update={
+        "tax": TaxTerm(basis="none", authority_ref="missing-tax")})
+    with pytest.raises(WorkRequestCompileError, match="tax|authority|resolve"):
+        compile_work_request_patch(missing_tax, assignment, context={})
+
+    amount_tax = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="0.00", authority_ref="freight"),
+        "tax": TaxTerm(basis="amount", value="5.00",
+                       authority_ref="tax_amount")})
+    amount_assignment = _term_assignment(read, terms={
+        "currency": "USD", "freight": "0.00", "tax_amount": "5.00"})
+    assert compile_work_request_patch(
+        amount_tax, amount_assignment, context={})["add_steps"]
+
+
+def test_expired_fact_term_is_not_authority():
+    read = _verified_quote_evidence()
+    assignment = _term_assignment(read, terms={"currency": "USD"}, facts=[{
+        "fact_id": "freight", "authority_ref": "freight",
+        "value": "20.00", "evidence_state": "established",
+        "source_refs": [{"resource_id": "agreement-1", "version": "v1"}],
+        "validity": {"expires_at": "2020-01-01T00:00:00+00:00"},
+    }])
+    with pytest.raises(WorkRequestCompileError, match="expired"):
+        compile_work_request_patch(_quote_request(), assignment, context={})
+
+
+def _quote_assignment(teaching, read=None):
+    return new_assignment(
+        objective="Quote from accepted evidence",
+        employee_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign", steps=[read or _verified_quote_evidence()],
+        teaching_snapshot=teaching,
+        authorized_actions=["retrieve", "calculate"])
+
+
+def test_quote_money_terms_must_resolve_and_match_accepted_values():
+    teaching = _terms_teaching()
+    assignment = _quote_assignment(teaching)
+
+    unknown = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="20.00",
+                             authority_ref="held-out agreement")})
+    with pytest.raises(WorkRequestCompileError, match="authority|accepted"):
+        compile_work_request_patch(unknown, assignment, context={})
+
+    wrong_amount = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="99.00", authority_ref="freight")})
+    with pytest.raises(WorkRequestCompileError, match="does not match"):
+        compile_work_request_patch(wrong_amount, assignment, context={})
+
+    wrong_currency = _quote_request().model_copy(update={"currency": "CAD"})
+    with pytest.raises(WorkRequestCompileError, match="currency"):
+        compile_work_request_patch(wrong_currency, assignment, context={})
+
+    no_tax_support = _terms_teaching()
+    no_tax_support["terms"] = {
+        "currency": "USD", "freight": "20.00",
+        "tax_basis": "rate", "tax_rate": "0.10",
+    }
+    assignment = _quote_assignment(no_tax_support)
+    with pytest.raises(WorkRequestCompileError, match="tax"):
+        compile_work_request_patch(_quote_request(), assignment, context={})
+
+    zero_teaching = _terms_teaching()
+    zero_teaching["terms"] = {
+        "currency": "USD", "freight": "0.00", "tax_basis": "none",
+    }
+    zero = _quote_request().model_copy(update={
+        "freight": MoneyTerm(value="0.00", authority_ref="freight")})
+    patch = compile_work_request_patch(
+        zero, _quote_assignment(zero_teaching), context={})
+    assert patch["add_steps"][1]["inputs"]["freight"] == "0.00"
+
+
+def test_work_request_rejects_unverified_or_skipped_evidence():
+    unverified = _quote_evidence()
+    assignment = _quote_assignment(_terms_teaching(), read=unverified)
+    with pytest.raises(WorkRequestCompileError, match="verified"):
+        compile_work_request_patch(_quote_request(), assignment, context={})
+
+    skipped = _verified_quote_evidence()
+    skipped["status"] = "skipped"
+    assignment = _quote_assignment(_terms_teaching(), read=skipped)
+    with pytest.raises(WorkRequestCompileError, match="applied"):
+        compile_work_request_patch(_quote_request(), assignment, context={})
+
+    po, invoice, receiving = _invoice_evidence()
+    invoice_assignment = new_assignment(
+        objective="Reconcile", steps=[po, invoice, receiving],
+        workspace_id="ws_assign", tenant_id="tenant_assign",
+        authorized_actions=["retrieve", "calculate"])
+    with pytest.raises(WorkRequestCompileError, match="verified"):
+        compile_work_request_patch(
+            _invoice_request(), invoice_assignment, context={})

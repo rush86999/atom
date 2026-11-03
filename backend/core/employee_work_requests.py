@@ -42,7 +42,22 @@ class TaxTerm(BaseModel):
 
     basis: Literal["none", "rate", "amount"]
     value: str = Field(default="", max_length=80)
-    authority_ref: str = Field(default="", max_length=300)
+    authority_ref: str = Field(min_length=1, max_length=300)
+
+
+class QuoteColumns(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: str = Field(min_length=1, max_length=120)
+    quantity: str = Field(min_length=1, max_length=120)
+    unit_price: str = Field(min_length=1, max_length=120)
+    currency: Optional[str] = Field(default=None, max_length=120)
+    description: Optional[str] = Field(default=None, max_length=120)
+    unit: Optional[str] = Field(default=None, max_length=120)
+    pack_size: Optional[str] = Field(default=None, max_length=120)
+    price_basis: Optional[str] = Field(default=None, max_length=120)
+    category: Optional[str] = Field(default=None, max_length=120)
+    discount: Optional[str] = Field(default=None, max_length=120)
 
 
 class QuoteCalculationRequest(BaseModel):
@@ -50,8 +65,7 @@ class QuoteCalculationRequest(BaseModel):
 
     operation: Literal["quote_calculation"]
     source_step_id: str = Field(min_length=1, max_length=80)
-    require_verified_source: bool = True
-    columns: Dict[str, str] = Field(default_factory=dict)
+    columns: QuoteColumns
     currency: str = Field(min_length=1, max_length=20)
     freight: MoneyTerm
     tax: TaxTerm = Field(default_factory=lambda: TaxTerm(basis="none"))
@@ -73,7 +87,6 @@ class InvoiceReconciliationRequest(BaseModel):
     purchase_order_fields: Dict[str, str] = Field(default_factory=dict)
     receiving_fields: Dict[str, str] = Field(default_factory=dict)
     currency: Optional[str] = Field(default=None, max_length=20)
-    require_verified_evidence: bool = True
     evidence: List[EvidenceRef] = Field(default_factory=list)
     reason: str = Field(default="", max_length=800)
 

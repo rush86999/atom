@@ -8,8 +8,10 @@ model inference occurs inside the CAS callback.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import time
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -276,51 +278,87 @@ def _adaptation_retry_prompt(
     context: Mapping[str, Any], observations: List[Mapping[str, Any]],
     invalid_output: Any, errors: List[str],
 ) -> str:
+    typed = bool(context.get("work_request_schemas"))
+    correction = (
+        "Return one corrected JSON proposal matching the response schema. "
+        "On the supported path return a complete typed work_request or one "
+        "clarification; execution mechanics remain compiler-owned."
+        if typed else
+        "Return one corrected JSON proposal. Do not repeat existing step IDs; "
+        "use unique IDs and complete adapter inputs."
+    )
     return (
         _adaptation_prompt(context, observations)
         + "\n\nYour previous proposal was invalid:\n"
         + json.dumps(invalid_output, sort_keys=True, default=str)[:4000]
         + "\nValidation errors:\n- " + "\n- ".join(errors[:20])
-        + "\nReturn one corrected JSON proposal. On the supported path, "
-          "do not include new_steps/update_steps; return a complete typed "
-          "work_request or one clarification."
+        + "\n" + correction
     )
+
+
+def _response_model_for(context: Mapping[str, Any]) -> Any:
+    return (
+        WorkAdaptationProposal
+        if context.get("work_request_schemas") else AdaptationProposal)
 
 
 def _adaptation_prompt(
     context: Mapping[str, Any], observations: List[Mapping[str, Any]],
+    response_model: Any = None,
 ) -> str:
-    return (
-        "You are the accountable employee's adaptation reasoner. Choose the "
-        "bounded response to the observation(s).\n"
-        "Rules:\n"
+    model = response_model or _response_model_for(context)
+    fields = list(getattr(model, "model_fields", {}) or {})
+    shape = "{" + ", ".join(fields) + "}"
+    typed = model is WorkAdaptationProposal
+    decisions = (
         "- retain: no material change.\n"
+        "- clarify: one targeted business fact/choice is missing.\n"
+        "- reconcile: a possible external effect needs the existing operation "
+        "reconciled; never resend.\n"
+    )
+    if not typed:
+        decisions += (
+            "- invalidate/replan: reopen only work affected by the "
+            "observation; preserve unrelated completed receipts.\n")
+    business_rule = (
         "- For an evidence_result, if a listed "
         "context.available_business_operations is supported by the accepted "
         "evidence and taught terms, choose replan and return that "
         "work_request. Do not return retain merely because evidence was read. "
         "If no listed operation is supported, choose clarify when one fact "
         "is missing, otherwise retain. On a replan, return one work_request "
-        "from context.work_request_schemas. "
-        "The compiler supplies step IDs, adapters, references, dependencies "
-        "and effects; do not author new_steps/update_steps or executable "
-        "inputs in this supported path.\n"
-        "- Bind evidence by existing durable step_id. Do not invent rows, "
+        "from context.work_request_schemas.\n"
+        if typed else "")
+    return (
+        "You are the accountable employee's adaptation reasoner. Choose the "
+        "bounded response to the observation(s).\n"
+        "Rules:\n"
+        + business_rule
+        + decisions
+        + "- Bind evidence by existing durable step_id. Do not invent rows, "
         "prices, totals, facts or authority.\n"
-        "- clarify: one targeted business fact/choice is missing.\n"
-        "- invalidate/replan: reopen only work affected by the observation; "
-        "preserve unrelated completed receipts.\n"
-        "- reconcile: a possible external effect needs the existing operation "
-        "reconciled; never resend.\n"
-        "- Do not invent source/action IDs or authority; do not remove "
+        + (
+            "- quote_calculation.columns values are exact column NAMES from "
+            "the evidence schema (for example 'Item', 'Qty', 'Price'), never "
+            "cell values such as 'A', '2' or '100'.\n"
+            "- freight/tax/currency authority_ref is the taught TERM KEY "
+            "(for example 'freight', 'tax_basis'), never the term value or a "
+            "free-form label; the compiler resolves and compares it.\n"
+            if typed else ""
+        )
+        + "- Do not invent source/action IDs or authority; do not remove "
         "criteria or budget.\n"
-        "- On the supported business-work path, return decision `replan` "
-        "with a typed `work_request` copied from the listed "
-        "context.work_request_schemas. Do not author step IDs, adapters, "
-        "result references, dependencies, effects, new_steps or "
-        "update_steps; the compiler supplies all execution mechanics.\n"
-        "- Return JSON only with this shape: {decision, reason, "
-        "observation_ids, step_ids, facts, work_request, clarification}.\n\n"
+        + (
+            "- The compiler supplies execution mechanics. Do not author "
+            "executable step JSON, step IDs, adapters, references or inputs "
+            "on this supported path.\n"
+            if typed else
+            "- New step IDs must not repeat existing_step_ids; use the "
+            "adapter_views.input_schema and ${step.field} result references.\n"
+        )
+        + f"- Return JSON only with this shape: {shape}.\n"
+        f"- The response schema is {getattr(model, '__name__', 'the response')}"
+        "; fields outside that schema are rejected.\n\n"
         "CONTEXT:\n" + json.dumps(context, sort_keys=True, default=str)
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(observations, sort_keys=True, default=str)
@@ -334,118 +372,232 @@ async def propose_adaptation(
     assignment: Mapping[str, Any],
     llm_service: Any = None,
     provider_model: Optional[Sequence[str]] = None,
+    deadline: Optional[float] = None,
+    attempt_journal: Any = None,
 ) -> Dict[str, Any]:
-    """Propose a response; a provider failure falls back deterministically."""
+    """Propose a response; a provider failure falls back deterministically.
+
+    ``deadline`` is an absolute ``time.monotonic()`` value shared by the
+    initial call and its one bounded repair. A repair never gets a fresh
+    budget, and a timeout is returned as a typed stage failure instead of
+    ``None`` hiding which boundary died.
+    """
+    response_model = _response_model_for(context)
+    journal = attempt_journal
+    if journal is None:
+        try:
+            from core.employee_attempt_journal import AttemptJournal
+
+            journal = AttemptJournal()
+        except Exception:  # noqa: BLE001 — diagnostics are optional
+            journal = None
+    attempts: List[Dict[str, Any]] = []
+    stage_failures: Dict[str, List[Dict[str, Any]]] = {}
+
+    def _remaining() -> Optional[float]:
+        if deadline is None:
+            return None
+        return max(0.0, float(deadline) - time.monotonic())
+
+    def _observer(stage_name: str):
+        def observe(event: str, **fields: Any) -> None:
+            if event == "failure":
+                exc = fields.get("exception")
+                try:
+                    from core.employee_attempt_journal import failure_kind
+
+                    kind = failure_kind(exc) if exc is not None else None
+                except Exception:  # noqa: BLE001
+                    kind = None
+                stage_failures.setdefault(stage_name, []).append({
+                    "kind": kind,
+                    "error_type": type(exc).__name__ if exc else None,
+                    "label": fields.get("label"),
+                    "attempt": fields.get("attempt"),
+                })
+            if journal is None:
+                return
+            payload = dict(fields)
+            if event == "failure":
+                exc = payload.pop("exception", None)
+                if exc is not None:
+                    journal.failure(exc, call_stage=stage_name, **payload)
+                return
+            journal.record(event, call_stage=stage_name, **payload)
+        return observe
+
+    def _failure_summary(stage_name: str) -> Optional[str]:
+        failures = stage_failures.get(stage_name) or []
+        if not failures:
+            return None
+        kinds = []
+        for item in failures:
+            kind = item.get("kind") or "provider_failure"
+            if kind not in kinds:
+                kinds.append(kind)
+        return "no parsed proposal: " + ", ".join(kinds)
+
+    async def _call(prompt: str, label: str, stage_name: str) -> Any:
+        remaining = _remaining()
+        if remaining is not None and remaining <= 0:
+            error = TimeoutError(f"{stage_name} deadline exhausted")
+            if journal is not None:
+                journal.failure(
+                    error, call_stage=stage_name, label=label, attempt=0,
+                    route="deadline", seconds=0.0)
+            raise error
+        call = pinned_structured_call(
+            llm_service,
+            prompt=prompt,
+            response_model=response_model,
+            system_instruction=(
+                "You choose bounded business work and plan changes. You "
+                "never execute, author execution plumbing or grant "
+                "authority. Return JSON only."),
+            call_kwargs=(
+                {"provider_model": tuple(provider_model)}
+                if provider_model else None),
+            extra_kwargs={
+                "output_mode": "json",
+                "cascade": False,
+                "allow_moa": False,
+                "max_tokens": 1800,
+            },
+            log_label=label,
+            task_type="planning",
+            workspace_id=context.get("identity", {}).get("workspace_id"),
+            tenant_id=context.get("identity", {}).get("tenant_id"),
+            attempt_observer=_observer(stage_name),
+        )
+        if remaining is None:
+            return await call
+        try:
+            return await asyncio.wait_for(call, timeout=remaining)
+        except asyncio.TimeoutError as exc:
+            if journal is not None:
+                journal.failure(
+                    exc, call_stage=stage_name, label=label, attempt=0,
+                    route="deadline", seconds=time.monotonic() - deadline
+                    if deadline is not None else 0.0)
+            raise
+
+    def _normalize(result: Any) -> Dict[str, Any]:
+        normalized_model = response_model.model_validate(
+            result.model_dump() if isinstance(result, BaseModel) else dict(result))
+        normalized = normalized_model.model_dump()
+        # Internal conversion happens only after the SELECTED response model
+        # has validated the payload.
+        return AdaptationProposal.model_validate(normalized).model_dump()
+
     if llm_service is not None and observations:
         try:
             from core.llm.pinned_planning import pinned_structured_call
-            response_model = (
-                WorkAdaptationProposal
-                if context.get("work_request_schemas")
-                else AdaptationProposal)
-            result = await pinned_structured_call(
-                llm_service,
-                prompt=_adaptation_prompt(context, observations),
-                response_model=response_model,
-                system_instruction=(
-                    "You choose bounded business work and plan changes. You "
-                    "never execute, author execution plumbing or grant "
-                    "authority. Return JSON only."),
-                call_kwargs=(
-                    {"provider_model": tuple(provider_model)}
-                    if provider_model else None),
-                extra_kwargs={
-                    "output_mode": "json",
-                    "cascade": False,
-                    "allow_moa": False,
-                    "max_tokens": 1800,
-                },
-                log_label="employee adaptation",
-                task_type="planning",
-                workspace_id=context.get("identity", {}).get("workspace_id"),
-                tenant_id=context.get("identity", {}).get("tenant_id"),
-            )
         except Exception:  # noqa: BLE001
-            result = None
-        if result is not None:
-            try:
-                normalized = (
-                    result.model_dump()
-                    if isinstance(result, BaseModel) else dict(result))
-                proposal = AdaptationProposal.model_validate(normalized)
-                errors = _adaptation_errors(proposal, assignment, context)
-                if errors:
-                    try:
-                        repaired = await pinned_structured_call(
-                            llm_service,
-                            prompt=_adaptation_retry_prompt(
-                                context, observations, normalized, errors),
-                            response_model=(
-                                WorkAdaptationProposal
-                                if context.get("work_request_schemas")
-                                else AdaptationProposal),
-                            system_instruction=(
-                                "You choose bounded business work and plan "
-                                "changes. You never execute, author execution "
-                                "plumbing or grant authority. Return corrected "
-                                "JSON only."),
-                            call_kwargs=(
-                                {"provider_model": tuple(provider_model)}
-                                if provider_model else None),
-                            extra_kwargs={
-                                "output_mode": "json", "cascade": False,
-                                "allow_moa": False, "max_tokens": 1800,
-                            },
-                            log_label="employee adaptation repair",
-                            task_type="planning",
-                            workspace_id=context.get(
-                                "identity", {}).get("workspace_id"),
-                            tenant_id=context.get(
-                                "identity", {}).get("tenant_id"),
-                        )
-                        if repaired is not None:
-                            repaired_norm = (
-                                repaired.model_dump()
-                                if isinstance(repaired, BaseModel)
-                                else dict(repaired))
-                            repaired_prop = AdaptationProposal.model_validate(
-                                repaired_norm)
-                            repair_errors = _adaptation_errors(
-                                repaired_prop, assignment, context)
-                            if not repair_errors:
-                                return {
-                                    "proposal": repaired_prop.model_dump(),
-                                    "source": "model_repaired",
-                                    "technical_fallback": False,
-                                    "errors": [],
-                                    "repair": {
-                                        "first_errors": errors,
-                                        "recovered": True,
-                                    },
-                                }
-                            errors = repair_errors
-                    except Exception as exc:  # noqa: BLE001
-                        errors = errors + [f"repair call: {exc}"]
-                    checked_errors = errors
-                else:
-                    return {
-                        "proposal": proposal.model_dump(),
-                        "source": "model",
-                        "technical_fallback": False,
-                        "errors": [],
-                    }
-            except Exception as exc:  # noqa: BLE001
-                checked_errors = [str(exc)]
+            pinned_structured_call = None  # type: ignore[assignment]
+        if pinned_structured_call is None:
+            checked_errors = ["planner transport unavailable"]
+            failure_stage = "transport"
         else:
-            checked_errors = ["model returned no proposal"]
+            checked_errors: List[str] = []
+            failure_stage = None
+            try:
+                result = await _call(
+                    _adaptation_prompt(
+                        context, observations, response_model=response_model),
+                    "employee adaptation", "initial")
+            except asyncio.TimeoutError:
+                result = None
+                failure_stage = "initial"
+                checked_errors = ["deadline_exceeded: initial"]
+            except Exception as exc:  # noqa: BLE001
+                result = None
+                failure_stage = "initial"
+                checked_errors = [f"initial call: {exc}"]
+            if result is not None:
+                try:
+                    normalized = _normalize(result)
+                    proposal = AdaptationProposal.model_validate(normalized)
+                    errors = _adaptation_errors(proposal, assignment, context)
+                    first_errors = list(errors)
+                    if not errors:
+                        return {
+                            "proposal": proposal.model_dump(),
+                            "source": "model",
+                            "technical_fallback": False,
+                            "errors": [],
+                            "attempt_id": getattr(journal, "attempt_id", None),
+                        }
+                    remaining = _remaining()
+                    if remaining is not None and remaining <= 0:
+                        checked_errors = errors + [
+                            "deadline_exceeded: repair"]
+                        failure_stage = "repair"
+                    else:
+                        try:
+                            repaired = await _call(
+                                _adaptation_retry_prompt(
+                                    context, observations, normalized, errors),
+                                "employee adaptation repair", "repair")
+                        except asyncio.TimeoutError:
+                            repaired = None
+                            failure_stage = "repair"
+                            errors = errors + [
+                                "deadline_exceeded: repair"]
+                        except Exception as exc:  # noqa: BLE001
+                            repaired = None
+                            failure_stage = "repair"
+                            errors = errors + [f"repair call: {exc}"]
+                        if repaired is not None:
+                            try:
+                                repaired_norm = _normalize(repaired)
+                                repaired_prop = AdaptationProposal.model_validate(
+                                    repaired_norm)
+                                repair_errors = _adaptation_errors(
+                                    repaired_prop, assignment, context)
+                                if not repair_errors:
+                                    return {
+                                        "proposal": repaired_prop.model_dump(),
+                                        "source": "model_repaired",
+                                        "technical_fallback": False,
+                                        "errors": [],
+                                        "attempt_id": getattr(
+                                            journal, "attempt_id", None),
+                                        "repair": {
+                                            "first_errors": first_errors,
+                                            "recovered": True,
+                                        },
+                                    }
+                                errors = repair_errors
+                            except Exception as exc:  # noqa: BLE001
+                                errors = errors + [
+                                    f"repair validation: {exc}"]
+                        elif _failure_summary("repair"):
+                            errors = errors + [_failure_summary("repair")]
+                        checked_errors = errors
+                except Exception as exc:  # noqa: BLE001
+                    checked_errors = [f"proposal validation: {exc}"]
+                    failure_stage = failure_stage or "validation"
+            elif not checked_errors:
+                summary = _failure_summary("initial")
+                checked_errors = [summary] if summary else [
+                    "model returned no proposal"]
+                if summary:
+                    failure_stage = "initial"
+            if journal is not None:
+                journal.record(
+                    "attempt-summary", source="deterministic",
+                    failure_stage=failure_stage, errors=checked_errors)
     else:
         checked_errors = []
+        failure_stage = None
     fallback = deterministic_adaptation(observations[0], assignment)
     return {
         "proposal": fallback,
         "source": "deterministic",
         "technical_fallback": bool(llm_service and observations),
         "errors": checked_errors,
+        "failure_stage": failure_stage,
+        "attempt_id": getattr(journal, "attempt_id", None),
     }
 
 

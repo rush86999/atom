@@ -5,7 +5,9 @@ from decimal import Decimal
 
 import pytest
 
-from core.assignment_plan import new_assignment, new_step, step_by_id
+from core.assignment_plan import (
+    new_assignment, new_step, new_teaching_snapshot, step_by_id,
+)
 from core.employee_adaptation import AdaptationProposal, adopt_adaptation
 from core.employee_patch import PlanPatchError, apply_plan_patch
 from core.employee_work_compiler import (
@@ -24,13 +26,12 @@ def _request(source_step_id="read", **overrides):
     payload = {
         "operation": "quote_calculation",
         "source_step_id": source_step_id,
-        "require_verified_source": False,
         "columns": {
             "item_id": "Item", "quantity": "Qty", "unit_price": "Price",
             "currency": "Currency"},
         "currency": "USD",
-        "freight": MoneyTerm(value="0.00", authority_ref="terms:freight"),
-        "tax": TaxTerm(basis="none"),
+        "freight": MoneyTerm(value="0.00", authority_ref="freight"),
+        "tax": TaxTerm(basis="none", authority_ref="tax_basis"),
         "reason": "compute from accepted evidence",
     }
     payload.update(overrides)
@@ -51,14 +52,27 @@ def _read_step(row_count=2):
                    {"column": "Price"}, {"column": "Currency"}],
         "total_count": row_count,
         "coverage": {"complete": True, "known": True, "truncated": False},
+        "resource_id": "heldout:price-book.xlsx",
+        "source_version": "heldout-v1",
+        "verification": {
+            "status": "verified",
+            "resource_id": "heldout:price-book.xlsx",
+            "version": "heldout-v1",
+            "coverage": {"complete": True, "truncated": False},
+        },
     })
     return read
 
 
 def _assignment(read):
+    teaching = new_teaching_snapshot(revision="matrix-terms-1")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "0.00", "tax_basis": "none",
+    }
     return new_assignment(
         objective="Quote the accepted population", steps=[read],
         workspace_id="ws_assign", tenant_id="tenant_assign",
+        teaching_snapshot=teaching,
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[{"kind": "required_work_complete"}])
 

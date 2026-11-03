@@ -1094,6 +1094,58 @@ def _bind_quote_gap(
     raw_inputs["binding_key"] = binding.get("binding_key") or ""
 
 
+def _validate_term_receipt(
+    receipt: Any, currency: str, freight: Any, tax: Any,
+) -> Dict[str, Any]:
+    """Revalidate compiled money-term provenance at consumption.
+
+    The compiler resolves teaching/facts and carries the resolved receipt on
+    the step. If the step's values drift from that receipt, arithmetic stops;
+    a stripped receipt cannot silently downgrade a typed work request.
+    """
+    if not isinstance(receipt, dict) or not receipt:
+        raise QuoteInputError(
+            "quote term provenance is missing; recompile the work request")
+    currency_term = receipt.get("currency")
+    if not isinstance(currency_term, dict):
+        raise QuoteInputError("quote term receipt has no currency provenance")
+    if str(currency_term.get("value") or "").strip().upper() != str(
+            currency or "").strip().upper():
+        raise QuoteInputError(
+            "quote currency differs from its accepted term provenance")
+    freight_term = receipt.get("freight")
+    if not isinstance(freight_term, dict):
+        raise QuoteInputError("quote term receipt has no freight provenance")
+    try:
+        if Decimal(str(freight_term.get("value"))) != Decimal(str(freight)):
+            raise QuoteInputError(
+                "quote freight differs from its accepted term provenance")
+    except (InvalidOperation, ValueError) as exc:
+        raise QuoteInputError(
+            "quote freight provenance is not a finite decimal") from exc
+    tax_term = receipt.get("tax")
+    if not isinstance(tax_term, dict):
+        raise QuoteInputError("quote term receipt has no tax provenance")
+    basis = str((tax or {}).get("basis") or "").strip().lower()
+    taught = str(tax_term.get("value") or "").strip()
+    if basis in ("none", "zero", "exempt"):
+        if taught.lower() not in ("0", "0.00", "none", "zero", "exempt",
+                                  "false"):
+            raise QuoteInputError(
+                "quote tax exemption differs from its accepted term")
+    else:
+        expected = (tax or {}).get("rate") if basis == "rate" else (
+            tax or {}).get("amount")
+        try:
+            if Decimal(taught) != Decimal(str(expected)):
+                raise QuoteInputError(
+                    "quote tax differs from its accepted term provenance")
+        except (InvalidOperation, ValueError) as exc:
+            raise QuoteInputError(
+                "quote tax provenance is not a finite decimal") from exc
+    return receipt
+
+
 @register_assignment_adapter(
     "quote.calculate",
     description="Calculate evidence-backed line items with exact decimals",
@@ -1106,7 +1158,7 @@ async def _quote_calculate(
 ) -> Dict[str, Any]:
     try:
         merged_inputs = _merge_resolved_discount_inputs(inputs, context)
-        return calculate_line_items(
+        result = calculate_line_items(
             line_items=merged_inputs.get("line_items") or [],
             currency=str(merged_inputs.get("currency") or ""),
             freight=merged_inputs.get("freight"),
@@ -1120,6 +1172,12 @@ async def _quote_calculate(
                 or "currency_minor_unit"),
             source_evidence=merged_inputs.get("source_evidence") or [],
         )
+        receipt = merged_inputs.get("term_receipt")
+        if receipt is not None:
+            result["term_receipt"] = _validate_term_receipt(
+                receipt, str(merged_inputs.get("currency") or ""),
+                merged_inputs.get("freight"), merged_inputs.get("tax"))
+        return result
     except NeedsContext as exc:
         _bind_quote_gap(exc.gap, inputs, context)
         raise

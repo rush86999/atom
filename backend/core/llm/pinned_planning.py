@@ -213,6 +213,34 @@ async def _record_if_cancelled(coro, log_label, task_type, t0):
         raise
 
 
+def _observer_notify(observer: Optional[Any], event: str, **fields: Any) -> None:
+    """Best-effort boundary event; diagnostics never break the call."""
+    if observer is None:
+        return
+    try:
+        observer(event, **fields)
+    except Exception:  # noqa: BLE001 — observation is passive
+        pass
+
+
+def _schema_json(response_model: Any) -> Dict[str, Any]:
+    try:
+        return response_model.model_json_schema()
+    except Exception:  # noqa: BLE001 — observation is passive
+        return {}
+
+
+def _parsed_payload(result: Any) -> Any:
+    try:
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        if isinstance(result, dict):
+            return result
+        return str(result)[:12000]
+    except Exception:  # noqa: BLE001
+        return None
+
+
 async def pinned_structured_call(
     llm_service: Any,
     *,
@@ -229,6 +257,7 @@ async def pinned_structured_call(
     tenant_id: Optional[str] = None,
     execution_id: Optional[str] = None,
     stage: Optional[str] = None,
+    attempt_observer: Optional[Any] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
 
@@ -290,13 +319,27 @@ async def pinned_structured_call(
     pinned = bool(pin_kwargs.get("provider_model"))
 
     _t0 = _time.monotonic()
+    _pinned_attempt = 0
+    _pinned_started = _time.monotonic()
     if pinned:
+        _pinned_attempt = 1
+        _observer_notify(
+            attempt_observer, "dispatch", label=log_label, attempt=1,
+            route="pinned", prompt=prompt,
+            system_instruction=system_instruction,
+            response_model=getattr(response_model, "__name__", str(response_model)),
+            response_schema=_schema_json(response_model),
+            temperature=temperature, extra=dict(extra_kwargs or {}))
         try:
             result = await _record_if_cancelled(
                 llm_service.generate_structured_response(
                     **base, **pin_kwargs),
                 log_label, task_type, _t0)
         except Exception as pinned_err:  # noqa: BLE001
+            _observer_notify(
+                attempt_observer, "failure", label=log_label, attempt=1,
+                route="pinned", seconds=_time.monotonic() - _pinned_started,
+                exception=pinned_err)
             _publish_failure(log_label, pinned_err)
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
@@ -306,6 +349,11 @@ async def pinned_structured_call(
             )
             result = None
         if result is not None:
+            _observer_notify(
+                attempt_observer, "parsed", label=log_label, attempt=1,
+                route="pinned",
+                seconds=_time.monotonic() - _pinned_started,
+                parsed=_parsed_payload(result))
             return result
         logger.info(
             "%s pinned call (%s) returned no result — retrying unpinned "
@@ -324,20 +372,59 @@ async def pinned_structured_call(
         _failed_pin = pin_kwargs.get("provider_model")
         if _failed_pin:
             fallback_kwargs["exclude_provider_model"] = _failed_pin
+        _observer_notify(
+            attempt_observer, "dispatch", label=log_label, attempt=2,
+            route="unpinned_fallback", prompt=prompt,
+            system_instruction=system_instruction,
+            response_model=getattr(response_model, "__name__", str(response_model)),
+            response_schema=_schema_json(response_model),
+            temperature=temperature, extra=dict(extra_kwargs or {}))
+        _fallback_started = _time.monotonic()
         try:
-            return await _record_if_cancelled(
+            fallback_result = await _record_if_cancelled(
                 llm_service.generate_structured_response(**fallback_kwargs),
                 log_label, task_type, _t0)
+            if fallback_result is not None:
+                _observer_notify(
+                    attempt_observer, "parsed", label=log_label, attempt=2,
+                    route="unpinned_fallback",
+                    seconds=_time.monotonic() - _fallback_started,
+                    parsed=_parsed_payload(fallback_result))
+            return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
+            _observer_notify(
+                attempt_observer, "failure", label=log_label, attempt=2,
+                route="unpinned_fallback",
+                seconds=_time.monotonic() - _fallback_started,
+                exception=unpinned_err)
             _publish_failure(log_label, unpinned_err)
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
             return None
 
+    _observer_notify(
+        attempt_observer, "dispatch", label=log_label, attempt=1,
+        route="unpinned", prompt=prompt,
+        system_instruction=system_instruction,
+        response_model=getattr(response_model, "__name__", str(response_model)),
+        response_schema=_schema_json(response_model),
+        temperature=temperature, extra=dict(extra_kwargs or {}))
+    _direct_started = _time.monotonic()
     try:
-        return await _record_if_cancelled(
+        direct_result = await _record_if_cancelled(
             llm_service.generate_structured_response(**base),
             log_label, task_type, _t0)
+        if direct_result is not None:
+            _observer_notify(
+                attempt_observer, "parsed", label=log_label, attempt=1,
+                route="unpinned",
+                seconds=_time.monotonic() - _direct_started,
+                parsed=_parsed_payload(direct_result))
+        return direct_result
     except Exception as err:  # noqa: BLE001
+        _observer_notify(
+            attempt_observer, "failure", label=log_label, attempt=1,
+            route="unpinned", seconds=_time.monotonic() - _direct_started,
+            exception=err)
         _publish_failure(log_label, err)
         logger.warning("%s call raised: %s", log_label, err)
         return None
