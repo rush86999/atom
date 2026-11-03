@@ -797,3 +797,29 @@ def test_integration_action_carries_reviewed_operation_identity(monkeypatch):
     other = asyncio.run(GoalRunExecutors(None)._integration_action(
         run, {**decision, "decision_id": "dec-b"}, step))
     assert other["operation_id"] != result["operation_id"]
+
+
+def test_cancelled_run_cannot_dispatch_its_old_held_decision(
+        tmp_path, monkeypatch):
+    from api import goal_run_routes as routes
+
+    engine, factory, db, user, svc = _file_client(
+        tmp_path, "cancelled-held.db")
+    run_id = svc.create_run("goal-family", role="sales", plan=PLAN)["id"]
+    svc.transition(run_id, "active")
+    held = _hold(svc, run_id, {
+        "decision": "ADVANCE", "rationale": "would have run"})
+    review = _review(held)
+    svc.cancel(run_id, reason="operator cancelled")
+    calls = _execute_counter(monkeypatch, svc)
+    monkeypatch.setattr(routes, "_service", lambda user, db: svc)
+    client = _client(db, user)
+
+    response = client.post(
+        f"/api/goal-runs/{run_id}/resume",
+        json={"approved": True, **review})
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == "run_terminal"
+    assert calls == []
+    db.close()
+    engine.dispose()

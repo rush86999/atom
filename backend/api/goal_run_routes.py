@@ -367,6 +367,17 @@ async def resume_goal_run(
             },
         )
 
+    if run["status"] in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "run_terminal",
+                "message": (
+                    "This run is finished or cancelled; the held decision "
+                    "cannot be dispatched."),
+            },
+        )
+
     # Snapshot the exact approval rows this decision owns BEFORE the loop
     # turn runs. Closing "all pending rows for this run" afterwards could
     # close a NEW checkpoint row created by the executed step; a different
