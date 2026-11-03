@@ -1,0 +1,84 @@
+.F.                                                                      [100%]
+=================================== FAILURES ===================================
+_____________ test_changed_patch_content_cannot_replay_old_success _____________
+
+env = {'tmp': PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-3244/test_cha...f-rushiparikh/pytest-3244/test_changed_patch_content_can0/assignment.db), autoflush=True, expire_on_commit=False), ...}
+
+    def test_changed_patch_content_cannot_replay_old_success(env):
+        rid=_patch_ready_assignment(env);p=patch(env,rid)
+>       apply_plan_patch(env['lifecycle'],rid,p)
+
+../../test_verifier_batch_b_patch_invariants.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+lifecycle = <core.task_lifecycle.TaskLifecycle object at 0x118218690>
+run_id = '1d7ce3d9-8c23-4013-9da2-f2f4ca16c1f5'
+patch = {'patch_id': 'p1', 'base_task_version': 1, 'base_plan_revision': 1, 'reason': 'new authoritative observation', ...}
+rationale = None
+
+    def apply_plan_patch(
+        lifecycle: Any,
+        run_id: str,
+        patch: Any,
+        *,
+        rationale: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Adopt one patch atomically through the existing task lifecycle CAS."""
+        record = lifecycle.get_task(run_id)
+        if record is None:
+            raise PlanPatchError(f"no task record on run {run_id}")
+        normalized = _normalize_patch(patch)
+        digest = _material_patch_digest(normalized.model_dump())
+        registry = (record.get("assignment") or {}).get("patch_registry") or {}
+        existing = registry.get(normalized.patch_id) if isinstance(
+            registry, Mapping) else None
+        if existing is None:
+            legacy = next((
+                item for item in (
+                    (record.get("assignment") or {}).get("patch_history") or [])
+                if item.get("patch_id") == normalized.patch_id), None)
+            if legacy is not None:
+                raise PlanPatchError(
+                    "patch history lacks a material digest; refresh the "
+                    "proposal against current state")
+        if existing is not None:
+            stored_digest = str(existing.get("material_digest") or "")
+            if stored_digest and stored_digest != digest:
+                raise PlanPatchError(
+                    "patch_id conflict: the same identity carries different "
+                    "material content")
+            if stored_digest == digest:
+                stored_result = existing.get("result")
+                return {
+                    **(copy.deepcopy(stored_result)
+                       if isinstance(stored_result, dict) else {}),
+                    "status": "already_applied",
+                    "patch_id": normalized.patch_id,
+                    "assignment": record.get("assignment"),
+                }
+            raise PlanPatchError(
+                "patch identity has no material digest; refresh the proposal")
+        checked = validate_plan_patch(normalized.model_dump(), record)
+        if not checked["valid"]:
+>           raise PlanPatchError("; ".join(checked["errors"]))
+E           core.employee_patch.PlanPatchError: stale task version: base 1 is not current 2
+
+core/employee_patch.py:506: PlanPatchError
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_verifier_batch_b_patch_invariants.py::test_changed_patch_content_cannot_replay_old_success
+1 failed, 2 passed, 7 warnings in 1.08s
