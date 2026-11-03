@@ -1,0 +1,159 @@
+{
+  "artifacts": {
+    "README.md": "f680372ec8948dcf4a63aae565d698832d4564a4d40117c2f93ae04309175297",
+    "TEST_RESULTS.md": "57c574d99a68e292b30db36a3d7b8e794595d2329d3a149268a60abedb202764",
+    "assignment-affected-suite.log": "b92f8f68a2f821d31b978adf5d78915f33eafa16da6be3ec126d21f6e7ee8882",
+    "backend-integrated.log": "7665c84ed6492d730331b58424ec61fd8ce67c31b0d23146b6bace9324c14213",
+    "evidence-strength-controls.log": "6ac00488859469c7daf9e5e332899f6126d1021836a056c781a2af594d4369dc",
+    "frontend-integrated.log": "9c8ecffb955b15912da139053391e6346d261ba52081407d365518832cd22b01",
+    "g0-and-blocked-route-probes.log": "b0cb3920474c4c02ea05ecde99256381b5dfa8fe05dcec7273ae338562f4395f",
+    "independent-evidence-contract-probe.log": "1239bf93a4d3ae093197d2a1a5840afbc173212e6f07ebbb471e793d182e52dd",
+    "independent-evidence-contract-probe.py": "6c48e722c0f93e13f7b035c9c9c80d036979440ffff1794fdbdcbdee382d4306",
+    "pre-existing-task-lifecycle-at-base.log": "ea05b318c2608679b709afd3e6f0c9530cf970c0a552ce99aec71341ceeed0b5",
+    "pre-existing-task-lifecycle-at-repair.log": "9db2935f9b9cd8a523dad49a514442748d7a4e8ed4577af242072f2c09b3e5bf"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "046fe0bf31ebce6c93d669563717c1f004d9ef86",
+    "manifest_note": "Batch A evidence-strength repair only. G3-G5, adaptive employee acceptance and Batch A acceptance itself are not claimed.",
+    "model_run_note": "No model inference was run. Planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.",
+    "tree_clean_at_integrated_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/alembic/versions/20261102_goal_run_material_revision.py",
+    "backend/api/agent_routes.py",
+    "backend/api/approvals_routes.py",
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_plan.py",
+    "backend/core/assignment_planner.py",
+    "backend/core/assignment_readiness.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/goals/goal_plan_validation.py",
+    "backend/core/goals/goal_run_binding.py",
+    "backend/core/goals/goal_run_executors.py",
+    "backend/core/goals/goal_run_ownership.py",
+    "backend/core/goals/goal_run_service.py",
+    "backend/core/hitl_resume.py",
+    "backend/core/models.py",
+    "backend/core/task_outcome_contract.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_readiness.py",
+    "backend/tests/test_assignment_routes.py",
+    "backend/tests/test_employee_outcome.py",
+    "backend/tests/test_employee_proposal.py",
+    "backend/tests/test_goal_effect_family_controls.py",
+    "backend/tests/test_goal_projection_boundaries.py",
+    "backend/tests/test_hitl_resume.py",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx",
+    "frontend-nextjs/lib/assignment-api.ts",
+    "frontend-nextjs/lib/goal-run-api.ts",
+    "frontend-nextjs/pages/approvals.tsx",
+    "frontend-nextjs/pages/goal-runs/[id].tsx",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx",
+    "backend/core/employee_patch.py",
+    "backend/core/employee_adaptation.py"
+  ],
+  "exclusions": [
+    "Batch A acceptance remains withheld pending independent re-verification",
+    "G3 atomic patch adoption not claimed",
+    "G4 full event ordering/uncertain-effect recovery not claimed for this path",
+    "G5 two-domain adaptive employee campaign not run; adaptive judgment unqualified",
+    "no live provider lookup/write/send/credential/consent/spend",
+    "planner 5/5, goal router failed 1/2 and alignment gap 3.0 unchanged",
+    "whole-app ORACLE-01, soak, multi-worker, PostgreSQL runtime remain open",
+    "historical 111/123 and accepted tags/sources unchanged"
+  ],
+  "known_pre_existing_failures": {
+    "base_log": "pre-existing-task-lifecycle-at-base.log",
+    "note": "Four test_task_lifecycle.py controls fail identically at base 93650be55 and at this source; disclosed, not counted as passing.",
+    "repair_log": "pre-existing-task-lifecycle-at-repair.log",
+    "result": "4 failed"
+  },
+  "lineage": {
+    "batch_b_core": [
+      "52e0919b1",
+      "dfd05cbfc",
+      "93650be55"
+    ],
+    "integrated_status_evidence": "8ec0b5164",
+    "integrated_status_repair": "9b7c033f7",
+    "original_batch_a_evidence": "acfa8a078",
+    "original_batch_a_source": "27f25617722bd6cd27fa397e48858bb4c979c432",
+    "this_repair_source": "046fe0bf3"
+  },
+  "repaired": {
+    "projection": "integrated 9b7c033f7 blocked-readiness state; eligible OR branches do not project irrelevant demands",
+    "receipt_strength": "finite applied/verified vocabulary; explicit verified proof with no missing/mismatch/conflict/refutation, matching operation/resource/subject/version binding and complete coverage; absent evidence unknown; unknown names refuse normalization",
+    "sent_record": "provider acceptance sets provider_accepted only; explicit correlated Sent Items readback required; mismatch unsatisfied; absent readback unresolved; recipient delivery separate"
+  },
+  "schema": "atom-employee-batch-a-evidence-repair-1",
+  "source_hashes": {
+    "backend/alembic/versions/20261102_goal_run_material_revision.py": "72dd0ebd646b41be749f0f8de0c0aecdbf71bf05df3d832e0b301f2859be8d8a",
+    "backend/api/agent_routes.py": "6cbb2f795faa67e987780382a1aac5104e182bfff957bf795255887ffe8de059",
+    "backend/api/approvals_routes.py": "0e8cf3bb767f5bf2ca9a28e36dc3f1c8c0a6922d3a328b3e2536b9a13b243003",
+    "backend/api/assignment_routes.py": "e2c4cec53f2ffbacbd2687efbd354d15a848a2e708016da2da4789d922290618",
+    "backend/core/assignment_executor.py": "37e997d1a606eb512d3807b07c503c013a8e820783276ef3c141ed0917d0e566",
+    "backend/core/assignment_plan.py": "1030129c25887fdd2b33a1cd9e7bdc9f833d1a4fb29777996e10a76fe86a79ae",
+    "backend/core/assignment_planner.py": "ac5eacf10b3f863730ed99e82af8f36694d599825bd513fd24249513c3131074",
+    "backend/core/assignment_readiness.py": "50adad46f1ee7cd8698ea52b71163b4f54ec54a5439ffc4e42aa44973c349e02",
+    "backend/core/employee_adaptation.py": "ec5cd68cd87cd1a08d2f4ea1fca4e4f05fba41aa9a083dc8c5ccc869e47bd63b",
+    "backend/core/employee_patch.py": "f115811b343fd5942bac94928df96177abe5b14af34467da094c4f8e146cdd0a",
+    "backend/core/employee_proposal.py": "3de087ea2485a5c83f492d1da8a9203497f9a8935a77ccbd8f593f786d13c9ac",
+    "backend/core/goals/goal_plan_validation.py": "0a206d583a02672081ab39d9638ad60e04b0c29191257934ea9aa23379d1e8cf",
+    "backend/core/goals/goal_run_binding.py": "75d93b8bf507328cecdf18b13f48158e765fec13da911df7dc66237912efd012",
+    "backend/core/goals/goal_run_executors.py": "9813eb886a2da78fd0ad2d9e9dcb5e6326f9dd43e73ab092f1f61c3838ddb6e5",
+    "backend/core/goals/goal_run_ownership.py": "45c5c8947108b30e6a84ee50294861ab6a13e53d0312fd0f99b1c455af0d66db",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+    "backend/core/hitl_resume.py": "9ac02465fcd12a39560cc99ffd267ea504d1518463e262fb96f6345a3a3c829f",
+    "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
+    "backend/core/task_outcome_contract.py": "098743b96f144a62adba9d926c0b36692d83e7ae681712db3a57187289b809dc",
+    "backend/tests/test_assignment_executor.py": "dbdb6acfe9be2f06184dd5aea4e474ed3eea389704e2c6754973fe8b542c3451",
+    "backend/tests/test_assignment_readiness.py": "659fba09d4ade9841b79834740f4ed4b9e5dc56aa5f42537bec88b0d1a3931d8",
+    "backend/tests/test_assignment_routes.py": "040961878066ecba5fc11c8fe750e10208798429c8e5399d9f0b5410063b20dc",
+    "backend/tests/test_employee_outcome.py": "1c74fc60280138f103c22538b14d39db2a13e9ecc57e2d01095d2a25abad028e",
+    "backend/tests/test_employee_proposal.py": "af182ad98c6ba1b5fc9505c82f8a752736762192ec7e9afc11677dba0dddb750",
+    "backend/tests/test_goal_effect_family_controls.py": "234ad68470f3f70a36ed8992f23670566e3cb6a14793c26c2ac8474a2fb12376",
+    "backend/tests/test_goal_projection_boundaries.py": "509cb18b0ca4f74a2206b00895f40f19abfc7a9d9eaf3924f48b54ae29635f9d",
+    "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "dfcb55e85b7a1c8fd8118805750c1d74dd83f7c0ac96ff84a0e17fc3245da94e",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx": "46fce05047f0c9aacaf90bee4192f2ea10452dc5abdbf97fe163a8cde58627e2",
+    "frontend-nextjs/lib/assignment-api.ts": "30a2c7aee53b3d59fd9c3252927ff67861bc4565d99728ba857484107ea7b121",
+    "frontend-nextjs/lib/goal-run-api.ts": "713e66e223484b98d96bcdf0be6ec684fa2abb8be1e5fcd622170cfaca371da8",
+    "frontend-nextjs/pages/approvals.tsx": "5cbff20101fd5da86e40dda5c6ad788acd397053280ae5a98ba85a881f2e99af",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "e4c14e230b90a8a8c37b8df0a046b21c7a513c04be62fb2b17228bf029fd5bb6",
+    "frontend-nextjs/tests/pages/approvals-page.test.tsx": "2f8befb5229624c861c54e77fbd80dddca81f8ecfa790c76faa14f3ceaaf6936",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "9aa40e24a239c1cb1ecc84f7b3f121616f68e1ed2b54378fcd7a2510138a56dc"
+  },
+  "status": "submitted-for-independent-reverification",
+  "tests": {
+    "assignment_affected_suite": {
+      "log": "assignment-affected-suite.log",
+      "result": "288 passed"
+    },
+    "backend_integrated": {
+      "log": "backend-integrated.log",
+      "result": "536 passed"
+    },
+    "evidence_strength_controls": {
+      "log": "evidence-strength-controls.log",
+      "result": "38 passed"
+    },
+    "frontend_integrated": {
+      "log": "frontend-integrated.log",
+      "result": "54 passed"
+    },
+    "g0_and_blocked_route_probes": {
+      "log": "g0-and-blocked-route-probes.log",
+      "result": "3 passed"
+    },
+    "independent_probe": {
+      "log": "independent-evidence-contract-probe.log",
+      "result": "6 passed",
+      "script": "independent-evidence-contract-probe.py"
+    }
+  }
+}

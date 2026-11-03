@@ -1,0 +1,85 @@
+
+tests/test_assignment_readiness.py::test_unknown_fact_blocks_only_dependent_branch 
+-------------------------------- live log setup --------------------------------
+2026-11-02 22:24:12 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-02 22:24:12 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-02 22:24:12 [    INFO] EscalationManager initialized
+2026-11-02 22:24:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 22:24:12 [    INFO] EscalationManager initialized
+2026-11-02 22:24:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-02 22:24:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-02 22:24:12 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_assignment_readiness.py::test_established_true_and_false_are_distinct PASSED [  5%]
+tests/test_assignment_readiness.py::test_all_or_unknown_and_not_truth_tables PASSED [  7%]
+tests/test_assignment_readiness.py::test_receipt_requires_applied_with_result PASSED [ 10%]
+tests/test_assignment_readiness.py::test_expired_fact_and_authority_are_not_ready PASSED [ 13%]
+tests/test_assignment_readiness.py::test_requirements_and_facts_validate PASSED [ 15%]
+tests/test_assignment_readiness.py::test_verified_receipt_accepts_complete_explicit_verification PASSED [ 18%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result0-unknown-applied_without_result] PASSED [ 21%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result1-unknown-verified_proof_missing] PASSED [ 23%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result2-false-verified_proof_refuted] PASSED [ 26%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result3-false-verified_proof_refuted] PASSED [ 28%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result4-false-verified_proof_missing_fields] PASSED [ 31%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result5-false-verified_proof_mismatches] PASSED [ 34%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result6-unknown-verified_coverage_incomplete] PASSED [ 36%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result7-unknown-verified_coverage_unknown] PASSED [ 39%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result8-unknown-verified_proof_missing] PASSED [ 42%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result9-unknown-verified_coverage_truncated] PASSED [ 44%]
+tests/test_assignment_readiness.py::test_verified_receipt_refuses_weaker_or_incomplete_proof[result10-unknown-verified_proof_incomplete] PASSED [ 47%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_must_match_a_declared_applied_step PASSED [ 50%]
+tests/test_assignment_readiness.py::test_unknown_receipt_requirement_names_refuse_normalization PASSED [ 52%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_must_match_the_receipt_identity PASSED [ 55%]
+tests/test_assignment_readiness.py::test_verified_receipt_binding_absent_from_receipt_stays_unknown PASSED [ 57%]
+tests/test_employee_outcome.py::test_applied_steps_satisfy_required_work_criterion PASSED [ 60%]
+tests/test_employee_outcome.py::test_failed_required_branch_keeps_outcome_unsatisfied_even_if_state_claimed PASSED [ 63%]
+tests/test_employee_outcome.py::test_missing_artifact_evidence_stays_unresolved_not_green PASSED [ 65%]
+tests/test_employee_outcome.py::test_verified_artifact_criterion_can_be_satisfied PASSED [ 68%]
+tests/test_employee_outcome.py::test_provider_acceptance_alone_does_not_confirm_sent_record PASSED [ 71%]
+tests/test_employee_outcome.py::test_matching_explicit_sent_items_readback_satisfies_confirmation PASSED [ 73%]
+tests/test_employee_outcome.py::test_mismatched_sent_items_binding_does_not_confirm PASSED [ 76%]
+tests/test_employee_outcome.py::test_absent_sent_items_readback_stays_unresolved PASSED [ 78%]
+tests/test_employee_outcome.py::test_explicit_sent_readback_stands_without_provider_state PASSED [ 81%]
+tests/test_employee_outcome.py::test_recipient_delivery_stays_unresolved_after_acceptance PASSED [ 84%]
+::test_verified_receipt_prerequisite_requires_material_proof[result0] PASSED [ 86%]
+::test_verified_receipt_prerequisite_requires_material_proof[result1] PASSED [ 89%]
+::test_verified_receipt_prerequisite_requires_material_proof[result2] PASSED [ 92%]
+::test_verified_receipt_prerequisite_requires_material_proof[result3] PASSED [ 94%]
+::test_verified_receipt_prerequisite_requires_material_proof[result4] PASSED [ 97%]
+::test_provider_acceptance_does_not_establish_sent_record PASSED         [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 76 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 38 passed, 82 warnings in 9.40s ========================
