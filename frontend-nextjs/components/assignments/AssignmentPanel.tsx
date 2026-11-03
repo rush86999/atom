@@ -312,7 +312,7 @@ export function AssignmentPanel({
             ? { query: startDraft.scopeQuery }
             : undefined,
           task_context: taskContext,
-          authorized_actions: ["retrieve"],
+          authorized_actions: ["retrieve", "calculate"],
           teaching_terms: parsedTeachingTerms,
           use_model: true,
         });
