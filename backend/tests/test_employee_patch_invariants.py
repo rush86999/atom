@@ -238,3 +238,21 @@ def test_forced_cas_retry_keeps_the_callback_pure(env, monkeypatch):
     assert effects == []
     assert env["lifecycle"].get_assignment(
         run_id)["plan_revision"] == 2
+
+
+def test_authority_change_advances_task_state_and_refuses_old_patch(env):
+    run_id = _patch_ready_assignment(env)
+    stale = _patch(env, run_id, patch_id="inv-authority-stale")
+    before = env["lifecycle"].get_task(run_id)
+    env["lifecycle"].apply_transition(run_id, {
+        "kind": "authorize_execute",
+        "approval": "read_only",
+        "authorized_actions": ["retrieve"],
+    })
+    after = env["lifecycle"].get_task(run_id)
+    assert after["task_version"] > before["task_version"]
+    assert after["task_revision"]["authorization"] == "read_only"
+    assert after["assignment"]["plan_revision"] == (
+        before["assignment"]["plan_revision"])
+    with pytest.raises(PlanPatchError, match="stale|version"):
+        apply_plan_patch(env["lifecycle"], run_id, stale)
