@@ -82,13 +82,15 @@ def test_missing_invoice_keeps_capability_and_names_po_identity():
     assert invoice["status"] == "missing"
     assert invoice["missing"] == ["invoice"]
     assert "PO-7" in invoice["question_hint"]
-    assert any(
+    # The capability stays visible with its missing role, but it is not
+    # advertised as executable work until the prerequisite is present.
+    assert not any(
         schema["operation"] == "invoice_reconciliation"
         for schema in context["work_request_schemas"])
     assert context["missing_prerequisites"]
     assert context["rules"]["allowed_work_requests"] == []
     assert context["rules"]["allowed_proposal_kinds"] == [
-        "replan", "clarify"]
+        "clarify", "retain"]
 
 
 class _RetainingLLM:
