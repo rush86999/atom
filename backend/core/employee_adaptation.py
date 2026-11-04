@@ -935,10 +935,21 @@ async def propose_adaptation(
         The model owns the typed request; repeating opaque observation ids is
         not a business choice. When it omits them, bind exactly the
         observations this narrow call was built from (never a wider set).
+        If the narrow filter selected no observation (for example the only
+        accepted evidence is not a role candidate), the call's triggering
+        observations are still the truthful lifecycle binding for the
+        proposal the model just made.
         """
         if not normalized.get("observation_ids"):
-            normalized["observation_ids"] = list(
-                compact.get("observation_ids") or [])
+            ids = list(compact.get("observation_ids") or [])
+            if not ids:
+                ids = [
+                    str(item.get("observation_id"))
+                    for item in observations
+                    if isinstance(item, Mapping)
+                    and item.get("observation_id")
+                ]
+            normalized["observation_ids"] = ids
         return normalized
 
     if llm_service is not None and observations:
@@ -1095,6 +1106,7 @@ async def propose_adaptation(
                     "errors": checked_errors,
                     "failure_stage": failure_stage,
                     "attempt_id": getattr(journal, "attempt_id", None),
+                    "routing": _routing_snapshot(),
                     "prompt_mode": "compact",
                 }
             checked_errors: List[str] = []

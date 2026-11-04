@@ -522,3 +522,35 @@ def test_compact_path_allows_truthful_retain(monkeypatch):
         assignment=_assignment(), llm_service=FakeLLM()))
     assert result["source"] == "model_compact"
     assert result["proposal"]["decision"] == "retain"
+
+
+def test_compact_call_binds_triggering_observations_when_role_filter_is_empty(
+        monkeypatch):
+    """A valid typed request must not be lost to empty filtered observations."""
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate({
+            "decision": "replan",
+            "reason": "the accepted role evidence is sufficient",
+            "observation_ids": [],
+            "work_request": {
+                "operation": "invoice_reconciliation",
+                "invoice_step_id": "invoice",
+                "purchase_order_step_id": "purchase-order",
+                "receiving_step_id": "receiving",
+                "currency": "USD",
+            },
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        _context(), [{
+            "observation_id": "evidence-unrelated",
+            "kind": "evidence_result",
+            "step_id": "unrelated-source"}],
+        assignment=_assignment(), llm_service=FakeLLM()))
+    assert result["source"] == "model_compact", result
+    assert result["proposal"]["observation_ids"] == ["evidence-unrelated"]
