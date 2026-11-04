@@ -1699,17 +1699,37 @@ async def add_assignment_source(
     record = executor.lifecycle.get_task(run_id) or {}
     assignment = record.get("assignment") or {}
     was_completed = str(assignment.get("status") or "") == "completed"
-    # A real change is a different version of a resource this job already
-    # depended on. Adding an unrelated authorized source is not a change and
-    # must not make the employee repeat accepted business work.
-    same_resource_previous_version = any(
-        str(((step.get("inputs") or {}).get("resource_binding") or {}).get(
-            "resource_id") or "") == str(resolved.get("resource_id") or "")
-        and str(((step.get("inputs") or {}).get("resource_binding") or {}).get(
-            "source_version") or "") != str(
-                resolved.get("source_version") or "")
-        for step in assignment.get("steps") or []
-        if isinstance(step.get("inputs"), dict))
+    # A real change is a different version of the business source this job
+    # already depended on: either the same resource id, or the same named
+    # file uploaded as a new document version. Adding an unrelated authorized
+    # source is not a change and must not make the employee repeat accepted
+    # business work.
+    def _business_name(binding: Dict[str, Any]) -> str:
+        return str(
+            binding.get("original_file_name") or binding.get("file_name")
+            or "").strip().lower()
+
+    resolved_name = str(
+        resolved.get("original_file_name") or resolved.get("file_name")
+        or "").strip().lower()
+    resolved_version = str(resolved.get("source_version") or "")
+    same_resource_previous_version = False
+    for existing_step in assignment.get("steps") or []:
+        inputs = (existing_step.get("inputs")
+                  if isinstance(existing_step.get("inputs"), dict) else {})
+        binding = inputs.get("resource_binding")
+        if not isinstance(binding, dict):
+            continue
+        previous_version = str(binding.get("source_version") or "")
+        if previous_version and previous_version == resolved_version:
+            continue
+        same_resource = str(binding.get("resource_id") or "") == str(
+            resolved.get("resource_id") or "")
+        same_name = bool(resolved_name) and _business_name(
+            binding) == resolved_name
+        if same_resource or same_name:
+            same_resource_previous_version = True
+            break
     # A duplicate source addition must not add another read step or cause
     # duplicate arithmetic/effects later. Same resource identity/version is
     # already present: return the durable state unchanged.
