@@ -3781,7 +3781,7 @@ def test_discovery_repeated_read_falls_back_to_unread_authorized_scope(
     body = response.json()
     rounds = body.get("adaptive_rounds") or []
     assert any(
-        round_item.get("fallback") == "deterministic_unread_scope"
+        round_item.get("repair") == "unread_scope"
         for round_item in rounds), rounds
     internal = route_env["lifecycle"].get_assignment(body["run_id"])
     steps = {step["step_id"]: step for step in internal["steps"]}

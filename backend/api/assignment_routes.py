@@ -942,18 +942,54 @@ async def _advance_employee_work(
 
             compiled = _compile_reads(proposal) if reads else None
             if compiled is None or not compiled.get("patch"):
-                # The authorized scope still has unread handles. A model
-                # proposal that only re-reads known sources (or asks without
-                # reading) must not become a user question while the scope
-                # can satisfy the need. This fallback is labeled and uses the
-                # same handle/compiler path; it grants no new permission.
-                fallback_proposal = deterministic_unread_evidence_proposal(
-                    unread)
-                if fallback_proposal:
-                    round_record["fallback"] = "deterministic_unread_scope"
-                    fallback_compiled = _compile_reads(fallback_proposal)
-                    if fallback_compiled and fallback_compiled.get("patch"):
-                        compiled = fallback_compiled
+                # One bounded repair sees only the unread handles, so the
+                # model cannot repeat a source it already read. It still
+                # selects through the same proposal/compiler contract.
+                repair_sources = [
+                    dict(source) for source in context.get("sources") or []
+                    if isinstance(source, Mapping) and not source.get("read")
+                ]
+                remaining = max(0.0, deadline - time.monotonic())
+                if repair_sources and remaining > 0:
+                    repair_context = dict(context)
+                    repair_context["sources"] = repair_sources
+                    repair_context["unread_sources"] = repair_sources
+                    repair_context["unread_source_count"] = len(
+                        repair_sources)
+                    repair_context["repair"] = (
+                        "Select only from the unread authorized sources.")
+                    repaired = await propose_employee_work(
+                        repair_context, llm_service=llm,
+                        deadline_seconds=remaining,
+                        provider_model=provider_model)
+                    repair_proposal = repaired.get("proposal") or {}
+                    round_record["repair_source"] = repaired.get("source")
+                    round_record["repair_sources"] = [
+                        read.get("source_id")
+                        for read in repair_proposal.get("evidence_reads") or []
+                    ]
+                    if repair_proposal.get("evidence_reads"):
+                        repaired_compiled = _compile_reads(repair_proposal)
+                        if (repaired_compiled
+                                and repaired_compiled.get("patch")):
+                            compiled = repaired_compiled
+                            round_record["repair"] = "unread_scope"
+                if compiled is None or not compiled.get("patch"):
+                    # The authorized scope still has unread handles. A model
+                    # proposal that only re-reads known sources (or asks
+                    # without reading) must not become a user question while
+                    # the scope can satisfy the need. This fallback is labeled
+                    # and uses the same handle/compiler path; it grants no new
+                    # permission.
+                    fallback_proposal = deterministic_unread_evidence_proposal(
+                        unread)
+                    if fallback_proposal:
+                        round_record["fallback"] = (
+                            "deterministic_unread_scope")
+                        fallback_compiled = _compile_reads(fallback_proposal)
+                        if (fallback_compiled
+                                and fallback_compiled.get("patch")):
+                            compiled = fallback_compiled
             if compiled is not None and compiled.get("patch"):
                 try:
                     adopted = apply_plan_patch(
