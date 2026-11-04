@@ -177,24 +177,20 @@ def test_exhausted_deadline_is_typed_and_does_not_start_repair():
             await asyncio.sleep(5)
             return None
 
-    from core.llm.model_provenance import (
-        clear_route_attribution, get_route_attribution,
-    )
+    from core.llm.model_provenance import clear_route_attribution
 
     clear_route_attribution()
     llm = SlowLLM()
     journal = AttemptJournal()
 
-    async def _bounded_attempt():
-        attempted = await propose_adaptation(
-            _context(), [{"observation_id": "o-4",
-                          "kind": "evidence_result"}],
-            assignment=_assignment(), llm_service=llm,
-            deadline=time.monotonic() + 0.05,
-            attempt_journal=journal)
-        return attempted, get_route_attribution()
-
-    result, routing = asyncio.run(_bounded_attempt())
+    result = asyncio.run(propose_adaptation(
+        _context(), [{"observation_id": "o-4", "kind": "evidence_result"}],
+        assignment=_assignment(), llm_service=llm,
+        deadline=time.monotonic() + 0.05,
+        attempt_journal=journal))
+    # The generation receipt is returned explicitly on the result; it is not
+    # read from the parent task's ContextVars after a child-task timeout.
+    routing = result.get("routing") or {}
     assert result["source"] == "deterministic"
     assert result["failure_stage"] == "initial"
     assert "deadline_exceeded: initial" in result["errors"]

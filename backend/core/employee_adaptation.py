@@ -1119,14 +1119,14 @@ def _adaptation_prompt(
     )
 
 
-def _routing_snapshot() -> Dict[str, Any]:
+def _routing_snapshot(
+    capture: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Routing view for a result, including an explicit child-task capture."""
     try:
-        from core.llm.model_provenance import get_route_attribution
+        from core.llm.pinned_planning import routing_snapshot
 
-        attribution = get_route_attribution()
-        if not attribution.get("mode"):
-            attribution["mode"] = "deterministic"
-        return attribution
+        return routing_snapshot(capture)
     except Exception:  # noqa: BLE001 — diagnostics are optional
         return {"mode": "deterministic"}
 
@@ -1175,10 +1175,13 @@ async def propose_adaptation(
             journal = None
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
     stage_no_results: Dict[str, List[Dict[str, Any]]] = {}
-    #: Feedback-row identity of the LAST model call in this attempt. Captured
-    #: from the call-local provenance carrier so a later business evaluation
-    #: annotates the exact generation instead of inserting an unattributed row.
+    #: Feedback-row identity of the LAST model call in this attempt. Read from
+    #: the request-owned provenance capture, never from a child task's
+    #: ContextVars (those do not propagate back across wait_for).
     last_routing_result_id: Optional[str] = None
+    #: Shared mutable receipt for the awaited call. Created here, written by
+    #: ``pinned_structured_call`` in whatever task actually ran, read here.
+    provenance: Dict[str, Any] = {}
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -1265,7 +1268,7 @@ async def propose_adaptation(
                 {
                     "source": "model",
                     "routing_result_id": routing_result_id,
-                    "routing": _routing_snapshot(),
+                    "routing": _routing_snapshot(provenance),
                 },
                 stage=stage,
                 evaluation="failed",
@@ -1290,8 +1293,30 @@ async def propose_adaptation(
     ) -> Any:
         nonlocal last_routing_result_id
         # A budget-skipped or never-dispatched call must not inherit the
-        # previous stage's generation identity.
+        # previous stage's generation identity or served route. Seed only the
+        # SERVER-OWNED request facts here; served/parsed facts come from the
+        # capture after the call.
+        provenance.clear()
         last_routing_result_id = None
+        provenance["mode"] = "pinned" if provider_model else "unpinned"
+        if provider_model and len(provider_model) >= 2:
+            provenance["requested_route"] = {
+                "provider": provider_model[0], "model": provider_model[1]}
+        if capability_profile:
+            try:
+                from core.llm.capability_profiles import (
+                    resolve_capability_profile,
+                )
+
+                _profile = resolve_capability_profile(
+                    capability_profile, "planning")
+                if _profile is not None:
+                    provenance["profile"] = {
+                        "name": _profile.name,
+                        "version": _profile.version,
+                    }
+            except Exception:  # noqa: BLE001 — attribution is optional
+                pass
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
             _record_skipped(stage_name, label)
@@ -1319,6 +1344,7 @@ async def propose_adaptation(
             workspace_id=context.get("identity", {}).get("workspace_id"),
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
+            provenance=provenance,
         )
         try:
             if remaining is None:
@@ -1327,6 +1353,17 @@ async def propose_adaptation(
                 result = await asyncio.wait_for(call, timeout=remaining)
         except asyncio.TimeoutError as exc:
             _record_routing_failure("deadline_cancelled")
+            # A timed-out boundary produced no accepted generation. Do not
+            # lend its id or a partial served route to the fallback.
+            provenance["served_route"] = None
+            provenance["routing_result_id"] = None
+            provenance["error"] = {
+                "code": "deadline_cancelled",
+                "detail": (
+                    "the employee reasoning step exhausted its caller "
+                    "deadline"),
+            }
+            last_routing_result_id = None
             if journal is not None:
                 journal.failure(
                     exc, call_stage=stage_name, label=label, attempt=0,
@@ -1334,12 +1371,7 @@ async def propose_adaptation(
                     if deadline is not None else 0.0)
             raise
         finally:
-            try:
-                from core.llm.model_provenance import get_feedback_id
-
-                last_routing_result_id = get_feedback_id()
-            except Exception:  # noqa: BLE001 — attribution is optional
-                last_routing_result_id = None
+            last_routing_result_id = provenance.get("routing_result_id")
         return result
 
     def _normalize(
@@ -1485,7 +1517,7 @@ async def propose_adaptation(
                                 "attempt_id": getattr(
                                     journal, "attempt_id", None),
                                 "routing_result_id": last_routing_result_id,
-                                "routing": _routing_snapshot(),
+                                "routing": _routing_snapshot(provenance),
                                 "prompt_mode": "compact",
                             }
                         remaining = _remaining()
@@ -1551,7 +1583,7 @@ async def propose_adaptation(
                                                 journal, "attempt_id", None),
                                             "routing_result_id": (
                                                 last_routing_result_id),
-                                            "routing": _routing_snapshot(),
+                                            "routing": _routing_snapshot(provenance),
                                             "prompt_mode": "compact",
                                             "repair": {
                                                 "first_errors": errors,
@@ -1587,7 +1619,7 @@ async def propose_adaptation(
                     "attempt_id": getattr(journal, "attempt_id", None),
                     "routing_result_id": last_routing_result_id,
                     "evaluation": evaluation,
-                    "routing": _routing_snapshot(),
+                    "routing": _routing_snapshot(provenance),
                     "prompt_mode": "compact",
                 }
             checked_errors: List[str] = []
@@ -1653,7 +1685,7 @@ async def propose_adaptation(
                                         journal, "attempt_id", None),
                                     "routing_result_id": (
                                         last_routing_result_id),
-                                    "routing": _routing_snapshot(),
+                                    "routing": _routing_snapshot(provenance),
                                     "prompt_mode": "wait_choice",
                                 }
                             if any(
@@ -1683,7 +1715,7 @@ async def propose_adaptation(
                                     "routing_result_id": (
                                         last_routing_result_id),
                                     "evaluation": evaluation,
-                                    "routing": _routing_snapshot(),
+                                    "routing": _routing_snapshot(provenance),
                                     "prompt_mode": "wait_choice",
                                 }
                             checked_errors = wait_errors
@@ -1798,7 +1830,7 @@ async def propose_adaptation(
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
                             "routing_result_id": last_routing_result_id,
-                            "routing": _routing_snapshot(),
+                            "routing": _routing_snapshot(provenance),
                             "prompt_mode": (
                                 "wait_choice" if wait_compact
                                 else "compact" if fallback_compact
@@ -1828,7 +1860,7 @@ async def propose_adaptation(
                             "attempt_id": getattr(journal, "attempt_id", None),
                             "routing_result_id": last_routing_result_id,
                             "evaluation": evaluation,
-                            "routing": _routing_snapshot(),
+                            "routing": _routing_snapshot(provenance),
                             "prompt_mode": (
                                 "wait_choice" if wait_compact else None),
                         }
@@ -1883,7 +1915,7 @@ async def propose_adaptation(
                                             journal, "attempt_id", None),
                                         "routing_result_id": (
                                             last_routing_result_id),
-                                        "routing": _routing_snapshot(),
+                                        "routing": _routing_snapshot(provenance),
                                         "repair": {
                                             "first_errors": first_errors,
                                             "recovered": True,
@@ -1925,7 +1957,7 @@ async def propose_adaptation(
         "attempt_id": getattr(journal, "attempt_id", None),
         "routing_result_id": last_routing_result_id,
         "evaluation": evaluation,
-        "routing": _routing_snapshot(),
+        "routing": _routing_snapshot(provenance),
     }
 
 

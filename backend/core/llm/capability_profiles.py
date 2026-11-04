@@ -266,6 +266,15 @@ def parse_evidence_rows(
         created_text, created_ts = _created_at(row)
         if created_ts is not None and created_ts < cutoff:
             continue
+        # A parsed proposal that has NOT been business-evaluated is neither a
+        # success nor a failure. In particular a parsed wait/clarify choice is
+        # not a satisfactory business outcome merely because its JSON
+        # validated. Legacy rows have no business_outcome and keep their
+        # established transport-quality semantics.
+        business_outcome = str(
+            features.get("business_outcome") or "").strip().lower()
+        if business_outcome in ("unresolved", "unknown", "pending"):
+            continue
         model = str(row.get("model_id") or "").strip()
         provider = str(features.get("route_provider")
                        or features.get("provider_id") or "").strip()

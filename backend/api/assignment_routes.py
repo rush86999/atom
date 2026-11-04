@@ -1001,6 +1001,7 @@ async def _record_round_business_outcome(
     stage: str,
     assignment: Optional[Mapping[str, Any]] = None,
     extra_features: Optional[Mapping[str, Any]] = None,
+    outcome_override: Optional[Mapping[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Annotate the round's model attempt with the task's explicit outcome.
 
@@ -1011,7 +1012,10 @@ async def _record_round_business_outcome(
     try:
         record = executor.lifecycle.get_task(run_id) or {}
         current = record.get("assignment") or {}
-        outcome = current.get("outcome") or {}
+        outcome = (
+            dict(outcome_override)
+            if outcome_override is not None
+            else (current.get("outcome") or {}))
         scope = assignment or current
         from core.employee_routing_feedback import record_business_outcome
 
@@ -1306,6 +1310,20 @@ async def _advance_employee_work(
             executor, run_id, proposal_result.get("routing"),
             stage="employee_adaptation",
             attempt_id=proposal_result.get("attempt_id"))
+        if proposal_result.get("source") == "model_wait_choice":
+            # A parsed wait/clarify/retain is not a business success. Record
+            # the decision's policy state before any adoption branch; a later
+            # explicit task outcome may annotate the same generation.
+            round_record["evaluation"] = await _record_round_business_outcome(
+                executor, run_id, proposal_result,
+                stage="employee_wait_choice", assignment=assignment,
+                outcome_override={"objective_met": None},
+                extra_features={
+                    "attempt_id": round_record.get("attempt_id"),
+                    "business_decision": (
+                        proposal_result.get("business_decision")
+                        or proposal.get("decision") or "wait"),
+                })
         if not proposal or proposal.get("decision") in ("retain",):
             question = missing_prerequisite_question(assignment)
             if question and not open_unresolved_questions(
@@ -1669,7 +1687,9 @@ async def start_employee_objective(
         # initial model proposal owns this job's result. A deterministic
         # fallback is skipped by the recorder, never credited as model work.
         if not any(
-                isinstance(item, Mapping) and item.get("evaluation")
+                isinstance(item, Mapping)
+                and isinstance(item.get("evaluation"), Mapping)
+                and item["evaluation"].get("recorded")
                 for item in adaptive_rounds):
             await _record_round_business_outcome(
                 executor, run_id, proposal_result,

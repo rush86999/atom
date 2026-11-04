@@ -29,7 +29,15 @@ logger = logging.getLogger(__name__)
 
 #: Results that represent a model-owned proposal. A deterministic fallback is
 #: never in this set, even when it was produced after a model rejection.
-MODEL_SOURCES = frozenset({"model", "model_repaired", "model_compact"})
+#: ``model_wait_choice`` is the compact wait/readiness consumer; it is a model
+#: origin, but a parsed wait is NOT automatically a satisfactory business
+#: outcome (that still requires an explicit task verdict).
+MODEL_SOURCES = frozenset({
+    "model",
+    "model_repaired",
+    "model_compact",
+    "model_wait_choice",
+})
 
 #: Route-boundary failures. The handler's outcome row already distinguishes
 #: these; the business consumer must not turn them into semantic judgements.
@@ -155,6 +163,14 @@ def classify_adaptation_errors(errors: Any) -> str:
     """
     text = " ".join(str(item) for item in (errors or [])).lower()
     if any(token in text for token in (
+            "replan_not_allowed", "wait_choice_policy", "wait_not_allowed",
+            "unnecessary wait", "forbidden wait")) or (
+            "wait" in text and any(token in text for token in (
+                "unnecessary", "not allowed", "forbidden",
+                "already available", "already read", "ambiguous",
+                "readiness", "policy"))):
+        return INVALID_PLAN_FAILURE
+    if any(token in text for token in (
             "unknown step", "invalid plan", "requires observation",
             "already-consumed", "mixes", "requires decision",
             "step_id", "plan patch")):
@@ -203,8 +219,13 @@ def classify_business_outcome(
     )
 
 
-async def _persist(feedback: Any) -> bool:
-    """Write one feedback annotation, never raising into the consumer."""
+async def _persist(feedback: Any) -> str:
+    """Write one business annotation and return the truthful write status.
+
+    ``annotated`` means the exact generation row was updated. Any other value
+    (refused_scope, skipped_missing_generation, skipped_verdict, error) means
+    the consumer must not claim the row was recorded.
+    """
     try:
         from core.llm.learning_router_registry import (
             get_learning_router_instance,
@@ -212,16 +233,14 @@ async def _persist(feedback: Any) -> bool:
 
         router = get_learning_router_instance(observe_only=True)
         if router is not None:
-            await router.record_feedback(feedback)
-            return True
+            return str(await router.record_feedback(feedback) or "unknown")
         from core.learning_llm_router import LearningBasedRouter
 
         writer = LearningBasedRouter.__new__(LearningBasedRouter)
-        writer._persist_feedback(feedback, {})
-        return True
+        return str(writer._persist_feedback(feedback, {}) or "unknown")
     except Exception as exc:  # noqa: BLE001 — evidence must not break work
         logger.debug("business routing feedback skipped: %s", exc)
-        return False
+        return "error"
 
 
 async def record_attempt_evaluation(
@@ -251,6 +270,21 @@ async def record_attempt_evaluation(
         result, require_model_source=require_model_source)
     if context is None:
         return None
+    # A missing scope is UNKNOWN, never "default"/"current". Refuse before
+    # building a feedback object so it cannot bind to a default-scoped row.
+    if not str(workspace_id or "").strip() or not str(
+            tenant_id or "").strip():
+        return {
+            "recorded": False,
+            "status": "refused_missing_scope",
+            "evaluation": evaluation,
+            "failure_kind": failure_kind,
+            "profile": context["profile"],
+            "profile_version": context["profile_version"],
+            "provider": context["provider"],
+            "model": context["model"],
+            "routing_result_id": context["routing_result_id"],
+        }
     from core.llm.fabrication_accounting import (
         BUSINESS_SATISFIED_VERDICT,
         BUSINESS_VERDICT_RULE,
@@ -264,6 +298,8 @@ async def record_attempt_evaluation(
         "business_outcome": evaluation,
         "business_stage": str(stage or "")[:80],
         "business_rule": BUSINESS_VERDICT_RULE,
+        # A later explicit task result overwrites a decision-scope evaluation.
+        "business_outcome_scope": "result",
     }
     if detail:
         features["business_detail"] = str(detail)[:500]
@@ -293,12 +329,87 @@ async def record_attempt_evaluation(
             failure_kind or GENERIC_SEMANTIC_FAILURE),
         evidence_features=features,
     )
-    if not await _persist(feedback):
-        return None
+    status = await _persist(feedback)
     return {
-        "recorded": True,
+        "recorded": status == "annotated",
+        "status": status,
         "evaluation": evaluation,
         "failure_kind": feedback.failure_kind,
+        "profile": context["profile"],
+        "profile_version": context["profile_version"],
+        "provider": context["provider"],
+        "model": context["model"],
+        "routing_result_id": context["routing_result_id"],
+    }
+
+
+async def record_pending_business_evaluation(
+    result: Mapping[str, Any],
+    *,
+    stage: str,
+    detail: str = "",
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    extra_features: Optional[Mapping[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Mark a parsed model decision as NOT yet business-evaluated.
+
+    The transport row remains a transport success, but the capability
+    selector skips ``business_outcome=unresolved`` rows. This is how a parsed
+    wait/clarify choice is prevented from counting as a satisfactory business
+    outcome merely because its JSON validated.
+    """
+    context = attempt_context(result)
+    if context is None:
+        return None
+    if not str(workspace_id or "").strip() or not str(
+            tenant_id or "").strip():
+        return {
+            "recorded": False,
+            "status": "refused_missing_scope",
+            "evaluation": "unresolved",
+            "profile": context["profile"],
+            "profile_version": context["profile_version"],
+            "provider": context["provider"],
+            "model": context["model"],
+            "routing_result_id": context["routing_result_id"],
+        }
+    from core.llm.fabrication_accounting import BUSINESS_VERDICT_RULE
+    from core.learning_llm_router import RoutingFeedback
+
+    features: Dict[str, Any] = {
+        "business_outcome": "unresolved",
+        "business_stage": str(stage or "")[:80],
+        "business_rule": BUSINESS_VERDICT_RULE,
+        "business_outcome_scope": "decision",
+    }
+    if detail:
+        features["business_detail"] = str(detail)[:500]
+    for key, value in (extra_features or {}).items():
+        features[str(key)] = value
+    feedback = RoutingFeedback(
+        routing_result_id=context["routing_result_id"],
+        tenant_id=str(tenant_id),
+        model_id=context["model"],
+        task_type="general",
+        success=True,  # transport fact, not a business success
+        quality_satisfied=True,
+        cost_within_budget=True,
+        user_satisfaction=None,
+        provider_id=context["provider"],
+        verdict=None,
+        verdict_rule=BUSINESS_VERDICT_RULE,
+        capability_profile=context["profile"],
+        capability_profile_version=context["profile_version"],
+        workspace_id=str(workspace_id),
+        failure_kind=None,
+        evidence_features=features,
+    )
+    status = await _persist(feedback)
+    return {
+        "recorded": status == "annotated",
+        "status": status,
+        "evaluation": "unresolved",
         "profile": context["profile"],
         "profile_version": context["profile_version"],
         "provider": context["provider"],
@@ -316,8 +427,45 @@ async def record_business_outcome(
     tenant_id: Optional[str] = None,
     extra_features: Optional[Mapping[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Record an explicit task outcome against the model attempt that produced it."""
+    """Record an explicit task outcome against the model attempt that produced it.
+
+    A parsed ``model_wait_choice`` is NOT automatically a success. When the
+    task outcome is still unresolved, the attempt is annotated as pending so
+    it is excluded from capability evidence. Only a caller that explicitly
+    marks a server-validated decision (``business_decision_validated=True``)
+    can record a positive DECISION evaluation; parsing alone never sets it and
+    the job outcome remains separate.
+    """
     evaluation, failure_kind, detail = classify_business_outcome(outcome)
+    source = str(result.get("source") or "")
+    if evaluation is None and source == "model_wait_choice":
+        if result.get("business_decision_validated") is True:
+            decision_features = dict(extra_features or {})
+            decision_features.update({
+                "business_decision": (
+                    result.get("business_decision") or "wait"),
+                "business_decision_validated": True,
+                "business_outcome_scope": "decision",
+            })
+            return await record_attempt_evaluation(
+                result,
+                stage=stage,
+                evaluation="satisfied",
+                failure_kind="",
+                detail=detail or "server-validated wait decision",
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+                extra_features=decision_features,
+                require_model_source=True,
+            )
+        return await record_pending_business_evaluation(
+            result,
+            stage=stage,
+            detail=detail,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            extra_features=extra_features,
+        )
     if evaluation is None:
         return None
     return await record_attempt_evaluation(

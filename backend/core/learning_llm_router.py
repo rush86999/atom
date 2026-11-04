@@ -1560,7 +1560,7 @@ class LearningBasedRouter:
 
         return "Selected " + model.model_name + " because " + ", ".join(reasons)
 
-    async def record_feedback(self, feedback: RoutingFeedback) -> None:
+    async def record_feedback(self, feedback: RoutingFeedback) -> str:
         """
         Record routing feedback for learning.
 
@@ -1586,6 +1586,24 @@ class LearningBasedRouter:
             )
 
         feedback_key = f"{feedback.tenant_id}:{feedback.task_type}"
+        # A business evaluation is a WRITE BOUND to one exact generation. It
+        # must succeed at the DB boundary before it can affect in-memory
+        # learning; a refused/missing binding is not a recorded observation.
+        business_evaluation = (
+            getattr(feedback, "failure_kind", None) is not None
+            or bool(getattr(feedback, "evidence_features", None)))
+        recovered_features = getattr(feedback, "_prompt_features", None)
+        persist_status = "annotated"
+        if business_evaluation:
+            persist_status = self._persist_feedback(
+                feedback, recovered_features)
+            if persist_status != "annotated":
+                logger.warning(
+                    "business routing feedback not recorded (%s): "
+                    "tenant=%s model=%s generation=%s",
+                    persist_status, feedback.tenant_id, feedback.model_id,
+                    feedback.routing_result_id)
+                return persist_status
 
         # Acquire the state lock to prevent concurrent feedback/retrain races.
         # Without this, two record_feedback calls can interleave during the
@@ -1637,9 +1655,11 @@ class LearningBasedRouter:
 
             # Write through to DB so learned data survives restarts. Best-effort:
             # a DB failure must not break the hot routing path (in-memory state
-            # remains authoritative for reads).
-            recovered_features = getattr(feedback, "_prompt_features", None)
-            self._persist_feedback(feedback, recovered_features)
+            # remains authoritative for reads). Business evaluations already
+            # persisted above and must not be written twice.
+            if not business_evaluation:
+                persist_status = self._persist_feedback(
+                    feedback, recovered_features)
 
             # Update EMA scores in memory
             self._update_ema_scores(superseded or feedback)
@@ -1654,6 +1674,7 @@ class LearningBasedRouter:
             f"Recorded routing feedback: tenant={feedback.tenant_id}, "
             f"model={feedback.model_id}, success={feedback.success}"
         )
+        return persist_status
 
     async def _retrain_router(self, tenant_id: str, task_type: str) -> None:
         """
@@ -1719,9 +1740,41 @@ class LearningBasedRouter:
             f"predictors=[{', '.join(trained_predictors)}]"
         )
 
+    @staticmethod
+    def _business_binding_error(
+        row: Any, stored: Dict[str, Any], feedback: RoutingFeedback,
+    ) -> str:
+        """Why a business annotation may not touch this outcome row.
+
+        The handler's accepted generation is an immutable receipt: generation
+        id + tenant/workspace + provider/model + profile/version. A business
+        evaluation must match ALL of them. Missing provenance is a refusal,
+        never an inferred default. Empty string means the binding is exact.
+        """
+        if not feedback.tenant_id or str(row.tenant_id or "") != str(
+                feedback.tenant_id):
+            return "tenant"
+        workspace = str(stored.get("workspace_id") or "").strip()
+        if not feedback.workspace_id or workspace != str(
+                feedback.workspace_id):
+            return "workspace"
+        provider = str(stored.get("route_provider") or "").strip()
+        if not feedback.provider_id or provider != str(feedback.provider_id):
+            return "provider"
+        if str(row.model_id or "") != str(feedback.model_id or ""):
+            return "model"
+        profile = str(stored.get("capability_profile") or "").strip()
+        if not feedback.capability_profile or profile != str(
+                feedback.capability_profile):
+            return "profile"
+        version = str(stored.get("profile_version") or "").strip()
+        if str(feedback.capability_profile_version or "") != version:
+            return "profile_version"
+        return ""
+
     def _persist_feedback(
         self, feedback: RoutingFeedback, prompt_features: Optional[Dict[str, float]]
-    ) -> None:
+    ) -> str:
         """Best-effort write-through of one feedback row to the DB.
 
         Uses a short-lived session (not the long-lived ``self.db``) per the
@@ -1761,14 +1814,6 @@ class LearningBasedRouter:
             features, _malformed = coerce_features(prompt_features)
             verdict = getattr(feedback, "verdict", None) or (
                 features.get("verdict") if features else None)
-            # Verdicts about THIS OUTPUT annotate its row; availability
-            # verdicts (a timed-out planning call) describe an attempt that
-            # produced nothing, and must not annotate some other attempt that
-            # happens to share the turn.
-            annotates = (
-                verdict in JUDGEMENT_VERDICTS
-                or verdict in GROUNDING_EVALUATED_VERDICTS
-            ) and bool(feedback.routing_result_id)
             # Provider half of the route, when the caller knows it. Stored
             # beside the verdict so a later per-route consumer can tell WHICH
             # gateway produced the judged generation (the row itself has no
@@ -1786,21 +1831,97 @@ class LearningBasedRouter:
                 feedback, "evidence_features", None) or {}
             if not isinstance(evidence_features, dict):
                 evidence_features = {}
+            # BUSINESS WRITES ARE STRICTER THAN LEGACY CORRECTIONS. A business
+            # evaluation must bind to the exact transport outcome row; the
+            # fabrication/correction path keeps its established behavior.
+            business_evaluation = (
+                failure_kind is not None or bool(evidence_features))
+            # Verdicts about THIS OUTPUT annotate its row; availability
+            # verdicts (a timed-out planning call) describe an attempt that
+            # produced nothing, and must not annotate some other attempt that
+            # happens to share the turn. A business evaluation with no verdict
+            # (a pending/parsed decision) still annotates provenance, but does
+            # not rewrite quality.
+            annotates = bool(feedback.routing_result_id) and (
+                verdict in JUDGEMENT_VERDICTS
+                or verdict in GROUNDING_EVALUATED_VERDICTS
+                or business_evaluation)
 
             with get_db_session() as db:
                 if annotates:
-                    existing = (
-                        db.query(LLMRoutingFeedback)
-                        .filter(
-                            LLMRoutingFeedback.routing_result_id
-                            == feedback.routing_result_id,
-                            LLMRoutingFeedback.model_id == feedback.model_id,
-                        )
-                        .order_by(LLMRoutingFeedback.created_at.asc())
-                        .first()
+                    query = db.query(LLMRoutingFeedback).filter(
+                        LLMRoutingFeedback.routing_result_id
+                        == feedback.routing_result_id,
                     )
-                    if existing is not None:
+                    if not business_evaluation:
+                        # Legacy corrections keep their established
+                        # generation+model identity.
+                        query = query.filter(
+                            LLMRoutingFeedback.model_id == feedback.model_id)
+                    if business_evaluation:
+                        # The row lock makes the binding/rank re-check and the
+                        # write one serialized transaction (Postgres locks;
+                        # SQLite serializes writers). The provider/workspace/
+                        # profile are JSON features, so the exact binding is
+                        # selected from the candidate rows rather than inferred
+                        # from a SQL default.
+                        query = query.with_for_update()
+                    candidates = query.order_by(
+                        LLMRoutingFeedback.created_at.asc()).limit(50).all()
+                    existing = None
+                    stored: Dict[str, Any] = {}
+                    if business_evaluation:
+                        first_error = ""
+                        for candidate in candidates:
+                            candidate_features, _ = coerce_features(
+                                candidate.prompt_features)
+                            binding_error = self._business_binding_error(
+                                candidate, candidate_features, feedback)
+                            if not binding_error:
+                                existing = candidate
+                                stored = candidate_features
+                                break
+                            first_error = first_error or binding_error
+                        if existing is None:
+                            if not candidates:
+                                logger.warning(
+                                    "business feedback skipped: no exact "
+                                    "generation row for %s",
+                                    feedback.routing_result_id)
+                                return "skipped_missing_generation"
+                            logger.warning(
+                                "business feedback refused: %s binding "
+                                "mismatch for generation %s",
+                                first_error or "scope",
+                                feedback.routing_result_id)
+                            return f"refused_{first_error or 'scope'}"
+                    elif candidates:
+                        existing = candidates[0]
                         stored, _ = coerce_features(existing.prompt_features)
+                    if existing is not None:
+                        if business_evaluation and not verdict:
+                            # Pending/parsed decision: record provenance only.
+                            # Never overwrite a resolved business verdict and
+                            # never change the transport quality fields.
+                            stored_outcome = str(
+                                stored.get("business_outcome") or "").lower()
+                            if stored_outcome in ("failed", "satisfied"):
+                                return "skipped_verdict"
+                            updated = dict(stored)
+                            if failure_kind is not None:
+                                updated["failure_kind"] = str(failure_kind)
+                            for key, value in evidence_features.items():
+                                updated[str(key)] = value
+                            existing.prompt_features = updated
+                            try:
+                                from core.llm.capability_profiles import (
+                                    reset_capability_evidence_cache,
+                                )
+
+                                reset_capability_evidence_cache()
+                            except Exception:  # noqa: BLE001
+                                pass
+                            return "annotated"
                         # ONE VERDICT SLOT, ORDERED BY SEVERITY. A weaker
                         # judgement never replaces a stronger one, and a repeat
                         # is a no-op: an invention outranks "ignored the
@@ -1810,13 +1931,15 @@ class LearningBasedRouter:
                         # unguarded, so a grounding pass arriving after an
                         # ignored-evidence judgement would have erased it.
                         if verdict_rank(verdict) <= verdict_rank(stored.get("verdict")):
-                            return
+                            return "skipped_verdict"
                         # Reassign a NEW mapping: mutating the dict in place
                         # leaves SQLAlchemy's JSON column clean and the verdict
                         # would silently never reach the database.
                         updated = dict(stored)
                         updated["verdict"] = verdict
-                        if route_provider:
+                        if route_provider and not business_evaluation:
+                            # A business annotation never rewrites the route
+                            # identity; it must already match the receipt.
                             updated["route_provider"] = str(route_provider)
                         verdict_rule = getattr(feedback, "verdict_rule", None) or (
                             (features or {}).get("verdict_rule"))
@@ -1848,7 +1971,15 @@ class LearningBasedRouter:
                             reset_capability_evidence_cache()
                         except Exception:  # noqa: BLE001 — best-effort
                             pass
-                        return
+                        return "annotated"
+
+                if business_evaluation:
+                    # No exact transport row exists. Never insert an orphan
+                    # business judgement under another scope/generation.
+                    logger.warning(
+                        "business feedback skipped: no exact generation row "
+                        "for %s", feedback.routing_result_id)
+                    return "skipped_missing_generation"
 
                 if not annotates:
                     # A SECOND outcome row for the same (turn, model) is a
@@ -1929,11 +2060,13 @@ class LearningBasedRouter:
                     reset_capability_evidence_cache()
                 except Exception:  # noqa: BLE001 — cache reset is best-effort
                     pass
+                return "inserted"
         except Exception as e:
             logger.warning(
                 f"Could not persist routing feedback to DB (non-fatal, "
                 f"in-memory state remains): {e}"
             )
+            return "error"
 
     @staticmethod
     def build_feedback(
