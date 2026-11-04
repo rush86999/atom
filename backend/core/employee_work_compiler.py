@@ -628,6 +628,10 @@ def _requested_artifact_step(
     owns the output mechanics. The output path, deliverable identity and
     artifact criterion were fixed when the objective was accepted.
     """
+    if not str(calculation_step or "").strip():
+        # A wait/read-only intent has no verified calculation to render; the
+        # artifact is compiled with the business calculation that follows.
+        return None
     provenance = assignment.get("provenance") or {}
     kind = str(provenance.get("requested_output") or "").strip().lower()
     adapters = {
