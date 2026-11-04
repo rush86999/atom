@@ -1,0 +1,58 @@
+{
+ "schema": "atom-employee-evidence-1",
+ "status": "served single-route auto-selection qualified; multi-route selection controlled; wait-choice no-result preserved separately",
+ "executed_source": "0e04286b29dd81e1c25e2b0f735f3f2aa5f98773",
+ "served_configuration": {
+  "provider": "ollama",
+  "model": "llama3.1:8b",
+  "pin": null,
+  "provider_policy": "selected: ollama only",
+  "local_only": true
+ },
+ "served_evidence_selection": {
+  "calls": 5,
+  "parsed": 5,
+  "served_route": "ollama/llama3.1:8b",
+  "prompt_tokens": 28034,
+  "completion_tokens": 1058,
+  "latency_seconds": 98.78,
+  "cost_usd": 0.0
+ },
+ "wait_choice_stage": {
+  "profile": "employee_wait_choice",
+  "dispatched": true,
+  "parsed": false,
+  "seconds": 104.93,
+  "classification": "semantic/protocol no-result; not a routing failure"
+ },
+ "checks": {
+  "focused_successor": "114 passed",
+  "consumer_multi_route": "9 passed",
+  "verifier_worker_probes": "2/2"
+ },
+ "source_files": {
+  "backend/core/llm/byok_handler.py": "a19d32042f02dcebe4110ab08f05865f75b9b36f6ae9521858c826126e4f03f0",
+  "backend/core/employee_proposal.py": "64526b9d53c032dcb307195dbad1a8cd6934f724f5062a96f9181a19403c9781",
+  "backend/api/assignment_routes.py": "5b3a824914442e678869f39f482b3dfd27befecac0928f41c38ead2467fb5753",
+  "backend/core/llm/pinned_planning.py": "2d2b19b21e18bbace442e83379a686d6dee7db332ad3fc329d3e01066254a73f",
+  "backend/core/llm/capability_profiles.py": "c21d25f08da1f10790da3dd3f116e3ff45563545ad40fc8dbeb16740797fdf1f",
+  "backend/tests/test_employee_byok_consumer_routing.py": "d73a3addbd260eca2f2437b3cedf816e6ecd8343033f36798b22741095f994d0",
+  "backend/tests/test_workload_capability_routing.py": "deca1b2ad4ce1ec749dbbddfec460a8cc41260645db0c99c8ab83dc5bb8fd68e",
+  "backend/tests/test_worker_context_and_claims.py": "7f975513113ee7030d41ff67cb1a046e2cb3812c4c2d56a0591cfb47d4b42862"
+ },
+ "artifacts": {
+  "README.md": "8c2a270628039332bf17931558529aac0b4f6d6f321b49fb98266eca0f457503",
+  "attempts-auto.jsonl": "fcff47c395f2b00358bdc6efef6ba572cc5481e46303817b78eb3250be35a5c4",
+  "consumer-routing-tests.log": "3a2dca523fd2321d0df81bfdaa054e6d71c9c6514e74a129c4f4f9a291f4047c",
+  "focused-tests.log": "63de570e82695ec957be4af54b2aaf2a2b6dfee1f5327b7bdcdbbb69d0669af4",
+  "server.log": "39f62ba9a0c6bb3c407a3ac546706b2cd6b53ccdd8014a47b0a0c046bdc1db5e",
+  "state.json": "57f5c6434b9c90021787e2a501b4cd77206406c7269cd34fde16854c7d53597d"
+ },
+ "boundaries": [
+  "only one route configured/authorized; served multi-route comparison not claimed",
+  "controlled two-route selection is consumer evidence, not served multi-route inference",
+  "wait-choice no-result and procurement source selection remain separate",
+  "no live/cloud provider, credential, spend, send, download or deployment authority",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ]
+}

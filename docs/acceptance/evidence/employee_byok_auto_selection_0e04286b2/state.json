@@ -1,0 +1,2712 @@
+{
+ "run_id": "b7d8de8a-1be9-46e2-8d3e-a84b247a37c9",
+ "request": {
+  "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+  "sources": [
+   {
+    "kind": "document",
+    "document_id": "doc_c38617b5ef5dd5b9fb27d63d"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_7537055c69f8924141c435da"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_ae7e29b19061bccc258a0e82"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_a2f83610de258efeeca731f0"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_056ad9eadbff15c6f4d3f76b"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_850dba8850ba01918e84d37e"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_b45810ce4ac2059e7621499f"
+   }
+  ],
+  "authorized_actions": [
+   "retrieve"
+  ],
+  "budget": {
+   "max_steps": 8,
+   "max_wall_seconds": 1200
+  },
+  "use_model": true
+ },
+ "uploads": {
+  "warehouse-memo.txt": "doc_c38617b5ef5dd5b9fb27d63d",
+  "ap-inbox-0411.json": "doc_7537055c69f8924141c435da",
+  "dock-receipt-07.json": "doc_ae7e29b19061bccc258a0e82",
+  "ap-inbox-0402.json": "doc_a2f83610de258efeeca731f0",
+  "po-archive-88.json": "doc_056ad9eadbff15c6f4d3f76b",
+  "ap-inbox-0412.json": "doc_850dba8850ba01918e84d37e",
+  "dock-receipt-19.json": "doc_b45810ce4ac2059e7621499f"
+ },
+ "start_response": {
+  "run_id": "b7d8de8a-1be9-46e2-8d3e-a84b247a37c9",
+  "assignment": {
+   "run_id": "b7d8de8a-1be9-46e2-8d3e-a84b247a37c9",
+   "assignment": {
+    "assignment_id": "asg-c32bc2d3b4e24141",
+    "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+    "employee_id": "d40c5228-2ce3-4f07-b5f5-27e58e8f21c6",
+    "workspace_id": "default",
+    "plan_revision": 3,
+    "status": "blocked",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "981a5210178acbf98a13f98f29804ded",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [],
+    "deliverables": [],
+    "sources": [
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_c38617b5ef5dd5b9fb27d63d",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_c38617b5ef5dd5b9fb27d63d",
+       "original_file_name": "warehouse-memo.txt",
+       "representation": "document_text",
+       "source_version": "ev4:c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 201
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_7537055c69f8924141c435da",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_7537055c69f8924141c435da",
+       "original_file_name": "ap-inbox-0411.json",
+       "representation": "document_text",
+       "source_version": "ev4:7537055c69f8924141c435dac26714aff75737de5adc0ee5cf84b6b8e62c749e",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 206
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_ae7e29b19061bccc258a0e82",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_ae7e29b19061bccc258a0e82",
+       "original_file_name": "dock-receipt-07.json",
+       "representation": "document_text",
+       "source_version": "ev4:ae7e29b19061bccc258a0e820a93834d0110ee9a00ed7c23d8628cbb32099b73",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 111
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_a2f83610de258efeeca731f0",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_a2f83610de258efeeca731f0",
+       "original_file_name": "ap-inbox-0402.json",
+       "representation": "document_text",
+       "source_version": "ev4:a2f83610de258efeeca731f09d0dbe579eba731e82d8704178ae37c0403aa54d",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 257
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_056ad9eadbff15c6f4d3f76b",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_056ad9eadbff15c6f4d3f76b",
+       "original_file_name": "po-archive-88.json",
+       "representation": "document_text",
+       "source_version": "ev4:056ad9eadbff15c6f4d3f76b63873e7c5d9efec5c593fc1481bc5022a49899b5",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 160
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_850dba8850ba01918e84d37e",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_850dba8850ba01918e84d37e",
+       "original_file_name": "ap-inbox-0412.json",
+       "representation": "document_text",
+       "source_version": "ev4:850dba8850ba01918e84d37e3fd13814dcbcad051ea1f5e8b1aeca98e7a52540",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 207
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_b45810ce4ac2059e7621499f",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_b45810ce4ac2059e7621499f",
+       "original_file_name": "dock-receipt-19.json",
+       "representation": "document_text",
+       "source_version": "ev4:b45810ce4ac2059e7621499fa6cc1633f64665868af1a8d922e33db1031ade2e",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 111
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 8,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 1200.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 7,
+     "started_at": "2026-11-04T22:01:16.446448+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 0.0,
+     "waiting_since": null,
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": null,
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {},
+     "working_seconds": 175.994,
+     "wall_seconds": 175.994
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read warehouse-memo.txt",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "4df4aa37-f459-43e9-9364-322d5acb683c",
+      "attempts": 0,
+      "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read ap-inbox-0411.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "640b0cb5-acb1-4286-85fc-2ed9e9c2944c",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:ap-inbox-0411.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read dock-receipt-07.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "cfcca260-7f81-4db0-869f-98e4f526b5b3",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:dock-receipt-07.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-4",
+      "title": "Read ap-inbox-0402.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "2c44f0eb-b249-455a-95a3-9496b2edb131",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:ap-inbox-0402.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-5",
+      "title": "Read po-archive-88.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "e6891765-e0e3-4134-86dd-9b446262e31a",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:po-archive-88.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-6",
+      "title": "Read ap-inbox-0412.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "9ed009fe-3d7f-4769-9429-b97b9abcfc7a",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:ap-inbox-0412.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-7",
+      "title": "Read dock-receipt-19.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "8385359c-5a73-4be9-8395-f55bfa97d7e4",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:dock-receipt-19.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T22:01:16.435717+00:00",
+    "updated_at": "2026-11-04T22:02:27.459486+00:00",
+    "completed_at": "2026-11-04T22:02:27.457689+00:00",
+    "progress": {
+     "total_steps": 7,
+     "required_steps": 7,
+     "completed_steps": 7,
+     "waiting_steps": 0,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 1
+    }
+   },
+   "open_gaps": [
+    {
+     "question_id": "76b7d08e-c709-4af4-acd8-7805f8778e4d",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing  evidence needed for this objective?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [],
+      "known_identities": {
+       "invoice.po_id": "PO-SEL-520",
+       "invoice.invoice_id": "INV-SEL-77",
+       "purchase_order.po_id": "PO-SEL-520",
+       "purchase_order.vendor_id": "V-63",
+       "receiving.po_id": "PO-SEL-520"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3",
+       "source-4",
+       "source-5",
+       "source-6",
+       "source-7"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): ",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains the missing  evidence needed for this objective?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T22:04:12.429171+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ],
+   "operations": [
+    {
+     "operation_id": "4df4aa37-f459-43e9-9364-322d5acb683c",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt"
+    },
+    {
+     "operation_id": "640b0cb5-acb1-4286-85fc-2ed9e9c2944c",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0411.json"
+    },
+    {
+     "operation_id": "cfcca260-7f81-4db0-869f-98e4f526b5b3",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:dock-receipt-07.json"
+    },
+    {
+     "operation_id": "2c44f0eb-b249-455a-95a3-9496b2edb131",
+     "step_id": "source-4",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0402.json"
+    },
+    {
+     "operation_id": "e6891765-e0e3-4134-86dd-9b446262e31a",
+     "step_id": "source-5",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:po-archive-88.json"
+    },
+    {
+     "operation_id": "9ed009fe-3d7f-4769-9429-b97b9abcfc7a",
+     "step_id": "source-6",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0412.json"
+    },
+    {
+     "operation_id": "8385359c-5a73-4be9-8395-f55bfa97d7e4",
+     "step_id": "source-7",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:dock-receipt-19.json"
+    }
+   ]
+  },
+  "employee_job": {
+   "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+   "identity": {
+    "employee_id": "d40c5228-2ce3-4f07-b5f5-27e58e8f21c6",
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "execution_owner": "assignment"
+   },
+   "criteria": [
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "employee_result:objective",
+     "kind": "employee_result",
+     "required": true,
+     "verifier": "employee_result",
+     "scope": {
+      "workspace_id": "default"
+     }
+    }
+   ],
+   "facts": [],
+   "sources": [
+    {
+     "source_id": "doc_c38617b5ef5dd5b9fb27d63d",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "warehouse-memo.txt",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 201
+     },
+     "source_version": "ev4:c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_7537055c69f8924141c435da",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0411.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 206
+     },
+     "source_version": "ev4:7537055c69f8924141c435dac26714aff75737de5adc0ee5cf84b6b8e62c749e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_ae7e29b19061bccc258a0e82",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "dock-receipt-07.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 111
+     },
+     "source_version": "ev4:ae7e29b19061bccc258a0e820a93834d0110ee9a00ed7c23d8628cbb32099b73",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_a2f83610de258efeeca731f0",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0402.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 257
+     },
+     "source_version": "ev4:a2f83610de258efeeca731f09d0dbe579eba731e82d8704178ae37c0403aa54d",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_056ad9eadbff15c6f4d3f76b",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "po-archive-88.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 160
+     },
+     "source_version": "ev4:056ad9eadbff15c6f4d3f76b63873e7c5d9efec5c593fc1481bc5022a49899b5",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_850dba8850ba01918e84d37e",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0412.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 207
+     },
+     "source_version": "ev4:850dba8850ba01918e84d37e3fd13814dcbcad051ea1f5e8b1aeca98e7a52540",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_b45810ce4ac2059e7621499f",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "dock-receipt-19.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 111
+     },
+     "source_version": "ev4:b45810ce4ac2059e7621499fa6cc1633f64665868af1a8d922e33db1031ade2e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    }
+   ],
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read warehouse-memo.txt",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt"
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read ap-inbox-0411.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0411.json"
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read dock-receipt-07.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:dock-receipt-07.json"
+    },
+    {
+     "step_id": "source-4",
+     "title": "Read ap-inbox-0402.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0402.json"
+    },
+    {
+     "step_id": "source-5",
+     "title": "Read po-archive-88.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:po-archive-88.json"
+    },
+    {
+     "step_id": "source-6",
+     "title": "Read ap-inbox-0412.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0412.json"
+    },
+    {
+     "step_id": "source-7",
+     "title": "Read dock-receipt-19.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:dock-receipt-19.json"
+    }
+   ],
+   "open_obligations": [
+    {
+     "question_id": "76b7d08e-c709-4af4-acd8-7805f8778e4d",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing  evidence needed for this objective?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [],
+      "known_identities": {
+       "invoice.po_id": "PO-SEL-520",
+       "invoice.invoice_id": "INV-SEL-77",
+       "purchase_order.po_id": "PO-SEL-520",
+       "purchase_order.vendor_id": "V-63",
+       "receiving.po_id": "PO-SEL-520"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3",
+       "source-4",
+       "source-5",
+       "source-6",
+       "source-7"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): ",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains the missing  evidence needed for this objective?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T22:04:12.429171+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ],
+   "business_requirements": [],
+   "waiting": [],
+   "ready_work": [],
+   "budget": {
+    "max_steps": 8,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 1200.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 7,
+    "started_at": "2026-11-04T22:01:16.446448+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 0.0,
+    "waiting_since": null,
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": null,
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {}
+   },
+   "status": "blocked",
+   "task_version": 72,
+   "plan_revision": 3,
+   "business_outcome": {
+    "basis": "criteria_unknown",
+    "verdict": null,
+    "state": "unresolved",
+    "declared_state": "blocked",
+    "outcome": {
+     "contract_version": 2,
+     "recorded_at": 1793829852.4460359,
+     "execution_id": null,
+     "turn_id": null,
+     "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+     "objective_state": {
+      "goal": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+      "target_entities": [],
+      "requested_attributes": [],
+      "source_constraints": {},
+      "authorized_actions": []
+     },
+     "objective_met": null,
+     "completion_criteria": [
+      {
+       "criterion_id": "required_work_complete:assignment",
+       "kind": "required_work_complete",
+       "required": true,
+       "verifier": "required_work_complete",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "employee_result:objective",
+       "kind": "employee_result",
+       "required": true,
+       "verifier": "employee_result",
+       "scope": {
+        "workspace_id": "default"
+       }
+      }
+     ],
+     "criterion_results": [
+      {
+       "criterion": "required_work_complete",
+       "met": true,
+       "verifier": "required_work_complete",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "employee_result",
+       "met": null,
+       "verifier": "employee_result",
+       "evidence_refs": []
+      }
+     ],
+     "requested": {},
+     "source_constraints": {},
+     "authorized_actions": [
+      "retrieve"
+     ],
+     "tool_outcomes": [
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0411.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:dock-receipt-07.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0402.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:po-archive-88.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0412.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:dock-receipt-19.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      }
+     ],
+     "evidence_refs": [],
+     "evidence_ledger": {},
+     "gaps": [
+      {
+       "criterion_id": "",
+       "status": "open",
+       "reasons": [
+        "the accepted evidence does not satisfy the required role(s): "
+       ],
+       "next_evidence_needed": "Which authorized source contains the missing  evidence needed for this objective?"
+      }
+     ],
+     "implications": [],
+     "actions": [
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      }
+     ],
+     "calculation": {},
+     "mutation": {},
+     "business_requirements": [],
+     "business_results": [],
+     "delivery": {},
+     "user_corrections": [],
+     "limitations": [],
+     "latency_s": null,
+     "cost_usd": null,
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 3
+     },
+     "policy_version": null,
+     "candidate_versions": {},
+     "learning_layers": {
+      "general_capability": {
+       "policy_version": null,
+       "candidate_versions": {}
+      },
+      "user_business_configuration": {
+       "scope": {
+        "workspace_id": "default",
+        "teaching_revision": "untrained",
+        "plan_revision": 3
+       }
+      },
+      "task_evidence": {
+       "requested": {},
+       "evidence_refs": [],
+       "evidence_ledger": {},
+       "gap_count": 1,
+       "corrections": []
+      }
+     },
+     "failure_layer": null,
+     "failure_owner": null,
+     "success_kinds": {
+      "task_success": null,
+      "tool_success": null,
+      "delivery_success": null,
+      "task_success_basis": "criteria_unknown"
+     }
+    }
+   },
+   "routing_notice": null
+  },
+  "proposal": {
+   "proposal_kind": "evidence_read",
+   "reason": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520.",
+   "evidence_reads": [
+    {
+     "step_id": "evidence-1",
+     "title": "Warehouse Memo",
+     "source_id": "doc_c38617b5ef5dd5b9fb27d63d",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-2",
+     "title": "AP Inbox 0411",
+     "source_id": "doc_7537055c69f8924141c435da",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-3",
+     "title": "Dock Receipt 07",
+     "source_id": "doc_ae7e29b19061bccc258a0e82",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-4",
+     "title": "AP Inbox 0402",
+     "source_id": "doc_a2f83610de258efeeca731f0",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-5",
+     "title": "PO Archive 88",
+     "source_id": "doc_056ad9eadbff15c6f4d3f76b",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    }
+   ],
+   "clarification": null
+  },
+  "proposal_source": "model",
+  "technical_fallback": false,
+  "proposal_errors": [],
+  "employee_routing": {
+   "mode": "unpinned",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": null,
+   "resolved_model": null,
+   "profile": {
+    "name": "employee_wait_choice",
+    "version": "2026-11-04.1"
+   },
+   "error": null
+  },
+  "adaptive_rounds": [
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "ff5fbe3e8eed41f29aec91efc25a5db9",
+    "routing": {
+     "mode": "unpinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 6,
+    "proposal_kind": "evidence_read",
+    "proposal_reason": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520.",
+    "proposal_sources": [
+     "doc_c38617b5ef5dd5b9fb27d63d"
+    ],
+    "proposal_clarification": {},
+    "observation_ids": [
+     "evidence-e5a109b85f4c6bc2bc52"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "doc_7537055c69f8924141c435da",
+      "file_name": "ap-inbox-0411.json"
+     },
+     {
+      "source_id": "doc_ae7e29b19061bccc258a0e82",
+      "file_name": "dock-receipt-07.json"
+     },
+     {
+      "source_id": "doc_a2f83610de258efeeca731f0",
+      "file_name": "ap-inbox-0402.json"
+     },
+     {
+      "source_id": "doc_056ad9eadbff15c6f4d3f76b",
+      "file_name": "po-archive-88.json"
+     },
+     {
+      "source_id": "doc_850dba8850ba01918e84d37e",
+      "file_name": "ap-inbox-0412.json"
+     }
+    ],
+    "repair_source": "model",
+    "repair_sources": [
+     "doc_7537055c69f8924141c435da",
+     "doc_ae7e29b19061bccc258a0e82",
+     "doc_a2f83610de258efeeca731f0",
+     "doc_056ad9eadbff15c6f4d3f76b",
+     "doc_850dba8850ba01918e84d37e"
+    ],
+    "repair": "unread_scope",
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "b48d08acc5164fbda7331dfa9aade090",
+    "routing": {
+     "mode": "unpinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 1,
+    "proposal_kind": "clarification",
+    "proposal_reason": "The current supplier invoice for purchase order PO-SEL-520 is missing.",
+    "proposal_sources": [],
+    "proposal_clarification": {
+     "question": "What is the current supplier invoice for purchase order PO-SEL-520?",
+     "concept": "Current supplier invoice",
+     "unblocks": "Identifying the correct supplier invoice for PO-SEL-520",
+     "expected_answer_type": "invoice_id"
+    },
+    "observation_ids": [
+     "evidence-e5a109b85f4c6bc2bc52",
+     "evidence-1b1b41ce1cb46d247402",
+     "evidence-a6474950901647b106b3",
+     "evidence-1069d9ac2f3c22973867",
+     "evidence-948a8d94b89684e528aa",
+     "evidence-4ff2d0be24125416fb22"
+    ],
+    "repair_source": "model",
+    "repair_sources": [],
+    "fallback": "deterministic_unread_scope",
+    "selected_sources": [
+     {
+      "source_id": "doc_b45810ce4ac2059e7621499f",
+      "file_name": "dock-receipt-19.json"
+     }
+    ],
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "deterministic",
+    "technical_fallback": true,
+    "decision": "retain",
+    "errors": [
+     "no parsed proposal: provider_failure"
+    ],
+    "failure_stage": "initial",
+    "attempt_id": "9daf25a30a6e40849b63b005d491b7aa",
+    "routing": {
+     "mode": "unpinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": null,
+     "resolved_model": null,
+     "profile": {
+      "name": "employee_wait_choice",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-e5a109b85f4c6bc2bc52",
+     "evidence-1b1b41ce1cb46d247402",
+     "evidence-a6474950901647b106b3",
+     "evidence-1069d9ac2f3c22973867",
+     "evidence-948a8d94b89684e528aa",
+     "evidence-4ff2d0be24125416fb22",
+     "evidence-05d7c91acf1c79da9e6a"
+    ],
+    "obligation": {
+     "kind": "missing_evidence",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing  evidence needed for this objective?",
+     "concept": "invoice_reconciliation",
+     "operation": "invoice_reconciliation",
+     "missing_roles": [],
+     "subject": "PO-SEL-520",
+     "known_identities": {
+      "invoice.po_id": "PO-SEL-520",
+      "invoice.invoice_id": "INV-SEL-77",
+      "purchase_order.po_id": "PO-SEL-520",
+      "purchase_order.vendor_id": "V-63",
+      "receiving.po_id": "PO-SEL-520"
+     },
+     "evidence_step_ids": [
+      "source-2",
+      "source-3",
+      "source-4",
+      "source-5",
+      "source-6",
+      "source-7"
+     ],
+     "reason": "the accepted evidence does not satisfy the required role(s): ",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "next_retrieval": "Which authorized source contains the missing  evidence needed for this objective?",
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [],
+      "known_identities": {
+       "invoice.po_id": "PO-SEL-520",
+       "invoice.invoice_id": "INV-SEL-77",
+       "purchase_order.po_id": "PO-SEL-520",
+       "purchase_order.vendor_id": "V-63",
+       "receiving.po_id": "PO-SEL-520"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3",
+       "source-4",
+       "source-5",
+       "source-6",
+       "source-7"
+      ]
+     }
+    },
+    "obligation_source": "deterministic_missing_prerequisite",
+    "progress": "no_progress"
+   }
+  ],
+  "plan_revision": 1,
+  "teaching_revision": "untrained"
+ },
+ "detail": {
+  "run_id": "b7d8de8a-1be9-46e2-8d3e-a84b247a37c9",
+  "assignment": {
+   "assignment_id": "asg-c32bc2d3b4e24141",
+   "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+   "employee_id": "d40c5228-2ce3-4f07-b5f5-27e58e8f21c6",
+   "workspace_id": "default",
+   "plan_revision": 3,
+   "status": "blocked",
+   "teaching_revision": "untrained",
+   "teaching_fingerprint": "981a5210178acbf98a13f98f29804ded",
+   "teaching_history": [],
+   "effective_lesson_ids": [],
+   "mappings": [],
+   "mapping_history": [],
+   "business_requirements": [],
+   "deliverables": [],
+   "sources": [
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_c38617b5ef5dd5b9fb27d63d",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_c38617b5ef5dd5b9fb27d63d",
+      "original_file_name": "warehouse-memo.txt",
+      "representation": "document_text",
+      "source_version": "ev4:c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 201
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_7537055c69f8924141c435da",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_7537055c69f8924141c435da",
+      "original_file_name": "ap-inbox-0411.json",
+      "representation": "document_text",
+      "source_version": "ev4:7537055c69f8924141c435dac26714aff75737de5adc0ee5cf84b6b8e62c749e",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 206
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_ae7e29b19061bccc258a0e82",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_ae7e29b19061bccc258a0e82",
+      "original_file_name": "dock-receipt-07.json",
+      "representation": "document_text",
+      "source_version": "ev4:ae7e29b19061bccc258a0e820a93834d0110ee9a00ed7c23d8628cbb32099b73",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 111
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_a2f83610de258efeeca731f0",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_a2f83610de258efeeca731f0",
+      "original_file_name": "ap-inbox-0402.json",
+      "representation": "document_text",
+      "source_version": "ev4:a2f83610de258efeeca731f09d0dbe579eba731e82d8704178ae37c0403aa54d",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 257
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_056ad9eadbff15c6f4d3f76b",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_056ad9eadbff15c6f4d3f76b",
+      "original_file_name": "po-archive-88.json",
+      "representation": "document_text",
+      "source_version": "ev4:056ad9eadbff15c6f4d3f76b63873e7c5d9efec5c593fc1481bc5022a49899b5",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 160
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_850dba8850ba01918e84d37e",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_850dba8850ba01918e84d37e",
+      "original_file_name": "ap-inbox-0412.json",
+      "representation": "document_text",
+      "source_version": "ev4:850dba8850ba01918e84d37e3fd13814dcbcad051ea1f5e8b1aeca98e7a52540",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 207
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    },
+    {
+     "kind": "document",
+     "binding": {
+      "resource_id": "doc_b45810ce4ac2059e7621499f",
+      "dataset_name": null,
+      "source": "manual_upload",
+      "source_kind": null,
+      "external_id": "upload_doc_b45810ce4ac2059e7621499f",
+      "original_file_name": "dock-receipt-19.json",
+      "representation": "document_text",
+      "source_version": "ev4:b45810ce4ac2059e7621499fa6cc1633f64665868af1a8d922e33db1031ade2e",
+      "sheet": null,
+      "columns": [],
+      "numeric_columns": [],
+      "row_count": null,
+      "coverage": {
+       "known": true,
+       "freshness": "fresh",
+       "file_size_bytes": 111
+      },
+      "access_scope": {},
+      "workspace_id": "default",
+      "tenant_id": null,
+      "internal_fixture": false
+     }
+    }
+   ],
+   "authorized_actions": [
+    "retrieve"
+   ],
+   "standing_authority": null,
+   "budget": {
+    "max_steps": 8,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 1200.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 7,
+    "started_at": "2026-11-04T22:01:16.446448+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 0.0,
+    "waiting_since": null,
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": null,
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {},
+    "working_seconds": 176.061,
+    "wall_seconds": 176.061
+   },
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read warehouse-memo.txt",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "4df4aa37-f459-43e9-9364-322d5acb683c",
+     "attempts": 0,
+     "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read ap-inbox-0411.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "640b0cb5-acb1-4286-85fc-2ed9e9c2944c",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:ap-inbox-0411.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read dock-receipt-07.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "cfcca260-7f81-4db0-869f-98e4f526b5b3",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:dock-receipt-07.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-4",
+     "title": "Read ap-inbox-0402.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "2c44f0eb-b249-455a-95a3-9496b2edb131",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:ap-inbox-0402.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-5",
+     "title": "Read po-archive-88.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "e6891765-e0e3-4134-86dd-9b446262e31a",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:po-archive-88.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-6",
+     "title": "Read ap-inbox-0412.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "9ed009fe-3d7f-4769-9429-b97b9abcfc7a",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:ap-inbox-0412.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    },
+    {
+     "step_id": "source-7",
+     "title": "Read dock-receipt-19.json",
+     "operation_type": "retrieve",
+     "adapter": "document.text",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "8385359c-5a73-4be9-8395-f55bfa97d7e4",
+     "attempts": 0,
+     "result_summary": "read extracted text from upload:dock-receipt-19.json",
+     "result_value": null,
+     "result_unit": null,
+     "readiness": null,
+     "result_measure": null,
+     "prior_result_count": 0,
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "external_response": {},
+     "approval_request": {},
+     "standing_authority_receipt": {},
+     "failure": {}
+    }
+   ],
+   "created_at": "2026-11-04T22:01:16.435717+00:00",
+   "updated_at": "2026-11-04T22:02:27.459486+00:00",
+   "completed_at": "2026-11-04T22:02:27.457689+00:00",
+   "progress": {
+    "total_steps": 7,
+    "required_steps": 7,
+    "completed_steps": 7,
+    "waiting_steps": 0,
+    "failed_steps": 0,
+    "uncertain_steps": 0,
+    "open_gap_count": 1
+   }
+  },
+  "open_gaps": [
+   {
+    "question_id": "76b7d08e-c709-4af4-acd8-7805f8778e4d",
+    "item": "invoice reconciliation",
+    "question": "Which authorized source contains the missing  evidence needed for this objective?",
+    "kind": "missing_evidence",
+    "evidence": "",
+    "next_action": "Authorize or name the source that contains the missing business record.",
+    "decision_owner": null,
+    "inputs": {
+     "operation": "invoice_reconciliation",
+     "missing": [],
+     "known_identities": {
+      "invoice.po_id": "PO-SEL-520",
+      "invoice.invoice_id": "INV-SEL-77",
+      "purchase_order.po_id": "PO-SEL-520",
+      "purchase_order.vendor_id": "V-63",
+      "receiving.po_id": "PO-SEL-520"
+     },
+     "evidence_step_ids": [
+      "source-2",
+      "source-3",
+      "source-4",
+      "source-5",
+      "source-6",
+      "source-7"
+     ]
+    },
+    "concept": "invoice_reconciliation",
+    "reason": "the accepted evidence does not satisfy the required role(s): ",
+    "affected_subjects": [],
+    "checked_evidence": [],
+    "next_retrieval": "Which authorized source contains the missing  evidence needed for this objective?",
+    "resolver": null,
+    "step_id": null,
+    "waiting": null,
+    "status": "open",
+    "attempts": 0,
+    "opened_at": "2026-11-04T22:04:12.429171+00:00",
+    "resolved_at": null,
+    "resolution": null,
+    "source_operation": null
+   }
+  ],
+  "operations": [
+   {
+    "operation_id": "4df4aa37-f459-43e9-9364-322d5acb683c",
+    "step_id": "source-1",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt"
+   },
+   {
+    "operation_id": "640b0cb5-acb1-4286-85fc-2ed9e9c2944c",
+    "step_id": "source-2",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:ap-inbox-0411.json"
+   },
+   {
+    "operation_id": "cfcca260-7f81-4db0-869f-98e4f526b5b3",
+    "step_id": "source-3",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:dock-receipt-07.json"
+   },
+   {
+    "operation_id": "2c44f0eb-b249-455a-95a3-9496b2edb131",
+    "step_id": "source-4",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:ap-inbox-0402.json"
+   },
+   {
+    "operation_id": "e6891765-e0e3-4134-86dd-9b446262e31a",
+    "step_id": "source-5",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:po-archive-88.json"
+   },
+   {
+    "operation_id": "9ed009fe-3d7f-4769-9429-b97b9abcfc7a",
+    "step_id": "source-6",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:ap-inbox-0412.json"
+   },
+   {
+    "operation_id": "8385359c-5a73-4be9-8395-f55bfa97d7e4",
+    "step_id": "source-7",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null,
+    "remote_id": null,
+    "provider_ref": null,
+    "result_summary": "read extracted text from upload:dock-receipt-19.json"
+   }
+  ],
+  "employee_routing": {
+   "mode": "unpinned",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": null,
+   "resolved_model": null,
+   "profile": {
+    "name": "employee_wait_choice",
+    "version": "2026-11-04.1"
+   },
+   "error": null
+  },
+  "employee_job": {
+   "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+   "identity": {
+    "employee_id": "d40c5228-2ce3-4f07-b5f5-27e58e8f21c6",
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "execution_owner": "assignment"
+   },
+   "criteria": [
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "employee_result:objective",
+     "kind": "employee_result",
+     "required": true,
+     "verifier": "employee_result",
+     "scope": {
+      "workspace_id": "default"
+     }
+    }
+   ],
+   "facts": [],
+   "sources": [
+    {
+     "source_id": "doc_c38617b5ef5dd5b9fb27d63d",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "warehouse-memo.txt",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 201
+     },
+     "source_version": "ev4:c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_7537055c69f8924141c435da",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0411.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 206
+     },
+     "source_version": "ev4:7537055c69f8924141c435dac26714aff75737de5adc0ee5cf84b6b8e62c749e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_ae7e29b19061bccc258a0e82",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "dock-receipt-07.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 111
+     },
+     "source_version": "ev4:ae7e29b19061bccc258a0e820a93834d0110ee9a00ed7c23d8628cbb32099b73",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_a2f83610de258efeeca731f0",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0402.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 257
+     },
+     "source_version": "ev4:a2f83610de258efeeca731f09d0dbe579eba731e82d8704178ae37c0403aa54d",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_056ad9eadbff15c6f4d3f76b",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "po-archive-88.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 160
+     },
+     "source_version": "ev4:056ad9eadbff15c6f4d3f76b63873e7c5d9efec5c593fc1481bc5022a49899b5",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_850dba8850ba01918e84d37e",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "ap-inbox-0412.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 207
+     },
+     "source_version": "ev4:850dba8850ba01918e84d37e3fd13814dcbcad051ea1f5e8b1aeca98e7a52540",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_b45810ce4ac2059e7621499f",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "dock-receipt-19.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 111
+     },
+     "source_version": "ev4:b45810ce4ac2059e7621499fa6cc1633f64665868af1a8d922e33db1031ade2e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    }
+   ],
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read warehouse-memo.txt",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt"
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read ap-inbox-0411.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0411.json"
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read dock-receipt-07.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:dock-receipt-07.json"
+    },
+    {
+     "step_id": "source-4",
+     "title": "Read ap-inbox-0402.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0402.json"
+    },
+    {
+     "step_id": "source-5",
+     "title": "Read po-archive-88.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:po-archive-88.json"
+    },
+    {
+     "step_id": "source-6",
+     "title": "Read ap-inbox-0412.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:ap-inbox-0412.json"
+    },
+    {
+     "step_id": "source-7",
+     "title": "Read dock-receipt-19.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:dock-receipt-19.json"
+    }
+   ],
+   "open_obligations": [
+    {
+     "question_id": "76b7d08e-c709-4af4-acd8-7805f8778e4d",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing  evidence needed for this objective?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [],
+      "known_identities": {
+       "invoice.po_id": "PO-SEL-520",
+       "invoice.invoice_id": "INV-SEL-77",
+       "purchase_order.po_id": "PO-SEL-520",
+       "purchase_order.vendor_id": "V-63",
+       "receiving.po_id": "PO-SEL-520"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3",
+       "source-4",
+       "source-5",
+       "source-6",
+       "source-7"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): ",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains the missing  evidence needed for this objective?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T22:04:12.429171+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ],
+   "business_requirements": [],
+   "waiting": [],
+   "ready_work": [],
+   "budget": {
+    "max_steps": 8,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 1200.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 7,
+    "started_at": "2026-11-04T22:01:16.446448+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 0.0,
+    "waiting_since": null,
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": null,
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {}
+   },
+   "status": "blocked",
+   "task_version": 72,
+   "plan_revision": 3,
+   "business_outcome": {
+    "basis": "criteria_unknown",
+    "verdict": null,
+    "state": "unresolved",
+    "declared_state": "blocked",
+    "outcome": {
+     "contract_version": 2,
+     "recorded_at": 1793829852.514427,
+     "execution_id": null,
+     "turn_id": null,
+     "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+     "objective_state": {
+      "goal": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+      "target_entities": [],
+      "requested_attributes": [],
+      "source_constraints": {},
+      "authorized_actions": []
+     },
+     "objective_met": null,
+     "completion_criteria": [
+      {
+       "criterion_id": "required_work_complete:assignment",
+       "kind": "required_work_complete",
+       "required": true,
+       "verifier": "required_work_complete",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "employee_result:objective",
+       "kind": "employee_result",
+       "required": true,
+       "verifier": "employee_result",
+       "scope": {
+        "workspace_id": "default"
+       }
+      }
+     ],
+     "criterion_results": [
+      {
+       "criterion": "required_work_complete",
+       "met": true,
+       "verifier": "required_work_complete",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "employee_result",
+       "met": null,
+       "verifier": "employee_result",
+       "evidence_refs": []
+      }
+     ],
+     "requested": {},
+     "source_constraints": {},
+     "authorized_actions": [
+      "retrieve"
+     ],
+     "tool_outcomes": [
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read 199 characters from doc_c38617b5ef5dd5b9fb27d63d.txt",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0411.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:dock-receipt-07.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0402.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:po-archive-88.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:ap-inbox-0412.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:dock-receipt-19.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      }
+     ],
+     "evidence_refs": [],
+     "evidence_ledger": {},
+     "gaps": [
+      {
+       "criterion_id": "",
+       "status": "open",
+       "reasons": [
+        "the accepted evidence does not satisfy the required role(s): "
+       ],
+       "next_evidence_needed": "Which authorized source contains the missing  evidence needed for this objective?"
+      }
+     ],
+     "implications": [],
+     "actions": [
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      }
+     ],
+     "calculation": {},
+     "mutation": {},
+     "business_requirements": [],
+     "business_results": [],
+     "delivery": {},
+     "user_corrections": [],
+     "limitations": [],
+     "latency_s": null,
+     "cost_usd": null,
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 3
+     },
+     "policy_version": null,
+     "candidate_versions": {},
+     "learning_layers": {
+      "general_capability": {
+       "policy_version": null,
+       "candidate_versions": {}
+      },
+      "user_business_configuration": {
+       "scope": {
+        "workspace_id": "default",
+        "teaching_revision": "untrained",
+        "plan_revision": 3
+       }
+      },
+      "task_evidence": {
+       "requested": {},
+       "evidence_refs": [],
+       "evidence_ledger": {},
+       "gap_count": 1,
+       "corrections": []
+      }
+     },
+     "failure_layer": null,
+     "failure_owner": null,
+     "success_kinds": {
+      "task_success": null,
+      "tool_success": null,
+      "delivery_success": null,
+      "task_success_basis": "criteria_unknown"
+     }
+    }
+   },
+   "routing_notice": null
+  }
+ }
+}
