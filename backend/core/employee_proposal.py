@@ -13,12 +13,15 @@ existing task lifecycle, and the executor remains the sole operation driver.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.assignment_resources import resource_binding
+from core.employee_business_outcomes import business_requirement_views
 from core.employee_work_requests import work_request_schemas
 
 PROPOSAL_SCHEMA = "atom-employee-work-proposal-1"
@@ -63,6 +66,30 @@ class EmployeeWorkProposal(BaseModel):
 
 def _text(value: Any, limit: int = 400) -> str:
     return str(value or "").strip()[:limit]
+
+
+_OBJECTIVE_IDENTITY_RE = re.compile(
+    r"\b(INV|PO)-[A-Za-z0-9][A-Za-z0-9-]*", re.IGNORECASE)
+
+
+def objective_identity_hints(objective: Any) -> Dict[str, str]:
+    """Extract only unambiguous invoice/PO identifiers named by the user.
+
+    This is a scope hint for candidate filtering, never an answer subset or a
+    role mapping. Multiple identifiers for one namespace produce no hint.
+    """
+    found: Dict[str, List[str]] = {"invoice_id": [], "po_id": []}
+    for match in _OBJECTIVE_IDENTITY_RE.finditer(str(objective or "")):
+        value = match.group(0)
+        key = (
+            "invoice_id" if match.group(1).upper() == "INV"
+            else "po_id")
+        if value not in found[key]:
+            found[key].append(value)
+    return {
+        key: values[0] for key, values in found.items()
+        if len(values) == 1
+    }
 
 
 def source_handle(source: Mapping[str, Any]) -> str:
@@ -269,6 +296,7 @@ def build_employee_context(
     operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
     waiting: Optional[Sequence[Mapping[str, Any]]] = None,
     completed_operations: Optional[Sequence[Mapping[str, Any]]] = None,
+    business_requirements: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -438,6 +466,26 @@ def build_employee_context(
             }
             for item in (completed_operations or [])[:10]
             if isinstance(item, Mapping)
+        ],
+        "business_requirements": [
+            {
+                "requirement_id": _text(item.get("requirement_id"), 120),
+                "operation": _text(item.get("operation"), 120),
+                "label": _text(item.get("label"), 200),
+                "subject": _text(item.get("subject"), 200),
+                "subject_identity": {
+                    _text(key, 80): _text(value, 200)
+                    for key, value in (
+                        item.get("subject_identity") or {}).items()
+                    if _text(key, 80) and _text(value, 200)
+                },
+                "fact": _text(item.get("fact"), 120),
+                "status": _text(item.get("status"), 40),
+                "next_action": _text(item.get("next_action"), 300) or None,
+            }
+            for item in (business_requirements or [])[:10]
+            if isinstance(item, Mapping)
+            and item.get("requirement_id")
         ],
         "authorized_actions": [
             _text(item, 120) for item in (authorized_actions or [])
@@ -705,14 +753,72 @@ def operation_capabilities(
             assignment, role_fields[role], INVOICE_ROLE_REQUIREMENTS[role])
         for role in INVOICE_ROLE_REQUIREMENTS
     }
+    requirement_identity: Dict[str, Any] = {}
+    for requirement in assignment.get("business_requirements") or []:
+        if not isinstance(requirement, Mapping):
+            continue
+        if str(requirement.get("operation") or "") != (
+                "invoice_reconciliation"):
+            continue
+        if str(requirement.get("status") or "") == "satisfied":
+            continue
+        requirement_identity = dict(
+            requirement.get("subject_identity") or {})
+        break
+    provenance_identities = (
+        assignment.get("provenance") or {}).get("objective_identities") or {}
+    if isinstance(provenance_identities, Mapping):
+        for key in ("invoice_id", "po_id"):
+            value = str(provenance_identities.get(key) or "").strip()
+            if value and not requirement_identity.get(key):
+                requirement_identity[key] = value
     if structured:
         candidate_steps = {
             str(step.get("step_id")): step for step in structured
         }
+        identity_missing: List[str] = []
+        if requirement_identity:
+            # Exact identity is the acceptance scope, not candidate
+            # relevance. Keep distractors visible in the evidence previews,
+            # but do not offer a wrong-PO/obsolete invoice as a role choice.
+            filtered: Dict[str, List[str]] = {}
+            expected_invoice = str(
+                requirement_identity.get("invoice_id") or "").strip()
+            expected_po = str(
+                requirement_identity.get("po_id") or "").strip()
+            for role, candidates in role_candidates.items():
+                if not candidates:
+                    filtered[role] = []
+                    continue
+                matching = []
+                for step_id in candidates:
+                    data = candidate_steps.get(
+                        step_id, {}).get("data") or {}
+                    if role == "invoice":
+                        if expected_invoice and str(
+                                data.get("invoice_id") or "") != (
+                                    expected_invoice):
+                            continue
+                        if expected_po and str(
+                                data.get("po_id") or "") != expected_po:
+                            continue
+                    elif role in ("purchase_order", "receiving"):
+                        if expected_po and str(
+                                data.get("po_id") or "") != expected_po:
+                            continue
+                    matching.append(step_id)
+                if matching:
+                    filtered[role] = matching
+                else:
+                    identity_missing.append(role)
+                    filtered[role] = []
+            role_candidates = filtered
         missing = [
             role for role, candidates in role_candidates.items()
             if not candidates
         ]
+        if identity_missing:
+            missing = list(dict.fromkeys([*missing, *identity_missing]))
         ambiguous = [
             role for role, candidates in role_candidates.items()
             if len(candidates) > 1
@@ -747,13 +853,23 @@ def operation_capabilities(
             subject = (
                 known_identities.get("purchase_order.po_id")
                 or known_identities.get("receiving.po_id")
-                or known_identities.get("invoice.po_id"))
-            hint = (
-                "Which authorized source contains the missing "
-                + ", ".join(missing_roles)
-                + " evidence"
-                + (f" for purchase order {subject}" if subject else "")
-                + "?")
+                or known_identities.get("invoice.po_id")
+                or str(requirement_identity.get("po_id") or ""))
+            expected_invoice = str(
+                requirement_identity.get("invoice_id") or "").strip()
+            if expected_invoice and "invoice" in missing_roles:
+                hint = (
+                    f"Which authorized source contains invoice "
+                    f"{expected_invoice}"
+                    + (f" for purchase order {subject}" if subject else "")
+                    + "?")
+            else:
+                hint = (
+                    "Which authorized source contains the missing "
+                    + ", ".join(missing_roles)
+                    + " evidence"
+                    + (f" for purchase order {subject}" if subject else "")
+                    + "?")
         capabilities.append({
             "operation": "invoice_reconciliation",
             "label": "invoice reconciliation",
@@ -923,6 +1039,14 @@ def context_from_record(
         if question.get("status") == "open":
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
+    try:
+        from core.employee_business_outcomes import (
+            business_requirement_views,
+        )
+
+        requirement_views = business_requirement_views(assignment)
+    except Exception:  # noqa: BLE001 — read view must not crash
+        requirement_views = []
     completed = completed_operations(assignment)
     completed_names = {
         str(item.get("operation") or "") for item in completed}
@@ -969,6 +1093,7 @@ def context_from_record(
         operation_eligibility=eligibility,
         waiting=waiting,
         completed_operations=completed,
+        business_requirements=requirement_views,
     )
 
 
@@ -1193,17 +1318,39 @@ async def propose_employee_work(
     llm_service: Any = None,
     deadline_seconds: float = 120.0,
     provider_model: Optional[Sequence[str]] = None,
+    attempt_journal: Any = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
     The model receives only the bounded context. A provider/protocol failure
     falls back to a deterministic authorized read (or a source-access
-    clarification), and the result records which path produced it.
+    clarification), and the result records which path produced it. The
+    caller's deadline is enforced here, and the raw dispatch/parsed/failure
+    events are journaled under one attempt id like adaptation.
     """
+    journal = attempt_journal
+    if journal is None:
+        try:
+            from core.employee_attempt_journal import AttemptJournal
+
+            journal = AttemptJournal()
+        except Exception:  # noqa: BLE001 — diagnostics are optional
+            journal = None
+
+    def _observe(event: str, **fields: Any) -> None:
+        if journal is None:
+            return
+        if event == "failure":
+            exc = fields.pop("exception", None)
+            if exc is not None:
+                journal.failure(exc, **fields)
+                return
+        journal.record(event, **fields)
+
     if llm_service is not None:
         try:
             from core.llm.pinned_planning import pinned_structured_call
-            result = await pinned_structured_call(
+            call = pinned_structured_call(
                 llm_service,
                 prompt=_proposal_prompt(context),
                 response_model=EmployeeWorkProposal,
@@ -1223,7 +1370,23 @@ async def propose_employee_work(
                 task_type="planning",
                 workspace_id=context.get("identity", {}).get("workspace_id"),
                 tenant_id=context.get("identity", {}).get("tenant_id"),
+                attempt_observer=_observe,
             )
+            budget = max(0.0, float(deadline_seconds or 0.0))
+            result = (
+                await asyncio.wait_for(call, timeout=budget)
+                if budget > 0 else await call)
+        except asyncio.TimeoutError:
+            try:
+                from core.llm.model_provenance import set_routing_error
+
+                set_routing_error(
+                    "deadline_cancelled",
+                    "the employee evidence-selection stage exhausted its "
+                    "caller deadline")
+            except Exception:  # noqa: BLE001 — diagnostics are optional
+                pass
+            result = None
         except Exception:  # noqa: BLE001 — the fallback remains explicit
             result = None
         if result is not None:
@@ -1234,6 +1397,7 @@ async def propose_employee_work(
                     "source": "model",
                     "technical_fallback": False,
                     "errors": [],
+                    "attempt_id": getattr(journal, "attempt_id", None),
                     "routing": _routing_snapshot(),
                 }
             fallback = _deterministic_proposal(context)
@@ -1242,15 +1406,27 @@ async def propose_employee_work(
                 "source": "deterministic",
                 "technical_fallback": True,
                 "errors": checked["errors"],
+                "attempt_id": getattr(journal, "attempt_id", None),
                 "routing": _routing_snapshot(),
             }
     fallback = _deterministic_proposal(context)
+    routing = _routing_snapshot()
+    errors = []
+    routing_error = routing.get("error")
+    if isinstance(routing_error, Mapping):
+        detail = str(routing_error.get("detail") or "").strip()
+        if detail:
+            errors = [detail]
+    if journal is not None:
+        journal.record(
+            "attempt-summary", source="deterministic", errors=errors)
     return {
         "proposal": fallback,
         "source": "deterministic",
         "technical_fallback": llm_service is not None,
-        "errors": [],
-        "routing": _routing_snapshot(),
+        "errors": errors,
+        "attempt_id": getattr(journal, "attempt_id", None),
+        "routing": routing,
     }
 
 
@@ -1379,6 +1555,7 @@ def employee_job_view(
             dict(item) for item in (open_obligations or [])
             if isinstance(item, Mapping)
         ],
+        "business_requirements": business_requirement_views(assignment),
         "waiting": [
             {
                 "step_id": step.get("step_id"),

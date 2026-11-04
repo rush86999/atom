@@ -1,0 +1,43 @@
+{
+ "schema": "atom-employee-g5-heldout-timeout-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "6bc97759284",
+  "tree_clean_at_run": true,
+  "manifest_note": "Held-out identifiers/values and independent arithmetic; wait/quote/restart/reply passed, dependent model step timed out; no artifact and no completion claim."
+ },
+ "source_hashes": {
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/employee_adaptation.py": "a942744613cb2fe4e8cee9ccf949ebdfcf78854a25e9d7b673cab0711ce7cb04",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/employee_business_outcomes.py": "1a7a4e928e49182ee59cc76747535fdc8beae0145a614e055caf8b66ef355fcb",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "scripts/acceptance/employee_g5_heldout_two_domain.py": "51845f02b349e23f71d381d7cf71a11a7fc37ce076d58c9eee0996a0fa26ab09"
+ },
+ "artifacts": {
+  "README.md": "a3802f9e83540f7053bacab96c57beba996da612ea91af884a1aa05a4786e5bb",
+  "TEST_RESULTS.md": "9642508799f7d5f767f0470b1d6cc537686fb6c1a4a1e6a0c70a21f29ed04736",
+  "attempts-restart.jsonl": "f2315254ebff2081b2d8740822320abe3372d08bd69d2a29c0fad47373d88c0e",
+  "attempts-start.jsonl": "e775e202ea793098989d00b01eb5a752a0450da5945ea5d6cd3e705c239cbfe7",
+  "server.log": "6e4f02d34150721fc0bc18e629ad34f418d808498d71eb389bdf0874f8612bae",
+  "state.json": "3059e84ea919df6e60a949eef64fc62ffbc446bc8e696db193d4aaea6e6e7793"
+ },
+ "results": {
+  "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+  "wait": "await-ca15973cbdcbe5ff480c",
+  "quote_total": "96.30",
+  "expected_reconcile": "140.25",
+  "status": "blocked",
+  "failure": "deadline_cancelled",
+  "artifact_published": false
+ },
+ "exclusions": [
+  "held-out completion not established",
+  "full G5 remains open",
+  "procurement evidence selection and broad model judgment remain missing",
+  "no live provider, credential, consent, send, spend, download or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

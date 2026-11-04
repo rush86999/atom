@@ -1,0 +1,81 @@
+{
+ "artifacts": {
+  "README.md": "b3ab3f8e846f83d7d09fa48ecf218d51dd7c4e2324bb655cfbfeebc0cac31b31",
+  "TEST_RESULTS.md": "dd29398fa7b51c6ea3228445dc7a107eda470fa6116527eb72748cc794852f3c",
+  "focused-tests.log": "83a14a3c887398beab0abbdf914eab2a7343b45d176f87ba4b6b7fdc133e60b8",
+  "frontend-panel.log": "dfdfe5847fad2d50633ebbb6bcb15013e0d7a32513c4471728aead8cbcf22db5",
+  "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "identity-focused.log": "96b42d7b823a574d69108f893baa8e2218d571a57d3c55a47ecf268fc48b78ba",
+  "identity-guard-tests.log": "b99549b6d2452387d918f4d51977e448506bf73894170469f705bd2ec691d5b1",
+  "verifier-subject.log": "d22b24ddf3e6af5cc5b6fb57cf23766622e2e9be40e9fc6a5e167556edddf3ac"
+ },
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "a2c3a8872ad8239de342776b481f442ae0d97166",
+  "manifest_note": "Exact namespaced business identity matching plus artifact publication guard; the prior supported episode remains evidence at its original source.",
+  "previous_episode_evidence": "4fd8951cc20cfe20063da336029d421843220e51",
+  "previous_episode_source": "70a74cd02b5d12acc6b6fead3215196e155640f8",
+  "supersedes_focused_source": "92e7c1f26ee70b79b4f6c1ad332769e5329294de",
+  "tree_clean_at_run": true,
+  "ui_rerun_performed": false
+ },
+ "exclusions": [
+  "no full UI/model rerun for this focused identity repair",
+  "no live/cloud provider, credential, consent, send, spend, download or deployment authority",
+  "full G5 and general model judgment remain subject to independent acceptance",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ],
+ "results": {
+  "ambiguous_identity_unresolved": true,
+  "cross_namespace_rejected": true,
+  "exact_namespace_matching": true,
+  "fresh_session_durable": true,
+  "leading_zero_punctuation_preserved": true,
+  "missing_identity_unresolved": true,
+  "prefix_long_rejected": true,
+  "prefix_short_rejected": true,
+  "prior_episode_preserved": true,
+  "public_route_negative": true,
+  "public_route_positive": true,
+  "wrong_subject_artifact_refused": true
+ },
+ "schema": "atom-employee-identity-repair-2",
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/core/employee_business_outcomes.py": "e13eccb656a74f9e2666c4326c0445ff90336697f43e21cd8c07dedf8ee3a5d9",
+  "backend/core/employee_patch.py": "15b16f4f67abe6d2579ea04154fe772de6bc91e78d8793c9b896e1e9fe06ea51",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "backend/tests/test_employee_business_requirements.py": "b87418dbd6b4cac7e385d99460b02dc24199f775d8662c4a9d3c1479eaa037b9",
+  "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173"
+ },
+ "tests": {
+  "focused": {
+   "log": "focused-tests.log",
+   "result": "405 passed"
+  },
+  "frontend_panel": {
+   "log": "frontend-panel.log",
+   "result": "9 passed"
+  },
+  "frontend_tsc": {
+   "log": "frontend-tsc.log",
+   "result": "exit 0"
+  },
+  "identity_focused": {
+   "log": "identity-focused.log",
+   "result": "104 passed"
+  },
+  "identity_guard": {
+   "log": "identity-guard-tests.log",
+   "result": "253 passed"
+  },
+  "verifier_subject": {
+   "log": "verifier-subject.log",
+   "result": "3 passed"
+  }
+ }
+}

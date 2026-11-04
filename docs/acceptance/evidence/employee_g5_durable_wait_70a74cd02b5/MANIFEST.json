@@ -1,0 +1,54 @@
+{
+ "schema": "atom-employee-g5-durable-wait-ui-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "70a74cd02b5",
+  "tree_clean_at_run": true,
+  "frontend_build_id": "ZKXAbjqCRYz-5ML5pGUtJ",
+  "manifest_note": "Normal UI: model-chosen durable wait, independent quote, process restart, exact same-job reply, dependent reconciliation and requested review document."
+ },
+ "source_hashes": {
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/employee_work_compiler.py": "76eba0d4a40843ce6984f7f9793f1a25f795cc27a7c2948a9c50905f36f53c11",
+  "backend/core/employee_adaptation.py": "a942744613cb2fe4e8cee9ccf949ebdfcf78854a25e9d7b673cab0711ce7cb04",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/assignment_executor.py": "86aa7b124ae859894e46e823085ef1c731d0e60afba207404726e6177abf7bb5",
+  "backend/core/assignment_planner.py": "0a95364d13fa42de499cb377bb3d4c4afa3c9fdc3f91ea07890aea8d4ab0257f",
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "cd0fc92bd70b0d10006c4dfb706e45909218a0b57650573cf90e72b75fc6a923",
+  "frontend-nextjs/lib/assignment-api.ts": "604c276ab4dab082f51510ca666fe43555de7671c8eb000de5684d01ea6b7027",
+  "scripts/acceptance/employee_g5_ui_durable_wait.py": "8129ceb22a0478b89ad7f3a4abfa4c3a8bd6de3257593991ccdc35ac923d9584"
+ },
+ "artifacts": {
+  "README.md": "c5a7ac29894239bc552095a5fa0eb5583156f6fefaa8c0e37a3a41c29fe2209e",
+  "TEST_RESULTS.md": "45ade352194491f077d7df161b262c1531b6213545f391ed4fbb3c24ce8dff66",
+  "after-restart.png": "691859ce539acd820386036e9bee423b63548a3e0f61fdff9488a8b570f268b7",
+  "attempts-restart.jsonl": "cf06dc490626e286cded384a81b32bfd11888cc0dc9edb49b63eb817f5f0f929",
+  "attempts-start.jsonl": "a6451aad0035f8890b48b96459355bfe30b778d9fe16b88fbfdb480d0c72027b",
+  "completed.png": "c4f7d493e60bfecb7d6ea73f8f6de33bc2b08ae634266a7f7175ac2a00324641",
+  "detail-completed.txt": "409b36b12ddf3563c8d377d5317e9e9203aad5608346e9590a87d5c3c0fe9004",
+  "detail-waiting.txt": "070a5fe93e0dcdd456be5edf360accceaae1294dd5d42d3c703f1d1cd8bc5e96",
+  "review.docx": "8d0d48773c7e1bca5ee587872f818e0738035d868fb95e7e9245a53f5f6b063e",
+  "server.log": "d2c0dcab0b179f4c2b365e6a496514b3f6596c8c2368c5c29838bdb691f53f4c",
+  "start-form.png": "98b425f1fa9319c4f10238d1cb0f394b3d3e1b33b6aa01d53b946ea7c6b59988",
+  "state.json": "b61446de96bedaf4e6e1817261001f41047a8379a8c60af918ba66665e6bb11c",
+  "waiting.png": "176109618d2fbab94a135422cc0a3701930112fb3e1feee7946ed33ab11a90d7"
+ },
+ "results": {
+  "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+  "wait_correlation": "await-c44df7cdb608245de632",
+  "quote_total": "370.00",
+  "quote_operation": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+  "reconciliation_total": "270.00",
+  "artifact_sha256": "8d0d48773c7e1bca5ee587872f818e0738035d868fb95e7e9245a53f5f6b063e",
+  "checks_passed": 16,
+  "checks_total": 16
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "general model judgment is not qualified",
+  "no live provider, credential, consent, send, spend or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

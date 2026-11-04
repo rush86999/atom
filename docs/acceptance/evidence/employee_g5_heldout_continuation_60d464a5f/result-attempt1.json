@@ -1,0 +1,173 @@
+{
+ "run_id": "d40c94ee-2128-4f56-8165-1d2b8fcbd01a",
+ "before": {
+  "status": "blocked",
+  "wait": {},
+  "quote": "125.00",
+  "quote_operation_id": "9ea5f0de-8bcc-4152-b1fe-dd3b4127fd9b",
+  "reconcile_present": false,
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "e24e6c06-b7a2-418c-9965-10f039b874b5",
+    "result_value": null
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "9dd61676-430a-466b-8a24-dbd2410e34de",
+    "result_value": null
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "a3e9c1df-6701-4eb4-b3f3-5cfa3e671132",
+    "result_value": null
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "applied",
+    "operation_id": "b0a5c4c4-7f6a-4c60-98b8-d3de8be6d043",
+    "result_value": "received 3 units"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "aeb5ecaf-6ff4-485b-a804-8b19950b7aca",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "9ea5f0de-8bcc-4152-b1fe-dd3b4127fd9b",
+    "result_value": "125.00"
+   },
+   {
+    "step_id": "source-4",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "cf37776b-abe9-4294-a5fe-bc606fabe6b7",
+    "result_value": null
+   }
+  ]
+ },
+ "advance": {
+  "status_code": 200,
+  "seconds": 20.525763833895326,
+  "rounds": [
+   {
+    "source": "deterministic",
+    "technical_fallback": true,
+    "decision": "retain",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "464c9b4ed0474038bc35ca454baacffc",
+    "routing": null,
+    "observation_ids": [
+     "evidence-a624671a5c3b6aaa4f2c"
+    ]
+   }
+  ],
+  "body_status": null
+ },
+ "final": {
+  "status": "blocked",
+  "plan_revision": 6,
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "e24e6c06-b7a2-418c-9965-10f039b874b5",
+    "result_value": null
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "9dd61676-430a-466b-8a24-dbd2410e34de",
+    "result_value": null
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "a3e9c1df-6701-4eb4-b3f3-5cfa3e671132",
+    "result_value": null
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "applied",
+    "operation_id": "b0a5c4c4-7f6a-4c60-98b8-d3de8be6d043",
+    "result_value": "received 3 units"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "aeb5ecaf-6ff4-485b-a804-8b19950b7aca",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "9ea5f0de-8bcc-4152-b1fe-dd3b4127fd9b",
+    "result_value": "125.00"
+   },
+   {
+    "step_id": "source-4",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "cf37776b-abe9-4294-a5fe-bc606fabe6b7",
+    "result_value": null
+   }
+  ],
+  "business_requirements": [
+   {
+    "requirement_id": "result-invoice_reconciliation-743d385d507520fa0425",
+    "operation": "invoice_reconciliation",
+    "label": "invoice reconciliation",
+    "subject": "purchase order PO-HX-7001",
+    "fact": "receiving",
+    "correlation_id": "await-e94400ac76450659e0de",
+    "status": "unresolved",
+    "next_action": "The external fact is recorded; invoice reconciliation still needs completion."
+   }
+  ],
+  "deliverable": {
+   "deliverable_id": "del-requested-output",
+   "kind": "document",
+   "description": "Reconcile supplier invoice INV-HX-88 for PO-HX-7001 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized held-out price list, and deliver a review document when the reconciliation is settled.",
+   "required": true,
+   "step_id": "requested-artifact",
+   "status": "pending",
+   "artifact_revision": null,
+   "artifact_path": null,
+   "sha256": null
+  },
+  "artifact_path": ".",
+  "artifact_text": ""
+ },
+ "checks": {
+  "same_run": true,
+  "same_wait_identity": true,
+  "quote_receipt_preserved": true,
+  "reconciliation_101": false,
+  "assignment_completed": false,
+  "requirements_satisfied": false,
+  "artifact_applied": false,
+  "artifact_quote_125": false,
+  "artifact_reconciliation_101": false,
+  "artifact_sha_matches": false
+ },
+ "all_checks_passed": false
+}

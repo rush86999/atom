@@ -4016,9 +4016,18 @@ class AssignmentExecutor:
             from core.task_outcome_contract import (
                 build_task_outcome, sent_record_confirmed_evidence,
             )
+            from core.employee_business_outcomes import (
+                business_results_from_assignment,
+            )
         except Exception:
             return assignment
         steps = assignment.get("steps") or []
+        business_requirements = [
+            dict(item) for item in
+            assignment.get("business_requirements") or []
+            if isinstance(item, dict)
+        ]
+        business_results = business_results_from_assignment(assignment)
         operations = {
             operation.get("operation_id"): operation
             for operation in record.get("operations") or []
@@ -4133,6 +4142,8 @@ class AssignmentExecutor:
             gaps=gaps,
             actions=actions,
             calculation=calculation,
+            business_requirements=business_requirements,
+            business_results=business_results,
             objective_met=objective_met,
             scope={
                 "workspace_id": assignment.get("workspace_id"),
@@ -8132,11 +8143,49 @@ def _office_format_spec(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
     return {}
 
 
+def _refuse_unresolved_business_results(context: Dict[str, Any]) -> None:
+    """A requested output is not published before its required results.
+
+    The requirement check is exact and namespaced; a receipt for another
+    business subject leaves the requirement unresolved and must not create a
+    downloadable report for this objective.
+    """
+    assignment = context.get("assignment")
+    if not isinstance(assignment, dict) or not assignment.get(
+            "business_requirements"):
+        return
+    try:
+        from core.employee_business_outcomes import business_requirement_views
+    except Exception:  # noqa: BLE001 — legacy path without requirements
+        return
+    unresolved = [
+        view for view in business_requirement_views(assignment)
+        if str(view.get("status") or "") != "satisfied"
+    ]
+    if not unresolved:
+        return
+    first = unresolved[0]
+    action = str(first.get("next_action") or "").strip()
+    raise NeedsContext({
+        "concept": "business_result",
+        "reason": (
+            "the requested output cannot be published before the required "
+            "business result is verified"),
+        "question": action or (
+            f"Complete the {first.get('label') or 'required result'} first."),
+        "next_action": action or None,
+        "next_retrieval": (
+            "complete the authorized dependent work and retry the output"),
+        "kind": "missing_evidence",
+    })
+
+
 @register_assignment_adapter(
     "artifact.document", description="Render a DOCX",
     metadata={"effect": "local", "required_actions": ["present"],
               "allow_standing_authorization": False})
 async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    _refuse_unresolved_business_results(context)
     from core.office_service import OfficeService
 
     path = str(inputs.get("path") or "").strip()
@@ -8186,6 +8235,7 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
     metadata={"effect": "local", "required_actions": ["present"],
               "allow_standing_authorization": False})
 async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    _refuse_unresolved_business_results(context)
     from core.office_service import OfficeService
 
     path = str(inputs.get("path") or "").strip()
@@ -8231,6 +8281,7 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
     metadata={"effect": "local", "required_actions": ["present"],
               "allow_standing_authorization": False})
 async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    _refuse_unresolved_business_results(context)
     from core.office_service import OfficeService
 
     path = str(inputs.get("path") or "").strip()

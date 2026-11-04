@@ -254,6 +254,34 @@ def _parsed_payload(result: Any) -> Any:
         return None
 
 
+def _route_snapshot() -> Any:
+    """The call-local requested/selected/served route, for the raw journal."""
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        return get_route_attribution()
+    except Exception:  # noqa: BLE001 — diagnostics only
+        return None
+
+
+def _usage_payload(result: Any) -> Any:
+    """Token usage when the provider exposed it; never inferred."""
+    raw = getattr(result, "_raw_response", None)
+    usage = getattr(raw, "usage", None)
+    if usage is None:
+        return None
+    values = {}
+    for name in (
+            "prompt_tokens", "completion_tokens", "total_tokens",
+            "input_tokens", "output_tokens"):
+        value = getattr(usage, name, None)
+        if value is None and isinstance(usage, dict):
+            value = usage.get(name)
+        if value is not None:
+            values[name] = value
+    return values or None
+
+
 def _raw_payload(result: Any) -> Any:
     """Best-effort raw provider completion for the attempt journal."""
     raw = getattr(result, "_raw_response", None)
@@ -401,7 +429,7 @@ async def pinned_structured_call(
         _pinned_attempt = 1
         _observer_notify(
             attempt_observer, "dispatch", label=log_label, attempt=1,
-            route="pinned", prompt=prompt,
+            route="pinned", prompt=prompt, prompt_chars=len(prompt),
             system_instruction=system_instruction,
             response_model=getattr(response_model, "__name__", str(response_model)),
             response_schema=_schema_json(response_model),
@@ -444,8 +472,14 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="pinned",
                 seconds=_time.monotonic() - _pinned_started,
+                usage=_usage_payload(result),
+                routing=_route_snapshot(),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
+        _observer_notify(
+            attempt_observer, "no_result", label=log_label, attempt=1,
+            route="pinned", seconds=_time.monotonic() - _pinned_started,
+            failure=dict(LAST_FAILURE))
         if strict_pin:
             if set_routing_error is not None:
                 set_routing_error(
@@ -477,7 +511,7 @@ async def pinned_structured_call(
             fallback_kwargs["exclude_provider_model"] = _failed_pin
         _observer_notify(
             attempt_observer, "dispatch", label=log_label, attempt=2,
-            route="unpinned_fallback", prompt=prompt,
+            route="unpinned_fallback", prompt=prompt, prompt_chars=len(prompt),
             system_instruction=system_instruction,
             response_model=getattr(response_model, "__name__", str(response_model)),
             response_schema=_schema_json(response_model),
@@ -494,12 +528,20 @@ async def pinned_structured_call(
                     attempt_observer, "parsed", label=log_label, attempt=2,
                     route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
+                    usage=_usage_payload(fallback_result),
+                    routing=_route_snapshot(),
                     parsed=_parsed_payload(fallback_result),
                     raw=_raw_payload(fallback_result))
             elif set_routing_error is not None:
                 set_routing_error(
                     "provider_failure",
                     "the configured routes produced no usable result")
+            if fallback_result is None:
+                _observer_notify(
+                    attempt_observer, "no_result", label=log_label,
+                    attempt=2, route="unpinned_fallback",
+                    seconds=_time.monotonic() - _fallback_started,
+                    failure=dict(LAST_FAILURE))
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -519,7 +561,7 @@ async def pinned_structured_call(
 
     _observer_notify(
         attempt_observer, "dispatch", label=log_label, attempt=1,
-        route="unpinned", prompt=prompt,
+        route="unpinned", prompt=prompt, prompt_chars=len(prompt),
         system_instruction=system_instruction,
         response_model=getattr(response_model, "__name__", str(response_model)),
         response_schema=_schema_json(response_model),
@@ -534,8 +576,16 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
+                usage=_usage_payload(direct_result),
+                routing=_route_snapshot(),
                 parsed=_parsed_payload(direct_result),
                 raw=_raw_payload(direct_result))
+        else:
+            _observer_notify(
+                attempt_observer, "no_result", label=log_label, attempt=1,
+                route="unpinned",
+                seconds=_time.monotonic() - _direct_started,
+                failure=dict(LAST_FAILURE))
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(
@@ -543,5 +593,17 @@ async def pinned_structured_call(
             route="unpinned", seconds=_time.monotonic() - _direct_started,
             exception=err)
         _publish_failure(log_label, err)
+        if set_routing_error is not None:
+            name = type(err).__name__.lower()
+            text = str(err).lower()
+            if "scop" in name or "workspace resolution" in text:
+                code = "scope_unresolved"
+            elif "nosuitableconfiguredmodel" in name:
+                code = "no_suitable_configured_model"
+            elif "timeout" in name or "cancel" in name:
+                code = "deadline_cancelled"
+            else:
+                code = "provider_failure"
+            set_routing_error(code, str(err))
         logger.warning("%s call raised: %s", log_label, err)
         return None

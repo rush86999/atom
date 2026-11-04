@@ -235,10 +235,73 @@ def test_strict_pin_is_exact_or_failed_no_escape():
     assert "below_quality_prior" in bad["reasons"]
 
 
+def test_actual_request_size_beats_the_coarse_complexity_context_floor(
+        monkeypatch):
+    from core.llm.byok_handler import QueryComplexity
+    from tests.test_structured_dispatch_policy import _handler, _seed_pool
+
+    handler = _handler()
+    _seed_pool(handler, monkeypatch, with_local=True)
+    handler._local_routes["llama3.1:8b"].update({
+        "context_window": 16384,
+        "supports_structured": True,
+    })
+    monkeypatch.setattr(
+        "core.llm.byok_handler.load_feedback_evidence",
+        lambda *args, **kwargs: {})
+    ranked = list(handler.get_ranked_providers(
+        QueryComplexity.ADVANCED, task_type="planning", tenant_plan="free",
+        is_managed_service=True, requires_structured=True,
+        estimated_tokens=2506,
+        capability_profile="employee_evidence_selection"))
+    assert ("local_ctrl1234", "llama3.1:8b") in ranked, ranked
+
+    # A genuinely oversized request still excludes the 16k route.
+    oversized = list(handler.get_ranked_providers(
+        QueryComplexity.ADVANCED, task_type="planning", tenant_plan="free",
+        is_managed_service=True, requires_structured=True,
+        estimated_tokens=40000,
+        capability_profile="employee_evidence_selection"))
+    assert ("local_ctrl1234", "llama3.1:8b") not in oversized
+
+
+def test_selected_local_only_policy_admits_the_runtime_route(monkeypatch):
+    from core.llm.byok_handler import BYOKHandler
+    from core.llm.provider_policy import ProviderPolicy
+
+    handler = BYOKHandler.__new__(BYOKHandler)
+    handler.workspace_id = "ws-local-policy"
+    handler.clients = {"ollama": object()}
+    handler._local_routes = {}
+    handler.provider_policy = ProviderPolicy(
+        mode="selected", allowed_providers=frozenset({"ollama"}),
+        preferred=("ollama", "llama3.1:8b"))
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.1:8b")
+    monkeypatch.setenv("OLLAMA_CONTEXT_WINDOW", "16384")
+    monkeypatch.setattr(
+        handler, "_local_only_active", lambda: False)
+    monkeypatch.setattr(
+        handler, "_served_local_models_for",
+        lambda provider: ["llama3.1:8b"])
+    handler._admit_runtime_local_route()
+    route = handler._local_routes["llama3.1:8b"]
+    assert route["provider_key"] == "ollama"
+    assert route["quality_score"] == 0.9
+    assert route["context_window"] == 16384
+    assert route["runtime_declared"] is True
+
+
 def test_profile_resolution_uses_server_label_not_model_name():
     assert resolve_capability_profile(
         None, "planning", "employee adaptation").name == (
             "employee_adaptive_planning")
+    # The narrow single-operation continuation is a separate declared
+    # capability configuration, not a relabel of the all-purpose profile.
+    compact = resolve_capability_profile(
+        None, "planning", "employee adaptation compact")
+    assert compact.name == "employee_adaptive_planning_compact"
+    assert compact.name != "employee_adaptive_planning"
+    assert compact.min_context_tokens == 4000
     assert resolve_capability_profile(
         None, "planning", "employee work proposal").name == (
             "employee_evidence_selection")
@@ -829,9 +892,14 @@ def test_route_attribution_is_call_local_and_clears_stale_served_state():
     assert attribution["served_route"] is None
     assert attribution["resolved_model"] == "candidate-a-echo"
 
+    from core.llm.model_provenance import set_routing_error
+
+    set_routing_error("provider_failure", "earlier candidate excluded")
     set_served_route("local", "candidate-b")
-    assert get_route_attribution()["served_route"] == {
+    attribution = get_route_attribution()
+    assert attribution["served_route"] == {
         "provider": "local", "model": "candidate-b"}
+    assert attribution["error"] is None
 
     # A fresh boundary cannot inherit the previous call's served route or
     # provider-echoed checkpoint.

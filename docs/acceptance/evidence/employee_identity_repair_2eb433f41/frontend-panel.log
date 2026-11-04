@@ -1,0 +1,21 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/assignments/__tests__/AssignmentPanel.test.tsx
+  ✓ shows objective, completed work, gaps, waiting party and approval payload (113 ms)
+  ✓ shows a business-safe configuration notice without model branding (29 ms)
+  ✓ shows the unresolved business result after the question is answered (27 ms)
+  ✓ approve sends the concrete step identity (113 ms)
+  ✓ resolving a gap posts the answer and resumes through the backend (55 ms)
+  ✓ uncertain effect reconciliation sends evidence and verdict (43 ms)
+  ✓ employee-decides starts objective-only work without a supplied DAG (29 ms)
+  ✓ answers an open prerequisite with the selected authorized source (24 ms)
+  ✓ explains a durable wait and delivers the source-bound answer (30 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        2.774 s
+Ran all test suites matching components/assignments/__tests__/AssignmentPanel.test.tsx.

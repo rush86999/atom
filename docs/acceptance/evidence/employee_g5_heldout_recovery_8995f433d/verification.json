@@ -1,0 +1,73 @@
+{
+ "all_checks_passed": true,
+ "artifact_sha256": "609281eb3bdc5dd4a42ea14cc389fb60775271bb5225f017a4a2b2fe88474e2b",
+ "artifact_size": 37549,
+ "budget": {
+  "extended_at": "2026-11-04T19:28:34.695224+00:00",
+  "extended_by": "09411b9b-c539-4e5f-a003-3c270495d5fc",
+  "reason": "diagnostic continuation: the 900s wall budget elapsed while the job was blocked during offline diagnosis after the durable wait was answered; no employee work ran during that gap. Extend once to finish the same job.",
+  "requested_max_wall_seconds": 3600.0
+ },
+ "checks": {
+  "all_required_business_results_met": true,
+  "artifact_applied": true,
+  "artifact_has_quote": true,
+  "artifact_has_reconcile": true,
+  "artifact_sha_matches": true,
+  "assignment_completed": true,
+  "compact_no_repair": true,
+  "compact_single_dispatch": true,
+  "compact_within_deadline": true,
+  "criterion_declared": true,
+  "no_external_effect": true,
+  "overall_outcome_satisfied": true,
+  "owner_budget_extension": true,
+  "pre_dispatch_budget_visible": true,
+  "quote_total_heldout": true,
+  "reconcile_total_heldout": true,
+  "same_run": true,
+  "same_wait_identity": true,
+  "served_route_local_only": true
+ },
+ "compact": {
+  "decision": "replan",
+  "prompt_chars": 5997,
+  "repair": null,
+  "response_model": "CompactEmployeeWorkProposal",
+  "route": "pinned",
+  "routing": {
+   "error": null,
+   "mode": "pinned",
+   "profile": {
+    "name": "employee_adaptive_planning_compact",
+    "version": "2026-11-04.1"
+   },
+   "requested_route": {
+    "model": "llama3.1:8b",
+    "provider": "ollama"
+   },
+   "resolved_model": "llama3.1:8b",
+   "served_route": {
+    "model": "llama3.1:8b",
+    "provider": "ollama"
+   }
+  },
+  "seconds": 57.66593937482685,
+  "technical_fallback": false,
+  "work_request": {
+   "currency": "USD",
+   "invoice_step_id": "source-3",
+   "operation": "invoice_reconciliation",
+   "purchase_order_step_id": "source-2",
+   "reason": "The external fact is recorded; invoice reconciliation still needs completion.",
+   "receiving_step_id": "source-4"
+  }
+ },
+ "quote": "96.30",
+ "quote_operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+ "reconciliation": "140.25",
+ "reconciliation_operation_id": "69ad7a27-cfb6-4a48-8baa-bf51f9d6616c",
+ "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+ "source": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
+ "wait_id": "await-ca15973cbdcbe5ff480c"
+}

@@ -1,0 +1,8 @@
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a local directory (/private/tmp/atom-full-app/backend/data/acceptance_worlds)
+world=/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-heldout-episode
+database=/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-heldout-episode/atom.db
+backend=http://127.0.0.1:8085 pid=11995 source=8995f433d6fb
+frontend=http://127.0.0.1:3136 pid=12013
+stop: kill -INT 11995 12013

@@ -1,0 +1,2067 @@
+{
+ "run_id": "cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4",
+ "request": {
+  "objective": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+  "sources": [
+   {
+    "kind": "workbook",
+    "dataset_name": "upload_price_book_fresh__prices",
+    "sheet": "Prices",
+    "source_version": "d679624066999a4bbbe7ffcd7f88c514b94e459b"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_9cde732cfb4fbbb2c1f12467"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_271de261d788af8b4a2f3f67"
+   }
+  ],
+  "authorized_actions": [
+   "retrieve",
+   "calculate"
+  ],
+  "teaching_terms": {
+   "currency": "USD",
+   "freight": "9.00",
+   "tax_basis": "none"
+  },
+  "requested_output": "document",
+  "budget": {
+   "max_steps": 18,
+   "max_wall_seconds": 3600
+  },
+  "use_model": true
+ },
+ "response": {
+  "run_id": "cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4",
+  "assignment": {
+   "run_id": "cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4",
+   "assignment": {
+    "assignment_id": "asg-a3684d1eb34a4667",
+    "objective": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+    "employee_id": "ca326a53-e54d-4176-be22-67e7fc7f0a14",
+    "workspace_id": "default",
+    "plan_revision": 5,
+    "status": "waiting",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "6d661d6a3009927e14ba19cec1e29d7a",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [
+     {
+      "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+      "operation": "invoice_reconciliation",
+      "label": "invoice reconciliation",
+      "subject": "purchase order PO-QH-8100",
+      "subject_identity": {
+       "po_id": "PO-QH-8100",
+       "invoice_id": "INV-QH-99"
+      },
+      "fact": "receiving",
+      "correlation_id": "await-9ac5fe9af53639aa278b",
+      "status": "unresolved",
+      "next_action": "Answer the authorized request for receiving."
+     }
+    ],
+    "deliverables": [
+     {
+      "deliverable_id": "del-requested-output",
+      "kind": "document",
+      "description": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+      "required": true,
+      "step_id": "requested-artifact",
+      "status": "pending",
+      "artifact_revision": null,
+      "artifact_path": null,
+      "sha256": null
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "e659c299-26c7-495f-8d88-475e99eb3932",
+       "dataset_name": "upload_price_book_fresh__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:d679624066999a4bbbe7ffcd7f88c514b94e459b",
+       "original_file_name": "price-book-fresh.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "d679624066999a4bbbe7ffcd7f88c514b94e459b",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "ca326a53-e54d-4176-be22-67e7fc7f0a14",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_9cde732cfb4fbbb2c1f12467",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_9cde732cfb4fbbb2c1f12467",
+       "original_file_name": "purchase-order-fresh.json",
+       "representation": "document_text",
+       "source_version": "ev4:9cde732cfb4fbbb2c1f124672de6ad05541709f9de1905d39f57fbf766d89301",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 130
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_271de261d788af8b4a2f3f67",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_271de261d788af8b4a2f3f67",
+       "original_file_name": "invoice-fresh.json",
+       "representation": "document_text",
+       "source_version": "ev4:271de261d788af8b4a2f3f67ae75b4ca69a27ae950b602368ec6eec11578f63e",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 136
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 18,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 3600.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 6,
+     "started_at": "2026-11-04T19:48:09.053117+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 16.984,
+     "waiting_since": "2026-11-04T19:50:13.779395+00:00",
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": {
+      "id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+      "step_id": "await",
+      "correlation_id": "await-9ac5fe9af53639aa278b",
+      "started_at": "2026-11-04T19:50:13.779395+00:00"
+     },
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {
+      "asg-a3684d1eb34a4667:idle:1793821813.791132": {
+       "started_at": "2026-11-04T19:50:13.791132+00:00",
+       "ended_at": "2026-11-04T19:50:30.767863+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      }
+     },
+     "idle_open": {
+      "id": "asg-a3684d1eb34a4667:idle:1793821830.8509471",
+      "started_at": "2026-11-04T19:50:30.850947+00:00",
+      "reason": "all runnable branches are waiting"
+     },
+     "working_seconds": 124.821,
+     "wall_seconds": 141.805
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read purchase-order-fresh.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b",
+      "attempts": 0,
+      "result_summary": "read structured doc_9cde732cfb4fbbb2c1f12467.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read price-book-fresh.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read invoice-fresh.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:invoice-fresh.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "await",
+      "title": "Wait for receiving for purchase order PO-QH-8100",
+      "operation_type": "retrieve",
+      "adapter": "assignment.wait",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "waiting",
+      "recovery_class": "waiting_for_event",
+      "operation_id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+      "attempts": 0,
+      "result_summary": null,
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {
+       "event": "external_fact",
+       "state": "waiting_for_external",
+       "party": "authorized receiving source",
+       "correlation_id": "await-9ac5fe9af53639aa278b",
+       "resume_on": "response",
+       "detail": "receiving for purchase order PO-QH-8100",
+       "fact": "receiving",
+       "subject": "purchase order PO-QH-8100",
+       "expected_answer_type": "quantity",
+       "blocks": "invoice reconciliation",
+       "deadline": "",
+       "validity": "",
+       "typed_binding": true,
+       "since": "2026-11-04T19:50:13.779395+00:00"
+      },
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "operation_type": "calculate",
+      "adapter": "quote.lines_from_rows",
+      "depends_on": [
+       "source-2"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0",
+      "attempts": 0,
+      "result_summary": "mapped 2 quote row(s)",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "quote-lines"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+      "attempts": 0,
+      "result_summary": "quote total 145.00 USD (2 lines)",
+      "result_value": "145.00",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T19:48:09.043863+00:00",
+    "updated_at": "2026-11-04T19:50:30.842397+00:00",
+    "completed_at": null,
+    "progress": {
+     "total_steps": 6,
+     "required_steps": 6,
+     "completed_steps": 5,
+     "waiting_steps": 1,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 0
+    }
+   },
+   "open_gaps": [],
+   "operations": [
+    {
+     "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_9cde732cfb4fbbb2c1f12467.json"
+    },
+    {
+     "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices"
+    },
+    {
+     "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:invoice-fresh.json"
+    },
+    {
+     "operation_id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "waiting",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": null
+    },
+    {
+     "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0",
+     "step_id": "quote-lines",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+     "step_id": "quote-total",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 145.00 USD (2 lines)"
+    }
+   ]
+  },
+  "employee_job": {
+   "objective": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+   "identity": {
+    "employee_id": "ca326a53-e54d-4176-be22-67e7fc7f0a14",
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "execution_owner": "assignment"
+   },
+   "criteria": [
+    {
+     "criterion_id": "artifact_verified:del-requested-output",
+     "kind": "artifact_verified",
+     "required": true,
+     "verifier": "artifact_verified",
+     "scope": {
+      "workspace_id": "default"
+     },
+     "deliverable_id": "del-requested-output"
+    },
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "employee_result:objective",
+     "kind": "employee_result",
+     "required": true,
+     "verifier": "employee_result",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "business_result:result-invoice_reconciliation-d05ea277bef2906190fc",
+     "kind": "business_result",
+     "required": true,
+     "verifier": "business_result",
+     "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+     "scope": {
+      "workspace_id": "default",
+      "tenant_id": "default",
+      "operation": "invoice_reconciliation"
+     }
+    }
+   ],
+   "facts": [],
+   "sources": [
+    {
+     "source_id": "e659c299-26c7-495f-8d88-475e99eb3932",
+     "kind": "workbook",
+     "representation": "parquet_frame",
+     "file_name": "price-book-fresh.xlsx",
+     "sheet": "Prices",
+     "columns": [
+      "Item",
+      "Qty",
+      "Price",
+      "Currency",
+      "__sheet_row"
+     ],
+     "numeric_columns": [
+      "Qty",
+      "Price"
+     ],
+     "row_count": 2,
+     "coverage": {
+      "known": true,
+      "source_row_count": 2,
+      "materialized_row_count": 2,
+      "truncated": false,
+      "row_cap": 500000
+     },
+     "source_version": "d679624066999a4bbbe7ffcd7f88c514b94e459b",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": 2,
+      "shown_count": 0,
+      "omitted_count": 2,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_9cde732cfb4fbbb2c1f12467",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "purchase-order-fresh.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 130
+     },
+     "source_version": "ev4:9cde732cfb4fbbb2c1f124672de6ad05541709f9de1905d39f57fbf766d89301",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_271de261d788af8b4a2f3f67",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "invoice-fresh.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 136
+     },
+     "source_version": "ev4:271de261d788af8b4a2f3f67ae75b4ca69a27ae950b602368ec6eec11578f63e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    }
+   ],
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read purchase-order-fresh.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read structured doc_9cde732cfb4fbbb2c1f12467.json"
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read price-book-fresh.xlsx",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices"
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read invoice-fresh.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:invoice-fresh.json"
+    },
+    {
+     "step_id": "await",
+     "title": "Wait for receiving for purchase order PO-QH-8100",
+     "status": "waiting",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": null
+    },
+    {
+     "step_id": "quote-lines",
+     "title": "Map accepted evidence to quote lines",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [
+      {
+       "kind": "receipt",
+       "step_id": "source-2",
+       "require": "verified"
+      }
+     ],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "step_id": "quote-total",
+     "title": "Calculate the evidence-backed quote total",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "quote total 145.00 USD (2 lines)"
+    }
+   ],
+   "open_obligations": [],
+   "business_requirements": [
+    {
+     "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+     "operation": "invoice_reconciliation",
+     "label": "invoice reconciliation",
+     "subject": "purchase order PO-QH-8100",
+     "subject_identity": {
+      "po_id": "PO-QH-8100",
+      "invoice_id": "INV-QH-99"
+     },
+     "fact": "receiving",
+     "correlation_id": "await-9ac5fe9af53639aa278b",
+     "status": "unresolved",
+     "next_action": "Answer the authorized request for receiving."
+    }
+   ],
+   "waiting": [
+    {
+     "step_id": "await",
+     "fact": "receiving",
+     "subject": "purchase order PO-QH-8100",
+     "party": "authorized receiving source",
+     "detail": "receiving for purchase order PO-QH-8100",
+     "blocks": "invoice reconciliation",
+     "expected_answer_type": "quantity",
+     "correlation_id": "await-9ac5fe9af53639aa278b",
+     "since": "2026-11-04T19:50:13.779395+00:00"
+    }
+   ],
+   "ready_work": [
+    {
+     "operation": "quote_calculation",
+     "label": "quote calculation"
+    }
+   ],
+   "budget": {
+    "max_steps": 18,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 3600.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 6,
+    "started_at": "2026-11-04T19:48:09.053117+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 16.976731061935425,
+    "waiting_since": "2026-11-04T19:50:13.779395+00:00",
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": {
+     "id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+     "step_id": "await",
+     "correlation_id": "await-9ac5fe9af53639aa278b",
+     "started_at": "2026-11-04T19:50:13.779395+00:00"
+    },
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {
+     "asg-a3684d1eb34a4667:idle:1793821813.791132": {
+      "started_at": "2026-11-04T19:50:13.791132+00:00",
+      "ended_at": "2026-11-04T19:50:30.767863+00:00",
+      "reason": "all runnable branches are waiting",
+      "closed_by": "ready work resumed"
+     }
+    },
+    "idle_open": {
+     "id": "asg-a3684d1eb34a4667:idle:1793821830.8509471",
+     "started_at": "2026-11-04T19:50:30.850947+00:00",
+     "reason": "all runnable branches are waiting"
+    }
+   },
+   "status": "waiting",
+   "task_version": 64,
+   "plan_revision": 5,
+   "business_outcome": {
+    "basis": "criteria_not_met",
+    "verdict": false,
+    "state": "unsatisfied",
+    "declared_state": "waiting",
+    "outcome": {
+     "contract_version": 2,
+     "recorded_at": 1793821830.860894,
+     "execution_id": null,
+     "turn_id": null,
+     "objective": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+     "objective_state": {
+      "goal": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+      "target_entities": [],
+      "requested_attributes": [],
+      "source_constraints": {},
+      "authorized_actions": []
+     },
+     "objective_met": false,
+     "completion_criteria": [
+      {
+       "criterion_id": "artifact_verified:del-requested-output",
+       "kind": "artifact_verified",
+       "required": true,
+       "verifier": "artifact_verified",
+       "scope": {
+        "workspace_id": "default"
+       },
+       "deliverable_id": "del-requested-output"
+      },
+      {
+       "criterion_id": "required_work_complete:assignment",
+       "kind": "required_work_complete",
+       "required": true,
+       "verifier": "required_work_complete",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "employee_result:objective",
+       "kind": "employee_result",
+       "required": true,
+       "verifier": "employee_result",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "business_result:result-invoice_reconciliation-d05ea277bef2906190fc",
+       "kind": "business_result",
+       "required": true,
+       "verifier": "business_result",
+       "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+       "scope": {
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "operation": "invoice_reconciliation"
+       }
+      }
+     ],
+     "criterion_results": [
+      {
+       "criterion": "artifact_verified",
+       "met": null,
+       "verifier": "artifact_verified",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "required_work_complete",
+       "met": false,
+       "verifier": "required_work_complete",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "employee_result",
+       "met": true,
+       "verifier": "employee_result",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "business_result",
+       "met": false,
+       "verifier": "business_result",
+       "evidence_refs": []
+      }
+     ],
+     "requested": {},
+     "source_constraints": {},
+     "authorized_actions": [
+      "calculate",
+      "present",
+      "retrieve"
+     ],
+     "tool_outcomes": [
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read structured doc_9cde732cfb4fbbb2c1f12467.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "dataset.read",
+       "verified": true,
+       "outcome": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:invoice-fresh.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "assignment.wait",
+       "verified": false,
+       "outcome": "",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.lines_from_rows",
+       "verified": true,
+       "outcome": "mapped 2 quote row(s)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.calculate",
+       "verified": true,
+       "outcome": "quote total 145.00 USD (2 lines)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      }
+     ],
+     "evidence_refs": [],
+     "evidence_ledger": {},
+     "gaps": [],
+     "implications": [],
+     "actions": [
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "waiting",
+       "authorized": true,
+       "applied": false,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      }
+     ],
+     "calculation": {
+      "computed": "145.00",
+      "unit": "USD",
+      "verified": true,
+      "step_id": "quote-total",
+      "adapter": "quote.calculate"
+     },
+     "mutation": {},
+     "business_requirements": [
+      {
+       "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+       "operation": "invoice_reconciliation",
+       "label": "invoice reconciliation",
+       "subject": "purchase order PO-QH-8100",
+       "subject_identity": {
+        "po_id": "PO-QH-8100",
+        "invoice_id": "INV-QH-99"
+       },
+       "fact": "receiving",
+       "correlation_id": "await-9ac5fe9af53639aa278b",
+       "receipt_adapter": "invoice.reconcile",
+       "subject_fields": [
+        "po_id",
+        "invoice_id"
+       ],
+       "identity_required": true,
+       "required": true
+      }
+     ],
+     "business_results": [
+      {
+       "operation": "quote_calculation",
+       "adapter": "quote.calculate",
+       "step_id": "quote-total",
+       "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+       "verified": true,
+       "value": "145.00",
+       "unit": "USD",
+       "subject_identity": {},
+       "source_version": null,
+       "verification": null
+      }
+     ],
+     "delivery": {
+      "calculation_verified": true,
+      "calculated_value": "145.00"
+     },
+     "user_corrections": [],
+     "limitations": [],
+     "latency_s": null,
+     "cost_usd": null,
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 5
+     },
+     "policy_version": null,
+     "candidate_versions": {},
+     "learning_layers": {
+      "general_capability": {
+       "policy_version": null,
+       "candidate_versions": {}
+      },
+      "user_business_configuration": {
+       "scope": {
+        "workspace_id": "default",
+        "teaching_revision": "untrained",
+        "plan_revision": 5
+       }
+      },
+      "task_evidence": {
+       "requested": {},
+       "evidence_refs": [],
+       "evidence_ledger": {},
+       "gap_count": 0,
+       "corrections": []
+      }
+     },
+     "failure_layer": null,
+     "failure_owner": null,
+     "failure": {
+      "layer": "execution",
+      "owner": "capability",
+      "basis": "tool_verification_failed"
+     },
+     "success_kinds": {
+      "task_success": false,
+      "tool_success": false,
+      "delivery_success": null,
+      "task_success_basis": "objective_not_met"
+     }
+    }
+   },
+   "routing_notice": null
+  },
+  "proposal": {
+   "proposal_kind": "evidence_read",
+   "reason": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes.",
+   "evidence_reads": [
+    {
+     "step_id": "evidence-1",
+     "title": "Verify Purchase Order",
+     "source_id": "doc_9cde732cfb4fbbb2c1f12467",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-2",
+     "title": "Verify Receiving Record",
+     "source_id": "doc_271de261d788af8b4a2f3f67",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-3",
+     "title": "Verify Supplier Invoice",
+     "source_id": "doc_9cde732cfb4fbbb2c1f12467",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-4",
+     "title": "Verify Warehouse Inventory",
+     "source_id": "doc_271de261d788af8b4a2f3f67",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    },
+    {
+     "step_id": "evidence-5",
+     "title": "Verify Quote from Authorized Fresh Price List",
+     "source_id": "doc_9cde732cfb4fbbb2c1f12467",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": ""
+    }
+   ],
+   "clarification": null
+  },
+  "proposal_source": "model",
+  "technical_fallback": false,
+  "proposal_errors": [],
+  "employee_routing": {
+   "mode": "pinned",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "resolved_model": "llama3.1:8b",
+   "profile": {
+    "name": "employee_adaptive_planning_compact",
+    "version": "2026-11-04.1"
+   },
+   "error": null
+  },
+  "adaptive_rounds": [
+   {
+    "source": "deterministic",
+    "technical_fallback": true,
+    "decision": "evidence_read",
+    "errors": [
+     "duplicate evidence step_id 'source-1'",
+     "duplicate evidence step_id 'source-1'",
+     "duplicate evidence step_id 'source-1'",
+     "duplicate evidence step_id 'source-1'"
+    ],
+    "failure_stage": null,
+    "attempt_id": null,
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 2,
+    "proposal_kind": "evidence_read",
+    "proposal_reason": "No model proposal is available; read the strongest authorized source so the employee can establish evidence without guessing.",
+    "proposal_sources": [
+     "e659c299-26c7-495f-8d88-475e99eb3932"
+    ],
+    "proposal_clarification": {},
+    "observation_ids": [
+     "evidence-a54dc26c300e5253fabf"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "e659c299-26c7-495f-8d88-475e99eb3932",
+      "file_name": "price-book-fresh.xlsx"
+     }
+    ],
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": null,
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 1,
+    "proposal_kind": "evidence_read",
+    "proposal_reason": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes.",
+    "proposal_sources": [
+     "doc_9cde732cfb4fbbb2c1f12467",
+     "e659c299-26c7-495f-8d88-475e99eb3932"
+    ],
+    "proposal_clarification": {},
+    "observation_ids": [
+     "evidence-a54dc26c300e5253fabf",
+     "evidence-69add27a286b7fe49d10"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "doc_271de261d788af8b4a2f3f67",
+      "file_name": "invoice-fresh.json"
+     }
+    ],
+    "repair_source": "deterministic",
+    "repair_sources": [
+     "doc_271de261d788af8b4a2f3f67"
+    ],
+    "repair": "unread_scope",
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "c94ee2f25336410aa9b4f85d3400b1e2",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-a54dc26c300e5253fabf",
+     "evidence-69add27a286b7fe49d10",
+     "evidence-7c3a263ac5d4d9fb1b76"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "await_evidence",
+    "execution_status": "waiting"
+   },
+   {
+    "source": "model_compact",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "174d927548094ebe9f264bb1c0253e32",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning_compact",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-69add27a286b7fe49d10",
+     "evidence-7c3a263ac5d4d9fb1b76"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "quote_calculation",
+    "execution_status": "waiting"
+   }
+  ],
+  "plan_revision": 1,
+  "teaching_revision": "untrained"
+ },
+ "expected_quote": "145.00",
+ "expected_reconciliation": "113.00",
+ "start_result": {
+  "status": "waiting",
+  "wait_status": "waiting",
+  "wait": {
+   "event": "external_fact",
+   "state": "waiting_for_external",
+   "party": "authorized receiving source",
+   "correlation_id": "await-9ac5fe9af53639aa278b",
+   "resume_on": "response",
+   "detail": "receiving for purchase order PO-QH-8100",
+   "fact": "receiving",
+   "subject": "purchase order PO-QH-8100",
+   "expected_answer_type": "quantity",
+   "blocks": "invoice reconciliation",
+   "deadline": "",
+   "validity": "",
+   "typed_binding": true,
+   "since": "2026-11-04T19:50:13.779395+00:00"
+  },
+  "quote_status": "applied",
+  "quote": "145.00",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b"
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd"
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286"
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "waiting",
+    "operation_id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0"
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3"
+   }
+  ]
+ },
+ "receiving_source": {
+  "id": "doc_76a4acc9c158f3d88a7059b6",
+  "title": "receiving-records-fresh.json",
+  "type": "application/octet-stream",
+  "metadata": {
+   "source": "upload",
+   "size": 79,
+   "title": "receiving-records-fresh.json",
+   "filename": "receiving-records-fresh.json",
+   "file_type": "json",
+   "ingested_at": "2026-11-04T14:50:30.887096",
+   "doc_id": "doc_76a4acc9c158f3d88a7059b6",
+   "pg_document_id": "doc_76a4acc9c158f3d88a7059b6",
+   "source_type": "upload",
+   "integration_id": "manual_upload",
+   "source_content_hash": "ev4:76a4acc9c158f3d88a7059b6d9dd6e97b50f0f16d41e02aa0e8af5f8b3a77067",
+   "author": "admin@example.com"
+  },
+  "ingested_at": "2026-11-04T14:50:30.887096",
+  "chunk_count": 1
+ },
+ "source_add": {
+  "status": "applied",
+  "patch_id": "source-add-ef64d13be9e7d04e",
+  "material_digest": "e731706e4602ed67e22397a92374328b2d1be3d78b2e3a07229879c9d195a3e8",
+  "affected_steps": [],
+  "updated_steps": [],
+  "retained_steps": [
+   "source-1",
+   "source-2",
+   "source-3",
+   "await",
+   "quote-lines",
+   "quote-total"
+  ],
+  "added_requirements": [],
+  "added_criteria": [],
+  "plan_revision": 6,
+  "assignment": {
+   "run_id": "cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4",
+   "assignment": {
+    "assignment_id": "asg-a3684d1eb34a4667",
+    "objective": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+    "employee_id": "ca326a53-e54d-4176-be22-67e7fc7f0a14",
+    "workspace_id": "default",
+    "plan_revision": 6,
+    "status": "waiting",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "6d661d6a3009927e14ba19cec1e29d7a",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [
+     {
+      "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+      "operation": "invoice_reconciliation",
+      "label": "invoice reconciliation",
+      "subject": "purchase order PO-QH-8100",
+      "subject_identity": {
+       "po_id": "PO-QH-8100",
+       "invoice_id": "INV-QH-99"
+      },
+      "fact": "receiving",
+      "correlation_id": "await-9ac5fe9af53639aa278b",
+      "status": "unresolved",
+      "next_action": "Answer the authorized request for receiving."
+     }
+    ],
+    "deliverables": [
+     {
+      "deliverable_id": "del-requested-output",
+      "kind": "document",
+      "description": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+      "required": true,
+      "step_id": "requested-artifact",
+      "status": "pending",
+      "artifact_revision": null,
+      "artifact_path": null,
+      "sha256": null
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "e659c299-26c7-495f-8d88-475e99eb3932",
+       "dataset_name": "upload_price_book_fresh__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:d679624066999a4bbbe7ffcd7f88c514b94e459b",
+       "original_file_name": "price-book-fresh.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "d679624066999a4bbbe7ffcd7f88c514b94e459b",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "ca326a53-e54d-4176-be22-67e7fc7f0a14",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_9cde732cfb4fbbb2c1f12467",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_9cde732cfb4fbbb2c1f12467",
+       "original_file_name": "purchase-order-fresh.json",
+       "representation": "document_text",
+       "source_version": "ev4:9cde732cfb4fbbb2c1f124672de6ad05541709f9de1905d39f57fbf766d89301",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 130
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_271de261d788af8b4a2f3f67",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_271de261d788af8b4a2f3f67",
+       "original_file_name": "invoice-fresh.json",
+       "representation": "document_text",
+       "source_version": "ev4:271de261d788af8b4a2f3f67ae75b4ca69a27ae950b602368ec6eec11578f63e",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 136
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 18,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 3600.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 7,
+     "started_at": "2026-11-04T19:48:09.053117+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 17.066,
+     "waiting_since": "2026-11-04T19:50:13.779395+00:00",
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": {
+      "id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+      "step_id": "await",
+      "correlation_id": "await-9ac5fe9af53639aa278b",
+      "started_at": "2026-11-04T19:50:13.779395+00:00"
+     },
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {
+      "asg-a3684d1eb34a4667:idle:1793821813.791132": {
+       "started_at": "2026-11-04T19:50:13.791132+00:00",
+       "ended_at": "2026-11-04T19:50:30.767863+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      },
+      "asg-a3684d1eb34a4667:idle:1793821830.8509471": {
+       "started_at": "2026-11-04T19:50:30.850947+00:00",
+       "ended_at": "2026-11-04T19:50:30.933718+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      }
+     },
+     "idle_open": {
+      "id": "asg-a3684d1eb34a4667:idle:1793821830.985385",
+      "started_at": "2026-11-04T19:50:30.985385+00:00",
+      "reason": "all runnable branches are waiting"
+     },
+     "working_seconds": 124.873,
+     "wall_seconds": 141.939
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read purchase-order-fresh.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b",
+      "attempts": 0,
+      "result_summary": "read structured doc_9cde732cfb4fbbb2c1f12467.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read price-book-fresh.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read invoice-fresh.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:invoice-fresh.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "await",
+      "title": "Wait for receiving for purchase order PO-QH-8100",
+      "operation_type": "retrieve",
+      "adapter": "assignment.wait",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "waiting",
+      "recovery_class": "waiting_for_event",
+      "operation_id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+      "attempts": 0,
+      "result_summary": null,
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {
+       "event": "external_fact",
+       "state": "waiting_for_external",
+       "party": "authorized receiving source",
+       "correlation_id": "await-9ac5fe9af53639aa278b",
+       "resume_on": "response",
+       "detail": "receiving for purchase order PO-QH-8100",
+       "fact": "receiving",
+       "subject": "purchase order PO-QH-8100",
+       "expected_answer_type": "quantity",
+       "blocks": "invoice reconciliation",
+       "deadline": "",
+       "validity": "",
+       "typed_binding": true,
+       "since": "2026-11-04T19:50:13.779395+00:00"
+      },
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "operation_type": "calculate",
+      "adapter": "quote.lines_from_rows",
+      "depends_on": [
+       "source-2"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0",
+      "attempts": 0,
+      "result_summary": "mapped 2 quote row(s)",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "quote-lines"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+      "attempts": 0,
+      "result_summary": "quote total 145.00 USD (2 lines)",
+      "result_value": "145.00",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-4",
+      "title": "Read receiving-records-fresh.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "3a3912ad-8f8d-4044-a368-9fcaa338dd51",
+      "attempts": 0,
+      "result_summary": "read structured doc_76a4acc9c158f3d88a7059b6.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T19:48:09.043863+00:00",
+    "updated_at": "2026-11-04T19:50:30.974952+00:00",
+    "completed_at": null,
+    "progress": {
+     "total_steps": 7,
+     "required_steps": 7,
+     "completed_steps": 6,
+     "waiting_steps": 1,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 0
+    }
+   },
+   "open_gaps": [],
+   "operations": [
+    {
+     "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_9cde732cfb4fbbb2c1f12467.json"
+    },
+    {
+     "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book-fresh.xlsx / Prices"
+    },
+    {
+     "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:invoice-fresh.json"
+    },
+    {
+     "operation_id": "bf62b4ef-4fa5-4c79-a01d-fe371c4ae05c",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "waiting",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": null
+    },
+    {
+     "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0",
+     "step_id": "quote-lines",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+     "step_id": "quote-total",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 145.00 USD (2 lines)"
+    },
+    {
+     "operation_id": "3a3912ad-8f8d-4044-a368-9fcaa338dd51",
+     "step_id": "source-4",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_76a4acc9c158f3d88a7059b6.json"
+    }
+   ]
+  },
+  "resolved_question_ids": [],
+  "mismatched_question_ids": [],
+  "observed_purchase_order": "PO-QH-8100",
+  "reassessment_rounds": []
+ },
+ "restart_result": {
+  "status": "waiting",
+  "wait_status": "waiting",
+  "correlation_id": "await-9ac5fe9af53639aa278b",
+  "same_wait": true
+ },
+ "reply": {
+  "status": 200,
+  "body": "{\"run_id\":\"cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4\",\"assignment\":{\"assignment_id\":\"asg-a3684d1eb34a4667\",\"objective\":\"Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.\",\"employee_id\":\"ca326a53-e54d-4176-be22-67e7fc7f0a14\",\"workspace_id\":\"default\",\"plan_revision\":6,\"status\":\"blocked\",\"teaching_revision\":\"untrained\",\"teaching_fingerprint\":\"6d661d6a3009927e14ba19cec1e29d7a\",\"teaching_history\":[],\"effective_lesson_ids\":[],\"mappings\":[],\"mapping_history\":[],\"business_requirements\":[{\"requirement_id\":\"result-invoice_reconciliation-d05ea277bef2906190fc\",\"operation\":\"invoice_reconciliation\",\"label\":\"invoice reconciliation\",\"subject\":\"purchase order PO-QH-8100\",\"subject_identity\":{\"po_id\":\"PO-QH-8100\",\"invoice_id\":\"INV-QH-99\"},\"fact\":\"receiving\",\"correlation_id\":\"await-9ac5fe9af53639aa278b\",\"status\":\"unresolved\",\"next_action\":\"The external fact is recorded; invoice reconciliation still needs completion.\"}],\"deliverables\":[{\"deliverable_id\":\"del-requested-output\",\"kind\":\"document\",\"description\":\"Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.\",\"required\":true,\"step_id\":\"requested-artifact\",\"status\":\"pending\",\"artifact_revision\":null,\"artifact_path\":null,\"sha256\":null}],\"sources\":[{\"kind\":\"workbook\",\"binding\":{\"resource_id\":\"e659c299-26c7-495f-8d88-475e99eb3932\",\"dataset_name\":\"upload_price_book_fresh__prices\",\"source\":\"upload\",\"source_kind\":\"file\",\"external_id\":\"sha1:d679624066999a4bbbe7ffcd7f88c514b94e459b\",\"original_file_name\":\"price-book-fresh.xlsx\",\"representation\":\"parquet_frame\",\"source_version\":\"d679624066999a4bbbe"
+ },
+ "finish_result": {
+  "status": "completed",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "022d5485-ac3e-408a-a1e9-26c032e8207b",
+    "result_value": null
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "c209e8c0-5393-4801-b2d3-e3362d48c8fd",
+    "result_value": null
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "ddee852b-d618-478b-9eea-d6d0d2bb5286",
+    "result_value": null
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "applied",
+    "operation_id": "7670548b-105f-4410-83a3-69984a8e5b47",
+    "result_value": "received 4 units"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "03c47453-6961-4229-8a92-2ee047bbaeb0",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "f55964e1-2df6-47bc-9dd3-df5843ff89d3",
+    "result_value": "145.00"
+   },
+   {
+    "step_id": "source-4",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "3a3912ad-8f8d-4044-a368-9fcaa338dd51",
+    "result_value": null
+   },
+   {
+    "step_id": "invoice-reconcile",
+    "adapter": "invoice.reconcile",
+    "status": "applied",
+    "operation_id": "eb343a12-ac4c-4649-aae2-3661c2c4461e",
+    "result_value": "113.00"
+   },
+   {
+    "step_id": "requested-artifact",
+    "adapter": "artifact.document",
+    "status": "applied",
+    "operation_id": "39dd0031-218f-4d2c-9394-aa451fed0a6e",
+    "result_value": null
+   }
+  ],
+  "requirements": [
+   {
+    "requirement_id": "result-invoice_reconciliation-d05ea277bef2906190fc",
+    "operation": "invoice_reconciliation",
+    "label": "invoice reconciliation",
+    "subject": "purchase order PO-QH-8100",
+    "subject_identity": {
+     "po_id": "PO-QH-8100",
+     "invoice_id": "INV-QH-99"
+    },
+    "fact": "receiving",
+    "correlation_id": "await-9ac5fe9af53639aa278b",
+    "status": "satisfied",
+    "next_action": null
+   }
+  ],
+  "deliverable": {
+   "deliverable_id": "del-requested-output",
+   "kind": "document",
+   "description": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.",
+   "required": true,
+   "step_id": "requested-artifact",
+   "status": "applied",
+   "artifact_revision": "628fe6b1dbba38d7",
+   "artifact_path": "/private/tmp/atom-heldout-clean/backend/data/acceptance_worlds/g5-fresh5-api/data/assignments/default/ca326a53-e54d-4176-be22-67e7fc7f0a14/draft-8448eb1dc60e/reconcile-supplier-invoice-inv-qh-99-for-po-qh-8100-against--aedd2e46.docx",
+   "sha256": "628fe6b1dbba38d7c6228cb667cf10c0cd39e6c8bc8758d72f385aa4d4f76ae7"
+  },
+  "artifact_path": "/private/tmp/atom-heldout-clean/backend/data/acceptance_worlds/g5-fresh5-api/data/assignments/default/ca326a53-e54d-4176-be22-67e7fc7f0a14/draft-8448eb1dc60e/reconcile-supplier-invoice-inv-qh-99-for-po-qh-8100-against--aedd2e46.docx",
+  "artifact_text": "Reconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fr\nObjective\nReconcile supplier invoice INV-QH-99 for PO-QH-8100 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized fresh price list, and deliver a review document when the reconciliation is settled.\nSummary\n5*14.00 + 3*22.00 + freight = 145.00 USD\nreconciled invoice total 113.00 USD against received quantity 4: 113.00 USD\nFindings\nquote-total\nSources\nupload_price_book_fresh__prices\nprice-book-fresh.xlsx\nPrices\ne659c299-26c7-495f-8d88-475e99eb3932\npurchase-order-fresh.json\ndoc_9cde732cfb4fbbb2c1f12467\ninvoice-fresh.json\ndoc_271de261d788af8b4a2f3f67\nAudit\nCalculation step: quote-total\nCalculation step: invoice-reconcile\nRow set: quote-total \u00b7 2 row(s)\nitem=QH-21\nitem=QH-22\nRow | Item | Description | Qty | Unit | Unit price | Discount | Net | Currency\n | QH-21 | QH-21 | 5 | each | 14.00 | 0.00 | 70.00 | USD\n | QH-22 | QH-22 | 3 | each | 22.00 | 0.00 | 66.00 | USD",
+  "checks": {
+   "same_run": true,
+   "same_wait": true,
+   "restart_preserved_waiting": true,
+   "quote_total_145": true,
+   "reconciliation_total_113": true,
+   "assignment_completed": true,
+   "requirements_satisfied": true,
+   "artifact_applied": true,
+   "artifact_quote_145": true,
+   "artifact_reconciliation_113": true,
+   "artifact_sha_matches": true
+  },
+  "all_checks_passed": true
+ }
+}

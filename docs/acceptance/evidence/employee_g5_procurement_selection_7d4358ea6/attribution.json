@@ -1,0 +1,168 @@
+{
+ "objective_names_business_identities_only": "Reconcile supplier invoice INV-SEL-77 for purchase order PO-SEL-520 against the matching purchase order and the warehouse receiving record. Use only the authorized procurement workspace; do not use superseded or unrelated records.",
+ "authorized_pool_files": [
+  "ap-inbox-0402.json",
+  "ap-inbox-0411.json",
+  "ap-inbox-0412.json",
+  "dock-receipt-07.json",
+  "dock-receipt-19.json",
+  "po-archive-88.json",
+  "warehouse-memo.txt"
+ ],
+ "positive": {
+  "initial_proposal_source": "model",
+  "initial_proposal_sources": [
+   "doc_c38617b5ef5dd5b9fb27d63d",
+   "doc_7537055c69f8924141c435da",
+   "doc_ae7e29b19061bccc258a0e82",
+   "doc_a2f83610de258efeeca731f0",
+   "doc_056ad9eadbff15c6f4d3f76b"
+  ],
+  "rounds": [
+   {
+    "source": "model",
+    "repair_source": null,
+    "proposal_sources": [
+     "doc_c38617b5ef5dd5b9fb27d63d",
+     "doc_7537055c69f8924141c435da"
+    ],
+    "selected_files": [
+     "ap-inbox-0411.json"
+    ],
+    "repair_files": [],
+    "adoption_status": "applied",
+    "execution_status": "blocked",
+    "proposal_files": [
+     "warehouse-memo.txt",
+     "ap-inbox-0411.json"
+    ]
+   },
+   {
+    "source": "deterministic",
+    "repair_source": "model",
+    "proposal_sources": [
+     "doc_c38617b5ef5dd5b9fb27d63d"
+    ],
+    "selected_files": [
+     "dock-receipt-07.json",
+     "ap-inbox-0402.json",
+     "po-archive-88.json",
+     "ap-inbox-0412.json",
+     "dock-receipt-19.json"
+    ],
+    "repair_files": [
+     "dock-receipt-07.json",
+     "ap-inbox-0402.json",
+     "po-archive-88.json",
+     "ap-inbox-0412.json",
+     "dock-receipt-19.json"
+    ],
+    "adoption_status": "applied",
+    "execution_status": "blocked",
+    "proposal_files": [
+     "warehouse-memo.txt"
+    ]
+   },
+   {
+    "source": "model_compact",
+    "repair_source": null,
+    "proposal_sources": null,
+    "selected_files": [],
+    "repair_files": [],
+    "adoption_status": "applied",
+    "execution_status": "completed",
+    "proposal_files": []
+   }
+  ],
+  "typed_roles": {
+   "invoice": {
+    "step_id": "source-6",
+    "file_name": "ap-inbox-0412.json"
+   },
+   "purchase_order": {
+    "step_id": "source-5",
+    "file_name": "po-archive-88.json"
+   },
+   "receiving": {
+    "step_id": "source-7",
+    "file_name": "dock-receipt-19.json"
+   }
+  },
+  "model_selected_files": [
+   "ap-inbox-0402.json",
+   "ap-inbox-0411.json",
+   "ap-inbox-0412.json",
+   "dock-receipt-07.json",
+   "dock-receipt-19.json",
+   "po-archive-88.json",
+   "warehouse-memo.txt"
+  ]
+ },
+ "missing": {
+  "before_add_question": [
+   {
+    "question_id": "c8866f65-e00d-42ba-8923-adc8d007bb3c",
+    "item": "invoice reconciliation",
+    "question": "Which authorized source contains invoice INV-SEL-77 for purchase order PO-SEL-520?",
+    "kind": "missing_evidence",
+    "evidence": "",
+    "next_action": "Authorize or name the source that contains the missing business record.",
+    "decision_owner": null,
+    "inputs": {
+     "operation": "invoice_reconciliation",
+     "missing": [
+      "invoice"
+     ],
+     "known_identities": {
+      "purchase_order.po_id": "PO-SEL-520",
+      "purchase_order.vendor_id": "V-63",
+      "receiving.po_id": "PO-SEL-520"
+     },
+     "evidence_step_ids": [
+      "source-2",
+      "source-3",
+      "source-4",
+      "source-5",
+      "source-6"
+     ]
+    },
+    "concept": "invoice_reconciliation",
+    "reason": "the accepted evidence does not satisfy the required role(s): invoice",
+    "affected_subjects": [],
+    "checked_evidence": [],
+    "next_retrieval": "Which authorized source contains invoice INV-SEL-77 for purchase order PO-SEL-520?",
+    "resolver": null,
+    "step_id": null,
+    "waiting": null,
+    "status": "open",
+    "attempts": 0,
+    "opened_at": "2026-11-04T21:52:13.732894+00:00",
+    "resolved_at": null,
+    "resolution": null,
+    "source_operation": null
+   }
+  ],
+  "before_add_status": "blocked",
+  "after_add_roles": {
+   "invoice": {
+    "step_id": "source-7",
+    "file_name": "ap-inbox-0412.json"
+   },
+   "purchase_order": {
+    "step_id": "source-5",
+    "file_name": "po-archive-88.json"
+   },
+   "receiving": {
+    "step_id": "source-6",
+    "file_name": "dock-receipt-19.json"
+   }
+  },
+  "after_add_round_sources": [
+   {
+    "source": "model_compact",
+    "decision": "replan",
+    "work_request_operation": "invoice_reconciliation"
+   }
+  ]
+ }
+}

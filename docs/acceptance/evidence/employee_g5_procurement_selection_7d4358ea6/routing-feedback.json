@@ -1,0 +1,169 @@
+{
+ "source": "7d4358ea6708f1c568caed78e972ad2f0c79d8f8",
+ "pinned_route": {
+  "provider": "ollama",
+  "model": "llama3.1:8b"
+ },
+ "positive": [
+  {
+   "stage": "evidence_selection",
+   "source": "model",
+   "repair_source": null,
+   "profile": "employee_evidence_selection",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "selected_sources"
+  },
+  {
+   "stage": "evidence_selection",
+   "source": "deterministic",
+   "repair_source": "model",
+   "profile": "employee_evidence_selection",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "selected_sources"
+  },
+  {
+   "stage": "evidence_selection",
+   "source": "model_compact",
+   "repair_source": null,
+   "profile": "employee_adaptive_planning_compact",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "clarification"
+  }
+ ],
+ "missing": [
+  {
+   "stage": "evidence_selection",
+   "source": "model",
+   "repair_source": null,
+   "profile": "employee_evidence_selection",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "selected_sources"
+  },
+  {
+   "stage": "evidence_selection",
+   "source": "model",
+   "repair_source": "model",
+   "profile": "employee_evidence_selection",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "selected_sources"
+  },
+  {
+   "stage": "evidence_selection",
+   "source": "deterministic",
+   "repair_source": null,
+   "profile": "employee_wait_choice",
+   "served_route": null,
+   "outcome": "clarification"
+  },
+  {
+   "stage": "adaptation",
+   "source": "model_compact",
+   "profile": "employee_adaptive_planning_compact",
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "outcome": "replan"
+  }
+ ],
+ "business_outcomes": {
+  "positive": {
+   "value": "121.00",
+   "state": "satisfied",
+   "role_files": {
+    "invoice": {
+     "step_id": "source-6",
+     "file_name": "ap-inbox-0412.json"
+    },
+    "purchase_order": {
+     "step_id": "source-5",
+     "file_name": "po-archive-88.json"
+    },
+    "receiving": {
+     "step_id": "source-7",
+     "file_name": "dock-receipt-19.json"
+    }
+   }
+  },
+  "missing_before_add": {
+   "state": "unresolved",
+   "question": [
+    {
+     "question_id": "c8866f65-e00d-42ba-8923-adc8d007bb3c",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains invoice INV-SEL-77 for purchase order PO-SEL-520?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [
+       "invoice"
+      ],
+      "known_identities": {
+       "purchase_order.po_id": "PO-SEL-520",
+       "purchase_order.vendor_id": "V-63",
+       "receiving.po_id": "PO-SEL-520"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3",
+       "source-4",
+       "source-5",
+       "source-6"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): invoice",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains invoice INV-SEL-77 for purchase order PO-SEL-520?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T21:52:13.732894+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ]
+  },
+  "missing_after_add": {
+   "value": "121.00",
+   "state": "satisfied",
+   "role_files": {
+    "invoice": {
+     "step_id": "source-7",
+     "file_name": "ap-inbox-0412.json"
+    },
+    "purchase_order": {
+     "step_id": "source-5",
+     "file_name": "po-archive-88.json"
+    },
+    "receiving": {
+     "step_id": "source-6",
+     "file_name": "dock-receipt-19.json"
+    }
+   }
+  }
+ },
+ "attribution": "discovery/model selection, deterministic fallback and typed role mapping are recorded separately; no automatic multi-model selection claim"
+}

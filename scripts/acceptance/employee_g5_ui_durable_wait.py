@@ -37,8 +37,9 @@ from playwright.sync_api import sync_playwright
 
 OBJECTIVE = (
     "Reconcile the supplier invoice for PO-8841 against the purchase order "
-    "and receiving records, and prepare the quote from the authorized price "
-    "list.")
+    "and the receiving record the warehouse still owes. While that record is "
+    "pending, prepare the quote from the authorized price list, and deliver a "
+    "review document when the reconciliation is settled.")
 TEACHING_TERMS = {
     "currency": "USD",
     "freight": "20.00",
@@ -69,6 +70,26 @@ def _record(body: Dict[str, Any]) -> Dict[str, Any]:
         return {}
     nested = container.get("assignment")
     return nested if isinstance(nested, dict) else container
+
+
+def _deliverable(assignment: Dict[str, Any]) -> Dict[str, Any]:
+    return next((
+        item for item in assignment.get("deliverables") or []
+        if item.get("kind") == "document"), {})
+
+
+def _artifact_text(deliverable: Dict[str, Any]) -> str:
+    import docx
+
+    path = Path(str(deliverable.get("artifact_path") or ""))
+    if not path.is_file():
+        return ""
+    document = docx.Document(str(path))
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    for table in document.tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    return text
 
 
 def _wait_step(assignment: Dict[str, Any]) -> Dict[str, Any]:
@@ -105,7 +126,12 @@ def _login_page(page, base: str, password: str) -> None:
         page.fill('[data-testid="login-email-input"]', "admin@example.com")
         page.fill('[data-testid="login-password-input"]', password)
         page.locator('[data-testid="login-submit-button"]').click()
-        page.wait_for_timeout(6000)
+        try:
+            page.wait_for_url(
+                lambda url: "/login" not in url, timeout=60000)
+        except Exception:  # noqa: BLE001 — the upload gate below is the proof
+            pass
+        page.wait_for_timeout(2000)
 
 
 def _open_run(page, base: str, run_id: str) -> None:
@@ -153,6 +179,12 @@ def main() -> int:
                 args.base + "/assignments", wait_until="networkidle",
                 timeout=90000)
             page.get_by_test_id("assignment-start").wait_for(timeout=60000)
+            upload = page.get_by_test_id("assignment-source-upload")
+            upload.wait_for(state="visible", timeout=60000)
+            page.wait_for_function(
+                "() => { const el = document.querySelector("
+                "'[data-testid=\"assignment-source-upload\"]');"
+                " return el && !el.disabled; }", timeout=60000)
             for name in ("price-book.xlsx", "purchase-order.json",
                          "invoice-v1.json"):
                 page.get_by_test_id(
@@ -176,7 +208,7 @@ def main() -> int:
             page.get_by_test_id("assignment-teaching-terms-input").fill(
                 json.dumps(TEACHING_TERMS))
             page.get_by_test_id(
-                "assignment-deliverable-kind").select_option("")
+                "assignment-deliverable-kind").select_option("document")
             page.screenshot(
                 path=str(out / "start-form.png"), full_page=True)
             with page.expect_response(
@@ -235,11 +267,19 @@ def main() -> int:
                 page.wait_for_timeout(1500)
             wait = _wait_step(assignment)
             quote = _step(assignment, "quote.calculate")
+            durable = _durable(args.db, run_id)
+            durable_steps = {
+                str(item.get("step_id")): item
+                for item in durable.get("steps") or []
+            }
+            durable_quote = durable_steps.get(
+                str(quote.get("step_id") or ""), {})
             state["start_result"] = {
                 "status": assignment.get("status"),
                 "wait": wait.get("waiting"),
                 "wait_step_id": wait.get("step_id"),
-                "quote_total": (quote.get("result") or {}).get("value"),
+                "quote_total": (
+                    durable_quote.get("result") or {}).get("value"),
                 "quote_step_id": quote.get("step_id"),
                 "quote_operation": quote.get("operation_id"),
                 "steps": [{
@@ -320,20 +360,30 @@ def main() -> int:
         page.wait_for_timeout(1500)
         _open_run(page, args.base, run_id)
         detail = page.get_by_test_id("assignment-detail")
-        response_input = detail.get_by_label("Correlated response")
-        response_input.fill("received 2 units")
-        detail.get_by_test_id("assignment-resolution-value").fill("2")
-        with page.expect_response(
-                lambda response: (
-                    f"/responses/{correlation}" in response.url
-                    and response.request.method == "POST"),
-                timeout=300000) as reply_info:
-            detail.get_by_text("Deliver").click()
-        reply = reply_info.value
-        reply_body = reply.json()
+        current = _record(_detail(args.api, token, run_id))
+        current_wait = _wait_step(current)
+        reply = None
+        reply_body: Dict[str, Any] = {}
+        if str(current_wait.get("status") or "") == "waiting":
+            response_input = detail.get_by_label(
+                "Correlated response").first
+            response_input.fill("received 2 units")
+            detail.get_by_test_id("assignment-resolution-value").fill("2")
+            with page.expect_response(
+                    lambda response: (
+                        f"/responses/{correlation}" in response.url
+                        and response.request.method == "POST"),
+                    timeout=300000) as reply_info:
+                detail.get_by_role(
+                    "button", name="Deliver", exact=True).click()
+            reply = reply_info.value
+            reply_body = reply.json()
         state["reply_result"] = {
-            "status": reply.status,
+            "status": reply.status if reply is not None else None,
             "body": reply_body,
+            "path": (
+                "ui_correlated_reply" if reply is not None
+                else "source_fact_auto"),
         }
         deadline = time.time() + 420
         final = {}
@@ -344,6 +394,28 @@ def main() -> int:
                     "completed", "failed", "blocked", "cancelled"):
                 break
             page.wait_for_timeout(2000)
+        if str(_record(final).get("status") or "") == "blocked":
+            # A failed reasoning turn preserves the job and its receipts.
+            # One explicit advance retries the remaining supported work; it
+            # never invents or repeats a business effect.
+            advanced = requests.post(
+                args.api + f"/api/assignments/{run_id}/advance",
+                headers=headers,
+                json={"use_model": True, "max_adaptations": 2,
+                      "deadline_seconds": 180}, timeout=600)
+            state["retry_result"] = {
+                "status": advanced.status_code,
+                "rounds": advanced.json().get("rounds")
+                if advanced.status_code == 200 else None,
+            }
+            deadline = time.time() + 420
+            while time.time() < deadline:
+                final = _detail(args.api, token, run_id)
+                final_assignment = _record(final)
+                if str(final_assignment.get("status") or "") in (
+                        "completed", "failed", "blocked", "cancelled"):
+                    break
+                page.wait_for_timeout(2000)
         final_assignment = _record(final)
         page.wait_for_timeout(1500)
         page.screenshot(
@@ -362,8 +434,11 @@ def main() -> int:
             "wait_survived_restart": (
                 state["restart_result"]["same_wait"] is True
                 and state["restart_result"]["status"] == "waiting"),
-            "ui_shows_wait_business_language": (
-                "Waiting for received_quantity for PO-8841"
+            "ui_shows_wait_business_language": all(
+                term in state["restart_result"]["detail_text"]
+                for term in ("Waiting", "invoice reconciliation", "PO-8841")),
+            "ui_shows_unresolved_result": (
+                "Still required: invoice reconciliation"
                 in state["restart_result"]["detail_text"]),
             "reply_accepted": reply.status == 200,
             "assignment_completed": (
@@ -380,10 +455,19 @@ def main() -> int:
                 state["start_result"]["quote_operation"]),
             "quote_step_ids_retained": all(
                 step_id in steps for step_id in start_steps),
+            "artifact_applied": (
+                _deliverable(final_assignment).get("status") == "applied"),
+            "artifact_total_270": "270.00" in _artifact_text(
+                _deliverable(final_assignment)),
+            "artifact_quote_total_370": "370.00" in _artifact_text(
+                _deliverable(final_assignment)),
             "no_live_provider": True,
         }
+        deliverable = _deliverable(final_assignment)
         state["finish_result"] = {
             "status": final_assignment.get("status"),
+            "deliverable": deliverable,
+            "artifact_text": _artifact_text(deliverable),
             "steps": [{
                 "step_id": step.get("step_id"),
                 "adapter": step.get("adapter"),

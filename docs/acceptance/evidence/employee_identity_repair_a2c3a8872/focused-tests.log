@@ -1,0 +1,1188 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-04 12:24:53 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+::test_production_loader_preserves_reviewed_identity_when_feedback_is_added PASSED [  0%]
+::test_semantically_bad_transport_success_is_not_eligible PASSED         [  0%]
+::test_missing_workspace_evidence_is_not_assigned_to_requester PASSED    [  0%]
+::test_single_verified_unsafe_outcome_is_not_ignored_by_sample_floor PASSED [  0%]
+::test_strict_capability_pin_cannot_escape_through_planning_wrapper 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:55 [ WARNING] employee adaptation strict qualification pin (('local', 'failed')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_adaptive_planning': controlled rejected pin — no unpinned fallback
+PASSED                                                                   [  1%]
+::test_provider_policy_does_not_expose_other_tenant_decisions PASSED     [  1%]
+::test_old_recovery_does_not_clear_a_new_unsafe_outcome PASSED           [  1%]
+::test_reply_is_not_completion_of_unperformed_required_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:56 [    INFO] runtime identity: source_id=a2c3a8872ad8 revision=a2c3a8872ad8 dirty=False (0 modified, 0 untracked)
+2026-11-04 12:24:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:24:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/86ccaacf-8eec-463f-b5d7-c3274f02427f/sources "HTTP/1.1 200 OK"
+2026-11-04 12:24:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/86ccaacf-8eec-463f-b5d7-c3274f02427f/responses/await-6970c9a405dd1b957372 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+::test_required_po_does_not_accept_a_different_po_with_same_prefix[PO-88410-INV-other] PASSED [  2%]
+::test_required_po_does_not_accept_a_different_po_with_same_prefix[PO-884-INV-other] PASSED [  2%]
+::test_required_po_does_not_accept_a_different_po_with_same_prefix[PO-other-PO-8841] PASSED [  2%]
+tests/test_workload_incident_identity.py::test_production_loader_preserves_reviewed_identity_when_feedback_added 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:56 [    INFO] EscalationManager initialized
+2026-11-04 12:24:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 12:24:56 [    INFO] EscalationManager initialized
+2026-11-04 12:24:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 12:24:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 12:24:57 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_workload_incident_identity.py::test_unrelated_rows_and_reordering_do_not_change_identity PASSED [  3%]
+tests/test_workload_incident_identity.py::test_new_unsafe_observation_after_review_requarantines PASSED [  3%]
+tests/test_workload_incident_identity.py::test_changed_observation_material_cannot_inherit_old_review PASSED [  3%]
+tests/test_workload_incident_identity.py::test_legacy_row_without_identity_or_ordering_fails_closed PASSED [  3%]
+tests/test_workload_capability_routing.py::test_flash_like_cheap_candidate_beats_equivalent_expensive_candidate PASSED [  4%]
+tests/test_workload_capability_routing.py::test_complex_profile_keeps_qualified_flash_eligible PASSED [  4%]
+tests/test_workload_capability_routing.py::test_measured_failure_excludes_flash_and_escalates_once PASSED [  4%]
+tests/test_workload_capability_routing.py::test_expensive_model_with_measured_failure_is_excluded_too PASSED [  4%]
+tests/test_workload_capability_routing.py::test_no_eligible_candidate_is_explicit_not_relaxed PASSED [  5%]
+tests/test_workload_capability_routing.py::test_context_window_mismatch_is_ineligible PASSED [  5%]
+tests/test_workload_capability_routing.py::test_evidence_scope_and_version_do_not_poison_other_workspace PASSED [  5%]
+tests/test_workload_capability_routing.py::test_measured_success_does_not_exclude_efficient_route PASSED [  5%]
+tests/test_workload_capability_routing.py::test_alignment_failure_does_not_ban_extraction_profile PASSED [  6%]
+tests/test_workload_capability_routing.py::test_strict_pin_is_exact_or_failed_no_escape PASSED [  6%]
+tests/test_workload_capability_routing.py::test_profile_resolution_uses_server_label_not_model_name PASSED [  6%]
+tests/test_workload_capability_routing.py::test_decision_journal_persists_across_memory_reset PASSED [  6%]
+tests/test_workload_capability_routing.py::test_llm_service_forwards_capability_profile_to_handler PASSED [  7%]
+tests/test_workload_capability_routing.py::test_pinned_call_adds_profile_from_server_label PASSED [  7%]
+tests/test_workload_capability_routing.py::test_production_bpc_ranks_economical_flash_over_expensive_equal 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 12:24:57 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [    INFO] LocalOnlyGuard initialized
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model flash (Value: 2.70)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown; frontier/expensive: provider_catalog_unknown
+PASSED                                                                   [  7%]
+tests/test_workload_capability_routing.py::test_production_bpc_no_suitable_returns_empty_and_journals 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 12:24:57 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'fast/weak', 'reasons': ['below_quality_prior']}])
+PASSED                                                                   [  7%]
+tests/test_workload_capability_routing.py::test_bounded_escalation_selects_a_better_eligible_candidate_once PASSED [  8%]
+tests/test_workload_capability_routing.py::test_no_escalation_when_profile_does_not_allow_it PASSED [  8%]
+tests/test_workload_capability_routing.py::test_profile_floor_keeps_capable_flash_eligible_on_complex_call 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 12:24:57 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for complex: Top model flash (Value: 72.25)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown
+PASSED                                                                   [  8%]
+tests/test_workload_capability_routing.py::test_explicit_quality_preference_can_choose_stronger_eligible_route PASSED [  8%]
+tests/test_workload_capability_routing.py::test_semantic_transport_success_is_not_satisfactory PASSED [  9%]
+tests/test_workload_capability_routing.py::test_missing_workspace_evidence_is_not_assigned_to_reader PASSED [  9%]
+tests/test_workload_capability_routing.py::test_provider_missing_evidence_is_not_transferred_across_providers PASSED [  9%]
+tests/test_workload_capability_routing.py::test_single_unsafe_outcome_quarantines_until_reviewed_recovery PASSED [  9%]
+tests/test_workload_capability_routing.py::test_strict_profile_pin_does_not_escape_through_wrapper 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] employee adaptation strict qualification pin (('local', 'failed')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_adaptive_planning': controlled rejected pin — no unpinned fallback
+PASSED                                                                   [ 10%]
+tests/test_workload_capability_routing.py::test_decision_history_requires_exact_workspace_and_tenant PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_journal_path_is_world_owned_when_configured PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_provider_policy_route_hides_other_scope_decisions PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_feedback_carries_profile_metadata_for_persistence PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_semantic_failure_overrides_transport_and_quality_flags PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_old_recovery_does_not_release_a_new_unsafe_incident PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_employee_proposal_and_pin_attribution_are_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] employee work proposal strict qualification pin (('local', 'weak')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_evidence_selection': controlled no suitable route — no unpinned fallback
+PASSED                                                                   [ 11%]
+tests/test_workload_capability_routing.py::test_route_attribution_is_call_local_and_clears_stale_served_state PASSED [ 12%]
+tests/test_workload_capability_routing.py::test_strict_pin_no_result_is_explicit_and_not_served 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] employee work proposal strict qualification pin (('fast', 'flash')) returned no result — failed qualification attempt, no unpinned fallback
+PASSED                                                                   [ 12%]
+tests/test_workload_capability_routing.py::test_successful_unpinned_fallback_clears_prior_pin_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] employee work proposal pinned call raised (('pin', 'unavailable')): no_suitable_configured_model for profile 'employee_evidence_selection': pinned candidate unavailable — retrying unpinned
+2026-11-04 12:24:57 [    INFO] employee work proposal pinned call (('pin', 'unavailable')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 12%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_lux_excluded_from_general_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 12%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_lux_included_for_computer_use 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 13%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_filter_vision_only 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown
+PASSED                                                                   [ 13%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_filter_no_requirement 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 13%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_specific_quality_score 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 13%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_fallback_to_generic_score 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 7.22)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 14%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_excluded_models_cache PASSED [ 14%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_refresh_excluded_cache PASSED [ 14%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_unhealthy_excluded 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model deepseek-chat (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: deepseek/deepseek-chat: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 14%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_healthy_included 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_unknown_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_and_health_combined 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_multiple_capability_models 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_vision_capability_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 16%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_tools_capability_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.65)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 16%]
+tests/test_pinned_planning_scope.py::test_startup_lacks_provider_requested_workspace_has_it_pin_retained PASSED [ 16%]
+tests/test_pinned_planning_scope.py::test_startup_has_provider_requested_workspace_lacks_it_pin_refused PASSED [ 16%]
+tests/test_pinned_planning_scope.py::test_two_overlapping_workspaces_retain_their_respective_scopes PASSED [ 17%]
+tests/test_pinned_planning_scope.py::test_unresolved_scope_cannot_borrow_another_handler PASSED [ 17%]
+tests/test_pinned_planning_scope.py::test_local_only_policy_still_blocks_cloud_pins 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] LOCAL-ONLY: pin opencode-go/deepseek-v4-pro refused — cloud dispatch is blocked; the call routes locally instead
+PASSED                                                                   [ 17%]
+tests/test_pinned_planning_scope.py::test_unpinned_fallback_behavior_unchanged 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] test pinned call (('opencode-go', 'deepseek-v4-pro')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 17%]
+tests/test_pinned_planning_scope.py::test_resolve_pinned_provider_model_threads_scope PASSED [ 18%]
+tests/test_pinned_planning_scope.py::test_plan_structured_threads_turn_scope_into_the_gate PASSED [ 18%]
+tests/test_pinned_planning_transport.py::test_constructed_client_carries_go_url_and_required_headers 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+PASSED                                                                   [ 18%]
+tests/test_pinned_planning_transport.py::test_pinned_dispatch_reaches_go_url_with_intended_model 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+2026-11-04 12:24:57 [    INFO] Auto-populating pricing cache synchronously...
+2026-11-04 12:24:57 [    INFO] HTTP Request: GET https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json "HTTP/1.1 200 OK"
+2026-11-04 12:24:57 [    INFO] Fetched 4541 model prices from LiteLLM
+2026-11-04 12:24:57 [    INFO] HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"
+2026-11-04 12:24:57 [    INFO] Fetched 454 model prices from OpenRouter (incl. curated overrides)
+2026-11-04 12:24:57 [    INFO] HTTP Request: GET https://opencode.ai/zen/v1/models "HTTP/1.1 200 OK"
+2026-11-04 12:24:57 [    INFO] OpenCode Zen serves 1 model(s) missing from OPCODE_KNOWN_PRICES — dropped until priced: muse-wonder-1.0
+2026-11-04 12:24:57 [    INFO] Fetched 69 OpenCode Zen model prices (80 served; table-merged)
+2026-11-04 12:24:57 [    INFO] Inferring capabilities for all models...
+2026-11-04 12:24:57 [    INFO] Saved 4997 model prices to cache
+2026-11-04 12:24:57 [    INFO] Pricing cache populated with 4997 models
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 13308.30)
+2026-11-04 12:24:57 [ WARNING] no ranked route is verified against a provider catalogue (11 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: opencode-go/glm-5.3-flash: provider_catalog_unknown; opencode-go/minimax-m3: provider_catalog_unknown; opencode-go/minimax-m2.7: provider_catalog_unknown; opencode-go/deepseek-v4.1-flash: provider_catalog_unknown
+2026-11-04 12:24:57 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-04 12:24:57 [    INFO] Structured generation (free, Managed): opencode-go/deepseek-v4-pro
+2026-11-04 12:24:57 [    INFO] [structured-dispatch] opencode-go/deepseek-v4-pro route=structured-e5dc07e50a26 attempt=1 prompt_chars=22 cap=1000 instructor_retries=2
+2026-11-04 12:24:57 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-04 12:24:57 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion2:planning' after 0.0s
+2026-11-04 12:24:57 [    INFO] [structured-trace] opencode-go/deepseek-v4-pro cap=1000 dur=0.0s finish=tool_calls content_present=True tool_calls_present=True result_type=_Out route=structured-e5dc07e50a26 attempt=1
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+2026-11-04 12:24:57 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-04 12:24:57 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 18%]
+tests/test_pinned_planning_transport.py::test_failed_pin_fallback_does_not_disguise_an_incompatible_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 12:24:57 [    INFO] EscalationManager initialized
+2026-11-04 12:24:57 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 13308.30)
+2026-11-04 12:24:57 [    INFO] Structured generation (free, Managed): opencode-go/deepseek-v4-pro
+2026-11-04 12:24:57 [    INFO] [structured-dispatch] opencode-go/deepseek-v4-pro route=structured-eadda6ca8079 attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 12:24:57 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 12:24:57 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion2:general' after 0.0s
+2026-11-04 12:24:57 [ WARNING] Structured attempt failed for opencode-go/deepseek-v4-pro: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [ WARNING] [structured-pool] depth=0 candidates=[('opencode-go', 'deepseek-v4-pro')] attempted=True credit_failed=[]
+2026-11-04 12:24:57 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 12:24:57 [    INFO] [route-exclusions] {"classification": {"pre_pool_catalog_not_in_provider": 5}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"opencode-go": 1}, "size": 1}, "pre_pool_skips": [{"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.1", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.3", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/gpt-5.3-codex-spark", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.5", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.7-code", "stage": "ranking"}], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-eadda6ca8079"}
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 12:24:57 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 12:24:57 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-eadda6ca8079 attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 12:24:57 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 12:24:57 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 12:24:57 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [ WARNING] [structured-pool] depth=1 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 12:24:57 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [    INFO] transport-fallback pinned call (('opencode-go', 'deepseek-v4-pro')) returned no result — retrying unpinned across the workspace's configured providers
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 12:24:57 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 12:24:57 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-1cc50c715c3a attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 12:24:57 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 12:24:57 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 12:24:57 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [ WARNING] [structured-pool] depth=0 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 12:24:57 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 12:24:57 [    INFO] [route-exclusions] {"classification": {"pre_pool_catalog_not_in_provider": 5, "prior_attempt_failed": 5}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [{"reason": "already_failed_provider", "route": "opencode-go/minimax-m3"}, {"reason": "already_failed_provider", "route": "opencode-go/minimax-m2.7"}, {"reason": "already_failed_provider", "route": "opencode-go/deepseek-v4.1-flash"}, {"reason": "already_failed_provider", "route": "opencode-go/minimax-m2.5"}, {"reason": "already_failed_provider", "route": "opencode-go/mistral-large-4"}], "interactive": false, "pool": {"families": {"opencode-go": 6}, "size": 6}, "pre_pool_skips": [{"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.1", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.3", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/gpt-5.3-codex-spark", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.5", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.7-code", "stage": "ranking"}], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-1cc50c715c3a"}
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 12:24:57 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 12:24:57 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 12:24:57 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-1cc50c715c3a attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 12:24:57 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 12:24:57 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 12:24:57 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [ WARNING] [structured-pool] depth=1 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 12:24:57 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 12:24:57 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+PASSED                                                                   [ 19%]
+tests/test_llm_service_task_type_forwarding.py::test_caller_task_type_is_forwarded_not_duplicated PASSED [ 19%]
+tests/test_llm_service_task_type_forwarding.py::test_default_task_type_preserved_when_caller_omits_it PASSED [ 19%]
+tests/test_learning_llm_router.py::TestModelSpec::test_model_spec_creation PASSED [ 19%]
+tests/test_learning_llm_router.py::TestRoutingRequest::test_routing_request_defaults PASSED [ 20%]
+tests/test_learning_llm_router.py::TestRoutingRequest::test_routing_request_full PASSED [ 20%]
+tests/test_learning_llm_router.py::TestRoutingResult::test_routing_result_creation PASSED [ 20%]
+tests/test_learning_llm_router.py::TestRoutingFeedback::test_feedback_creation PASSED [ 20%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_router_creation 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 20%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_model_registry_contents 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_model_specs_have_required_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_cheapest_model 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_capabilities_quality 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_capabilities_vision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_cost 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_latency 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_default 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_reasoning 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_extraction 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_no_filter 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_capability 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_tier 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 24%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_cost 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 24%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_simple_request 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 24%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_with_budget_constraint 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Routed question_answering to minimax-text-01 (confidence=0.61, cost=$0.0004)
+PASSED                                                                   [ 24%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_with_latency_constraint 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Routed question_answering to minimax-m3 (confidence=1.00, cost=$0.0006)
+PASSED                                                                   [ 25%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_record_feedback 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_feedback_triggers_retraining 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_routing_statistics 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_export_routing_data 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Exported 1 routing records for tenant tenant-1
+PASSED                                                                   [ 26%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_update_model_registry 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Updated model registry: added 1 models
+PASSED                                                                   [ 26%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_clear_learning_cache 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Cleared learning cache for tenant=tenant-1
+PASSED                                                                   [ 26%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_clear_learning_cache_all 
+-------------------------------- live log setup --------------------------------
+2026-11-04 12:24:57 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [    INFO] Cleared learning cache for tenant=all
+PASSED                                                                   [ 26%]
+tests/test_employee_proposal.py::test_context_is_bounded_and_excludes_paths PASSED [ 27%]
+tests/test_employee_proposal.py::test_valid_evidence_and_clarification_proposal PASSED [ 27%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal0-at least one read] PASSED [ 27%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal1-requires a question] PASSED [ 27%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal2-unknown source_id] PASSED [ 28%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal3-unknown action] PASSED [ 28%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal4-not both] PASSED [ 28%]
+tests/test_employee_proposal.py::test_deterministic_fallback_is_a_read_not_a_business_fact PASSED [ 28%]
+tests/test_employee_proposal.py::test_model_proposal_is_captured_with_scoped_json_mode PASSED [ 29%]
+tests/test_employee_proposal.py::test_invalid_model_output_falls_back_and_preserves_errors PASSED [ 29%]
+tests/test_employee_proposal.py::test_compiler_builds_planner_kwargs_with_facts_and_requirements PASSED [ 29%]
+tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_and_blockers PASSED [ 29%]
+tests/test_employee_proposal.py::test_planner_carries_facts_and_source_requirements PASSED [ 30%]
+tests/test_employee_proposal.py::test_compiler_collapses_duplicate_source_reads PASSED [ 30%]
+tests/test_employee_proposal.py::test_duplicate_applied_reads_do_not_make_invoice_roles_ambiguous PASSED [ 30%]
+tests/test_employee_adaptation_contract.py::test_final_transport_request_uses_the_selected_schema PASSED [ 30%]
+tests/test_employee_adaptation_contract.py::test_raw_malformed_completion_is_preserved_under_one_attempt 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:57 [ WARNING] employee adaptation call raised: InstructorRetryException: validation error
+PASSED                                                                   [ 31%]
+tests/test_employee_adaptation_contract.py::test_bounded_repair_shares_deadline_and_selected_schema PASSED [ 31%]
+tests/test_employee_adaptation_contract.py::test_exhausted_deadline_is_typed_and_does_not_start_repair PASSED [ 31%]
+tests/test_employee_adaptation_contract.py::test_legacy_context_keeps_legacy_schema_separate PASSED [ 31%]
+tests/test_employee_adaptation_contract.py::test_compact_single_request_prompt_is_bounded_to_one_operation PASSED [ 32%]
+tests/test_employee_work_requests.py::test_quote_request_compiles_and_executes_from_full_evidence PASSED [ 32%]
+tests/test_employee_work_requests.py::test_requested_artifact_waits_for_the_open_business_fact PASSED [ 32%]
+tests/test_employee_work_requests.py::test_quote_mapping_rejects_unknown_column_and_bad_terms PASSED [ 32%]
+tests/test_employee_work_requests.py::test_invoice_request_compiles_and_reconciles_full_evidence PASSED [ 33%]
+tests/test_employee_work_requests.py::test_work_request_rejects_model_authored_steps_and_bad_references PASSED [ 33%]
+tests/test_employee_work_requests.py::test_context_previews_are_labeled_and_discovery_is_not_followup PASSED [ 33%]
+tests/test_employee_work_requests.py::test_money_terms_must_resolve_and_match_the_proposed_value PASSED [ 33%]
+tests/test_employee_work_requests.py::test_expired_fact_term_is_not_authority PASSED [ 34%]
+tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_match_accepted_values PASSED [ 34%]
+tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [ 34%]
+tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:24:58 [    INFO] Created HITL action 6f230094-f547-4dce-a552-448cb5b7809e for agent None
+PASSED                                                                   [ 34%]
+tests/test_employee_work_requests.py::test_invoice_role_bindings_resolve_from_evidence_shape PASSED [ 35%]
+tests/test_employee_work_requests.py::test_invoice_wrong_purchase_order_identity_is_refused PASSED [ 35%]
+tests/test_employee_work_requests.py::test_quote_mapping_resolves_type_swapped_unfamiliar_headers PASSED [ 35%]
+tests/test_employee_work_requests.py::test_quote_currency_preserves_observed_values_and_refuses_conflicts PASSED [ 35%]
+tests/test_employee_work_requests.py::test_quote_missing_currency_column_inherits_only_explicit_job_default PASSED [ 36%]
+tests/test_employee_work_requests.py::test_executor_refuses_currency_changed_after_compilation PASSED [ 36%]
+tests/test_employee_work_requests.py::test_mapped_unit_cannot_be_defaulted_over_empty_source_value PASSED [ 36%]
+tests/test_employee_work_requests.py::test_valid_cad_twin_executes_without_relabelling PASSED [ 36%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-False] PASSED [ 37%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-True] PASSED [ 37%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-None] PASSED [ 37%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-0] PASSED [ 37%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-false] PASSED [ 38%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[unknown_field-x] PASSED [ 38%]
+tests/test_employee_work_request_bindings.py::test_unverified_and_skipped_evidence_are_not_proof PASSED [ 38%]
+tests/test_employee_work_request_bindings.py::test_compiled_steps_keep_mandatory_verified_receipts PASSED [ 38%]
+tests/test_employee_work_request_bindings.py::test_executor_negative_preserves_independent_progress PASSED [ 39%]
+tests/test_employee_work_request_bindings.py::test_valid_twin_still_compiles_and_completes PASSED [ 39%]
+tests/test_employee_work_request_bindings.py::test_term_must_resolve_scope_revision_currency_and_value PASSED [ 39%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_tax_modes_bind_their_taught_term PASSED [ 39%]
+tests/test_employee_work_request_bindings.py::test_role_comparison_is_normalized_and_cross_field_is_refused PASSED [ 40%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[expired] PASSED [ 40%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[stale] PASSED [ 40%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[wrong_scope] PASSED [ 40%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[value_changed] PASSED [ 40%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_twins_complete_with_authority[terms0-tax0-405.00] PASSED [ 41%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_twins_complete_with_authority[terms1-tax1-375.00] PASSED [ 41%]
+tests/test_employee_work_request_bindings.py::test_typed_receipt_requires_authoritative_context_and_is_not_tamper_proof PASSED [ 41%]
+tests/test_employee_work_request_bindings.py::test_fact_term_scope_revision_dates_and_currency PASSED [ 41%]
+tests/test_employee_work_request_bindings.py::test_term_provenance_is_revalidated_at_consumption PASSED [ 42%]
+tests/test_employee_work_request_bindings.py::test_money_term_roles_are_not_interchangeable PASSED [ 42%]
+tests/test_employee_work_request_bindings.py::test_explicit_role_metadata_and_aliases_are_trusted PASSED [ 42%]
+tests/test_employee_work_request_bindings.py::test_fact_role_must_be_declared_and_match_the_field PASSED [ 42%]
+tests/test_employee_work_request_bindings.py::test_expiry_between_compile_and_consumption_refuses PASSED [ 43%]
+tests/test_employee_work_request_bindings.py::test_source_replacement_and_teaching_revision_refuse_at_consumption PASSED [ 43%]
+tests/test_employee_work_request_bindings.py::test_binding_survives_a_restart_context_round_trip PASSED [ 43%]
+tests/test_employee_work_request_bindings.py::test_executor_blocks_expired_term_between_compile_and_dispatch PASSED [ 43%]
+tests/test_employee_work_request_matrix.py::test_preview_is_labeled_but_execution_uses_full_durable_rows PASSED [ 44%]
+tests/test_employee_work_request_matrix.py::test_stale_compiled_patch_refuses_after_task_state_advance PASSED [ 44%]
+tests/test_employee_work_request_matrix.py::test_duplicate_work_request_is_idempotent PASSED [ 44%]
+tests/test_employee_work_request_matrix.py::test_unknown_or_ambiguous_request_fields_refuse_compilation PASSED [ 44%]
+tests/test_employee_business_requirements.py::test_model_retain_after_reply_cannot_complete_unperformed_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/a0e875ee-a1f8-4c36-94e4-bd079977d3f7/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/a0e875ee-a1f8-4c36-94e4-bd079977d3f7/responses/await-b3007474e4205ff9325e "HTTP/1.1 200 OK"
+2026-11-04 12:25:00 [    INFO] HTTP Request: GET http://testserver/api/assignments/a0e875ee-a1f8-4c36-94e4-bd079977d3f7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_employee_business_requirements.py::test_retain_without_artifact_request_still_keeps_result_requirement 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/d4cd251a-9c70-43c2-887b-4462607d15e6/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/d4cd251a-9c70-43c2-887b-4462607d15e6/responses/await-f87817fb93b99507bc88 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_employee_business_requirements.py::test_requirement_and_quote_receipt_survive_restart_before_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/1fc70229-2668-4971-b379-c81e0f54c8cf/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/1fc70229-2668-4971-b379-c81e0f54c8cf/responses/await-0af20a5cad9de1aa3c3f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_employee_business_requirements.py::test_quote_result_cannot_satisfy_invoice_requirement PASSED [ 45%]
+tests/test_employee_business_requirements.py::test_no_suitable_reply_failure_preserves_requirement_then_retry_reconciles 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/e450050b-509a-4f5e-8e44-505606ab6a52/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/e450050b-509a-4f5e-8e44-505606ab6a52/responses/await-a17ff5e4ced70f75e5ad "HTTP/1.1 200 OK"
+2026-11-04 12:25:03 [    INFO] HTTP Request: GET http://testserver/api/assignments/e450050b-509a-4f5e-8e44-505606ab6a52 "HTTP/1.1 200 OK"
+2026-11-04 12:25:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/e450050b-509a-4f5e-8e44-505606ab6a52/advance "HTTP/1.1 200 OK"
+2026-11-04 12:25:03 [    INFO] HTTP Request: GET http://testserver/api/assignments/e450050b-509a-4f5e-8e44-505606ab6a52 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_employee_business_requirements.py::test_plan_patch_cannot_add_an_unbacked_result_criterion PASSED [ 46%]
+tests/test_employee_business_requirements.py::test_invoice_requirement_needs_the_matching_business_identity PASSED [ 46%]
+tests/test_employee_business_requirements.py::test_business_requirement_patch_is_bound_to_the_task_version PASSED [ 46%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required0-observed0-True] PASSED [ 47%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required1-observed1-False] PASSED [ 47%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required2-observed2-False] PASSED [ 47%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required3-observed3-False] PASSED [ 47%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required4-observed4-True] PASSED [ 48%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required5-observed5-False] PASSED [ 48%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required6-observed6-True] PASSED [ 48%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required7-observed7-False] PASSED [ 48%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required8-observed8-False] PASSED [ 49%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required9-observed9-False] PASSED [ 49%]
+tests/test_employee_business_requirements.py::test_ambiguous_known_identities_do_not_bind_a_subject PASSED [ 49%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-88410-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:04 [    INFO] HTTP Request: GET http://testserver/api/assignments/69793634-7ffa-4974-b777-096e3bfa3def "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-884-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:05 [    INFO] HTTP Request: GET http://testserver/api/assignments/20c6c463-d9a5-42f9-83c1-dd30be8f7676 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-8841-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:05 [    INFO] HTTP Request: GET http://testserver/api/assignments/0104367a-f4a7-461b-ad28-a397f4ba1257 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-88410-False] PASSED [ 50%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-884-False] PASSED [ 50%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-8841-True] PASSED [ 51%]
+tests/test_employee_durable_wait_g5.py::test_wait_allows_model_chosen_independent_work_and_exact_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/f5a97d58-78ae-4a8f-b7c3-5072c43984e6/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/f5a97d58-78ae-4a8f-b7c3-5072c43984e6/responses/await-acc820ab40acf65750de "HTTP/1.1 200 OK"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/f5a97d58-78ae-4a8f-b7c3-5072c43984e6/responses/await-acc820ab40acf65750de "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_employee_durable_wait_g5.py::test_wait_reply_refuses_wrong_correlation_party_and_answer_type 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f2c7daf-e404-411a-acfc-ec44d1521b32/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f2c7daf-e404-411a-acfc-ec44d1521b32/responses/await-deadbeef "HTTP/1.1 404 Not Found"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f2c7daf-e404-411a-acfc-ec44d1521b32/responses/await-be2bc3be14e55f4ed087 "HTTP/1.1 200 OK"
+2026-11-04 12:25:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f2c7daf-e404-411a-acfc-ec44d1521b32/responses/await-be2bc3be14e55f4ed087 "HTTP/1.1 200 OK"
+2026-11-04 12:25:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f2c7daf-e404-411a-acfc-ec44d1521b32/responses/await-be2bc3be14e55f4ed087 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_employee_durable_wait_g5.py::test_duplicate_wait_intent_is_refused_and_cancel_refuses_late_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/acc6f1e1-dfc5-4ca5-8687-5d1a14ba264a/cancel "HTTP/1.1 200 OK"
+2026-11-04 12:25:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/acc6f1e1-dfc5-4ca5-8687-5d1a14ba264a/responses/await-efd5bd69ef4a7bbb986c "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 51%]
+tests/test_employee_durable_wait_g5.py::test_wait_is_absent_when_no_external_fact_is_material 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_employee_durable_wait_g5.py::test_wait_independent_review_is_bounded_no_hot_polling 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/3120945c-864c-4d96-b71e-033a6fcce57a/advance "HTTP/1.1 200 OK"
+2026-11-04 12:25:12 [    INFO] HTTP Request: GET http://testserver/api/assignments/3120945c-864c-4d96-b71e-033a6fcce57a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_employee_durable_wait_g5.py::test_requested_artifact_renders_after_wait_and_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:25:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/7cd59012-fb35-4f70-9df4-508e921d8f8a/sources "HTTP/1.1 200 OK"
+2026-11-04 12:25:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/7cd59012-fb35-4f70-9df4-508e921d8f8a/responses/await-31fc81096e45c98ee3f4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote PASSED [ 52%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_waits_corrects_and_posts_supported_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:15 [    INFO] Created HITL action 330e5937-77f2-4975-8523-1f4c1b589a0b for agent None
+PASSED                                                                   [ 53%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_period_close_blocks_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:15 [    INFO] Created HITL action 80e70d9f-6b77-43b2-8332-083a671c1add for agent None
+PASSED                                                                   [ 53%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refuses_infeasible_delivery PASSED [ 53%]
+tests/test_assignment_routes.py::test_authorized_team_lead_approves_once 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/35feabb4-d38d-4fad-a604-a464dba23849/approve/send "HTTP/1.1 200 OK"
+2026-11-04 12:25:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/35feabb4-d38d-4fad-a604-a464dba23849/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/test_assignment_routes.py::test_same_workspace_member_cannot_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/931f9827-fef1-4d26-915a-09a451b4b25a/approve/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 54%]
+tests/test_assignment_routes.py::test_wrong_workspace_approver_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/dd177081-29c0-45a5-a451-7e73bc14b0eb/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/test_assignment_routes.py::test_changed_payload_is_not_approved_under_old_request 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/0cc6730a-4d69-4bd2-905f-69fc8602b732/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/45de7677-9923-45fd-9330-f6672e43a524/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/test_assignment_routes.py::test_start_from_chat_objective_uses_registered_plan_and_teaching 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:21 [    INFO] Learning skipped for agent-f7951b45: status intern (not STUDENT)
+2026-11-04 12:25:21 [    INFO] Learning skipped for agent-f7951b45: status intern (not STUDENT)
+2026-11-04 12:25:21 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:21 [    INFO] EscalationManager initialized
+2026-11-04 12:25:21 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-04 12:25:21 [ WARNING] No LLM clients available
+2026-11-04 12:25:21 [ WARNING] No LLM clients available
+2026-11-04 12:25:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd7c1107-22f7-4c2a-b82c-11efae8d7bb8/responses/corr-A "HTTP/1.1 200 OK"
+2026-11-04 12:25:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd7c1107-22f7-4c2a-b82c-11efae8d7bb8/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_assignment_routes.py::test_start_rejects_unregistered_proposed_adapter 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:22 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 55%]
+tests/test_assignment_routes.py::test_guided_discovery_mode_needs_no_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:22 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+tests/test_assignment_routes.py::test_public_proposed_steps_are_gated 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:23 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 55%]
+tests/test_assignment_routes.py::test_guided_connected_aggregate_is_grounded_and_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:24 [    INFO] Learning skipped for agent-07269035: status intern (not STUDENT)
+2026-11-04 12:25:24 [    INFO] Learning skipped for agent-07269035: status intern (not STUDENT)
+2026-11-04 12:25:24 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/fa6c311f-94a4-427e-a06c-6c7e4b8a4826/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_assignment_routes.py::test_guided_connected_count_presentation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:25 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:26 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_assignment_routes.py::test_bounded_taught_method_job_with_wait_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:27 [    INFO] Learning skipped for agent-a6ca57f5: status intern (not STUDENT)
+2026-11-04 12:25:27 [    INFO] Learning skipped for agent-a6ca57f5: status intern (not STUDENT)
+2026-11-04 12:25:27 [    INFO] Learning skipped for agent-a6ca57f5: status intern (not STUDENT)
+2026-11-04 12:25:27 [    INFO] Learning skipped for agent-a6ca57f5: status intern (not STUDENT)
+2026-11-04 12:25:27 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:27 [    INFO] EscalationManager initialized
+2026-11-04 12:25:27 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-04 12:25:27 [ WARNING] No LLM clients available
+2026-11-04 12:25:27 [ WARNING] No LLM clients available
+2026-11-04 12:25:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/8bffc341-53a6-4dc0-b300-a84fc4545115/responses/bounded-correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_assignment_routes.py::test_taught_method_missing_wait_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:28 [    INFO] Learning skipped for agent-3af13318: status intern (not STUDENT)
+2026-11-04 12:25:28 [    INFO] Learning skipped for agent-3af13318: status intern (not STUDENT)
+2026-11-04 12:25:28 [    INFO] Learning skipped for agent-3af13318: status intern (not STUDENT)
+2026-11-04 12:25:28 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_assignment_routes.py::test_unsupported_taught_method_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:29 [    INFO] Learning skipped for agent-54cb45fa: status intern (not STUDENT)
+2026-11-04 12:25:29 [    INFO] Learning skipped for agent-54cb45fa: status intern (not STUDENT)
+2026-11-04 12:25:29 [    INFO] Learning skipped for agent-54cb45fa: status intern (not STUDENT)
+2026-11-04 12:25:29 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_assignment_routes.py::test_guided_no_match_is_explicit_pending_work 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:30 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_assignment_routes.py::test_guided_wrong_workspace_scope_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:31 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 57%]
+tests/test_assignment_routes.py::test_real_catalog_resource_from_another_workspace_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:32 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 58%]
+tests/test_assignment_routes.py::test_client_cannot_choose_an_output_path 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:33 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_assignment_routes.py::test_start_second_domain_presentation_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:34 [    INFO] Learning skipped for agent-0e5348d5: status intern (not STUDENT)
+2026-11-04 12:25:34 [    INFO] Learning skipped for agent-0e5348d5: status intern (not STUDENT)
+2026-11-04 12:25:34 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_assignment_routes.py::test_mapping_correction_route_applies_and_resumes 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:35 [    INFO] HTTP Request: POST http://testserver/api/assignments/edd8a1a0-54c4-4193-abcf-b1e9d8d7f986/mappings/correct "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_assignment_routes.py::test_stale_mapping_correction_is_refused_before_source_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:35 [    INFO] HTTP Request: POST http://testserver/api/assignments/39707ba0-c830-4f76-a62d-69d703979843/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/test_assignment_routes.py::test_wrong_workspace_mapping_correction_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:36 [    INFO] HTTP Request: POST http://testserver/api/assignments/0eb81c0b-03a5-4119-81b1-c0f7b5cb81de/mappings/correct "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 59%]
+tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:37 [    INFO] HTTP Request: POST http://testserver/api/assignments/2f166255-5925-4a86-8e30-611655a754ff/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 404 Not Found"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/fd47a214-c7a4-490f-9374-6eccb59c9a4f/gaps/03e0aabd-fb6c-4276-b203-923c7a61518d/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/test_assignment_routes.py::test_incomplete_inline_evidence_cannot_resume_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/b6a29760-faa1-44ba-a3fd-c0e376f7506a/responses/inline-corr "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_assignment_consumes_contextual_conversation_method 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:39 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:39 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:39 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:39 [    INFO] HTTP Request: GET http://testserver/api/assignments/e12baf9d-77ef-494a-b5a5-707d49e83346 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_route_reconcile_applied_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:40 [    INFO] HTTP Request: POST http://testserver/api/assignments/710053cb-e915-4e4a-a80c-aa6168647784/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_route_reconcile_insufficient_keeps_uncertain_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:41 [    INFO] HTTP Request: POST http://testserver/api/assignments/2a421e59-5aa5-4392-8e38-65a956c9ee56/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_route_reconcile_not_applied_allows_one_new_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/ba1d2ae5-5ac7-442b-9a26-5b62c852f9be/reconcile/send "HTTP/1.1 200 OK"
+2026-11-04 12:25:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/ba1d2ae5-5ac7-442b-9a26-5b62c852f9be/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_route_reconcile_requires_evidence_and_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:43 [    INFO] HTTP Request: POST http://testserver/api/assignments/cdea4f14-6f63-412d-b328-53d3deadc9ba/reconcile/send "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:43 [    INFO] HTTP Request: POST http://testserver/api/assignments/cdea4f14-6f63-412d-b328-53d3deadc9ba/reconcile/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 61%]
+tests/test_assignment_routes.py::test_standing_authority_requires_a_real_bound PASSED [ 61%]
+tests/test_assignment_routes.py::test_over_limit_outbound_body_is_rejected_before_run_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:44 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 61%]
+tests/test_assignment_routes.py::test_cancel_clears_correlated_wait_and_refuses_late_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:45 [    INFO] HTTP Request: POST http://testserver/api/assignments/0ca5ad21-d872-4731-8005-1f62da4d2113/cancel "HTTP/1.1 200 OK"
+2026-11-04 12:25:45 [    INFO] HTTP Request: POST http://testserver/api/assignments/0ca5ad21-d872-4731-8005-1f62da4d2113/responses/corr-cancel-route "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:45 [    INFO] HTTP Request: POST http://testserver/api/assignments/0ca5ad21-d872-4731-8005-1f62da4d2113/cancel "HTTP/1.1 200 OK"
+2026-11-04 12:25:45 [    INFO] HTTP Request: GET http://testserver/api/assignments/0ca5ad21-d872-4731-8005-1f62da4d2113 "HTTP/1.1 200 OK"
+2026-11-04 12:25:45 [    INFO] HTTP Request: POST http://testserver/api/assignments/0ca5ad21-d872-4731-8005-1f62da4d2113/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_assignment_routes.py::test_cancel_clears_mapping_wait_and_refuses_gap_and_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:46 [    INFO] HTTP Request: POST http://testserver/api/assignments/ac6f6b4b-b30e-4383-a5c8-fe5830932bf1/cancel "HTTP/1.1 200 OK"
+2026-11-04 12:25:46 [    INFO] HTTP Request: POST http://testserver/api/assignments/ac6f6b4b-b30e-4383-a5c8-fe5830932bf1/gaps/44307cca-0de2-434d-825c-4daf78dc718c/resolve "HTTP/1.1 409 Conflict"
+2026-11-04 12:25:46 [    INFO] HTTP Request: POST http://testserver/api/assignments/ac6f6b4b-b30e-4383-a5c8-fe5830932bf1/responses/corr-map-cancel "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/test_assignment_routes.py::test_quote_journey_uses_sources_and_taught_line_discount 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:46 [    INFO] Learning skipped for agent-45a74b6a: status intern (not STUDENT)
+2026-11-04 12:25:46 [    INFO] Learning skipped for agent-45a74b6a: status intern (not STUDENT)
+2026-11-04 12:25:46 [    INFO] Learning skipped for agent-45a74b6a: status intern (not STUDENT)
+2026-11-04 12:25:47 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_assignment_routes.py::test_service_proposal_route_uses_the_same_assignment_api 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:48 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_assignment_routes.py::test_teaching_correction_preserves_snapshot_and_reassessment_invalidates 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:49 [    INFO] Learning skipped for agent-bfa11741: status intern (not STUDENT)
+2026-11-04 12:25:49 [    INFO] Learning skipped for agent-bfa11741: status intern (not STUDENT)
+2026-11-04 12:25:49 [    INFO] Learning skipped for agent-bfa11741: status intern (not STUDENT)
+2026-11-04 12:25:49 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:49 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:49 [    INFO] HTTP Request: POST http://testserver/api/assignments/a6f04f3d-ac1f-4bf3-83e6-f5c6f8722579/reassess "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_assignment_routes.py::test_quote_controlled_commercial_update_duplicate_and_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:50 [    INFO] Learning skipped for agent-3d97de6b: status intern (not STUDENT)
+2026-11-04 12:25:50 [    INFO] Learning skipped for agent-3d97de6b: status intern (not STUDENT)
+2026-11-04 12:25:50 [    INFO] Learning skipped for agent-3d97de6b: status intern (not STUDENT)
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/770d6962-9032-4aec-b96e-a931928611ad/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/770d6962-9032-4aec-b96e-a931928611ad/resume "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/72febf6c-0b06-4ebc-b71f-5cab84e4f5a1/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: GET http://testserver/api/assignments/72febf6c-0b06-4ebc-b71f-5cab84e4f5a1 "HTTP/1.1 200 OK"
+2026-11-04 12:25:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/72febf6c-0b06-4ebc-b71f-5cab84e4f5a1/reconcile/commercial-update "HTTP/1.1 200 OK"
+2026-11-04 12:25:51 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/26187b40-f211-4ed8-ad66-bc984485ef6a/cancel "HTTP/1.1 200 OK"
+2026-11-04 12:25:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/26187b40-f211-4ed8-ad66-bc984485ef6a/approve/commercial-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 63%]
+tests/test_assignment_routes.py::test_quote_missing_tax_is_a_typed_clarification_not_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:51 [    INFO] Learning skipped for agent-15ffbaf4: status intern (not STUDENT)
+2026-11-04 12:25:51 [    INFO] Learning skipped for agent-15ffbaf4: status intern (not STUDENT)
+2026-11-04 12:25:51 [    INFO] Learning skipped for agent-15ffbaf4: status intern (not STUDENT)
+2026-11-04 12:25:51 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_assignment_routes.py::test_source_revision_change_invalidates_dependent_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:52 [    INFO] Learning skipped for agent-abef5622: status intern (not STUDENT)
+2026-11-04 12:25:52 [    INFO] Learning skipped for agent-abef5622: status intern (not STUDENT)
+2026-11-04 12:25:52 [    INFO] Learning skipped for agent-abef5622: status intern (not STUDENT)
+2026-11-04 12:25:53 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:53 [    INFO] HTTP Request: POST http://testserver/api/assignments/bbb9f839-ff97-4ffd-8a91-0ca9bf3e537b/invalidate/source-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_assignment_routes.py::test_quote_same_sku_different_pack_asks_before_arithmetic 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:54 [    INFO] Learning skipped for agent-3ae0e9ee: status intern (not STUDENT)
+2026-11-04 12:25:54 [    INFO] Learning skipped for agent-3ae0e9ee: status intern (not STUDENT)
+2026-11-04 12:25:54 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_assignment_routes.py::test_unsupported_pricing_rule_refuses_public_plan_and_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:54 [    INFO] Learning skipped for agent-fd78d800: status intern (not STUDENT)
+2026-11-04 12:25:54 [    INFO] Learning skipped for agent-fd78d800: status intern (not STUDENT)
+2026-11-04 12:25:54 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 64%]
+tests/test_assignment_routes.py::test_onedrive_xlsx_public_route_uses_production_parser 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:55 [    INFO] Learning skipped for agent-a683c3d9: status intern (not STUDENT)
+2026-11-04 12:25:55 [    INFO] Learning skipped for agent-a683c3d9: status intern (not STUDENT)
+2026-11-04 12:25:55 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_assignment_routes.py::test_quote_missing_qualification_waits_and_resolves_through_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:56 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/aa0f6728-60d0-45ad-9ea4-db37bd648f15/gaps/df0aece5-d1a2-4dad-b755-9bcec90d5222/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/aa0f6728-60d0-45ad-9ea4-db37bd648f15/gaps/df0aece5-d1a2-4dad-b755-9bcec90d5222/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/aa0f6728-60d0-45ad-9ea4-db37bd648f15/gaps/df0aece5-d1a2-4dad-b755-9bcec90d5222/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 64%]
+tests/test_assignment_routes.py::test_quote_ambiguous_discount_refuses_unrecognized_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:57 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-04 12:25:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/d92b61b6-9625-4aea-89e4-23d92dbaf0c9/gaps/f95a9927-a5e6-481e-b562-4478faf47cb5/resolve "HTTP/1.1 200 OK"
+2026-11-04 12:25:57 [    INFO] HTTP Request: GET http://testserver/api/assignments/d92b61b6-9625-4aea-89e4-23d92dbaf0c9 "HTTP/1.1 200 OK"
+2026-11-04 12:25:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/d92b61b6-9625-4aea-89e4-23d92dbaf0c9/gaps/0afd4af3-6c10-48e2-9f82-a83fc7256a95/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_assignment_routes.py::test_expense_reconciliation_uses_the_same_assignment_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:58 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_assignment_routes.py::test_objective_only_reads_authorized_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:25:59 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_assignment_routes.py::test_objective_uploaded_document_is_selectable_and_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:00 [    INFO] HTTP Request: GET http://testserver/api/assignments/sources "HTTP/1.1 200 OK"
+2026-11-04 12:26:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_assignment_routes.py::test_objective_only_returns_one_targeted_business_question 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+tests/test_assignment_routes.py::test_objective_only_unknown_qualification_blocks_dependent_read 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_assignment_routes.py::test_plan_patch_route_adopts_fact_and_refuses_stale_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/3d720906-2cf8-41a2-8a87-6993bb5b1109/patch "HTTP/1.1 200 OK"
+2026-11-04 12:26:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/3d720906-2cf8-41a2-8a87-6993bb5b1109/patch "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/test_assignment_routes.py::test_objective_only_runs_typed_adaptive_follow_up 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_assignment_routes.py::test_advance_route_adopts_typed_work_from_applied_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:04 [    INFO] HTTP Request: POST http://testserver/api/assignments/66c7d2bd-d63a-4436-a2df-e8898f1404de/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_assignment_routes.py::test_source_addition_settles_missing_prerequisite_without_duplicates 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1d9fb7d-14f6-43b2-b896-0374b1eabe31/sources "HTTP/1.1 200 OK"
+2026-11-04 12:26:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1d9fb7d-14f6-43b2-b896-0374b1eabe31/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_assignment_routes.py::test_retained_authorized_scope_supports_later_evidence_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_assignment_routes.py::test_discovery_outside_scope_asks_one_actionable_question 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_assignment_routes.py::test_discovery_repeated_read_falls_back_to_unread_authorized_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_evidence_quote 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_invoice_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_assignment_routes.py::test_no_suitable_reasoning_route_is_durable_and_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:26:10 [    INFO] HTTP Request: GET http://testserver/api/assignments/c0e702d2-cbf3-4b2c-948c-9c92a6482025 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 68%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 69%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 69%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 69%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 69%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 70%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 70%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 70%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 70%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 71%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 71%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 71%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 71%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 72%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 72%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 72%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 72%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 73%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 73%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 73%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 73%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 74%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 74%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 74%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 74%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 75%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 75%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 75%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 75%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 76%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 76%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 76%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 76%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 77%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 77%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 77%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 77%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 78%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 78%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 78%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:14 [    INFO] Created HITL action b4b8fb52-1337-4d19-aec3-b878c6399fe3 for agent None
+PASSED                                                                   [ 78%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:14 [    INFO] Created HITL action b7b33a7a-d703-4f48-8eb2-9f2370bc0e67 for agent None
+PASSED                                                                   [ 79%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:15 [    INFO] Created HITL action 99ad843e-05a2-4780-b1d5-58b57a2ee9c8 for agent None
+PASSED                                                                   [ 79%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:15 [    INFO] Created HITL action 24c306e3-4ead-4ba3-b53a-db6bb94c0afc for agent None
+PASSED                                                                   [ 79%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:15 [    INFO] Created HITL action 83b6da62-5110-4772-946d-0d487de44b86 for agent None
+PASSED                                                                   [ 79%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 80%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 80%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 80%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 80%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 80%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 81%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 81%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 81%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 81%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 82%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 82%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 82%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 82%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 83%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 83%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 83%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 83%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 84%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 84%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 84%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 84%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 85%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 85%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 85%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:16 [    INFO] Created HITL action 8e657768-540b-4c76-98c9-b5e9e19d5b7c for agent None
+2026-11-04 12:26:16 [    INFO] Created HITL action eae53a49-83f7-4162-bbc0-39593db351e1 for agent None
+PASSED                                                                   [ 85%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-applied] PASSED [ 86%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 86%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 86%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 86%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 87%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 87%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 87%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 87%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 88%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 88%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 88%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action 38e1a4f3-c191-4b56-b8b7-68964fa74497 for agent None
+PASSED                                                                   [ 88%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 89%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action 195a3ac7-9e15-4f68-90fb-8bc854bb235b for agent None
+PASSED                                                                   [ 89%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 89%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 89%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 90%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof2-verified_proof_missing_fields] PASSED [ 90%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof3-verified_coverage_truncated] PASSED [ 90%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof4-verified_coverage_unknown] PASSED [ 90%]
+tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 91%]
+tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action dcc2f977-c076-4d38-b9dd-42c945b5273d for agent None
+PASSED                                                                   [ 91%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action 65c41ac6-4550-4a2f-b7b8-12fb1dd8f215 for agent None
+PASSED                                                                   [ 91%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action 3eed8fa9-4299-4fb7-89d1-39276f0e7eb3 for agent None
+PASSED                                                                   [ 91%]
+tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:17 [    INFO] Created HITL action 6a7b2ce4-916e-4b21-a8a0-eeddf183c004 for agent None
+PASSED                                                                   [ 92%]
+tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 92%]
+tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 92%]
+tests/test_assignment_executor.py::test_plan_patch_rewires_invalidated_work_and_refuses_applied_update PASSED [ 92%]
+tests/test_assignment_executor.py::test_plan_patch_rejects_stale_base_and_immutable_effects PASSED [ 93%]
+tests/test_assignment_executor.py::test_plan_patch_duplicate_is_idempotent_and_survives_restart PASSED [ 93%]
+tests/test_assignment_executor.py::test_adaptation_invalidates_only_affected_branch PASSED [ 93%]
+tests/test_assignment_executor.py::test_replayed_observation_does_not_reopen_work_twice PASSED [ 93%]
+tests/test_assignment_executor.py::test_observation_reopens_affected_work_and_reruns_only_that_branch PASSED [ 94%]
+tests/test_assignment_executor.py::test_adaptation_missing_qualification_asks_instead_of_guessing PASSED [ 94%]
+tests/test_assignment_executor.py::test_adaptation_model_choice_is_scoped_and_uncertain_reconciles PASSED [ 94%]
+tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_and_effect_relabel PASSED [ 94%]
+tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 95%]
+tests/test_employee_evidence_change_g5.py::test_real_source_value_change_reopens_only_the_dependent_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:26:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/d6a860f1-9251-49b6-9e0e-bfff21f39ac8/sources "HTTP/1.1 200 OK"
+2026-11-04 12:26:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/d6a860f1-9251-49b6-9e0e-bfff21f39ac8/invalidate/source-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_employee_evidence_reassessment_g5.py::test_new_source_version_triggers_model_chosen_reassessment 
+-------------------------------- live log call ---------------------------------
+2026-11-04 12:26:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 12:26:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/ad38b1b0-ed14-4deb-8a95-b02cc98a1484/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_employee_outcome.py::test_applied_steps_satisfy_required_work_criterion PASSED [ 95%]
+tests/test_employee_outcome.py::test_failed_required_branch_keeps_outcome_unsatisfied_even_if_state_claimed PASSED [ 96%]
+tests/test_employee_outcome.py::test_missing_artifact_evidence_stays_unresolved_not_green PASSED [ 96%]
+tests/test_employee_outcome.py::test_verified_artifact_criterion_can_be_satisfied PASSED [ 96%]
+tests/test_employee_outcome.py::test_provider_acceptance_alone_does_not_confirm_sent_record PASSED [ 96%]
+tests/test_employee_outcome.py::test_matching_explicit_sent_items_readback_satisfies_confirmation PASSED [ 97%]
+tests/test_employee_outcome.py::test_mismatched_sent_items_binding_does_not_confirm PASSED [ 97%]
+tests/test_employee_outcome.py::test_absent_sent_items_readback_stays_unresolved PASSED [ 97%]
+tests/test_employee_outcome.py::test_explicit_sent_readback_stands_without_provider_state PASSED [ 97%]
+tests/test_employee_outcome.py::test_recipient_delivery_stays_unresolved_after_acceptance PASSED [ 98%]
+tests/test_employee_patch_invariants.py::test_transitive_uncertain_descendant_refuses_upstream_invalidation PASSED [ 98%]
+tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[facts] PASSED [ 98%]
+tests/test_employee_patch_invariants.py::test_task_state_advance_without_plan_revision_refuses_old_patch[teaching] PASSED [ 98%]
+tests/test_employee_patch_invariants.py::test_duplicate_patch_content_conflict_and_concurrent_adoption PASSED [ 99%]
+tests/test_employee_patch_invariants.py::test_requirements_cannot_be_weakened_and_facts_need_provenance PASSED [ 99%]
+tests/test_employee_patch_invariants.py::test_registered_mutation_cannot_be_relabelled_read_only PASSED [ 99%]
+tests/test_employee_patch_invariants.py::test_forced_cas_retry_keeps_the_callback_pure PASSED [ 99%]
+tests/test_employee_patch_invariants.py::test_authority_change_advances_task_state_and_refuses_old_patch PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 810 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+: 3 warnings
+tests/test_workload_incident_identity.py: 14 warnings
+tests/test_workload_capability_routing.py: 1 warning
+  /private/tmp/atom-integrated-a2c/backend/core/llm/capability_profiles.py:739: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_workload_incident_identity.py::test_production_loader_preserves_reviewed_identity_when_feedback_added
+  /private/tmp/atom-integrated-a2c/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_workload_capability_routing.py: 4 warnings
+tests/test_capability_routing.py: 42 warnings
+tests/test_pinned_planning_transport.py: 44 warnings
+  /private/tmp/atom-integrated-a2c/backend/core/llm/byok_handler.py:2338: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_pinned_planning_transport.py::test_pinned_dispatch_reaches_go_url_with_intended_model
+  /private/tmp/atom-integrated-a2c/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 405 passed, 927 warnings in 107.42s (0:01:47) =================

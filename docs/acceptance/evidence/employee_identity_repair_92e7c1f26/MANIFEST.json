@@ -1,0 +1,74 @@
+{
+ "artifacts": {
+  "README.md": "f9fef76a8062be016aa65c5500390c05f121c9356e1f6dbb258a22157d34d621",
+  "TEST_RESULTS.md": "713639ed26a7aecb2de3cb0bf75abea4c4afd5b24fccd6ede2ea5d1030e76e48",
+  "focused-tests.log": "64da841a6340718a546f92912aaa3e6b669a2e618be7c43994d6a03a0428268c",
+  "frontend-panel.log": "d8c1ae94d045e9d4c75d9106b6c70b15cd954968bf4a71530f4290561b31dee0",
+  "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "identity-focused.log": "96b42d7b823a574d69108f893baa8e2218d571a57d3c55a47ecf268fc48b78ba",
+  "verifier-subject.log": "d22b24ddf3e6af5cc5b6fb57cf23766622e2e9be40e9fc6a5e167556edddf3ac"
+ },
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "92e7c1f26ee70b79b4f6c1ad332769e5329294de",
+  "manifest_note": "Exact namespaced business identity matching; the prior supported episode remains evidence at its original source.",
+  "previous_episode_evidence": "4fd8951cc20cfe20063da336029d421843220e51",
+  "previous_episode_source": "70a74cd02b5d12acc6b6fead3215196e155640f8",
+  "tree_clean_at_run": true,
+  "ui_rerun_performed": false
+ },
+ "exclusions": [
+  "no full UI/model rerun for this focused identity repair",
+  "no live/cloud provider, credential, consent, send, spend, download or deployment authority",
+  "full G5 and general model judgment remain subject to independent acceptance",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ],
+ "results": {
+  "ambiguous_identity_unresolved": true,
+  "cross_namespace_rejected": true,
+  "exact_namespace_matching": true,
+  "fresh_session_durable": true,
+  "leading_zero_punctuation_preserved": true,
+  "missing_identity_unresolved": true,
+  "prefix_long_rejected": true,
+  "prefix_short_rejected": true,
+  "prior_episode_preserved": true,
+  "public_route_negative": true,
+  "public_route_positive": true
+ },
+ "schema": "atom-employee-identity-repair-1",
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/core/assignment_executor.py": "86aa7b124ae859894e46e823085ef1c731d0e60afba207404726e6177abf7bb5",
+  "backend/core/employee_business_outcomes.py": "e13eccb656a74f9e2666c4326c0445ff90336697f43e21cd8c07dedf8ee3a5d9",
+  "backend/core/employee_patch.py": "15b16f4f67abe6d2579ea04154fe772de6bc91e78d8793c9b896e1e9fe06ea51",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "backend/tests/test_employee_business_requirements.py": "5e514749a4e083e1c4f07fb07ca0c230ffd3af8e7d98a1aa11eb0c05a122e807",
+  "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173"
+ },
+ "tests": {
+  "focused": {
+   "log": "focused-tests.log",
+   "result": "402 passed"
+  },
+  "frontend_panel": {
+   "log": "frontend-panel.log",
+   "result": "9 passed"
+  },
+  "frontend_tsc": {
+   "log": "frontend-tsc.log",
+   "result": "exit 0"
+  },
+  "identity_focused": {
+   "log": "identity-focused.log",
+   "result": "104 passed"
+  },
+  "verifier_subject": {
+   "log": "verifier-subject.log",
+   "result": "3 passed"
+  }
+ }
+}

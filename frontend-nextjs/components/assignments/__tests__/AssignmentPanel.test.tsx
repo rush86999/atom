@@ -220,6 +220,30 @@ test("shows a business-safe configuration notice without model branding", async 
   expect(notice.textContent).not.toContain("llama");
 });
 
+test("shows the unresolved business result after the question is answered", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    employee_job: {
+      ...detail.employee_job,
+      business_requirements: [{
+        requirement_id: "result-invoice_reconciliation-abc",
+        operation: "invoice_reconciliation",
+        label: "invoice reconciliation",
+        subject: "PO-8841",
+        fact: "receiving",
+        status: "unresolved",
+        next_action: "Complete the invoice reconciliation.",
+      }],
+    },
+  });
+  render(<AssignmentPanel />);
+  const requirement = await screen.findByTestId(
+    "assignment-result-requirement");
+  expect(requirement.textContent).toContain("invoice reconciliation");
+  expect(requirement.textContent).toContain(
+    "Complete the invoice reconciliation");
+});
+
 test("approve sends the concrete step identity", async () => {
   render(<AssignmentPanel />);
   const approve = await screen.findByRole("button", {

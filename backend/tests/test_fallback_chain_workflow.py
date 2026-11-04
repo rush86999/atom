@@ -768,15 +768,15 @@ def test_inflight_claim_ttl_steals_leaked_claims(monkeypatch):
 
     inst = object.__new__(bh.BYOKHandler)
     # Fresh claim succeeds; immediate re-claim fails.
-    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
-    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is False
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code")
+    assert not inst._claim_model_attempt("opencode-go", "kimi-k2.7-code")
     inst._release_model_attempt("opencode-go", "kimi-k2.7-code")
-    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code")
     # A LEAKED claim (older than the TTL) is stolen.
     pair = "opencode-go/kimi-k2.7-code"
     bh._MODEL_ATTEMPT_INFLIGHT[pair] = (
         _time.time() - bh._MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS - 1)
-    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code") is True
+    assert inst._claim_model_attempt("opencode-go", "kimi-k2.7-code")
     inst._release_model_attempt("opencode-go", "kimi-k2.7-code")
 
 

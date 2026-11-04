@@ -1,0 +1,96 @@
+{
+ "artifacts": {
+  "README.md": "1762d073f0af8086c95da5da95e253a31bd4c6e6e88cfc94164aba796cf9f61c",
+  "TEST_RESULTS.md": "7d1b17117b0bc460c8b93c2fa4d579e6be80daa7c8db21214b78dee55a03c164",
+  "attempts.jsonl": "e6b5bdd5bd9672d399a2cc7a287e6a0ba1da10cefa5b097e25c5590c35b88492",
+  "attribution.json": "74b6b413e57aecf62fe19524c3f18014539790b56c563801a65661c7d1f5552a",
+  "fixtures/EXPECTED.json": "0103f4a07ce1d53db2c1515649e835992e4d82b9b9db9d68b391a4861c2bf681",
+  "fixtures/ap-inbox-0402.json": "2b875bdf67e22677c24015b60e76f33c394751afbb51978a3d4390722af17d06",
+  "fixtures/ap-inbox-0411.json": "693550a3a797f7c52ec61981d3c408a3b334f1b8bd3a7c151c466c44a08f29f8",
+  "fixtures/ap-inbox-0412.json": "ea228311bda96983129d0b7f254ca40fc32383928238cd6953f51f5ac2a43cd5",
+  "fixtures/dock-receipt-07.json": "d6a56b4503d2d040a8c5b8cb1d1bd2152e047c08f99ffc7cc4c26804603d0e21",
+  "fixtures/dock-receipt-19.json": "d681d1d491dbfd5602c805d540e7e816e8e390c7f40a252b5132333c59824961",
+  "fixtures/po-archive-88.json": "22b7e48decdc47153d331654dbd2db9bcc0af8ff0a754d90b3d7ff395cbe7b98",
+  "fixtures/warehouse-memo.txt": "c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b",
+  "focused-tests.log": "c1ad8542784c40e051a0abc762fafdad29a2cde7dcfc5161d545470b9cc7502c",
+  "launch.log": "79172534668bd24d3fde6c22beaf7c21974a44b094312dd0242f0f4ee2606c62",
+  "missing-state.json": "8396f2513af212186034b0c841e2cef602e732025e03978b18a506d02efcca86",
+  "positive-state.json": "05290a3f0fa2d0e680952db0f20cf3e23a44e0adee21c7223544e310ac635c78",
+  "routing-feedback.json": "cab7df8c7535a36265b08245433554d505d5aa4c0ecf625ae5ba120f1f181665",
+  "runner.py": "87928ae8b82dad107b05ab6d0617f0a87d04787ae0ee7b36ae7c43a731de651a",
+  "server.log": "82f0a08009f32a5e63b257bcf0fc127d84be91f07156fc875f806038ffc5b597",
+  "verification.json": "98cd62e377f3e5b65f041180dd54baee77b74ca6e99f5120fcd3007f49a83a57",
+  "verifier.py": "5b99c750e70da232878a299539771fa9fcd092b2a186515424fb4e63d73c1a7e"
+ },
+ "boundaries": [
+  "controlled local inference only; no live/cloud provider, credential, spend, send, download or deployment authority",
+  "model selected correct evidence after a bounded correction, not a claim of one-shot universal judgment",
+  "no artifact was requested in this procurement batch",
+  "earlier negative probes 80e3bd702 / 20f3ffc19 remain historical at their sources",
+  "automatic multi-model BYOK selection, general adaptive breadth, live Zoho/Microsoft, Linux/KVM and multi-worker/soak remain separate",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ],
+ "checks": {
+  "attempts": "7 dispatch events across both runs",
+  "focused_tests": "323 passed",
+  "model_selection": "model repair selected current invoice/receiving/PO; compact model bound correct roles",
+  "routing": "pinned ollama/llama3.1:8b; evidence selection + compact profiles",
+  "verification": "26/26"
+ },
+ "evidence_note": "Evidence was added after the executed source; a later Agent 2 routing commit is outside this procurement run.",
+ "evidence_tip": "7d4358ea6708f1c568caed78e972ad2f0c79d8f8",
+ "executed_source": "7d4358ea6708f1c568caed78e972ad2f0c79d8f8",
+ "fixtures": {
+  "arithmetic": "6*18.50 + 10.00 = 121.00",
+  "correct_files": [
+   "ap-inbox-0412.json",
+   "po-archive-88.json",
+   "dock-receipt-19.json"
+  ],
+  "distractors": [
+   "ap-inbox-0411.json",
+   "ap-inbox-0402.json",
+   "dock-receipt-07.json",
+   "warehouse-memo.txt"
+  ],
+  "expected_reconciliation": "121.00",
+  "root": "fixtures/",
+  "target": {
+   "invoice_id": "INV-SEL-77",
+   "po_id": "PO-SEL-520"
+  }
+ },
+ "runs": {
+  "missing": {
+   "before_add": "blocked with targeted invoice question",
+   "checks": "14/14",
+   "replay": "same job",
+   "run_id": "b7286046-eaf7-4639-b6b1-6c41555f0fc7",
+   "status": "completed_after_authorized_add",
+   "value": "121.00"
+  },
+  "positive": {
+   "checks": "12/12",
+   "run_id": "8610f673-4c3e-46b6-9de5-d1a28068edf6",
+   "status": "completed",
+   "value": "121.00"
+  }
+ },
+ "schema": "atom-employee-evidence-1",
+ "source_files": {
+  "backend/api/assignment_routes.py": "6f63870fb44fcd7ebaf6d0f943150376d2088629784ecc58d555b08ee5841e7a",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/core/employee_adaptation.py": "d444c67f784f4a3b027f28481eff0fe551c967e077f154a2fa0718e79e443d2f",
+  "backend/core/employee_attempt_journal.py": "63984ce2c5addd3c3e5423538bb5393c48dc17636e1fe38f92db7fd0cd85ab98",
+  "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+  "backend/core/employee_job_runner.py": "8b7346ca40745728d64558e6869635465b786b526fc97d7ae22d239f7b82e3b1",
+  "backend/core/employee_proposal.py": "06436d2c2473aa551004d118e159409db24aa62585056e2e39362d1a136e0aef",
+  "backend/core/employee_work_compiler.py": "3dcd28bc5a444d95df348226c42a431a31724f77b37e7ed6f7c6bd6e55e614a6",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/llm/byok_handler.py": "9b526df6659cecd237a3f4ae66ae704314ce31af4d4fdd1380133bee05ef26db",
+  "backend/core/llm/capability_profiles.py": "c21d25f08da1f10790da3dd3f116e3ff45563545ad40fc8dbeb16740797fdf1f",
+  "backend/core/llm/pinned_planning.py": "2d2b19b21e18bbace442e83379a686d6dee7db332ad3fc329d3e01066254a73f"
+ },
+ "status": "independent procurement evidence selection and missing-source twin demonstrated at controlled local scope; automatic multi-model BYOK selection remains separate",
+ "tree_clean_at_run": true
+}

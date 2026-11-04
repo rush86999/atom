@@ -25,6 +25,10 @@ from core.assignment_plan import (
     validate_assignment,
 )
 from core.assignment_readiness import normalize_facts, normalize_requirements
+from core.employee_business_outcomes import (
+    normalize_business_requirements,
+    result_profile,
+)
 
 PATCH_SCHEMA = "atom-employee-plan-patch-1"
 MAX_ADDED_STEPS = 8
@@ -81,6 +85,9 @@ class PlanPatchProposal(BaseModel):
     add_steps: List[StepPatch] = Field(default_factory=list)
     update_steps: List[StepUpdate] = Field(default_factory=list)
     add_facts: List[Dict[str, Any]] = Field(default_factory=list)
+    add_business_requirements: List[Dict[str, Any]] = Field(
+        default_factory=list)
+    add_criteria: List[Dict[str, Any]] = Field(default_factory=list)
     set_requires: Dict[str, List[Dict[str, Any]]] = Field(
         default_factory=dict)
 
@@ -114,6 +121,13 @@ def _material_patch_digest(patch: Mapping[str, Any]) -> str:
         "add_facts": sorted(
             [dict(item) for item in patch.get("add_facts") or []],
             key=lambda item: str(item.get("fact_id") or "")),
+        "add_business_requirements": sorted(
+            [dict(item) for item in
+             patch.get("add_business_requirements") or []],
+            key=lambda item: str(item.get("requirement_id") or "")),
+        "add_criteria": sorted(
+            [dict(item) for item in patch.get("add_criteria") or []],
+            key=lambda item: str(item.get("criterion_id") or "")),
         "set_requires": {
             str(key): value for key, value in sorted(
                 (patch.get("set_requires") or {}).items())
@@ -476,6 +490,64 @@ def validate_plan_patch(
                 errors.append(
                     f"update_steps would erase an existing requirement on "
                     f"{raw.step_id}; a model patch cannot weaken the objective")
+    existing_requirements = assignment.get("business_requirements") or []
+    try:
+        normalized_requirements = normalize_business_requirements(
+            existing_requirements)
+    except ValueError as exc:
+        normalized_requirements = []
+        errors.append(f"existing business requirements are invalid: {exc}")
+    requirement_ids = {
+        str(item.get("requirement_id") or "")
+        for item in normalized_requirements
+    }
+    try:
+        added_requirements = normalize_business_requirements(
+            normalized.add_business_requirements)
+    except ValueError as exc:
+        added_requirements = []
+        errors.append(f"business requirements: {exc}")
+    for requirement in added_requirements:
+        requirement_id = requirement["requirement_id"]
+        if requirement_id in requirement_ids:
+            errors.append(
+                f"business requirement {requirement_id!r} already exists")
+        requirement_ids.add(requirement_id)
+    existing_criterion_ids = {
+        str(item.get("criterion_id") or "")
+        for item in assignment.get("completion_criteria") or []
+        if isinstance(item, dict)
+    }
+    added_criterion_ids = set()
+    for raw in normalized.add_criteria:
+        if not isinstance(raw, dict):
+            errors.append("an added criterion must be an object")
+            continue
+        criterion_id = str(raw.get("criterion_id") or "").strip()
+        if not criterion_id or criterion_id in existing_criterion_ids:
+            errors.append(
+                f"added criterion id {criterion_id!r} is missing or already "
+                "exists")
+            continue
+        if criterion_id in added_criterion_ids:
+            errors.append(f"added criterion id {criterion_id!r} is duplicated")
+            continue
+        added_criterion_ids.add(criterion_id)
+        if str(raw.get("kind") or "") != "business_result":
+            errors.append(
+                "a model patch may add only a business_result criterion")
+            continue
+        if raw.get("required", True) is not True:
+            errors.append("an added business_result criterion must be required")
+        if str(raw.get("verifier") or "") != "business_result":
+            errors.append(
+                "an added business_result criterion must use its registered "
+                "verifier")
+        requirement_id = str(raw.get("requirement_id") or "").strip()
+        if requirement_id not in requirement_ids:
+            errors.append(
+                f"added criterion names unknown business requirement "
+                f"{requirement_id!r}")
     return {
         "valid": not errors,
         "errors": errors,
@@ -709,6 +781,25 @@ def apply_plan_patch(
             for fact in normalize_facts(normalized["add_facts"]):
                 facts[str(fact["fact_id"])] = fact
             new_plan["facts"] = list(facts.values())
+        if normalized["add_business_requirements"]:
+            requirements = {
+                str(item.get("requirement_id")): item
+                for item in new_plan.get("business_requirements") or []
+            }
+            for requirement in normalize_business_requirements(
+                    normalized["add_business_requirements"]):
+                requirements[str(requirement["requirement_id"])] = requirement
+            new_plan["business_requirements"] = list(requirements.values())
+        if normalized["add_criteria"]:
+            criteria = {
+                str(item.get("criterion_id")): item
+                for item in new_plan.get("completion_criteria") or []
+                if isinstance(item, dict)
+            }
+            for criterion in normalized["add_criteria"]:
+                criteria[str(criterion["criterion_id"])] = copy.deepcopy(
+                    criterion)
+            new_plan["completion_criteria"] = list(criteria.values())
         for step_id, requirements in normalized["set_requires"].items():
             target = step_by_id(new_plan, step_id)
             if target is None:
@@ -725,6 +816,12 @@ def apply_plan_patch(
             "affected_steps": affected,
             "updated_steps": updated_steps,
             "retained_steps": retained,
+            "added_requirements": [
+                item.get("requirement_id") for item in
+                normalized["add_business_requirements"]],
+            "added_criteria": [
+                item.get("criterion_id") for item in
+                normalized["add_criteria"]],
             "plan_revision": new_plan["plan_revision"],
         }
         new_plan["last_transition"] = {

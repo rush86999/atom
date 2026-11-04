@@ -1,0 +1,52 @@
+{
+ "schema": "atom-employee-g5-final-completion-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "70a74cd02b5",
+  "tree_clean_at_run": true,
+  "frontend_build_id": "ZKXAbjqCRYz-5ML5pGUtJ",
+  "manifest_note": "One normal-UI employee episode: model-chosen durable wait, independent quote, same-world process restart, exact same-job reply, model-selected dependent reconciliation and requested combined review document."
+ },
+ "source_hashes": {
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/employee_work_compiler.py": "76eba0d4a40843ce6984f7f9793f1a25f795cc27a7c2948a9c50905f36f53c11",
+  "backend/core/employee_adaptation.py": "a942744613cb2fe4e8cee9ccf949ebdfcf78854a25e9d7b673cab0711ce7cb04",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/employee_business_outcomes.py": "d02124e8d4de054a146ce9e68114dd8eb116f60001fa3a5e361db32c00e4b5b9",
+  "backend/core/assignment_executor.py": "86aa7b124ae859894e46e823085ef1c731d0e60afba207404726e6177abf7bb5",
+  "backend/core/assignment_planner.py": "0a95364d13fa42de499cb377bb3d4c4afa3c9fdc3f91ea07890aea8d4ab0257f",
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "cd0fc92bd70b0d10006c4dfb706e45909218a0b57650573cf90e72b75fc6a923",
+  "frontend-nextjs/lib/assignment-api.ts": "604c276ab4dab082f51510ca666fe43555de7671c8eb000de5684d01ea6b7027",
+  "scripts/acceptance/employee_g5_ui_durable_wait.py": "8129ceb22a0478b89ad7f3a4abfa4c3a8bd6de3257593991ccdc35ac923d9584"
+ },
+ "artifacts": {
+  "README.md": "2192782ff693e8752073188d25ef3c67f8686a8f3efa7c8140955a6c95f7c530"
+ },
+ "child_bundles": [
+  "docs/acceptance/evidence/employee_g5_durable_wait_70a74cd02b5/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_integrated_change_62fa207647/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_ui_requested_artifact_c7a265c37/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_regression_b4c29e2b6d9e/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_final_regressions_b4c29e2b6/MANIFEST.json"
+ ],
+ "results": {
+  "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+  "wait_correlation": "await-c44df7cdb608245de632",
+  "quote_total": "370.00",
+  "quote_operation": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+  "reconciliation_total": "270.00",
+  "artifact_sha256": "8d0d48773c7e1bca5ee587872f818e0738035d868fb95e7e9245a53f5f6b063e",
+  "episode_checks": "16/16",
+  "git_checks": "24/24",
+  "focused_tests": "252 passed",
+  "preflight_tests": "27 passed"
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "general model judgment and broader cross-domain autonomy are not qualified",
+  "no live provider, credential, consent, send, spend, download or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

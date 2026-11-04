@@ -1,0 +1,195 @@
+{
+ "source": "7d4358ea6708f1c568caed78e972ad2f0c79d8f8",
+ "positive": {
+  "run_id": "8610f673-4c3e-46b6-9de5-d1a28068edf6",
+  "value": "121.00",
+  "roles": {
+   "invoice": {
+    "step_id": "source-6",
+    "file_name": "ap-inbox-0412.json"
+   },
+   "purchase_order": {
+    "step_id": "source-5",
+    "file_name": "po-archive-88.json"
+   },
+   "receiving": {
+    "step_id": "source-7",
+    "file_name": "dock-receipt-19.json"
+   }
+  },
+  "model_selected_files": [
+   "ap-inbox-0402.json",
+   "ap-inbox-0411.json",
+   "ap-inbox-0412.json",
+   "dock-receipt-07.json",
+   "dock-receipt-19.json",
+   "po-archive-88.json",
+   "warehouse-memo.txt"
+  ],
+  "checks": {
+   "assignment_completed": true,
+   "reconciliation_121": true,
+   "correct_invoice_role": true,
+   "correct_purchase_order_role": true,
+   "correct_receiving_role": true,
+   "no_wrong_or_obsolete_role": true,
+   "correct_files_read": true,
+   "outcome_satisfied": true,
+   "no_injected_total": true,
+   "model_selected_invoice": true,
+   "model_selected_purchase_order": true,
+   "model_selected_receiving": true
+  },
+  "all_passed": true,
+  "routing": [
+   {
+    "stage": "evidence_selection",
+    "source": "model",
+    "repair_source": null,
+    "profile": "employee_evidence_selection",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "selected_sources"
+   },
+   {
+    "stage": "evidence_selection",
+    "source": "deterministic",
+    "repair_source": "model",
+    "profile": "employee_evidence_selection",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "selected_sources"
+   },
+   {
+    "stage": "evidence_selection",
+    "source": "model_compact",
+    "repair_source": null,
+    "profile": "employee_adaptive_planning_compact",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "clarification"
+   }
+  ]
+ },
+ "missing": {
+  "run_id": "b7286046-eaf7-4639-b6b1-6c41555f0fc7",
+  "before_add_question": "Which authorized source contains invoice INV-SEL-77 for purchase order PO-SEL-520?",
+  "before_add_checks": {
+   "not_completed": true,
+   "targeted_invoice_question": true,
+   "no_reconciliation": true
+  },
+  "after_add": {
+   "value": "121.00",
+   "roles": {
+    "invoice": {
+     "step_id": "source-7",
+     "file_name": "ap-inbox-0412.json"
+    },
+    "purchase_order": {
+     "step_id": "source-5",
+     "file_name": "po-archive-88.json"
+    },
+    "receiving": {
+     "step_id": "source-6",
+     "file_name": "dock-receipt-19.json"
+    }
+   },
+   "model_selected_files": [
+    "ap-inbox-0402.json",
+    "ap-inbox-0411.json",
+    "dock-receipt-07.json",
+    "dock-receipt-19.json",
+    "po-archive-88.json",
+    "warehouse-memo.txt"
+   ]
+  },
+  "checks": {
+   "before_add_not_completed": true,
+   "targeted_invoice_question": true,
+   "question_is_missing_invoice": true,
+   "no_reconciliation_before_add": true,
+   "no_artifact_before_add": true,
+   "same_run_recovered": true,
+   "recovery_completed": true,
+   "recovery_121": true,
+   "recovery_correct_invoice": true,
+   "recovery_correct_purchase_order": true,
+   "recovery_correct_receiving": true,
+   "recovery_outcome_satisfied": true,
+   "question_resolved": true,
+   "model_backed_recovery": true
+  },
+  "all_passed": true,
+  "routing": [
+   {
+    "stage": "evidence_selection",
+    "source": "model",
+    "repair_source": null,
+    "profile": "employee_evidence_selection",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "selected_sources"
+   },
+   {
+    "stage": "evidence_selection",
+    "source": "model",
+    "repair_source": "model",
+    "profile": "employee_evidence_selection",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "selected_sources"
+   },
+   {
+    "stage": "evidence_selection",
+    "source": "deterministic",
+    "repair_source": null,
+    "profile": "employee_wait_choice",
+    "served_route": null,
+    "outcome": "clarification"
+   },
+   {
+    "stage": "adaptation",
+    "source": "model_compact",
+    "profile": "employee_adaptive_planning_compact",
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "outcome": "replan"
+   }
+  ]
+ },
+ "attempts": {
+  "events": 15,
+  "dispatches": 7,
+  "parsed": 2,
+  "failures_or_no_results": 5,
+  "parsed_seconds": 56.114,
+  "prompt_tokens": 8096,
+  "completion_tokens": 247,
+  "profiles": [
+   "{'name': 'employee_adaptive_planning_compact', 'version': '2026-11-04.1'}"
+  ]
+ },
+ "fixtures": {
+  "ap-inbox-0402.json": "2b875bdf67e22677c24015b60e76f33c394751afbb51978a3d4390722af17d06",
+  "ap-inbox-0411.json": "693550a3a797f7c52ec61981d3c408a3b334f1b8bd3a7c151c466c44a08f29f8",
+  "ap-inbox-0412.json": "ea228311bda96983129d0b7f254ca40fc32383928238cd6953f51f5ac2a43cd5",
+  "dock-receipt-07.json": "d6a56b4503d2d040a8c5b8cb1d1bd2152e047c08f99ffc7cc4c26804603d0e21",
+  "dock-receipt-19.json": "d681d1d491dbfd5602c805d540e7e816e8e390c7f40a252b5132333c59824961",
+  "po-archive-88.json": "22b7e48decdc47153d331654dbd2db9bcc0af8ff0a754d90b3d7ff395cbe7b98",
+  "warehouse-memo.txt": "c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b"
+ },
+ "all_passed": true
+}

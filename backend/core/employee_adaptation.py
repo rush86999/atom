@@ -14,7 +14,7 @@ import json
 import time
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from core.assignment_plan import downstream_step_ids, step_by_id
 from core.employee_patch import (
@@ -29,9 +29,24 @@ from core.employee_work_compiler import (
     WorkRequestCompileError,
     compile_work_request_patch,
 )
-from core.employee_work_requests import WorkRequest, request_digest
+from core.employee_work_requests import (
+    AwaitEvidenceRequest,
+    InvoiceReconciliationRequest,
+    QuoteCalculationRequest,
+    WorkRequest,
+    request_digest,
+)
 
 ADAPTATION_SCHEMA = "atom-employee-adaptation-1"
+
+
+class _BudgetExhausted(Exception):
+    """The shared call budget was already spent before a stage dispatched.
+
+    This is deliberately distinct from a dispatched stage that timed out: a
+    skipped stage is not another model semantic failure and must not be counted
+    as one in the attempt journal or the campaign diagnosis.
+    """
 
 
 class Observation(BaseModel):
@@ -273,6 +288,12 @@ def _adaptation_errors(
             f"prerequisite: {missing}. Choose clarify and ask for the named "
             "missing evidence, or propose supported work that does not need "
             "it."]
+    if normalized.work_request is not None and normalized.decision not in (
+            "replan", "work_request"):
+        return [
+            "a typed work_request requires decision 'replan' or "
+            "'work_request'; 'reconcile' is only for an existing uncertain "
+            "effect"]
     if normalized.decision != "replan":
         return []
     if normalized.work_request is not None:
@@ -349,6 +370,223 @@ def _response_model_for(context: Mapping[str, Any]) -> Any:
         if context.get("work_request_schemas") else AdaptationProposal)
 
 
+# The compact invoice request keeps only the model-owned choice: the
+# operation, the accepted role step IDs and the currency. Field maps and the
+# evidence array stay compiler-owned (defaults are resolved from the accepted
+# evidence). This also keeps a small model from copying JSON-schema `$ref`
+# artifacts into the evidence array or sending a cell value where a column
+# name belongs. The subset is still a valid InvoiceReconciliationRequest.
+_COMPACT_INVOICE_REQUEST = create_model(
+    "CompactInvoiceReconciliationRequest",
+    __config__=ConfigDict(extra="forbid"),
+    operation=(Literal["invoice_reconciliation"], "invoice_reconciliation"),
+    invoice_step_id=(Optional[str], None),
+    purchase_order_step_id=(Optional[str], None),
+    receiving_step_id=(Optional[str], None),
+    currency=(Optional[str], None),
+    reason=(str, ""),
+)
+
+_COMPACT_QUOTE_REQUEST = create_model(
+    "CompactQuoteCalculationRequest",
+    __config__=ConfigDict(extra="forbid"),
+    operation=(Literal["quote_calculation"], "quote_calculation"),
+    source_step_id=(str, Field(min_length=1, max_length=80)),
+    item_id=(str, Field(min_length=1, max_length=120)),
+    quantity=(str, Field(min_length=1, max_length=120)),
+    unit_price=(str, Field(min_length=1, max_length=120)),
+    currency=(Optional[str], None),
+    freight_ref=(str, "freight"),
+    tax_basis=(Literal["none", "rate", "amount"], "none"),
+    tax_ref=(str, "tax_basis"),
+    reason=(str, ""),
+)
+
+_COMPACT_REQUEST_MODELS = {
+    "invoice_reconciliation": _COMPACT_INVOICE_REQUEST,
+    "quote_calculation": _COMPACT_QUOTE_REQUEST,
+}
+
+
+def _compact_evidence(item: Mapping[str, Any]) -> Dict[str, Any]:
+    """Relevant accepted evidence, bounded; execution still uses full rows."""
+    return {
+        "step_id": item.get("step_id"),
+        "title": item.get("title"),
+        "adapter": item.get("adapter"),
+        "status": item.get("status"),
+        "summary": item.get("summary"),
+        "business_role": item.get("business_role"),
+        "schema": list(item.get("schema") or [])[:20],
+        "data_keys": list(item.get("data_keys") or [])[:30],
+        "data_preview": dict(item.get("data_preview") or {}),
+        "verification": dict(item.get("verification") or {}),
+        "coverage": dict(item.get("coverage") or {}),
+    }
+
+
+def _compact_single_request_context(
+    context: Mapping[str, Any],
+    observations: List[Mapping[str, Any]],
+    *,
+    require_unresolved_requirement: bool = False,
+    allow_waiting_quote: bool = True,
+) -> Optional[Dict[str, Any]]:
+    """Narrow typed continuation when exactly one operation is ready.
+
+    The model still chooses replan/retain/clarify and returns the typed
+    request. This removes the all-purpose union schema and unrelated
+    completed-branch details before the first call, not after the budget is
+    already exhausted.
+    """
+    rules = context.get("rules") or {}
+    allowed = [
+        str(item) for item in rules.get("allowed_work_requests") or []
+        if str(item).strip()
+    ]
+    if context.get("waiting"):
+        # A durable wait is already open. The full context may still list
+        # await_evidence as a legal request shape; it is not legal again in
+        # this state, and counting it would suppress the narrow independent
+        # work path.
+        allowed = [item for item in allowed if item != "await_evidence"]
+    if len(allowed) != 1:
+        return None
+    operation = allowed[0]
+    request_model = _COMPACT_REQUEST_MODELS.get(operation)
+    if request_model is None:
+        return None
+    entry = next((
+        item for item in context.get("available_business_operations") or []
+        if isinstance(item, Mapping)
+        and str(item.get("operation") or "") == operation
+        and str(item.get("status") or "") == "ready"), None)
+    if entry is None:
+        return None
+    requirement = next((
+        item for item in context.get("business_requirements") or []
+        if isinstance(item, Mapping)
+        and str(item.get("operation") or "") == operation
+        and str(item.get("status") or "") != "satisfied"), None)
+    if require_unresolved_requirement and requirement is None:
+        # Compact-first is primarily for the continuation of an unresolved
+        # scoped requirement. The independent quote is the other legitimate
+        # single-ready continuation: a durable external wait is open and the
+        # only ready operation is the quote. Without this, the model must
+        # re-read the full all-purpose prompt just to choose the independent
+        # work, and a small model can repeat the wait instead.
+        independent_quote = bool(
+            allow_waiting_quote
+            and operation == "quote_calculation"
+            and context.get("waiting")
+            and str(entry.get("status") or "") == "ready"
+        )
+        if not independent_quote:
+            return None
+    relevant_ids = {
+        str(item.get("step_id"))
+        for item in entry.get("evidence") or []
+        if isinstance(item, Mapping) and item.get("step_id")
+    }
+    relevant_roles = {"invoice", "purchase_order", "receiving", "quote_rows"}
+    evidence = []
+    for item in context.get("evidence_results") or []:
+        if not isinstance(item, Mapping):
+            continue
+        if str(item.get("step_id") or "") in relevant_ids or str(
+                item.get("business_role") or "") in relevant_roles:
+            evidence.append(_compact_evidence(item))
+    compact_observations = [
+        dict(item) for item in observations
+        if isinstance(item, Mapping)
+        and (
+            item.get("kind") == "waiting_state"
+            or str(item.get("step_id") or "") in relevant_ids)
+    ]
+    response_model = create_model(
+        "CompactEmployeeWorkProposal",
+        __config__=ConfigDict(extra="forbid"),
+        decision=(Literal["replan", "retain", "clarify"], ...),
+        reason=(str, ""),
+        observation_ids=(List[str], Field(default_factory=list)),
+        work_request=(Optional[request_model], None),
+        clarification=(Optional[ClarificationProposal], None),
+    )
+    payload = {
+        "objective": str(context.get("objective") or "")[:1000],
+        "operation": operation,
+        "requirement": requirement,
+        "evidence": evidence[:8],
+        "roles": entry.get("roles") or {},
+        "allowed_step_ids": sorted(relevant_ids),
+        "known_identities": entry.get("known_identities") or {},
+        "teaching_terms": (
+            (context.get("teaching") or {}).get("terms") or {}),
+        "decisions": ["replan", "retain", "clarify"],
+    }
+    operation_rule = ""
+    if operation == "invoice_reconciliation":
+        operation_rule = (
+            "Use the accepted invoice, purchase-order and receiving step IDs "
+            "from the context. Choose the exact role step IDs whose data "
+            "match the objective's named invoice and purchase order; if none "
+            "matches, return clarify for the exact missing record. Do not "
+            "supply field maps or an evidence array; the compiler resolves "
+            "the accepted default field names and binds the role step IDs.\n"
+        )
+    elif operation == "quote_calculation":
+        operation_rule = (
+            "Set item_id, quantity and unit_price to exact column NAMES from "
+            "the accepted tabular evidence, using DIFFERENT columns with "
+            "matching meaning. Bind the taught terms by name with "
+            "freight_ref='freight' and tax_ref='tax_basis'; do not copy "
+            "numeric term values. The compiler resolves the taught freight, "
+            "tax and currency and computes the total. Do not invent rows, "
+            "prices or totals.\n"
+        )
+    request_fields = ", ".join(
+        str(name) for name in (getattr(request_model, "model_fields", {}) or {})
+    )
+    prompt = (
+        "You choose one bounded employee response. The only allowed operation "
+        f"is {operation}.\n"
+        "Choose replan only when the accepted evidence and taught terms "
+        "support that operation; return one typed work_request with accepted "
+        "step IDs/identities. Choose retain when no material work is "
+        "justified, or clarify when one specific fact is missing. Do not "
+        "invent rows, prices, totals, identities or authority; do not return "
+        "a different operation.\n"
+        + operation_rule
+        + "Return JSON only with this shape: {decision, reason, "
+        "observation_ids, work_request, clarification}.\n"
+        f"work_request fields: {request_fields}.\n"
+        "Return concrete VALUES, not the JSON schema. Never output $defs, "
+        "properties, required, title or type.\n"
+        + "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
+        + "\n\nOBSERVATIONS:\n"
+        + json.dumps(compact_observations[:8], sort_keys=True, default=str)
+    )
+    return {
+        "operation": operation,
+        "prompt": prompt,
+        "response_model": response_model,
+        "observation_ids": [
+            str(item.get("observation_id")) for item in compact_observations
+            if item.get("observation_id")
+        ],
+    }
+
+
+def _compact_single_request_prompt(
+    context: Mapping[str, Any],
+    observations: Optional[List[Mapping[str, Any]]] = None,
+) -> str:
+    """Compatibility wrapper for the bounded one-operation prompt."""
+    compact = _compact_single_request_context(
+        context, list(observations or []))
+    return compact["prompt"] if compact else ""
+
+
 def _adaptation_prompt(
     context: Mapping[str, Any], observations: List[Mapping[str, Any]],
     response_model: Any = None,
@@ -385,9 +623,12 @@ def _adaptation_prompt(
             "- To wait for a material external fact, choose replan with an "
             "await_evidence work_request: name the business fact, its "
             "subject, the authorized source/channel expected to answer, the "
-            "typed answer and the dependent work it blocks. The compiler "
-            "derives the durable wait and correlation; never author step, "
-            "operation or correlation ids.\n"
+            "typed answer and the dependent work it blocks. Set "
+            "blocks_operation to the supported operation whose verified "
+            "result depends on that fact (for example "
+            "invoice_reconciliation); this becomes a durable result "
+            "requirement. The compiler derives the durable wait and "
+            "correlation; never author step, operation or correlation ids.\n"
             if typed else (
                 "- The accepted evidence does not yet support a listed "
                 "business operation. If the objective still requires a "
@@ -407,7 +648,8 @@ def _adaptation_prompt(
             "known_identities for the subject and its missing field for the "
             "fact) before unrelated work. In 'blocks', name the blocked "
             "operation label exactly as listed (for example 'invoice "
-            "reconciliation'); do not claim an unrelated operation is "
+            "reconciliation') and set blocks_operation to its exact "
+            "supported operation id; do not claim an unrelated operation is "
             "blocked. Never wait for a term or value the agent can choose, "
             "and never propose the blocked work_request until the fact "
             "arrives. Do not return retain while the objective is unresolved.\n"
@@ -435,7 +677,11 @@ def _adaptation_prompt(
             "- For invoice_reconciliation, bind invoice/purchase order/"
             "receiving step IDs to context.evidence_results entries whose "
             "business_role is invoice/purchase_order/receiving. Never bind "
-            "by numeric step order alone.\n"
+            "by numeric step order alone. If a role lists several accepted "
+            "candidates, choose the exact step whose identity fields match "
+            "the objective's named invoice and purchase order; do not ask "
+            "the user while a matching candidate exists. If none matches, "
+            "ask for the exact missing record.\n"
             if typed else ""
         )
         + "- Do not invent source/action IDs or authority; do not remove "
@@ -512,6 +758,7 @@ async def propose_adaptation(
         except Exception:  # noqa: BLE001 — diagnostics are optional
             journal = None
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
+    stage_no_results: Dict[str, List[Dict[str, Any]]] = {}
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -520,6 +767,9 @@ async def propose_adaptation(
 
     def _observer(stage_name: str):
         def observe(event: str, **fields: Any) -> None:
+            if event == "no_result":
+                stage_no_results.setdefault(stage_name, []).append(dict(
+                    fields.get("failure") or {}))
             if event == "failure":
                 exc = fields.get("exception")
                 try:
@@ -546,7 +796,10 @@ async def propose_adaptation(
         return observe
 
     def _failure_summary(stage_name: str) -> Optional[str]:
-        failures = stage_failures.get(stage_name) or []
+        failures = [
+            *(stage_failures.get(stage_name) or []),
+            *(stage_no_results.get(stage_name) or []),
+        ]
         if not failures:
             return None
         kinds = []
@@ -554,21 +807,35 @@ async def propose_adaptation(
             kind = item.get("kind") or "provider_failure"
             if kind not in kinds:
                 kinds.append(kind)
-        return "no parsed proposal: " + ", ".join(kinds)
+        summary = "no parsed proposal: " + ", ".join(kinds)
+        details = [
+            str(item.get("detail") or "").strip()
+            for item in failures
+            if str(item.get("detail") or "").strip()
+        ]
+        if details:
+            summary += " — " + details[-1][:300]
+        return summary
 
-    async def _call(prompt: str, label: str, stage_name: str) -> Any:
+    def _record_skipped(stage_name: str, label: str) -> None:
+        if journal is not None:
+            journal.record(
+                "skipped_due_to_budget", call_stage=stage_name, label=label,
+                attempt=0, route="deadline", seconds=0.0)
+
+    async def _call(
+        prompt: str, label: str, stage_name: str, *,
+        model: Any = None, max_tokens: int = 1800,
+        capability_profile: Optional[str] = None,
+    ) -> Any:
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
-            error = TimeoutError(f"{stage_name} deadline exhausted")
-            if journal is not None:
-                journal.failure(
-                    error, call_stage=stage_name, label=label, attempt=0,
-                    route="deadline", seconds=0.0)
-            raise error
+            _record_skipped(stage_name, label)
+            raise _BudgetExhausted(stage_name)
         call = pinned_structured_call(
             llm_service,
             prompt=prompt,
-            response_model=response_model,
+            response_model=model or response_model,
             system_instruction=(
                 "You choose bounded business work and plan changes. You "
                 "never execute, author execution plumbing or grant "
@@ -580,10 +847,11 @@ async def propose_adaptation(
                 "output_mode": "json",
                 "cascade": False,
                 "allow_moa": False,
-                "max_tokens": 1800,
+                "max_tokens": max_tokens,
             },
             log_label=label,
             task_type="planning",
+            capability_profile=capability_profile,
             workspace_id=context.get("identity", {}).get("workspace_id"),
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
@@ -601,13 +869,88 @@ async def propose_adaptation(
                     if deadline is not None else 0.0)
             raise
 
-    def _normalize(result: Any) -> Dict[str, Any]:
-        normalized_model = response_model.model_validate(
+    def _normalize(
+        result: Any, model: Any = None, expand: Any = None,
+    ) -> Dict[str, Any]:
+        selected_model = model or response_model
+        normalized_model = selected_model.model_validate(
             result.model_dump() if isinstance(result, BaseModel) else dict(result))
         normalized = normalized_model.model_dump()
+        if expand is not None:
+            normalized = expand(normalized)
         # Internal conversion happens only after the SELECTED response model
         # has validated the payload.
         return AdaptationProposal.model_validate(normalized).model_dump()
+
+    def _expand_compact_payload(
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Translate only compiler-owned mechanics in a compact payload.
+
+        The model returns flat column/term choices so a small model does not
+        have to author nested MoneyTerm/TaxTerm objects. The compiler resolves
+        the taught term values and builds the existing typed request.
+        """
+        work_request = payload.get("work_request")
+        if not isinstance(work_request, Mapping):
+            return payload
+        if str(work_request.get("operation") or "") != "quote_calculation":
+            return payload
+        terms = (context.get("teaching") or {}).get("terms") or {}
+        tax_basis = str(work_request.get("tax_basis") or "none")
+        tax_value = (
+            str(terms.get("tax_basis") or "")
+            if tax_basis in ("rate", "amount") else "")
+        payload["work_request"] = {
+            "operation": "quote_calculation",
+            "source_step_id": work_request.get("source_step_id"),
+            "columns": {
+                "item_id": work_request.get("item_id"),
+                "quantity": work_request.get("quantity"),
+                "unit_price": work_request.get("unit_price"),
+            },
+            "currency": (
+                work_request.get("currency")
+                or terms.get("currency") or "USD"),
+            "freight": {
+                "value": str(terms.get("freight") or ""),
+                "authority_ref": (
+                    work_request.get("freight_ref") or "freight"),
+            },
+            "tax": {
+                "basis": tax_basis,
+                "value": tax_value,
+                "authority_ref": (
+                    work_request.get("tax_ref") or "tax_basis"),
+            },
+            "reason": work_request.get("reason") or "",
+        }
+        return payload
+
+    def _bind_compact_observations(
+        normalized: Dict[str, Any], compact: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        """The compact call's own observations are the lifecycle binding.
+
+        The model owns the typed request; repeating opaque observation ids is
+        not a business choice. When it omits them, bind exactly the
+        observations this narrow call was built from (never a wider set).
+        If the narrow filter selected no observation (for example the only
+        accepted evidence is not a role candidate), the call's triggering
+        observations are still the truthful lifecycle binding for the
+        proposal the model just made.
+        """
+        if not normalized.get("observation_ids"):
+            ids = list(compact.get("observation_ids") or [])
+            if not ids:
+                ids = [
+                    str(item.get("observation_id"))
+                    for item in observations
+                    if isinstance(item, Mapping)
+                    and item.get("observation_id")
+                ]
+            normalized["observation_ids"] = ids
+        return normalized
 
     if llm_service is not None and observations:
         try:
@@ -618,13 +961,175 @@ async def propose_adaptation(
             checked_errors = ["planner transport unavailable"]
             failure_stage = "transport"
         else:
+            # Single-ready-operation continuation: use the narrow typed
+            # request/schema BEFORE the all-purpose adaptation prompt. This is
+            # a model choice, not a deterministic work selection.
+            compact = _compact_single_request_context(
+                context, observations,
+                require_unresolved_requirement=True)
+            if compact is not None:
+                checked_errors: List[str] = []
+                failure_stage = None
+                result = None
+                try:
+                    result = await _call(
+                        compact["prompt"], "employee adaptation compact",
+                        "compact", model=compact["response_model"],
+                        max_tokens=1200,
+                        capability_profile=(
+                            "employee_adaptive_planning_compact"))
+                except _BudgetExhausted:
+                    failure_stage = "compact"
+                    checked_errors = ["skipped_due_to_budget: compact"]
+                except asyncio.TimeoutError:
+                    _record_routing_failure("deadline_cancelled")
+                    failure_stage = "compact"
+                    checked_errors = ["deadline_exceeded: compact"]
+                except Exception as exc:  # noqa: BLE001
+                    failure_stage = "compact"
+                    checked_errors = [f"compact call: {exc}"]
+                if result is None and not checked_errors:
+                    summary = _failure_summary("compact")
+                    checked_errors = [summary] if summary else [
+                        "model returned no proposal"]
+                    failure_stage = "compact"
+                if result is not None:
+                    try:
+                        normalized = _bind_compact_observations(
+                            _normalize(
+                                result, compact["response_model"],
+                                expand=_expand_compact_payload),
+                            compact)
+                        proposal = AdaptationProposal.model_validate(normalized)
+                        errors = _adaptation_errors(
+                            proposal, assignment, context)
+                        if not errors:
+                            return {
+                                "proposal": proposal.model_dump(),
+                                "source": "model_compact",
+                                "technical_fallback": False,
+                                "errors": [],
+                                "attempt_id": getattr(
+                                    journal, "attempt_id", None),
+                                "routing": _routing_snapshot(),
+                                "prompt_mode": "compact",
+                            }
+                        remaining = _remaining()
+                        if remaining is not None and remaining <= 0:
+                            _record_skipped(
+                                "compact_repair",
+                                "employee adaptation compact repair")
+                            checked_errors = errors + [
+                                "skipped_due_to_budget: compact_repair"]
+                            failure_stage = "compact"
+                        else:
+                            repair_prompt = (
+                                compact["prompt"]
+                                + "\n\nYour previous proposal was invalid:\n"
+                                + json.dumps(
+                                    normalized, sort_keys=True, default=str
+                                )[:4000]
+                                + "\nValidation errors:\n- "
+                                + "\n- ".join(errors[:20]))
+                            try:
+                                repaired = await _call(
+                                    repair_prompt,
+                                    "employee adaptation compact repair",
+                                    "compact_repair",
+                                    model=compact["response_model"],
+                                    max_tokens=1200,
+                                    capability_profile=(
+                                        "employee_adaptive_planning_compact"))
+                            except _BudgetExhausted:
+                                repaired = None
+                                failure_stage = "compact_repair"
+                                errors = errors + [
+                                    "skipped_due_to_budget: compact_repair"]
+                            except asyncio.TimeoutError:
+                                repaired = None
+                                failure_stage = "compact_repair"
+                                errors = errors + [
+                                    "deadline_exceeded: compact_repair"]
+                            except Exception as exc:  # noqa: BLE001
+                                repaired = None
+                                failure_stage = "compact_repair"
+                                errors = errors + [f"compact repair: {exc}"]
+                            if repaired is not None:
+                                try:
+                                    repaired_norm = _bind_compact_observations(
+                                        _normalize(
+                                            repaired,
+                                            compact["response_model"],
+                                            expand=_expand_compact_payload),
+                                        compact)
+                                    repaired_prop = (
+                                        AdaptationProposal.model_validate(
+                                            repaired_norm))
+                                    repair_errors = _adaptation_errors(
+                                        repaired_prop, assignment, context)
+                                    if not repair_errors:
+                                        return {
+                                            "proposal": repaired_prop.model_dump(),
+                                            "source": "model_compact",
+                                            "technical_fallback": False,
+                                            "errors": [],
+                                            "attempt_id": getattr(
+                                                journal, "attempt_id", None),
+                                            "routing": _routing_snapshot(),
+                                            "prompt_mode": "compact",
+                                            "repair": {
+                                                "first_errors": errors,
+                                                "recovered": True,
+                                            },
+                                        }
+                                    errors = repair_errors
+                                except Exception as exc:  # noqa: BLE001
+                                    errors = errors + [
+                                        f"compact repair validation: {exc}"]
+                            checked_errors = errors
+                    except Exception as exc:  # noqa: BLE001
+                        checked_errors = [
+                            f"compact proposal validation: {exc}"]
+                        failure_stage = "compact"
+                fallback = deterministic_adaptation(
+                    observations[0], assignment)
+                if journal is not None:
+                    journal.record(
+                        "attempt-summary", source="deterministic",
+                        failure_stage=failure_stage,
+                        errors=checked_errors,
+                        prompt_mode="compact")
+                return {
+                    "proposal": fallback,
+                    "source": "deterministic",
+                    "technical_fallback": bool(llm_service and observations),
+                    "errors": checked_errors,
+                    "failure_stage": failure_stage,
+                    "attempt_id": getattr(journal, "attempt_id", None),
+                    "routing": _routing_snapshot(),
+                    "prompt_mode": "compact",
+                }
             checked_errors: List[str] = []
             failure_stage = None
+            # The initial all-purpose prompt is the wait-choice stage when the
+            # objective has a material missing prerequisite and no wait is
+            # durable yet. Keep that stage's capability evidence separate from
+            # ordinary adaptive planning; the model still chooses wait vs
+            # other supported work.
+            initial_profile = (
+                "employee_wait_choice"
+                if context.get("missing_prerequisites")
+                and not context.get("waiting") else None)
             try:
                 result = await _call(
                     _adaptation_prompt(
                         context, observations, response_model=response_model),
-                    "employee adaptation", "initial")
+                    "employee adaptation", "initial",
+                    capability_profile=initial_profile)
+            except _BudgetExhausted:
+                result = None
+                failure_stage = "initial"
+                checked_errors = ["skipped_due_to_budget: initial"]
             except asyncio.TimeoutError:
                 _record_routing_failure("deadline_cancelled")
                 result = None
@@ -634,32 +1139,79 @@ async def propose_adaptation(
                 result = None
                 failure_stage = "initial"
                 checked_errors = [f"initial call: {exc}"]
+            fallback_compact = None
+            if result is None:
+                fallback_compact = _compact_single_request_context(
+                    context, observations)
+                if fallback_compact:
+                    try:
+                        result = await _call(
+                            fallback_compact["prompt"],
+                            "employee adaptation compact", "compact",
+                            model=fallback_compact["response_model"],
+                            max_tokens=1200,
+                            capability_profile=(
+                                "employee_adaptive_planning_compact"))
+                    except _BudgetExhausted:
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            "skipped_due_to_budget: compact"]
+                    except asyncio.TimeoutError:
+                        _record_routing_failure("deadline_cancelled")
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            "deadline_exceeded: compact"]
+                    except Exception as exc:  # noqa: BLE001
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            f"compact call: {exc}"]
             if result is not None:
                 try:
-                    normalized = _normalize(result)
+                    selected_model = (
+                        fallback_compact["response_model"]
+                        if fallback_compact else response_model)
+                    normalized = _normalize(
+                        result, selected_model,
+                        expand=(_expand_compact_payload
+                                if fallback_compact else None))
+                    if fallback_compact:
+                        normalized = _bind_compact_observations(
+                            normalized, fallback_compact)
                     proposal = AdaptationProposal.model_validate(normalized)
                     errors = _adaptation_errors(proposal, assignment, context)
                     first_errors = list(errors)
                     if not errors:
                         return {
                             "proposal": proposal.model_dump(),
-                            "source": "model",
+                            "source": (
+                                "model_compact" if fallback_compact
+                                else "model"),
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
                             "routing": _routing_snapshot(),
+                            "prompt_mode": (
+                                "compact" if fallback_compact else None),
                         }
                     remaining = _remaining()
                     if remaining is not None and remaining <= 0:
+                        _record_skipped(
+                            "repair", "employee adaptation repair")
                         checked_errors = errors + [
-                            "deadline_exceeded: repair"]
+                            "skipped_due_to_budget: repair"]
                         failure_stage = "repair"
                     else:
                         try:
                             repaired = await _call(
                                 _adaptation_retry_prompt(
                                     context, observations, normalized, errors),
-                                "employee adaptation repair", "repair")
+                                "employee adaptation repair", "repair",
+                                capability_profile=initial_profile)
+                        except _BudgetExhausted:
+                            repaired = None
+                            failure_stage = "repair"
+                            errors = errors + [
+                                "skipped_due_to_budget: repair"]
                         except asyncio.TimeoutError:
                             repaired = None
                             failure_stage = "repair"

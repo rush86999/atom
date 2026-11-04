@@ -1,0 +1,163 @@
+{
+ "run_id": "d40c94ee-2128-4f56-8165-1d2b8fcbd01a",
+ "before_status": "running",
+ "budget_response": {
+  "max_steps": 14,
+  "max_attempts_per_step": 3,
+  "max_wall_seconds": 7200.0,
+  "max_cost_usd": 0.0,
+  "deadline": null,
+  "cost_mode": "hard",
+  "soft_limit_authorized_by": null,
+  "reserved_cost_usd": 0.0,
+  "cost_reservations": [],
+  "cost_overrun_usd": 0.0,
+  "cost_violation": null,
+  "soft_limit_exceeded": false,
+  "steps_started": 8,
+  "started_at": "2026-11-04T18:43:52.925517+00:00",
+  "elapsed_seconds": 0.0,
+  "paused_seconds": 314.6684732437134,
+  "wait_credits": {
+   "3af3091b-f457-4f7e-93a9-8b67f4682c6d": {
+    "seconds": 0.0,
+    "started_at": "2026-11-04T18:46:14.826720+00:00",
+    "ended_at": "2026-11-04T18:51:29.621986+00:00",
+    "idle_ledger_authoritative": true
+   }
+  },
+  "wait_credits_schema": 1,
+  "active_wait": null,
+  "cost_usd": 0.0,
+  "idle_ledger_schema": 2,
+  "idle_intervals": {
+   "asg-7266f59630354673:idle:1793817974.844179": {
+    "started_at": "2026-11-04T18:46:14.844179+00:00",
+    "ended_at": "2026-11-04T18:48:45.260877+00:00",
+    "reason": "all runnable branches are waiting",
+    "closed_by": "ready work resumed"
+   },
+   "asg-7266f59630354673:idle:1793818125.328056": {
+    "started_at": "2026-11-04T18:48:45.328056+00:00",
+    "ended_at": "2026-11-04T18:50:51.322099+00:00",
+    "reason": "all runnable branches are waiting",
+    "closed_by": "ready work resumed"
+   },
+   "asg-7266f59630354673:idle:1793818251.371375": {
+    "started_at": "2026-11-04T18:50:51.371375+00:00",
+    "ended_at": "2026-11-04T18:51:29.629107+00:00",
+    "reason": "all runnable branches are waiting",
+    "closed_by": "ready work resumed"
+   }
+  },
+  "idle_open": null,
+  "budget_extended_by": "f7d609c4-2a80-4886-b435-a1779f4ab7e0",
+  "budget_extended_at": "2026-11-04T19:20:47.851892+00:00",
+  "budget_extension_reason": "same-job held-out continuation after the compact repair"
+ },
+ "retry_status_code": 200,
+ "retry_body_status": "completed",
+ "final_status": "completed",
+ "steps": [
+  {
+   "step_id": "source-1",
+   "adapter": "document.text",
+   "status": "applied",
+   "operation_id": "e24e6c06-b7a2-418c-9965-10f039b874b5",
+   "result_value": null
+  },
+  {
+   "step_id": "source-2",
+   "adapter": "dataset.read",
+   "status": "applied",
+   "operation_id": "9dd61676-430a-466b-8a24-dbd2410e34de",
+   "result_value": null
+  },
+  {
+   "step_id": "source-3",
+   "adapter": "document.text",
+   "status": "applied",
+   "operation_id": "a3e9c1df-6701-4eb4-b3f3-5cfa3e671132",
+   "result_value": null
+  },
+  {
+   "step_id": "await",
+   "adapter": "assignment.wait",
+   "status": "applied",
+   "operation_id": "b0a5c4c4-7f6a-4c60-98b8-d3de8be6d043",
+   "result_value": "received 3 units"
+  },
+  {
+   "step_id": "quote-lines",
+   "adapter": "quote.lines_from_rows",
+   "status": "applied",
+   "operation_id": "aeb5ecaf-6ff4-485b-a804-8b19950b7aca",
+   "result_value": null
+  },
+  {
+   "step_id": "quote-total",
+   "adapter": "quote.calculate",
+   "status": "applied",
+   "operation_id": "9ea5f0de-8bcc-4152-b1fe-dd3b4127fd9b",
+   "result_value": "125.00"
+  },
+  {
+   "step_id": "source-4",
+   "adapter": "document.text",
+   "status": "applied",
+   "operation_id": "cf37776b-abe9-4294-a5fe-bc606fabe6b7",
+   "result_value": null
+  },
+  {
+   "step_id": "invoice-reconcile",
+   "adapter": "invoice.reconcile",
+   "status": "applied",
+   "operation_id": "9ab8e2fa-45ab-429d-bd23-61677b088808",
+   "result_value": "101.00"
+  },
+  {
+   "step_id": "requested-artifact",
+   "adapter": "artifact.document",
+   "status": "applied",
+   "operation_id": "9c3b1b5e-139d-49ff-93f6-5cd30943048a",
+   "result_value": null
+  }
+ ],
+ "requirements": [
+  {
+   "requirement_id": "result-invoice_reconciliation-743d385d507520fa0425",
+   "operation": "invoice_reconciliation",
+   "label": "invoice reconciliation",
+   "subject": "purchase order PO-HX-7001",
+   "fact": "receiving",
+   "correlation_id": "await-e94400ac76450659e0de",
+   "status": "satisfied",
+   "next_action": null
+  }
+ ],
+ "deliverable": {
+  "deliverable_id": "del-requested-output",
+  "kind": "document",
+  "description": "Reconcile supplier invoice INV-HX-88 for PO-HX-7001 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized held-out price list, and deliver a review document when the reconciliation is settled.",
+  "required": true,
+  "step_id": "requested-artifact",
+  "status": "applied",
+  "artifact_revision": "0271e1074b2e8937",
+  "artifact_path": "/private/tmp/atom-heldout-clean/backend/data/acceptance_worlds/g5-heldout-api/data/assignments/default/f7d609c4-2a80-4886-b435-a1779f4ab7e0/draft-284297242ef5/reconcile-supplier-invoice-inv-hx-88-for-po-hx-7001-against--07aaab73.docx",
+  "sha256": "0271e1074b2e8937ba87915038f950a41d671a06390b01625e66d0acf1deba72"
+ },
+ "artifact_path": "/private/tmp/atom-heldout-clean/backend/data/acceptance_worlds/g5-heldout-api/data/assignments/default/f7d609c4-2a80-4886-b435-a1779f4ab7e0/draft-284297242ef5/reconcile-supplier-invoice-inv-hx-88-for-po-hx-7001-against--07aaab73.docx",
+ "artifact_text": "Reconcile supplier invoice INV-HX-88 for PO-HX-7001 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized he\nObjective\nReconcile supplier invoice INV-HX-88 for PO-HX-7001 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized held-out price list, and deliver a review document when the reconciliation is settled.\nSummary\n4*12.50 + 2*30.00 + freight = 125.00 USD\nreconciled invoice total 101.00 USD against received quantity 3: 101.00 USD\nFindings\nquote-total\nSources\nupload_price_book__prices\nprice-book.xlsx\nPrices\n3feb5689-4107-4a9f-b8db-0d7ed90c1fc6\npurchase-order.json\ndoc_1d90257ff1f80e7652e8238c\ninvoice-v1.json\ndoc_e9a21684479d0fad04129996\nAudit\nCalculation step: quote-total\nCalculation step: invoice-reconcile\nRow set: quote-total \u00b7 2 row(s)\nitem=HX-1\nitem=HX-2\nRow | Item | Description | Qty | Unit | Unit price | Discount | Net | Currency\n | HX-1 | HX-1 | 4 | each | 12.50 | 0.00 | 50.00 | USD\n | HX-2 | HX-2 | 2 | each | 30.00 | 0.00 | 60.00 | USD",
+ "checks": {
+  "same_run": true,
+  "quote_receipt_preserved": true,
+  "reconciliation_101": true,
+  "assignment_completed": true,
+  "requirements_satisfied": true,
+  "artifact_applied": true,
+  "artifact_quote_125": true,
+  "artifact_reconciliation_101": true,
+  "artifact_sha_matches": true
+ },
+ "all_checks_passed": true
+}

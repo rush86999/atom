@@ -380,10 +380,10 @@ def deterministic_unread_evidence_proposal(
     This is a bounded, labeled fallback inside the retained scope. It grants
     no permission and is never presented as model discovery.
     """
-    from core.employee_proposal import source_handle
+    from core.employee_proposal import MAX_EVIDENCE_READS, source_handle
 
     reads = []
-    for index, source in enumerate(unread, start=1):
+    for index, source in enumerate(unread[:MAX_EVIDENCE_READS], start=1):
         handle = source_handle(source)
         if not handle:
             continue

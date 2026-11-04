@@ -1,5 +1,6 @@
 import asyncio
 import contextvars
+from concurrent.futures import ThreadPoolExecutor
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 from enum import Enum
@@ -589,19 +590,59 @@ def _stop_iteration_safe(fn, *args, **kwargs):
         ) from e
 
 
-async def _to_thread_safe(fn, *args, **kwargs):
-    """await fn(*args, **kwargs) in the default executor — asyncio.to_thread,
-    but an escaped StopIteration becomes a normal RuntimeError.
+_WORKER_EXECUTOR: Optional[Any] = None
+_WORKER_EXECUTOR_LOCK = threading.Lock()
 
-    StopIteration set on the executor's concurrent future is fatal on Python
-    <=3.12: asyncio's future-chaining callback calls
-    set_exception(StopIteration), which is forbidden, so the callback dies and
-    the awaiting coroutine NEVER resumes — the caller hangs forever
-    (2026-09-05 CI: backend-tests timed out at 6h after a MagicMock
-    side_effect list ran out inside the worker thread. A first fix converted
-    around the await, which local Python 3.14 converts internally and so
-    passed vacuously — CI's 3.11 hung and the new 300s seatbelt caught it)."""
-    return await asyncio.to_thread(_stop_iteration_safe, fn, *args, **kwargs)
+
+def _worker_executor() -> Any:
+    """Bounded executor whose futures expose real worker completion.
+
+    ``asyncio.to_thread`` hides the underlying concurrent future. A cancelled
+    awaiter then looks like a cancelled provider call even though the worker
+    thread is still running. The structured dispatch needs the REAL future so
+    its single-flight reservation can be released when the worker exits, not
+    when the awaiter stops waiting. A dedicated bounded pool keeps that
+    ownership visible without disturbing the loop's default executor.
+    """
+    global _WORKER_EXECUTOR
+    if _WORKER_EXECUTOR is None:
+        with _WORKER_EXECUTOR_LOCK:
+            if _WORKER_EXECUTOR is None:
+                _WORKER_EXECUTOR = ThreadPoolExecutor(
+                    max_workers=max(
+                        1, int(os.getenv("ATOM_LLM_WORKER_THREADS", "8"))),
+                    thread_name_prefix="atom-llm-worker",
+                )
+    return _WORKER_EXECUTOR
+
+
+async def _to_thread_safe(fn, *args, on_worker_done=None, **kwargs):
+    """await fn(*args, **kwargs) in a bounded worker pool.
+
+    An escaped StopIteration becomes a normal RuntimeError (Python <=3.12
+    otherwise hangs the awaiter forever). Unlike ``asyncio.to_thread``, the
+    caller may pass ``on_worker_done``: it runs when the WORKER really exits,
+    not when the awaiting coroutine is cancelled. That is the cleanup edge the
+    structured dispatch uses to retain its endpoint reservation until provider
+    work has actually stopped.
+    """
+    # Each submission gets its own COPY of the caller's context. This is the
+    # same propagation asyncio.to_thread provided, without sharing one Context
+    # across concurrent jobs (which would serialize Context.run and leak
+    # worker-local changes sideways). The copy is created in the caller's
+    # task, before submission, so tenant/workspace/trace scope is inherited
+    # exactly and never re-read from another task later.
+    caller_context = contextvars.copy_context()
+    submitted = _worker_executor().submit(
+        caller_context.run, _stop_iteration_safe, fn, *args, **kwargs)
+    if on_worker_done is not None:
+        def _finished(_future):
+            try:
+                on_worker_done()
+            except Exception:  # noqa: BLE001 — cleanup must not be lost
+                logger.exception("worker completion cleanup failed")
+        submitted.add_done_callback(_finished)
+    return await asyncio.wrap_future(submitted)
 
 # --- P4 prompt-taint gate (shadow by default) -------------------------------
 # The prompt IS the exfil payload on the LLM path: the full text leaves for a
@@ -1025,6 +1066,12 @@ _MODEL_ATTEMPT_INFLIGHT: Dict[str, float] = {}  # pair -> claimed_at epoch
 # pair -> (holder label, claimed_at): WHO holds the single-flight claim
 # (owner assignment 1 telemetry; guarded by the same lock).
 _MODEL_ATTEMPT_HOLDERS: Dict[str, tuple] = {}
+# pair -> opaque claim token: the ownership generation for conditional
+# cleanup. A late worker from an expired claim must never pop a newer one.
+_MODEL_ATTEMPT_TOKENS: Dict[str, str] = {}
+# pair -> explicit lease expiry epoch. Kept separate from claimed_at so a
+# retained worker lease can be longer than the ordinary leak TTL.
+_MODEL_ATTEMPT_EXPIRY: Dict[str, float] = {}
 _MODEL_ATTEMPT_INFLIGHT_LOCK = threading.Lock()
 # Claims older than this are LEAKS (a hung/crashed turn that never
 # released) and are stolen by the next caller — a structured call's own
@@ -2645,50 +2692,142 @@ class BYOKHandler:
             return None
         return {"reasoning": {"max_tokens": budget}}
 
-    def _claim_model_attempt(self, provider_id: str, model: str,
-                             holder: str = "") -> bool:
+    def _claim_model_attempt(
+        self, provider_id: str, model: str, holder: str = "",
+        lease_seconds: Optional[float] = None,
+    ) -> Any:
+        """Claim a provider/model pair and return its opaque generation token.
+
+        The token is the ownership proof for cleanup. A worker whose claim
+        lease expired may finish later; it must not release a newer worker's
+        reservation. Every production release/retain passes this token.
+        """
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
             now = time.time()
-            if _MODEL_ATTEMPT_INFLIGHT.get(pair) is not None \
-                    and now - _MODEL_ATTEMPT_INFLIGHT[pair] \
-                    >= _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
-                logger.info(
-                    "[inflight] %s claim by %r STEALS expired hold "
-                    "(held %.0fs)", pair, holder,
-                    now - _MODEL_ATTEMPT_INFLIGHT[pair])
-            # TTL (2026-10-04, the taught-employee job): claims had no
-            # expiry — a turn that hung or crashed between claim and
-            # release held the pair for the PROCESS LIFETIME, and every
-            # later turn skipped the healthy route as "model_inflight"
-            # (live: opencode-go/kimi-k2.7-code blocked across turns while
-            # openrouter's corpse led every ranking). A claim older than
-            # the TTL is a leak: steal it.
-            _claimed_at = _MODEL_ATTEMPT_INFLIGHT.get(pair)
-            if _claimed_at is not None:
-                if now - _claimed_at < _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
+            claimed_at = _MODEL_ATTEMPT_INFLIGHT.get(pair)
+            if claimed_at is not None:
+                held_by, held_since = _MODEL_ATTEMPT_HOLDERS.get(
+                    pair, (None, None))
+                expires = _MODEL_ATTEMPT_EXPIRY.get(pair)
+                # Compatibility with callers/tests that directly adjust the
+                # legacy claimed_at clock: if it no longer matches the
+                # holder's original claim time, honor the legacy TTL from
+                # that clock instead of a stale explicit lease.
+                if (held_since is None
+                        or abs(float(claimed_at) - float(held_since)) > 1e-6):
+                    expires = (
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS)
+                elif expires is None:
+                    expires = (
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS)
+                else:
+                    expires = max(
+                        float(expires),
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
+                    )
+                if now < expires:
                     return False
                 logger.warning(
                     f"{pair} inflight claim expired after "
-                    f"{now - _claimed_at:.0f}s — stealing (leaked claim)")
-            # SINGLE-FLIGHT TELEMETRY (2026-10-08 owner assignment 1):
-            # who holds which pair, for how long, and when it releases —
-            # the deconfliction picture for the turn's own overlapped
-            # planning legs vs the async continuation.
+                    f"{now - claimed_at:.0f}s — lease-recovery takeover; "
+                    "the prior generation's late cleanup will be ignored")
+                # Clear the old generation before installing the new one.
+                _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
+                _MODEL_ATTEMPT_HOLDERS.pop(pair, None)
+                _MODEL_ATTEMPT_TOKENS.pop(pair, None)
+                _MODEL_ATTEMPT_EXPIRY.pop(pair, None)
+            token = uuid.uuid4().hex
+            try:
+                lease = max(1.0, float(lease_seconds))
+            except (TypeError, ValueError):
+                lease = _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS
             _MODEL_ATTEMPT_HOLDERS[pair] = (holder or "?", now)
             _MODEL_ATTEMPT_INFLIGHT[pair] = now
-            return True
+            _MODEL_ATTEMPT_TOKENS[pair] = token
+            _MODEL_ATTEMPT_EXPIRY[pair] = now + lease
+            return token
 
-    def _release_model_attempt(self, provider_id: str, model: str,
-                               holder: str = "") -> None:
+    def _release_model_attempt(
+        self, provider_id: str, model: str, holder: str = "",
+        token: Optional[str] = None,
+    ) -> bool:
+        """Release a claim only for the generation that owns it.
+
+        ``token`` is authoritative. Without a token, a named holder can only
+        release the same holder's live claim (the legacy diagnostic path);
+        an unnamed release remains the explicit test/cleanup escape hatch.
+        """
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
+            current_token = _MODEL_ATTEMPT_TOKENS.get(pair)
+            current_holder = _MODEL_ATTEMPT_HOLDERS.get(
+                pair, (None, None))[0]
+            if token is not None and current_token != token:
+                logger.info(
+                    "[inflight] %s stale release ignored (token generation "
+                    "changed)", pair)
+                return False
+            if (token is None and holder and current_holder
+                    and holder != current_holder):
+                logger.info(
+                    "[inflight] %s stale release ignored by %r (held by %r)",
+                    pair, holder, current_holder)
+                return False
             claimed_at = _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
-            held_by = _MODEL_ATTEMPT_HOLDERS.pop(pair, (None, None))[0]
+            held_by, held_since = _MODEL_ATTEMPT_HOLDERS.pop(
+                pair, (None, None))
+            _MODEL_ATTEMPT_TOKENS.pop(pair, None)
+            _MODEL_ATTEMPT_EXPIRY.pop(pair, None)
             if claimed_at is not None:
+                started = held_since or claimed_at
                 logger.info(
                     "[inflight] %s released by %r after %.1fs", pair,
-                    held_by or holder or "?", time.time() - claimed_at)
+                    held_by or holder or "?", time.time() - started)
+                return True
+            return False
+
+    def _retain_model_attempt(
+        self, provider_id: str, model: str, seconds: float,
+        token: Optional[str] = None, holder: str = "",
+    ) -> bool:
+        """Extend the EXACT live claim for a worker that outlived its awaiter.
+
+        The lease is stored as an explicit expiry, so a retention longer than
+        the ordinary leak TTL is represented correctly. A stale token or
+        holder cannot extend a replacement worker's claim, and a claim that
+        was already released is never resurrected.
+        """
+        pair = f"{provider_id}/{model}"
+        try:
+            keep = max(1.0, float(seconds))
+        except (TypeError, ValueError):
+            keep = _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS
+        with _MODEL_ATTEMPT_INFLIGHT_LOCK:
+            if pair not in _MODEL_ATTEMPT_INFLIGHT:
+                logger.info(
+                    "[inflight] %s retain ignored — claim already released",
+                    pair)
+                return False
+            current_token = _MODEL_ATTEMPT_TOKENS.get(pair)
+            current_holder = _MODEL_ATTEMPT_HOLDERS.get(
+                pair, (None, None))[0]
+            if token is not None and current_token != token:
+                logger.info(
+                    "[inflight] %s stale retain ignored (token generation "
+                    "changed)", pair)
+                return False
+            if (token is None and holder and current_holder
+                    and holder != current_holder):
+                logger.info(
+                    "[inflight] %s stale retain ignored by %r (held by %r)",
+                    pair, holder, current_holder)
+                return False
+            _MODEL_ATTEMPT_EXPIRY[pair] = time.time() + keep
+            logger.info(
+                "[inflight] %s retained for a running worker (%.0fs lease, "
+                "explicit expiry)", pair, keep)
+            return True
 
     def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
         """True while a (provider, model) pair is benched for bad output."""
@@ -3718,12 +3857,31 @@ class BYOKHandler:
                 "output_cost": 0.0,
                 "max_input_tokens": route.get("context_window") or 8192,
                 "supports_tools": bool(route.get("supports_tools")),
+                "supports_structured": bool(
+                    route.get("supports_structured", True)),
                 "supports_vision": bool(route.get("supports_vision")),
                 "supports_reasoning": bool(route.get("supports_reasoning")),
                 "quality_score": route.get("quality_score"),
                 "provider_key": route["provider_key"],
                 "workspace_id": route["workspace_id"],
             }
+
+    def _policy_is_local_only(self) -> bool:
+        """True when the owner's provider policy permits only local routes.
+
+        A selected policy that names only local providers is authority for the
+        same runtime admission as ATOM_LOCAL_ONLY. It is not an authority
+        expansion: every cloud provider remains outside the allowed set.
+        """
+        policy = getattr(self, "provider_policy", None)
+        if policy is None or policy.mode != "selected":
+            return False
+        allowed = set(policy.allowed_providers or ())
+        if not allowed:
+            return False
+        return all(
+            not _provider_is_cloud(provider, self._local_routes)
+            for provider in allowed)
 
     def _admit_runtime_local_route(self) -> None:
         """Materialize the healthy auto-local runtime as a declared local route.
@@ -3757,7 +3915,7 @@ class BYOKHandler:
 
         Scoped to LOCAL-ONLY mode: mixed-mode ranking is unchanged.
         """
-        if not self._local_only_active():
+        if not (self._local_only_active() or self._policy_is_local_only()):
             return
         for provider_id in ("ollama",):
             if provider_id not in self.clients:
@@ -3819,6 +3977,7 @@ class BYOKHandler:
                 # The runtime is the authority for its own models — the same
                 # convention is_model_approved documents for pulled names.
                 "supports_tools": True,
+                "supports_structured": True,
                 "supports_vision": False,
                 "supports_reasoning": False,
                 "quality_score": quality,
@@ -4644,12 +4803,14 @@ class BYOKHandler:
             # dwarf the complexity floor — the request's OWN estimated size
             # sets the real window requirement, plus completion headroom
             # (reasoning models burn output budget thinking before they
-            # answer). Callers passing estimated_tokens explicitly get a
-            # window-aware candidate filter; the 1000 default (unset) keeps
-            # the complexity floor only.
+            # answer). When the caller supplies a real estimate, that actual
+            # request capacity is authoritative over the coarse complexity
+            # class: a small structured prompt classified ADVANCED must not
+            # exclude a healthy 16k local route that can hold it. The 1000
+            # default (unset) keeps the historical complexity floor.
             if estimated_tokens and estimated_tokens > 1000:
                 min_context = max(
-                    min_context,
+                    4000,
                     estimated_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
                 )
 
@@ -4954,8 +5115,22 @@ class BYOKHandler:
                     except Exception:  # noqa: BLE001 — measurement must never break routing
                         pass
 
-                # Phase 226.4-04: Check capability filter
-                if not self._filter_by_capabilities(model_id, required_capability, capability_index):
+                # Phase 226.4-04: Check capability filter. A route declared
+                # by this handler (registered local or admitted healthy
+                # runtime) is authoritative for its own protocol support; the
+                # shared capability index carries no entry for a pulled local
+                # name and must not silently hide a working structured route.
+                if _own_route is not None and required_capability in (
+                        "structured", "tools"):
+                    if (required_capability == "structured"
+                            and not _own_route.get(
+                                "supports_structured", True)):
+                        continue
+                    if (required_capability == "tools"
+                            and not _own_route.get("supports_tools", False)):
+                        continue
+                elif not self._filter_by_capabilities(
+                        model_id, required_capability, capability_index):
                     continue
 
                 # Phase 226.4-04: Check if model is excluded from general routing
@@ -5067,6 +5242,17 @@ class BYOKHandler:
                     "tenant_id": self.tenant_id or "default",
                     "task_type": task_type,
                 })
+                logger.warning(
+                    "capability route: zero candidates for %s; clients=%s "
+                    "local_routes=%s estimated_tokens=%s min_context=%s "
+                    "local_context=%s policy=%s",
+                    _capability.name, sorted(self.clients or {}),
+                    sorted((self._local_routes or {}).keys()),
+                    estimated_tokens, min_context,
+                    {m: r.get("context_window") for m, r in
+                     (self._local_routes or {}).items()},
+                    getattr(getattr(self, "provider_policy", None),
+                            "public_dict", lambda: {} )())
                 logger.warning(
                     "capability route: no suitable configured model for "
                     "profile %s v%s — %s",
@@ -6544,22 +6730,54 @@ class BYOKHandler:
                         provider_id, model, _cap)
                     if _reasoning_body:
                         _req_kwargs["extra_body"] = _reasoning_body
-                    if not self._claim_model_attempt(
-                            provider_id, model,
-                            holder="completion:" + str(
-                                task_type or "general")):
+                    _claim_holder = "completion:" + str(
+                        task_type or "general")
+                    _claim_token = self._claim_model_attempt(
+                        provider_id, model, holder=_claim_holder)
+                    if not _claim_token:
                         logger.info(
                             "Skipping %s/%s: model attempt already in flight",
                             provider_id, model,
                         )
                         continue
+                    _release_state = {
+                        "released": False,
+                        "lock": threading.Lock(),
+                    }
+
+                    def _release_once(*_args):
+                        with _release_state["lock"]:
+                            if _release_state["released"]:
+                                return
+                            _release_state["released"] = True
+                        self._release_model_attempt(
+                            provider_id, model, holder=_claim_holder,
+                            token=_claim_token)
+
                     try:
                         response = await _to_thread_safe(
                             client.chat.completions.create,
+                            on_worker_done=_release_once,
                             **_req_kwargs,
                         )
-                    finally:
-                        self._release_model_attempt(provider_id, model)
+                    except asyncio.CancelledError:
+                        _worker_lease = max(
+                            _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
+                            (
+                                _ollama_request_timeout()
+                                if provider_id == "ollama"
+                                else _llm_request_timeout()
+                            ) + 30.0,
+                        )
+                        self._retain_model_attempt(
+                            provider_id, model, _worker_lease,
+                            token=_claim_token, holder=_claim_holder)
+                        raise
+                    except BaseException:
+                        _release_once()
+                        raise
+                    else:
+                        _release_once()
                     self._capture_echoed_model(response)
                     self._stash_last_reasoning(response)
                     self._clear_model_cooldown(provider_id, model)
@@ -8676,6 +8894,15 @@ class BYOKHandler:
                         temperature=_effective_temperature,
                         max_tokens=_structured_max_tokens,
                     )
+                    # ONE RETRY OWNER for a capability-bound workload. The
+                    # outer provider cascade + the explicit recovery loop own
+                    # this call's bounded retries; Instructor/SDK internal
+                    # retries must not multiply them (the held-out timeout
+                    # showed instructor_retries while the outer stage also
+                    # retried). Unprofiled legacy calls keep their historical
+                    # transport behavior.
+                    if _capability is not None:
+                        _create_kwargs["max_retries"] = 0
                     # Key for the three per-(provider, model) capability memos
                     # below (_TOOLCHOICE_UNSUPPORTED / _REASONING_MANDATORY /
                     # _LOGPROBS_UNSUPPORTED). Defined BEFORE them because the
@@ -8733,12 +8960,30 @@ class BYOKHandler:
                             # inside the caller's own wait_for deadline —
                             # for the current holder to finish, instead
                             # of failing the sibling leg.
+                            _holder = "completion2:" + str(
+                                task_type or "general")
+                            _release_state = {
+                                "released": False,
+                                "lock": threading.Lock(),
+                            }
+
+                            _claim_token: Optional[str] = None
+
+                            def _release_once(*_args):
+                                with _release_state["lock"]:
+                                    if _release_state["released"]:
+                                        return
+                                    _release_state["released"] = True
+                                self._release_model_attempt(
+                                    provider_id, model, holder=_holder,
+                                    token=_claim_token)
                             _claim_wait_deadline = time.time() + float(
                                 claim_wait_seconds or 20.0)
-                            while not self._claim_model_attempt(
-                                    provider_id, model,
-                                    holder="completion2:" + str(
-                                        task_type or "general")):
+                            while not _claim_token:
+                                _claim_token = self._claim_model_attempt(
+                                    provider_id, model, holder=_holder)
+                                if _claim_token:
+                                    break
                                 if time.time() >= _claim_wait_deadline:
                                     raise _ModelAttemptInFlight(
                                         f"{provider_id}/{model} claim "
@@ -8776,36 +9021,50 @@ class BYOKHandler:
                                 route_trace_id or "-", _attempt_count,
                                 _dispatch_prompt_chars,
                                 _create_kwargs.get("max_tokens"),
-                                getattr(instructor_client, "max_retries",
-                                        None))
+                                _create_kwargs.get("max_retries", "default"))
                             try:
                                 result = await _to_thread_safe(
                                     instructor_client.chat.completions.create,
+                                    on_worker_done=_release_once,
                                     **_create_kwargs
                                 )
                             except asyncio.CancelledError:
                                 # CANCELLATION IS ITS OWN EVENT (verifier
                                 # step 3): the awaiting task died but the
                                 # worker thread's synchronous request is
-                                # NOT cancelled by this — and the finally
-                                # below releases the model-attempt
-                                # reservation immediately, so another
-                                # request can claim the endpoint while
-                                # this one still runs. Logged separately;
-                                # re-raised so the caller sees the true
-                                # cause.
+                                # NOT cancelled by this. Retain the
+                                # single-flight reservation until the real
+                                # worker future completes; the done callback
+                                # releases it then. The lease is bounded by
+                                # the provider request timeout plus margin,
+                                # so a truly leaked worker still recovers.
+                                _worker_lease = max(
+                                    _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
+                                    (
+                                        _ollama_request_timeout()
+                                        if provider_id == "ollama"
+                                        else _llm_request_timeout()
+                                    ) + 30.0,
+                                )
+                                self._retain_model_attempt(
+                                    provider_id, model, _worker_lease,
+                                    token=_claim_token, holder=_holder)
                                 logger.warning(
                                     "[structured-cancelled] %s/%s "
                                     "route=%s attempt=%d waited=%.1fs "
-                                    "reservation_released=true "
-                                    "worker_may_still_run=true",
+                                    "reservation_released=false "
+                                    "cleanup_on_worker_exit=true "
+                                    "worker_may_still_run=true "
+                                    "worker_lease_s=%.0f",
                                     provider_id, model,
                                     route_trace_id or "-", _attempt_count,
-                                    time.time() - _attempt_t0)
+                                    time.time() - _attempt_t0, _worker_lease)
                                 raise
-                            finally:
-                                self._release_model_attempt(
-                                    provider_id, model)
+                            except BaseException:
+                                _release_once()
+                                raise
+                            else:
+                                _release_once()
                             # REQUEST-LEVEL TRACE (review fix plan 1): one
                             # line per dispatched structured call — model,
                             # effective cap, latency, and the finish reason
@@ -9365,8 +9624,12 @@ class BYOKHandler:
                 [(p, m) for p, m in cascade_options[:6]],
                 _attempted_any,
                 [])
-            if not _sweep_depth or (
-                    last_error is None and not _attempted_any and not cascade_options):
+            _strict_capability_pin = bool(
+                provider_model is not None and _capability is not None)
+            if not _strict_capability_pin and (
+                    not _sweep_depth or (
+                        last_error is None and not _attempted_any
+                        and not cascade_options)):
                 # LAST-RESORT SWEEP (2026-09-21): the cost-priority planning
                 # ladder is capped and learned-order-sensitive — with two
                 # providers dead it could end on a 402 without ever reaching
@@ -9434,6 +9697,11 @@ class BYOKHandler:
                         disable_reasoning=disable_reasoning,
                         max_tokens=max_tokens,
                         stage_decision_id=stage_decision_id,
+                        output_mode=output_mode,
+                        messages=messages,
+                        claim_wait_seconds=claim_wait_seconds,
+                        capability_profile=capability_profile,
+                        capability_preference=capability_preference,
                         force_value_ranking=True,
                         relax_tier=True,
                         _sweep_depth=_sweep_depth + 1,
@@ -10134,9 +10402,10 @@ class BYOKHandler:
                 # provider: openrouter …` then, 115 s later, `reply generation:
                 # 115.0s` with no zero-chunk warning and no first-visible
                 # abort — neither bound could fire).
-                if not self._claim_model_attempt(
-                        attempt_provider_id, model,
-                        holder="structured:" + str(task_type or "?")):
+                _claim_holder = "structured:" + str(task_type or "?")
+                _claim_token = self._claim_model_attempt(
+                    attempt_provider_id, model, holder=_claim_holder)
+                if not _claim_token:
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
@@ -10151,7 +10420,9 @@ class BYOKHandler:
                     else:
                         stream = await client.chat.completions.create(**create_kwargs)
                 finally:
-                    self._release_model_attempt(attempt_provider_id, model)
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
                 # Bound inter-chunk silence (see _stream_with_idle_watchdog).
                 _idle_s = _stream_idle_timeout_seconds()
                 if _idle_s and _idle_s > 0:
@@ -10874,9 +11145,10 @@ class BYOKHandler:
             _attempt_cost: Optional[float] = None
             try:
                 request_start = datetime.now()
-                if not self._claim_model_attempt(
-                        attempt_provider_id, model,
-                        holder="structured:" + str(task_type or "?")):
+                _claim_holder = "structured:" + str(task_type or "?")
+                _claim_token = self._claim_model_attempt(
+                    attempt_provider_id, model, holder=_claim_holder)
+                if not _claim_token:
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
@@ -10885,7 +11157,9 @@ class BYOKHandler:
                 try:
                     response = await client.chat.completions.create(**_attempt_kwargs)
                 finally:
-                    self._release_model_attempt(attempt_provider_id, model)
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
                 self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 

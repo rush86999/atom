@@ -302,3 +302,20 @@ def test_duplicate_applied_reads_do_not_make_invoice_roles_ambiguous():
         "purchase_order": ["source-1"],
         "receiving": ["source-2"],
     }
+
+
+def test_deterministic_unread_fallback_is_capped_to_the_proposal_limit():
+    from core.employee_job_runner import deterministic_unread_evidence_proposal
+    from core.employee_proposal import MAX_EVIDENCE_READS
+
+    unread = [{
+        "resource_id": f"doc-{index}",
+        "file_name": f"candidate-{index}.json",
+        "kind": "document",
+    } for index in range(8)]
+    proposal = deterministic_unread_evidence_proposal(unread)
+    assert proposal is not None
+    reads = proposal["evidence_reads"]
+    assert len(reads) == MAX_EVIDENCE_READS == 5
+    assert [item["source_id"] for item in reads] == [
+        f"doc-{index}" for index in range(5)]

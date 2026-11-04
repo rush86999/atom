@@ -291,6 +291,9 @@ def set_requested_route(provider_id: Optional[str], model: Optional[str]) -> Non
 def set_served_route(provider_id: Optional[str], model: Optional[str]) -> None:
     if provider_id or model:
         _served_route_cv.set((str(provider_id or ""), str(model or "")))
+        # An accepted response supersedes any earlier candidate-exclusion
+        # warning from the same boundary.
+        _routing_error_cv.set(None)
 
 
 def set_route_mode(mode: Optional[str]) -> None:

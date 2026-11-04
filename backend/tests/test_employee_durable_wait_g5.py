@@ -195,6 +195,9 @@ def test_wait_allows_model_chosen_independent_work_and_exact_reply(
     assert wait["waiting"]["typed_binding"] is True
     assert wait["inputs"]["correlation_id"] == (
         wait["waiting"]["correlation_id"])
+    requirement = assignment["business_requirements"][0]
+    assert requirement["subject_identity"] == {
+        "po_id": "PO-8841", "invoice_id": "INV-7"}
     quote = next(
         step for step in assignment["steps"]
         if step["adapter"] == "quote.calculate")
@@ -495,3 +498,4 @@ def test_requested_artifact_renders_after_wait_and_reconciliation(
         for row in table.rows:
             text += "\n" + " | ".join(cell.text for cell in row.cells)
     assert "270.00" in text
+    assert "105.00" in text

@@ -1,0 +1,1565 @@
+{
+ "phase": "start",
+ "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+ "request": {
+  "objective": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+  "sources": [
+   {
+    "kind": "workbook",
+    "dataset_name": "upload_price_book_heldout__prices",
+    "sheet": "Prices",
+    "source_version": "8914d294ce8ca3811f4a55f1c374c273b50c481b"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_12289477d72f935b74ae4a14"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_0ab4919c058227962ad33aa3"
+   }
+  ],
+  "authorized_actions": [
+   "retrieve",
+   "calculate"
+  ],
+  "teaching_terms": {
+   "currency": "USD",
+   "freight": "7.50",
+   "tax_basis": "none"
+  },
+  "requested_output": "document",
+  "budget": {
+   "max_steps": 30
+  },
+  "use_model": true
+ },
+ "response": {
+  "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+  "assignment": {
+   "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+   "assignment": {
+    "assignment_id": "asg-029edb4d90bb488e",
+    "objective": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+    "employee_id": "09411b9b-c539-4e5f-a003-3c270495d5fc",
+    "workspace_id": "default",
+    "plan_revision": 4,
+    "status": "waiting",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "34ae95470cffb51c07225d16f5ad7b2b",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [
+     {
+      "requirement_id": "result-invoice_reconciliation-f73cd719260599223fe3",
+      "operation": "invoice_reconciliation",
+      "label": "invoice reconciliation",
+      "subject": "purchase order PO-7302",
+      "fact": "receiving",
+      "correlation_id": "await-ca15973cbdcbe5ff480c",
+      "status": "unresolved",
+      "next_action": "Answer the authorized request for receiving."
+     }
+    ],
+    "deliverables": [
+     {
+      "deliverable_id": "del-requested-output",
+      "kind": "document",
+      "description": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+      "required": true,
+      "step_id": "requested-artifact",
+      "status": "pending",
+      "artifact_revision": null,
+      "artifact_path": null,
+      "sha256": null
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "9de67282-483e-4d52-88bc-4135bb34d960",
+       "dataset_name": "upload_price_book_heldout__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:8914d294ce8ca3811f4a55f1c374c273b50c481b",
+       "original_file_name": "price-book-heldout.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "8914d294ce8ca3811f4a55f1c374c273b50c481b",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "09411b9b-c539-4e5f-a003-3c270495d5fc",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_12289477d72f935b74ae4a14",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_12289477d72f935b74ae4a14",
+       "original_file_name": "purchase-order-heldout.json",
+       "representation": "document_text",
+       "source_version": "ev4:12289477d72f935b74ae4a148dad37175b36d2b05ca7c97969a5e97dca9144b9",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 61
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_0ab4919c058227962ad33aa3",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_0ab4919c058227962ad33aa3",
+       "original_file_name": "invoice-heldout.json",
+       "representation": "document_text",
+       "source_version": "ev4:0ab4919c058227962ad33aa3b6b78d367c01bdca8459d3e4034f975e8629835e",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 146
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 30,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 900.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 6,
+     "started_at": "2026-11-04T18:28:33.232840+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 97.185,
+     "waiting_since": "2026-11-04T18:29:38.184120+00:00",
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": {
+      "id": "86920670-1de6-4294-9ae5-ea8138be8eac",
+      "step_id": "await",
+      "correlation_id": "await-ca15973cbdcbe5ff480c",
+      "started_at": "2026-11-04T18:29:38.184120+00:00"
+     },
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {
+      "asg-029edb4d90bb488e:idle:1793816978.192702": {
+       "started_at": "2026-11-04T18:29:38.192702+00:00",
+       "ended_at": "2026-11-04T18:30:20.828844+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      }
+     },
+     "idle_open": {
+      "id": "asg-029edb4d90bb488e:idle:1793817020.902692",
+      "started_at": "2026-11-04T18:30:20.902692+00:00",
+      "reason": "all runnable branches are waiting"
+     },
+     "working_seconds": 65.034,
+     "wall_seconds": 162.219
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read price-book-heldout.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "3f8b4a89-8043-4cf4-bb5f-cb41f128e907",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book-heldout.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read purchase-order-heldout.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "a4120c43-2265-42dc-b21a-5c304c1adadb",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:purchase-order-heldout.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read invoice-heldout.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "67291664-8911-40cf-b582-0db39ce71f60",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:invoice-heldout.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "await",
+      "title": "Wait for receiving for purchase order PO-7302",
+      "operation_type": "retrieve",
+      "adapter": "assignment.wait",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "waiting",
+      "recovery_class": "waiting_for_event",
+      "operation_id": "86920670-1de6-4294-9ae5-ea8138be8eac",
+      "attempts": 0,
+      "result_summary": null,
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {
+       "event": "external_fact",
+       "state": "waiting_for_external",
+       "party": "authorized receiving source",
+       "correlation_id": "await-ca15973cbdcbe5ff480c",
+       "resume_on": "response",
+       "detail": "receiving for purchase order PO-7302",
+       "fact": "receiving",
+       "subject": "purchase order PO-7302",
+       "expected_answer_type": "quantity",
+       "blocks": "invoice reconciliation",
+       "deadline": "",
+       "validity": "",
+       "typed_binding": true,
+       "since": "2026-11-04T18:29:38.184120+00:00",
+       "reviewed_at": "2026-11-04T18:31:15.442554+00:00",
+       "reviewed_by": "employee"
+      },
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "operation_type": "calculate",
+      "adapter": "quote.lines_from_rows",
+      "depends_on": [
+       "source-1"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "0699c3b1-1e79-4705-a0af-558e201092c1",
+      "attempts": 0,
+      "result_summary": "mapped 2 quote row(s)",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "quote-lines"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+      "attempts": 0,
+      "result_summary": "quote total 96.30 USD (2 lines)",
+      "result_value": "96.30",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T18:28:33.223641+00:00",
+    "updated_at": "2026-11-04T18:30:20.895928+00:00",
+    "completed_at": null,
+    "progress": {
+     "total_steps": 6,
+     "required_steps": 6,
+     "completed_steps": 5,
+     "waiting_steps": 1,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 1
+    }
+   },
+   "open_gaps": [
+    {
+     "question_id": "d8cd97b6-1c8a-4fb4-a5d1-f62d01401927",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [
+       "receiving"
+      ],
+      "known_identities": {
+       "invoice.po_id": "PO-7302",
+       "invoice.invoice_id": "INV-4491",
+       "purchase_order.po_id": "PO-7302",
+       "purchase_order.vendor_id": "V-41"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): receiving",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T18:31:15.448675+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ],
+   "operations": [
+    {
+     "operation_id": "3f8b4a89-8043-4cf4-bb5f-cb41f128e907",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book-heldout.xlsx / Prices"
+    },
+    {
+     "operation_id": "a4120c43-2265-42dc-b21a-5c304c1adadb",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:purchase-order-heldout.json"
+    },
+    {
+     "operation_id": "67291664-8911-40cf-b582-0db39ce71f60",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:invoice-heldout.json"
+    },
+    {
+     "operation_id": "86920670-1de6-4294-9ae5-ea8138be8eac",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "waiting",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": null
+    },
+    {
+     "operation_id": "0699c3b1-1e79-4705-a0af-558e201092c1",
+     "step_id": "quote-lines",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+     "step_id": "quote-total",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 96.30 USD (2 lines)"
+    }
+   ]
+  },
+  "employee_job": {
+   "objective": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+   "identity": {
+    "employee_id": "09411b9b-c539-4e5f-a003-3c270495d5fc",
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "execution_owner": "assignment"
+   },
+   "criteria": [
+    {
+     "criterion_id": "artifact_verified:del-requested-output",
+     "kind": "artifact_verified",
+     "required": true,
+     "verifier": "artifact_verified",
+     "scope": {
+      "workspace_id": "default"
+     },
+     "deliverable_id": "del-requested-output"
+    },
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "employee_result:objective",
+     "kind": "employee_result",
+     "required": true,
+     "verifier": "employee_result",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "business_result:result-invoice_reconciliation-f73cd719260599223fe3",
+     "kind": "business_result",
+     "required": true,
+     "verifier": "business_result",
+     "requirement_id": "result-invoice_reconciliation-f73cd719260599223fe3",
+     "scope": {
+      "workspace_id": "default",
+      "tenant_id": "default",
+      "operation": "invoice_reconciliation"
+     }
+    }
+   ],
+   "facts": [],
+   "sources": [
+    {
+     "source_id": "9de67282-483e-4d52-88bc-4135bb34d960",
+     "kind": "workbook",
+     "representation": "parquet_frame",
+     "file_name": "price-book-heldout.xlsx",
+     "sheet": "Prices",
+     "columns": [
+      "Item",
+      "Qty",
+      "Price",
+      "Currency",
+      "__sheet_row"
+     ],
+     "numeric_columns": [
+      "Qty",
+      "Price"
+     ],
+     "row_count": 2,
+     "coverage": {
+      "known": true,
+      "source_row_count": 2,
+      "materialized_row_count": 2,
+      "truncated": false,
+      "row_cap": 500000
+     },
+     "source_version": "8914d294ce8ca3811f4a55f1c374c273b50c481b",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": 2,
+      "shown_count": 0,
+      "omitted_count": 2,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_12289477d72f935b74ae4a14",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "purchase-order-heldout.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 61
+     },
+     "source_version": "ev4:12289477d72f935b74ae4a148dad37175b36d2b05ca7c97969a5e97dca9144b9",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_0ab4919c058227962ad33aa3",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "invoice-heldout.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 146
+     },
+     "source_version": "ev4:0ab4919c058227962ad33aa3b6b78d367c01bdca8459d3e4034f975e8629835e",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    }
+   ],
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read price-book-heldout.xlsx",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book-heldout.xlsx / Prices"
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read purchase-order-heldout.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:purchase-order-heldout.json"
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read invoice-heldout.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:invoice-heldout.json"
+    },
+    {
+     "step_id": "await",
+     "title": "Wait for receiving for purchase order PO-7302",
+     "status": "waiting",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": null
+    },
+    {
+     "step_id": "quote-lines",
+     "title": "Map accepted evidence to quote lines",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [
+      {
+       "kind": "receipt",
+       "step_id": "source-1",
+       "require": "verified"
+      }
+     ],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "step_id": "quote-total",
+     "title": "Calculate the evidence-backed quote total",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "quote total 96.30 USD (2 lines)"
+    }
+   ],
+   "open_obligations": [
+    {
+     "question_id": "d8cd97b6-1c8a-4fb4-a5d1-f62d01401927",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "kind": "missing_evidence",
+     "evidence": "",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "decision_owner": null,
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [
+       "receiving"
+      ],
+      "known_identities": {
+       "invoice.po_id": "PO-7302",
+       "invoice.invoice_id": "INV-4491",
+       "purchase_order.po_id": "PO-7302",
+       "purchase_order.vendor_id": "V-41"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3"
+      ]
+     },
+     "concept": "invoice_reconciliation",
+     "reason": "the accepted evidence does not satisfy the required role(s): receiving",
+     "affected_subjects": [],
+     "checked_evidence": [],
+     "next_retrieval": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "resolver": null,
+     "step_id": null,
+     "waiting": null,
+     "status": "open",
+     "attempts": 0,
+     "opened_at": "2026-11-04T18:31:15.448675+00:00",
+     "resolved_at": null,
+     "resolution": null,
+     "source_operation": null
+    }
+   ],
+   "business_requirements": [
+    {
+     "requirement_id": "result-invoice_reconciliation-f73cd719260599223fe3",
+     "operation": "invoice_reconciliation",
+     "label": "invoice reconciliation",
+     "subject": "purchase order PO-7302",
+     "fact": "receiving",
+     "correlation_id": "await-ca15973cbdcbe5ff480c",
+     "status": "unresolved",
+     "next_action": "Answer the authorized request for receiving."
+    }
+   ],
+   "waiting": [
+    {
+     "step_id": "await",
+     "fact": "receiving",
+     "subject": "purchase order PO-7302",
+     "party": "authorized receiving source",
+     "detail": "receiving for purchase order PO-7302",
+     "blocks": "invoice reconciliation",
+     "expected_answer_type": "quantity",
+     "correlation_id": "await-ca15973cbdcbe5ff480c",
+     "since": "2026-11-04T18:29:38.184120+00:00"
+    }
+   ],
+   "ready_work": [
+    {
+     "operation": "quote_calculation",
+     "label": "quote calculation"
+    }
+   ],
+   "budget": {
+    "max_steps": 30,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 900.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 6,
+    "started_at": "2026-11-04T18:28:33.232840+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 42.63614225387573,
+    "waiting_since": "2026-11-04T18:29:38.184120+00:00",
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": {
+     "id": "86920670-1de6-4294-9ae5-ea8138be8eac",
+     "step_id": "await",
+     "correlation_id": "await-ca15973cbdcbe5ff480c",
+     "started_at": "2026-11-04T18:29:38.184120+00:00"
+    },
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {
+     "asg-029edb4d90bb488e:idle:1793816978.192702": {
+      "started_at": "2026-11-04T18:29:38.192702+00:00",
+      "ended_at": "2026-11-04T18:30:20.828844+00:00",
+      "reason": "all runnable branches are waiting",
+      "closed_by": "ready work resumed"
+     }
+    },
+    "idle_open": {
+     "id": "asg-029edb4d90bb488e:idle:1793817020.902692",
+     "started_at": "2026-11-04T18:30:20.902692+00:00",
+     "reason": "all runnable branches are waiting"
+    }
+   },
+   "status": "waiting",
+   "task_version": 64,
+   "plan_revision": 4,
+   "business_outcome": {
+    "basis": "criteria_not_met",
+    "verdict": false,
+    "state": "unsatisfied",
+    "declared_state": "waiting",
+    "outcome": {
+     "contract_version": 2,
+     "recorded_at": 1793817075.454257,
+     "execution_id": null,
+     "turn_id": null,
+     "objective": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+     "objective_state": {
+      "goal": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+      "target_entities": [],
+      "requested_attributes": [],
+      "source_constraints": {},
+      "authorized_actions": []
+     },
+     "objective_met": false,
+     "completion_criteria": [
+      {
+       "criterion_id": "artifact_verified:del-requested-output",
+       "kind": "artifact_verified",
+       "required": true,
+       "verifier": "artifact_verified",
+       "scope": {
+        "workspace_id": "default"
+       },
+       "deliverable_id": "del-requested-output"
+      },
+      {
+       "criterion_id": "required_work_complete:assignment",
+       "kind": "required_work_complete",
+       "required": true,
+       "verifier": "required_work_complete",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "employee_result:objective",
+       "kind": "employee_result",
+       "required": true,
+       "verifier": "employee_result",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "business_result:result-invoice_reconciliation-f73cd719260599223fe3",
+       "kind": "business_result",
+       "required": true,
+       "verifier": "business_result",
+       "requirement_id": "result-invoice_reconciliation-f73cd719260599223fe3",
+       "scope": {
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "operation": "invoice_reconciliation"
+       }
+      }
+     ],
+     "criterion_results": [
+      {
+       "criterion": "artifact_verified",
+       "met": null,
+       "verifier": "artifact_verified",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "required_work_complete",
+       "met": false,
+       "verifier": "required_work_complete",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "employee_result",
+       "met": true,
+       "verifier": "employee_result",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "business_result",
+       "met": false,
+       "verifier": "business_result",
+       "evidence_refs": []
+      }
+     ],
+     "requested": {},
+     "source_constraints": {},
+     "authorized_actions": [
+      "calculate",
+      "present",
+      "retrieve"
+     ],
+     "tool_outcomes": [
+      {
+       "tool": "dataset.read",
+       "verified": true,
+       "outcome": "read 2 of 2 matching row(s) from price-book-heldout.xlsx / Prices",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:purchase-order-heldout.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:invoice-heldout.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "assignment.wait",
+       "verified": false,
+       "outcome": "",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.lines_from_rows",
+       "verified": true,
+       "outcome": "mapped 2 quote row(s)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.calculate",
+       "verified": true,
+       "outcome": "quote total 96.30 USD (2 lines)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      }
+     ],
+     "evidence_refs": [],
+     "evidence_ledger": {},
+     "gaps": [
+      {
+       "criterion_id": "",
+       "status": "open",
+       "reasons": [
+        "the accepted evidence does not satisfy the required role(s): receiving"
+       ],
+       "next_evidence_needed": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?"
+      }
+     ],
+     "implications": [],
+     "actions": [
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "waiting",
+       "authorized": true,
+       "applied": false,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      }
+     ],
+     "calculation": {
+      "computed": "96.30",
+      "unit": "USD",
+      "verified": true,
+      "step_id": "quote-total",
+      "adapter": "quote.calculate"
+     },
+     "mutation": {},
+     "business_requirements": [
+      {
+       "requirement_id": "result-invoice_reconciliation-f73cd719260599223fe3",
+       "operation": "invoice_reconciliation",
+       "label": "invoice reconciliation",
+       "subject": "purchase order PO-7302",
+       "subject_identity": {
+        "po_id": "PO-7302",
+        "invoice_id": "INV-4491"
+       },
+       "fact": "receiving",
+       "correlation_id": "await-ca15973cbdcbe5ff480c",
+       "receipt_adapter": "invoice.reconcile",
+       "subject_fields": [
+        "po_id",
+        "invoice_id"
+       ],
+       "identity_required": true,
+       "required": true
+      }
+     ],
+     "business_results": [
+      {
+       "operation": "quote_calculation",
+       "adapter": "quote.calculate",
+       "step_id": "quote-total",
+       "operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+       "verified": true,
+       "value": "96.30",
+       "unit": "USD",
+       "subject_identity": {},
+       "source_version": null,
+       "verification": null
+      }
+     ],
+     "delivery": {
+      "calculation_verified": true,
+      "calculated_value": "96.30"
+     },
+     "user_corrections": [],
+     "limitations": [],
+     "latency_s": null,
+     "cost_usd": null,
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 4
+     },
+     "policy_version": null,
+     "candidate_versions": {},
+     "learning_layers": {
+      "general_capability": {
+       "policy_version": null,
+       "candidate_versions": {}
+      },
+      "user_business_configuration": {
+       "scope": {
+        "workspace_id": "default",
+        "teaching_revision": "untrained",
+        "plan_revision": 4
+       }
+      },
+      "task_evidence": {
+       "requested": {},
+       "evidence_refs": [],
+       "evidence_ledger": {},
+       "gap_count": 1,
+       "corrections": []
+      }
+     },
+     "failure_layer": null,
+     "failure_owner": null,
+     "failure": {
+      "layer": "execution",
+      "owner": "capability",
+      "basis": "tool_verification_failed"
+     },
+     "success_kinds": {
+      "task_success": false,
+      "tool_success": false,
+      "delivery_success": null,
+      "task_success_basis": "objective_not_met"
+     }
+    }
+   },
+   "routing_notice": {
+    "state": "reasoning_unavailable",
+    "code": "provider_failure",
+    "message": "The reasoning step is temporarily unavailable. The employee's job, completed work and questions are preserved.",
+    "next_action": "Resume the same job when the reasoning service is available, or supply the requested business answer."
+   }
+  },
+  "proposal": {
+   "proposal_kind": "evidence_read",
+   "reason": "No model proposal is available; read the strongest authorized source so the employee can establish evidence without guessing.",
+   "evidence_reads": [
+    {
+     "step_id": "evidence-1",
+     "title": "Read price-book-heldout.xlsx (Prices)",
+     "source_id": "9de67282-483e-4d52-88bc-4135bb34d960",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": "Authorized evidence is the safest useful first step."
+    }
+   ],
+   "clarification": null
+  },
+  "proposal_source": "deterministic",
+  "technical_fallback": true,
+  "proposal_errors": [
+   "evidence_reads[0] requires a stable step_id",
+   "evidence_reads[1] requires a stable step_id"
+  ],
+  "employee_routing": {
+   "mode": "unpinned_fallback",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": null,
+   "resolved_model": null,
+   "profile": {
+    "name": "employee_adaptive_planning",
+    "version": "2026-11-04.1"
+   },
+   "error": {
+    "code": "provider_failure"
+   }
+  },
+  "adaptive_rounds": [
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": null,
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 2,
+    "proposal_kind": "evidence_read",
+    "proposal_reason": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes.",
+    "proposal_sources": [
+     "9de67282-483e-4d52-88bc-4135bb34d960"
+    ],
+    "proposal_clarification": {},
+    "observation_ids": [
+     "evidence-55ee69c61886da1eca0d"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "doc_12289477d72f935b74ae4a14",
+      "file_name": "purchase-order-heldout.json"
+     },
+     {
+      "source_id": "doc_0ab4919c058227962ad33aa3",
+      "file_name": "invoice-heldout.json"
+     }
+    ],
+    "repair_source": "model",
+    "repair_sources": [
+     "doc_12289477d72f935b74ae4a14",
+     "doc_0ab4919c058227962ad33aa3"
+    ],
+    "repair": "unread_scope",
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "e06f498c6ec040d8805a209b99d17410",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-55ee69c61886da1eca0d",
+     "evidence-5fef98a17fbfb83ae518",
+     "evidence-f14d855efad3a9862403"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "await_evidence",
+    "execution_status": "waiting"
+   },
+   {
+    "source": "model_repaired",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "3baadb7af46a4ca5bdda5e4b5cbcc94b",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-55ee69c61886da1eca0d",
+     "evidence-5fef98a17fbfb83ae518"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "quote_calculation",
+    "execution_status": "waiting"
+   },
+   {
+    "source": "deterministic",
+    "technical_fallback": true,
+    "decision": "retain",
+    "errors": [
+     "model returned no proposal"
+    ],
+    "failure_stage": null,
+    "attempt_id": "93f98bf7d21749ada921d0c4db7b069d",
+    "routing": {
+     "mode": "unpinned_fallback",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": null,
+     "resolved_model": null,
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": {
+      "code": "provider_failure",
+      "detail": "the configured routes produced no usable result"
+     }
+    },
+    "observation_ids": [
+     "waiting-await-ca15973cbdcbe5ff480c"
+    ],
+    "obligation": {
+     "kind": "missing_evidence",
+     "item": "invoice reconciliation",
+     "question": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "concept": "invoice_reconciliation",
+     "operation": "invoice_reconciliation",
+     "missing_roles": [
+      "receiving"
+     ],
+     "subject": "PO-7302",
+     "known_identities": {
+      "invoice.po_id": "PO-7302",
+      "invoice.invoice_id": "INV-4491",
+      "purchase_order.po_id": "PO-7302",
+      "purchase_order.vendor_id": "V-41"
+     },
+     "evidence_step_ids": [
+      "source-2",
+      "source-3"
+     ],
+     "reason": "the accepted evidence does not satisfy the required role(s): receiving",
+     "next_action": "Authorize or name the source that contains the missing business record.",
+     "next_retrieval": "Which authorized source contains the missing receiving evidence for purchase order PO-7302?",
+     "inputs": {
+      "operation": "invoice_reconciliation",
+      "missing": [
+       "receiving"
+      ],
+      "known_identities": {
+       "invoice.po_id": "PO-7302",
+       "invoice.invoice_id": "INV-4491",
+       "purchase_order.po_id": "PO-7302",
+       "purchase_order.vendor_id": "V-41"
+      },
+      "evidence_step_ids": [
+       "source-2",
+       "source-3"
+      ]
+     }
+    },
+    "obligation_source": "deterministic_missing_prerequisite",
+    "progress": "no_progress"
+   }
+  ],
+  "plan_revision": 1,
+  "teaching_revision": "untrained"
+ },
+ "status": "waiting",
+ "wait": {
+  "event": "external_fact",
+  "state": "waiting_for_external",
+  "party": "authorized receiving source",
+  "correlation_id": "await-ca15973cbdcbe5ff480c",
+  "resume_on": "response",
+  "detail": "receiving for purchase order PO-7302",
+  "fact": "receiving",
+  "subject": "purchase order PO-7302",
+  "expected_answer_type": "quantity",
+  "blocks": "invoice reconciliation",
+  "deadline": "",
+  "validity": "",
+  "typed_binding": true,
+  "since": "2026-11-04T18:29:38.184120+00:00",
+  "reviewed_at": "2026-11-04T18:31:15.442554+00:00",
+  "reviewed_by": "employee"
+ },
+ "start_quote_present": true,
+ "steps": [
+  {
+   "step_id": "source-1",
+   "adapter": "dataset.read",
+   "status": "applied",
+   "operation_id": "3f8b4a89-8043-4cf4-bb5f-cb41f128e907"
+  },
+  {
+   "step_id": "source-2",
+   "adapter": "document.text",
+   "status": "applied",
+   "operation_id": "a4120c43-2265-42dc-b21a-5c304c1adadb"
+  },
+  {
+   "step_id": "source-3",
+   "adapter": "document.text",
+   "status": "applied",
+   "operation_id": "67291664-8911-40cf-b582-0db39ce71f60"
+  },
+  {
+   "step_id": "await",
+   "adapter": "assignment.wait",
+   "status": "waiting",
+   "operation_id": "86920670-1de6-4294-9ae5-ea8138be8eac"
+  },
+  {
+   "step_id": "quote-lines",
+   "adapter": "quote.lines_from_rows",
+   "status": "applied",
+   "operation_id": "0699c3b1-1e79-4705-a0af-558e201092c1"
+  },
+  {
+   "step_id": "quote-total",
+   "adapter": "quote.calculate",
+   "status": "applied",
+   "operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432"
+  }
+ ],
+ "restart": {
+  "status": "waiting",
+  "same_wait": true
+ },
+ "quote_after_restart": true,
+ "finish": {
+  "status": "blocked",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "3f8b4a89-8043-4cf4-bb5f-cb41f128e907",
+    "result_value": null
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "a4120c43-2265-42dc-b21a-5c304c1adadb",
+    "result_value": null
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "67291664-8911-40cf-b582-0db39ce71f60",
+    "result_value": null
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "applied",
+    "operation_id": "af4fa38f-30d5-4b6b-a6e3-283d1699de15",
+    "result_value": "received 3 units"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "0699c3b1-1e79-4705-a0af-558e201092c1",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+    "result_value": "96.30"
+   },
+   {
+    "step_id": "source-4",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "435cf9a6-b34f-4f20-8cab-d49796a1ccd6",
+    "result_value": null
+   }
+  ],
+  "deliverable": {
+   "deliverable_id": "del-requested-output",
+   "kind": "document",
+   "description": "Reconcile the supplier invoice INV-4491 for PO-7302 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+   "required": true,
+   "step_id": "requested-artifact",
+   "status": "pending",
+   "artifact_revision": null,
+   "artifact_path": null,
+   "sha256": null
+  },
+  "artifact_text": "",
+  "checks": {
+   "wait_survived_restart": true,
+   "quote_total_heldout": true,
+   "reconcile_total_heldout": false,
+   "assignment_completed": false,
+   "business_result_criterion": true,
+   "artifact_applied": false,
+   "artifact_has_quote": false,
+   "artifact_has_reconcile": false,
+   "artifact_sha_matches": false,
+   "no_live_provider": true
+  },
+  "all_checks_passed": false
+ }
+}

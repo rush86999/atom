@@ -28,6 +28,13 @@ from core.employee_money_terms import (
     role_dimension,
     validate_role_value,
 )
+from core.employee_business_outcomes import (
+    BUSINESS_RESULT_PROFILES,
+    bind_subject_identity,
+    normalize_business_requirement,
+    requirement_id_for,
+    result_profile,
+)
 from core.employee_work_requests import (
     AwaitEvidenceRequest,
     InvoiceReconciliationRequest,
@@ -610,17 +617,18 @@ def _quote_patch(
     return patch
 
 
-def _primary_calculation_step(patch: Mapping[str, Any]) -> str:
+def _primary_calculation_step(patch: Mapping[str, Any]) -> tuple[str, str]:
     """The verified calculation/reconciliation the artifact must follow."""
     for step in patch.get("add_steps") or []:
-        if str((step or {}).get("adapter") or "") in (
-                "quote.calculate", "invoice.reconcile"):
-            return str(step.get("step_id") or "")
-    return ""
+        adapter = str((step or {}).get("adapter") or "")
+        if adapter in ("quote.calculate", "invoice.reconcile"):
+            return str(step.get("step_id") or ""), adapter
+    return "", ""
 
 
 def _requested_artifact_step(
     assignment: Mapping[str, Any], calculation_step: str,
+    calculation_adapter: str = "",
 ) -> Optional[Dict[str, Any]]:
     """Render the user-requested output after the verified calculation.
 
@@ -657,6 +665,25 @@ def _requested_artifact_step(
         provenance.get("requested_output_deliverable_id") or "").strip()
     if not path or not deliverable_id:
         return None
+    result_adapters = {
+        profile["adapter"] for profile in BUSINESS_RESULT_PROFILES.values()
+    }
+    # One current result per business operation: a later recalculated version
+    # supersedes the earlier document content, while the earlier receipt stays
+    # in durable history.
+    latest_by_adapter: Dict[str, str] = {}
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        step_adapter = str(step.get("adapter") or "")
+        if (str(step.get("status") or "") == "applied"
+                and step_adapter in result_adapters
+                and step.get("step_id")):
+            latest_by_adapter[step_adapter] = str(step.get("step_id"))
+    if calculation_step:
+        latest_by_adapter[calculation_adapter or "_current"] = (
+            calculation_step)
+    result_step_ids = list(latest_by_adapter.values())
     return {
         "step_id": _unique_id(assignment, "requested-artifact"),
         "title": f"Render the requested {kind}",
@@ -669,16 +696,17 @@ def _requested_artifact_step(
             "deliverable_id": deliverable_id,
             "content": "",
             "compose_from_results": True,
-            # Render only the verified calculation/reconciliation this
-            # artifact follows, never an earlier superseded result.
-            "result_step_ids": [calculation_step],
+            # Render the verified business results required by the objective
+            # (plus the calculation this patch is adding), never a stale or
+            # superseded result.
+            "result_step_ids": result_step_ids,
         },
         "effect": "local",
-        "requires": [{
-            "kind": "receipt",
-            "step_id": calculation_step,
-            "require": "verified",
-        }],
+        "requires": [
+            {"kind": "receipt", "step_id": step_id,
+             "require": "verified"}
+            for step_id in result_step_ids
+        ],
         "required": True,
     }
 
@@ -792,6 +820,46 @@ INVOICE_ROLE_REQUIREMENTS = {
 }
 
 
+def _invoice_requirement_identity(
+    assignment: Mapping[str, Any],
+) -> Dict[str, str]:
+    """Exact invoice/PO identity the unresolved requirement must satisfy."""
+    for requirement in assignment.get("business_requirements") or []:
+        if not isinstance(requirement, Mapping):
+            continue
+        if str(requirement.get("operation") or "") != (
+                "invoice_reconciliation"):
+            continue
+        if str(requirement.get("status") or "") == "satisfied":
+            continue
+        identity = dict(
+            requirement.get("subject_identity") or {})
+        provenance = (
+            assignment.get("provenance") or {}).get(
+                "objective_identities") or {}
+        if isinstance(provenance, Mapping):
+            for key in ("invoice_id", "po_id"):
+                value = str(provenance.get(key) or "").strip()
+                if value and not identity.get(key):
+                    identity[key] = value
+        return {
+            str(key): str(value)
+            for key, value in identity.items()
+            if value not in (None, "")
+        }
+    provenance = (
+        assignment.get("provenance") or {}).get(
+            "objective_identities") or {}
+    if isinstance(provenance, Mapping):
+        return {
+            str(key): str(value)
+            for key, value in provenance.items()
+            if key in ("invoice_id", "po_id")
+            and value not in (None, "")
+        }
+    return {}
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
@@ -805,13 +873,13 @@ def _invoice_patch(
     receiving_fields = dict(
         request.receiving_fields) or dict(RECEIVING_FIELD_DEFAULTS)
     invoice_step_id = _bind_invoice_role(
-        assignment, request.invoice_step_id, invoice_fields,
+        assignment, request.invoice_step_id or "", invoice_fields,
         INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
     purchase_order_step_id = _bind_invoice_role(
-        assignment, request.purchase_order_step_id, po_fields,
+        assignment, request.purchase_order_step_id or "", po_fields,
         INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
     receiving_step_id = _bind_invoice_role(
-        assignment, request.receiving_step_id, receiving_fields,
+        assignment, request.receiving_step_id or "", receiving_fields,
         INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
     for step_id in (
             invoice_step_id, purchase_order_step_id, receiving_step_id):
@@ -826,6 +894,30 @@ def _invoice_patch(
     receiving_data = _invoice_evidence_shape(
         assignment, receiving_step_id, receiving_fields,
         receiving_fields, INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
+    required_identity = _invoice_requirement_identity(assignment)
+    if required_identity:
+        expected_invoice = str(
+            required_identity.get("invoice_id") or "").strip()
+        expected_po = str(
+            required_identity.get("po_id") or "").strip()
+        actual_invoice = str(
+            invoice_data.get(invoice_fields["invoice_id"]) or "").strip()
+        actual_invoice_po = str(
+            invoice_data.get(invoice_fields["po_id"]) or "").strip()
+        actual_po = str(po_data.get(po_fields["po_id"]) or "").strip()
+        actual_receiving_po = str(
+            receiving_data.get(receiving_fields["po_id"]) or "").strip()
+        if expected_invoice and actual_invoice != expected_invoice:
+            raise WorkRequestCompileError(
+                f"selected invoice {actual_invoice!r} does not match the "
+                f"required invoice identity {expected_invoice!r}")
+        if expected_po and (
+                actual_invoice_po != expected_po
+                or actual_po != expected_po
+                or actual_receiving_po != expected_po):
+            raise WorkRequestCompileError(
+                "the selected invoice, purchase order and receiving evidence "
+                f"must all belong to purchase order {expected_po!r}")
     po_identity = str(po_data.get(po_fields["po_id"]) or "").strip()
     for label, data, fields in (
             ("invoice", invoice_data, invoice_fields),
@@ -966,6 +1058,27 @@ def _await_patch(
         item for item in operation_capabilities(dict(assignment))
         if str(item.get("status") or "") in ("missing", "ambiguous")
     ]
+    dependent_operation = str(request.blocks_operation or "")
+    if not dependent_operation and len(blocked) == 1:
+        # One supported blocked capability is unambiguous: bind its result
+        # requirement in server code instead of treating the human label as
+        # executable proof.
+        dependent_operation = str(blocked[0].get("operation") or "")
+    if not dependent_operation and len(blocked) > 1:
+        raise WorkRequestCompileError(
+            "await_evidence must name blocks_operation when more than one "
+            "dependent capability is blocked")
+    if dependent_operation:
+        profile = result_profile(dependent_operation)
+        if profile is None:
+            raise WorkRequestCompileError(
+                "await_evidence names an unsupported dependent operation")
+        if blocked and not any(
+                str(item.get("operation") or "") == dependent_operation
+                for item in blocked):
+            raise WorkRequestCompileError(
+                "await_evidence dependent operation is not a blocked "
+                "capability of this job")
     expected_from = _await_key(request.expected_from)
     if not expected_from:
         raise WorkRequestCompileError(
@@ -1062,6 +1175,46 @@ def _await_patch(
         "requires": [],
         "required": True,
     }]
+    if dependent_operation:
+        profile = result_profile(dependent_operation)
+        known_identities: Dict[str, Any] = {}
+        for item in blocked:
+            if str(item.get("operation") or "") != dependent_operation:
+                continue
+            known_identities.update(item.get("known_identities") or {})
+        subject_identity = bind_subject_identity(
+            dependent_operation, known_identities,
+            subject=request.subject)
+        requirement_id = requirement_id_for(
+            operation=dependent_operation,
+            subject=request.subject,
+            correlation_id=correlation)
+        requirement = normalize_business_requirement({
+            "requirement_id": requirement_id,
+            "operation": dependent_operation,
+            "label": request.blocks,
+            "subject": request.subject,
+            "subject_identity": subject_identity,
+            "fact": request.fact,
+            "correlation_id": correlation,
+            "receipt_adapter": profile["adapter"],
+        })
+        patch["add_business_requirements"] = [requirement]
+        patch["add_criteria"] = [{
+            "criterion_id": f"business_result:{requirement_id}",
+            "kind": "business_result",
+            "required": True,
+            "verifier": "business_result",
+            "requirement_id": requirement_id,
+            "scope": {
+                "workspace_id": assignment.get("workspace_id"),
+                "tenant_id": assignment.get("tenant_id"),
+                "operation": dependent_operation,
+            },
+        }]
+        patch["observations"][-1]["blocks_operation"] = dependent_operation
+        patch["add_steps"][0]["inputs"]["blocks_operation"] = (
+            dependent_operation)
     return patch
 
 
@@ -1112,8 +1265,9 @@ def compile_work_request_patch(
                 f"invalid work request: {exc}") from exc
     # The requested output renders only after the typed calculation or
     # reconciliation it belongs to has produced a verified receipt.
+    calculation_step, calculation_adapter = _primary_calculation_step(patch)
     requested = _requested_artifact_step(
-        assignment, _primary_calculation_step(patch))
+        assignment, calculation_step, calculation_adapter)
     if requested:
         patch["add_steps"].append(requested)
     return patch

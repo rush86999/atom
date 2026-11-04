@@ -1,0 +1,103 @@
+A
+ATOM
+CORE
+Dashboard
+Chat
+Workspace
+Data
+Agents
+Learning
+Assignments
+Approvals
+Activity
+PLATFORM
+Settings
+
+admin
+
+admin@example.com
+
+No unread notifications
+Durable assignments
+
+This view reads the durable assignment projection. It does not infer progress from chat text and does not run restart recovery on load.
+
+Assignments
+
+Start durable work
+
+Refresh data
+No employee binding
+Demo Assistant · system
+price-book.xlsx / Prices · 2 rows
+invoice-v1.json
+purchase-order.json
+Document
+Presentation
+Email draft
+No calculation / infer
+Count rows
+Sum Qty
+Sum Price
+Other business concept…
+Let the employee decide the next supported work
+Let Atom choose from a permitted scope instead of the selected data
+Advanced (optional)
+Start assignment
+Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.
+waiting
+
+Current: Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841
+
+5/6 steps · 1 waiting
+
+Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.
+
+waiting
+
+Plan revision 5 · teaching untrained
+
+Business outcome: unsatisfied · criteria_not_met
+
+Still required: invoice reconciliation
+
+Answer the authorized request for receiving evidence for purchase order PO-8841.
+
+5/6 required steps
+120s work · 145s paused
+
+1 waiting · 0 open question(s)
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Waiting: Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841
+
+Waiting for authorized receiving source
+
+Correlated response
+
+Waiting for receiving evidence for purchase order PO-8841 for purchase order PO-8841 from authorized receiving source · subject: purchase order PO-8841. This blocks invoice reconciliation.
+
+Work that can continue: quote calculation.
+
+Paste only the authorized response (expected text); it is evidence, not teaching.
+
+Deliver
+
+Completed work
+
+Read invoice-v1.json
+Read purchase-order.json
+Read price-book.xlsx
+Map accepted evidence to quote lines
+Calculate the evidence-backed quote total
+Result: 370.00 USD · quote_total
+
+Artifacts
+
+Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.
+pending
+Resume
+Reassess teaching
+Cancel
+Durable state persisted

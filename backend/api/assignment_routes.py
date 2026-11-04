@@ -35,6 +35,7 @@ from core.employee_proposal import (
     compile_employee_proposal,
     context_from_record,
     employee_job_view,
+    objective_identity_hints,
     propose_employee_work,
     validate_employee_proposal,
 )
@@ -92,6 +93,12 @@ class AssignmentGapResolution(BaseModel):
 
 class AssignmentRetry(BaseModel):
     reason: str = "retry a failed step after the cause was repaired"
+
+
+class AssignmentBudgetExtension(BaseModel):
+    max_wall_seconds: Optional[float] = None
+    max_steps: Optional[int] = None
+    reason: str = "owner extended the assignment budget"
 
 
 class AssignmentMappingCorrection(BaseModel):
@@ -1066,6 +1073,17 @@ async def _advance_employee_work(
         context = context_from_record(
             record, action_views=action_views(assignment))
         unread = unread_authorized_sources(assignment)
+        # The discovery prompt already tells the model to use
+        # context.unread_sources when it is non-empty. Populate that contract
+        # from the same bounded source views the model can already see; this
+        # does not add authority or raw content.
+        unread_views = [
+            dict(source) for source in context.get("sources") or []
+            if isinstance(source, Mapping) and not source.get("read")
+        ]
+        if unread_views:
+            context["unread_sources"] = unread_views
+            context["unread_source_count"] = len(unread_views)
         waiting_open = any(
             str(step.get("status") or "") == "waiting"
             and str(step.get("adapter") or "") == "assignment.wait"
@@ -1251,7 +1269,8 @@ async def _advance_employee_work(
                     "deterministic_missing_prerequisite")
                 round_record["progress"] = "no_progress"
             break
-        if proposal_result.get("source") not in ("model", "model_repaired"):
+        if proposal_result.get("source") not in (
+                "model", "model_repaired", "model_compact"):
             break
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}
@@ -1417,7 +1436,9 @@ async def start_employee_objective(
     llm = _employee_llm(current_user, db) if body.use_model else None
     provider_model = _employee_provider_model()
     proposal_result = await propose_employee_work(
-        context, llm_service=llm, provider_model=provider_model)
+        context, llm_service=llm, provider_model=provider_model,
+        deadline_seconds=float(os.getenv(
+            "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240")))
     checked = validate_employee_proposal(
         proposal_result.get("proposal"), context)
     if not checked["valid"]:
@@ -1486,6 +1507,8 @@ async def start_employee_objective(
                 "technical_fallback", False),
             "use_model": bool(body.use_model),
             "source_fingerprint": source_fingerprint(resolved_sources),
+            "objective_identities": objective_identity_hints(
+                body.objective),
         },
     )
     requested_output = str(body.requested_output or "").strip().lower()
@@ -1800,6 +1823,59 @@ async def download_assignment_deliverable(
         filename=path.name,
         headers={"Cache-Control": "no-store"},
     )
+
+
+@router.post("/{run_id}/budget")
+async def extend_assignment_budget(
+    run_id: str,
+    body: AssignmentBudgetExtension,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Increase a live assignment's bounded step/wall budget.
+
+    The executor's own failure message tells the owner to increase the budget
+    or resolve the work explicitly. This route is that owner action: it never
+    restarts the job, grants authority or changes the objective. Existing
+    limits can only be raised, never lowered, and the audit fields identify
+    the owner and reason on the durable assignment.
+    """
+    if body.max_wall_seconds is None and body.max_steps is None:
+        raise HTTPException(
+            status_code=422,
+            detail="max_wall_seconds or max_steps is required")
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+
+    def compute(record, assignment):
+        budget = dict(assignment.get("budget") or {})
+        if body.max_wall_seconds is not None:
+            budget["max_wall_seconds"] = max(
+                float(budget.get("max_wall_seconds") or 0.0),
+                min(float(body.max_wall_seconds), 86400.0),
+            )
+        if body.max_steps is not None:
+            budget["max_steps"] = max(
+                int(budget.get("max_steps") or 0),
+                min(int(body.max_steps), 200),
+            )
+        budget["budget_extended_by"] = current_user.id
+        budget["budget_extended_at"] = datetime.now(
+            timezone.utc).isoformat()
+        budget["budget_extension_reason"] = str(
+            body.reason or "owner extended the assignment budget")[:300]
+        assignment["budget"] = budget
+        return assignment, {"budget": budget}
+
+    try:
+        result = executor.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale="owner extended the assignment budget")
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        "assignment": executor.status(run_id),
+        "budget": result["budget"],
+    }
 
 
 @router.post("/{run_id}/retry/{step_id}")

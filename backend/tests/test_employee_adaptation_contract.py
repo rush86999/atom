@@ -223,3 +223,125 @@ def test_legacy_context_keeps_legacy_schema_separate():
         assignment=_assignment(), llm_service=llm))
     assert result["source"] == "model"
     assert llm.calls[0]["response_model"] is AdaptationProposal
+
+
+def test_compact_single_request_prompt_is_bounded_to_one_operation():
+    from core.employee_adaptation import _compact_single_request_prompt
+
+    context = {
+        "objective": "Reconcile the invoice after receiving",
+        "existing_step_ids": ["source-2", "source-3", "source-4"],
+        "teaching": {"terms": {"currency": "USD"}},
+        "work_request_schemas": work_request_schemas(),
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "status": "ready",
+            "evidence": [{"step_id": "source-2"},
+                         {"step_id": "source-3"},
+                         {"step_id": "source-4"}],
+            "roles": {"invoice": ["source-2"],
+                      "purchase_order": ["source-3"],
+                      "receiving": ["source-4"]},
+            "known_identities": {"invoice.po_id": "PO-8841"},
+        }],
+        "rules": {
+            "allowed_work_requests": ["invoice_reconciliation"],
+        },
+    }
+    prompt = _compact_single_request_prompt(context)
+    assert "only allowed operation is invoice_reconciliation" in prompt
+    assert "source-2" in prompt and "source-4" in prompt
+    assert "quote_calculation" not in prompt
+    assert "Return JSON only with this shape" in prompt
+    assert "Never output $defs" in prompt
+    assert len(prompt) < 14000
+
+    context["rules"]["allowed_work_requests"].append("quote_calculation")
+    assert _compact_single_request_prompt(context) == ""
+
+
+def test_attempt_journal_preserves_token_counts_and_redacts_secrets():
+    journal = AttemptJournal()
+    event = journal.record("parsed", usage={
+        "prompt_tokens": 3152,
+        "completion_tokens": 195,
+        "total_tokens": 3347,
+        "access_token": "must-not-survive",
+    })
+    assert event["usage"]["prompt_tokens"] == 3152
+    assert event["usage"]["completion_tokens"] == 195
+    assert event["usage"]["total_tokens"] == 3347
+    assert event["usage"]["access_token"] == "[redacted]"
+
+
+def test_exhausted_budget_skips_compact_without_a_dispatch():
+    context = {
+        "identity": {"workspace_id": "ws_assign", "tenant_id": "tenant_assign"},
+        "objective": "Reconcile PO-HX-7001 with the accepted receiving record",
+        "teaching": {"terms": {"currency": "USD"}},
+        "rules": {"allowed_work_requests": ["invoice_reconciliation"]},
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "status": "ready",
+            "evidence": [
+                {"step_id": "invoice"}, {"step_id": "purchase-order"},
+                {"step_id": "receiving"}],
+            "roles": {"invoice": ["invoice"],
+                      "purchase_order": ["purchase-order"],
+                      "receiving": ["receiving"]},
+            "known_identities": {"invoice.po_id": "PO-HX-7001"},
+        }],
+        "evidence_results": [
+            {"step_id": "invoice", "business_role": "invoice",
+             "data_keys": ["po_id", "quantity"]},
+            {"step_id": "purchase-order", "business_role": "purchase_order",
+             "data_keys": ["po_id"]},
+            {"step_id": "receiving", "business_role": "receiving",
+             "data_keys": ["received_quantity"]},
+        ],
+        "business_requirements": [{
+            "requirement_id": "result-invoice-1",
+            "operation": "invoice_reconciliation",
+            "status": "unresolved",
+        }],
+    }
+    journal = AttemptJournal()
+    llm = CapturingLLM([])
+    result = asyncio.run(propose_adaptation(
+        context, [{"observation_id": "o-skip", "kind": "evidence_result",
+                   "step_id": "receiving"}],
+        assignment=_assignment(), llm_service=llm,
+        deadline=time.monotonic() - 1.0,
+        attempt_journal=journal))
+    assert result["source"] == "deterministic"
+    assert result["failure_stage"] == "compact"
+    assert "skipped_due_to_budget: compact" in result["errors"]
+    assert not llm.calls, "an exhausted budget must not dispatch the model"
+    skipped = [e for e in journal.events
+               if e["event"] == "skipped_due_to_budget"]
+    assert skipped and skipped[0]["call_stage"] == "compact"
+    assert not [e for e in journal.events if e["event"] == "failure"]
+
+
+def test_typed_work_request_rejects_a_reconcile_decision():
+    from core.employee_adaptation import _adaptation_errors
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    proposal = AdaptationProposal(
+        decision="reconcile",
+        reason="wrong decision for new typed work",
+        work_request=QuoteCalculationRequest(
+            operation="quote_calculation",
+            source_step_id="read",
+            columns=QuoteColumns(
+                item_id="Item", quantity="Qty", unit_price="Price"),
+            currency="USD",
+            freight=MoneyTerm(value="20.00", authority_ref="freight"),
+            tax=TaxTerm(basis="none", authority_ref="tax_basis"),
+        ),
+    )
+    errors = _adaptation_errors(proposal, _assignment(), _context())
+    assert any("work_request requires decision 'replan'" in error
+               for error in errors)

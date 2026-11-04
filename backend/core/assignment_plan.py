@@ -26,6 +26,10 @@ from core.assignment_readiness import (
     normalize_facts,
     normalize_requirements,
 )
+from core.employee_business_outcomes import (
+    business_requirement_views,
+    normalize_business_requirements,
+)
 from core.task_lifecycle import OPERATION_TYPES, TaskLifecycleError
 
 ASSIGNMENT_SCHEMA_VERSION = 1
@@ -470,6 +474,7 @@ def new_assignment(
     assignment_id: Optional[str] = None,
     standing_authority: Optional[Dict[str, Any]] = None,
     facts: Optional[Sequence[Dict[str, Any]]] = None,
+    business_requirements: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     objective_text = _bounded(objective, 4000).strip()
     if not objective_text:
@@ -510,6 +515,8 @@ def new_assignment(
             if isinstance(item, dict)
         ][:40],
         "facts": normalize_facts(facts or []),
+        "business_requirements": normalize_business_requirements(
+            business_requirements or []),
         "budget": {
             "max_steps": max(1, min(int(
                 (budget or {}).get("max_steps") or 40), 200)),
@@ -591,6 +598,28 @@ def validate_assignment(assignment: Dict[str, Any]) -> None:
     except ValueError as exc:
         raise TaskLifecycleError(
             f"assignment has invalid facts: {exc}") from exc
+    try:
+        requirements = normalize_business_requirements(
+            assignment.get("business_requirements") or [])
+    except ValueError as exc:
+        raise TaskLifecycleError(
+            f"assignment has invalid business requirements: {exc}") from exc
+    requirement_ids = {
+        str(item.get("requirement_id")) for item in requirements
+    }
+    for criterion in assignment.get("completion_criteria") or []:
+        if not isinstance(criterion, dict):
+            continue
+        if str(criterion.get("kind") or "") != "business_result":
+            continue
+        requirement_id = str(criterion.get("requirement_id") or "")
+        if requirement_id not in requirement_ids:
+            raise TaskLifecycleError(
+                "a business_result criterion must name a durable business "
+                "requirement")
+        if criterion.get("required", True) is not True:
+            raise TaskLifecycleError(
+                "a business_result criterion must be required")
     known = set(ids)
     for step in steps:
         for dependency in step.get("depends_on") or []:
@@ -869,6 +898,7 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
         "mappings": mappings,
         "mapping_history": copy.deepcopy(
             assignment.get("mapping_history") or []),
+        "business_requirements": business_requirement_views(assignment),
         "deliverables": copy.deepcopy(
             assignment.get("deliverables") or []),
         "sources": copy.deepcopy(assignment.get("sources") or []),
