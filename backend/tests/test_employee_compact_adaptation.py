@@ -229,7 +229,6 @@ def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
         return response_model.model_validate({
             "decision": "replan",
             "reason": "the receiving fact is accepted",
-            "observation_ids": ["evidence-receiving"],
             "work_request": {
                 "operation": "invoice_reconciliation",
                 "invoice_step_id": "invoice",
@@ -257,6 +256,9 @@ def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
     assert "WorkAdaptationProposal" not in calls[0]["prompt"]
     assert (result["proposal"].get("work_request") or {}).get(
         "operation") == "invoice_reconciliation"
+    # Opaque observation ids are bound from the compact call's own context;
+    # the model is not asked to repeat lifecycle plumbing.
+    assert result["proposal"]["observation_ids"] == ["evidence-receiving"]
 
 
 def test_compact_no_result_is_reported_as_a_compact_failure(monkeypatch):

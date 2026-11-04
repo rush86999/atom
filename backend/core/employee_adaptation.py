@@ -821,6 +821,20 @@ async def propose_adaptation(
         # has validated the payload.
         return AdaptationProposal.model_validate(normalized).model_dump()
 
+    def _bind_compact_observations(
+        normalized: Dict[str, Any], compact: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        """The compact call's own observations are the lifecycle binding.
+
+        The model owns the typed request; repeating opaque observation ids is
+        not a business choice. When it omits them, bind exactly the
+        observations this narrow call was built from (never a wider set).
+        """
+        if not normalized.get("observation_ids"):
+            normalized["observation_ids"] = list(
+                compact.get("observation_ids") or [])
+        return normalized
+
     if llm_service is not None and observations:
         try:
             from core.llm.pinned_planning import pinned_structured_call
@@ -864,8 +878,9 @@ async def propose_adaptation(
                     failure_stage = "compact"
                 if result is not None:
                     try:
-                        normalized = _normalize(
-                            result, compact["response_model"])
+                        normalized = _bind_compact_observations(
+                            _normalize(result, compact["response_model"]),
+                            compact)
                         proposal = AdaptationProposal.model_validate(normalized)
                         errors = _adaptation_errors(
                             proposal, assignment, context)
@@ -922,8 +937,11 @@ async def propose_adaptation(
                                 errors = errors + [f"compact repair: {exc}"]
                             if repaired is not None:
                                 try:
-                                    repaired_norm = _normalize(
-                                        repaired, compact["response_model"])
+                                    repaired_norm = _bind_compact_observations(
+                                        _normalize(
+                                            repaired,
+                                            compact["response_model"]),
+                                        compact)
                                     repaired_prop = (
                                         AdaptationProposal.model_validate(
                                             repaired_norm))
