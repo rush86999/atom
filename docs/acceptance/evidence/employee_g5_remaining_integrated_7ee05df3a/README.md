@@ -4,6 +4,8 @@ Runtime candidate: `7ee05df3ad54beb7581b7055d472e66caf93c572`
 (branch `codex/brennan-full-app-20261102`). Both campaigns ran with
 `source_id=7ee05df3ad54`, `dirty=false`. The browser world was
 `g5-ui-integrated-final`; the API campaign used its own marked scratch world.
+Frontend build identity: `Sqe_aXJSKB66cAJQ3fniG` (recorded in
+`ui/build-identity.json`).
 
 This is one integrated source with both evidence levels in one bundle:
 
