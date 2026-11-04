@@ -1899,6 +1899,42 @@ def _outbox_empty() -> bool:
     return not outbox.exists() or not outbox.read_text().strip()
 
 
+def test_budget_extension_raises_limits_without_restarting_the_job(route_env):
+    env = route_env
+    run_id = _waiting_route_assignment(
+        env, adapter="test.route.cancel.correlated",
+        waiting={
+            "event": "email", "state": "waiting_for_external",
+            "party": "supplier", "correlation_id": "corr-budget-route",
+            "resume_on": "response", "detail": "reply on thread-budget",
+        })
+    before = env["lifecycle"].get_assignment(run_id)
+    response = env["client"].post(
+        f"/api/assignments/{run_id}/budget",
+        json={"max_wall_seconds": 1800, "max_steps": 12,
+              "reason": "held-out continuation recovery"})
+    assert response.status_code == 200, response.text
+    budget = response.json()["budget"]
+    assert budget["max_wall_seconds"] >= 1800
+    assert budget["max_steps"] >= 12
+    assert budget["budget_extended_by"]
+    assert budget["budget_extension_reason"] == (
+        "held-out continuation recovery")
+    after = env["lifecycle"].get_assignment(run_id)
+    assert after["objective"] == before["objective"]
+    assert [step["step_id"] for step in after["steps"]] == [
+        step["step_id"] for step in before["steps"]]
+    assert after["status"] == before["status"]
+
+    # An increase-only route never lowers the owner's existing budget.
+    lowered = env["client"].post(
+        f"/api/assignments/{run_id}/budget",
+        json={"max_wall_seconds": 1, "max_steps": 1})
+    assert lowered.status_code == 200, lowered.text
+    assert lowered.json()["budget"]["max_wall_seconds"] >= 1800
+    assert lowered.json()["budget"]["max_steps"] >= 12
+
+
 def test_cancel_clears_correlated_wait_and_refuses_late_reply(route_env):
     env = route_env
     run_id = _waiting_route_assignment(
