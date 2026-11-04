@@ -381,10 +381,12 @@ def _adaptation_prompt(
             "authorized source can supply, choose replan with an "
             "await_evidence request for that fact (use the operation's "
             "known_identities for the subject and its missing field for the "
-            "fact) before unrelated work. Never wait for a term or value the "
-            "agent can choose, and never propose the blocked work_request "
-            "until the fact arrives. Do not return retain while the objective "
-            "is unresolved.\n"
+            "fact) before unrelated work. In 'blocks', name the blocked "
+            "operation label exactly as listed (for example 'invoice "
+            "reconciliation'); do not claim an unrelated operation is "
+            "blocked. Never wait for a term or value the agent can choose, "
+            "and never propose the blocked work_request until the fact "
+            "arrives. Do not return retain while the objective is unresolved.\n"
             if context.get("missing_prerequisites") else "")
     )
     return (
