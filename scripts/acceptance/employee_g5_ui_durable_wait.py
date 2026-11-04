@@ -37,8 +37,9 @@ from playwright.sync_api import sync_playwright
 
 OBJECTIVE = (
     "Reconcile the supplier invoice for PO-8841 against the purchase order "
-    "and receiving records, and prepare the quote from the authorized price "
-    "list.")
+    "and the receiving record the warehouse still owes. While that record is "
+    "pending, prepare the quote from the authorized price list, and deliver a "
+    "review document when the reconciliation is settled.")
 TEACHING_TERMS = {
     "currency": "USD",
     "freight": "20.00",
@@ -69,6 +70,26 @@ def _record(body: Dict[str, Any]) -> Dict[str, Any]:
         return {}
     nested = container.get("assignment")
     return nested if isinstance(nested, dict) else container
+
+
+def _deliverable(assignment: Dict[str, Any]) -> Dict[str, Any]:
+    return next((
+        item for item in assignment.get("deliverables") or []
+        if item.get("kind") == "document"), {})
+
+
+def _artifact_text(deliverable: Dict[str, Any]) -> str:
+    import docx
+
+    path = Path(str(deliverable.get("artifact_path") or ""))
+    if not path.is_file():
+        return ""
+    document = docx.Document(str(path))
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    for table in document.tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    return text
 
 
 def _wait_step(assignment: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,7 +197,7 @@ def main() -> int:
             page.get_by_test_id("assignment-teaching-terms-input").fill(
                 json.dumps(TEACHING_TERMS))
             page.get_by_test_id(
-                "assignment-deliverable-kind").select_option("")
+                "assignment-deliverable-kind").select_option("document")
             page.screenshot(
                 path=str(out / "start-form.png"), full_page=True)
             with page.expect_response(
@@ -235,11 +256,19 @@ def main() -> int:
                 page.wait_for_timeout(1500)
             wait = _wait_step(assignment)
             quote = _step(assignment, "quote.calculate")
+            durable = _durable(args.db, run_id)
+            durable_steps = {
+                str(item.get("step_id")): item
+                for item in durable.get("steps") or []
+            }
+            durable_quote = durable_steps.get(
+                str(quote.get("step_id") or ""), {})
             state["start_result"] = {
                 "status": assignment.get("status"),
                 "wait": wait.get("waiting"),
                 "wait_step_id": wait.get("step_id"),
-                "quote_total": (quote.get("result") or {}).get("value"),
+                "quote_total": (
+                    durable_quote.get("result") or {}).get("value"),
                 "quote_step_id": quote.get("step_id"),
                 "quote_operation": quote.get("operation_id"),
                 "steps": [{
@@ -380,10 +409,19 @@ def main() -> int:
                 state["start_result"]["quote_operation"]),
             "quote_step_ids_retained": all(
                 step_id in steps for step_id in start_steps),
+            "artifact_applied": (
+                _deliverable(final_assignment).get("status") == "applied"),
+            "artifact_total_270": "270.00" in _artifact_text(
+                _deliverable(final_assignment)),
+            "artifact_excludes_quote_total": "370.00" not in _artifact_text(
+                _deliverable(final_assignment)),
             "no_live_provider": True,
         }
+        deliverable = _deliverable(final_assignment)
         state["finish_result"] = {
             "status": final_assignment.get("status"),
+            "deliverable": deliverable,
+            "artifact_text": _artifact_text(deliverable),
             "steps": [{
                 "step_id": step.get("step_id"),
                 "adapter": step.get("adapter"),
