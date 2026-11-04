@@ -58,6 +58,7 @@ class CapabilityProfile:
     disqualifying_failure_kinds: Tuple[str, ...] = (
         "unsafe_action", "invented_fact", "semantic_failure",
         "invalid_plan_reference", "wrong_field_mapping",
+        "wrong_evidence_selection", "unsatisfactory_business_result",
     )
     allow_cost_relaxation: bool = False
 
@@ -242,6 +243,10 @@ def parse_evidence_rows(
     semantic_failure_kinds = {
         "semantic_failure", "invented_fact",
         "invalid_plan_reference", "wrong_field_mapping",
+        # Deterministic business-consumer evaluations. These are distinct
+        # from transport/schema failures: the model answered and parsed, but
+        # its proposal/result could not carry the workload contract.
+        "wrong_evidence_selection", "unsatisfactory_business_result",
     }
     for index, row in enumerate(rows):
         features = row.get("prompt_features")

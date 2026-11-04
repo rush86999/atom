@@ -1391,6 +1391,7 @@ async def propose_employee_work(
             result = None
         if result is not None:
             checked = validate_employee_proposal(result, context)
+            routing = _routing_snapshot()
             if checked["valid"]:
                 return {
                     "proposal": checked["proposal"],
@@ -1398,8 +1399,41 @@ async def propose_employee_work(
                     "technical_fallback": False,
                     "errors": [],
                     "attempt_id": getattr(journal, "attempt_id", None),
-                    "routing": _routing_snapshot(),
+                    "routing_result_id": routing.get("routing_result_id"),
+                    "routing": routing,
                 }
+            # The model produced an object that parsed but failed the
+            # consumer's deterministic contract. Record THAT model attempt as
+            # a semantic failure; the deterministic fallback below is not
+            # credited as model success.
+            evaluation = None
+            try:
+                from core.employee_routing_feedback import (
+                    classify_evidence_errors,
+                    record_attempt_evaluation,
+                )
+
+                evaluation = await record_attempt_evaluation(
+                    {"source": "model", "routing": routing},
+                    stage="employee_evidence_selection",
+                    evaluation="failed",
+                    failure_kind=classify_evidence_errors(
+                        checked["errors"]),
+                    detail="; ".join(checked["errors"]),
+                    workspace_id=context.get("identity", {}).get(
+                        "workspace_id"),
+                    tenant_id=context.get("identity", {}).get("tenant_id"),
+                    extra_features={
+                        "proposal_errors": list(checked["errors"])[:8],
+                        "attempt_id": getattr(journal, "attempt_id", None),
+                    },
+                )
+            except Exception:  # noqa: BLE001 — evidence must not break work
+                evaluation = None
+            if journal is not None:
+                journal.record(
+                    "evaluation", stage="employee_evidence_selection",
+                    evaluation=evaluation)
             fallback = _deterministic_proposal(context)
             return {
                 "proposal": fallback,
@@ -1407,7 +1441,9 @@ async def propose_employee_work(
                 "technical_fallback": True,
                 "errors": checked["errors"],
                 "attempt_id": getattr(journal, "attempt_id", None),
-                "routing": _routing_snapshot(),
+                "routing_result_id": routing.get("routing_result_id"),
+                "evaluation": evaluation,
+                "routing": routing,
             }
     fallback = _deterministic_proposal(context)
     routing = _routing_snapshot()
@@ -1426,6 +1462,7 @@ async def propose_employee_work(
         "technical_fallback": llm_service is not None,
         "errors": errors,
         "attempt_id": getattr(journal, "attempt_id", None),
+        "routing_result_id": routing.get("routing_result_id"),
         "routing": routing,
     }
 
