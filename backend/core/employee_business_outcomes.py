@@ -17,11 +17,17 @@ BUSINESS_RESULT_PROFILES: Dict[str, Dict[str, Any]] = {
         "adapter": "quote.calculate",
         "label": "quote calculation",
         "subject_fields": (),
+        # A generic local calculation can be unscoped, but it still needs a
+        # verified result receipt.
+        "identity_required": False,
     },
     "invoice_reconciliation": {
         "adapter": "invoice.reconcile",
         "label": "invoice reconciliation",
         "subject_fields": ("po_id", "invoice_id"),
+        # Invoice reconciliation is a record-scoped result: without an exact
+        # PO identity it must not become satisfied.
+        "identity_required": True,
         # A legacy human subject names the PO; invoice identity is only
         # included when accepted evidence supplies it explicitly.
         "primary_subject_field": "po_id",
@@ -94,6 +100,7 @@ def normalize_business_requirement(raw: Any) -> Dict[str, Any]:
         "correlation_id": _bounded(raw.get("correlation_id"), 120),
         "receipt_adapter": adapter,
         "subject_fields": list(profile["subject_fields"]),
+        "identity_required": bool(profile.get("identity_required")),
         "required": True,
     }
 
@@ -223,12 +230,15 @@ def requirement_satisfied(
     results: Sequence[Mapping[str, Any]],
 ) -> bool:
     operation = str(requirement.get("operation") or "")
+    profile = result_profile(operation) or {}
     required = requirement.get("subject_identity")
     required = dict(required) if isinstance(required, Mapping) else {}
-    if not required:
-        # A requirement that names a human subject but has no structured
-        # identity remains unresolved; it must not be matched by text search.
-        return not str(requirement.get("subject") or "").strip()
+    if not required and profile.get("identity_required"):
+        # Record-scoped outcomes cannot be satisfied by a label or an empty
+        # scope; the exact namespace must be bound first.
+        return False
+    # Every profile, including an unscoped one, still needs a matching
+    # applied/verified result receipt below.
     for result in results:
         if not isinstance(result, Mapping):
             continue
@@ -237,14 +247,16 @@ def requirement_satisfied(
         if result.get("verified") is not True:
             continue
         observed = result.get("subject_identity")
-        if not isinstance(observed, Mapping):
-            continue
-        if all(
-            _canonical_identity(observed.get(namespace))
-            == _canonical_identity(value)
-            for namespace, value in required.items()
-        ):
-            return True
+        if required:
+            if not isinstance(observed, Mapping):
+                continue
+            if not all(
+                _canonical_identity(observed.get(namespace))
+                == _canonical_identity(value)
+                for namespace, value in required.items()
+            ):
+                continue
+        return True
     return False
 
 
@@ -268,6 +280,12 @@ def business_requirement_views(
         ), None)
         if satisfied:
             next_action = None
+        elif not (raw.get("subject_identity") or {}) and (
+                result_profile(raw.get("operation")) or {}).get(
+                    "identity_required"):
+            next_action = (
+                "The exact required business record is not yet identified; "
+                "select or confirm the matching record.")
         elif waiting is not None:
             next_action = (
                 f"Answer the authorized request for "

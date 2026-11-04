@@ -523,7 +523,7 @@ def test_ambiguous_known_identities_do_not_bind_a_subject():
     ) == {"po_id": "PO-8841", "invoice_id": "INV-7"}
 
 
-def _identity_job(po_id: str):
+def _identity_job(po_id: str, identity=None):
     from core.assignment_plan import new_assignment, new_step
     from core.employee_business_outcomes import normalize_business_requirement
 
@@ -532,7 +532,9 @@ def _identity_job(po_id: str):
         "operation": "invoice_reconciliation",
         "label": "invoice reconciliation",
         "subject": "purchase order PO-8841",
-        "subject_identity": {"po_id": "PO-8841", "invoice_id": "INV-7"},
+        "subject_identity": (
+            identity if identity is not None else
+            {"po_id": "PO-8841", "invoice_id": "INV-7"}),
         "fact": "receiving",
         "correlation_id": "await-identity-route",
         "receipt_adapter": "invoice.reconcile",
@@ -687,3 +689,108 @@ def test_wrong_subject_cannot_publish_the_requested_report(
     step = next(
         item for item in final["steps"] if item["step_id"] == "review-document")
     assert (step.get("status") == "applied") is published
+
+
+def test_unscoped_result_matrix_requires_an_actual_verified_receipt():
+    from core.employee_business_outcomes import (
+        business_result_from_step, normalize_business_requirement,
+        requirement_satisfied,
+    )
+
+    quote = normalize_business_requirement({
+        "requirement_id": "result-quote",
+        "operation": "quote_calculation",
+        "subject": "",
+        "subject_identity": {},
+    })
+    invoice = normalize_business_requirement({
+        "requirement_id": "result-invoice-empty",
+        "operation": "invoice_reconciliation",
+        "subject": "",
+        "subject_identity": {},
+    })
+    quote_step = {
+        "step_id": "quote", "adapter": "quote.calculate",
+        "status": "applied", "operation_id": "op-quote",
+        "result": {"value": "370.00", "unit": "USD",
+                   "verification": {"status": "verified"}},
+    }
+    invoice_step = {
+        "step_id": "invoice", "adapter": "invoice.reconcile",
+        "status": "applied", "operation_id": "op-invoice",
+        "result": {"value": "270.00", "unit": "USD",
+                   "verification": {"status": "verified"},
+                   "data": {"po_id": "PO-8841", "invoice_id": "INV-7"}},
+    }
+    failed_quote = dict(quote_step)
+    failed_quote.update(status="failed")
+    results = [
+        business_result_from_step(quote_step),
+        business_result_from_step(invoice_step),
+    ]
+    assert requirement_satisfied(quote, []) is False
+    assert requirement_satisfied(quote, results) is True
+    assert requirement_satisfied(quote, [results[1]]) is False
+    assert requirement_satisfied(
+        quote, [business_result_from_step(failed_quote)]) is False
+    # Record-scoped invoice requirement needs identity, not just a result.
+    assert requirement_satisfied(invoice, []) is False
+    assert requirement_satisfied(invoice, [results[1]]) is False
+
+
+def test_empty_invoice_identity_never_completes_public_job(
+        route_env):
+    plan = _identity_job("PO-8841", identity={})
+    record = route_env["executor"].create_assignment(
+        "conv-empty-identity", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    asyncio.run(route_env["executor"].execute(run_id))
+    body = route_env["client"].get(
+        f"/api/assignments/{run_id}").json()
+    assert body["assignment"]["status"] != "completed"
+    requirement = body["employee_job"]["business_requirements"][0]
+    assert requirement["status"] == "unresolved"
+    assert "exact required business record" in requirement["next_action"]
+
+
+def test_artifact_guard_uses_requirement_projection_for_empty_and_exact_scope():
+    from core.assignment_executor import (
+        NeedsContext, _refuse_unresolved_business_results,
+    )
+    from core.assignment_plan import new_assignment, new_step
+    from core.employee_business_outcomes import normalize_business_requirement
+
+    def _assignment(identity):
+        requirement = normalize_business_requirement({
+            "requirement_id": "result-artifact-guard",
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "subject": "",
+            "subject_identity": identity,
+            "fact": "receiving",
+            "correlation_id": "await-artifact-guard",
+            "receipt_adapter": "invoice.reconcile",
+        })
+        step = new_step(
+            step_id="invoice", title="Reconcile", operation_type="calculate",
+            adapter="invoice.reconcile", inputs={}, effect="local")
+        step.update(status="applied", operation_id="op-artifact-guard", result={
+            "value": "270.00", "unit": "USD",
+            "verification": {"status": "verified"},
+            "data": {"po_id": "PO-8841", "invoice_id": "INV-7"}})
+        return new_assignment(
+            objective="Publish the review", steps=[step],
+            business_requirements=[requirement],
+            completion_criteria=[{
+                "criterion_id": "business_result:result-artifact-guard",
+                "kind": "business_result", "verifier": "business_result",
+                "requirement_id": "result-artifact-guard"}])
+
+    with pytest.raises(NeedsContext):
+        _refuse_unresolved_business_results({
+            "assignment": _assignment({}),
+        })
+    # Exact scope is satisfied and does not block the artifact adapter.
+    _refuse_unresolved_business_results({
+        "assignment": _assignment({"po_id": "PO-8841", "invoice_id": "INV-7"}),
+    })
