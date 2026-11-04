@@ -1484,6 +1484,7 @@ async def start_employee_objective(
             "proposal_reason": proposal.get("reason"),
             "technical_fallback": proposal_result.get(
                 "technical_fallback", False),
+            "use_model": bool(body.use_model),
             "source_fingerprint": source_fingerprint(resolved_sources),
         },
     )
@@ -2235,8 +2236,10 @@ async def record_assignment_response(
     if result.get("status") == "resumed":
         assignment = executor.lifecycle.get_assignment(run_id) or {}
         provenance = assignment.get("provenance") or {}
-        if str(provenance.get("proposal_source") or "") in (
-                "model", "model_repaired"):
+        # A deterministic initial discovery does not make the job
+        # non-model-driven: later adaptation rounds may be model-selected.
+        # Only an explicit objective start with use_model=false stays offline.
+        if provenance.get("use_model", True) is not False:
             llm = _employee_llm(current_user, db)
             rounds = await _advance_employee_work(
                 executor, run_id, llm, max_rounds=1,
