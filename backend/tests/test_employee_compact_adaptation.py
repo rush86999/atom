@@ -554,3 +554,50 @@ def test_compact_call_binds_triggering_observations_when_role_filter_is_empty(
         assignment=_assignment(), llm_service=FakeLLM()))
     assert result["source"] == "model_compact", result
     assert result["proposal"]["observation_ids"] == ["evidence-unrelated"]
+
+
+def test_legacy_compact_fallback_uses_the_narrow_model_and_binds_observations(
+        monkeypatch):
+    """The post-failure compact fallback must not lose the typed request."""
+    context = _context()
+    # No unresolved business requirement: compact-first is skipped, the full
+    # call fails, and the legacy bounded fallback is the path under test.
+    context.pop("business_requirements", None)
+    calls = []
+
+    async def fake_pinned(_llm, *, response_model, **kwargs):
+        calls.append(response_model.__name__)
+        if response_model.__name__ in (
+                "WorkAdaptationProposal", "AdaptationProposal"):
+            return None
+        return response_model.model_validate({
+            "decision": "replan",
+            "reason": "the accepted role evidence is sufficient",
+            "observation_ids": [],
+            "work_request": {
+                "operation": "invoice_reconciliation",
+                "invoice_step_id": "invoice",
+                "purchase_order_step_id": "purchase-order",
+                "receiving_step_id": "receiving",
+                "currency": "USD",
+            },
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, [{
+            "observation_id": "evidence-unrelated",
+            "kind": "evidence_result",
+            "step_id": "unrelated-source"}],
+        assignment=_assignment(), llm_service=FakeLLM()))
+    assert calls == [
+        "AdaptationProposal", "CompactEmployeeWorkProposal"]
+    assert result["source"] == "model_compact", result
+    assert result["prompt_mode"] == "compact"
+    assert result["proposal"]["observation_ids"] == ["evidence-unrelated"]
+    assert (result["proposal"].get("work_request") or {}).get(
+        "receiving_step_id") == "receiving"

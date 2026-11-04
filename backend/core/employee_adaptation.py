@@ -1129,13 +1129,17 @@ async def propose_adaptation(
                 result = None
                 failure_stage = "initial"
                 checked_errors = [f"initial call: {exc}"]
+            fallback_compact = None
             if result is None:
-                compact_prompt = _compact_single_request_prompt(context)
-                if compact_prompt:
+                fallback_compact = _compact_single_request_context(
+                    context, observations)
+                if fallback_compact:
                     try:
                         result = await _call(
-                            compact_prompt,
+                            fallback_compact["prompt"],
                             "employee adaptation compact", "compact",
+                            model=fallback_compact["response_model"],
+                            max_tokens=1200,
                             capability_profile=(
                                 "employee_adaptive_planning_compact"))
                     except _BudgetExhausted:
@@ -1153,18 +1157,31 @@ async def propose_adaptation(
                             f"compact call: {exc}"]
             if result is not None:
                 try:
-                    normalized = _normalize(result)
+                    selected_model = (
+                        fallback_compact["response_model"]
+                        if fallback_compact else response_model)
+                    normalized = _normalize(
+                        result, selected_model,
+                        expand=(_expand_compact_payload
+                                if fallback_compact else None))
+                    if fallback_compact:
+                        normalized = _bind_compact_observations(
+                            normalized, fallback_compact)
                     proposal = AdaptationProposal.model_validate(normalized)
                     errors = _adaptation_errors(proposal, assignment, context)
                     first_errors = list(errors)
                     if not errors:
                         return {
                             "proposal": proposal.model_dump(),
-                            "source": "model",
+                            "source": (
+                                "model_compact" if fallback_compact
+                                else "model"),
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
                             "routing": _routing_snapshot(),
+                            "prompt_mode": (
+                                "compact" if fallback_compact else None),
                         }
                     remaining = _remaining()
                     if remaining is not None and remaining <= 0:
