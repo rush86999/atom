@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from core.employee_adaptation import WorkAdaptationProposal
 from core.employee_business_outcomes import business_requirement_views
 from core.task_outcome_contract import build_assignment_outcome
@@ -447,3 +449,167 @@ def test_business_requirement_patch_is_bound_to_the_task_version():
         patch.model_dump(), {"task_version": 7, "assignment": assignment})
     assert checked["valid"] is False
     assert any("stale task version" in error for error in checked["errors"])
+
+
+@pytest.mark.parametrize(
+    "required, observed, expected",
+    [
+        ({"po_id": "PO-8841"}, {"po_id": "PO-8841",
+                                "invoice_id": "INV-7"}, True),
+        ({"po_id": "PO-8841"}, {"po_id": "PO-88410",
+                                "invoice_id": "INV-7"}, False),
+        ({"po_id": "PO-8841"}, {"po_id": "PO-884",
+                                "invoice_id": "INV-7"}, False),
+        ({"po_id": "PO-8841"}, {"po_id": "PO-other",
+                                "invoice_id": "PO-8841"}, False),
+        ({"po_id": "PO-0001-A"}, {"po_id": "PO-0001-A",
+                                  "invoice_id": "INV-7"}, True),
+        ({"po_id": "PO-0001-A"}, {"po_id": "PO-1-A",
+                                  "invoice_id": "INV-7"}, False),
+        ({"po_id": "PO-8841", "invoice_id": "INV-7"},
+         {"po_id": "PO-8841", "invoice_id": "INV-7"}, True),
+        ({"po_id": "PO-8841", "invoice_id": "INV-7"},
+         {"po_id": "PO-8841", "invoice_id": "INV-8"}, False),
+        ({"po_id": "PO-8841", "invoice_id": "INV-7"},
+         {"po_id": "INV-7", "invoice_id": "PO-8841"}, False),
+        ({"po_id": "PO-8841"}, {}, False),
+    ],
+)
+def test_requirement_identity_is_exact_and_namespaced(
+        required, observed, expected):
+    from core.employee_business_outcomes import (
+        normalize_business_requirement, requirement_satisfied,
+    )
+
+    requirement = normalize_business_requirement({
+        "requirement_id": "result-identity",
+        "operation": "invoice_reconciliation",
+        "label": "invoice reconciliation",
+        "subject": "purchase order PO-8841",
+        "subject_identity": required,
+        "fact": "receiving",
+        "correlation_id": "await-1",
+        "receipt_adapter": "invoice.reconcile",
+    })
+    results = [{
+        "operation": "invoice_reconciliation",
+        "adapter": "invoice.reconcile",
+        "verified": True,
+        "subject_identity": observed,
+    }]
+    assert requirement_satisfied(requirement, results) is expected
+
+
+def test_ambiguous_known_identities_do_not_bind_a_subject():
+    from core.employee_business_outcomes import bind_subject_identity
+
+    assert bind_subject_identity(
+        "invoice_reconciliation",
+        {
+            "invoice.po_id": "PO-1",
+            "purchase_order.po_id": "PO-2",
+            "invoice.invoice_id": "INV-7",
+        },
+        subject="purchase order PO-1",
+    ) == {}
+    assert bind_subject_identity(
+        "invoice_reconciliation",
+        {
+            "invoice.po_id": "PO-8841",
+            "purchase_order.po_id": "PO-8841",
+            "invoice.invoice_id": "INV-7",
+        },
+        subject="purchase order PO-8841",
+    ) == {"po_id": "PO-8841", "invoice_id": "INV-7"}
+
+
+def _identity_job(po_id: str):
+    from core.assignment_plan import new_assignment, new_step
+    from core.employee_business_outcomes import normalize_business_requirement
+
+    requirement = normalize_business_requirement({
+        "requirement_id": "result-identity-route",
+        "operation": "invoice_reconciliation",
+        "label": "invoice reconciliation",
+        "subject": "purchase order PO-8841",
+        "subject_identity": {"po_id": "PO-8841", "invoice_id": "INV-7"},
+        "fact": "receiving",
+        "correlation_id": "await-identity-route",
+        "receipt_adapter": "invoice.reconcile",
+    })
+    step = new_step(
+        step_id="invoice-reconcile",
+        title="Reconcile the invoice",
+        operation_type="calculate",
+        adapter="invoice.reconcile",
+        inputs={},
+        effect="local",
+    )
+    step.update(
+        status="applied",
+        operation_id="op-identity-route",
+        result={
+            "value": "270.00",
+            "unit": "USD",
+            "verification": {"status": "verified"},
+            "data": {"po_id": po_id, "invoice_id": "INV-7"},
+        },
+    )
+    return new_assignment(
+        objective="Reconcile the invoice for PO-8841",
+        steps=[step],
+        business_requirements=[requirement],
+        completion_criteria=[
+            {"criterion_id": "required_work_complete:assignment",
+             "kind": "required_work_complete",
+             "verifier": "required_work_complete"},
+            {"criterion_id": "employee_result:objective",
+             "kind": "employee_result", "verifier": "employee_result"},
+            {"criterion_id": "business_result:result-identity-route",
+             "kind": "business_result", "verifier": "business_result",
+             "requirement_id": "result-identity-route"},
+        ],
+    )
+
+
+@pytest.mark.parametrize("po_id,completed", [
+    ("PO-88410", False),
+    ("PO-884", False),
+    ("PO-8841", True),
+])
+def test_public_status_uses_exact_namespaced_reconciliation_identity(
+        route_env, po_id, completed):
+    plan = _identity_job(po_id)
+    record = route_env["executor"].create_assignment(
+        f"conv-identity-{po_id}",
+        plan["objective"],
+        assignment=plan,
+    )
+    run_id = record["run_id"]
+    asyncio.run(route_env["executor"].execute(run_id))
+    body = route_env["client"].get(
+        f"/api/assignments/{run_id}").json()
+    assignment = body["assignment"]
+    assert (assignment.get("status") == "completed") is completed
+    requirement = body["employee_job"]["business_requirements"][0]
+    assert requirement["status"] == (
+        "satisfied" if completed else "unresolved")
+
+    # The namespaced requirement is durable, not a view-only check.
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+
+    fresh_runs = GoalRunService(
+        workspace_id="ws-1", tenant_id="tenant-1",
+        session_factory=route_env["factory"])
+    fresh_goals = GoalService(
+        workspace_id="ws-1", tenant_id="tenant-1",
+        session_factory=route_env["factory"])
+    fresh = TaskLifecycle(fresh_runs, fresh_goals)
+    fresh_assignment = fresh.get_task(run_id)["assignment"]
+    assert fresh_assignment["business_requirements"][0][
+        "subject_identity"] == {
+            "po_id": "PO-8841", "invoice_id": "INV-7"}
+    assert business_requirement_views(fresh_assignment)[0]["status"] == (
+        "satisfied" if completed else "unresolved")

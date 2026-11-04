@@ -195,6 +195,9 @@ def test_wait_allows_model_chosen_independent_work_and_exact_reply(
     assert wait["waiting"]["typed_binding"] is True
     assert wait["inputs"]["correlation_id"] == (
         wait["waiting"]["correlation_id"])
+    requirement = assignment["business_requirements"][0]
+    assert requirement["subject_identity"] == {
+        "po_id": "PO-8841", "invoice_id": "INV-7"}
     quote = next(
         step for step in assignment["steps"]
         if step["adapter"] == "quote.calculate")

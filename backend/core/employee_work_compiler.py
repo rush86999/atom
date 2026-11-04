@@ -30,6 +30,7 @@ from core.employee_money_terms import (
 )
 from core.employee_business_outcomes import (
     BUSINESS_RESULT_PROFILES,
+    bind_subject_identity,
     normalize_business_requirement,
     requirement_id_for,
     result_profile,
@@ -1112,6 +1113,14 @@ def _await_patch(
     }]
     if dependent_operation:
         profile = result_profile(dependent_operation)
+        known_identities: Dict[str, Any] = {}
+        for item in blocked:
+            if str(item.get("operation") or "") != dependent_operation:
+                continue
+            known_identities.update(item.get("known_identities") or {})
+        subject_identity = bind_subject_identity(
+            dependent_operation, known_identities,
+            subject=request.subject)
         requirement_id = requirement_id_for(
             operation=dependent_operation,
             subject=request.subject,
@@ -1121,6 +1130,7 @@ def _await_patch(
             "operation": dependent_operation,
             "label": request.blocks,
             "subject": request.subject,
+            "subject_identity": subject_identity,
             "fact": request.fact,
             "correlation_id": correlation,
             "receipt_adapter": profile["adapter"],

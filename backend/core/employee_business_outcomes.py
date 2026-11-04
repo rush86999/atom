@@ -22,6 +22,9 @@ BUSINESS_RESULT_PROFILES: Dict[str, Dict[str, Any]] = {
         "adapter": "invoice.reconcile",
         "label": "invoice reconciliation",
         "subject_fields": ("po_id", "invoice_id"),
+        # A legacy human subject names the PO; invoice identity is only
+        # included when accepted evidence supplies it explicitly.
+        "primary_subject_field": "po_id",
     },
 }
 
@@ -35,7 +38,17 @@ def _bounded(value: Any, limit: int) -> str:
 
 
 def _normal(value: Any) -> str:
+    """Legacy digest-only normalization; never used for identity matching."""
     return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+
+def _canonical_identity(value: Any) -> str:
+    """Opaque business identity: trim framing whitespace only.
+
+    Punctuation, case, leading zeros and internal spacing are meaningful.
+    No fuzzy prefix/substring or alphanumeric-collapse comparison is allowed.
+    """
+    return str(value if value is not None else "").strip()
 
 
 def normalize_business_requirement(raw: Any) -> Dict[str, Any]:
@@ -55,11 +68,28 @@ def normalize_business_requirement(raw: Any) -> Dict[str, Any]:
         raise ValueError(
             f"business requirement {requirement_id} names the wrong receipt "
             f"adapter")
+    subject = _bounded(raw.get("subject"), 200)
+    subject_identity: Dict[str, str] = {}
+    if "subject_identity" in raw:
+        raw_identity = raw.get("subject_identity")
+        if isinstance(raw_identity, Mapping):
+            for key, value in raw_identity.items():
+                namespace = _bounded(key, 80)
+                canonical = _canonical_identity(value)
+                if namespace and canonical:
+                    subject_identity[namespace] = canonical[:200]
+    elif subject and profile.get("primary_subject_field"):
+        # Compatibility for a legacy requirement that only carries a human
+        # subject: bind it to the profile's primary namespace, never to every
+        # identity field. New compiler patches pass subject_identity
+        # explicitly, including an empty map when evidence is ambiguous.
+        subject_identity[str(profile["primary_subject_field"])] = subject
     return {
         "requirement_id": requirement_id,
         "operation": operation,
         "label": _bounded(raw.get("label"), 200) or profile["label"],
-        "subject": _bounded(raw.get("subject"), 200),
+        "subject": subject,
+        "subject_identity": subject_identity,
         "fact": _bounded(raw.get("fact"), 120),
         "correlation_id": _bounded(raw.get("correlation_id"), 120),
         "receipt_adapter": adapter,
@@ -115,9 +145,9 @@ def business_result_from_step(step: Mapping[str, Any]) -> Optional[Dict[str, Any
             return None
     data = result.get("data") if isinstance(result.get("data"), Mapping) else {}
     identity = {
-        field: _normal(data.get(field))
+        field: _canonical_identity(data.get(field))
         for field in BUSINESS_RESULT_PROFILES[operation]["subject_fields"]
-        if data.get(field) not in (None, "")
+        if _canonical_identity(data.get(field))
     }
     return {
         "operation": operation,
@@ -146,12 +176,59 @@ def business_results_from_assignment(
     return results
 
 
+def bind_subject_identity(
+    operation: str,
+    known_identities: Optional[Mapping[str, Any]],
+    *,
+    subject: str = "",
+) -> Dict[str, str]:
+    """Bind exact namespaced identities from accepted operation evidence.
+
+    Returns only values the evidence identifies unambiguously. A missing or
+    conflicting namespace is omitted; callers then persist the requirement
+    without that identity and completion stays fail-closed.
+    """
+    profile = result_profile(operation) or {}
+    fields = tuple(profile.get("subject_fields") or ())
+    if not fields or not isinstance(known_identities, Mapping):
+        return {}
+    candidates: Dict[str, List[str]] = {field: [] for field in fields}
+    for key, value in known_identities.items():
+        leaf = str(key or "").rsplit(".", 1)[-1].strip()
+        if leaf not in candidates:
+            continue
+        canonical = _canonical_identity(value)
+        if canonical and canonical not in candidates[leaf]:
+            candidates[leaf].append(canonical)
+    identity: Dict[str, str] = {}
+    subject_value = _canonical_identity(subject)
+    for field in fields:
+        values = candidates[field]
+        if len(values) == 1:
+            identity[field] = values[0]
+            continue
+        if len(values) > 1:
+            subject_matches = [
+                value for value in values if value == subject_value
+            ]
+            if len(subject_matches) == 1:
+                identity[field] = subject_matches[0]
+                continue
+            return {}
+    return identity
+
+
 def requirement_satisfied(
     requirement: Mapping[str, Any],
     results: Sequence[Mapping[str, Any]],
 ) -> bool:
     operation = str(requirement.get("operation") or "")
-    subject = _normal(requirement.get("subject"))
+    required = requirement.get("subject_identity")
+    required = dict(required) if isinstance(required, Mapping) else {}
+    if not required:
+        # A requirement that names a human subject but has no structured
+        # identity remains unresolved; it must not be matched by text search.
+        return not str(requirement.get("subject") or "").strip()
     for result in results:
         if not isinstance(result, Mapping):
             continue
@@ -159,22 +236,15 @@ def requirement_satisfied(
             continue
         if result.get("verified") is not True:
             continue
-        identity = result.get("subject_identity")
-        fields = requirement.get("subject_fields") or []
-        if subject and fields:
-            if not isinstance(identity, Mapping) or not identity:
-                # A scoped requirement cannot be satisfied by a receipt with
-                # no matching business identity.
-                continue
-            candidates = [
-                str(value) for value in identity.values() if str(value)
-            ]
-            if not candidates or not any(
-                candidate in subject or subject in candidate
-                for candidate in candidates
-            ):
-                continue
-        return True
+        observed = result.get("subject_identity")
+        if not isinstance(observed, Mapping):
+            continue
+        if all(
+            _canonical_identity(observed.get(namespace))
+            == _canonical_identity(value)
+            for namespace, value in required.items()
+        ):
+            return True
     return False
 
 
