@@ -25,7 +25,8 @@ row's evidence.
 | Held-out two-domain evidence selection without user-picked sources | **Demonstrated and accepted at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: 7-document authorized pool with current invoice `ap-inbox-0412.json`/PO `po-archive-88.json`/receiving `dock-receipt-19.json` plus wrong-PO, superseded, wrong-receiving and prompt-injected distractors. The served model's bounded correction selected the current chain; reconciliation 121.00, 12/12 positive checks. Missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished, and recovered on the same job after authorized addition: 121.00, 14/14 checks. 26/26 total; 323 affected tests; 33/33 Git. Accepted at this scope. Earlier negative `80e3bd702` / `20f3ffc19` remains historical |
 | Automatic BYOK selection | **Available one-route scope accepted; controlled two-route matrix accepted; served multi-model quality not qualified** | `employee_byok_auto_selection_0e04286b2` (source `0e04286b2`, evidence `896925d22`): five unpinned employee evidence-selection calls auto-selected/served `ollama/llama3.1:8b` with raw route, usage and latency (28,034/1,058 tokens, 98.78 s). Controlled real LLMService/BYOKHandler two-route matrix covers cheaper capable choice, measured semantic-failure exclusion, costlier failure, scope/deadline refusal and honest no-suitable receipts: 9 consumer tests + 114 successor tests; 14/14 Git. Not a served multi-model comparison |
 | Evaluated business outcome → scoped routing feedback | **Demonstrated at controlled scratch-DB scope** | `employee_business_feedback_2ab959fc0` (source `2ab959fc0`): the employee consumer annotates the exact served generation with `failure_kind`, profile/version, workspace/tenant and provider/model. Three evaluated `wrong_evidence_selection` outcomes persisted as 3 samples / 0 successes / 3 semantic failures; the next unpinned decision excluded `local_ctrl1234/llama3.1:8b` and served the one eligible alternative `local_pricey/pricey-model`. Covers post-execution capability failure, satisfied outcomes, workspace/tenant/profile-version isolation, compact-profile scoping and deterministic-fallback refusal: 7 feedback controls (included in 213 affected) + 180 broader tests. Scratch DB and doubled transport; not live inference or served multi-model comparison |
-| Employee wait-choice bounded consumer | **Demonstrated at controlled local scope; original negative preserved** | `employee_wait_choice_5cc897dbb`: the captured 27,513-char / 104.9 s wait-choice no-result was a validation failure (empty `blocks`, untyped `new_steps`), not transport. A focused typed wait context/schema now returns a model-selected `await_evidence` in **13.15 s** on the existing local route (`342` merged affected tests; 17/17 replay checks). Original negative remains at `employee_byok_auto_selection_0e04286b2`; not a general judgment claim |
+| Employee wait-choice bounded consumer | **Schema/no-result recovery accepted; semantic wait acceptance withheld** | `employee_wait_choice_5cc897dbb`: the captured 27,513-char / 104.9 s wait-choice no-result was a validation failure (empty `blocks`, untyped `new_steps`), not transport. A focused typed wait context/schema now returns a model-selected `await_evidence` in **13.15 s** on the existing local route (`342` merged affected tests; 17/17 replay checks). This is schema-recovery evidence only: the replay waited for an invoice already present under an ambiguous prerequisite, so it is not a satisfactory business wait choice. Original negative remains at `employee_byok_auto_selection_0e04286b2` |
+| Employee wait-choice semantic policy guard | **Demonstrated at controlled consumer/route scope; no inference** | `employee_wait_choice_policy_0a9df5377` (guard `0a9df5377`, integrated feedback `e4f3733c1`): waits are validated against trusted readiness and `allowed_proposal_kinds` before adoption. Rejects all-read ambiguity under clarify/retain-only policy, ambiguous/already-ready records, unnamed missing roles, unread authorized evidence, ready independent work, explicit contradictory `blocks_operation`, and multiple missing prerequisites without a named blocked operation. A genuine missing external fact still waits. Rejection retains applied results/requirements and returns deterministic clarify/retain; the public route persists the targeted question without creating a wait step. **367 affected tests; 19 guard-focused; independent probe passed; no model/provider call** |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
 
@@ -90,13 +91,29 @@ multi-model comparison. No model/UI replay was used for the mechanical
 corrections above.
 
 The bounded wait-choice consumer is demonstrated at
-`employee_wait_choice_5cc897dbb`: the captured 27,513-char / 104.9 s no-result
-was a validation failure, not transport. The focused typed wait context now
-returns a model-selected `await_evidence` in 13.15 s on the existing local
-route; 342 merged affected tests and 17/17 replay checks. The original negative
-remains preserved; this is not a general judgment claim. The direct replay did
-not use an application DB, so the feedback-persistence row remains Agent 2's
+`employee_wait_choice_5cc897dbb` as schema/no-result recovery only: the
+captured 27,513-char / 104.9 s no-result was a validation failure, not
+transport. The focused typed wait context now returns a model-selected
+`await_evidence` in 13.15 s on the existing local route; 342 merged affected
+tests and 17/17 replay checks. The replay's wait targeted an invoice already
+present under an ambiguous prerequisite, so semantic wait acceptance remains
+withheld. The original negative remains preserved. The direct replay did not
+use an application DB, so the feedback-persistence row remains Agent 2's
 scratch-DB evidence above.
+
+The semantic guard is demonstrated at
+`employee_wait_choice_policy_0a9df5377` (guard `0a9df5377`, integrated
+feedback `e4f3733c1`). It validates an expanded wait against trusted
+readiness and `allowed_proposal_kinds` before adoption: all-read ambiguity
+under a clarify/retain-only policy, ambiguous/already-ready records, unnamed
+missing roles, unread authorized evidence, ready independent work, explicit
+contradictory `blocks_operation`, and multiple missing prerequisites without a
+named blocked operation are refused. A genuine missing external fact still
+waits when the policy permits it. Rejection retains applied results and
+unresolved requirements, returns deterministic clarify/retain, and the public
+route persists the targeted question without a wait step. **367 affected
+tests; 19 guard-focused; independent probe passed; no model/provider call.**
+The captured replay remains unchanged as schema-recovery evidence.
 
 ## What this reconciliation does not claim
 
