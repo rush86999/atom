@@ -1148,6 +1148,45 @@ def _routing_snapshot() -> Dict[str, Any]:
         return {"mode": "deterministic"}
 
 
+def business_routing_notice(
+    routing: Optional[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """A business-safe explanation for a reasoning route that was unavailable.
+
+    Never includes provider exceptions, internal scores or model branding.
+    A route failure is a configuration/availability fact: the employee's
+    job, completed work and questions stay intact.
+    """
+    if not isinstance(routing, Mapping):
+        return None
+    error = routing.get("error")
+    if not isinstance(error, Mapping) or not error.get("code"):
+        return None
+    code = str(error.get("code") or "")[:120]
+    if code in ("no_suitable_configured_model", "pin_failed"):
+        return {
+            "state": "configuration_required",
+            "code": code,
+            "message": (
+                "No configured model currently meets this work's "
+                "requirements. The employee's job, completed work and "
+                "questions are preserved."),
+            "next_action": (
+                "Add or enable an eligible model in settings, then resume "
+                "the same job."),
+        }
+    return {
+        "state": "reasoning_unavailable",
+        "code": code,
+        "message": (
+            "The reasoning step is temporarily unavailable. The employee's "
+            "job, completed work and questions are preserved."),
+        "next_action": (
+            "Resume the same job when the reasoning service is available, "
+            "or supply the requested business answer."),
+    }
+
+
 async def propose_employee_work(
     context: Mapping[str, Any],
     *,
@@ -1292,6 +1331,7 @@ def employee_job_view(
     *,
     record: Optional[Mapping[str, Any]] = None,
     open_obligations: Optional[Sequence[Mapping[str, Any]]] = None,
+    routing: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """The bounded business view used by the normal job surface."""
     steps = list(assignment.get("steps") or [])
@@ -1368,4 +1408,5 @@ def employee_job_view(
             else None),
         "plan_revision": assignment.get("plan_revision"),
         "business_outcome": business_outcome,
+        "routing_notice": business_routing_notice(routing),
     }

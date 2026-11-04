@@ -4010,3 +4010,78 @@ def test_requested_document_compiles_after_verified_invoice_reconciliation(
         item.get("kind") == "artifact_verified"
         and item.get("deliverable_id") == deliverable["deliverable_id"]
         for item in criteria), criteria
+
+
+def test_no_suitable_reasoning_route_is_durable_and_business_safe(
+        route_env, tmp_path, monkeypatch):
+    note = tmp_path / "commercial-notes.txt"
+    note.write_text("Approved commercial note: delivery within ten days.\n")
+
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the authorized note",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the commercial note",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "deterministic",
+            "technical_fallback": True,
+            "errors": ["no configured model was eligible"],
+            "routing": {
+                "mode": "pinned",
+                "requested_route": {
+                    "provider": "local", "model": "weak-candidate"},
+                "served_route": None,
+                "resolved_model": None,
+                "profile": {
+                    "name": "employee_evidence_selection",
+                    "version": "2026-11-04.1",
+                },
+                "error": {
+                    "code": "no_suitable_configured_model",
+                    "detail": "raw provider exception must not surface",
+                },
+            },
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Prepare a delivery answer for the customer",
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    run_id = body["run_id"]
+    notice = body["employee_job"]["routing_notice"]
+    assert notice["state"] == "configuration_required"
+    assert notice["code"] == "no_suitable_configured_model"
+    assert "settings" in notice["next_action"].lower()
+    rendered = json.dumps(body)
+    assert "raw provider exception" not in rendered
+    assert "weak-candidate" not in json.dumps(notice)
+
+    # The route outcome belongs to this assignment and survives a fresh read.
+    detail = route_env["client"].get(
+        f"/api/assignments/{run_id}").json()
+    assert detail["employee_routing"]["error"]["code"] == (
+        "no_suitable_configured_model")
+    assert detail["employee_routing"]["requested_route"] == {
+        "provider": "local", "model": "weak-candidate"}
+    assert detail["employee_routing"]["served_route"] is None
+    assert detail["employee_job"]["routing_notice"] == notice
+    decisions = route_env["lifecycle"].runs.get_decisions(run_id)
+    routes = [
+        item for item in decisions if item.get("kind") == "employee_route"]
+    assert routes and routes[-1]["stage"] == "employee_proposal"
+    assert routes[-1]["error_code"] == "no_suitable_configured_model"
+    assert routes[-1]["served_route"] is None
+    assert route_env["lifecycle"].get_assignment(run_id)["status"] != (
+        "cancelled")

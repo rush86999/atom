@@ -128,6 +128,12 @@ export interface AssignmentDetail {
       since?: string;
     }>;
     ready_work?: Array<{ operation?: string; label?: string }>;
+    routing_notice?: {
+      state?: string;
+      code?: string;
+      message?: string;
+      next_action?: string;
+    } | null;
   };
 }
 

@@ -963,6 +963,17 @@ export function AssignmentPanel({
                     ? ` · ${detail.employee_job.business_outcome.basis}`
                     : ""}
                 </p>
+                {detail.employee_job.routing_notice ? (
+                  <div
+                    className="mt-1 rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[10px] text-rose-800"
+                    data-testid="assignment-routing-notice"
+                  >
+                    <p className="font-medium">
+                      {detail.employee_job.routing_notice.message}
+                    </p>
+                    <p>{detail.employee_job.routing_notice.next_action}</p>
+                  </div>
+                ) : null}
                 {(() => {
                   const blockers = (detail.employee_job?.steps || [])
                     .flatMap((step) =>

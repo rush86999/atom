@@ -942,6 +942,72 @@ def _waiting_observations(
     return observations
 
 
+def _routing_history_entry(
+    routing: Any, *, stage: str, attempt_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Persist route attribution without raw provider text.
+
+    Requested/served identity is internal audit data; the business-facing
+    notice is derived separately and never carries model branding or scores.
+    """
+    if not isinstance(routing, Mapping):
+        return None
+    error = routing.get("error")
+    error_code = (
+        str(error.get("code") or "")
+        if isinstance(error, Mapping) else "")
+    if not error_code and not routing.get("mode"):
+        return None
+    return {
+        "kind": "employee_route",
+        "stage": str(stage or "employee")[:80],
+        "attempt_id": str(attempt_id or "")[:120] or None,
+        "mode": routing.get("mode"),
+        "requested_route": routing.get("requested_route"),
+        "served_route": routing.get("served_route"),
+        "resolved_model": routing.get("resolved_model"),
+        "profile": routing.get("profile"),
+        "error_code": error_code or None,
+    }
+
+
+def _record_employee_routing(
+    executor: Any, run_id: str, routing: Any, *,
+    stage: str, attempt_id: Optional[str] = None,
+) -> None:
+    entry = _routing_history_entry(
+        routing, stage=stage, attempt_id=attempt_id)
+    if entry is None:
+        return
+    try:
+        executor.lifecycle.runs.append_decision(run_id, entry)
+    except Exception:  # noqa: BLE001 — attribution cannot break the job
+        pass
+
+
+def _latest_employee_routing(executor: Any, run_id: str) -> Optional[Dict[str, Any]]:
+    try:
+        decisions = executor.lifecycle.runs.get_decisions(run_id)
+    except Exception:  # noqa: BLE001 — a read view must not crash
+        return None
+    for decision in reversed(decisions or []):
+        if not isinstance(decision, Mapping):
+            continue
+        if decision.get("kind") != "employee_route":
+            continue
+        return {
+            "mode": decision.get("mode"),
+            "requested_route": decision.get("requested_route"),
+            "served_route": decision.get("served_route"),
+            "resolved_model": decision.get("resolved_model"),
+            "profile": decision.get("profile"),
+            "error": (
+                {"code": decision.get("error_code")}
+                if decision.get("error_code") else None),
+        }
+    return None
+
+
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
@@ -1045,6 +1111,10 @@ async def _advance_employee_work(
                     item["observation_id"] for item in observations],
             }
             rounds.append(round_record)
+            _record_employee_routing(
+                executor, run_id, discovery.get("routing"),
+                stage="employee_evidence_selection",
+                attempt_id=discovery.get("attempt_id"))
             reads = list(proposal.get("evidence_reads") or [])
 
             def _compile_reads(candidate):
@@ -1164,6 +1234,10 @@ async def _advance_employee_work(
                                 for item in observations],
         }
         rounds.append(round_record)
+        _record_employee_routing(
+            executor, run_id, proposal_result.get("routing"),
+            stage="employee_adaptation",
+            attempt_id=proposal_result.get("attempt_id"))
         if not proposal or proposal.get("decision") in ("retain",):
             question = missing_prerequisite_question(assignment)
             if question and not open_unresolved_questions(
@@ -1469,6 +1543,10 @@ async def start_employee_objective(
         requested_fields=[],
     )
     run_id = record["run_id"]
+    _record_employee_routing(
+        executor, run_id, proposal_result.get("routing"),
+        stage="employee_proposal",
+        attempt_id=proposal_result.get("attempt_id"))
     if clarification:
         from core.task_lifecycle import add_unresolved_questions
         add_unresolved_questions(
@@ -1495,10 +1573,12 @@ async def start_employee_objective(
         status = executor.status(run_id)
     current = executor.lifecycle.get_task(run_id) or {}
     from core.task_lifecycle import open_unresolved_questions
+    employee_routing = _latest_employee_routing(executor, run_id)
     job = employee_job_view(
         current.get("assignment") or {},
         record=current,
         open_obligations=open_unresolved_questions(current),
+        routing=employee_routing,
     )
     return {
         "run_id": run_id,
@@ -1509,6 +1589,7 @@ async def start_employee_objective(
         "technical_fallback": proposal_result.get(
             "technical_fallback", False),
         "proposal_errors": proposal_result.get("errors") or [],
+        "employee_routing": employee_routing,
         "adaptive_rounds": adaptive_rounds,
         "plan_revision": plan.get("plan_revision"),
         "teaching_revision": (
@@ -1672,10 +1753,13 @@ async def assignment_status(
     executor = _executor(run)
     status = executor.status(run_id)
     record = executor.lifecycle.get_task(run_id) or {}
+    employee_routing = _latest_employee_routing(executor, run_id)
+    status["employee_routing"] = employee_routing
     status["employee_job"] = employee_job_view(
         record.get("assignment") or {},
         record=record,
         open_obligations=status.get("open_gaps") or [],
+        routing=employee_routing,
     )
     return status
 
