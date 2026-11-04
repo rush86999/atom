@@ -1,0 +1,632 @@
+{
+  "schema": "atom-employee-g5-uncertain-normal-app-1",
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-uncertain-38030-46bf7bd0",
+  "checks": [
+    {
+      "name": "normal upload creates an authorized document",
+      "ok": true,
+      "detail": "53036a8f-c309-47fe-8ce7-e633773a8ca8"
+    },
+    {
+      "name": "outbound effect awaits explicit approval",
+      "ok": true,
+      "detail": "awaiting_approval"
+    },
+    {
+      "name": "provider accepted then lost confirmation",
+      "ok": true,
+      "detail": {
+        "reason": "external_outcome_unknown",
+        "message": "controlled transport lost the response after acceptance"
+      }
+    },
+    {
+      "name": "assignment is blocked, not completed",
+      "ok": true,
+      "detail": "blocked"
+    },
+    {
+      "name": "exactly one controlled effect exists",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "name": "uncertain original operation survives restart",
+      "ok": true,
+      "detail": "uncertain"
+    },
+    {
+      "name": "no second effect after restart",
+      "ok": true,
+      "detail": "2825947be9a780d63a071e6ddc8282dedd44a2aac37c20f7d4cd454921e8ade1"
+    },
+    {
+      "name": "original operation reconciles to applied",
+      "ok": true,
+      "detail": "applied"
+    },
+    {
+      "name": "reconciled assignment completes",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "no resend after reconciliation",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "name": "same original operation identity retained",
+      "ok": true,
+      "detail": "d0567341-ce66-4f15-a4a4-25a8113ddb26"
+    }
+  ],
+  "serving_identity_before": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-04T11:49:19.638735+00:00",
+    "identity": {
+      "pid": 38031,
+      "started_at": "2026-11-04T11:49:17.058247+00:00",
+      "cwd": "/private/tmp/atom-full-app/backend",
+      "git_commit": "b4c29e2b6d9e",
+      "source_id": "b4c29e2b6d9e",
+      "instance_id": "b4c29e2b6d9e.38031.1793792959",
+      "revision": "b4c29e2b6d9e0d788f6a95e8a1b6c836bd0c3aa9",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-04T11:49:19.311026+00:00",
+      "process_started_at": "2026-11-04T11:49:19.311025+00:00",
+      "port": 8098,
+      "repo_path": "/private/tmp/atom-full-app",
+      "backend_path": "/private/tmp/atom-full-app/backend",
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-uncertain-38030-46bf7bd0/atom.db",
+      "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 602.38
+  },
+  "run_id": "c9689e03-b2f2-4b65-9f0c-0cecdaacccd3",
+  "operation_id": "d0567341-ce66-4f15-a4a4-25a8113ddb26",
+  "outbox_sha256": "2825947be9a780d63a071e6ddc8282dedd44a2aac37c20f7d4cd454921e8ade1",
+  "serving_identity_after_restart": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-04T11:49:24.996372+00:00",
+    "identity": {
+      "pid": 38051,
+      "started_at": "2026-11-04T11:49:22.870612+00:00",
+      "cwd": "/private/tmp/atom-full-app/backend",
+      "git_commit": "b4c29e2b6d9e",
+      "source_id": "b4c29e2b6d9e",
+      "instance_id": "b4c29e2b6d9e.38051.1793792964",
+      "revision": "b4c29e2b6d9e0d788f6a95e8a1b6c836bd0c3aa9",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-04T11:49:24.680137+00:00",
+      "process_started_at": "2026-11-04T11:49:24.680136+00:00",
+      "port": 8098,
+      "repo_path": "/private/tmp/atom-full-app",
+      "backend_path": "/private/tmp/atom-full-app/backend",
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-uncertain-38030-46bf7bd0/atom.db",
+      "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 598.88
+  },
+  "outbox_lines": [
+    {
+      "operation_id": "d0567341-ce66-4f15-a4a4-25a8113ddb26",
+      "to": [
+        "customer@example.invalid"
+      ],
+      "subject": "Controlled notice",
+      "body": "Controlled body",
+      "teaching_revision": "untrained"
+    }
+  ],
+  "assignment": {
+    "run_id": "c9689e03-b2f2-4b65-9f0c-0cecdaacccd3",
+    "assignment": {
+      "assignment_id": "asg-5c5f2ed0af41472b",
+      "objective": "Send one controlled delivery notice",
+      "employee_id": "729754f4-a74e-4b25-a27d-d7dd24252c47",
+      "workspace_id": "default",
+      "plan_revision": 1,
+      "status": "completed",
+      "teaching_revision": "untrained",
+      "teaching_fingerprint": "72fab7fda737e7019472d5b59c1481f2",
+      "teaching_history": [],
+      "effective_lesson_ids": [],
+      "mappings": [],
+      "mapping_history": [],
+      "deliverables": [
+        {
+          "deliverable_id": "del-send",
+          "kind": "email",
+          "description": "Provider-accepted response",
+          "required": true,
+          "step_id": "send",
+          "status": "applied",
+          "artifact_revision": null,
+          "artifact_path": null,
+          "sha256": null
+        }
+      ],
+      "sources": [
+        {
+          "kind": "document",
+          "binding": {
+            "resource_id": "53036a8f-c309-47fe-8ce7-e633773a8ca8",
+            "dataset_name": null,
+            "source": "manual_upload",
+            "source_kind": null,
+            "external_id": "upload_53036a8f-c309-47fe-8ce7-e633773a8ca8",
+            "original_file_name": "note.txt",
+            "representation": "document_text",
+            "source_version": "a9ca80015defc8e27382bbd0e12cc7f0dae05a5a5a14c9681829ddf034f02ae8",
+            "sheet": null,
+            "columns": [],
+            "numeric_columns": [],
+            "row_count": null,
+            "coverage": {
+              "known": true,
+              "freshness": "fresh",
+              "file_size_bytes": 26
+            },
+            "access_scope": {},
+            "workspace_id": "default",
+            "tenant_id": null,
+            "internal_fixture": false
+          },
+          "path": "upload:note.txt",
+          "internal_fixture": true
+        }
+      ],
+      "authorized_actions": [
+        "outbound",
+        "retrieve"
+      ],
+      "standing_authority": null,
+      "budget": {
+        "max_steps": 10,
+        "max_attempts_per_step": 3,
+        "max_wall_seconds": 900.0,
+        "max_cost_usd": 0.0,
+        "deadline": null,
+        "cost_mode": "hard",
+        "soft_limit_authorized_by": null,
+        "reserved_cost_usd": 0.0,
+        "cost_reservations": [],
+        "cost_overrun_usd": 0.0,
+        "cost_violation": null,
+        "soft_limit_exceeded": false,
+        "steps_started": 2,
+        "started_at": "2026-11-04T11:49:20.193230+00:00",
+        "elapsed_seconds": 0.0,
+        "paused_seconds": 0.019,
+        "waiting_since": null,
+        "wait_credits": {},
+        "wait_credits_schema": 1,
+        "active_wait": null,
+        "cost_usd": 0.0,
+        "idle_ledger_schema": 2,
+        "idle_intervals": {
+          "asg-5c5f2ed0af41472b:idle:1793792960.2340312": {
+            "started_at": "2026-11-04T11:49:20.234031+00:00",
+            "ended_at": "2026-11-04T11:49:20.253278+00:00",
+            "reason": "all runnable branches are waiting",
+            "closed_by": "approval arrived"
+          }
+        },
+        "idle_open": null,
+        "working_seconds": 5.109,
+        "wall_seconds": 5.128
+      },
+      "steps": [
+        {
+          "step_id": "source-1",
+          "title": "Read note.txt",
+          "operation_type": "retrieve",
+          "adapter": "document.text",
+          "depends_on": [],
+          "required": true,
+          "effect": "read_only",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "7b8ddc4a-a1e6-4ab5-9789-a832c64c561b",
+          "attempts": 0,
+          "result_summary": "read extracted text from note.txt",
+          "result_value": null,
+          "result_unit": null,
+          "readiness": null,
+          "result_measure": null,
+          "prior_result_count": 0,
+          "artifact_revision": null,
+          "gap_ids": [],
+          "waiting": {},
+          "external_response": {},
+          "approval_request": {},
+          "standing_authority_receipt": {},
+          "failure": {}
+        },
+        {
+          "step_id": "send",
+          "title": "Send the approved response",
+          "operation_type": "outbound",
+          "adapter": "assignment.controlled_outbox",
+          "depends_on": [
+            "source-1"
+          ],
+          "required": true,
+          "effect": "external",
+          "status": "applied",
+          "recovery_class": "terminal",
+          "operation_id": "d0567341-ce66-4f15-a4a4-25a8113ddb26",
+          "attempts": 0,
+          "result_summary": "reconciled applied",
+          "result_value": null,
+          "result_unit": null,
+          "readiness": null,
+          "result_measure": null,
+          "prior_result_count": 0,
+          "artifact_revision": null,
+          "gap_ids": [],
+          "waiting": {},
+          "external_response": {},
+          "approval_request": {
+            "payload_sha256": "98883cae1695c2ae4579304da3088072365604ade8d280de0043063b92c9cb27",
+            "artifact_revision": null,
+            "authorization_revision": "541701f891d08dfa1378ea6be5db2bab",
+            "hitl_action_id": "dc34b692-8163-45ba-9b0b-90512fa13950",
+            "purpose": "Send the prepared response"
+          },
+          "standing_authority_receipt": {},
+          "failure": {}
+        }
+      ],
+      "created_at": "2026-11-04T11:49:20.184973+00:00",
+      "updated_at": "2026-11-04T11:49:25.304019+00:00",
+      "completed_at": "2026-11-04T11:49:25.304021+00:00",
+      "progress": {
+        "total_steps": 2,
+        "required_steps": 2,
+        "completed_steps": 2,
+        "waiting_steps": 0,
+        "failed_steps": 0,
+        "uncertain_steps": 0,
+        "open_gap_count": 0
+      }
+    },
+    "open_gaps": [],
+    "operations": [
+      {
+        "operation_id": "7b8ddc4a-a1e6-4ab5-9789-a832c64c561b",
+        "step_id": "source-1",
+        "type": "retrieve",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {},
+        "uncertainty_reason": null,
+        "remote_id": null,
+        "provider_ref": null,
+        "result_summary": "read extracted text from note.txt"
+      },
+      {
+        "operation_id": "d0567341-ce66-4f15-a4a4-25a8113ddb26",
+        "step_id": "send",
+        "type": "outbound",
+        "status": "applied",
+        "needs_reconciliation": false,
+        "approval": {
+          "payload_sha256": "98883cae1695c2ae4579304da3088072365604ade8d280de0043063b92c9cb27",
+          "artifact_revision": null,
+          "authorization_revision": "541701f891d08dfa1378ea6be5db2bab",
+          "requested_by": "729754f4-a74e-4b25-a27d-d7dd24252c47",
+          "purpose": "Send the prepared response",
+          "requested_at": "2026-11-04T11:49:20.226076+00:00"
+        },
+        "uncertainty_reason": "controlled transport lost the response after acceptance",
+        "remote_id": null,
+        "provider_ref": null,
+        "result_summary": null
+      }
+    ],
+    "employee_job": {
+      "objective": "Send one controlled delivery notice",
+      "identity": {
+        "employee_id": "729754f4-a74e-4b25-a27d-d7dd24252c47",
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "execution_owner": "assignment"
+      },
+      "criteria": [
+        {
+          "criterion_id": "provider_accepted:del-send",
+          "kind": "provider_accepted",
+          "required": true,
+          "verifier": "provider_accepted",
+          "scope": {
+            "workspace_id": "default"
+          },
+          "deliverable_id": "del-send"
+        },
+        {
+          "criterion_id": "required_work_complete:assignment",
+          "kind": "required_work_complete",
+          "required": true,
+          "verifier": "required_work_complete",
+          "scope": {
+            "workspace_id": "default"
+          }
+        }
+      ],
+      "facts": [],
+      "sources": [
+        {
+          "source_id": "53036a8f-c309-47fe-8ce7-e633773a8ca8",
+          "kind": "document",
+          "representation": "document_text",
+          "file_name": "note.txt",
+          "sheet": "",
+          "columns": [],
+          "numeric_columns": [],
+          "row_count": null,
+          "coverage": {
+            "known": true,
+            "freshness": "fresh",
+            "file_size_bytes": 26
+          },
+          "source_version": "a9ca80015defc8e27382bbd0e12cc7f0dae05a5a5a14c9681829ddf034f02ae8",
+          "read": true,
+          "authorized": true,
+          "preview": {
+            "sampled": true,
+            "kind": "source_metadata_not_rows",
+            "total_count": null,
+            "shown_count": 0,
+            "omitted_count": null,
+            "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "source-1",
+          "title": "Read note.txt",
+          "status": "applied",
+          "required": true,
+          "effect": "read_only",
+          "requires": [],
+          "readiness": null,
+          "readiness_blocker": null,
+          "result_summary": "read extracted text from note.txt"
+        },
+        {
+          "step_id": "send",
+          "title": "Send the approved response",
+          "status": "applied",
+          "required": true,
+          "effect": "external",
+          "requires": [],
+          "readiness": null,
+          "readiness_blocker": null,
+          "result_summary": "reconciled applied"
+        }
+      ],
+      "open_obligations": [],
+      "budget": {
+        "max_steps": 10,
+        "max_attempts_per_step": 3,
+        "max_wall_seconds": 900.0,
+        "max_cost_usd": 0.0,
+        "deadline": null,
+        "cost_mode": "hard",
+        "soft_limit_authorized_by": null,
+        "reserved_cost_usd": 0.0,
+        "cost_reservations": [],
+        "cost_overrun_usd": 0.0,
+        "cost_violation": null,
+        "soft_limit_exceeded": false,
+        "steps_started": 2,
+        "started_at": "2026-11-04T11:49:20.193230+00:00",
+        "elapsed_seconds": 0.0,
+        "paused_seconds": 0.019247055053710938,
+        "waiting_since": null,
+        "wait_credits": {},
+        "wait_credits_schema": 1,
+        "active_wait": null,
+        "cost_usd": 0.0,
+        "idle_ledger_schema": 2,
+        "idle_intervals": {
+          "asg-5c5f2ed0af41472b:idle:1793792960.2340312": {
+            "started_at": "2026-11-04T11:49:20.234031+00:00",
+            "ended_at": "2026-11-04T11:49:20.253278+00:00",
+            "reason": "all runnable branches are waiting",
+            "closed_by": "approval arrived"
+          }
+        },
+        "idle_open": null
+      },
+      "status": "completed",
+      "task_version": 31,
+      "plan_revision": 1,
+      "business_outcome": {
+        "basis": "criteria_met",
+        "verdict": true,
+        "state": "satisfied",
+        "declared_state": "completed",
+        "outcome": {
+          "contract_version": 2,
+          "recorded_at": 1793792965.3214002,
+          "execution_id": null,
+          "turn_id": null,
+          "objective": "Send one controlled delivery notice",
+          "objective_state": {
+            "goal": "Send one controlled delivery notice",
+            "target_entities": [],
+            "requested_attributes": [],
+            "source_constraints": {},
+            "authorized_actions": []
+          },
+          "objective_met": true,
+          "completion_criteria": [
+            {
+              "criterion_id": "provider_accepted:del-send",
+              "kind": "provider_accepted",
+              "required": true,
+              "verifier": "provider_accepted",
+              "scope": {
+                "workspace_id": "default"
+              },
+              "deliverable_id": "del-send"
+            },
+            {
+              "criterion_id": "required_work_complete:assignment",
+              "kind": "required_work_complete",
+              "required": true,
+              "verifier": "required_work_complete",
+              "scope": {
+                "workspace_id": "default"
+              }
+            }
+          ],
+          "criterion_results": [
+            {
+              "criterion": "provider_accepted",
+              "met": true,
+              "verifier": "provider_accepted",
+              "evidence_refs": []
+            },
+            {
+              "criterion": "required_work_complete",
+              "met": true,
+              "verifier": "required_work_complete",
+              "evidence_refs": []
+            }
+          ],
+          "requested": {},
+          "source_constraints": {},
+          "authorized_actions": [
+            "outbound",
+            "retrieve"
+          ],
+          "tool_outcomes": [
+            {
+              "tool": "document.text",
+              "verified": true,
+              "outcome": "read extracted text from note.txt",
+              "required": true,
+              "evidence_refs": [],
+              "criterion_ids": [],
+              "failure_layer": null,
+              "failure_owner": null
+            },
+            {
+              "tool": "assignment.controlled_outbox",
+              "verified": true,
+              "outcome": "",
+              "required": true,
+              "evidence_refs": [],
+              "criterion_ids": [],
+              "failure_layer": null,
+              "failure_owner": null
+            }
+          ],
+          "evidence_refs": [],
+          "evidence_ledger": {},
+          "gaps": [],
+          "implications": [],
+          "actions": [
+            {
+              "action_type": "retrieve",
+              "criterion_id": "",
+              "status": "applied",
+              "authorized": true,
+              "applied": true,
+              "required": true,
+              "evidence_refs": []
+            },
+            {
+              "action_type": "outbound",
+              "criterion_id": "",
+              "status": "applied",
+              "authorized": true,
+              "applied": true,
+              "required": true,
+              "evidence_refs": []
+            }
+          ],
+          "calculation": {},
+          "mutation": {},
+          "delivery": {
+            "provider_accepted": true,
+            "provider_ref": "d0567341-ce66-4f15-a4a4-25a8113ddb26"
+          },
+          "user_corrections": [],
+          "limitations": [],
+          "latency_s": null,
+          "cost_usd": null,
+          "scope": {
+            "workspace_id": "default",
+            "teaching_revision": "untrained",
+            "plan_revision": 1
+          },
+          "policy_version": null,
+          "candidate_versions": {},
+          "learning_layers": {
+            "general_capability": {
+              "policy_version": null,
+              "candidate_versions": {}
+            },
+            "user_business_configuration": {
+              "scope": {
+                "workspace_id": "default",
+                "teaching_revision": "untrained",
+                "plan_revision": 1
+              }
+            },
+            "task_evidence": {
+              "requested": {},
+              "evidence_refs": [],
+              "evidence_ledger": {},
+              "gap_count": 0,
+              "corrections": []
+            }
+          },
+          "failure_layer": null,
+          "failure_owner": null,
+          "success_kinds": {
+            "task_success": null,
+            "tool_success": true,
+            "delivery_success": null,
+            "task_success_basis": "delivery_unknown"
+          }
+        }
+      }
+    }
+  },
+  "ok": true
+}

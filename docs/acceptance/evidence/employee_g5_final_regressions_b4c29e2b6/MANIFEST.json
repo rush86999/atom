@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "README.md": "c9add04fbbb17a1f9c0048ef1ec86029fbd374ca4fbf9eb7cb7b49a080062e69",
+    "TEST_RESULTS.md": "e6456474d7072a5660d77b41e39207ddfdef4c6780978c53dea6954bd5989bcd",
+    "evidence-tests.log": "5e77f077f26ea083c01de241ea07db494e1d3da11829b06a882b403fed16376a",
+    "focused-tests.log": "98ff1b5737991190042e567c3810e00b04c653c62eebe7ff79e0e4bc482eff06",
+    "negative-twin.log": "a85f73190c2ac53230bf3240373cdcfbf09fae639861e852e09682606712d981",
+    "reassessment-test.py": "df03864b94ab980a6d0601f9aec0cc438737e4683eef7d19ff8ccd41fd43205d",
+    "source-change-report.json": "2134cb17febb6e196436ae5fa3055d915796ef14c7fde7e844e499b3ae76fc51",
+    "source-change-test.py": "389b38d1c6dbc3b0f73d43ae471e268443a1bfc1836fb8ada580471f1edb42c8",
+    "uncertainty-report.json": "569ecfd16a434e9e6759757a6a7a8ce199f9fc7627c1c5de1defa8bee713394d",
+    "uncertainty-run.log": "a6494e0efc1c62d21fccbea0863d171538449b286dd3c011fee82cdd2a7df685",
+    "uncertainty-server.log": "67ae13c3af2a91ffddc96219e2c8ca2c583fba1af154e398b0e53a8389d34db6"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "b4c29e2b6d9e0d788f6a95e8a1b6c836bd0c3aa9",
+    "manifest_note": "Final-source regression evidence: controlled provider lost-confirmation recovery, new-version model-chosen reassessment, in-place source value change with selective retention, and qualification negative twins.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/tests/test_employee_evidence_change_g5.py",
+    "backend/tests/test_employee_evidence_reassessment_g5.py",
+    "scripts/acceptance/employee_g5_uncertain_normal_app.py"
+  ],
+  "companion_campaign": {
+    "path": "docs/acceptance/evidence/employee_g5_integrated_change_62fa207647",
+    "phase1_quote": "370.00",
+    "phase2_quote": "425.00",
+    "result": "18/18 checks",
+    "run_id": "f6465719-3cf6-4087-913c-4d0c1b2a1a93"
+  },
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/deployment authority",
+    "in-place source change uses a controlled catalog fixture; integrated campaign uses a real revised upload",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "schema": "atom-employee-g5-final-regressions-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "9aa2d054076fd43bb1559386540e9305b3a28d76a36aea0e25aa8ba242b29de1",
+    "backend/core/assignment_executor.py": "a9bb36bfe5691aa1f57d8447b6cce42e1822906163bd4e1d7515d9bf26e37310",
+    "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
+    "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+    "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+    "backend/core/employee_work_compiler.py": "1d9ea32327bf5493d22ea9a570688abff84bf2badbfae32b54409642b4aebfb8",
+    "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+    "backend/tests/test_assignment_routes.py": "2aa7f77b5760016298596c2e4c100867a2974c886d00c825f2326afa3a7da887",
+    "backend/tests/test_employee_evidence_change_g5.py": "389b38d1c6dbc3b0f73d43ae471e268443a1bfc1836fb8ada580471f1edb42c8",
+    "backend/tests/test_employee_evidence_reassessment_g5.py": "df03864b94ab980a6d0601f9aec0cc438737e4683eef7d19ff8ccd41fd43205d",
+    "scripts/acceptance/employee_g5_uncertain_normal_app.py": "e668e90034584c3b58dfe7782173dcac6cb08f99af218d9e1c3f728d4cfb7ae8"
+  },
+  "status": "final-regressions-verified",
+  "tests": {
+    "evidence_controls": {
+      "log": "evidence-tests.log",
+      "result": "2 passed"
+    },
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "370 passed"
+    },
+    "negative_twins": {
+      "log": "negative-twin.log",
+      "result": "2 passed"
+    },
+    "uncertainty": {
+      "report": "uncertainty-report.json",
+      "result": "11/11 checks"
+    }
+  }
+}
