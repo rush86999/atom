@@ -1,0 +1,694 @@
+{
+ "objective": "Prepare the customer quote document",
+ "line_items": {
+  "line_items": [
+   {
+    "item_id": "A",
+    "category": "A",
+    "quantity": "2",
+    "unit": "each",
+    "pack_size": "1",
+    "unit_price": "100.00",
+    "price_basis": "contract",
+    "currency": "USD"
+   },
+   {
+    "item_id": "B",
+    "category": "B",
+    "quantity": "3",
+    "unit": "each",
+    "pack_size": "1",
+    "unit_price": "50.00",
+    "price_basis": "contract",
+    "currency": "USD"
+   }
+  ],
+  "currency": "USD",
+  "freight": "20.00",
+  "tax": {
+   "basis": "none"
+  },
+  "rounding": "half_up",
+  "scale": 2,
+  "rounding_authority": "customer agreement"
+ },
+ "serving_identity": {
+  "status": "healthy",
+  "version": "8.0.0",
+  "deployed_sha": "unknown",
+  "timestamp": "2026-11-04T03:33:03.256794+00:00",
+  "identity": {
+   "pid": 96015,
+   "started_at": "2026-11-04T03:32:54.291420+00:00",
+   "cwd": "/private/tmp/atom-full-app/backend",
+   "git_commit": "7ee05df3ad54",
+   "source_id": "7ee05df3ad54",
+   "instance_id": "7ee05df3ad54.96015.1793763176",
+   "revision": "7ee05df3ad54beb7581b7055d472e66caf93c572",
+   "dirty": false,
+   "dirty_digest": "e3b0c44298fc",
+   "dirty_paths": [],
+   "untracked_paths": [],
+   "captured_at": "2026-11-04T03:32:56.256453+00:00",
+   "process_started_at": "2026-11-04T03:32:56.256453+00:00",
+   "port": 8085,
+   "repo_path": "/private/tmp/atom-full-app",
+   "backend_path": "/private/tmp/atom-full-app/backend",
+   "error": null,
+   "database": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-ui-integrated-final/atom.db",
+   "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+  },
+  "database": "operational",
+  "redis": "operational",
+  "vector_store": "operational",
+  "services": {
+   "database": "operational",
+   "redis": "operational",
+   "vector_store": "operational"
+  },
+  "memory_mb": 603.28
+ },
+ "request": {
+  "objective": "Prepare the customer quote document",
+  "agent_id": "9dcb631c-0856-4306-a00f-706c9c54de29",
+  "sources": [
+   {
+    "kind": "workbook",
+    "dataset_name": "upload_price_book__prices",
+    "source": "upload",
+    "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+    "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+    "sheet": "Prices"
+   }
+  ],
+  "discover": false,
+  "deliverables": [
+   {
+    "kind": "document",
+    "description": "Prepare the customer quote document"
+   }
+  ],
+  "task_context": {},
+  "calculation": {
+   "line_items": [
+    {
+     "item_id": "A",
+     "category": "A",
+     "quantity": "2",
+     "unit": "each",
+     "pack_size": "1",
+     "unit_price": "100.00",
+     "price_basis": "contract",
+     "currency": "USD"
+    },
+    {
+     "item_id": "B",
+     "category": "B",
+     "quantity": "3",
+     "unit": "each",
+     "pack_size": "1",
+     "unit_price": "50.00",
+     "price_basis": "contract",
+     "currency": "USD"
+    }
+   ],
+   "currency": "USD",
+   "freight": "20.00",
+   "tax": {
+    "basis": "none"
+   },
+   "rounding": "half_up",
+   "scale": 2,
+   "rounding_authority": "customer agreement"
+  },
+  "transport": "controlled"
+ },
+ "response_status": 200,
+ "run_id": "bfed4e47-2570-4704-9aac-24a30598375e",
+ "response": {
+  "run_id": "bfed4e47-2570-4704-9aac-24a30598375e",
+  "assignment": {
+   "run_id": "bfed4e47-2570-4704-9aac-24a30598375e",
+   "assignment": {
+    "assignment_id": "asg-996c344ae480432c",
+    "objective": "Prepare the customer quote document",
+    "employee_id": "f7435ced-6aae-441e-a3d7-e7f35279c002",
+    "workspace_id": "default",
+    "plan_revision": 1,
+    "status": "completed",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "d7853de7a7e78f6a07fd892177540ab0",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "deliverables": [
+     {
+      "deliverable_id": "del-deliverable-1",
+      "kind": "document",
+      "description": "Prepare the customer quote document",
+      "required": true,
+      "step_id": "deliverable-1",
+      "status": "applied",
+      "artifact_revision": "8605b8a82265ef76",
+      "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-ui-integrated-final/data/assignments/default/f7435ced-6aae-441e-a3d7-e7f35279c002/draft-5a0cc6e15652/prepare-the-customer-quote-document-2420d6fd.docx",
+      "sha256": "8605b8a82265ef7670936846244938a9d9d3e8305eead6704fea32c3112411ea"
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb",
+       "dataset_name": "upload_price_book__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "original_file_name": "price-book.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "f7435ced-6aae-441e-a3d7-e7f35279c002",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      },
+      "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-ui-integrated-final/data/sheet_datasets/default/5a196b9f12ec/upload_price_book__prices.parquet",
+      "internal_fixture": true
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 11,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 900.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 3,
+     "started_at": "2026-11-04T03:33:55.018827+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 0.0,
+     "waiting_since": null,
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": null,
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {},
+     "working_seconds": 0.097,
+     "wall_seconds": 0.097
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read price-book.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "9707b516-230b-4740-b730-44a325ebebfb",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "calculate",
+      "title": "Calculate the requested line items",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "source-1"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "641d57f1-8f61-4303-a04a-3157025a5162",
+      "attempts": 0,
+      "result_summary": "quote total 370.00 USD (2 lines)",
+      "result_value": "370.00",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "deliverable-1",
+      "title": "Render Prepare the customer quote document",
+      "operation_type": "present",
+      "adapter": "artifact.document",
+      "depends_on": [
+       "source-1",
+       "calculate"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "4e5463c3-cc2e-4226-b8b9-5134109ef06e",
+      "attempts": 0,
+      "result_summary": "rendered prepare-the-customer-quote-document-2420d6fd.docx",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": "8605b8a82265ef76",
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T03:33:55.010734+00:00",
+    "updated_at": "2026-11-04T03:33:55.110027+00:00",
+    "completed_at": "2026-11-04T03:33:55.110030+00:00",
+    "progress": {
+     "total_steps": 3,
+     "required_steps": 3,
+     "completed_steps": 3,
+     "waiting_steps": 0,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 0
+    }
+   },
+   "open_gaps": [],
+   "operations": [
+    {
+     "operation_id": "9707b516-230b-4740-b730-44a325ebebfb",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+    },
+    {
+     "operation_id": "641d57f1-8f61-4303-a04a-3157025a5162",
+     "step_id": "calculate",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 370.00 USD (2 lines)"
+    },
+    {
+     "operation_id": "4e5463c3-cc2e-4226-b8b9-5134109ef06e",
+     "step_id": "deliverable-1",
+     "type": "present",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "rendered prepare-the-customer-quote-document-2420d6fd.docx"
+    }
+   ]
+  },
+  "plan_revision": 1,
+  "teaching_revision": "untrained"
+ },
+ "serving_identity_after": {
+  "status": "healthy",
+  "version": "8.0.0",
+  "deployed_sha": "unknown",
+  "timestamp": "2026-11-04T03:34:03.262333+00:00",
+  "identity": {
+   "pid": 96015,
+   "started_at": "2026-11-04T03:32:54.291420+00:00",
+   "cwd": "/private/tmp/atom-full-app/backend",
+   "git_commit": "7ee05df3ad54",
+   "source_id": "7ee05df3ad54",
+   "instance_id": "7ee05df3ad54.96015.1793763176",
+   "revision": "7ee05df3ad54beb7581b7055d472e66caf93c572",
+   "dirty": false,
+   "dirty_digest": "e3b0c44298fc",
+   "dirty_paths": [],
+   "untracked_paths": [],
+   "captured_at": "2026-11-04T03:32:56.256453+00:00",
+   "process_started_at": "2026-11-04T03:32:56.256453+00:00",
+   "port": 8085,
+   "repo_path": "/private/tmp/atom-full-app",
+   "backend_path": "/private/tmp/atom-full-app/backend",
+   "error": null,
+   "database": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-ui-integrated-final/atom.db",
+   "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+  },
+  "database": "operational",
+  "redis": "operational",
+  "vector_store": "operational",
+  "services": {
+   "database": "operational",
+   "redis": "operational",
+   "vector_store": "operational"
+  },
+  "memory_mb": 900.05
+ },
+ "final_run_id": "bfed4e47-2570-4704-9aac-24a30598375e",
+ "assignment_status": "completed",
+ "artifact": {
+  "deliverable_id": "del-deliverable-1",
+  "kind": "document",
+  "description": "Prepare the customer quote document",
+  "required": true,
+  "step_id": "deliverable-1",
+  "status": "applied",
+  "artifact_revision": "8605b8a82265ef76",
+  "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-ui-integrated-final/data/assignments/default/f7435ced-6aae-441e-a3d7-e7f35279c002/draft-5a0cc6e15652/prepare-the-customer-quote-document-2420d6fd.docx",
+  "sha256": "8605b8a82265ef7670936846244938a9d9d3e8305eead6704fea32c3112411ea"
+ },
+ "artifact_sha256": "8605b8a82265ef7670936846244938a9d9d3e8305eead6704fea32c3112411ea",
+ "artifact_text": "Prepare the customer quote document\nObjective\nPrepare the customer quote document\nSummary\n2*100.00 + 3*50.00 + freight = 370.00 USD\nFindings\nprice-book.xlsx / Prices\ncalculate\nSources\nupload_price_book__prices\nprice-book.xlsx\nPrices\nd4d75491-32ce-4d5b-b5f6-f128c20b5acb\nprice-book.xlsx / Prices\nRow | Item | Qty | Price | Currency\n2 | A | 2 | 100 | USD\n3 | B | 3 | 50 | USD\nRow | item_id | description | quantity | unit | pack_size | unit_price | price_basis | currency\n | A |  | 2 | each | 1 | 100.00 | contract | USD\n | B |  | 3 | each | 1 | 50.00 | contract | USD",
+ "criteria": [
+  {
+   "criterion_id": "artifact_verified:del-deliverable-1",
+   "kind": "artifact_verified",
+   "required": true,
+   "verifier": "artifact_verified",
+   "scope": {
+    "workspace_id": "default"
+   },
+   "deliverable_id": "del-deliverable-1"
+  },
+  {
+   "criterion_id": "required_work_complete:assignment",
+   "kind": "required_work_complete",
+   "required": true,
+   "verifier": "required_work_complete",
+   "scope": {
+    "workspace_id": "default"
+   }
+  }
+ ],
+ "business_outcome": {
+  "basis": "criteria_met",
+  "verdict": true,
+  "state": "satisfied",
+  "declared_state": "completed",
+  "outcome": {
+   "contract_version": 2,
+   "recorded_at": 1793763241.7664928,
+   "execution_id": null,
+   "turn_id": null,
+   "objective": "Prepare the customer quote document",
+   "objective_state": {
+    "goal": "Prepare the customer quote document",
+    "target_entities": [],
+    "requested_attributes": [],
+    "source_constraints": {},
+    "authorized_actions": []
+   },
+   "objective_met": true,
+   "completion_criteria": [
+    {
+     "criterion_id": "artifact_verified:del-deliverable-1",
+     "kind": "artifact_verified",
+     "required": true,
+     "verifier": "artifact_verified",
+     "scope": {
+      "workspace_id": "default"
+     },
+     "deliverable_id": "del-deliverable-1"
+    },
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    }
+   ],
+   "criterion_results": [
+    {
+     "criterion": "artifact_verified",
+     "met": true,
+     "verifier": "artifact_verified",
+     "evidence_refs": [
+      {
+       "kind": "source",
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+      },
+      {
+       "kind": "artifact"
+      }
+     ]
+    },
+    {
+     "criterion": "required_work_complete",
+     "met": true,
+     "verifier": "required_work_complete",
+     "evidence_refs": [
+      {
+       "kind": "source",
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+      },
+      {
+       "kind": "artifact"
+      }
+     ]
+    }
+   ],
+   "requested": {},
+   "source_constraints": {},
+   "authorized_actions": [
+    "calculate",
+    "present",
+    "retrieve"
+   ],
+   "tool_outcomes": [
+    {
+     "tool": "dataset.read",
+     "verified": true,
+     "outcome": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+     "required": true,
+     "evidence_refs": [],
+     "criterion_ids": [],
+     "failure_layer": null,
+     "failure_owner": null
+    },
+    {
+     "tool": "quote.calculate",
+     "verified": true,
+     "outcome": "quote total 370.00 USD (2 lines)",
+     "required": true,
+     "evidence_refs": [
+      {
+       "kind": "source",
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+      }
+     ],
+     "criterion_ids": [],
+     "failure_layer": null,
+     "failure_owner": null
+    },
+    {
+     "tool": "artifact.document",
+     "verified": true,
+     "outcome": "rendered prepare-the-customer-quote-document-2420d6fd.docx",
+     "required": true,
+     "evidence_refs": [
+      {
+       "kind": "artifact"
+      }
+     ],
+     "criterion_ids": [],
+     "failure_layer": null,
+     "failure_owner": null
+    }
+   ],
+   "evidence_refs": [
+    {
+     "kind": "source",
+     "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+    },
+    {
+     "kind": "artifact"
+    }
+   ],
+   "evidence_ledger": {},
+   "gaps": [],
+   "implications": [],
+   "actions": [
+    {
+     "action_type": "retrieve",
+     "criterion_id": "",
+     "status": "applied",
+     "authorized": true,
+     "applied": true,
+     "required": true,
+     "evidence_refs": []
+    },
+    {
+     "action_type": "calculate",
+     "criterion_id": "",
+     "status": "applied",
+     "authorized": true,
+     "applied": true,
+     "required": true,
+     "evidence_refs": [
+      {
+       "kind": "source",
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+      }
+     ]
+    },
+    {
+     "action_type": "present",
+     "criterion_id": "",
+     "status": "applied",
+     "authorized": true,
+     "applied": true,
+     "required": true,
+     "evidence_refs": [
+      {
+       "kind": "artifact"
+      }
+     ]
+    }
+   ],
+   "calculation": {
+    "computed": "370.00",
+    "unit": "USD",
+    "verified": true,
+    "step_id": "calculate",
+    "adapter": "quote.calculate"
+   },
+   "mutation": {},
+   "delivery": {
+    "artifact_verified": true,
+    "artifact_revision": "8605b8a82265ef76",
+    "artifact_sha256": "8605b8a82265ef7670936846244938a9d9d3e8305eead6704fea32c3112411ea",
+    "calculation_verified": true,
+    "calculated_value": "370.00"
+   },
+   "user_corrections": [],
+   "limitations": [],
+   "latency_s": null,
+   "cost_usd": null,
+   "scope": {
+    "workspace_id": "default",
+    "teaching_revision": "untrained",
+    "plan_revision": 1
+   },
+   "policy_version": null,
+   "candidate_versions": {},
+   "learning_layers": {
+    "general_capability": {
+     "policy_version": null,
+     "candidate_versions": {}
+    },
+    "user_business_configuration": {
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 1
+     }
+    },
+    "task_evidence": {
+     "requested": {},
+     "evidence_refs": [
+      {
+       "kind": "source",
+       "resource_id": "d4d75491-32ce-4d5b-b5f6-f128c20b5acb"
+      },
+      {
+       "kind": "artifact"
+      }
+     ],
+     "evidence_ledger": {},
+     "gap_count": 0,
+     "corrections": []
+    }
+   },
+   "failure_layer": null,
+   "failure_owner": null,
+   "success_kinds": {
+    "task_success": null,
+    "tool_success": true,
+    "delivery_success": null,
+    "task_success_basis": "delivery_unknown"
+   }
+  }
+ },
+ "checks": {
+  "captured_exact_run": true,
+  "three_source_scope_not_required": true,
+  "assignment_completed": true,
+  "artifact_applied": true,
+  "artifact_criterion_met": true,
+  "artifact_download_ok": true,
+  "artifact_sha_matches": true,
+  "artifact_has_exact_total": true,
+  "artifact_has_source_and_lines": true,
+  "ui_shows_completed_exact_run": true
+ },
+ "all_checks_passed": true
+}
