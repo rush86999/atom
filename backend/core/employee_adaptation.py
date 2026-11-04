@@ -480,7 +480,6 @@ def _compact_single_request_context(
             and operation == "quote_calculation"
             and context.get("waiting")
             and str(entry.get("status") or "") == "ready"
-            and not context.get("missing_prerequisites")
         )
         if not independent_quote:
             return None

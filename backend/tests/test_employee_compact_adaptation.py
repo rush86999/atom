@@ -275,6 +275,12 @@ def test_compact_context_allows_the_independent_quote_while_waiting():
             "subject": "purchase order PO-QH-8100",
             "blocks": "invoice reconciliation",
         }],
+        "missing_prerequisites": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "missing",
+            "missing": ["receiving"],
+        }],
         "available_business_operations": [{
             "operation": "quote_calculation",
             "label": "quote calculation",
@@ -320,6 +326,12 @@ def test_compact_quote_expands_to_the_existing_typed_request(monkeypatch):
             "step_id": "await", "fact": "receiving",
             "subject": "purchase order PO-QH-8100",
             "blocks": "invoice reconciliation",
+        }],
+        "missing_prerequisites": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "missing",
+            "missing": ["receiving"],
         }],
         "available_business_operations": [{
             "operation": "quote_calculation",
