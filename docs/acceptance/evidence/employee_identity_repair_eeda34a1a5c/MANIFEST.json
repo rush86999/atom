@@ -1,0 +1,45 @@
+{
+ "schema": "atom-employee-identity-repair-2",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "eeda34a1a5c",
+  "tree_clean_at_run": true,
+  "manifest_note": "Focused identity repair plus report-withholding guard; preserved episode at 70a74cd02b5 remains evidence at its original identity."
+ },
+ "source_hashes": {
+  "backend/core/employee_business_outcomes.py": "e13eccb656a74f9e2666c4326c0445ff90336697f43e21cd8c07dedf8ee3a5d9",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/tests/test_employee_business_requirements.py": "b87418dbd6b4cac7e385d99460b02dc24199f775d8662c4a9d3c1479eaa037b9",
+  "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173"
+ },
+ "artifacts": {
+  "README.md": "d7c7f22f7eaa89d53e718a1f34c277a1597bc854ca211893522290d6d2d3b04f",
+  "TEST_RESULTS.md": "80c1902b1d475524938b90b0ea90e9694dda28bc75cb5961db5dac0a2e600538",
+  "focused-tests.log": "0c7d263f5be7964611697141677aa40dd7fcdb90495787e8c7b93d5b9357649e",
+  "frontend-panel.log": "e03420b49ef685e57aab9217b866fb29e9b888ad449f8e3f5a9f0cadf18677df",
+  "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "verifier-subject.log": "1ece81dc5ebd104e0d78626ec589eaa4ce2364d70baafad6c194e38d9bab887c"
+ },
+ "child_bundles": [
+  "docs/acceptance/evidence/employee_identity_repair_92e7c1f26/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_durable_wait_70a74cd02b5/MANIFEST.json",
+  "docs/acceptance/evidence/employee_g5_final_completion_70a74cd02b5/MANIFEST.json"
+ ],
+ "results": {
+  "focused_tests": "405 passed",
+  "subject_probe": "3 passed",
+  "ui_tests": "9 passed",
+  "tsc": "exit 0",
+  "wrong_subject_report_published": false,
+  "correct_subject_report_completed": true
+ },
+ "exclusions": [
+  "full G5 and general model judgment remain unverified",
+  "no live provider, credential, consent, send, spend, download or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}
