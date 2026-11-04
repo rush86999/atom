@@ -234,6 +234,10 @@ def test_no_suitable_reply_failure_preserves_requirement_then_retry_reconciles(
         step for step in stalled["steps"]
         if step["step_id"] == quote["step_id"])["operation_id"] == (
             quote_operation)
+    stalled_wait = _wait_step(stalled)
+    assert stalled_wait["status"] == "applied"
+    assert stalled_wait["external_response"]["response"] == (
+        "received 2 units")
     stalled_view = route_env["client"].get(
         f"/api/assignments/{run_id}").json()["employee_job"]
     assert stalled_view["routing_notice"]["state"] == (
@@ -334,6 +338,40 @@ def test_plan_patch_cannot_add_an_unbacked_result_criterion():
     assert any(
         "unknown business requirement" in error
         for error in checked["errors"])
+
+    # Even a well-formed added requirement cannot be attached to an
+    # optional criterion: a model patch may not weaken the completion gate.
+    from core.employee_business_outcomes import (
+        normalize_business_requirement,
+    )
+    requirement = normalize_business_requirement({
+        "requirement_id": "result-invoice-patch",
+        "operation": "invoice_reconciliation",
+        "label": "invoice reconciliation",
+        "subject": "PO-8841",
+        "fact": "receiving",
+        "correlation_id": "await-patch",
+        "receipt_adapter": "invoice.reconcile",
+    })
+    weakened = PlanPatchProposal(
+        patch_id="patch-optional-result",
+        base_task_version=7,
+        base_plan_revision=1,
+        reason="attempt to make the result optional",
+        observations=[{"kind": "test"}],
+        add_business_requirements=[requirement],
+        add_criteria=[{
+            "criterion_id": "business_result:result-invoice-patch",
+            "kind": "business_result",
+            "required": False,
+            "verifier": "business_result",
+            "requirement_id": "result-invoice-patch",
+        }],
+    )
+    checked = validate_plan_patch(weakened.model_dump(), record)
+    assert checked["valid"] is False
+    assert any(
+        "must be required" in error for error in checked["errors"])
 
 
 def test_invoice_requirement_needs_the_matching_business_identity():
