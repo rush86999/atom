@@ -370,3 +370,39 @@ def compile_evidence_read_patch(
             "set_requires": {},
         },
     }
+
+
+def deterministic_unread_evidence_proposal(
+    unread: Sequence[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Read remaining authorized handles when the model selects nothing new.
+
+    This is a bounded, labeled fallback inside the retained scope. It grants
+    no permission and is never presented as model discovery.
+    """
+    from core.employee_proposal import source_handle
+
+    reads = []
+    for index, source in enumerate(unread, start=1):
+        handle = source_handle(source)
+        if not handle:
+            continue
+        binding = source.get("binding") if isinstance(
+            source.get("binding"), Mapping) else {}
+        name = (
+            source.get("file_name")
+            or source.get("original_file_name")
+            or binding.get("original_file_name")
+            or handle)
+        reads.append({
+            "step_id": f"evidence-{index}",
+            "title": f"Read {name}",
+            "source_id": handle,
+        })
+    if not reads:
+        return None
+    return {
+        "proposal_kind": "evidence_read",
+        "reason": "Read remaining authorized evidence before asking the user",
+        "evidence_reads": reads,
+    }

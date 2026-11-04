@@ -870,7 +870,8 @@ async def _advance_employee_work(
     executor own execution. It never invents evidence or a plan patch.
     """
     from core.employee_job_runner import (
-        action_views, compile_evidence_read_patch, evidence_observations,
+        action_views, compile_evidence_read_patch,
+        deterministic_unread_evidence_proposal, evidence_observations,
         missing_prerequisite_question, unread_authorized_sources,
     )
     from core.task_lifecycle import open_unresolved_questions
@@ -912,51 +913,53 @@ async def _advance_employee_work(
                 "failure_stage": discovery.get("failure_stage"),
                 "attempt_id": discovery.get("attempt_id"),
                 "unread_source_count": len(unread),
+                "proposal_kind": proposal.get("proposal_kind"),
+                "proposal_reason": proposal.get("reason"),
+                "proposal_sources": [
+                    read.get("source_id")
+                    for read in proposal.get("evidence_reads") or []
+                ],
+                "proposal_clarification": (
+                    proposal.get("clarification") or {}),
                 "observation_ids": [
                     item["observation_id"] for item in observations],
             }
             rounds.append(round_record)
             reads = list(proposal.get("evidence_reads") or [])
-            if reads:
+
+            def _compile_reads(candidate):
                 try:
                     compiled = compile_evidence_read_patch(
-                        assignment, proposal, context)
+                        assignment, candidate, context)
                 except Exception as exc:  # noqa: BLE001 - typed refusal
-                    round_record["adoption_error"] = (
-                        f"{type(exc).__name__}: {exc}")
-                    fallback = missing_prerequisite_question(context)
-                    if fallback:
-                        from core.task_lifecycle import (
-                            add_unresolved_questions,
-                        )
+                    round_record.setdefault(
+                        "adoption_errors", []).append(
+                            f"{type(exc).__name__}: {exc}")
+                    return None
+                round_record.setdefault("selected_sources", []).extend(
+                    compiled.get("selected") or [])
+                return compiled
 
-                        add_unresolved_questions(
-                            executor.lifecycle, run_id, [fallback])
-                        round_record["obligation"] = fallback
-                        round_record["obligation_source"] = (
-                            "deterministic_missing_prerequisite")
-                        round_record["progress"] = "no_progress"
-                    break
-                round_record["selected_sources"] = compiled["selected"]
-                if not compiled.get("patch"):
-                    round_record["progress"] = "no_progress"
-                    fallback = missing_prerequisite_question(context)
-                    if fallback:
-                        from core.task_lifecycle import (
-                            add_unresolved_questions,
-                        )
-
-                        add_unresolved_questions(
-                            executor.lifecycle, run_id, [fallback])
-                        round_record["obligation"] = fallback
-                        round_record["obligation_source"] = (
-                            "deterministic_missing_prerequisite")
-                    break
+            compiled = _compile_reads(proposal) if reads else None
+            if compiled is None or not compiled.get("patch"):
+                # The authorized scope still has unread handles. A model
+                # proposal that only re-reads known sources (or asks without
+                # reading) must not become a user question while the scope
+                # can satisfy the need. This fallback is labeled and uses the
+                # same handle/compiler path; it grants no new permission.
+                fallback_proposal = deterministic_unread_evidence_proposal(
+                    unread)
+                if fallback_proposal:
+                    round_record["fallback"] = "deterministic_unread_scope"
+                    fallback_compiled = _compile_reads(fallback_proposal)
+                    if fallback_compiled and fallback_compiled.get("patch"):
+                        compiled = fallback_compiled
+            if compiled is not None and compiled.get("patch"):
                 try:
                     adopted = apply_plan_patch(
                         executor.lifecycle, run_id, compiled["patch"],
                         rationale=(
-                            "model selected additional authorized evidence"))
+                            "employee selected additional authorized evidence"))
                 except Exception as exc:  # noqa: BLE001
                     round_record["adoption_error"] = (
                         f"{type(exc).__name__}: {exc}")
@@ -969,21 +972,16 @@ async def _advance_employee_work(
                         "completed", "failed", "cancelled"):
                     break
                 continue
-            clarification = proposal.get("clarification") or {}
-            question = str(clarification.get("question") or "").strip()
-            if question:
+            round_record["progress"] = "no_progress"
+            fallback = missing_prerequisite_question(context)
+            if fallback:
                 from core.task_lifecycle import add_unresolved_questions
 
                 add_unresolved_questions(
-                    executor.lifecycle, run_id, [{
-                        "kind": "missing_evidence",
-                        "question": question,
-                        "concept": clarification.get("concept") or None,
-                        "reason": clarification.get("unblocks") or None,
-                        "next_action": "Authorize or name the missing source.",
-                        "next_retrieval": clarification.get("unblocks") or None,
-                    }])
-                round_record["obligation_source"] = "model_discovery"
+                    executor.lifecycle, run_id, [fallback])
+                round_record["obligation"] = fallback
+                round_record["obligation_source"] = (
+                    "deterministic_missing_prerequisite")
             break
         if not observations:
             break

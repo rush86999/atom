@@ -44,8 +44,17 @@ def _assignment(api: str, token: str, run_id: str) -> Dict[str, Any]:
     return response.json()
 
 
+def _assignment_payload(body: Dict[str, Any]) -> Dict[str, Any]:
+    """The assignment object from either the GET or the submit response."""
+    container = body.get("assignment")
+    if not isinstance(container, dict):
+        return {}
+    nested = container.get("assignment")
+    return nested if isinstance(nested, dict) else container
+
+
 def _value(body: Dict[str, Any], adapter: str) -> Any:
-    assignment = (body.get("assignment") or {}).get("assignment") or {}
+    assignment = _assignment_payload(body)
     for step in assignment.get("steps") or []:
         if step.get("adapter") != adapter:
             continue
@@ -97,19 +106,24 @@ def main() -> int:
         page = browser.new_page(viewport={"width": 1600, "height": 1100})
         page.add_init_script(
             "sessionStorage.setItem('atom.onboarding.dismissed','1')")
-        page.goto(args.base + "/login", wait_until="networkidle", timeout=90000)
-        if "/login" in page.url:
-            page.fill(
-                '[data-testid="login-email-input"]', "admin@example.com")
-            page.fill(
-                '[data-testid="login-password-input"]', args.password)
-            page.locator(
-                '[data-testid="login-submit-button"]').click()
-            page.wait_for_timeout(6000)
-        page.goto(
-            args.base + "/assignments", wait_until="networkidle",
-            timeout=90000)
-        page.get_by_test_id("assignment-start").wait_for(timeout=60000)
+        def sign_in() -> None:
+            page.goto(
+                args.base + "/login", wait_until="networkidle",
+                timeout=90000)
+            if "/login" in page.url:
+                page.fill(
+                    '[data-testid="login-email-input"]', "admin@example.com")
+                page.fill(
+                    '[data-testid="login-password-input"]', args.password)
+                page.locator(
+                    '[data-testid="login-submit-button"]').click()
+                page.wait_for_timeout(6000)
+            page.goto(
+                args.base + "/assignments", wait_until="networkidle",
+                timeout=90000)
+            page.get_by_test_id("assignment-start").wait_for(timeout=60000)
+
+        sign_in()
 
         for name in (
                 "purchase-order.json", "invoice-v1.json",
@@ -164,6 +178,23 @@ def main() -> int:
         capture["response"] = response_body
         capture["selected_source_count"] = _selected_sources(request_body)
         run_id = str(response_body.get("run_id") or "")
+        initial_assignment = _assignment_payload(response_body)
+        capture["initial_status"] = initial_assignment.get("status")
+        capture["initial_steps"] = [
+            {
+                "step_id": step.get("step_id"),
+                "adapter": step.get("adapter"),
+                "status": step.get("status"),
+                "result_summary": step.get("result_summary"),
+            }
+            for step in initial_assignment.get("steps") or []
+        ]
+        capture["initial_proposal_sources"] = [
+            read.get("source_id")
+            for read in (
+                (response_body.get("proposal") or {}).get("evidence_reads")
+                or [])
+        ]
         capture["run_id"] = run_id
         (out / "capture.json").write_text(
             json.dumps(capture, indent=1, default=str) + "\n")
@@ -175,7 +206,10 @@ def main() -> int:
 
         # Bind the UI to the exact returned run. Clicking the summary for the
         # run_id is deliberate: the detail panel may already be mounted on an
-        # older assignment.
+        # older assignment. A long adaptation can expire the UI session, so
+        # re-authenticate without changing the run identity.
+        if "/login" in page.url:
+            sign_in()
         summary = page.get_by_test_id(f"assignment-summary-{run_id}")
         summary.wait_for(timeout=60000)
         summary.click()
@@ -197,13 +231,13 @@ def main() -> int:
             except Exception as exc:  # noqa: BLE001 — keep captured response
                 capture["poll_error"] = f"{type(exc).__name__}: {exc}"
                 break
-            assignment = (
-                body.get("assignment") or {}).get("assignment") or {}
+            assignment = _assignment_payload(body)
             status = str(assignment.get("status") or "")
             if status in ("completed", "failed", "cancelled", "blocked"):
                 break
             time.sleep(2)
-        assignment = (body.get("assignment") or {}).get("assignment") or {}
+        assignment = _assignment_payload(body)
+        capture["final_run_id"] = body.get("run_id")
         capture["final_status"] = assignment.get("status")
         capture["final_value"] = _value(body, "invoice.reconcile")
         capture["steps"] = [
@@ -212,19 +246,38 @@ def main() -> int:
                 "adapter": step.get("adapter"),
                 "status": step.get("status"),
                 "result_value": step.get("result_value"),
+                "source_binding": (
+                    (step.get("inputs") or {}).get("resource_binding")
+                    if isinstance(step.get("inputs"), dict) else None),
             }
             for step in assignment.get("steps") or []
         ]
         capture["open_obligations"] = (
             (body.get("employee_job") or {}).get("open_obligations") or [])
-        capture["authorized_source_count"] = (
-            (assignment.get("provenance") or {}).get(
-                "authorized_source_count"))
+        capture["authorized_source_count"] = len(
+            assignment.get("sources") or [])
+        capture["job_sources"] = [
+            {
+                "source_id": source.get("source_id"),
+                "file_name": source.get("file_name"),
+                "read": source.get("read"),
+            }
+            for source in (
+                (body.get("employee_job") or {}).get("sources") or [])
+        ]
         capture["selected_read_count"] = len([
             step for step in assignment.get("steps") or []
             if step.get("adapter") in ("document.text", "document.read",
                                        "workbook.read", "dataset.read")
         ])
+        read_titles = [
+            str(step.get("title") or "")
+            for step in assignment.get("steps") or []
+            if step.get("adapter") in ("document.text", "document.read",
+                                       "workbook.read", "dataset.read")
+        ]
+        capture["duplicate_read_count"] = (
+            len(read_titles) - len({item for item in read_titles if item}))
         (out / "final.json").write_text(
             json.dumps(capture, indent=1, default=str) + "\n")
         page.screenshot(
@@ -234,6 +287,9 @@ def main() -> int:
     ok = (
         capture.get("final_status") == "completed"
         and str(capture.get("final_value")) == "270.00"
+        and capture.get("final_run_id") == capture.get("run_id")
+        and capture.get("authorized_source_count") == 3
+        and capture.get("duplicate_read_count") == 0
     )
     return 0 if ok else 1
 
