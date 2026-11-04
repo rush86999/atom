@@ -829,9 +829,14 @@ def test_route_attribution_is_call_local_and_clears_stale_served_state():
     assert attribution["served_route"] is None
     assert attribution["resolved_model"] == "candidate-a-echo"
 
+    from core.llm.model_provenance import set_routing_error
+
+    set_routing_error("provider_failure", "earlier candidate excluded")
     set_served_route("local", "candidate-b")
-    assert get_route_attribution()["served_route"] == {
+    attribution = get_route_attribution()
+    assert attribution["served_route"] == {
         "provider": "local", "model": "candidate-b"}
+    assert attribution["error"] is None
 
     # A fresh boundary cannot inherit the previous call's served route or
     # provider-echoed checkpoint.
