@@ -235,6 +235,36 @@ def test_strict_pin_is_exact_or_failed_no_escape():
     assert "below_quality_prior" in bad["reasons"]
 
 
+def test_actual_request_size_beats_the_coarse_complexity_context_floor(
+        monkeypatch):
+    from core.llm.byok_handler import QueryComplexity
+    from tests.test_structured_dispatch_policy import _handler, _seed_pool
+
+    handler = _handler()
+    _seed_pool(handler, monkeypatch, with_local=True)
+    handler._local_routes["llama3.1:8b"].update({
+        "context_window": 16384,
+        "supports_structured": True,
+    })
+    monkeypatch.setattr(
+        "core.llm.byok_handler.load_feedback_evidence",
+        lambda *args, **kwargs: {})
+    ranked = list(handler.get_ranked_providers(
+        QueryComplexity.ADVANCED, task_type="planning", tenant_plan="free",
+        is_managed_service=True, requires_structured=True,
+        estimated_tokens=2506,
+        capability_profile="employee_evidence_selection"))
+    assert ("local_ctrl1234", "llama3.1:8b") in ranked, ranked
+
+    # A genuinely oversized request still excludes the 16k route.
+    oversized = list(handler.get_ranked_providers(
+        QueryComplexity.ADVANCED, task_type="planning", tenant_plan="free",
+        is_managed_service=True, requires_structured=True,
+        estimated_tokens=40000,
+        capability_profile="employee_evidence_selection"))
+    assert ("local_ctrl1234", "llama3.1:8b") not in oversized
+
+
 def test_selected_local_only_policy_admits_the_runtime_route(monkeypatch):
     from core.llm.byok_handler import BYOKHandler
     from core.llm.provider_policy import ProviderPolicy

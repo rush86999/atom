@@ -4803,12 +4803,14 @@ class BYOKHandler:
             # dwarf the complexity floor — the request's OWN estimated size
             # sets the real window requirement, plus completion headroom
             # (reasoning models burn output budget thinking before they
-            # answer). Callers passing estimated_tokens explicitly get a
-            # window-aware candidate filter; the 1000 default (unset) keeps
-            # the complexity floor only.
+            # answer). When the caller supplies a real estimate, that actual
+            # request capacity is authoritative over the coarse complexity
+            # class: a small structured prompt classified ADVANCED must not
+            # exclude a healthy 16k local route that can hold it. The 1000
+            # default (unset) keeps the historical complexity floor.
             if estimated_tokens and estimated_tokens > 1000:
                 min_context = max(
-                    min_context,
+                    4000,
                     estimated_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
                 )
 
@@ -5242,9 +5244,13 @@ class BYOKHandler:
                 })
                 logger.warning(
                     "capability route: zero candidates for %s; clients=%s "
-                    "local_routes=%s policy=%s",
+                    "local_routes=%s estimated_tokens=%s min_context=%s "
+                    "local_context=%s policy=%s",
                     _capability.name, sorted(self.clients or {}),
                     sorted((self._local_routes or {}).keys()),
+                    estimated_tokens, min_context,
+                    {m: r.get("context_window") for m, r in
+                     (self._local_routes or {}).items()},
                     getattr(getattr(self, "provider_policy", None),
                             "public_dict", lambda: {} )())
                 logger.warning(
