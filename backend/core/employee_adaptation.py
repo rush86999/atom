@@ -759,6 +759,10 @@ async def propose_adaptation(
             journal = None
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
     stage_no_results: Dict[str, List[Dict[str, Any]]] = {}
+    #: Feedback-row identity of the LAST model call in this attempt. Captured
+    #: from the call-local provenance carrier so a later business evaluation
+    #: annotates the exact generation instead of inserting an unattributed row.
+    last_routing_result_id: Optional[str] = None
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -823,11 +827,55 @@ async def propose_adaptation(
                 "skipped_due_to_budget", call_stage=stage_name, label=label,
                 attempt=0, route="deadline", seconds=0.0)
 
+    async def _record_adaptation_rejection(
+        errors: Any, failure_stage: Optional[str],
+        routing_result_id: Optional[str], stage: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Persist a deterministic rejection of a served model proposal.
+
+        The fallback that follows is deterministic work, not model success;
+        only the rejected generation is annotated. Transport/deadline errors
+        have no served route and are skipped by the recorder.
+        """
+        if not errors or not routing_result_id:
+            return None
+        try:
+            from core.employee_routing_feedback import (
+                classify_adaptation_errors,
+                record_attempt_evaluation,
+            )
+
+            return await record_attempt_evaluation(
+                {
+                    "source": "model",
+                    "routing_result_id": routing_result_id,
+                    "routing": _routing_snapshot(),
+                },
+                stage=stage,
+                evaluation="failed",
+                failure_kind=classify_adaptation_errors(errors),
+                detail="; ".join(str(item) for item in errors),
+                workspace_id=context.get("identity", {}).get("workspace_id"),
+                tenant_id=context.get("identity", {}).get("tenant_id"),
+                extra_features={
+                    "failure_stage": failure_stage,
+                    "proposal_errors": [
+                        str(item) for item in errors][:8],
+                    "attempt_id": getattr(journal, "attempt_id", None),
+                },
+            )
+        except Exception:  # noqa: BLE001 — evidence must not break work
+            return None
+
     async def _call(
         prompt: str, label: str, stage_name: str, *,
         model: Any = None, max_tokens: int = 1800,
         capability_profile: Optional[str] = None,
     ) -> Any:
+        nonlocal last_routing_result_id
+        # A budget-skipped or never-dispatched call must not inherit the
+        # previous stage's generation identity.
+        last_routing_result_id = None
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
             _record_skipped(stage_name, label)
@@ -856,10 +904,11 @@ async def propose_adaptation(
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
         )
-        if remaining is None:
-            return await call
         try:
-            return await asyncio.wait_for(call, timeout=remaining)
+            if remaining is None:
+                result = await call
+            else:
+                result = await asyncio.wait_for(call, timeout=remaining)
         except asyncio.TimeoutError as exc:
             _record_routing_failure("deadline_cancelled")
             if journal is not None:
@@ -868,6 +917,14 @@ async def propose_adaptation(
                     route="deadline", seconds=time.monotonic() - deadline
                     if deadline is not None else 0.0)
             raise
+        finally:
+            try:
+                from core.llm.model_provenance import get_feedback_id
+
+                last_routing_result_id = get_feedback_id()
+            except Exception:  # noqa: BLE001 — attribution is optional
+                last_routing_result_id = None
+        return result
 
     def _normalize(
         result: Any, model: Any = None, expand: Any = None,
@@ -1011,6 +1068,7 @@ async def propose_adaptation(
                                 "errors": [],
                                 "attempt_id": getattr(
                                     journal, "attempt_id", None),
+                                "routing_result_id": last_routing_result_id,
                                 "routing": _routing_snapshot(),
                                 "prompt_mode": "compact",
                             }
@@ -1075,6 +1133,8 @@ async def propose_adaptation(
                                             "errors": [],
                                             "attempt_id": getattr(
                                                 journal, "attempt_id", None),
+                                            "routing_result_id": (
+                                                last_routing_result_id),
                                             "routing": _routing_snapshot(),
                                             "prompt_mode": "compact",
                                             "repair": {
@@ -1099,6 +1159,9 @@ async def propose_adaptation(
                         failure_stage=failure_stage,
                         errors=checked_errors,
                         prompt_mode="compact")
+                evaluation = await _record_adaptation_rejection(
+                    checked_errors, failure_stage, last_routing_result_id,
+                    stage="employee_adaptation_compact")
                 return {
                     "proposal": fallback,
                     "source": "deterministic",
@@ -1106,6 +1169,8 @@ async def propose_adaptation(
                     "errors": checked_errors,
                     "failure_stage": failure_stage,
                     "attempt_id": getattr(journal, "attempt_id", None),
+                    "routing_result_id": last_routing_result_id,
+                    "evaluation": evaluation,
                     "routing": _routing_snapshot(),
                     "prompt_mode": "compact",
                 }
@@ -1189,6 +1254,7 @@ async def propose_adaptation(
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
+                            "routing_result_id": last_routing_result_id,
                             "routing": _routing_snapshot(),
                             "prompt_mode": (
                                 "compact" if fallback_compact else None),
@@ -1236,6 +1302,8 @@ async def propose_adaptation(
                                         "errors": [],
                                         "attempt_id": getattr(
                                             journal, "attempt_id", None),
+                                        "routing_result_id": (
+                                            last_routing_result_id),
                                         "routing": _routing_snapshot(),
                                         "repair": {
                                             "first_errors": first_errors,
@@ -1266,6 +1334,9 @@ async def propose_adaptation(
         checked_errors = []
         failure_stage = None
     fallback = deterministic_adaptation(observations[0], assignment)
+    evaluation = await _record_adaptation_rejection(
+        checked_errors, failure_stage, last_routing_result_id,
+        stage="employee_adaptation")
     return {
         "proposal": fallback,
         "source": "deterministic",
@@ -1273,6 +1344,8 @@ async def propose_adaptation(
         "errors": checked_errors,
         "failure_stage": failure_stage,
         "attempt_id": getattr(journal, "attempt_id", None),
+        "routing_result_id": last_routing_result_id,
+        "evaluation": evaluation,
         "routing": _routing_snapshot(),
     }
 

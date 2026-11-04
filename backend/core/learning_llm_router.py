@@ -172,6 +172,20 @@ class RoutingFeedback:
     #: ``prompt_features["verdict_rule"]`` beside the verdict.
     verdict_rule: Optional[str] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    #: Evaluated business failure kind (``wrong_evidence_selection``,
+    #: ``invalid_plan_reference``, ``wrong_field_mapping``,
+    #: ``unsatisfactory_business_result``) or ``""`` for a satisfied outcome.
+    #: Persisted in ``prompt_features["failure_kind"]`` so the capability
+    #: evidence loader can distinguish a deterministic business defect from a
+    #: transport/schema failure. ``None`` means "not evaluated here".
+    #:
+    #: Appended AFTER the historical fields so existing positional
+    #: constructions keep their established field order.
+    failure_kind: Optional[str] = None
+    #: Additional bounded provenance for the business evaluation
+    #: (stage, business_outcome, repair attribution, detail). Merged into the
+    #: row's prompt_features; never used for routing authority.
+    evidence_features: Optional[Dict[str, Any]] = None
 
 
 def _check_cost_within_budget(tenant_id: str, actual_cost: Optional[float]) -> bool:
@@ -1600,6 +1614,9 @@ class LearningBasedRouter:
                 superseded.quality_satisfied = feedback.quality_satisfied
                 superseded.user_satisfaction = feedback.user_satisfaction
                 superseded.verdict = feedback.verdict
+                superseded.failure_kind = feedback.failure_kind
+                superseded.evidence_features = dict(
+                    feedback.evidence_features or {})
                 superseded.actual_cost = (
                     feedback.actual_cost
                     if feedback.actual_cost is not None
@@ -1757,6 +1774,18 @@ class LearningBasedRouter:
             # gateway produced the judged generation (the row itself has no
             # provider column).
             route_provider = getattr(feedback, "provider_id", None)
+            # BUSINESS EVALUATION PROVENANCE (owner priority 2026-11-04):
+            # the transport outcome row is written before the employee
+            # consumer knows whether the proposal/result was business-correct.
+            # ``failure_kind`` and ``evidence_features`` annotate THAT row so
+            # the capability selector can distinguish a deterministic business
+            # defect from a busy/timeout/schema event. None means "not
+            # evaluated here"; "" means a satisfied business outcome.
+            failure_kind = getattr(feedback, "failure_kind", None)
+            evidence_features = getattr(
+                feedback, "evidence_features", None) or {}
+            if not isinstance(evidence_features, dict):
+                evidence_features = {}
 
             with get_db_session() as db:
                 if annotates:
@@ -1793,6 +1822,10 @@ class LearningBasedRouter:
                             (features or {}).get("verdict_rule"))
                         if verdict_rule:
                             updated["verdict_rule"] = str(verdict_rule)
+                        if failure_kind is not None:
+                            updated["failure_kind"] = str(failure_kind)
+                        for key, value in evidence_features.items():
+                            updated[str(key)] = value
                         existing.prompt_features = updated
                         # QUALITY FIELDS follow the verdict only when the
                         # verdict is a JUDGEMENT ON THE OUTPUT. A grounding
@@ -1804,6 +1837,17 @@ class LearningBasedRouter:
                             existing.quality_satisfied = feedback.quality_satisfied
                             existing.user_satisfaction = feedback.user_satisfaction
                             existing.success = feedback.success
+                        # The annotation changed the evidence the capability
+                        # selector reads; the live cache must not keep the
+                        # pre-evaluation view.
+                        try:
+                            from core.llm.capability_profiles import (
+                                reset_capability_evidence_cache,
+                            )
+
+                            reset_capability_evidence_cache()
+                        except Exception:  # noqa: BLE001 — best-effort
+                            pass
                         return
 
                 if not annotates:
@@ -1835,7 +1879,8 @@ class LearningBasedRouter:
                     (features or {}).get("verdict_rule"))
                 capability_profile = getattr(
                     feedback, "capability_profile", None)
-                if route_provider or verdict_rule or capability_profile:
+                if (route_provider or verdict_rule or capability_profile
+                        or failure_kind is not None or evidence_features):
                     # Same rule for a standalone row: its provenance travels
                     # with it, so a route-scoped consumer can attribute it and
                     # tell which rule judged it.
@@ -1854,6 +1899,10 @@ class LearningBasedRouter:
                                     "capability_profile_version", "") or "")
                         row_features["workspace_id"] = str(
                             getattr(feedback, "workspace_id", "") or "")
+                    if failure_kind is not None:
+                        row_features["failure_kind"] = str(failure_kind)
+                    for key, value in evidence_features.items():
+                        row_features[str(key)] = value
                     prompt_features = row_features
 
                 row = LLMRoutingFeedback(
