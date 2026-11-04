@@ -974,6 +974,23 @@ export function AssignmentPanel({
                     <p>{detail.employee_job.routing_notice.next_action}</p>
                   </div>
                 ) : null}
+                {(detail.employee_job.business_requirements || [])
+                  .filter((item) => item.status !== "satisfied")
+                  .map((item) => (
+                    <div
+                      key={item.requirement_id || item.operation}
+                      className="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] text-amber-800"
+                      data-testid="assignment-result-requirement"
+                    >
+                      <p className="font-medium">
+                        Still required: {item.label || item.operation}
+                      </p>
+                      <p>
+                        {item.next_action
+                          || `Complete the ${item.label || item.operation}.`}
+                      </p>
+                    </div>
+                  ))}
                 {(() => {
                   const blockers = (detail.employee_job?.steps || [])
                     .flatMap((step) =>
