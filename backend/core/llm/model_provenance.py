@@ -264,8 +264,9 @@ def get_drift_detector() -> ModelDriftDetector:
 # ---------------------------------------------------------------------------
 # Route attribution for employee reasoning boundaries.
 # Requested = the route selected by BPC/pin before dispatch; served = the
-# route actually attempted/succeeded. These are context-local so concurrent
-# assignments do not overwrite one another's attribution.
+# route whose response was actually accepted. A failed attempt is never
+# reported as served. These are context-local so concurrent assignments do
+# not overwrite one another's attribution.
 # ---------------------------------------------------------------------------
 from contextvars import ContextVar as _ContextVar
 from typing import Any as _Any, Tuple as _Tuple
@@ -315,6 +316,8 @@ def clear_route_attribution() -> None:
     _route_mode_cv.set(None)
     _routing_profile_cv.set(None)
     _routing_error_cv.set(None)
+    # A previous call's echoed checkpoint must not be attributed to this one.
+    clear_resolved_model()
 
 
 def get_route_attribution() -> Dict[str, _Any]:

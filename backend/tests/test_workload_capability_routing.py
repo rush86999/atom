@@ -812,3 +812,31 @@ async def test_employee_proposal_and_pin_attribution_are_business_safe():
     assert failure["requested_route"] == {
         "provider": "local", "model": "weak"}
     assert "controlled no suitable route" in failure["error"]["detail"]
+
+
+def test_route_attribution_is_call_local_and_clears_stale_served_state():
+    from core.llm.model_provenance import (
+        clear_route_attribution, get_route_attribution, set_requested_route,
+        set_resolved_model, set_served_route,
+    )
+
+    clear_route_attribution()
+    set_requested_route("local", "candidate-a")
+    set_resolved_model("candidate-a-echo")
+    attribution = get_route_attribution()
+    assert attribution["requested_route"] == {
+        "provider": "local", "model": "candidate-a"}
+    assert attribution["served_route"] is None
+    assert attribution["resolved_model"] == "candidate-a-echo"
+
+    set_served_route("local", "candidate-b")
+    assert get_route_attribution()["served_route"] == {
+        "provider": "local", "model": "candidate-b"}
+
+    # A fresh boundary cannot inherit the previous call's served route or
+    # provider-echoed checkpoint.
+    clear_route_attribution()
+    attribution = get_route_attribution()
+    assert attribution["requested_route"] is None
+    assert attribution["served_route"] is None
+    assert attribution["resolved_model"] is None

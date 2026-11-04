@@ -8747,7 +8747,6 @@ class BYOKHandler:
                                 await asyncio.sleep(0.25)
                             _attempted_any = True
                             _attempt_count += 1
-                            set_served_route(provider_id, model)
                             # PLAN-ATTEMPT ATTRIBUTION, BEFORE THE
                             # BLOCKING CALL (verifier work order, round
                             # 19): the completion trace below emits only
@@ -9019,6 +9018,9 @@ class BYOKHandler:
 
                             raise
                     self._capture_echoed_model(result)  # reads _raw_response.model
+                    # This route produced the accepted structured response.
+                    # Failed/skipped attempts above never claim service.
+                    set_served_route(provider_id, model)
                     # PROVENANCE (2026-10-28): structured successes must set
                     # the same last-used pair as text completions. Review
                     # finalization reads this to report the route that actually
