@@ -1,0 +1,54 @@
+{
+ "run_id": "67b4cd87-f589-4a8a-bdac-6a8cd05eeae9",
+ "response_status": 200,
+ "selected_source_count": 3,
+ "final_status": "completed",
+ "final_value": "270.00",
+ "steps": [
+  {
+   "step_id": "source-1",
+   "adapter": "document.text",
+   "status": "applied",
+   "result_value": null
+  },
+  {
+   "step_id": "source-2",
+   "adapter": "document.text",
+   "status": "applied",
+   "result_value": null
+  },
+  {
+   "step_id": "source-3",
+   "adapter": "document.text",
+   "status": "applied",
+   "result_value": null
+  },
+  {
+   "step_id": "invoice-reconcile",
+   "adapter": "invoice.reconcile",
+   "status": "applied",
+   "result_value": "270.00"
+  }
+ ],
+ "adaptive_rounds": [
+  {
+   "source": "model",
+   "technical_fallback": false,
+   "decision": "replan",
+   "errors": [],
+   "failure_stage": null,
+   "attempt_id": "484db0ab06654d72bdea45b01ab7167f",
+   "observation_ids": [
+    "evidence-03cdc8eda49a7b553e93",
+    "evidence-79afdaf19d142caae642",
+    "evidence-4b1198bec7d1e9435301"
+   ],
+   "adoption_status": "applied",
+   "work_request_operation": "invoice_reconciliation",
+   "execution_status": "completed"
+  }
+ ],
+ "open_obligations": [],
+ "selected_read_count": 3,
+ "authorized_source_count": null
+}
