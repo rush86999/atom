@@ -815,10 +815,13 @@ def test_procurement_campaign_waits_corrects_and_posts_supported_bill(env):
     assert Decimal("270.00") != Decimal("390.00")
     assert no_payment_step(assignment)
 
-    # A duplicate late reply is terminal and creates no second effect.
+    # An exact replay of the accepted reply is idempotent, not a new
+    # late reply: it reports the prior application without reviving the
+    # completed assignment or creating a second effect.
     duplicate = restarted.record_external_response(
         run_id, "corr-invoice-v2", response="corrected invoice v2 again")
-    assert duplicate["status"] == "terminal"
+    assert duplicate["status"] == "already_applied"
+    assert duplicate["assignment_status"] == "completed"
     operations = len(env["lifecycle"].get_task(run_id)["operations"])
     _run(restarted.execute(run_id))
     assert len(env["lifecycle"].get_task(run_id)["operations"]) == operations
