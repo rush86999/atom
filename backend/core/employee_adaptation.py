@@ -387,9 +387,24 @@ _COMPACT_INVOICE_REQUEST = create_model(
     reason=(str, ""),
 )
 
+_COMPACT_QUOTE_REQUEST = create_model(
+    "CompactQuoteCalculationRequest",
+    __config__=ConfigDict(extra="forbid"),
+    operation=(Literal["quote_calculation"], "quote_calculation"),
+    source_step_id=(str, Field(min_length=1, max_length=80)),
+    item_id=(str, Field(min_length=1, max_length=120)),
+    quantity=(str, Field(min_length=1, max_length=120)),
+    unit_price=(str, Field(min_length=1, max_length=120)),
+    currency=(Optional[str], None),
+    freight_ref=(str, "freight"),
+    tax_basis=(Literal["none", "rate", "amount"], "none"),
+    tax_ref=(str, "tax_basis"),
+    reason=(str, ""),
+)
+
 _COMPACT_REQUEST_MODELS = {
     "invoice_reconciliation": _COMPACT_INVOICE_REQUEST,
-    "quote_calculation": QuoteCalculationRequest,
+    "quote_calculation": _COMPACT_QUOTE_REQUEST,
 }
 
 
@@ -520,11 +535,13 @@ def _compact_single_request_context(
         )
     elif operation == "quote_calculation":
         operation_rule = (
-            "Use exact column NAMES from the accepted tabular evidence; map "
-            "item_id, quantity and unit_price to DIFFERENT columns with "
-            "matching meaning. authority_ref values are taught TERM KEYS "
-            "(for example freight, tax_basis), never term values. Do not "
-            "invent rows, prices or totals.\n"
+            "Set item_id, quantity and unit_price to exact column NAMES from "
+            "the accepted tabular evidence, using DIFFERENT columns with "
+            "matching meaning. Bind the taught terms by name with "
+            "freight_ref='freight' and tax_ref='tax_basis'; do not copy "
+            "numeric term values. The compiler resolves the taught freight, "
+            "tax and currency and computes the total. Do not invent rows, "
+            "prices or totals.\n"
         )
     request_fields = ", ".join(
         str(name) for name in (getattr(request_model, "model_fields", {}) or {})
@@ -847,14 +864,63 @@ async def propose_adaptation(
                     if deadline is not None else 0.0)
             raise
 
-    def _normalize(result: Any, model: Any = None) -> Dict[str, Any]:
+    def _normalize(
+        result: Any, model: Any = None, expand: Any = None,
+    ) -> Dict[str, Any]:
         selected_model = model or response_model
         normalized_model = selected_model.model_validate(
             result.model_dump() if isinstance(result, BaseModel) else dict(result))
         normalized = normalized_model.model_dump()
+        if expand is not None:
+            normalized = expand(normalized)
         # Internal conversion happens only after the SELECTED response model
         # has validated the payload.
         return AdaptationProposal.model_validate(normalized).model_dump()
+
+    def _expand_compact_payload(
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Translate only compiler-owned mechanics in a compact payload.
+
+        The model returns flat column/term choices so a small model does not
+        have to author nested MoneyTerm/TaxTerm objects. The compiler resolves
+        the taught term values and builds the existing typed request.
+        """
+        work_request = payload.get("work_request")
+        if not isinstance(work_request, Mapping):
+            return payload
+        if str(work_request.get("operation") or "") != "quote_calculation":
+            return payload
+        terms = (context.get("teaching") or {}).get("terms") or {}
+        tax_basis = str(work_request.get("tax_basis") or "none")
+        tax_value = (
+            str(terms.get("tax_basis") or "")
+            if tax_basis in ("rate", "amount") else "")
+        payload["work_request"] = {
+            "operation": "quote_calculation",
+            "source_step_id": work_request.get("source_step_id"),
+            "columns": {
+                "item_id": work_request.get("item_id"),
+                "quantity": work_request.get("quantity"),
+                "unit_price": work_request.get("unit_price"),
+            },
+            "currency": (
+                work_request.get("currency")
+                or terms.get("currency") or "USD"),
+            "freight": {
+                "value": str(terms.get("freight") or ""),
+                "authority_ref": (
+                    work_request.get("freight_ref") or "freight"),
+            },
+            "tax": {
+                "basis": tax_basis,
+                "value": tax_value,
+                "authority_ref": (
+                    work_request.get("tax_ref") or "tax_basis"),
+            },
+            "reason": work_request.get("reason") or "",
+        }
+        return payload
 
     def _bind_compact_observations(
         normalized: Dict[str, Any], compact: Mapping[str, Any],
@@ -914,7 +980,9 @@ async def propose_adaptation(
                 if result is not None:
                     try:
                         normalized = _bind_compact_observations(
-                            _normalize(result, compact["response_model"]),
+                            _normalize(
+                                result, compact["response_model"],
+                                expand=_expand_compact_payload),
                             compact)
                         proposal = AdaptationProposal.model_validate(normalized)
                         errors = _adaptation_errors(
@@ -975,7 +1043,8 @@ async def propose_adaptation(
                                     repaired_norm = _bind_compact_observations(
                                         _normalize(
                                             repaired,
-                                            compact["response_model"]),
+                                            compact["response_model"],
+                                            expand=_expand_compact_payload),
                                         compact)
                                     repaired_prop = (
                                         AdaptationProposal.model_validate(

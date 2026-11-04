@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import json
 
-from core.assignment_plan import new_assignment, new_step
+from core.assignment_plan import (
+    new_assignment, new_step, new_teaching_snapshot,
+)
 from core.employee_adaptation import (
     _compact_single_request_context, propose_adaptation,
 )
@@ -67,6 +69,38 @@ def _assignment():
             "receipt_adapter": "invoice.reconcile",
         })],
     )
+
+
+def _quote_assignment():
+    step = new_step(
+        step_id="price-rows", title="Read price rows",
+        operation_type="retrieve", adapter="workbook.read",
+        inputs={"resource_binding": {
+            "resource_id": "prices", "source_version": "v1",
+            "representation": "tabular"}},
+        effect="read_only")
+    step.update(status="applied", operation_id="op-price-rows", result={
+        "rows": [
+            {"Item": "QH-21", "Qty": 5, "Price": 14.00, "Currency": "USD"},
+            {"Item": "QH-22", "Qty": 3, "Price": 22.00, "Currency": "USD"},
+        ],
+        "schema": [{"column": "Item"}, {"column": "Qty"},
+                   {"column": "Price"}, {"column": "Currency"}],
+        "coverage": {"complete": True, "known": True, "truncated": False},
+        "source_version": "v1",
+        "resource_id": "prices",
+        "verification": {
+            "status": "verified", "resource_id": "prices", "version": "v1",
+            "coverage": {"complete": True, "truncated": False}},
+    })
+    teaching = new_teaching_snapshot(revision="quote-compact-terms")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "9.00", "tax_basis": "none"}
+    return new_assignment(
+        objective="Quote the price list while receiving is owed",
+        employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=teaching, steps=[step],
+        authorized_actions=["retrieve", "calculate"])
 
 
 def _context():
@@ -272,6 +306,79 @@ def test_compact_context_allows_the_independent_quote_while_waiting():
     assert "column NAMES" in compact["prompt"]
     assert "quote_calculation" in compact["prompt"]
     assert "invoice_reconciliation" not in compact["prompt"]
+
+
+def test_compact_quote_expands_to_the_existing_typed_request(monkeypatch):
+    context = {
+        "objective": "Quote the price list while the receiving record is owed",
+        "identity": {"workspace_id": "ws-1", "tenant_id": "tenant-1"},
+        "teaching": {"terms": {
+            "currency": "USD", "freight": "9.00", "tax_basis": "none"}},
+        "rules": {"allowed_work_requests": [
+            "quote_calculation", "await_evidence"]},
+        "waiting": [{
+            "step_id": "await", "fact": "receiving",
+            "subject": "purchase order PO-QH-8100",
+            "blocks": "invoice reconciliation",
+        }],
+        "available_business_operations": [{
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "ready",
+            "missing": [],
+            "evidence": [{
+                "step_id": "price-rows", "shape": "tabular",
+                "verified": True, "title": "Read price-book-fresh.xlsx",
+                "columns": ["Currency", "Item", "Price", "Qty"],
+            }],
+            "roles": {},
+            "known_identities": {},
+        }],
+        "evidence_results": [{
+            "step_id": "price-rows", "business_role": "quote_rows",
+            "data_keys": [], "data_preview": {},
+            "schema": [{"column": "Item"}, {"column": "Qty"},
+                       {"column": "Price"}, {"column": "Currency"}],
+        }],
+        "business_requirements": [],
+    }
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate({
+            "decision": "replan",
+            "work_request": {
+                "operation": "quote_calculation",
+                "source_step_id": "price-rows",
+                "item_id": "Item",
+                "quantity": "Qty",
+                "unit_price": "Price",
+                "currency": "USD",
+                "freight_ref": "freight",
+                "tax_basis": "none",
+                "tax_ref": "tax_basis",
+            },
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, [{
+            "observation_id": "waiting-1", "kind": "waiting_state",
+            "step_id": "await"}],
+        assignment=_quote_assignment(), llm_service=FakeLLM()))
+    assert result["source"] == "model_compact", result
+    request = result["proposal"]["work_request"]
+    assert request["operation"] == "quote_calculation"
+    assert request["columns"]["item_id"] == "Item"
+    assert request["columns"]["quantity"] == "Qty"
+    assert request["columns"]["unit_price"] == "Price"
+    assert request["freight"]["value"] == "9.00"
+    assert request["freight"]["authority_ref"] == "freight"
+    assert request["tax"]["basis"] == "none"
+    assert request["currency"] == "USD"
 
 
 def test_compact_invoice_schema_keeps_compiler_owned_fields_out():
