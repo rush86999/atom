@@ -1369,12 +1369,19 @@ async def propose_employee_work(
                 "routing": _routing_snapshot(),
             }
     fallback = _deterministic_proposal(context)
+    routing = _routing_snapshot()
+    errors = []
+    routing_error = routing.get("error")
+    if isinstance(routing_error, Mapping):
+        detail = str(routing_error.get("detail") or "").strip()
+        if detail:
+            errors = [detail]
     return {
         "proposal": fallback,
         "source": "deterministic",
         "technical_fallback": llm_service is not None,
-        "errors": [],
-        "routing": _routing_snapshot(),
+        "errors": errors,
+        "routing": routing,
     }
 
 

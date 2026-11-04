@@ -580,5 +580,17 @@ async def pinned_structured_call(
             route="unpinned", seconds=_time.monotonic() - _direct_started,
             exception=err)
         _publish_failure(log_label, err)
+        if set_routing_error is not None:
+            name = type(err).__name__.lower()
+            text = str(err).lower()
+            if "scop" in name or "workspace resolution" in text:
+                code = "scope_unresolved"
+            elif "nosuitableconfiguredmodel" in name:
+                code = "no_suitable_configured_model"
+            elif "timeout" in name or "cancel" in name:
+                code = "deadline_cancelled"
+            else:
+                code = "provider_failure"
+            set_routing_error(code, str(err))
         logger.warning("%s call raised: %s", log_label, err)
         return None

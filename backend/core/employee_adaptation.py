@@ -1111,11 +1111,21 @@ async def propose_adaptation(
                 }
             checked_errors: List[str] = []
             failure_stage = None
+            # The initial all-purpose prompt is the wait-choice stage when the
+            # objective has a material missing prerequisite and no wait is
+            # durable yet. Keep that stage's capability evidence separate from
+            # ordinary adaptive planning; the model still chooses wait vs
+            # other supported work.
+            initial_profile = (
+                "employee_wait_choice"
+                if context.get("missing_prerequisites")
+                and not context.get("waiting") else None)
             try:
                 result = await _call(
                     _adaptation_prompt(
                         context, observations, response_model=response_model),
-                    "employee adaptation", "initial")
+                    "employee adaptation", "initial",
+                    capability_profile=initial_profile)
             except _BudgetExhausted:
                 result = None
                 failure_stage = "initial"
@@ -1195,7 +1205,8 @@ async def propose_adaptation(
                             repaired = await _call(
                                 _adaptation_retry_prompt(
                                     context, observations, normalized, errors),
-                                "employee adaptation repair", "repair")
+                                "employee adaptation repair", "repair",
+                                capability_profile=initial_profile)
                         except _BudgetExhausted:
                             repaired = None
                             failure_stage = "repair"
