@@ -2239,9 +2239,13 @@ class AssignmentExecutor:
             note=note,
         )
         request = approved.get("approval_request") or {}
+        hitl_id = (
+            (step.get("approval_request") or {}).get("hitl_action_id")
+            or request.get("hitl_action_id"))
         self._wake_run(run_id, {
-            "event": "human_checkpoint",
-            "hitl_id": request.get("hitl_action_id"),
+            "event": "human_input",
+            "correlation_id": hitl_id,
+            "hitl_id": hitl_id,
             "approved": True,
         })
         return {"status": "approved", "operation": approved}

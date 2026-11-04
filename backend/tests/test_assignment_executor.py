@@ -4602,3 +4602,41 @@ def test_plan_patch_validation_refuses_weakening_and_effect_relabel():
     assert bare_fact["valid"] is False
     assert any("without accepted evidence" in error
                for error in bare_fact["errors"])
+
+
+def test_approval_clears_the_matching_human_input_wait(env, monkeypatch):
+    """An approved effect must consume its own wait, not leave it open.
+
+    The assignment approval wait is entered as ``human_input`` with the HITL
+    id as its exact identity. Approving the prepared payload must wake that
+    wait so a later reconciliation can complete the same run.
+    """
+    outbox = env["tmp"] / "approval-wake-outbox.jsonl"
+    _install_controlled_adapters(env, monkeypatch, outbox)
+    steps = [new_step(
+        step_id="send", title="Send the approved response",
+        operation_type="outbound", adapter="test.outbox.send",
+        inputs={"to": ["customer@example.invalid"],
+                "subject": "Controlled", "body": "Controlled body"},
+        effect="external", approval_required=True,
+        approval_purpose="Send the prepared response")]
+    run_id, _ = _create(
+        env, objective="Send one controlled response", steps=steps,
+        teaching=_teaching())
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+    run = env["runs"].get_run(run_id)
+    assert run["status"] == "waiting"
+    assert (run.get("waiting_on") or {}).get("event") == "human_input"
+
+    approved = executor.approve_step(
+        run_id, "send", approved_by="owner")
+    assert approved["status"] == "approved"
+    run = env["runs"].get_run(run_id)
+    assert run["status"] != "waiting", run
+    assert not run.get("waiting_on"), run
+
+    completed = _run(executor.execute(run_id))
+    assert completed["assignment"]["status"] == "completed", completed
+    assert len(outbox.read_text().strip().splitlines()) == 1
