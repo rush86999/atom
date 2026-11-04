@@ -414,6 +414,24 @@ def _quote_patch(
             raise WorkRequestCompileError(
                 f"quote mapping {key!r} names column {column!r} absent from "
                 f"the accepted source schema")
+    # One accepted evidence population must not be turned into the same
+    # quote chain twice. A changed term/column set is a reassessment; an
+    # identical chain is duplicate work, usually from a repeated review of a
+    # durable wait.
+    rows_ref = f"${{{request.source_step_id}.rows}}"
+    for step in assignment.get("steps") or []:
+        if str(step.get("adapter") or "") != "quote.lines_from_rows":
+            continue
+        if str(step.get("status") or "") not in (
+                "applied", "pending", "waiting", "running"):
+            continue
+        inputs = step.get("inputs") or {}
+        if (str(inputs.get("rows") or "") == rows_ref
+                and dict(inputs.get("columns") or {}) == dict(columns)):
+            raise WorkRequestCompileError(
+                "an equivalent quote calculation from this evidence is "
+                "already present; resolve the durable wait or continue "
+                "different work instead of repeating it")
     sample_rows = [
         row for row in (result.get("rows") or [])
         if isinstance(row, Mapping)
