@@ -8,9 +8,9 @@ remain at their actual source `3ccad7a5a`.**
 
 | Item | Value |
 |---|---|
-| Runtime successor source | `629dc632971543a7f75059e4f6a34623aa72b1c6` |
-| Worker/context matrix | **14 passed**, including both verifier probes |
-| Affected consumer regression | **197 passed** |
+| Runtime successor source | `5abbeaa48da46203f8029b70179e6ec1c0a2877b` |
+| Worker/context matrix | **15 passed**, including both verifier probes |
+| Affected consumer regression | **198 passed** |
 | Recorded episode source | `3ccad7a5a99afdcef7784f903b3744e36d86ea4b` (unchanged) |
 
 ## Defect 1 — caller context lost at the worker boundary
@@ -53,6 +53,12 @@ completion, the two streaming/completion ladders) capture their token and pass
 it to release/retain. Worker completion cleanup is idempotent and bound to the
 same token; cancellation retain is bound to the same generation.
 
+A lease expiry is an explicit recovery boundary, not proof that the provider
+process stopped. After expiry a new generation may dispatch; the old
+generation's late release/retain is ignored by token. This preserves bounded
+availability without claiming physical single-flight beyond what the provider
+timeout/lease can prove.
+
 Controls in `backend/tests/test_worker_context_and_claims.py`:
 
 - A active → B refused;
@@ -69,10 +75,10 @@ passes.
 
 ## Test evidence
 
-- `worker-contract-tests.log` — 14 passed, including
+- `worker-contract-tests.log` — 15 passed, including
   `tests/test_worker_context_and_claims.py`, the existing structured
   cancellation controls and the two verifier probes.
-- `successor-regression.log` — 197 passed across the employee adaptation,
+- `successor-regression.log` — 198 passed across the employee adaptation,
   compact continuation, identity/completion, durable wait, work-request,
   capability routing, pinned planning, fallback-chain and budget-extension
   neighborhoods.
