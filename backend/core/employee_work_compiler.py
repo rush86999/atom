@@ -922,10 +922,18 @@ def _await_patch(
         raise WorkRequestCompileError("await_evidence requires a material fact")
     if not _await_key(request.subject):
         raise WorkRequestCompileError("await_evidence requires a subject")
-    if not _await_key(request.expected_from):
+    expected_from = _await_key(request.expected_from)
+    if not expected_from:
         raise WorkRequestCompileError(
             "await_evidence requires the authorized source or channel that "
             "is expected to answer")
+    if expected_from in {
+            "authorized source", "authorized", "any source", "source",
+            "unknown", "external", "external source", "someone"}:
+        raise WorkRequestCompileError(
+            "await_evidence must name the specific authorized source or "
+            "channel expected to answer (for example warehouse receiving), "
+            "not a generic placeholder")
     if not _await_key(request.blocks):
         raise WorkRequestCompileError(
             "await_evidence must explain which dependent work it blocks")
@@ -945,10 +953,23 @@ def _await_patch(
             normalized = _await_key(value)
             if normalized:
                 known_subjects.add(normalized)
-    if known_subjects and _await_key(request.subject) not in known_subjects:
+    subject_tokens = set(_await_key(request.subject).split())
+    if known_subjects and not any(
+            set(known.split()).issubset(subject_tokens)
+            for known in known_subjects):
         raise WorkRequestCompileError(
             "await_evidence subject does not match an accepted identity for "
             f"the blocked work: {sorted(known_subjects)[:6]}")
+    if blocked:
+        blocked_tokens = set()
+        for item in blocked:
+            blocked_tokens.update(_await_key(
+                item.get("label") or item.get("operation")).split())
+        blocks_tokens = set(_await_key(request.blocks).split())
+        if blocked_tokens and not (blocked_tokens & blocks_tokens):
+            raise WorkRequestCompileError(
+                "await_evidence blocks must name the dependent work it "
+                f"blocks: {sorted(blocked_tokens)[:6]}")
     wanted = (
         _await_key(request.fact), _await_key(request.subject))
     for step in assignment.get("steps") or []:
