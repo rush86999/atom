@@ -23,7 +23,7 @@ row's evidence.
 | Held-out content with new identifiers/values and independent arithmetic | **Demonstrated on fresh source; bundle acceptance withheld** | `employee_g5_heldout_two_order_fresh_3ccad7a5a`: QH-21/QH-22/PO-QH-8100/INV-QH-99, two runs, quote 145.00, reconciliation 113.00, both review documents, **22/22** named finish checks (11/11 per run; earlier 10/10 omitted `same_wait`). The original negative `employee_g5_heldout_timeout_6bc97759284` and the same-job recoveries (`8995f433d`, `60d464a5f`) remain separate. Acceptance remains withheld for combined review; runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission |
 | Held-out event order (e.g. independent work after restart, reply order) | **Demonstrated both required orders; bundle acceptance withheld** | Fresh `3ccad7a5a`: order 1 source authorized before restart; order 2 restart while waiting, source authorized after restart. Both preserved run/wait/quote identity and produced the dependent result + artifact. The earlier frozen-job recoveries remain order-1-only. Same runtime/packaging caveat |
 | Held-out two-domain evidence selection without user-picked sources | **Demonstrated at controlled local scope; automatic BYOK separate** | `employee_g5_procurement_selection_7d4358ea6`: 7-document authorized pool with current invoice `ap-inbox-0412.json`/PO `po-archive-88.json`/receiving `dock-receipt-19.json` plus wrong-PO, superseded, wrong-receiving and prompt-injected distractors. The served model's bounded correction selected the current chain; reconciliation 121.00, 12/12 positive checks. Missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished, and recovered on the same job after authorized addition: 121.00, 14/14 checks. 26/26 total; 323 affected tests. One pinned local route; automatic multi-model selection is separate. Earlier negative `80e3bd702` / `20f3ffc19` remains historical |
-| Automatic BYOK multi-model selection | **Not qualified** | Accepted routing controls and consumer paths exist, but this procurement run used one pinned local `ollama/llama3.1:8b` route. Agent 2's automatic multi-model consumer qualification is the next finite row; no auto-selection claim is made here |
+| Automatic BYOK selection | **Single-route served auto demonstrated; served multi-model comparison not yet qualified** | `employee_byok_auto_selection_0e04286b2`: five unpinned employee evidence-selection calls auto-selected/served `ollama/llama3.1:8b` with raw route, usage and latency (28,034/1,058 tokens, 98.78 s). Controlled real LLMService/BYOKHandler two-route matrix covers cheaper capable choice, measured semantic-failure exclusion, costlier failure, scope/deadline refusal and honest no-suitable receipts: 9 consumer tests + 114 successor tests. One configured route only; controlled two-route evidence is not served multi-model qualification |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
 
@@ -67,10 +67,14 @@ selected the current invoice, matching PO and current receiving; reconciliation
 same job after authorized addition; 26/26 checks and 323 affected tests. The
 earlier `80e3bd702` / `20f3ffc19` negatives remain historical at their sources.
 
-The remaining finite row is automatic multi-model BYOK selection through the
-employee consumer path. This procurement run used one pinned local route and
-does not claim auto-selection. No model/UI replay was used for the mechanical
-corrections above.
+Automatic BYOK single-route selection is demonstrated at
+`employee_byok_auto_selection_0e04286b2`: five unpinned evidence-selection calls
+auto-selected and served the configured local route with raw route, usage and
+latency. The controlled two-route consumer matrix covers economy choice,
+measured-failure exclusion, costlier-route failure, scope/deadline refusal and
+honest no-suitable receipts. Served multi-model comparison remains open until
+another route is actually configured and authorized. No model/UI replay was
+used for the mechanical corrections above.
 
 ## What this reconciliation does not claim
 
@@ -78,7 +82,9 @@ corrections above.
   uncertainty/cancellation evidence into one served browser episode.
 - It does not treat deterministic mechanism tests as served-model choices.
 - It preserves the earlier procurement-selection negative at its source; the
-  new SEL-77 pool closes that row only at the controlled local scope and does
-  not establish automatic multi-model BYOK selection.
+  new SEL-77 pool closes that row only at the controlled local scope. Separate
+  evidence at `employee_byok_auto_selection_0e04286b2` demonstrates single-route
+  auto-selection and a controlled two-route matrix, but not served multi-model
+  comparison.
 - It preserves the successful episode at its original identity and does not
   reattribute it to the successor repair.
