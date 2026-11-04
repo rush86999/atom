@@ -1,0 +1,55 @@
+{
+ "schema": "atom-employee-evidence-1",
+ "status": "same-job continuation and deterministic recovery supported; fresh held-out content/event-order still open",
+ "executed_source": "b16172c8df3a5244f7748282469673b1ee02f294",
+ "evidence_tip": "60d464a5f1ac4be51a46c3c2f9bfa858c4c3c9d1",
+ "run": {
+  "run_id": "d40c94ee-2128-4f56-8165-1d2b8fcbd01a",
+  "wait_id": "await-e94400ac76450659e0de",
+  "quote": "125.00",
+  "quote_operation_id": "9ea5f0de-8bcc-4152-b1fe-dd3b4127fd9b",
+  "reconciliation": "101.00",
+  "artifact_sha256": "0271e1074b2e8937ba87915038f950a41d671a06390b01625e66d0acf1deba72",
+  "served_route": {
+   "provider": "ollama",
+   "model": "llama3.1:8b"
+  },
+  "capability_profile": "employee_adaptive_planning_compact"
+ },
+ "checks": {
+  "recovery": "9/9",
+  "focused_tests": "130 passed",
+  "model_calls": "3 compact calls; 20.50s / 11.22s / 4.28s"
+ },
+ "source_files": {
+  "backend/core/employee_adaptation.py": "f19d8038b89f47e9160dea6c2e5a0f4ae37ba27b3a866f1b46c651f47057db37",
+  "backend/core/llm/byok_handler.py": "014c1d07e93e1f026451c6141890b13fea11cf3e5f7548be0640337a0d21fafc",
+  "backend/core/llm/capability_profiles.py": "c21d25f08da1f10790da3dd3f116e3ff45563545ad40fc8dbeb16740797fdf1f",
+  "backend/core/llm/pinned_planning.py": "3da871ba33d36b436c3e6120d46c3410f6061c7ffcf5cff5f53119a7dcfc02c7",
+  "backend/api/assignment_routes.py": "b4412cd6d6e6905b09b61eeefb2ab579ff7d76864dd2f37ff138cda0afed079d",
+  "backend/core/employee_attempt_journal.py": "aa7db0932df98415e63a2e8d73d16c0e40fed3a03ceb830d8d1ea2e429efe928",
+  "backend/core/employee_attempt_journal.py@evidence_tip": "63984ce2c5addd3c3e5423538bb5393c48dc17636e1fe38f92db7fd0cd85ab98"
+ },
+ "artifacts": {
+  "README.md": "2658eb44814d81d7a4b90e3c0bb8a4549822a9fd3d265b85c49e039704c6af1c",
+  "TEST_RESULTS.md": "487c326b70aca847dbdfbba3978922c088d9a81df1f3944a9bc831de098de969",
+  "attempts-compact-1.jsonl": "ec0f9108518254ec2b5fbe5cc41fadac7dfaea4219e5a28883e4b5b1da244a21",
+  "attempts-compact-2.jsonl": "f7e7d1e68cb13520300f64741efa459bf5f5851f0ec0767c3f39c1e4785bf285",
+  "attempts-compact-3.jsonl": "0dc4c45131e96e4cae3560ce6d029631eeff2dd1b7f0f8c81782cf9bfe90ef62",
+  "focused-tests.log": "0b0d5fc453463cba172eb8783c5b6875bfe496d5048df0e054271629bb0ea003",
+  "result-attempt1.json": "26a7faee74dcc443fcd7468b12039503a48d662e7f7d6c84d3023664f935c61b",
+  "result-attempt2.json": "f4d96c19b8f02e4dfbdcb66d72844b06f76dbd14560cfc270906ad5dd69344f6",
+  "result-attempt3.json": "a05eb83c76ce30039fdea330355938620ffa55675ade2817b71f1bc482dd3203",
+  "review.docx": "0271e1074b2e8937ba87915038f950a41d671a06390b01625e66d0acf1deba72",
+  "server.log": "f9bf07ba449edf34abda31676a77669f6f04b695e2de5df617ab2e9d5c12f0c8",
+  "state.json": "92bbdfa61d9c46596ffba8e58d734918652794f80ee977bb83badc5ffe79d395"
+ },
+ "boundaries": [
+  "not a fresh unseen-value held-out qualification",
+  "all-purpose employee_adaptive_planning profile remains measured-failure-disqualified in this world",
+  "compact continuation is a separately declared capability profile",
+  "no live/cloud provider, credential, spend, send, download or deployment authority",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged",
+  "full G5 remains open"
+ ]
+}
