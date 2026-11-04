@@ -22,8 +22,8 @@ row's evidence.
 | Exact namespaced identity and empty-scope result invariant | Demonstrated on successor | `employee_identity_repair_2eb433f41` (410 tests; 16/16 Git) |
 | Held-out content with new identifiers/values and independent arithmetic | **Demonstrated on fresh source; bundle acceptance withheld** | `employee_g5_heldout_two_order_fresh_3ccad7a5a`: QH-21/QH-22/PO-QH-8100/INV-QH-99, two runs, quote 145.00, reconciliation 113.00, both review documents, **22/22** named finish checks (11/11 per run; earlier 10/10 omitted `same_wait`). The original negative `employee_g5_heldout_timeout_6bc97759284` and the same-job recoveries (`8995f433d`, `60d464a5f`) remain separate. Acceptance remains withheld for combined review; runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission |
 | Held-out event order (e.g. independent work after restart, reply order) | **Demonstrated both required orders; bundle acceptance withheld** | Fresh `3ccad7a5a`: order 1 source authorized before restart; order 2 restart while waiting, source authorized after restart. Both preserved run/wait/quote identity and produced the dependent result + artifact. The earlier frozen-job recoveries remain order-1-only. Same runtime/packaging caveat |
-| Held-out two-domain evidence selection without user-picked sources | **Demonstrated at controlled local scope; automatic BYOK separate** | `employee_g5_procurement_selection_7d4358ea6`: 7-document authorized pool with current invoice `ap-inbox-0412.json`/PO `po-archive-88.json`/receiving `dock-receipt-19.json` plus wrong-PO, superseded, wrong-receiving and prompt-injected distractors. The served model's bounded correction selected the current chain; reconciliation 121.00, 12/12 positive checks. Missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished, and recovered on the same job after authorized addition: 121.00, 14/14 checks. 26/26 total; 323 affected tests. One pinned local route; automatic multi-model selection is separate. Earlier negative `80e3bd702` / `20f3ffc19` remains historical |
-| Automatic BYOK selection | **Single-route served auto demonstrated; served multi-model comparison not yet qualified** | `employee_byok_auto_selection_0e04286b2`: five unpinned employee evidence-selection calls auto-selected/served `ollama/llama3.1:8b` with raw route, usage and latency (28,034/1,058 tokens, 98.78 s). Controlled real LLMService/BYOKHandler two-route matrix covers cheaper capable choice, measured semantic-failure exclusion, costlier failure, scope/deadline refusal and honest no-suitable receipts: 9 consumer tests + 114 successor tests. One configured route only; controlled two-route evidence is not served multi-model qualification |
+| Held-out two-domain evidence selection without user-picked sources | **Demonstrated and accepted at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: 7-document authorized pool with current invoice `ap-inbox-0412.json`/PO `po-archive-88.json`/receiving `dock-receipt-19.json` plus wrong-PO, superseded, wrong-receiving and prompt-injected distractors. The served model's bounded correction selected the current chain; reconciliation 121.00, 12/12 positive checks. Missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished, and recovered on the same job after authorized addition: 121.00, 14/14 checks. 26/26 total; 323 affected tests; 33/33 Git. Accepted at this scope. Earlier negative `80e3bd702` / `20f3ffc19` remains historical |
+| Automatic BYOK selection | **Available one-route scope accepted; controlled two-route matrix accepted; served multi-model quality not qualified** | `employee_byok_auto_selection_0e04286b2` (source `0e04286b2`, evidence `896925d22`): five unpinned employee evidence-selection calls auto-selected/served `ollama/llama3.1:8b` with raw route, usage and latency (28,034/1,058 tokens, 98.78 s). Controlled real LLMService/BYOKHandler two-route matrix covers cheaper capable choice, measured semantic-failure exclusion, costlier failure, scope/deadline refusal and honest no-suitable receipts: 9 consumer tests + 114 successor tests; 14/14 Git. Not a served multi-model comparison. Next: persist evaluated business outcomes into scoped feedback and prove the next decision changes |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
 
@@ -53,28 +53,29 @@ finish checks, and documents whose totals and hashes match. The three fresh
 logs are now Git-tracked; the recovery manifest's loaded-source hash is
 corrected to `8995f433d` with the superseded working-tree hash disclosed.
 
-Successor bundle acceptance remains withheld for combined review. The runtime
-successor `5abbeaa48` records both worker repairs (caller context preserved at
-the thread bridge; cleanup bound to the claim generation) with a 15/15
-worker/context matrix and 198 affected tests; an independent Agent 1 re-run at
-that runtime source passed 69 tests, including both verifier probes.
+Runtime successor `5abbeaa48` and the packaging/provenance corrections are
+accepted at their tested scopes. The runtime records both worker repairs
+(caller context preserved at the thread bridge; cleanup bound to the claim
+generation) with a 15/15 worker/context matrix and 198 affected tests; an
+independent Agent 1 re-run at that runtime source passed 69 tests, including
+both verifier probes.
 
-Independent procurement evidence selection is now demonstrated at the
+Independent procurement evidence selection is demonstrated and accepted at the
 controlled local scope in `employee_g5_procurement_selection_7d4358ea6`: from
 a seven-document authorized pool, the served model's bounded correction
 selected the current invoice, matching PO and current receiving; reconciliation
 121.00, missing-source twin asked for the specific invoice and recovered on the
-same job after authorized addition; 26/26 checks and 323 affected tests. The
-earlier `80e3bd702` / `20f3ffc19` negatives remain historical at their sources.
+same job after authorized addition; 26/26 checks, 323 affected tests and 33/33
+Git. The earlier `80e3bd702` / `20f3ffc19` negatives remain historical at their
+sources.
 
-Automatic BYOK single-route selection is demonstrated at
-`employee_byok_auto_selection_0e04286b2`: five unpinned evidence-selection calls
-auto-selected and served the configured local route with raw route, usage and
-latency. The controlled two-route consumer matrix covers economy choice,
-measured-failure exclusion, costlier-route failure, scope/deadline refusal and
-honest no-suitable receipts. Served multi-model comparison remains open until
-another route is actually configured and authorized. No model/UI replay was
-used for the mechanical corrections above.
+Automatic BYOK available one-route selection and the controlled two-route
+consumer matrix are accepted at `employee_byok_auto_selection_0e04286b2`
+(114 affected tests; 14/14 Git). Served multi-model comparison remains open
+until another route is configured and authorized. The next finite priority is
+not another campaign: persist evaluated business outcomes into scoped routing
+feedback and prove the next decision changes. No model/UI replay was used for
+the mechanical corrections above.
 
 ## What this reconciliation does not claim
 
