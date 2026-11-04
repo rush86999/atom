@@ -1,0 +1,10 @@
+{
+  "invoice_id": "INV-SEL-77",
+  "po_id": "PO-SEL-520",
+  "quantity": 6,
+  "unit_price": 18.5,
+  "freight": 10.0,
+  "currency": "USD",
+  "invoice_date": "2026-10-28",
+  "note": "current supplier invoice"
+}

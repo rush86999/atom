@@ -1,0 +1,10 @@
+{
+  "invoice_id": "INV-SEL-76",
+  "po_id": "PO-SEL-999",
+  "quantity": 2,
+  "unit_price": 40.0,
+  "freight": 5.0,
+  "currency": "USD",
+  "invoice_date": "2026-10-27",
+  "note": "different purchase order"
+}

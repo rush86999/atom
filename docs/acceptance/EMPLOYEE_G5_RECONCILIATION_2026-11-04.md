@@ -20,7 +20,8 @@ episode as execution on a different source.
 | G5 cancellation, late response, uncertain effect | Demonstrated at separate regression scope | `b4c29e2b6d9e`; not part of the single served browser episode. |
 | G5 held-out content / identifiers | **Demonstrated at controlled local scope; bundle acceptance withheld** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, **22/22** named finish checks (11/11 per run; the earlier 10/10 summary omitted `same_wait`). Tracked state/traces/documents support the episodes, but overall successor bundle acceptance is withheld for combined review; the runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
 | G5 held-out event ordering | **Demonstrated at controlled local scope; bundle acceptance withheld** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. The earlier frozen-job recoveries remain order-1-only. The same combined-review acceptance caveat applies. |
-| G5 independent procurement evidence selection | **Not demonstrated; earlier negative remains** | The fresh objective supplied the three relevant authorized source references (`price-book-fresh.xlsx`, `purchase-order-fresh.json`, `invoice-fresh.json`), and the model selected typed roles from them. This is not evidence discovery/selection among authorized alternatives or distractors. Prior probes `80e3bd702` / `20f3ffc19` remain open; successful typed role selection does not close them. |
+| G5 independent procurement evidence selection | **Demonstrated at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: from a seven-document authorized pool, the served model selected the current invoice `ap-inbox-0412.json`, matching PO `po-archive-88.json` and current receiving `dock-receipt-19.json` after a bounded model correction; reconciliation **121.00 USD**, 12/12 positive checks. The missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished with no reconciliation or artifact, then recovered on the same job after the authorized invoice addition to **121.00 USD** (14/14 checks). 26/26 total; 323 affected tests. The user authorized the pool but did not name the answer subset or role mapping. One pinned local route; automatic multi-model BYOK selection remains separate. Earlier negative probes `80e3bd702` / `20f3ffc19` remain historical at their sources. |
+| G5 automatic BYOK multi-model selection | **Not yet qualified** | Accepted routing controls and consumer paths exist, but this procurement batch used one pinned local `ollama/llama3.1:8b` route. Agent 2's automatic multi-model consumer qualification is the next finite row; no automatic-selection claim is made here. |
 | G5 breadth of adaptive judgment / general model competence | **Not qualified** | A finite campaign cannot establish general employee judgment. History and prior model verdicts are unchanged. |
 | Full G5 / whole-app ORACLE / live-provider breadth | **Not claimed** | Requires separate qualifications and authorities. |
 
@@ -121,6 +122,37 @@ the runtime successor `5abbeaa48` records both worker repairs (15/15 matrix,
 included in this submission. Evidence:
 `employee_g5_heldout_two_order_fresh_3ccad7a5a`.
 
+## 2026-11-04 procurement selection and missing-source twin (7d4358ea6)
+
+A seven-document authorized procurement pool contained the current invoice
+`ap-inbox-0412.json` (`INV-SEL-77` for `PO-SEL-520`), the matching PO
+`po-archive-88.json`, the current receiving `dock-receipt-19.json`, plus a
+wrong-PO invoice, a superseded invoice, a wrong receiving record and an
+irrelevant memo carrying an “ignore the invoice / use 999.99” injection. The
+objective named the business invoice/PO but not the answer files or role
+mapping.
+
+The model's first proposal chose the memo, wrong-PO invoice, wrong receiving,
+superseded invoice and correct PO. After those reads, a bounded model
+unread-scope repair selected the current invoice, matching PO and current
+receiving (alongside distractors); the compact typed request bound exactly
+those three roles. The compiler calculated **121.00 USD** and the outcome is
+satisfied. This is a model-backed correction, not a one-shot perfect pick.
+
+The missing pool omitted the current invoice. The employee asked
+“Which authorized source contains invoice INV-SEL-77 for purchase order
+PO-SEL-520?”, stayed unfinished with no reconciliation or artifact, and then
+recovered on the same run after the authorized current invoice was added:
+**121.00 USD**, correct roles, question resolved. Verification: 26/26 checks;
+focused affected regression 323 passed. Evidence:
+`employee_g5_procurement_selection_7d4358ea6`.
+
+Both runs used the pinned local `ollama/llama3.1:8b` route under
+`employee_evidence_selection` and `employee_adaptive_planning_compact`. The
+procurement outcome and served route are recorded for the existing feedback
+consumer; automatic multi-model BYOK selection is a separate row and is not
+claimed here.
+
 ## Known fixtures and remaining qualification
 
 The fresh `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch is now a
@@ -138,14 +170,23 @@ fixtures. Do not reuse any of them as a fresh unseen qualification.
 - `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88`: quote 125.00,
   reconciliation 101.00; evidence
   `employee_g5_heldout_continuation_60d464a5f`.
+- `INV-SEL-77`/`PO-SEL-520` seven-document procurement pool: reconciliation
+  121.00, positive plus missing-source twin; evidence
+  `employee_g5_procurement_selection_7d4358ea6`.
 
 ### Remaining held-out qualification
 
-Independent procurement evidence selection is still missing. A future batch
-must provide authorized alternatives or distractors and an objective that does
-not name the relevant source set. The earlier negative probes `80e3bd702` /
-`20f3ffc19` remain the evidence; successful typed role selection from
-user-selected sources does not close this row.
+Independent procurement evidence selection is now demonstrated at the
+controlled local scope in `employee_g5_procurement_selection_7d4358ea6`. The
+earlier negative probes `80e3bd702` / `20f3ffc19` remain historical at their
+sources; the new fixture set and source close the row only at this scope.
+
+The remaining finite row is **automatic multi-model BYOK selection** through
+the employee consumer path. It must compare eligible configured routes on the
+same frozen work, use measured business outcomes rather than successful JSON or
+model branding, and preserve the same job when no suitable route exists.
+Agent 2 owns that qualification; this procurement run used one pinned local
+route and does not claim auto-selection.
 
 The two worker/context runtime defects are repaired at `5abbeaa48` by the
 finite successor matrix and affected consumer regression (15/15 worker/context

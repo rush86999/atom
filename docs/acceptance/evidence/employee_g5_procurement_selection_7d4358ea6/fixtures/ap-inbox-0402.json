@@ -1,0 +1,11 @@
+{
+  "invoice_id": "INV-SEL-70",
+  "po_id": "PO-SEL-520",
+  "quantity": 6,
+  "unit_price": 17.0,
+  "freight": 8.0,
+  "currency": "USD",
+  "invoice_date": "2026-09-02",
+  "status": "superseded",
+  "note": "superseded by INV-SEL-77; retained for audit only"
+}

@@ -1,0 +1,9 @@
+created configured local worlds root: /private/tmp/atom-source-select-final2/backend/data/acceptance_worlds
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a local directory (/private/tmp/atom-source-select-final2/backend/data/acceptance_worlds)
+world=/private/tmp/atom-source-select-final2/backend/data/acceptance_worlds/g5-source-selection-final2
+database=/private/tmp/atom-source-select-final2/backend/data/acceptance_worlds/g5-source-selection-final2/atom.db
+backend=http://127.0.0.1:8085 pid=31857 source=7d4358ea6708
+frontend=http://127.0.0.1:3136 pid=31884
+stop: kill -INT 31857 31884
