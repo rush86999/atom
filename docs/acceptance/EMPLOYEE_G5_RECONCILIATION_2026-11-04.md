@@ -18,8 +18,8 @@ episode as execution on a different source.
 | G5 employee-decided requested artifact from quote | Demonstrated at original source | `c7a265c37` and `62fa207647`; model-selected quote, verified receipt, artifact rendering and real revised-price reassessment. |
 | G5 real changed-source selective reassessment | Demonstrated at original source | `62fa207647` / `b4c29e2b6`; 370.00 → 425.00, prior and unrelated operation ids retained. |
 | G5 cancellation, late response, uncertain effect | Demonstrated at separate regression scope | `b4c29e2b6d9e`; not part of the single served browser episode. |
-| G5 held-out content / identifiers | **Same-job known-value recovery only; fresh unseen batch still missing** | `d40c94ee…` recovered quote 125.00 and reconciliation 101.00 on the frozen job at `b16172c8d` after two compact-path repairs, but `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` are now known. Evidence: `employee_g5_heldout_continuation_60d464a5f`. |
-| G5 held-out event ordering | **Partial — required order 1 on the frozen job; fresh two-order batch still missing** | Wait → independent quote → receiving source authorized → restart → exact reply → compact adoption → budget recovery → reconciliation → artifact. The second order (restart while waiting, source authorized after restart) is not demonstrated. |
+| G5 held-out content / identifiers | **Same-job known-value recoveries only; fresh unseen batch still missing** | `367efddf…` recovered 96.30/140.25 at `8995f433d` after the compact schema-echo repair, owner budget extension/retry and artifact verification (19/19; `employee_g5_heldout_recovery_8995f433d`). `d40c94ee…` recovered 125.00/101.00 at `b16172c8d` (`employee_g5_heldout_continuation_60d464a5f`). Both sets are now known. |
+| G5 held-out event ordering | **Partial — order 1 completed on both frozen jobs; fresh two-order batch still missing** | `367efddf…` at `8995f433d` and `d40c94ee…` completed wait → independent quote → receiving source authorized → restart → exact reply → reconciliation → artifact. The second order (restart while waiting, source authorized after restart) is not demonstrated. |
 | G5 breadth of adaptive judgment / general model competence | **Not qualified** | A finite campaign cannot establish general employee judgment. History and prior model verdicts are unchanged. |
 | Full G5 / whole-app ORACLE / live-provider breadth | **Not claimed** | Requires separate qualifications and authorities. |
 
@@ -70,15 +70,35 @@ every business requirement satisfied, requested document applied with sha256
 this world. This is a recovery/regression result, not a fresh held-out content
 or event-order qualification.
 
+## 2026-11-04 original PO-7302 / INV-4491 recovery (8995f433d)
+
+The original held-out timeout job `367efddf-c4b3-4e02-9ab2-23c737fd162e`
+was also continued on the same frozen state. At `3b3f9ef92` the compact call
+returned instructor's injected JSON schema (7 validation errors, no proposal).
+The prompt repair `e95d06bc9` / `8995f433d` names the instance shape and
+forbids schema echo; one bounded call then returned a valid typed replan in
+57.67 s on the pinned `ollama/llama3.1:8b`
+`employee_adaptive_planning_compact` route. The compiler adopted
+reconciliation, the executor refused the step pre-dispatch because the 900 s
+wall budget had elapsed during the offline gap, and the supported owner
+budget extension (900 → 3600 s) plus retry completed the same job:
+reconciliation **140.25 USD**, quote **96.30 USD** retained, artifact sha256
+`609281eb…`, 19/19 recovery checks. Evidence:
+`employee_g5_heldout_recovery_8995f433d`. This is a known-value recovery; the
+original negative batch `6bc97759284` remains and a fresh unseen
+qualification is still required.
+
 ## Next finite qualification batch
 
 Use one frozen source, one local-inference owner and one candidate pointer.
 Do not feed final plans, expected totals or the oracle into the employee.
 
-The `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` set below is now a known-value
-recovery/regression case after the `d40c94ee…` continuation. The final held-out
-claim requires a new unseen fixture set with new identifiers and values; do not
-reuse 125.00/101.00 as a fresh held-out result. Set an adequate wall/step budget
+The `PO-7302`/`INV-4491` set (96.30/140.25) and the
+`HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` set below are both known-value
+recovery/regression cases after the `367efddf…` and `d40c94ee…`
+continuations. The final held-out claim requires a new unseen fixture set with
+new identifiers and values; do not reuse either set or its totals as a fresh
+held-out result. Set an adequate wall/step budget
 up front (or use the increase-only owner route) so a budget boundary is not
 misdiagnosed as a model failure.
 

@@ -20,8 +20,8 @@ row's evidence.
 | Cancellation and late-response refusal | Demonstrated; regression-supported | `employee_g5_regression_b4c29e2b6d9e` (18/18); `2eb433f41` focused suite |
 | Controlled provider lost-confirmation/restart/reconcile/no resend | Demonstrated; regression-supported | regression bundle (11/11); `employee_g5_final_regressions_b4c29e2b6` |
 | Exact namespaced identity and empty-scope result invariant | Demonstrated on successor | `employee_identity_repair_2eb433f41` (410 tests; 16/16 Git) |
-| Held-out content with new identifiers/values and independent arithmetic | **Partial; completion missing** | `employee_g5_heldout_timeout_6bc97759284`: PO-7302/INV-4491 values; wait, quote 96.30, restart and answer passed; dependent 140.25 not produced because the local model adaptation timed out (`deadline_exceeded`, 180s then 300s). Job blocked, no artifact. Full held-out completion not established |
-| Held-out event order (e.g. independent work after restart, reply order) | **Missing as served evidence** | Served order was wait -> quote -> restart -> reply. No served alternate order. The ordering policy is covered by compiler/validation tests only |
+| Held-out content with new identifiers/values and independent arithmetic | **Same-job recovery only; fresh unseen qualification missing** | `employee_g5_heldout_timeout_6bc97759284` remains the preserved negative (PO-7302/INV-4491; wait, quote 96.30, restart and answer passed; adaptation timed out; no 140.25, no artifact). `employee_g5_heldout_recovery_8995f433d` recovers the same frozen job after the compact schema-echo repair: quote 96.30 retained, reconciliation 140.25, artifact verified, 19/19 checks. The pre-dispatch wall-budget refusal was resolved by the supported owner extension/retry; values are now known. `employee_g5_heldout_continuation_60d464a5f` is a separate known-value HX recovery. Fresh unseen values still required |
+| Held-out event order (e.g. independent work after restart, reply order) | **Partial — original order completed; alternate order missing** | The original order (wait -> quote -> restart -> reply -> reconciliation -> artifact) now completes on the frozen job in `employee_g5_heldout_recovery_8995f433d`; no served alternate order (restart while waiting, source authorized after restart). The ordering policy is covered by compiler/validation tests only |
 | Held-out two-domain evidence selection without user-picked sources | **Missing (model-quality boundary)** | Prior probe `80e3bd702` / `20f3ffc19`: quote pass, procurement selection negative; invoice source omitted. Not repaired by the wait/identity work |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
@@ -37,6 +37,13 @@ reconciliation was not produced: the local model's adaptation hit the bounded
 deadline (initial and compact retries), so the job stayed blocked with the
 required result unresolved and no artifact. This is evidence of the held-out
 model/timeout boundary, not a completed held-out qualification.
+
+Two same-job recoveries now exist at later sources:
+`employee_g5_heldout_continuation_60d464a5f`
+(HX-1/HX-2/PO-HX-7001; 125.00/101.00) and
+`employee_g5_heldout_recovery_8995f433d` (the original PO-7302/INV-4491 job;
+96.30/140.25). Both are known-value recoveries, not fresh held-out
+qualifications. The original negative remains valid.
 
 ## What this reconciliation does not claim
 

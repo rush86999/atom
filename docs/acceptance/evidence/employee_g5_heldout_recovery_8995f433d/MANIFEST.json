@@ -1,0 +1,72 @@
+{
+ "artifacts": {
+  "README.md": "ee33eeb86d97be18a63c4ac0dfa209603d851ff9e43df16ba0a73c3bb158eaff",
+  "TEST_RESULTS.md": "c351887d064c934378255b23a4cb3fc4be31da5efaeb933c17c38bf5e7f673f0",
+  "advance.json": "54f858645f687e728a1ae06c836f6c9fe1ffa61f666b0550bb65e332ef572899",
+  "attempts-compact.jsonl": "d32c2a501cf2644d1dbcbbb01d368956c3cdd475151856e39dc08ef0f105a991",
+  "attempts-schema-echo.jsonl": "c31b86a909a87ca53943e340b861182f01ab008693312bfb9c2fe13536708ad6",
+  "budget-extension.json": "6897b4d47dc3bb620ea8ee92279552a9348df88e6b2fad257625f2ddd51c54c8",
+  "durable-assignment.json": "3a6b99ebe202b88a917c0eb3be3bbe704de2224939453daf6da7f98b9b65df43",
+  "final-view.json": "fdc4c3de893868d5dfff6c23154abcbf6d1893910af96eca1e2f37b86b839780",
+  "focused-tests.log": "cc7315fe2030daab0030204cb4aa7550d2dac6d6138d47fca303e7d783251390",
+  "launch.log": "d957db826569ec934fe38a355718fdbd22afa231cb79e06ad64f927211bb8b42",
+  "retry.json": "6830d73b786cef3bc891d06b0d6ab3c71a6363915d201af58cefe3f26d98b738",
+  "review.docx": "609281eb3bdc5dd4a42ea14cc389fb60775271bb5225f017a4a2b2fe88474e2b",
+  "server.log": "f063af4097a6f57374698d06cf6cb647874eff0af2a749f521561d7c2c3666b1",
+  "verification.json": "aa3f71cbc7bc323660dbf74f71cdd451fd60834c9b7ef052c8f133cac5e7d183"
+ },
+ "boundaries": [
+  "not a fresh unseen-value held-out qualification",
+  "owner budget extension and retry were required after the offline diagnostic gap; the model call itself succeeded within its bound",
+  "alternate served event ordering not demonstrated",
+  "procurement evidence selection and broad adaptive judgment remain open",
+  "no live/cloud provider, credential, spend, send, download or deployment authority",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged",
+  "full G5 remains open"
+ ],
+ "checks": {
+  "budget": "owner extension 900s -> 3600s; supported retry of a pre-dispatch refusal",
+  "focused_tests": "422 passed",
+  "model_calls": "one compact dispatch; 57.67s; no repair or fallback",
+  "recovery": "19/19"
+ },
+ "evidence_note": "Evidence files were added after this source tip. A later concurrent commit fd6b929f3 adds a separate quote-while-waiting compact path; it is not part of this recovery's executed source or measured result.",
+ "evidence_tip": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
+ "executed_source": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
+ "health_identity_source": "8995f433d6fb",
+ "original_negative_evidence": "docs/acceptance/evidence/employee_g5_heldout_timeout_6bc97759284/",
+ "run": {
+  "artifact_sha256": "609281eb3bdc5dd4a42ea14cc389fb60775271bb5225f017a4a2b2fe88474e2b",
+  "artifact_size": 37549,
+  "capability_profile": "employee_adaptive_planning_compact",
+  "plan_revision": 6,
+  "quote": "96.30",
+  "quote_operation_id": "69ffdd84-8ba3-4d90-83de-43551313d432",
+  "reconciliation": "140.25",
+  "reconciliation_operation_id": "69ad7a27-cfb6-4a48-8baa-bf51f9d6616c",
+  "run_id": "367efddf-c4b3-4e02-9ab2-23c737fd162e",
+  "served_route": {
+   "model": "llama3.1:8b",
+   "provider": "ollama"
+  },
+  "status": "completed",
+  "wait_id": "await-ca15973cbdcbe5ff480c"
+ },
+ "schema": "atom-employee-evidence-1",
+ "source_files": {
+  "backend/api/assignment_routes.py": "b4412cd6d6e6905b09b61eeefb2ab579ff7d76864dd2f37ff138cda0afed079d",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/core/employee_adaptation.py": "dd3fe402c5ccb0a553ef0d965102dfdde70323c356165384074b1e86ee3d7d6c",
+  "backend/core/employee_attempt_journal.py": "63984ce2c5addd3c3e5423538bb5393c48dc17636e1fe38f92db7fd0cd85ab98",
+  "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+  "backend/core/employee_proposal.py": "f87313d90cf88033358712936ab8767280b900e40f6805ba28c3f6adfbf14a64",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/llm/byok_handler.py": "014c1d07e93e1f026451c6141890b13fea11cf3e5f7548be0640337a0d21fafc",
+  "backend/core/llm/capability_profiles.py": "c21d25f08da1f10790da3dd3f116e3ff45563545ad40fc8dbeb16740797fdf1f",
+  "backend/core/llm/pinned_planning.py": "3da871ba33d36b436c3e6120d46c3410f6061c7ffcf5cff5f53119a7dcfc02c7",
+  "scripts/acceptance/employee_g5_heldout_two_domain.py": "6c2721f16067fdbd47b1a22f636cc622e217793e9f57606b5c2b1808dbecb3ce"
+ },
+ "status": "same-job recovery of the original held-out timeout job supported; fresh held-out content/event-order still open",
+ "tree_clean_at_run": true
+}
