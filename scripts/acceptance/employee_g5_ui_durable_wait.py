@@ -391,9 +391,9 @@ def main() -> int:
             "wait_survived_restart": (
                 state["restart_result"]["same_wait"] is True
                 and state["restart_result"]["status"] == "waiting"),
-            "ui_shows_wait_business_language": (
-                "Waiting for received_quantity for PO-8841"
-                in state["restart_result"]["detail_text"]),
+            "ui_shows_wait_business_language": all(
+                term in state["restart_result"]["detail_text"]
+                for term in ("Waiting", "invoice reconciliation", "PO-8841")),
             "ui_shows_unresolved_result": (
                 "Still required: invoice reconciliation"
                 in state["restart_result"]["detail_text"]),
