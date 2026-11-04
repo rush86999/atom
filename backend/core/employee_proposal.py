@@ -201,6 +201,16 @@ def _evidence_preview(item: Mapping[str, Any]) -> Dict[str, Any]:
         "unit": _text(item.get("unit"), 40) or None,
         "rows": rows,
         "data": dict(item.get("data") or {}),
+        "data_keys": [
+            str(key) for key in (item.get("data_keys") or [])[:40]
+        ],
+        "data_preview": {
+            str(key): value
+            for key, value in list(
+                (item.get("data_preview") or {}).items())[:20]
+            if isinstance(value, (str, int, float, bool, type(None)))
+        },
+        "business_role": _text(item.get("business_role"), 40) or None,
         "schema": [
             dict(field) for field in (item.get("schema") or [])[:40]
             if isinstance(field, Mapping)
@@ -257,6 +267,7 @@ def build_employee_context(
     stage: str = "discovery",
     available_work_requests: Optional[Sequence[str]] = None,
     operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
+    waiting: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -286,17 +297,6 @@ def build_employee_context(
     else:
         operation_names = list(available_work_requests)
         ready_names = set(operation_names)
-    schemas = (
-        [
-            schema for schema in work_request_schemas()
-            if (
-                not eligibility
-                and available_work_requests is None
-            )
-            or schema.get("operation") in ready_names
-        ]
-        if follow_up_stage else []
-    )
     operations = (
         _operation_views(available_work_requests, eligibility)
         if follow_up_stage else []
@@ -313,6 +313,24 @@ def build_employee_context(
         for item in operations
         if str(item.get("status") or "") in ("missing", "ambiguous")
     ]
+    schemas = (
+        [
+            schema for schema in work_request_schemas()
+            if (
+                not eligibility
+                and available_work_requests is None
+            )
+            or schema.get("operation") in ready_names
+            # A material external fact is a valid typed intent whenever the
+            # objective has a declared missing prerequisite, even though it is
+            # not itself a business capability.
+            or (
+                schema.get("operation") == "await_evidence"
+                and bool(missing_prerequisites) and bool(ready_names)
+            )
+        ]
+        if follow_up_stage else []
+    )
     return {
         "schema": PROPOSAL_SCHEMA,
         "objective": _text(objective, 4000),
@@ -391,6 +409,27 @@ def build_employee_context(
             for item in (open_obligations or [])[:MAX_CONTEXT_OBLIGATIONS]
             if isinstance(item, Mapping)
         ],
+        "waiting": [
+            {
+                "step_id": _text(item.get("step_id"), 80),
+                "fact": _text(item.get("fact"), 120),
+                "subject": _text(item.get("subject"), 200),
+                "party": _text(item.get("party"), 200),
+                "detail": _text(item.get("detail"), 300),
+                "blocks": _text(item.get("blocks"), 500),
+                "expected_answer_type": _text(
+                    item.get("expected_answer_type"), 40),
+                "correlation_id": _text(item.get("correlation_id"), 120),
+                "since": _text(item.get("since"), 40),
+            }
+            for item in (waiting or [])[:10]
+            if isinstance(item, Mapping) and item.get("fact")
+        ],
+        "ready_operations": [
+            _text(item.get("operation"), 120)
+            for item in operations
+            if str(item.get("status") or "") == "ready"
+        ],
         "authorized_actions": [
             _text(item, 120) for item in (authorized_actions or [])
             if str(item).strip()
@@ -436,9 +475,14 @@ def build_employee_context(
                 "allowed_proposal_kinds": (
                     ["replan", "clarify"] if missing_prerequisites
                     else ["replan"]),
-                "allowed_work_requests": [
-                    item["operation"] for item in operations
-                    if item.get("operation") in ready_names],
+                "allowed_work_requests": list(dict.fromkeys([
+                    *[
+                        item["operation"] for item in operations
+                        if item.get("operation") in ready_names
+                    ],
+                    *(["await_evidence"]
+                      if missing_prerequisites and ready_names else []),
+                ])),
                 "can_execute": False,
                 "can_grant_authority": False,
                 "can_supply_receipts": False,
@@ -793,6 +837,13 @@ def context_from_record(
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
     scoped_sources = scoped_source_views(assignment)
+    waiting = []
+    for step in assignment.get("steps") or []:
+        item = step.get("waiting") if isinstance(
+            step.get("waiting"), Mapping) else None
+        if str(step.get("status") or "") != "waiting" or not item:
+            continue
+        waiting.append({"step_id": step.get("step_id"), **dict(item)})
     return build_employee_context(
         objective=assignment.get("objective") or "",
         employee_id=assignment.get("employee_id") or "",
@@ -822,6 +873,7 @@ def context_from_record(
             item["operation"] for item in eligibility
             if item.get("status") != "unavailable"],
         operation_eligibility=eligibility,
+        waiting=waiting,
     )
 
 
@@ -1084,6 +1136,9 @@ def compile_employee_proposal(
                     "errors": [f"compiled source {source_id!r} disappeared"],
                     "plan_kwargs": None,
                 }
+            if source_id in selected_ids:
+                # The same handle selected twice is one durable read.
+                continue
             if selected_ids:
                 # The first proposal selects one evidence read. Other
                 # authorized handles stay in the retained scope for the next
@@ -1168,6 +1223,33 @@ def employee_job_view(
         "open_obligations": [
             dict(item) for item in (open_obligations or [])
             if isinstance(item, Mapping)
+        ],
+        "waiting": [
+            {
+                "step_id": step.get("step_id"),
+                "fact": (step.get("waiting") or {}).get("fact"),
+                "subject": (step.get("waiting") or {}).get("subject"),
+                "party": (step.get("waiting") or {}).get("party"),
+                "detail": (step.get("waiting") or {}).get("detail"),
+                "blocks": (step.get("waiting") or {}).get("blocks"),
+                "expected_answer_type": (step.get("waiting") or {}).get(
+                    "expected_answer_type"),
+                "correlation_id": (step.get("waiting") or {}).get(
+                    "correlation_id"),
+                "since": (step.get("waiting") or {}).get("since"),
+            }
+            for step in steps
+            if str(step.get("status") or "") == "waiting"
+            and isinstance(step.get("waiting"), Mapping)
+            and (step.get("waiting") or {}).get("correlation_id")
+        ],
+        "ready_work": [
+            {
+                "operation": item.get("operation"),
+                "label": item.get("label") or item.get("operation"),
+            }
+            for item in operation_capabilities(assignment)
+            if str(item.get("status") or "") == "ready"
         ],
         "budget": dict(assignment.get("budget") or {}),
         "status": assignment.get("status"),

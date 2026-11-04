@@ -116,6 +116,18 @@ export interface AssignmentDetail {
       } | null;
     }>;
     open_obligations?: Array<Record<string, any>>;
+    waiting?: Array<{
+      step_id?: string;
+      fact?: string;
+      subject?: string;
+      party?: string;
+      detail?: string;
+      blocks?: string;
+      expected_answer_type?: string;
+      correlation_id?: string;
+      since?: string;
+    }>;
+    ready_work?: Array<{ operation?: string; label?: string }>;
   };
 }
 
@@ -351,11 +363,12 @@ export async function recordAssignmentResponse(
   correlationId: string,
   response: string,
   evidence = "",
-  value?: unknown
+  value?: unknown,
+  source = ""
 ): Promise<Record<string, any>> {
   const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/responses/${encodeURIComponent(correlationId)}`,
-    { response, evidence, value }
+    { response, evidence, value, source }
   );
   return data;
 }

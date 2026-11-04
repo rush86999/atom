@@ -6,6 +6,8 @@ predicates are issued here. The model never writes execution mechanics.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -27,6 +29,7 @@ from core.employee_money_terms import (
     validate_role_value,
 )
 from core.employee_work_requests import (
+    AwaitEvidenceRequest,
     InvoiceReconciliationRequest,
     QuoteCalculationRequest,
 )
@@ -95,6 +98,8 @@ def _unique_id(assignment: Mapping[str, Any], base: str) -> str:
 
 
 def _evidence_ids(request: Any) -> List[str]:
+    if isinstance(request, AwaitEvidenceRequest):
+        return []
     if isinstance(request, QuoteCalculationRequest):
         return [request.source_step_id]
     if isinstance(request, InvoiceReconciliationRequest):
@@ -884,6 +889,95 @@ def _invoice_patch(
     return patch
 
 
+def _await_key(value: Any) -> str:
+    return " ".join(
+        str(value or "").lower().replace("_", " ").split())
+
+
+def _await_correlation(
+    assignment: Mapping[str, Any], request: AwaitEvidenceRequest,
+) -> str:
+    """Server-derived durable identity; the model never authors it."""
+    provenance = assignment.get("provenance") or {}
+    run_id = str(
+        provenance.get("run_id") or assignment.get("assignment_id") or "")
+    payload = {
+        "run_id": run_id,
+        "fact": _await_key(request.fact),
+        "subject": _await_key(request.subject),
+        "expected_from": _await_key(request.expected_from),
+    }
+    digest = hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:20]
+    return f"await-{digest}"
+
+
+def _await_patch(
+    request: AwaitEvidenceRequest,
+    assignment: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    if not _await_key(request.fact):
+        raise WorkRequestCompileError("await_evidence requires a material fact")
+    if not _await_key(request.subject):
+        raise WorkRequestCompileError("await_evidence requires a subject")
+    if not _await_key(request.expected_from):
+        raise WorkRequestCompileError(
+            "await_evidence requires the authorized source or channel that "
+            "is expected to answer")
+    if not _await_key(request.blocks):
+        raise WorkRequestCompileError(
+            "await_evidence must explain which dependent work it blocks")
+    wanted = (
+        _await_key(request.fact), _await_key(request.subject))
+    for step in assignment.get("steps") or []:
+        if str(step.get("adapter") or "") != "assignment.wait":
+            continue
+        inputs = step.get("inputs") or {}
+        existing = (
+            _await_key(inputs.get("fact")), _await_key(inputs.get("subject")))
+        if existing == wanted and str(step.get("status") or "") in (
+                "pending", "waiting", "applied"):
+            raise WorkRequestCompileError(
+                "an equivalent external fact is already awaited for this "
+                "subject; resolve or supersede that durable wait instead of "
+                "creating another")
+    correlation = _await_correlation(assignment, request)
+    step_id = _unique_id(assignment, "await")
+    patch = _base_patch(assignment, request, context)
+    patch["observations"].append({
+        "kind": "await_evidence",
+        "fact": request.fact,
+        "subject": request.subject,
+        "expected_from": request.expected_from,
+        "expected_answer_type": request.expected_answer_type,
+        "correlation_id": correlation,
+    })
+    patch["add_steps"] = [{
+        "step_id": step_id,
+        "title": f"Wait for {request.fact} for {request.subject}"[:200],
+        "operation_type": "retrieve",
+        "adapter": "assignment.wait",
+        "depends_on": [],
+        "inputs": {
+            "correlation_id": correlation,
+            "party": request.expected_from,
+            "detail": f"{request.fact} for {request.subject}"[:300],
+            "fact": request.fact,
+            "subject": request.subject,
+            "expected_answer_type": request.expected_answer_type,
+            "blocks": request.blocks,
+            "deadline": request.deadline or "",
+            "validity": request.validity or "",
+        },
+        "effect": "read_only",
+        "requires": [],
+        "required": True,
+    }]
+    return patch
+
+
 def compile_work_request_patch(
     request: Any,
     assignment: Mapping[str, Any],
@@ -900,6 +994,8 @@ def compile_work_request_patch(
         patch = _quote_patch(request, assignment, context)
     elif isinstance(request, InvoiceReconciliationRequest):
         patch = _invoice_patch(request, assignment, context)
+    elif isinstance(request, AwaitEvidenceRequest):
+        patch = _await_patch(request, assignment, context)
     else:
         try:
             if isinstance(request, Mapping):
@@ -911,6 +1007,10 @@ def compile_work_request_patch(
                 elif operation == "invoice_reconciliation":
                     patch = _invoice_patch(
                         InvoiceReconciliationRequest.model_validate(
+                            dict(request)), assignment, context)
+                elif operation == "await_evidence":
+                    patch = _await_patch(
+                        AwaitEvidenceRequest.model_validate(
                             dict(request)), assignment, context)
                 else:
                     raise WorkRequestCompileError(

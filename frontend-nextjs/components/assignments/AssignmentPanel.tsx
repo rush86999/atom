@@ -1149,12 +1149,30 @@ export function AssignmentPanel({
             <div className="rounded border border-amber-300 bg-amber-50 p-2">
               <p className="font-medium">Correlated response</p>
               <p className="text-[10px]">
-                Waiting for {waitingParty || "an external reply"} on{" "}
-                {String(step.waiting.correlation_id)}
-                {step.waiting.fact
-                  ? ` · missing fact: ${String(step.waiting.fact)}`
-                  : ""}. Paste only the authorized response; it is evidence,
-                not teaching.
+                Waiting for{" "}
+                {String(step.waiting.detail || step.waiting.fact
+                  || "an external fact")}{" "}
+                from {waitingParty || "an authorized source"}
+                {step.waiting.subject
+                  ? ` · subject: ${String(step.waiting.subject)}`
+                  : ""}.
+                {step.waiting.blocks
+                  ? ` This blocks ${String(step.waiting.blocks)}.`
+                  : ""}
+              </p>
+              <p className="text-[10px] text-slate-600">
+                {detail.employee_job.ready_work?.length
+                  ? `Work that can continue: ${detail.employee_job.ready_work
+                      .map((item) => item.label || item.operation)
+                      .join(", ")}.`
+                  : "No independent work is ready until the reply arrives."}
+              </p>
+              <p className="text-[10px]">
+                Paste only the authorized response
+                {step.waiting.expected_answer_type
+                  ? ` (expected ${String(step.waiting.expected_answer_type)})`
+                  : ""}
+                ; it is evidence, not teaching.
               </p>
               <div className="mt-1 space-y-1">
                 <input
@@ -1183,7 +1201,8 @@ export function AssignmentPanel({
                         String(step.waiting.correlation_id),
                         responseDraft,
                         "",
-                        resolutionValue.trim() || undefined
+                        resolutionValue.trim() || undefined,
+                        String(step.waiting.party || "")
                       );
                       if (result?.status === "conflict"
                           || result?.status === "partial"

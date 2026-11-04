@@ -6,6 +6,7 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+import copy
 import json
 import mimetypes
 import os
@@ -858,6 +859,78 @@ def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
     return consumed
 
 
+def _mark_wait_reviewed(
+    executor: Any, run_id: str, step_id: str,
+) -> None:
+    """Bound independent-work review to one attempt per durable wait."""
+    from core.assignment_plan import step_by_id
+
+    def compute(record, assignment):
+        new_plan = copy.deepcopy(assignment)
+        step = step_by_id(new_plan, step_id)
+        if step is not None and isinstance(step.get("waiting"), dict):
+            waiting = dict(step["waiting"])
+            waiting["reviewed_at"] = datetime.now(timezone.utc).isoformat()
+            waiting["reviewed_by"] = "employee"
+            step["waiting"] = waiting
+        return new_plan, {}
+
+    try:
+        executor.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale="employee reviewed independent work during a wait")
+    except Exception:  # noqa: BLE001 — review marker is advisory
+        pass
+
+
+def _waiting_observations(
+    assignment: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Fresh reasoning observation for a durable wait with ready work.
+
+    The observation carries the blocked fact and the operations that remain
+    ready. Its id is server-derived from the durable wait, so a consumed wait
+    observation cannot drive a second identical proposal.
+    """
+    observations: List[Dict[str, Any]] = []
+    consumed = set()
+    for history in assignment.get("patch_history") or []:
+        for observed in history.get("observations") or []:
+            value = (
+                observed.get("observation_id") or observed.get("id")
+                if isinstance(observed, dict) else observed)
+            if value:
+                consumed.add(str(value))
+    for step in assignment.get("steps") or []:
+        if str(step.get("status") or "") != "waiting":
+            continue
+        if str(step.get("adapter") or "") != "assignment.wait":
+            continue
+        waiting = step.get("waiting") or {}
+        if waiting.get("reviewed_at"):
+            # The employee already considered independent work for this
+            # durable wait; only fresh evidence may ask again.
+            continue
+        correlation = str(waiting.get("correlation_id") or "").strip()
+        if not correlation:
+            continue
+        observation_id = f"waiting-{correlation}"
+        if observation_id in consumed:
+            continue
+        observations.append({
+            "observation_id": observation_id,
+            "kind": "waiting_state",
+            "step_id": step.get("step_id"),
+            "reason": (
+                f"waiting for {waiting.get('fact') or 'an external fact'} "
+                f"for {waiting.get('subject') or 'the subject'} from "
+                f"{waiting.get('party') or 'the authorized source'}; "
+                f"blocks {waiting.get('blocks') or 'dependent work'}"),
+        })
+        break
+    return observations
+
+
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
@@ -881,6 +954,7 @@ async def _advance_employee_work(
         deterministic_unread_evidence_proposal, evidence_observations,
         missing_prerequisite_question, unread_authorized_sources,
     )
+    from core.employee_proposal import operation_capabilities
     from core.task_lifecycle import open_unresolved_questions
 
     deadline = time.monotonic() + max(0.0, float(deadline_seconds))
@@ -891,9 +965,19 @@ async def _advance_employee_work(
         status = str(assignment.get("status") or "")
         if status in ("failed", "cancelled"):
             break
-        if open_unresolved_questions(record):
+        # An open obligation blocks its dependent scope, not the whole job.
+        # Independent work may proceed while another capability waits for a
+        # material fact; the compiled request and readiness predicates still
+        # decide what is executable.
+        ready_operations = [
+            item for item in operation_capabilities(assignment)
+            if str(item.get("status") or "") == "ready"
+        ]
+        if open_unresolved_questions(record) and not ready_operations:
             break
         observations = evidence_observations(record)
+        if not observations and status == "waiting" and ready_operations:
+            observations = _waiting_observations(assignment)
         if status == "completed" and not (
                 allow_completed_evidence and observations):
             break
@@ -903,11 +987,23 @@ async def _advance_employee_work(
         context = context_from_record(
             record, action_views=action_views(assignment))
         unread = unread_authorized_sources(assignment)
-        # Discovery continuation: if no supported business operation is ready
-        # but authorized sources remain unread, let the model choose an
-        # additional read from the retained handles. The compiler validates
-        # the handle and materializes the read; no upload or new authority.
-        if unread and not context.get("work_request_schemas"):
+        waiting_open = any(
+            str(step.get("status") or "") == "waiting"
+            and str(step.get("adapter") or "") == "assignment.wait"
+            for step in assignment.get("steps") or [])
+        # Discovery continuation: let the model choose an additional read from
+        # the retained handles when no supported operation is ready yet, or
+        # when a declared prerequisite is a business record that the remaining
+        # authorized scope can still supply. The compiler validates the handle;
+        # no upload or new authority.
+        needs_more_evidence = any(
+            str(item.get("status") or "") in (
+                "unavailable", "missing", "ambiguous")
+            for item in context.get("available_business_operations") or []
+            if isinstance(item, dict))
+        if unread and (
+                not context.get("work_request_schemas")
+                or (needs_more_evidence and not waiting_open)):
             remaining = max(0.0, deadline - time.monotonic())
             discovery = await propose_employee_work(
                 context, llm_service=llm,
@@ -1035,6 +1131,11 @@ async def _advance_employee_work(
             context, observations, assignment=assignment, llm_service=llm,
             provider_model=provider_model,
             deadline=deadline)
+        for observed in observations:
+            if observed.get("kind") == "waiting_state" and observed.get(
+                    "step_id"):
+                _mark_wait_reviewed(
+                    executor, run_id, str(observed["step_id"]))
         proposal = proposal_result.get("proposal") or {}
         round_record = {
             "source": proposal_result.get("source"),
@@ -1373,7 +1474,7 @@ async def start_employee_objective(
             "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
         adaptive_rounds = await _advance_employee_work(
             executor, run_id, llm, provider_model=provider_model,
-            deadline_seconds=deadline_seconds)
+            deadline_seconds=deadline_seconds, max_rounds=5)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
@@ -2004,6 +2105,7 @@ async def record_assignment_response(
     correlation_id: str,
     body: AssignmentExternalResponse,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
@@ -2026,7 +2128,24 @@ async def record_assignment_response(
         # partial answer and the wait remains open. Do not resume and do not
         # turn it into a generic assignment projection the UI cannot explain.
         return result
-    return await executor.resume(run_id)
+    resumed = await executor.resume(run_id)
+    # An authorized reply can make a previously blocked capability ready.
+    # Hand the fresh evidence to the same adaptation contract so the model,
+    # not the route, chooses the supported next work.
+    if result.get("status") == "resumed":
+        assignment = executor.lifecycle.get_assignment(run_id) or {}
+        provenance = assignment.get("provenance") or {}
+        if str(provenance.get("proposal_source") or "") in (
+                "model", "model_repaired"):
+            llm = _employee_llm(current_user, db)
+            rounds = await _advance_employee_work(
+                executor, run_id, llm, max_rounds=1,
+                deadline_seconds=180.0,
+                provider_model=_employee_provider_model(),
+                allow_completed_evidence=True)
+            if rounds:
+                return {**resumed, "adaptive_rounds": rounds}
+    return resumed
 
 
 @router.post("/{run_id}/gaps/{question_id}/resolve")

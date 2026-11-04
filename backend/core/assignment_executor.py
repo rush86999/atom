@@ -1125,6 +1125,46 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
         columns += list(inputs.get("columns") or [])
         result = step.get("result") or {}
         columns += list(result.get("columns") or [])
+        # A structured record read (for example an authorized JSON receiving
+        # record) carries the fact in one object rather than a column schema.
+        # It qualifies only when the fact key is present and the read is not
+        # truncated; the subject comes from the record's own identity.
+        structured = result.get("data") if isinstance(
+            result.get("data"), dict) else {}
+        structured_key = next((
+            key for key in structured
+            if _normalized_fact_name(key) == wanted), None)
+        if structured and structured_key is not None:
+            if result.get("truncated") is True:
+                return {
+                    "status": "incomplete",
+                    "reason": "accepted_coverage_incomplete",
+                    "fact": fact,
+                    "source": {
+                        "resource_id": binding.get("resource_id"),
+                        "dataset_name": binding.get("dataset_name"),
+                        "file_name": binding.get("original_file_name"),
+                        "source_version": binding.get("source_version"),
+                    },
+                    "source_version": binding.get("source_version"),
+                }
+            subject = str(
+                structured.get("po_id")
+                or structured.get("subject_id")
+                or structured.get("id")
+                or "record")
+            source = {
+                "resource_id": binding.get("resource_id"),
+                "dataset_name": binding.get("dataset_name"),
+                "file_name": binding.get("original_file_name"),
+                "sheet": binding.get("sheet"),
+                "source_version": binding.get("source_version"),
+                "column": str(structured_key),
+                "coverage": dict(binding.get("coverage") or {}),
+            }
+            return _fact_resolution_from_records(
+                [{"subject": subject, "value": structured.get(structured_key)}],
+                fact=fact, column=str(structured_key), source=source)
         column = next((
             item for item in columns
             if _normalized_fact_name(item) == wanted), None)
@@ -3373,6 +3413,23 @@ class AssignmentExecutor:
             raise AssignmentError(f"no task record on run {run_id}")
         assignment_status = str(
             (record.get("assignment") or {}).get("status") or "")
+        # A replay of an already-accepted reply is idempotent even after the
+        # assignment becomes terminal: it neither revives nor re-executes
+        # anything. A brand-new late reply on terminal work still refuses.
+        for step in (record.get("assignment") or {}).get("steps") or []:
+            prior = step.get("external_response") if isinstance(
+                step.get("external_response"), dict) else {}
+            if (str(prior.get("correlation_id") or "") == str(
+                    correlation_id or "")
+                    and str(step.get("status") or "") == "applied"):
+                return {
+                    "status": "already_applied",
+                    "assignment_status": assignment_status,
+                    "message": (
+                        "This authorized reply was already accepted for the "
+                        "durable wait; no second effect or resume was made."),
+                    "step_id": step.get("step_id"),
+                }
         if assignment_status in TERMINAL_ASSIGNMENT_STATES:
             # A late reply must not match or wake terminal work, even when a
             # cancelled step still carries its historical wait record.
@@ -3395,6 +3452,7 @@ class AssignmentExecutor:
             }
         from core.task_lifecycle import open_unresolved_questions
 
+        assignment = record.get("assignment") or {}
         for question in open_unresolved_questions(record):
             waiting = question.get("waiting") or {}
             if str(waiting.get("correlation_id") or "") != str(
@@ -3414,6 +3472,66 @@ class AssignmentExecutor:
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
+            typed_binding = bool(waiting.get("typed_binding"))
+            expected_type = str(
+                waiting.get("expected_answer_type") or "").strip()
+            reply_value = value if value not in (None, "") else response
+            if typed_binding and expected_type in (
+                    "quantity", "amount", "price"):
+                try:
+                    parsed = Decimal(str(reply_value).strip())
+                except (InvalidOperation, ValueError):
+                    return {
+                        "status": "conflict",
+                        "message": (
+                            f"The authorized reply for '{waiting.get('fact')}' "
+                            "does not carry the expected "
+                            f"{expected_type}."),
+                        "fact": waiting.get("fact"),
+                        "conflict": {
+                            "correlation_id": correlation_id,
+                            "reason": "invalid_answer_type",
+                            "expected": expected_type,
+                            "response": _bounded(response, 2000),
+                            "at": _utc_now_iso(),
+                        },
+                    }
+                if not parsed.is_finite() or parsed < 0:
+                    return {
+                        "status": "conflict",
+                        "message": (
+                            f"The authorized reply for '{waiting.get('fact')}' "
+                            f"must be a finite nonnegative {expected_type}."),
+                        "fact": waiting.get("fact"),
+                        "conflict": {
+                            "correlation_id": correlation_id,
+                            "reason": "invalid_answer_value",
+                            "expected": expected_type,
+                            "response": _bounded(response, 2000),
+                            "at": _utc_now_iso(),
+                        },
+                    }
+            expected_party = _normalized_fact_name(waiting.get("party"))
+            actual_party = _normalized_fact_name(source)
+            if (typed_binding and expected_party and actual_party
+                    and expected_party not in actual_party
+                    and actual_party not in expected_party):
+                return {
+                    "status": "conflict",
+                    "message": (
+                        f"The reply came from '{source}', not the expected "
+                        f"authorized source/channel "
+                        f"'{waiting.get('party')}'."),
+                    "fact": waiting.get("fact"),
+                    "conflict": {
+                        "correlation_id": correlation_id,
+                        "reason": "wrong_source_channel",
+                        "expected": waiting.get("party"),
+                        "actual": source,
+                        "response": _bounded(response, 2000),
+                        "at": _utc_now_iso(),
+                    },
+                }
             fact = str(waiting.get("fact") or "").strip()
             fact_resolution = (
                 _source_fact_resolution(record, fact)
@@ -6644,6 +6762,80 @@ _READ_ONLY_RESEARCH_ACTIONS = {
     "documents.search", "search_communications", "documents.ls",
     "documents.cat", "documents.read",
 }
+
+
+@register_assignment_adapter(
+    "assignment.wait",
+    description="Durably wait for one authorized external business fact",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False})
+async def _assignment_wait(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Persist a typed wait; an accepted reply becomes evidence.
+
+    The compiler owns the correlation id and subject binding. This adapter
+    never contacts a provider: it raises ``WaitingForExternal`` until the
+    authorized reply arrives through the normal response route, then reports
+    the received value as evidence for dependent work.
+    """
+    step = context.get("step") or {}
+    response = step.get("external_response")
+    if isinstance(response, dict) and response:
+        fact = str(inputs.get("fact") or "").strip()
+        value = response.get("value")
+        confirmation = response.get("fact_confirmation") if isinstance(
+            response.get("fact_confirmation"), dict) else {}
+        confirmed_values = confirmation.get("values") or []
+        if value in (None, "") and confirmed_values:
+            value = confirmed_values[0]
+        if value in (None, ""):
+            value = response.get("response")
+        return {
+            "status": "applied",
+            "summary": f"received {fact or 'the awaited fact'}",
+            "value": value,
+            "data": {
+                "fact": fact,
+                "subject": str(inputs.get("subject") or ""),
+                "value": value,
+            },
+            "verification": {
+                "status": "verified",
+                "resource_id": str(response.get("source") or ""),
+                "version": str(response.get("correlation_id") or ""),
+            },
+            "evidence": [{
+                "kind": "external_response",
+                "correlation_id": response.get("correlation_id"),
+                "source": response.get("source"),
+                "fact": fact,
+                "subject": str(inputs.get("subject") or ""),
+            }],
+        }
+    fact = str(inputs.get("fact") or "").strip()
+    subject = str(inputs.get("subject") or "").strip()
+    party = str(inputs.get("party") or "authorized source")
+    detail = str(inputs.get("detail") or fact or "external fact")
+    raise WaitingForExternal({
+        "event": "external_fact",
+        "state": "waiting_for_external",
+        "party": party,
+        "correlation_id": inputs.get("correlation_id"),
+        "resume_on": "response",
+        "detail": detail,
+        "fact": fact,
+        "subject": subject,
+        "expected_answer_type": str(
+            inputs.get("expected_answer_type") or ""),
+        "blocks": str(inputs.get("blocks") or ""),
+        "deadline": str(inputs.get("deadline") or ""),
+        "validity": str(inputs.get("validity") or ""),
+        # Only the compiler-owned await contract opts into strict subject,
+        # source/channel and typed-answer binding. Legacy/controlled waits keep
+        # their historical correlation-only matching.
+        "typed_binding": True,
+    })
 
 
 @register_assignment_adapter(
