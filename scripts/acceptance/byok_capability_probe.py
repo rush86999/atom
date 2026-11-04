@@ -10,9 +10,12 @@ from __future__ import annotations
 import json
 
 from core.llm.capability_profiles import (
+    apply_capability_recoveries,
     escalation_candidate,
     get_profile,
+    parse_evidence_rows,
     pin_decision,
+    recover_capability_quarantine,
     select_profile_candidates,
 )
 
@@ -59,6 +62,46 @@ def main() -> int:
         profile, "fast", "flash", quality=90, context_window=32768)
     bad_pin = pin_decision(
         profile, "local", "llama3.1:8b", quality=75, context_window=8192)
+
+    def rows(*, quality=True, workspace="ws-a", failure=""):
+        return [{
+            "tenant_id": "t-a", "model_id": "flash", "success": True,
+            "quality_satisfied": quality,
+            "prompt_features": {
+                "capability_profile": profile.name,
+                "profile_version": profile.version,
+                "workspace_id": workspace,
+                "route_provider": "fast",
+                "failure_kind": failure,
+            },
+        } for _ in range(6)]
+
+    semantic_evidence = parse_evidence_rows(
+        rows(quality=False), profile, workspace_id="ws-a",
+        tenant_id="t-a")
+    semantic_bad = select_profile_candidates(
+        profile, [candidate("fast", "flash", 90, 1.0)],
+        evidence=semantic_evidence)
+    missing_scope = parse_evidence_rows(
+        rows(workspace=""), profile, workspace_id="ws-a",
+        tenant_id="t-a")
+    unsafe_rows = rows(quality=False, failure="unsafe_action")[:1]
+    unsafe_evidence = parse_evidence_rows(
+        unsafe_rows, profile, workspace_id="ws-a", tenant_id="t-a")
+    unsafe_blocked = select_profile_candidates(
+        profile, [candidate("fast", "flash", 90, 1.0)],
+        evidence=unsafe_evidence)
+    recover_capability_quarantine(
+        profile, "fast", "flash", reviewed_by="probe-reviewer",
+        reason="controlled recovery", workspace_id="ws-a",
+        tenant_id="t-a")
+    recovered = apply_capability_recoveries(
+        profile, parse_evidence_rows(
+            unsafe_rows, profile, workspace_id="ws-a", tenant_id="t-a"),
+        workspace_id="ws-a", tenant_id="t-a")
+    unsafe_recovered = select_profile_candidates(
+        profile, [candidate("fast", "flash", 90, 1.0)],
+        evidence=recovered)
     result = {
         "schema": "byok-capability-routing-probe-1",
         "profile": profile.metadata(),
@@ -82,12 +125,26 @@ def main() -> int:
             "excluded": no_suitable["excluded"],
         },
         "pins": {"good": good_pin, "bad": bad_pin},
+        "boundary_repairs": {
+            "semantic_transport_success": {
+                "outcome": semantic_bad["outcome"],
+                "evidence": semantic_evidence,
+            },
+            "missing_workspace_evidence": missing_scope,
+            "single_unsafe": {
+                "outcome": unsafe_blocked["outcome"],
+                "excluded": unsafe_blocked["excluded"],
+            },
+            "reviewed_recovery": {
+                "outcome": unsafe_recovered["outcome"],
+            },
+        },
         "limits": {
             "live_provider_calls": 0,
             "purpose": "controlled selection mechanics, not a model campaign",
         },
     }
-    print(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2, default=str))
     return 0
 
 
