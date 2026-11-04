@@ -1136,6 +1136,18 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
     )
 
 
+def _routing_snapshot() -> Dict[str, Any]:
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+        if not attribution.get("mode"):
+            attribution["mode"] = "deterministic"
+        return attribution
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        return {"mode": "deterministic"}
+
+
 async def propose_employee_work(
     context: Mapping[str, Any],
     *,
@@ -1183,6 +1195,7 @@ async def propose_employee_work(
                     "source": "model",
                     "technical_fallback": False,
                     "errors": [],
+                    "routing": _routing_snapshot(),
                 }
             fallback = _deterministic_proposal(context)
             return {
@@ -1190,6 +1203,7 @@ async def propose_employee_work(
                 "source": "deterministic",
                 "technical_fallback": True,
                 "errors": checked["errors"],
+                "routing": _routing_snapshot(),
             }
     fallback = _deterministic_proposal(context)
     return {
@@ -1197,6 +1211,7 @@ async def propose_employee_work(
         "source": "deterministic",
         "technical_fallback": llm_service is not None,
         "errors": [],
+        "routing": _routing_snapshot(),
     }
 
 

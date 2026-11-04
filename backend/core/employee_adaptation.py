@@ -457,6 +457,18 @@ def _adaptation_prompt(
     )
 
 
+def _routing_snapshot() -> Dict[str, Any]:
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+        if not attribution.get("mode"):
+            attribution["mode"] = "deterministic"
+        return attribution
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        return {"mode": "deterministic"}
+
+
 async def propose_adaptation(
     context: Mapping[str, Any],
     observations: List[Mapping[str, Any]],
@@ -617,6 +629,7 @@ async def propose_adaptation(
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
+                            "routing": _routing_snapshot(),
                         }
                     remaining = _remaining()
                     if remaining is not None and remaining <= 0:
@@ -653,6 +666,7 @@ async def propose_adaptation(
                                         "errors": [],
                                         "attempt_id": getattr(
                                             journal, "attempt_id", None),
+                                        "routing": _routing_snapshot(),
                                         "repair": {
                                             "first_errors": first_errors,
                                             "recovered": True,
@@ -689,6 +703,7 @@ async def propose_adaptation(
         "errors": checked_errors,
         "failure_stage": failure_stage,
         "attempt_id": getattr(journal, "attempt_id", None),
+        "routing": _routing_snapshot(),
     }
 
 

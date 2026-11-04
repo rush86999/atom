@@ -752,3 +752,63 @@ def test_old_recovery_does_not_release_a_new_unsafe_incident(
         profile, [_flash_candidate()], evidence=again)["outcome"] == (
             "selected")
     assert again["fast/flash"]["samples"] == 0
+
+
+@pytest.mark.asyncio
+async def test_employee_proposal_and_pin_attribution_are_business_safe():
+    from pydantic import BaseModel
+
+    from core.employee_proposal import (
+        build_employee_context, propose_employee_work,
+    )
+    from core.llm.byok_handler import NoSuitableConfiguredModelError
+    from core.llm.model_provenance import get_route_attribution
+    from core.llm.pinned_planning import pinned_structured_call
+
+    context = build_employee_context(
+        objective="Read evidence",
+        sources=[{
+            "kind": "document", "representation": "document_text",
+            "resource_id": "doc-1", "file_name": "note.txt",
+        }])
+    deterministic = await propose_employee_work(context, llm_service=None)
+    assert deterministic["routing"]["mode"] == "deterministic"
+    assert "provider" not in deterministic["routing"]
+
+    class Reply(BaseModel):
+        decision: str
+
+    class GoodLLM:
+        async def generate_structured_response(self, **_kwargs):
+            return Reply(decision="read")
+
+    await pinned_structured_call(
+        GoodLLM(), prompt="p", response_model=Reply,
+        system_instruction="json", log_label="employee work proposal",
+        call_kwargs={"provider_model": ("fast", "flash")},
+        capability_profile="employee_evidence_selection")
+    attribution = get_route_attribution()
+    assert attribution["mode"] == "pinned"
+    assert attribution["requested_route"] == {
+        "provider": "fast", "model": "flash"}
+    assert attribution["profile"]["name"] == "employee_evidence_selection"
+    assert attribution["served_route"] is None
+
+    class BadLLM:
+        async def generate_structured_response(self, **_kwargs):
+            raise NoSuitableConfiguredModelError(
+                get_profile("employee_evidence_selection"),
+                {"selection_reason": "controlled no suitable route"})
+
+    result = await pinned_structured_call(
+        BadLLM(), prompt="p", response_model=Reply,
+        system_instruction="json", log_label="employee work proposal",
+        call_kwargs={"provider_model": ("local", "weak")},
+        capability_profile="employee_evidence_selection")
+    assert result is None
+    failure = get_route_attribution()
+    assert failure["mode"] == "pinned"
+    assert failure["error"]["code"] == "no_suitable_configured_model"
+    assert failure["requested_route"] == {
+        "provider": "local", "model": "weak"}
+    assert "controlled no suitable route" in failure["error"]["detail"]

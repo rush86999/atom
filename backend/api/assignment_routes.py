@@ -1031,6 +1031,7 @@ async def _advance_employee_work(
                 "errors": discovery.get("errors") or [],
                 "failure_stage": discovery.get("failure_stage"),
                 "attempt_id": discovery.get("attempt_id"),
+                "routing": discovery.get("routing"),
                 "unread_source_count": len(unread),
                 "proposal_kind": proposal.get("proposal_kind"),
                 "proposal_reason": proposal.get("reason"),
@@ -1158,6 +1159,7 @@ async def _advance_employee_work(
             "errors": proposal_result.get("errors") or [],
             "failure_stage": proposal_result.get("failure_stage"),
             "attempt_id": proposal_result.get("attempt_id"),
+            "routing": proposal_result.get("routing"),
             "observation_ids": [item["observation_id"]
                                 for item in observations],
         }
