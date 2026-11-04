@@ -272,7 +272,8 @@ test("employee-decides starts objective-only work without a supplied DAG", async
     expect.objectContaining({
       objective: "Prepare a delivery answer for the customer",
       source_scope: { query: "commercial notes" },
-      authorized_actions: ["retrieve"],
+      authorized_actions: ["retrieve", "calculate"],
+      requested_output: "document",
       use_model: true,
     }),
   ));

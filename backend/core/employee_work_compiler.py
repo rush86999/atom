@@ -584,7 +584,56 @@ def _quote_patch(
             "required": True,
         },
     ]
+    requested = _requested_artifact_step(assignment, calc_id)
+    if requested:
+        patch["add_steps"].append(requested)
     return patch
+
+
+def _requested_artifact_step(
+    assignment: Mapping[str, Any], calculation_step: str,
+) -> Optional[Dict[str, Any]]:
+    """Render the user-requested output after the verified calculation.
+
+    The model chooses the business calculation; the deterministic compiler
+    owns the output mechanics. The output path, deliverable identity and
+    artifact criterion were fixed when the objective was accepted.
+    """
+    provenance = assignment.get("provenance") or {}
+    kind = str(provenance.get("requested_output") or "").strip().lower()
+    adapters = {
+        "document": "artifact.document",
+        "presentation": "artifact.presentation",
+    }
+    adapter = adapters.get(kind)
+    if not adapter:
+        return None
+    path = str(provenance.get("requested_output_path") or "").strip()
+    deliverable_id = str(
+        provenance.get("requested_output_deliverable_id") or "").strip()
+    if not path or not deliverable_id:
+        return None
+    return {
+        "step_id": _unique_id(assignment, "requested-artifact"),
+        "title": f"Render the requested {kind}",
+        "operation_type": "present",
+        "adapter": adapter,
+        "depends_on": [calculation_step],
+        "inputs": {
+            "path": path,
+            "title": str(assignment.get("objective") or "")[:200],
+            "deliverable_id": deliverable_id,
+            "content": "",
+            "compose_from_results": True,
+        },
+        "effect": "local",
+        "requires": [{
+            "kind": "receipt",
+            "step_id": calculation_step,
+            "require": "verified",
+        }],
+        "required": True,
+    }
 
 
 def _invoice_evidence_shape(

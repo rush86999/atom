@@ -3793,3 +3793,109 @@ def test_discovery_repeated_read_falls_back_to_unread_authorized_scope(
         step for step in internal["steps"]
         if step["adapter"] == "invoice.reconcile")["result"]["value"] == (
             "270.00")
+
+
+def test_requested_document_compiles_after_verified_evidence_quote(
+        route_env, tmp_path, monkeypatch):
+    import docx
+
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+
+    async def fake_work(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the authorized price list",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the price list",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model", "technical_fallback": False, "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="derive the quote from the accepted price rows",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=QuoteCalculationRequest(
+                    operation="quote_calculation",
+                    source_step_id="source-1",
+                    columns=QuoteColumns(
+                        item_id="Item Number",
+                        description="Description",
+                        quantity="Quantity",
+                        unit_price="Unit Price",
+                        currency="Currency"),
+                    currency="USD",
+                    freight=MoneyTerm(
+                        value="20.00", authority_ref="freight"),
+                    tax=TaxTerm(
+                        basis="none", authority_ref="tax_basis"),
+                )).model_dump(),
+            "source": "model", "technical_fallback": False, "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": (
+                "Prepare the customer quote document from the authorized "
+                "price list"),
+            "sources": [{
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+            }],
+            "authorized_actions": ["retrieve", "calculate"],
+            "teaching_terms": {
+                "currency": "USD", "freight": "20.00",
+                "tax_basis": "none"},
+            "requested_output": "document",
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert internal["status"] == "completed", internal["status"]
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    assert "requested-artifact" in steps, steps
+    artifact_step = steps["requested-artifact"]
+    assert artifact_step["status"] == "applied"
+    assert artifact_step["depends_on"] == ["quote-total"]
+    assert artifact_step["inputs"]["compose_from_results"] is True
+    deliverable = internal["deliverables"][0]
+    assert deliverable["kind"] == "document"
+    assert deliverable["status"] == "applied"
+    artifact_path = Path(deliverable["artifact_path"])
+    assert artifact_path.is_file()
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            str(artifact_path)).paragraphs)
+    for table in docx.Document(str(artifact_path)).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "105.00" in text, text
+    assert "scotch-parts.xlsx" in text, text
+    criteria = (body.get("employee_job") or {}).get("criteria") or []
+    assert any(
+        item.get("kind") == "artifact_verified"
+        and item.get("deliverable_id") == deliverable["deliverable_id"]
+        for item in criteria), criteria

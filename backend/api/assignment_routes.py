@@ -132,6 +132,7 @@ class EmployeeObjectiveStart(BaseModel):
     authorized_actions: List[str] = ["retrieve"]
     budget: Optional[Dict[str, Any]] = None
     teaching_terms: Dict[str, Any] = {}
+    requested_output: Optional[str] = None
     use_model: bool = True
 
 
@@ -1256,6 +1257,9 @@ async def start_employee_objective(
         )
     accepted_actions = list(dict.fromkeys(
         ["retrieve", *list(body.authorized_actions or [])]))
+    if body.requested_output:
+        accepted_actions = list(dict.fromkeys(
+            [*accepted_actions, "present"]))
     plan = plan_assignment(
         objective=body.objective,
         sources=list(compiled["plan_kwargs"].get("sources") or []),
@@ -1284,6 +1288,40 @@ async def start_employee_objective(
             "source_fingerprint": source_fingerprint(resolved_sources),
         },
     )
+    requested_output = str(body.requested_output or "").strip().lower()
+    if requested_output:
+        from core.assignment_plan import new_deliverable
+
+        if requested_output not in ("document", "presentation"):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "requested_output must be document or presentation for "
+                    "employee-decided artifact work"))
+        artifact_path = allocate_output_path(
+            employee, kind=requested_output, title=body.objective,
+            assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
+        deliverable_id = "del-requested-output"
+        plan["deliverables"].append(new_deliverable(
+            deliverable_id=deliverable_id,
+            kind=requested_output,
+            description=body.objective,
+            required=True,
+            step_id="requested-artifact",
+        ))
+        plan["provenance"].update({
+            "requested_output": requested_output,
+            "requested_output_path": artifact_path,
+            "requested_output_deliverable_id": deliverable_id,
+        })
+        plan["completion_criteria"].insert(0, {
+            "criterion_id": f"artifact_verified:{deliverable_id}",
+            "kind": "artifact_verified",
+            "required": True,
+            "verifier": "artifact_verified",
+            "scope": {"workspace_id": workspace_id},
+            "deliverable_id": deliverable_id,
+        })
     plan["completion_criteria"].append({
         "criterion_id": "employee_result:objective",
         "kind": "employee_result",
