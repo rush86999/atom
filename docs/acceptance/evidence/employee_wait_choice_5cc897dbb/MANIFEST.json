@@ -1,0 +1,68 @@
+{
+ "artifacts": {
+  "README.md": "9f40c121c2d0ca1ff420417b4029e605d4a54e90a83b91e747e570062bd08090",
+  "TEST_RESULTS.md": "97743c220598d953f83dad59fc38e995897885a8519f17822ba82340b10498d8",
+  "captured-prompt.txt": "d0e7584d6656a4c09545a2993919473e055cf5c87e48de5dae59c0d4680b40c9",
+  "captured-schema.json": "1bf60b7724a3056e8e9b257d8c335e67410784ab28f7a07173ae8b0e010c1634",
+  "focused-tests.log": "ae312522c0f5b2483fdffadb0cb03c745d18e4a645778340c9a5dc98626dab49",
+  "original-attempt.jsonl": "da136ecb0cd6b800b6026044f96023d2f2ba62155242bb90a4ba271b4dba799a",
+  "replay.json": "5fbfe3e908d18dba540ca697ece418d5b8a95fe3356eed6b5e90e92808d0fcea",
+  "replay.log": "6582261dbc7192227b05ac95f3e4ca25fb2ae052fa5937cb7c09502587cba315",
+  "runner.py": "7326453283e04b6ccb04997326ab73d749505da74dcddcd48073f7e963746a6e",
+  "verification.json": "8e54c38ef3a391f2ffd6e72585482629a40c59a4caabf48fbc828645b84c2fed"
+ },
+ "base_source": "44178e2a8f7a979451fa42f53e9f4d3e783626ee",
+ "boundaries": [
+  "bounded recovery/regression result, not general adaptive judgment",
+  "model chose a wait for an invoice candidate already present in the accepted pool; not one-shot relevance ranking",
+  "direct replay used no application DB and therefore does not prove feedback persistence",
+  "no live/cloud provider, credential, spend, send, download or deployment authority",
+  "served multi-model quality, live connectors, Linux/KVM and multi-worker/soak remain separate"
+ ],
+ "checks": {
+  "consumer_matrix": "9 wait-choice tests",
+  "merged_affected_suite": "342 passed",
+  "original_failure": "validation not transport",
+  "verification": "17/17"
+ },
+ "evidence_tip": "5cc897dbb",
+ "executed_source": "5cc897dbb",
+ "feedback_merge": "ba81f0423",
+ "original_negative": "docs/acceptance/evidence/employee_byok_auto_selection_0e04286b2/",
+ "replay": {
+  "blocks": "invoice reconciliation",
+  "decision": "replan",
+  "fact": "current supplier invoice for purchase order PO-SEL-520",
+  "profile": "employee_wait_choice",
+  "prompt_chars": 6361,
+  "seconds": 13.150002624839544,
+  "served_route": {
+   "model": "llama3.1:8b",
+   "provider": "ollama"
+  },
+  "source_label": "model_wait_choice",
+  "subject": "purchase order PO-SEL-520",
+  "usage": {
+   "completion_tokens": 106,
+   "prompt_tokens": 2568,
+   "total_tokens": 2674
+  },
+  "work_request_operation": "await_evidence"
+ },
+ "schema": "atom-employee-evidence-1",
+ "source_files": {
+  "backend/api/assignment_routes.py": "c5b4a6c48e395b1a9e6ec664ab1cfa2888f51e0483beebcb115dd964833882b7",
+  "backend/core/employee_adaptation.py": "90034794e4f3125f6bf4d1673cf25ef3285ca0f89d236bb8b6394728b2997f23",
+  "backend/core/employee_job_runner.py": "8b7346ca40745728d64558e6869635465b786b526fc97d7ae22d239f7b82e3b1",
+  "backend/core/employee_proposal.py": "4ebea4449925adaab09bf2f1fce9bb28d65f84df1d4c230deeeb0c6ea890358e",
+  "backend/core/employee_routing_feedback.py": "3ecb881d6bc865df7ed7712a9e3dbe564a659d2c56004ff13bc21c7cbc32fc14",
+  "backend/core/employee_work_compiler.py": "3dcd28bc5a444d95df348226c42a431a31724f77b37e7ed6f7c6bd6e55e614a6",
+  "backend/core/learning_llm_router.py": "bf2af093e7b6ddcff1ef23c9a088e6ed05c6e9667c1ea59a2e252a4df9c25ba8",
+  "backend/core/llm/byok_handler.py": "7158729b6961feaebf654e381db81c1ef6db9e360685e2e0c1da8fa472a9a42b",
+  "backend/core/llm/capability_profiles.py": "5601ebeefdb72362669545d593e8a3c6ba76e32069308699399d1f65eb867ddb",
+  "backend/core/llm/fabrication_accounting.py": "411056e2ff666ebd3d64d86364899d10dca2b601facbe94de34af79b12f1a3b7",
+  "backend/core/llm/model_provenance.py": "2a914cd61ede131e877f0b681765b9a462b9668e2ffe6203a3a4ca7afb806ccb",
+  "backend/core/llm/pinned_planning.py": "2d2b19b21e18bbace442e83379a686d6dee7db332ad3fc329d3e01066254a73f"
+ },
+ "status": "wait-choice no-result resolved by focused typed consumer; original negative preserved"
+}

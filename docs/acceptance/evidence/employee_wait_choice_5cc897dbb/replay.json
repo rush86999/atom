@@ -1,0 +1,138 @@
+{
+ "source": "5cc897dbb",
+ "captured_context": {
+  "objective": "Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.",
+  "missing_prerequisites": [
+   {
+    "known_identities": {
+     "invoice.invoice_id": "INV-SEL-77",
+     "invoice.po_id": "PO-SEL-520",
+     "purchase_order.po_id": "PO-SEL-520",
+     "purchase_order.vendor_id": "V-63",
+     "receiving.po_id": "PO-SEL-520"
+    },
+    "label": "invoice reconciliation",
+    "missing": [],
+    "operation": "invoice_reconciliation",
+    "question_hint": "",
+    "status": "ambiguous"
+   }
+  ],
+  "allowed_proposal_kinds": [
+   "clarify",
+   "retain"
+  ],
+  "allowed_work_requests": [],
+  "all_authorized_sources_read": true,
+  "candidate_evidence": null
+ },
+ "original_negative": {
+  "attempt_id": "9daf25a30a6e40849b63b005d491b7aa",
+  "prompt_chars": 27513,
+  "seconds": 104.93380712531507,
+  "profile": "employee_wait_choice",
+  "failure_stage": "initial",
+  "failure": "no parsed proposal: provider_failure",
+  "validation_error": "work_request.await_evidence.blocks: String should have at least 1 character",
+  "raw_completion_note": "The served model returned a near-valid await_evidence instance with blocks=\"\" and an untyped new_steps entry; the existing AdaptationProposal contract rejected it. This was not a transport or empty-output failure.",
+  "negative_preserved_at": "employee_byok_auto_selection_0e04286b2"
+ },
+ "compact_replay": {
+  "prompt": "You choose one bounded next response for an employee whose objective has a missing prerequisite. A supported business operation is not ready; you may wait for a material external fact, ask one targeted question, or retain only when no material work is justified.\nIf the missing item is an external business record or fact that an authorized source can supply, choose replan and fill fact, subject, expected_from and expected_answer_type. The compiler binds the blocked operation and the durable wait; never invent ids, authority or a supported business operation.\nIf the missing item is a user choice, an ambiguity, or cannot be supplied by an authorized source, choose clarify with one specific question. If all authorized sources are already read, do not wait for a source that is already in scope. Do not choose await_evidence merely because this is a wait-choice stage.\nChoose retain only when no material work is justified.\nReturn JSON only with this shape: {decision, reason, observation_ids, fact, subject, expected_from, expected_answer_type, blocks_operation, clarification_question, clarification_unblocks, clarification_concept}.\nReturn concrete VALUES, not the JSON schema. Never output $defs, properties, required, title or type.\nField rules: decision='replan' only for a material external fact that an authorized source can supply; decision='clarify' for an ambiguity, a user choice, or a record no authorized source can supply; decision='retain' only when no material work remains.\nFor replan, fact is the exact missing business fact, subject is the business record or subject it belongs to, expected_from is the authorized source or channel expected to answer, expected_answer_type is one of quantity, amount, price, date, text, confirmation or eligibility, and blocks_operation is the exact supported operation from missing_prerequisites. Do not invent ids, rows, totals or authority. If candidate_evidence already contains the current record for the blocked operation, do not wait for that record again; choose clarify if the correct record or choice is ambiguous, or retain only when no material work remains.\nFor clarify, clarification_question must name the exact record or choice the user must resolve and clarification_unblocks should name the blocked business result. observation_ids may repeat the opaque observation handles above; they are lifecycle plumbing, not a business choice.\nCONTEXT:\n{\"all_authorized_sources_read\": true, \"candidate_evidence\": [{\"data_preview\": {\"currency\": \"USD\", \"freight\": 5.0, \"invoice_date\": \"2026-10-27\", \"invoice_id\": \"INV-SEL-76\", \"note\": \"different purchase order\", \"po_id\": \"PO-SEL-999\", \"quantity\": 2, \"unit_price\": 40.0}, \"operation\": \"invoice_reconciliation\", \"shape\": \"structured\", \"step_id\": \"source-2\", \"title\": \"Read ap-inbox-0411.json\"}, {\"data_preview\": {\"po_id\": \"PO-SEL-999\", \"received_at\": \"2026-10-31\", \"received_quantity\": 6, \"version\": \"rcv-sel-9\"}, \"operation\": \"invoice_reconciliation\", \"shape\": \"structured\", \"step_id\": \"source-3\", \"title\": \"Read dock-receipt-07.json\"}, {\"data_preview\": {\"currency\": \"USD\", \"freight\": 8.0, \"invoice_date\": \"2026-09-02\", \"invoice_id\": \"INV-SEL-70\", \"note\": \"superseded by INV-SEL-77; retained for audit only\", \"po_id\": \"PO-SEL-520\", \"quantity\": 6, \"status\": \"superseded\", \"unit_price\": 17.0}, \"operation\": \"invoice_reconciliation\", \"shape\": \"structured\", \"step_id\": \"source-4\", \"title\": \"Read ap-inbox-0402.json\"}, {\"data_preview\": {\"currency\": \"USD\", \"freight\": 10.0, \"ordered_at\": \"2026-10-20\", \"po_id\": \"PO-SEL-520\", \"quantity\": 6, \"unit_price\": 18.5, \"vendor_id\": \"V-63\"}, \"operation\": \"invoice_reconciliation\", \"shape\": \"structured\", \"step_id\": \"source-5\", \"title\": \"Read po-archive-88.json\"}, {\"data_preview\": {\"currency\": \"USD\", \"freight\": 10.0, \"invoice_date\": \"2026-10-28\", \"invoice_id\": \"INV-SEL-77\", \"note\": \"current supplier invoice\", \"po_id\": \"PO-SEL-520\", \"quantity\": 6, \"unit_price\": 18.5}, \"operation\": \"invoice_reconciliation\", \"shape\": \"structured\", \"step_id\": \"source-6\", \"title\": \"Read ap-inbox-0412.json\"}], \"decisions\": [\"replan\", \"retain\", \"clarify\"], \"missing_prerequisites\": [{\"known_identities\": {\"invoice.invoice_id\": \"INV-SEL-77\", \"invoice.po_id\": \"PO-SEL-520\", \"purchase_order.po_id\": \"PO-SEL-520\", \"purchase_order.vendor_id\": \"V-63\", \"receiving.po_id\": \"PO-SEL-520\"}, \"label\": \"invoice reconciliation\", \"missing\": [], \"operation\": \"invoice_reconciliation\", \"question_hint\": \"\", \"status\": \"ambiguous\"}], \"objective\": \"Review the authorized procurement pool and identify the current supplier invoice for purchase order PO-SEL-520. Read only authorized documents; do not invent identities or totals.\", \"ready_operations\": [], \"sources\": [{\"file_name\": \"warehouse-memo.txt\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_c38617b5ef5dd5b9fb27d63d\", \"source_version\": \"ev4:c38617b5ef5dd5b9fb27d63d8d3fe611cf326e743c65fab0b8c11d33a130742b\"}, {\"file_name\": \"ap-inbox-0411.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_7537055c69f8924141c435da\", \"source_version\": \"ev4:7537055c69f8924141c435dac26714aff75737de5adc0ee5cf84b6b8e62c749e\"}, {\"file_name\": \"dock-receipt-07.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_ae7e29b19061bccc258a0e82\", \"source_version\": \"ev4:ae7e29b19061bccc258a0e820a93834d0110ee9a00ed7c23d8628cbb32099b73\"}, {\"file_name\": \"ap-inbox-0402.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_a2f83610de258efeeca731f0\", \"source_version\": \"ev4:a2f83610de258efeeca731f09d0dbe579eba731e82d8704178ae37c0403aa54d\"}, {\"file_name\": \"po-archive-88.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_056ad9eadbff15c6f4d3f76b\", \"source_version\": \"ev4:056ad9eadbff15c6f4d3f76b63873e7c5d9efec5c593fc1481bc5022a49899b5\"}, {\"file_name\": \"ap-inbox-0412.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_850dba8850ba01918e84d37e\", \"source_version\": \"ev4:850dba8850ba01918e84d37e3fd13814dcbcad051ea1f5e8b1aeca98e7a52540\"}, {\"file_name\": \"dock-receipt-19.json\", \"kind\": \"document\", \"read\": true, \"source_id\": \"doc_b45810ce4ac2059e7621499f\", \"source_version\": \"ev4:b45810ce4ac2059e7621499fa6cc1633f64665868af1a8d922e33db1031ade2e\"}], \"teaching_terms\": {}, \"unread_source_count\": 0, \"unread_sources\": []}\n\nOBSERVATIONS:\n[{\"data_keys\": [], \"kind\": \"evidence_result\", \"observation_id\": \"evidence-e5a109b85f4c6bc2bc52\", \"shape\": \"text\", \"step_id\": \"source-1\", \"summary\": \"\"}]",
+  "prompt_chars": 6361,
+  "raw": "ChatCompletion(id='chatcmpl-804', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{\\n', bytes=[123, 10], logprob=-0.7151651382446289, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.061409253627061844, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-6.965921329538105e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='decision', bytes=[100, 101, 99, 105, 115, 105, 111, 110], logprob=-0.00012431954382918775, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-0.00024402598501183093, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.3425902782037156e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='re', bytes=[114, 101], logprob=-0.11163956671953201, top_logprobs=None), ChatCompletionTokenLogprob(token='plan', bytes=[112, 108, 97, 110], logprob=-2.3292217520065606e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00019492741557769477, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-8.247299774666317e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.469882645073085e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-0.0010186388390138745, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-3.0528342449542833e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.07655275613069534, top_logprobs=None), ChatCompletionTokenLogprob(token='missing', bytes=[109, 105, 115, 115, 105, 110, 103], logprob=-0.6595613360404968, top_logprobs=None), ChatCompletionTokenLogprob(token=' external', bytes=[32, 101, 120, 116, 101, 114, 110, 97, 108], logprob=-0.5928254127502441, top_logprobs=None), ChatCompletionTokenLogprob(token=' business', bytes=[32, 98, 117, 115, 105, 110, 101, 115, 115], logprob=-0.3725826144218445, top_logprobs=None), ChatCompletionTokenLogprob(token=' record', bytes=[32, 114, 101, 99, 111, 114, 100], logprob=-0.3294605612754822, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-1.3585313558578491, top_logprobs=None), ChatCompletionTokenLogprob(token=' fact', bytes=[32, 102, 97, 99, 116], logprob=-0.0001199010293930769, top_logprobs=None), ChatCompletionTokenLogprob(token=' that', bytes=[32, 116, 104, 97, 116], logprob=-0.6384192705154419, top_logprobs=None), ChatCompletionTokenLogprob(token=' an', bytes=[32, 97, 110], logprob=-0.16322070360183716, top_logprobs=None), ChatCompletionTokenLogprob(token=' authorized', bytes=[32, 97, 117, 116, 104, 111, 114, 105, 122, 101, 100], logprob=-6.583343929378316e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' source', bytes=[32, 115, 111, 117, 114, 99, 101], logprob=-3.884169564116746e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' can', bytes=[32, 99, 97, 110], logprob=-0.00012654905731324106, top_logprobs=None), ChatCompletionTokenLogprob(token=' supply', bytes=[32, 115, 117, 112, 112, 108, 121], logprob=-3.833509981632233e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.0009816400706768036, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-4.07161314797122e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-8.674297760080663e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='observation', bytes=[111, 98, 115, 101, 114, 118, 97, 116, 105, 111, 110], logprob=-0.0008413204341195524, top_logprobs=None), ChatCompletionTokenLogprob(token='_ids', bytes=[95, 105, 100, 115], logprob=-1.4206078958522994e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.0585396921669599e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' [\"', bytes=[32, 91, 34], logprob=-0.17296747863292694, top_logprobs=None), ChatCompletionTokenLogprob(token='e', bytes=[101], logprob=-0.0010475751478224993, top_logprobs=None), ChatCompletionTokenLogprob(token='vidence', bytes=[118, 105, 100, 101, 110, 99, 101], logprob=-2.4108301204250893e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='-e', bytes=[45, 101], logprob=-0.0001265976025024429, top_logprobs=None), ChatCompletionTokenLogprob(token='5', bytes=[53], logprob=-3.5298155580676394e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='a', bytes=[97], logprob=-3.5914695217798e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='109', bytes=[49, 48, 57], logprob=-1.3851639835138485e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='b', bytes=[98], logprob=-1.8529025425095824e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='85', bytes=[56, 53], logprob=-1.4168597850527931e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-1.6064593211240208e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='4', bytes=[52], logprob=-1.1009106515302847e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='c', bytes=[99], logprob=-5.413729908809728e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='6', bytes=[54], logprob=-2.063818982378507e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='bc', bytes=[98, 99], logprob=-9.896948540699668e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='2', bytes=[50], logprob=-2.6698701915961465e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='bc', bytes=[98, 99], logprob=-8.219626579375472e-08, top_logprobs=None), ChatCompletionTokenLogprob(token='52', bytes=[53, 50], logprob=-1.3767649988949415e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\"],\\n', bytes=[34, 93, 44, 10], logprob=-0.0013389363884925842, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-6.538996331073577e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.1190511486347532e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='fact', bytes=[102, 97, 99, 116], logprob=-0.0008768911357037723, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.0028786164184567e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.008336563594639301, top_logprobs=None), ChatCompletionTokenLogprob(token='current', bytes=[99, 117, 114, 114, 101, 110, 116], logprob=-0.6461814641952515, top_logprobs=None), ChatCompletionTokenLogprob(token=' supplier', bytes=[32, 115, 117, 112, 112, 108, 105, 101, 114], logprob=-0.0003890122752636671, top_logprobs=None), ChatCompletionTokenLogprob(token=' invoice', bytes=[32, 105, 110, 118, 111, 105, 99, 101], logprob=-0.0001501315855421126, top_logprobs=None), ChatCompletionTokenLogprob(token=' for', bytes=[32, 102, 111, 114], logprob=-0.9702003002166748, top_logprobs=None), ChatCompletionTokenLogprob(token=' purchase', bytes=[32, 112, 117, 114, 99, 104, 97, 115, 101], logprob=-0.011309856548905373, top_logprobs=None), ChatCompletionTokenLogprob(token=' order', bytes=[32, 111, 114, 100, 101, 114], logprob=-8.280127076432109e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' PO', bytes=[32, 80, 79], logprob=-0.00015406297461595386, top_logprobs=None), ChatCompletionTokenLogprob(token='-', bytes=[45], logprob=-5.623502602247754e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='SEL', bytes=[83, 69, 76], logprob=-0.0001138950974564068, top_logprobs=None), ChatCompletionTokenLogprob(token='-', bytes=[45], logprob=-1.6470146135816321e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='520', bytes=[53, 50, 48], logprob=-1.459834635397783e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.0007169616292230785, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-1.357486326014623e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.7744172232123674e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='subject', bytes=[115, 117, 98, 106, 101, 99, 116], logprob=-0.00015202707436401397, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-6.3075253819988575e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.001972542842850089, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice', bytes=[105, 110, 118, 111, 105, 99, 101], logprob=-0.47506198287010193, top_logprobs=None), ChatCompletionTokenLogprob(token=' reconciliation', bytes=[32, 114, 101, 99, 111, 110, 99, 105, 108, 105, 97, 116, 105, 111, 110], logprob=-0.8147782683372498, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.039793290197849274, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-1.3013593047617178e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.110889684241556e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='expected', bytes=[101, 120, 112, 101, 99, 116, 101, 100], logprob=-7.621524218848208e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='_from', bytes=[95, 102, 114, 111, 109], logprob=-0.0001326153869740665, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-2.156219579774188e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0012613494182005525, top_logprobs=None), ChatCompletionTokenLogprob(token='authorized', bytes=[97, 117, 116, 104, 111, 114, 105, 122, 101, 100], logprob=-0.9355759024620056, top_logprobs=None), ChatCompletionTokenLogprob(token=' procurement', bytes=[32, 112, 114, 111, 99, 117, 114, 101, 109, 101, 110, 116], logprob=-0.10035767406225204, top_logprobs=None), ChatCompletionTokenLogprob(token=' pool', bytes=[32, 112, 111, 111, 108], logprob=-0.0028067075181752443, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00415538577362895, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-2.4457887093376485e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.9229690906286123e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='expected', bytes=[101, 120, 112, 101, 99, 116, 101, 100], logprob=-1.2480441000661813e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_answer', bytes=[95, 97, 110, 115, 119, 101, 114], logprob=-2.865049464162439e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-2.261454483232228e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-5.624332288789446e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.193858315673424e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='text', bytes=[116, 101, 120, 116], logprob=-0.03616490215063095, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00019685382721945643, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-1.3269195733300876e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-6.7788249680234e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='blocks', bytes=[98, 108, 111, 99, 107, 115], logprob=-6.273522012634203e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_operation', bytes=[95, 111, 112, 101, 114, 97, 116, 105, 111, 110], logprob=-0.0001353585539618507, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-2.6524839995545335e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0004000321787316352, top_logprobs=None), ChatCompletionTokenLogprob(token='invoice'",
+  "parsed": {
+   "decision": "replan",
+   "reason": "missing external business record or fact that an authorized source can supply",
+   "observation_ids": [
+    "evidence-e5a109b85f4c6bc2bc52"
+   ],
+   "fact": "current supplier invoice for purchase order PO-SEL-520",
+   "subject": "invoice reconciliation",
+   "expected_from": "authorized procurement pool",
+   "expected_answer_type": "text",
+   "blocks_operation": "invoice_reconciliation",
+   "clarification_question": null,
+   "clarification_unblocks": null,
+   "clarification_concept": null
+  },
+  "usage": {
+   "prompt_tokens": 2568,
+   "completion_tokens": 106,
+   "total_tokens": 2674
+  },
+  "routing": {
+   "mode": "unpinned",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "resolved_model": "llama3.1:8b",
+   "profile": {
+    "name": "employee_wait_choice",
+    "version": "2026-11-04.1"
+   },
+   "error": null,
+   "routing_result_id": "b91e500f-d44b-41ef-b453-e58de0e0180f"
+  },
+  "seconds": 13.150002624839544,
+  "expanded_proposal": {
+   "decision": "replan",
+   "reason": "missing external business record or fact that an authorized source can supply",
+   "observation_ids": [
+    "evidence-e5a109b85f4c6bc2bc52"
+   ],
+   "step_ids": [],
+   "facts": [],
+   "new_steps": [],
+   "update_steps": [],
+   "work_request": {
+    "operation": "await_evidence",
+    "fact": "current supplier invoice for purchase order PO-SEL-520",
+    "subject": "purchase order PO-SEL-520",
+    "expected_from": "authorized procurement pool",
+    "expected_answer_type": "text",
+    "blocks": "invoice reconciliation",
+    "blocks_operation": "invoice_reconciliation",
+    "deadline": null,
+    "validity": null,
+    "reason": "missing external business record or fact that an authorized source can supply"
+   },
+   "clarification": null
+  }
+ },
+ "business_decision": {
+  "source": "model_wait_choice",
+  "decision": "replan",
+  "work_request": {
+   "operation": "await_evidence",
+   "fact": "current supplier invoice for purchase order PO-SEL-520",
+   "subject": "purchase order PO-SEL-520",
+   "expected_from": "authorized procurement pool",
+   "expected_answer_type": "text",
+   "blocks": "invoice reconciliation",
+   "blocks_operation": "invoice_reconciliation",
+   "deadline": null,
+   "validity": null,
+   "reason": "missing external business record or fact that an authorized source can supply"
+  },
+  "compiler_corrections": [
+   "subject was the blocked-operation label in the raw instance; compiler bound it to the known purchase order PO-SEL-520",
+   "blocked label and blocks_operation were filled from the missing prerequisite",
+   "new_steps/facts from the old schema are absent by construction"
+  ]
+ },
+ "consumer_matrix": [
+  "valid wait instance expands to a typed await_evidence request",
+  "ready independent operation is not captured by the wait path",
+  "clarify instance carries a specific question",
+  "retain instance remains a safe no-progress choice",
+  "captured empty-blocks instance is rejected by the existing contract",
+  "safe no-result is deterministic and retains applied receipts/requirements",
+  "route accepts model_wait_choice source"
+ ]
+}

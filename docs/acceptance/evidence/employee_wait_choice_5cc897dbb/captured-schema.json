@@ -1,0 +1,804 @@
+{
+ "$defs": {
+  "AwaitEvidenceRequest": {
+   "additionalProperties": false,
+   "description": "A material external fact the employee must wait for.\n\nThe model names the business fact, its subject and the authorized source/\nchannel expected to answer it. It never supplies operation ids, step ids,\ncorrelation ids, callbacks, paths or executable mechanics; the compiler\nderives and binds those to the durable run.",
+   "properties": {
+    "blocks": {
+     "maxLength": 500,
+     "minLength": 1,
+     "title": "Blocks",
+     "type": "string"
+    },
+    "blocks_operation": {
+     "anyOf": [
+      {
+       "enum": [
+        "quote_calculation",
+        "invoice_reconciliation"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Blocks Operation"
+    },
+    "deadline": {
+     "anyOf": [
+      {
+       "maxLength": 40,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Deadline"
+    },
+    "expected_answer_type": {
+     "enum": [
+      "quantity",
+      "amount",
+      "price",
+      "date",
+      "text",
+      "confirmation",
+      "eligibility"
+     ],
+     "title": "Expected Answer Type",
+     "type": "string"
+    },
+    "expected_from": {
+     "maxLength": 200,
+     "minLength": 1,
+     "title": "Expected From",
+     "type": "string"
+    },
+    "fact": {
+     "maxLength": 120,
+     "minLength": 1,
+     "title": "Fact",
+     "type": "string"
+    },
+    "operation": {
+     "const": "await_evidence",
+     "title": "Operation",
+     "type": "string"
+    },
+    "reason": {
+     "default": "",
+     "maxLength": 800,
+     "title": "Reason",
+     "type": "string"
+    },
+    "subject": {
+     "maxLength": 200,
+     "minLength": 1,
+     "title": "Subject",
+     "type": "string"
+    },
+    "validity": {
+     "anyOf": [
+      {
+       "maxLength": 40,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Validity"
+    }
+   },
+   "required": [
+    "operation",
+    "fact",
+    "subject",
+    "expected_from",
+    "expected_answer_type",
+    "blocks"
+   ],
+   "title": "AwaitEvidenceRequest",
+   "type": "object"
+  },
+  "ClarificationProposal": {
+   "additionalProperties": false,
+   "properties": {
+    "concept": {
+     "default": "",
+     "maxLength": 120,
+     "title": "Concept",
+     "type": "string"
+    },
+    "expected_answer_type": {
+     "default": "",
+     "maxLength": 80,
+     "title": "Expected Answer Type",
+     "type": "string"
+    },
+    "question": {
+     "maxLength": 400,
+     "title": "Question",
+     "type": "string"
+    },
+    "unblocks": {
+     "default": "",
+     "maxLength": 300,
+     "title": "Unblocks",
+     "type": "string"
+    }
+   },
+   "required": [
+    "question"
+   ],
+   "title": "ClarificationProposal",
+   "type": "object"
+  },
+  "EvidenceRef": {
+   "additionalProperties": false,
+   "properties": {
+    "role": {
+     "default": "evidence",
+     "maxLength": 80,
+     "title": "Role",
+     "type": "string"
+    },
+    "step_id": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Step Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "step_id"
+   ],
+   "title": "EvidenceRef",
+   "type": "object"
+  },
+  "InvoiceReconciliationRequest": {
+   "additionalProperties": false,
+   "properties": {
+    "bill_action": {
+     "anyOf": [
+      {
+       "maxLength": 200,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Bill Action"
+    },
+    "coa_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Coa Step Id"
+    },
+    "currency": {
+     "anyOf": [
+      {
+       "maxLength": 20,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Currency"
+    },
+    "evidence": {
+     "items": {
+      "$ref": "#/$defs/EvidenceRef"
+     },
+     "title": "Evidence",
+     "type": "array"
+    },
+    "invoice_fields": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Invoice Fields",
+     "type": "object"
+    },
+    "invoice_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Invoice Step Id"
+    },
+    "operation": {
+     "const": "invoice_reconciliation",
+     "title": "Operation",
+     "type": "string"
+    },
+    "period_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Period Step Id"
+    },
+    "purchase_order_fields": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Purchase Order Fields",
+     "type": "object"
+    },
+    "purchase_order_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Purchase Order Step Id"
+    },
+    "reason": {
+     "default": "",
+     "maxLength": 800,
+     "title": "Reason",
+     "type": "string"
+    },
+    "receiving_fields": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Receiving Fields",
+     "type": "object"
+    },
+    "receiving_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Receiving Step Id"
+    },
+    "vendor_step_id": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Vendor Step Id"
+    }
+   },
+   "required": [
+    "operation"
+   ],
+   "title": "InvoiceReconciliationRequest",
+   "type": "object"
+  },
+  "MoneyTerm": {
+   "additionalProperties": false,
+   "description": "A taught/authorized monetary term bound to its authority.",
+   "properties": {
+    "authority_ref": {
+     "maxLength": 300,
+     "minLength": 1,
+     "title": "Authority Ref",
+     "type": "string"
+    },
+    "currency": {
+     "anyOf": [
+      {
+       "maxLength": 20,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Currency"
+    },
+    "value": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Value",
+     "type": "string"
+    }
+   },
+   "required": [
+    "value",
+    "authority_ref"
+   ],
+   "title": "MoneyTerm",
+   "type": "object"
+  },
+  "QuoteCalculationRequest": {
+   "additionalProperties": false,
+   "properties": {
+    "columns": {
+     "$ref": "#/$defs/QuoteColumns"
+    },
+    "currency": {
+     "maxLength": 20,
+     "minLength": 1,
+     "title": "Currency",
+     "type": "string"
+    },
+    "evidence": {
+     "items": {
+      "$ref": "#/$defs/EvidenceRef"
+     },
+     "title": "Evidence",
+     "type": "array"
+    },
+    "freight": {
+     "$ref": "#/$defs/MoneyTerm"
+    },
+    "operation": {
+     "const": "quote_calculation",
+     "title": "Operation",
+     "type": "string"
+    },
+    "reason": {
+     "default": "",
+     "maxLength": 800,
+     "title": "Reason",
+     "type": "string"
+    },
+    "source_step_id": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Source Step Id",
+     "type": "string"
+    },
+    "tax": {
+     "$ref": "#/$defs/TaxTerm"
+    }
+   },
+   "required": [
+    "operation",
+    "source_step_id",
+    "columns",
+    "currency",
+    "freight"
+   ],
+   "title": "QuoteCalculationRequest",
+   "type": "object"
+  },
+  "QuoteColumns": {
+   "additionalProperties": false,
+   "properties": {
+    "category": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Category"
+    },
+    "currency": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Currency"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    },
+    "discount": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Discount"
+    },
+    "item_id": {
+     "maxLength": 120,
+     "minLength": 1,
+     "title": "Item Id",
+     "type": "string"
+    },
+    "pack_size": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Pack Size"
+    },
+    "price_basis": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Price Basis"
+    },
+    "quantity": {
+     "maxLength": 120,
+     "minLength": 1,
+     "title": "Quantity",
+     "type": "string"
+    },
+    "unit": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Unit"
+    },
+    "unit_price": {
+     "maxLength": 120,
+     "minLength": 1,
+     "title": "Unit Price",
+     "type": "string"
+    }
+   },
+   "required": [
+    "item_id",
+    "quantity",
+    "unit_price"
+   ],
+   "title": "QuoteColumns",
+   "type": "object"
+  },
+  "StepPatch": {
+   "additionalProperties": false,
+   "properties": {
+    "adapter": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Adapter",
+     "type": "string"
+    },
+    "approval_purpose": {
+     "default": "",
+     "maxLength": 300,
+     "title": "Approval Purpose",
+     "type": "string"
+    },
+    "approval_required": {
+     "default": false,
+     "title": "Approval Required",
+     "type": "boolean"
+    },
+    "depends_on": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Depends On",
+     "type": "array"
+    },
+    "effect": {
+     "default": "local",
+     "maxLength": 20,
+     "title": "Effect",
+     "type": "string"
+    },
+    "inputs": {
+     "additionalProperties": true,
+     "title": "Inputs",
+     "type": "object"
+    },
+    "operation_type": {
+     "maxLength": 40,
+     "minLength": 1,
+     "title": "Operation Type",
+     "type": "string"
+    },
+    "required": {
+     "default": true,
+     "title": "Required",
+     "type": "boolean"
+    },
+    "requires": {
+     "items": {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     "title": "Requires",
+     "type": "array"
+    },
+    "step_id": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Step Id",
+     "type": "string"
+    },
+    "title": {
+     "maxLength": 200,
+     "minLength": 1,
+     "title": "Title",
+     "type": "string"
+    }
+   },
+   "required": [
+    "step_id",
+    "title",
+    "operation_type",
+    "adapter"
+   ],
+   "title": "StepPatch",
+   "type": "object"
+  },
+  "StepUpdate": {
+   "additionalProperties": false,
+   "description": "Bounded rewiring of pending/failed (or invalidated) work.\n\nThe objective, adapter, effect, authority and required flag are not\nmutable here: a plan change may reroute data/dependencies, not weaken\nthe job's obligations or convert work into a different effect class.",
+   "properties": {
+    "depends_on": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Depends On"
+    },
+    "inputs": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Inputs"
+    },
+    "requires": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Requires"
+    },
+    "step_id": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Step Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "step_id"
+   ],
+   "title": "StepUpdate",
+   "type": "object"
+  },
+  "TaxTerm": {
+   "additionalProperties": false,
+   "properties": {
+    "authority_ref": {
+     "maxLength": 300,
+     "minLength": 1,
+     "title": "Authority Ref",
+     "type": "string"
+    },
+    "basis": {
+     "enum": [
+      "none",
+      "rate",
+      "amount"
+     ],
+     "title": "Basis",
+     "type": "string"
+    },
+    "value": {
+     "default": "",
+     "maxLength": 80,
+     "title": "Value",
+     "type": "string"
+    }
+   },
+   "required": [
+    "basis",
+    "authority_ref"
+   ],
+   "title": "TaxTerm",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "clarification": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/ClarificationProposal"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "decision": {
+   "enum": [
+    "retain",
+    "clarify",
+    "invalidate",
+    "replan",
+    "reconcile",
+    "work_request"
+   ],
+   "title": "Decision",
+   "type": "string"
+  },
+  "facts": {
+   "items": {
+    "additionalProperties": true,
+    "type": "object"
+   },
+   "title": "Facts",
+   "type": "array"
+  },
+  "new_steps": {
+   "items": {
+    "$ref": "#/$defs/StepPatch"
+   },
+   "title": "New Steps",
+   "type": "array"
+  },
+  "observation_ids": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Observation Ids",
+   "type": "array"
+  },
+  "reason": {
+   "default": "",
+   "maxLength": 800,
+   "title": "Reason",
+   "type": "string"
+  },
+  "step_ids": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Step Ids",
+   "type": "array"
+  },
+  "update_steps": {
+   "items": {
+    "$ref": "#/$defs/StepUpdate"
+   },
+   "title": "Update Steps",
+   "type": "array"
+  },
+  "work_request": {
+   "anyOf": [
+    {
+     "discriminator": {
+      "mapping": {
+       "await_evidence": "#/$defs/AwaitEvidenceRequest",
+       "invoice_reconciliation": "#/$defs/InvoiceReconciliationRequest",
+       "quote_calculation": "#/$defs/QuoteCalculationRequest"
+      },
+      "propertyName": "operation"
+     },
+     "oneOf": [
+      {
+       "$ref": "#/$defs/QuoteCalculationRequest"
+      },
+      {
+       "$ref": "#/$defs/InvoiceReconciliationRequest"
+      },
+      {
+       "$ref": "#/$defs/AwaitEvidenceRequest"
+      }
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Work Request"
+  }
+ },
+ "required": [
+  "decision"
+ ],
+ "title": "AdaptationProposal",
+ "type": "object"
+}

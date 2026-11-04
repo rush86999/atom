@@ -1,0 +1,53 @@
+{
+ "source": "5cc897dbb",
+ "checks": {
+  "original_negative_preserved": true,
+  "original_was_validation_not_transport": true,
+  "compact_dispatched": true,
+  "compact_prompt_below_full": true,
+  "compact_under_deadline": true,
+  "model_selected_wait": true,
+  "work_request_is_await_evidence": true,
+  "fact_names_current_invoice": true,
+  "subject_is_known_purchase_order": true,
+  "expected_from_is_authorized_scope": true,
+  "blocked_operation_is_invoice_reconciliation": true,
+  "no_model_authored_steps": true,
+  "model_choice_not_deterministic": true,
+  "served_route_ollama": true,
+  "profile_is_wait_choice": true,
+  "raw_completion_captured": true,
+  "usage_captured": true
+ },
+ "all_passed": true,
+ "participants": {
+  "original_no_result": "employee_byok_auto_selection_0e04286b2",
+  "replay": "wait-choice-official-replay",
+  "consumer_tests": "tests/test_employee_wait_choice.py",
+  "merged_affected_suite": "342 passed"
+ },
+ "measurements": {
+  "original_prompt_chars": 27513,
+  "original_seconds": 104.93380712531507,
+  "compact_prompt_chars": 6361,
+  "compact_seconds": 13.150002624839544,
+  "usage": {
+   "prompt_tokens": 2568,
+   "completion_tokens": 106,
+   "total_tokens": 2674
+  },
+  "served_route": {
+   "provider": "ollama",
+   "model": "llama3.1:8b"
+  },
+  "profile": {
+   "name": "employee_wait_choice",
+   "version": "2026-11-04.1"
+  }
+ },
+ "limits": [
+  "The model chose a wait for the current supplier invoice even though the accepted pool already contained a current invoice; this is a bounded model decision, not one-shot relevance ranking.",
+  "The compiler corrected the subject label to the known purchase-order identity; model-owned fact/expected_from and decision are recorded separately.",
+  "No broad adaptive judgment or multi-model selection claim follows from this single captured replay."
+ ]
+}
