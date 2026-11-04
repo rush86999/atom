@@ -999,6 +999,10 @@ def _await_patch(
         # requirement in server code instead of treating the human label as
         # executable proof.
         dependent_operation = str(blocked[0].get("operation") or "")
+    if not dependent_operation and len(blocked) > 1:
+        raise WorkRequestCompileError(
+            "await_evidence must name blocks_operation when more than one "
+            "dependent capability is blocked")
     if dependent_operation:
         profile = result_profile(dependent_operation)
         if profile is None:
