@@ -317,6 +317,7 @@ def test_employee_proposal_no_eligible_route_keeps_deterministic_receipts(
 def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_attempt_journal import AttemptJournal
     from core.employee_proposal import ClarificationProposal
     from core.employee_work_requests import work_request_schemas
 
@@ -372,6 +373,7 @@ def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
 def test_employee_adaptation_auto_route_records_served_route(monkeypatch):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_attempt_journal import AttemptJournal
 
     selected = []
     proposal = WorkAdaptationProposal(
@@ -415,13 +417,20 @@ def test_employee_adaptation_auto_route_records_served_route(monkeypatch):
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
         service = _service(handler)
+        journal = AttemptJournal()
         with patch(
                 "core.llm.byok_handler.instructor.from_openai",
                 _fake_instructor(selected, proposal)):
             result = asyncio.run(propose_adaptation(
                 context, [{"observation_id": "evidence-1",
                            "kind": "evidence_result", "step_id": "read"}],
-                assignment=assignment, llm_service=service))
+                assignment=assignment, llm_service=service,
+                attempt_journal=journal))
+    parsed = [event for event in journal.events
+              if event.get("event") == "parsed"]
+    assert parsed, journal.events
+    assert parsed[-1]["routing"]["served_route"] == {
+        "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     # The fake proposal is compact-incompatible (no unresolved requirement
     # match), so the full path is used; the important assertion is that the
     # real handler selected the cheaper route.

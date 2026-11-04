@@ -254,6 +254,16 @@ def _parsed_payload(result: Any) -> Any:
         return None
 
 
+def _route_snapshot() -> Any:
+    """The call-local requested/selected/served route, for the raw journal."""
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        return get_route_attribution()
+    except Exception:  # noqa: BLE001 — diagnostics only
+        return None
+
+
 def _usage_payload(result: Any) -> Any:
     """Token usage when the provider exposed it; never inferred."""
     raw = getattr(result, "_raw_response", None)
@@ -463,6 +473,7 @@ async def pinned_structured_call(
                 route="pinned",
                 seconds=_time.monotonic() - _pinned_started,
                 usage=_usage_payload(result),
+                routing=_route_snapshot(),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
         _observer_notify(
@@ -518,6 +529,7 @@ async def pinned_structured_call(
                     route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
                     usage=_usage_payload(fallback_result),
+                    routing=_route_snapshot(),
                     parsed=_parsed_payload(fallback_result),
                     raw=_raw_payload(fallback_result))
             elif set_routing_error is not None:
@@ -565,6 +577,7 @@ async def pinned_structured_call(
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
                 usage=_usage_payload(direct_result),
+                routing=_route_snapshot(),
                 parsed=_parsed_payload(direct_result),
                 raw=_raw_payload(direct_result))
         else:
