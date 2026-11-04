@@ -69,6 +69,8 @@ def test_model_retain_after_reply_cannot_complete_unperformed_reconciliation(
     assert len(requirements) == 1
     assert requirements[0]["operation"] == "invoice_reconciliation"
     assert business_requirement_views(final)[0]["status"] == "unresolved"
+    assert business_requirement_views(final)[0]["subject_identity"] == {
+        "po_id": "PO-8841", "invoice_id": "INV-7"}
     view = route_env["client"].get(
         f"/api/assignments/{run_id}").json()["employee_job"]
     assert view["business_requirements"][0]["status"] == "unresolved"

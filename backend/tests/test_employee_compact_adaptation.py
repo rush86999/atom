@@ -143,6 +143,7 @@ def test_compact_context_is_single_operation_and_keeps_scope():
     assert "purchase order PO-7302" in compact["prompt"]
     assert "PO-7302" in compact["prompt"]
     assert "INV-4491" in compact["prompt"]
+    assert '"subject_identity":' in compact["prompt"]
     assert "receiving" in compact["prompt"]
     assert "retain" in compact["prompt"] and "clarify" in compact["prompt"]
     # No all-purpose union schema or unrelated business operation is offered.

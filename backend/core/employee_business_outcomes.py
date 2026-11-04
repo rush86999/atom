@@ -303,6 +303,7 @@ def business_requirement_views(
             "operation": raw.get("operation"),
             "label": raw.get("label"),
             "subject": raw.get("subject"),
+            "subject_identity": dict(raw.get("subject_identity") or {}),
             "fact": raw.get("fact"),
             "correlation_id": raw.get("correlation_id"),
             "status": "satisfied" if satisfied else "unresolved",
