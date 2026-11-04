@@ -370,8 +370,25 @@ def _response_model_for(context: Mapping[str, Any]) -> Any:
         if context.get("work_request_schemas") else AdaptationProposal)
 
 
+# The compact invoice request keeps only the model-owned choice: the
+# operation, the accepted role step IDs and the currency. Field maps and the
+# evidence array stay compiler-owned (defaults are resolved from the accepted
+# evidence). This also keeps a small model from copying JSON-schema `$ref`
+# artifacts into the evidence array or sending a cell value where a column
+# name belongs. The subset is still a valid InvoiceReconciliationRequest.
+_COMPACT_INVOICE_REQUEST = create_model(
+    "CompactInvoiceReconciliationRequest",
+    __config__=ConfigDict(extra="forbid"),
+    operation=(Literal["invoice_reconciliation"], "invoice_reconciliation"),
+    invoice_step_id=(Optional[str], None),
+    purchase_order_step_id=(Optional[str], None),
+    receiving_step_id=(Optional[str], None),
+    currency=(Optional[str], None),
+    reason=(str, ""),
+)
+
 _COMPACT_REQUEST_MODELS = {
-    "invoice_reconciliation": InvoiceReconciliationRequest,
+    "invoice_reconciliation": _COMPACT_INVOICE_REQUEST,
     "quote_calculation": QuoteCalculationRequest,
 }
 
@@ -474,6 +491,14 @@ def _compact_single_request_context(
             (context.get("teaching") or {}).get("terms") or {}),
         "decisions": ["replan", "retain", "clarify"],
     }
+    operation_rule = ""
+    if operation == "invoice_reconciliation":
+        operation_rule = (
+            "Use the accepted invoice, purchase-order and receiving step IDs "
+            "from the context. Do not supply field maps or an evidence "
+            "array; the compiler resolves the accepted default field names "
+            "and binds the role step IDs.\n"
+        )
     prompt = (
         "You choose one bounded employee response. The only allowed operation "
         f"is {operation}.\n"
@@ -483,7 +508,8 @@ def _compact_single_request_context(
         "no material work is justified, or clarify when one specific fact is "
         "missing. Do not invent rows, prices, totals, identities or "
         "authority; do not return a different operation.\n"
-        "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
+        + operation_rule
+        + "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(compact_observations[:8], sort_keys=True, default=str)
     )
@@ -675,6 +701,7 @@ async def propose_adaptation(
         except Exception:  # noqa: BLE001 — diagnostics are optional
             journal = None
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
+    stage_no_results: Dict[str, List[Dict[str, Any]]] = {}
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -683,6 +710,9 @@ async def propose_adaptation(
 
     def _observer(stage_name: str):
         def observe(event: str, **fields: Any) -> None:
+            if event == "no_result":
+                stage_no_results.setdefault(stage_name, []).append(dict(
+                    fields.get("failure") or {}))
             if event == "failure":
                 exc = fields.get("exception")
                 try:
@@ -709,7 +739,10 @@ async def propose_adaptation(
         return observe
 
     def _failure_summary(stage_name: str) -> Optional[str]:
-        failures = stage_failures.get(stage_name) or []
+        failures = [
+            *(stage_failures.get(stage_name) or []),
+            *(stage_no_results.get(stage_name) or []),
+        ]
         if not failures:
             return None
         kinds = []
@@ -717,7 +750,15 @@ async def propose_adaptation(
             kind = item.get("kind") or "provider_failure"
             if kind not in kinds:
                 kinds.append(kind)
-        return "no parsed proposal: " + ", ".join(kinds)
+        summary = "no parsed proposal: " + ", ".join(kinds)
+        details = [
+            str(item.get("detail") or "").strip()
+            for item in failures
+            if str(item.get("detail") or "").strip()
+        ]
+        if details:
+            summary += " — " + details[-1][:300]
+        return summary
 
     def _record_skipped(stage_name: str, label: str) -> None:
         if journal is not None:
@@ -728,6 +769,7 @@ async def propose_adaptation(
     async def _call(
         prompt: str, label: str, stage_name: str, *,
         model: Any = None, max_tokens: int = 1800,
+        capability_profile: Optional[str] = None,
     ) -> Any:
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
@@ -752,6 +794,7 @@ async def propose_adaptation(
             },
             log_label=label,
             task_type="planning",
+            capability_profile=capability_profile,
             workspace_id=context.get("identity", {}).get("workspace_id"),
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
@@ -801,7 +844,9 @@ async def propose_adaptation(
                     result = await _call(
                         compact["prompt"], "employee adaptation compact",
                         "compact", model=compact["response_model"],
-                        max_tokens=1200)
+                        max_tokens=1200,
+                        capability_profile=(
+                            "employee_adaptive_planning_compact"))
                 except _BudgetExhausted:
                     failure_stage = "compact"
                     checked_errors = ["skipped_due_to_budget: compact"]
@@ -812,6 +857,11 @@ async def propose_adaptation(
                 except Exception as exc:  # noqa: BLE001
                     failure_stage = "compact"
                     checked_errors = [f"compact call: {exc}"]
+                if result is None and not checked_errors:
+                    summary = _failure_summary("compact")
+                    checked_errors = [summary] if summary else [
+                        "model returned no proposal"]
+                    failure_stage = "compact"
                 if result is not None:
                     try:
                         normalized = _normalize(
@@ -853,7 +903,9 @@ async def propose_adaptation(
                                     "employee adaptation compact repair",
                                     "compact_repair",
                                     model=compact["response_model"],
-                                    max_tokens=1200)
+                                    max_tokens=1200,
+                                    capability_profile=(
+                                        "employee_adaptive_planning_compact"))
                             except _BudgetExhausted:
                                 repaired = None
                                 failure_stage = "compact_repair"
@@ -944,7 +996,9 @@ async def propose_adaptation(
                     try:
                         result = await _call(
                             compact_prompt,
-                            "employee adaptation compact", "compact")
+                            "employee adaptation compact", "compact",
+                            capability_profile=(
+                                "employee_adaptive_planning_compact"))
                     except _BudgetExhausted:
                         failure_stage = "compact"
                         checked_errors = checked_errors + [

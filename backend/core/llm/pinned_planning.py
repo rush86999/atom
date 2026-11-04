@@ -465,6 +465,10 @@ async def pinned_structured_call(
                 usage=_usage_payload(result),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
+        _observer_notify(
+            attempt_observer, "no_result", label=log_label, attempt=1,
+            route="pinned", seconds=_time.monotonic() - _pinned_started,
+            failure=dict(LAST_FAILURE))
         if strict_pin:
             if set_routing_error is not None:
                 set_routing_error(
@@ -520,6 +524,12 @@ async def pinned_structured_call(
                 set_routing_error(
                     "provider_failure",
                     "the configured routes produced no usable result")
+            if fallback_result is None:
+                _observer_notify(
+                    attempt_observer, "no_result", label=log_label,
+                    attempt=2, route="unpinned_fallback",
+                    seconds=_time.monotonic() - _fallback_started,
+                    failure=dict(LAST_FAILURE))
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -557,6 +567,12 @@ async def pinned_structured_call(
                 usage=_usage_payload(direct_result),
                 parsed=_parsed_payload(direct_result),
                 raw=_raw_payload(direct_result))
+        else:
+            _observer_notify(
+                attempt_observer, "no_result", label=log_label, attempt=1,
+                route="unpinned",
+                seconds=_time.monotonic() - _direct_started,
+                failure=dict(LAST_FAILURE))
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(

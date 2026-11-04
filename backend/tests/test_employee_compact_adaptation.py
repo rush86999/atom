@@ -181,6 +181,41 @@ def test_compact_context_is_single_operation_and_keeps_scope():
         raise AssertionError("compact schema accepted an unrelated operation")
 
 
+def test_compact_invoice_schema_keeps_compiler_owned_fields_out():
+    compact = _compact_single_request_context(
+        _context(), [{
+            "observation_id": "evidence-receiving",
+            "kind": "evidence_result", "step_id": "receiving"}])
+    assert compact is not None
+    work_schema = compact["response_model"].model_json_schema()[
+        "$defs"][compact["response_model"].model_fields[
+            "work_request"].annotation.__args__[0].__name__]
+    properties = set(work_schema["properties"])
+    # Role IDs and currency remain model-owned; field maps and the evidence
+    # array are compiler-owned defaults for this narrow continuation.
+    assert {"invoice_step_id", "purchase_order_step_id",
+            "receiving_step_id", "currency"} <= properties
+    assert "receiving_fields" not in properties
+    assert "invoice_fields" not in properties
+    assert "evidence" not in properties
+    accepted = compact["response_model"].model_validate({
+        "decision": "replan",
+        "work_request": {
+            "operation": "invoice_reconciliation",
+            "invoice_step_id": "invoice",
+            "purchase_order_step_id": "purchase-order",
+            "receiving_step_id": "receiving",
+            "currency": "USD",
+        },
+    })
+    from core.employee_work_requests import InvoiceReconciliationRequest
+
+    full = InvoiceReconciliationRequest.model_validate(
+        accepted.work_request.model_dump())
+    assert full.receiving_step_id == "receiving"
+    assert full.receiving_fields == {}
+
+
 def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
     context = _context()
     assignment = _assignment()
@@ -197,9 +232,10 @@ def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
             "observation_ids": ["evidence-receiving"],
             "work_request": {
                 "operation": "invoice_reconciliation",
-                "invoice_fields": {},
-                "purchase_order_fields": {},
-                "receiving_fields": {},
+                "invoice_step_id": "invoice",
+                "purchase_order_step_id": "purchase-order",
+                "receiving_step_id": "receiving",
+                "currency": "USD",
             },
         })
 
@@ -221,6 +257,27 @@ def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
     assert "WorkAdaptationProposal" not in calls[0]["prompt"]
     assert (result["proposal"].get("work_request") or {}).get(
         "operation") == "invoice_reconciliation"
+
+
+def test_compact_no_result_is_reported_as_a_compact_failure(monkeypatch):
+    async def fake_pinned(_llm, **_kwargs):
+        return None
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        _context(), [{
+            "observation_id": "evidence-receiving",
+            "kind": "evidence_result", "step_id": "receiving"}],
+        assignment=_assignment(), llm_service=FakeLLM()))
+    assert result["source"] == "deterministic"
+    assert result["prompt_mode"] == "compact"
+    assert result["failure_stage"] == "compact"
+    assert any("no proposal" in error or "no parsed" in error
+               for error in result["errors"])
 
 
 def test_compact_path_allows_truthful_retain(monkeypatch):
