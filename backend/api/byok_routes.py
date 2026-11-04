@@ -1351,14 +1351,37 @@ async def get_provider_policy(
 ):
     """Effective installation provider policy (credentials stay masked)."""
     from core.llm.provider_policy import resolve_provider_policy
+    from core.llm.capability_profiles import (
+        capability_decisions, profile_descriptions,
+    )
 
     policy = resolve_provider_policy()
+    workspace_id = str(
+        getattr(current_user, "workspace_id", None) or "default")
+    tenant_id = str(getattr(current_user, "tenant_id", None) or "default")
+    try:
+        decisions = capability_decisions(
+            10, workspace_id=workspace_id, tenant_id=tenant_id)
+    except TypeError:
+        # Compatibility with a test/double exposing the old one-argument
+        # signature; the route still applies the authoritative scope below.
+        decisions = capability_decisions(10)
+    decisions = [
+        item for item in decisions
+        if str(item.get("workspace_id") or "") == workspace_id
+        and str(item.get("tenant_id") or "") == tenant_id
+    ]
     return ApiResponse(success=True, data={
         "policy": policy.public_dict(),
         "providers": [
             {"id": pid, "name": getattr(prov, "name", pid)}
             for pid, prov in sorted(byok_manager.providers.items())
         ],
+        "capability_routing": {
+            "profiles": profile_descriptions(),
+            "recent_decisions": decisions,
+            "preference": "economy-first; quality is an explicit profile choice",
+        },
     })
 
 

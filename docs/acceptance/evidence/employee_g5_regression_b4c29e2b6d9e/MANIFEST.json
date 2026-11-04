@@ -1,0 +1,44 @@
+{
+ "schema": "atom-employee-g5-regression-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "b4c29e2b6d9e",
+  "tree_clean_at_run": true,
+  "manifest_note": "Unchanged cancellation/late-response and controlled-uncertainty controls re-run on the integrated source as regression support."
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "9aa2d054076fd43bb1559386540e9305b3a28d76a36aea0e25aa8ba242b29de1",
+  "backend/core/assignment_executor.py": "a9bb36bfe5691aa1f57d8447b6cce42e1822906163bd4e1d7515d9bf26e37310",
+  "backend/core/assignment_plan.py": "1030129c25887fdd2b33a1cd9e7bdc9f833d1a4fb29777996e10a76fe86a79ae",
+  "backend/core/employee_patch.py": "3093d7d7fba67a4e512332755369f58bccf223ba6373ee0db0d15ad72882f67b",
+  "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+  "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+  "scripts/acceptance/employee_g5_remaining_normal_app.py": "4be14cb5d9da34cf798830609d2af53140926e4eda4bc5788ae1a43bbd0cfa89",
+  "scripts/acceptance/employee_g5_uncertain_normal_app.py": "e668e90034584c3b58dfe7782173dcac6cb08f99af218d9e1c3f728d4cfb7ae8"
+ },
+ "artifacts": {
+  "README.md": "5ecdc61181cec520a45f2b0db78d10666be37ee6c5740cdbd7c418eb2064f7d6",
+  "remaining/REPORT.md": "2346205a8647c6b3acb9ff52c7bec8cb7f11c9109143c1297922cef6e53e241b",
+  "remaining/report.json": "60c58571f8936693caf4abb295f2ffff66996c556729b53b0fc9de2a82127788",
+  "remaining/server.log": "6479eae0d44121132c5e2601909a5b8b403fac1058ac47b6ff648732510460f6",
+  "uncertain/report.json": "a93a4c8b135f2b892677aee31913532eea6d228827d53cc4e381035ecd3f746c",
+  "uncertain/server.log": "6405c5a8d0e844f534896f3a1c024ae02c964742325ae89f4d64e85ca8e08334"
+ },
+ "results": {
+  "remaining_checks": "18/18",
+  "uncertain_checks": "11/11",
+  "remaining_runs": {
+   "artifact": "36f07cbb-49f2-476f-9f4c-33f843c9d3fb",
+   "branch": "549b1197-580b-43dd-8924-92dc2e5a1259",
+   "uncertain": "2dcbb34d-7144-4e0b-b455-36bf7606907d"
+  },
+  "late_response_status": 409,
+  "uncertain_original_operation": "148ae9bc-8844-4b43-9e21-fd4d0fe371d4"
+ },
+ "exclusions": [
+  "deterministic branch formulas are not new adaptive evidence",
+  "full G5 remains open",
+  "no live provider/credential/consent/send/spend/deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

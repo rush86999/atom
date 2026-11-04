@@ -49,6 +49,13 @@ from core.dynamic_pricing_fetcher import (
     refresh_pricing_cache,
     DynamicPricingFetcher)
 from core.llm_call_tracker import get_llm_call_tracker
+from core.llm.capability_profiles import (
+    load_feedback_evidence,
+    pin_decision,
+    record_capability_decision,
+    resolve_capability_profile,
+    select_profile_candidates,
+)
 
 
 # Dedicated daemon loop for __init__-time credential resolution. FastAPI async
@@ -690,6 +697,26 @@ class NoProvidersConfiguredError(ValueError):
             "message": self.message,
             "recovery_url": self.recovery_url,
         }
+
+
+class NoSuitableConfiguredModelError(NoProvidersConfiguredError):
+    """Configured routes exist, but none meets a workload capability contract.
+
+    This is distinct from "no provider configured" and from a credential or
+    protocol failure. Callers may preserve the job and surface the profile/
+    reasons; they must not silently relax to a cheaper ineligible route.
+    """
+
+    def __init__(self, profile: Any, detail: Dict[str, Any]):
+        self.profile = profile
+        self.detail = detail
+        label = getattr(profile, "name", str(profile))
+        super().__init__(
+            message=(
+                f"no_suitable_configured_model for profile {label!r}: "
+                f"{detail.get('selection_reason') or 'no eligible candidate'}"),
+            error_code="no_suitable_configured_model",
+        )
 
 
 class GatewayBlockedError(Exception):
@@ -4532,6 +4559,8 @@ class BYOKHandler:
         turn_index: int = 0, # NEW: Deterministic BPC
         relax_tier: bool = False,  # last-resort sweep: admit paid BYOK rungs
         cost_priority: Optional[bool] = None,  # Small structured tasks: let price drive
+        capability_profile: Optional[str] = None,  # Server-selected workload contract
+        capability_preference: Optional[str] = None,  # economy|balanced|quality
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
@@ -4567,6 +4596,15 @@ class BYOKHandler:
             List of (provider, model) tuples ranked by value score
         """
         ranked_options = []
+        _capability = resolve_capability_profile(
+            capability_profile, task_type)
+        if capability_preference is None:
+            _env_preference = str(
+                os.getenv("ATOM_CAPABILITY_PREFERENCE", "")).strip().lower()
+            if _env_preference in ("economy", "balanced", "quality"):
+                capability_preference = _env_preference
+        _capability_selection: Optional[Dict[str, Any]] = None
+        _capability_order: Dict[tuple, int] = {}
         
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
@@ -4649,6 +4687,12 @@ class BYOKHandler:
                     QueryComplexity.ADVANCED: 90
                 }
                 min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
+            if _capability is not None:
+                # The workload profile is the authoritative floor for this
+                # call. A generic complexity floor must not silently exclude
+                # a capable Flash model before task-specific evidence is
+                # considered (owner clarification 2026-11-04).
+                min_quality = min(min_quality, _capability.min_quality)
             
             # Extraction tasks: cap max quality at 90. Pro/opus/frontier
             # models (91-100) are overkill for structured entity extraction.
@@ -4998,6 +5042,78 @@ class BYOKHandler:
                     "endpoint_penalty": endpoint_penalty,
                 })
 
+            # WORKLOAD CAPABILITY LAYER (owner clarification 2026-11-04):
+            # This runs only after the existing provider/credential/protocol/
+            # context/rate/policy gates above. It adds task-specific evidence
+            # and an explicit no_suitable outcome instead of silently
+            # relaxing a required floor to the cheapest ineligible route.
+            if _capability is not None and not candidates and self.clients:
+                _empty_detail = {
+                    "outcome": "no_suitable",
+                    "profile": _capability.metadata(),
+                    "selection_reason": (
+                        "configured routes exist, but none passed the "
+                        "workload capability floor/context checks"),
+                }
+                record_capability_decision({
+                    "event": "selection", **_empty_detail,
+                    "workspace_id": workspace_id,
+                    "tenant_id": self.tenant_id or "default",
+                    "task_type": task_type,
+                })
+                logger.warning(
+                    "capability route: no suitable configured model for "
+                    "profile %s v%s — %s",
+                    _capability.name, _capability.version,
+                    _empty_detail["selection_reason"])
+                return AwaitableResult([])
+            if _capability is not None and candidates:
+                _evidence = load_feedback_evidence(
+                    _capability,
+                    workspace_id=workspace_id,
+                    tenant_id=self.tenant_id or "default",
+                    policy_revision=str(getattr(
+                        getattr(self, "provider_policy", None),
+                        "revision", "") or ""),
+                )
+                _capability_selection = select_profile_candidates(
+                    _capability, candidates, evidence=_evidence,
+                    preference=capability_preference)
+                record_capability_decision({
+                    "event": "selection",
+                    "profile": _capability.metadata(),
+                    "preference": _capability_selection["preference"],
+                    "outcome": _capability_selection["outcome"],
+                    "selection_reason": _capability_selection[
+                        "selection_reason"],
+                    "selected": [
+                        {"provider": c.get("provider"),
+                         "model": c.get("model"),
+                         "quality": c.get("quality"),
+                         "effective_cost": c.get("effective_cost"),
+                         "evidence_state": c.get("evidence_state")}
+                        for c in _capability_selection["ranked"][:8]
+                    ],
+                    "excluded": _capability_selection["excluded"][:20],
+                    "task_type": task_type,
+                    "workspace_id": workspace_id,
+                    "tenant_id": self.tenant_id or "default",
+                })
+                if _capability_selection["outcome"] != "selected":
+                    logger.warning(
+                        "capability route: no suitable configured model for "
+                        "profile %s v%s — %s (excluded=%s)",
+                        _capability.name, _capability.version,
+                        _capability_selection["selection_reason"],
+                        _capability_selection["excluded"][:4])
+                    return AwaitableResult([])
+                _capability_order = {
+                    (c["provider"], c["model"]): index
+                    for index, c in enumerate(
+                        _capability_selection["ranked"])
+                }
+                candidates = list(_capability_selection["ranked"])
+
             # Second pass: compute value_score with a pool-relative cost floor.
             # Free models are floored at ~half the median PAID cost in this
             # candidate pool, so they remain cheap-but-finite: a free model
@@ -5051,6 +5167,11 @@ class BYOKHandler:
                 if cost_priority is not None
                 else (task_type or "").strip().lower() in _COST_PRIORITY_TASKS
             )
+            if _capability_selection is not None:
+                # The capability selector already ordered the eligible pool
+                # by expected satisfactory cost/quality; do not re-enter the
+                # legacy price-only path or relax below its floor.
+                _cost_priority = False
             _COST_PRIORITY_MIN_QUALITY = 85
             if _cost_priority:
                 # REASONING-MANDATORY models are latency-ineligible for
@@ -5465,11 +5586,29 @@ class BYOKHandler:
                 # — the record is diagnostic, slight cross-talk is acceptable
                 # and the stage field keeps the classes distinguishable).
                 self._last_ranking_skips = ranking_skips[:25]
+                if _capability_order:
+                    ranked_options.sort(key=lambda route: _capability_order.get(
+                        tuple(route), 10**9))
                 return AwaitableResult(
                     self._reconcile_ranked_routes(ranked_options))
                 
         except Exception as e:
             logger.debug(f"BPC ranking failed, falling back to static mapping: {e}")
+            if _capability is not None and _capability.policy == "quality_critical":
+                detail = {
+                    "outcome": "no_suitable",
+                    "profile": _capability.metadata(),
+                    "selection_reason": (
+                        "capability ranking failed before an eligible route "
+                        "could be established"),
+                    "error": str(e)[:300],
+                }
+                record_capability_decision({
+                    "event": "ranking_error", **detail,
+                    "workspace_id": workspace_id,
+                    "tenant_id": self.tenant_id or "default",
+                })
+                return AwaitableResult([])
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
@@ -7045,6 +7184,7 @@ class BYOKHandler:
         resolved_model: Optional[str] = None,
         unsupported_figures: Optional[list] = None,
         ungrounded_claims: Optional[list] = None,
+        capability_profile: Optional[Any] = None,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
@@ -7139,6 +7279,14 @@ class BYOKHandler:
                 quality=quality,
                 actual_cost=cost,
                 actual_latency_ms=latency_ms,
+                provider_id=provider_id,
+                capability_profile=(
+                    getattr(capability_profile, "name", None)
+                    or (str(capability_profile)
+                        if capability_profile else None)),
+                capability_profile_version=getattr(
+                    capability_profile, "version", None),
+                workspace_id=self.workspace_id,
             )
             await learning_router.record_feedback(fb)
             # RE-PUBLISH the EFFECTIVE id: when this generation is a RETRY that
@@ -7382,7 +7530,9 @@ class BYOKHandler:
             return options
 
     def _stash_decision_features(
-        self, prompt: str, task_type: Optional[str], intent: Optional[str] = None
+        self, prompt: str, task_type: Optional[str],
+        intent: Optional[str] = None,
+        capability_profile: Optional[Any] = None,
     ) -> Optional[str]:
         """Stash this request's prompt features and return a decision id.
 
@@ -7430,6 +7580,20 @@ class BYOKHandler:
                     "intent": intent,
                 })()
             )
+            if capability_profile is not None:
+                # Task-specific routing metadata travels with the outcome
+                # row. It is not a training feature; the existing feature
+                # extractor ignores unknown keys while the capability ledger
+                # reads them with exact profile/version/scope matching.
+                features = dict(features or {})
+                features.update({
+                    "capability_profile": getattr(
+                        capability_profile, "name", str(capability_profile)),
+                    "profile_version": getattr(
+                        capability_profile, "version", ""),
+                    "workspace_id": self.workspace_id,
+                    "tenant_id": self.tenant_id or "default",
+                })
             # Stash via the router's thread-safe helper (concurrent handlers on
             # the shared singleton otherwise race on _routing_decisions).
             return learning_router.stash_decision(features)
@@ -7685,6 +7849,8 @@ class BYOKHandler:
         messages: Optional[List[Dict[str, Any]]] = None,  # complete ordered messages
         output_mode: Optional[str] = None,  # "json" forces instructor JSON mode
         claim_wait_seconds: Optional[float] = None,  # bounded sibling-claim wait
+        capability_profile: Optional[str] = None,  # server-selected workload contract
+        capability_preference: Optional[str] = None,  # economy|balanced|quality
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -7825,6 +7991,8 @@ class BYOKHandler:
             
             # Get optimal provider and model
             complexity = self.analyze_query_complexity(prompt, task_type)
+            _capability = resolve_capability_profile(
+                capability_profile, task_type)
             
             # Structured generation requires structured support (Phase 6.6)
             requires_tools = _task_requires_tools(agent_id, task_type)
@@ -7851,6 +8019,9 @@ class BYOKHandler:
                     False if (provider_model is not None or force_value_ranking)
                     else None),
                 relax_tier=relax_tier,
+                capability_profile=(
+                    _capability.name if _capability is not None else None),
+                capability_preference=capability_preference,
             )
             # SWEEP CANDIDATE INJECTION (2026-10-04, the planner-pool
             # starvation): the ranked pool for a task class can contain
@@ -7881,6 +8052,62 @@ class BYOKHandler:
                         "spinning exhaust cycles",
                         [f"{p}/{m}" for p, m in _force_candidates[:4]])
                     return None
+                # FORCED-CANDIDATE PROFILE GATE (verifier boundary): a sweep
+                # must not re-admit a route outside the workload capability
+                # profile after the ranked pool was filtered. Apply the same
+                # selector to the injected candidates; no hidden fallback.
+                if _capability is not None:
+                    _forced_evidence = load_feedback_evidence(
+                        _capability,
+                        workspace_id=self.workspace_id or "default",
+                        tenant_id=self.tenant_id or "default",
+                        policy_revision=str(getattr(
+                            getattr(self, "provider_policy", None),
+                            "revision", "") or ""),
+                    )
+                    _forced_pool = []
+                    for _fp, _fm in _guard_ok:
+                        _local = (self._local_routes or {}).get(_fm) or {}
+                        _forced_pool.append({
+                            "provider": _fp, "model": _fm,
+                            "quality": (
+                                int(round(float(
+                                    _local.get("quality_score") or 0.0)
+                                    * 100.0))
+                                if _local else get_quality_score(_fm)),
+                            "cost": 0.0,
+                            "supports_structured": True,
+                            "supports_tools": True,
+                        })
+                    _forced_selection = select_profile_candidates(
+                        _capability, _forced_pool,
+                        evidence=_forced_evidence,
+                        preference=capability_preference)
+                    _allowed_routes = {
+                        (c["provider"], c["model"])
+                        for c in _forced_selection["ranked"]}
+                    _guard_ok = [
+                        (p, m) for p, m in _guard_ok
+                        if (p, m) in _allowed_routes]
+                    record_capability_decision({
+                        "event": "forced_candidates",
+                        "profile": _capability.metadata(),
+                        "outcome": (
+                            "selected" if _guard_ok else "no_suitable"),
+                        "candidates": [list(r) for r in _forced_pool],
+                        "allowed": [list(r) for r in _allowed_routes],
+                        "workspace_id": self.workspace_id or "default",
+                        "tenant_id": self.tenant_id or "default",
+                    })
+                    if not _guard_ok:
+                        raise NoSuitableConfiguredModelError(
+                            _capability, {
+                                "outcome": "no_suitable",
+                                "selection_reason": (
+                                    "forced/catalog fallback candidates "
+                                    "do not meet the workload capability "
+                                    "profile"),
+                            })
                 options = list(_guard_ok)
                 # EXCLUSION STILL APPLIES (2026-10-04 control check): the
                 # injection replaces the starved ranked list, but a route
@@ -7897,6 +8124,62 @@ class BYOKHandler:
                     "[structured-pool] sweep injected %d catalog-driven "
                     "candidate(s): %s", len(options),
                     ", ".join(f"{p}/{m}" for p, m in options[:4]))
+
+            # STRICT QUALIFICATION PIN: an exact capability-pin attempt is
+            # either the named route or a failed qualification attempt. It
+            # never silently escapes to another model. Availability/context
+            # gates still run below for non-capability pins only.
+            if provider_model is not None and _capability is not None:
+                _pin_evidence = load_feedback_evidence(
+                    _capability,
+                    workspace_id=self.workspace_id or "default",
+                    tenant_id=self.tenant_id or "default",
+                    policy_revision=str(getattr(
+                        getattr(self, "provider_policy", None),
+                        "revision", "") or ""),
+                )
+                _local_pin = (self._local_routes or {}).get(
+                    provider_model[1]) or {}
+                _pin_quality = (
+                    int(round(float(_local_pin.get("quality_score") or 0.0)
+                              * 100.0))
+                    if _local_pin else get_quality_score(provider_model[1]))
+                _pin_context = None
+                try:
+                    from core.dynamic_pricing_fetcher import (
+                        get_pricing_fetcher_initialized_sync,
+                    )
+                    _pin_pricing = get_pricing_fetcher_initialized_sync(
+                        auto_refresh=False).pricing_cache.get(
+                            provider_model[1]) or {}
+                    _pin_context = _pin_pricing.get("max_input_tokens")
+                except Exception:  # noqa: BLE001 — context is advisory here
+                    _pin_context = None
+                _pin_decision = pin_decision(
+                    _capability, provider_model[0], provider_model[1],
+                    quality=_pin_quality,
+                    context_window=_pin_context,
+                    evidence=_pin_evidence,
+                )
+                record_capability_decision({
+                    "event": "pin",
+                    "profile": _capability.metadata(),
+                    "route": list(provider_model),
+                    "eligible": _pin_decision["eligible"],
+                    "reasons": _pin_decision["reasons"],
+                    "evidence_state": _pin_decision["evidence_state"],
+                    "workspace_id": self.workspace_id or "default",
+                    "tenant_id": self.tenant_id or "default",
+                })
+                if not _pin_decision["eligible"]:
+                    raise NoSuitableConfiguredModelError(
+                        _capability, {
+                            "outcome": "pin_failed",
+                            "selection_reason": (
+                                "the qualification pin does not meet the "
+                                "workload capability contract"),
+                            "reasons": _pin_decision["reasons"],
+                        })
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
             # is pinned, reduce the option list to that single tuple so sample
@@ -8004,7 +8287,34 @@ class BYOKHandler:
                     logger.warning("No standard vision models found for structured output. Defaulting to GPT-4o.")
                     options = [("openai", "gpt-4o")] # Panic fallback
 
+            # A capability-profile production call gets the primary eligible
+            # route plus at most ONE bounded escalation candidate. The normal
+            # structured cascade can otherwise walk the whole ranked pool.
+            if _capability is not None and len(options) > 2:
+                options = options[:2]
+                record_capability_decision({
+                    "event": "bounded_cascade",
+                    "profile": _capability.metadata(),
+                    "routes": [list(route) for route in options],
+                    "workspace_id": self.workspace_id or "default",
+                    "tenant_id": self.tenant_id or "default",
+                })
+
             if not options:
+                if _capability is not None:
+                    detail = {
+                        "outcome": "no_suitable",
+                        "profile": _capability.metadata(),
+                        "selection_reason": (
+                            "no configured route meets the workload "
+                            "capability floor after all eligibility gates"),
+                    }
+                    record_capability_decision({
+                        "event": "no_suitable", **detail,
+                        "workspace_id": self.workspace_id or "default",
+                        "tenant_id": self.tenant_id or "default",
+                    })
+                    raise NoSuitableConfiguredModelError(_capability, detail)
                 return None
 
             # --- R72 Workstream F: Mixture-of-Agents dispatch ---
@@ -8044,7 +8354,8 @@ class BYOKHandler:
             # outcome hook can recover REAL features (not task defaults) when
             # recording feedback. The structured path doesn't re-rank, so without
             # this its feedback trained predictors on constant features (Bug 2).
-            structured_decision_id = self._stash_decision_features(prompt, task_type)
+            structured_decision_id = self._stash_decision_features(
+                prompt, task_type, capability_profile=_capability)
             route_trace_id = route_trace_id or (
                 f"structured-{uuid.uuid4().hex[:12]}"
             )
@@ -8774,6 +9085,7 @@ class BYOKHandler:
                         success=True, cost=_structured_cost, latency_ms=_structured_latency_ms,
                         schema_error=False,
                         routing_result_id=structured_decision_id,
+                        capability_profile=_capability,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
                     _save_pair_memos()
@@ -8988,6 +9300,7 @@ class BYOKHandler:
                         schema_error=is_schema_err,
                         exception=attempt_err if not is_schema_err else None,
                         routing_result_id=structured_decision_id,
+                        capability_profile=_capability,
                     )
                     # Fall through to the cascade check below (no continue).
 

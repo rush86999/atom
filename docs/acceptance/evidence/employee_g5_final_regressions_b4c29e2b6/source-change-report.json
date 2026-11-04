@@ -1,0 +1,430 @@
+{
+  "run_id": "4f3302ac-ea59-43e3-b3b3-c8e1e0071803",
+  "source_change": {
+    "resource": "scotch_parts_price_list",
+    "file": "scotch-parts.parquet",
+    "changed_field": "Unit Price / Total for line 1",
+    "before": {
+      "unit_price": 10.0,
+      "total": 20.0
+    },
+    "after": {
+      "unit_price": 40.0,
+      "total": 80.0
+    }
+  },
+  "before": {
+    "status": "completed",
+    "plan_revision": 2,
+    "quote_total": "105.00",
+    "quote_operation": "58bfccb9-121d-4ed3-a028-2c030687c073",
+    "artifact_revision": "a051cb73bc61486e",
+    "unrelated_note_operation": "9de50f6b-0ec5-4a12-b43f-1d3d15a49474"
+  },
+  "after": {
+    "status": "completed",
+    "plan_revision": 4,
+    "quote_total": "165.00",
+    "quote_operation": "ab7dfc9a-8a2e-4ff4-a732-58e7f2696b07",
+    "quote_prior_results": [
+      {
+        "plan_revision": 3,
+        "status": "applied",
+        "result": {
+          "summary": "quote total 105.00 USD (3 lines)",
+          "evidence": [
+            {
+              "kind": "calculation_receipt",
+              "currency": "USD",
+              "total": "105.00",
+              "rounding": "half_up",
+              "rounding_authority": "currency_minor_unit"
+            }
+          ],
+          "artifact": null,
+          "artifact_revision": null,
+          "verification": null,
+          "coverage": null,
+          "readback": null,
+          "resource_id": null,
+          "request_id": null,
+          "subject": null,
+          "subject_id": null,
+          "message_id": null,
+          "account": null,
+          "mailbox": null,
+          "value": "105.00",
+          "unit": "USD",
+          "expression": "2*10.00 + 3*20.00 + 1*5.00 + freight",
+          "operation": "line_items",
+          "measure": "quote_total",
+          "group_by": "currency",
+          "grouping_dimension": null,
+          "values": [
+            {
+              "currency": "USD",
+              "value": "105.00"
+            }
+          ],
+          "subtotals": {
+            "USD": {
+              "value": "85.00",
+              "rows": 3
+            }
+          },
+          "calculation_receipt": {
+            "currency": "USD",
+            "rounding": "half_up",
+            "rounding_authority": "currency_minor_unit",
+            "scale": 2,
+            "subtotal": "85.00",
+            "freight": "20.00",
+            "tax": {
+              "basis": "none",
+              "amount": "0"
+            },
+            "total": "105.00",
+            "line_evidence": [
+              {
+                "item_id": "SC-1",
+                "source_ref": {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                },
+                "evidence": [
+                  {
+                    "resource_id": null,
+                    "version": null,
+                    "row": null
+                  }
+                ]
+              },
+              {
+                "item_id": "SC-2",
+                "source_ref": {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                },
+                "evidence": [
+                  {
+                    "resource_id": null,
+                    "version": null,
+                    "row": null
+                  }
+                ]
+              },
+              {
+                "item_id": "SC-3",
+                "source_ref": {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                },
+                "evidence": [
+                  {
+                    "resource_id": null,
+                    "version": null,
+                    "row": null
+                  }
+                ]
+              }
+            ],
+            "source_evidence": [],
+            "discount_rules": []
+          },
+          "source": null,
+          "source_label": null,
+          "formulas": null,
+          "matched_count": 3,
+          "selected_count": 3,
+          "truncated": false,
+          "substantive": true,
+          "source_version": null,
+          "provider_ref": null,
+          "remote_id": null,
+          "rows": [
+            {
+              "item_id": "SC-1",
+              "description": "Scotch A",
+              "quantity": "2",
+              "unit": "each",
+              "pack_size": "1",
+              "unit_price": "10.00",
+              "price_basis": "contract",
+              "currency": "USD",
+              "gross": "20.00",
+              "discount_rate": "0",
+              "discount_amount": "0.00",
+              "net": "20.00",
+              "discount_rule": {
+                "authority": "none"
+              },
+              "source_ref": {
+                "resource_id": null,
+                "version": null,
+                "row": null
+              },
+              "evidence": [
+                {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                }
+              ]
+            },
+            {
+              "item_id": "SC-2",
+              "description": "Scotch B",
+              "quantity": "3",
+              "unit": "each",
+              "pack_size": "1",
+              "unit_price": "20.00",
+              "price_basis": "contract",
+              "currency": "USD",
+              "gross": "60.00",
+              "discount_rate": "0",
+              "discount_amount": "0.00",
+              "net": "60.00",
+              "discount_rule": {
+                "authority": "none"
+              },
+              "source_ref": {
+                "resource_id": null,
+                "version": null,
+                "row": null
+              },
+              "evidence": [
+                {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                }
+              ]
+            },
+            {
+              "item_id": "SC-3",
+              "description": "Scotch C",
+              "quantity": "1",
+              "unit": "each",
+              "pack_size": "1",
+              "unit_price": "5.00",
+              "price_basis": "contract",
+              "currency": "USD",
+              "gross": "5.00",
+              "discount_rate": "0",
+              "discount_amount": "0.00",
+              "net": "5.00",
+              "discount_rule": {
+                "authority": "none"
+              },
+              "source_ref": {
+                "resource_id": null,
+                "version": null,
+                "row": null
+              },
+              "evidence": [
+                {
+                  "resource_id": null,
+                  "version": null,
+                  "row": null
+                }
+              ]
+            }
+          ],
+          "line_items": null,
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-11-04T11:49:38.578342+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "58bfccb9-121d-4ed3-a028-2c030687c073",
+            "execution_id": null,
+            "action": "quote.calculate",
+            "binding_sha256": "893f6efdaf669ce600e399dc14838f628d45163f76ea8e7e41d3ab8b5950c39a",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-11-04T11:49:38.580430+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": null,
+              "coverage": null
+            },
+            "calculation": {
+              "expression": "2*10.00 + 3*20.00 + 1*5.00 + freight",
+              "value": "105.00",
+              "unit": "USD",
+              "steps": null
+            },
+            "outbound": null,
+            "remote_identity": {
+              "provider": null,
+              "operation": "line_items",
+              "remote_id": "",
+              "provider_ref": "",
+              "payload_sha256": null,
+              "provider_receipt": null,
+              "verification": null,
+              "conflicts": []
+            },
+            "readback": null,
+            "summary": "quote total 105.00 USD (3 lines)",
+            "evidence": [
+              {
+                "kind": "calculation_receipt",
+                "currency": "USD",
+                "total": "105.00",
+                "rounding": "half_up",
+                "rounding_authority": "currency_minor_unit"
+              }
+            ]
+          }
+        },
+        "artifact_revision": null,
+        "reason": "authorized source value changed"
+      }
+    ],
+    "artifact_revision": "1a30b6bb31fa2adc",
+    "unrelated_note_operation": "9de50f6b-0ec5-4a12-b43f-1d3d15a49474",
+    "affected_steps": [
+      "source-1",
+      "quote-lines",
+      "quote-total",
+      "requested-artifact"
+    ],
+    "artifact_sha256": "1a30b6bb31fa2adc064e400b2c281008069a8bc9c9ff073198b7e64c258a0f05",
+    "artifact_text_sha256": "9b302ad96fdfc62f2b1283a4c7672415a75585725a33bc8d129d28b458b652cb"
+  },
+  "retained_unrelated_result": {
+    "summary": "read 51 characters from delivery-note.txt",
+    "evidence": [
+      {
+        "kind": "document",
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-3681/test_real_source_value_change_0/delivery-note.txt",
+        "content_hash": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1"
+      }
+    ],
+    "artifact": null,
+    "artifact_revision": null,
+    "verification": {
+      "status": "verified",
+      "resource_id": "fixture:delivery-note.txt",
+      "version": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1",
+      "coverage": {
+        "complete": true,
+        "known": true,
+        "truncated": false
+      }
+    },
+    "coverage": {
+      "complete": true,
+      "known": true,
+      "truncated": false
+    },
+    "readback": null,
+    "resource_id": "fixture:delivery-note.txt",
+    "request_id": null,
+    "subject": null,
+    "subject_id": null,
+    "message_id": null,
+    "account": null,
+    "mailbox": null,
+    "value": null,
+    "unit": null,
+    "expression": null,
+    "operation": null,
+    "measure": null,
+    "group_by": null,
+    "grouping_dimension": null,
+    "values": null,
+    "subtotals": null,
+    "calculation_receipt": null,
+    "source": null,
+    "source_label": null,
+    "formulas": null,
+    "matched_count": null,
+    "selected_count": null,
+    "truncated": false,
+    "substantive": null,
+    "source_version": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1",
+    "provider_ref": null,
+    "remote_id": null,
+    "rows": null,
+    "line_items": null,
+    "schema": [],
+    "text": "Unrelated delivery note: leave this branch intact.\n",
+    "decision": null,
+    "draft": null,
+    "data": {},
+    "at": "2026-11-04T11:49:38.672875+00:00",
+    "receipt": {
+      "receipt_version": 1,
+      "operation_id": "9de50f6b-0ec5-4a12-b43f-1d3d15a49474",
+      "execution_id": null,
+      "action": "document.read",
+      "binding_sha256": "870ef90b7630b805336e0170136c2cd9a75dd696dad511992bc3c4e8dc684409",
+      "observed_status": "confirmed",
+      "error_class": null,
+      "reconciliation_required": false,
+      "at": "2026-11-04T11:49:38.675845+00:00",
+      "source": {
+        "kind": null,
+        "path": null,
+        "revision": null,
+        "sha256": null,
+        "source_version": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1",
+        "coverage": {
+          "complete": true,
+          "known": true,
+          "truncated": false
+        }
+      },
+      "calculation": null,
+      "outbound": null,
+      "remote_identity": {
+        "provider": null,
+        "operation": null,
+        "remote_id": "",
+        "provider_ref": "",
+        "payload_sha256": null,
+        "provider_receipt": null,
+        "verification": {
+          "status": "verified",
+          "resource_id": "fixture:delivery-note.txt",
+          "version": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1",
+          "coverage": {
+            "complete": true,
+            "known": true,
+            "truncated": false
+          }
+        },
+        "conflicts": []
+      },
+      "readback": null,
+      "summary": "read 51 characters from delivery-note.txt",
+      "evidence": [
+        {
+          "kind": "document",
+          "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-3681/test_real_source_value_change_0/delivery-note.txt",
+          "content_hash": "d8d20ee3249ef7ccf2a7b157db1ba286796bbfe15b95ef7af146b480e2e0cfc1"
+        }
+      ]
+    }
+  },
+  "checks": {
+    "real_source_value_changed": true,
+    "dependent_quote_changed": true,
+    "dependent_artifact_revision_changed": true,
+    "artifact_contains_new_total": true,
+    "unrelated_note_operation_retained": true,
+    "unrelated_note_result_retained": true
+  }
+}

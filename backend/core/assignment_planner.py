@@ -368,6 +368,7 @@ def plan_assignment(
     *,
     objective: str,
     sources: Optional[Sequence[Dict[str, Any]]] = None,
+    authorized_sources: Optional[Sequence[Dict[str, Any]]] = None,
     deliverables: Optional[Sequence[Dict[str, Any]]] = None,
     calculation: Optional[Dict[str, Any]] = None,
     outbound: Optional[Dict[str, Any]] = None,
@@ -672,8 +673,13 @@ def plan_assignment(
             {
                 "kind": source.get("kind"),
                 "binding": resource_binding(source),
+                **({"path": str(source["path"]),
+                    "internal_fixture": True}
+                   if source.get("path") else {}),
             }
-            for source in (sources or [])
+            for source in (
+                authorized_sources
+                if authorized_sources is not None else sources or [])
         ],
         authorized_actions=actions,
         completion_criteria=criteria,
@@ -689,6 +695,9 @@ def plan_assignment(
             "agent_id": agent_id,
             "planner": "capability_registry",
             "source_kinds": [s.get("kind") for s in (sources or [])],
+            "authorized_source_count": len(
+                authorized_sources
+                if authorized_sources is not None else sources or []),
         },
     )
     validate_proposed_plan(assignment)

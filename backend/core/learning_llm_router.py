@@ -158,6 +158,12 @@ class RoutingFeedback:
     #: existed: consumers must read that as "provider unknown", never as a
     #: match for whatever provider is being asked about.
     provider_id: Optional[str] = None
+    #: Server-selected capability profile that governed this attempt, when
+    #: one was declared. Persisted with the row so task-specific evidence
+    #: survives even when the generic learning router is not re-ranking.
+    capability_profile: Optional[str] = None
+    capability_profile_version: Optional[str] = None
+    workspace_id: Optional[str] = None
     #: WHICH RULE produced ``verdict`` (see
     #: ``core.llm.fabrication_accounting.CURRENT_VERDICT_RULES``). A verdict is
     #: only as good as the rule behind it: the deterministic figure check
@@ -1827,7 +1833,9 @@ class LearningBasedRouter:
 
                 verdict_rule = getattr(feedback, "verdict_rule", None) or (
                     (features or {}).get("verdict_rule"))
-                if route_provider or verdict_rule:
+                capability_profile = getattr(
+                    feedback, "capability_profile", None)
+                if route_provider or verdict_rule or capability_profile:
                     # Same rule for a standalone row: its provenance travels
                     # with it, so a route-scoped consumer can attribute it and
                     # tell which rule judged it.
@@ -1838,6 +1846,14 @@ class LearningBasedRouter:
                         row_features["verdict_rule"] = str(verdict_rule)
                     if verdict:
                         row_features["verdict"] = verdict
+                    if capability_profile:
+                        row_features["capability_profile"] = str(
+                            capability_profile)
+                        row_features["profile_version"] = str(
+                            getattr(feedback,
+                                    "capability_profile_version", "") or "")
+                        row_features["workspace_id"] = str(
+                            getattr(feedback, "workspace_id", "") or "")
                     prompt_features = row_features
 
                 row = LLMRoutingFeedback(
@@ -1854,6 +1870,16 @@ class LearningBasedRouter:
                     prompt_features=prompt_features,
                 )
                 db.add(row)
+                # Fresh outcome evidence invalidates the live capability
+                # selector cache; restart reads the same persisted rows.
+                try:
+                    from core.llm.capability_profiles import (
+                        reset_capability_evidence_cache,
+                    )
+
+                    reset_capability_evidence_cache()
+                except Exception:  # noqa: BLE001 — cache reset is best-effort
+                    pass
         except Exception as e:
             logger.warning(
                 f"Could not persist routing feedback to DB (non-fatal, "
@@ -1871,6 +1897,9 @@ class LearningBasedRouter:
         actual_latency_ms: Optional[float] = None,
         provider_id: Optional[str] = None,
         verdict_rule: Optional[str] = None,
+        capability_profile: Optional[str] = None,
+        capability_profile_version: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> RoutingFeedback:
         """Build a RoutingFeedback from a ResponseQuality assessment.
 
@@ -1893,6 +1922,9 @@ class LearningBasedRouter:
             actual_latency_ms=actual_latency_ms,
             provider_id=provider_id,
             verdict_rule=verdict_rule,
+            capability_profile=capability_profile,
+            capability_profile_version=capability_profile_version,
+            workspace_id=workspace_id,
         )
 
     def resolve_feedback_context(

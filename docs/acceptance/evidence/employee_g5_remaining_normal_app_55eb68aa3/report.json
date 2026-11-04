@@ -1,0 +1,337 @@
+{
+  "schema": "atom-employee-g5-remaining-normal-app-1",
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-remaining-94999-6bbe0473",
+  "checks": [
+    {
+      "name": "normal upload creates the authorized source",
+      "ok": true,
+      "detail": {
+        "document_id": "95628e34-1d6a-4f06-991d-15345c99d293",
+        "file_name": "price-book.xlsx",
+        "sha256": "87c5f5d69318a3a6e6f0820b290fce24b6659186d6363dc497a7cd55af52730f"
+      }
+    },
+    {
+      "name": "artifact objective completes only with applied artifact",
+      "ok": true,
+      "detail": {
+        "status": "completed",
+        "deliverable_status": "applied"
+      }
+    },
+    {
+      "name": "artifact criterion is required and met",
+      "ok": true,
+      "detail": {
+        "criteria": [
+          {
+            "criterion_id": "artifact_verified:del-deliverable-1",
+            "kind": "artifact_verified",
+            "required": true,
+            "verifier": "artifact_verified",
+            "scope": {
+              "workspace_id": "default"
+            },
+            "deliverable_id": "del-deliverable-1"
+          },
+          {
+            "criterion_id": "required_work_complete:assignment",
+            "kind": "required_work_complete",
+            "required": true,
+            "verifier": "required_work_complete",
+            "scope": {
+              "workspace_id": "default"
+            }
+          }
+        ],
+        "outcome": "satisfied"
+      }
+    },
+    {
+      "name": "artifact bytes match the recorded sha256",
+      "ok": true,
+      "detail": {
+        "sha256": "09a43610ee6c7a6989dc04d44c34a278662b8f061056040e3cb0db83a156f986",
+        "recorded": "09a43610ee6c7a6989dc04d44c34a278662b8f061056040e3cb0db83a156f986"
+      }
+    },
+    {
+      "name": "artifact content has the exact total, lines and source",
+      "ok": true,
+      "detail": "Prepare the customer quote document\nObjective\nPrepare the customer quote document\nSummary\n2*100.00 + 3*50.00 + freight = 370.00 USD\nFindings\nsource-1\ncalculate\nSources\nprice-book.xlsx\n95628e34-1d6a-4f06-991d-15345c99d293\nRow | excerpt\n | WORKBOOK INDEX: 1 sheets\n | - Prices: 2 data rows, 4 cols / headers: Item, Qty, Price, Currency\n | --- Sheet: Prices ---\n | COLS: A=Item / B=Qty / C=Price / D=Currency\n | ROWS: sheet rows 2..3\n | R2 / A / 2 / 100 / USD\n | R3 / B / 3 / 50 / USD\nRow | item_id | description | quantity | unit | pack_size | unit_price | price_basis | currency\n | A |  | 2 | each | 1 | 100.00 | contract | USD\n | B |  | 3 | each | 1 | 50.00 | contract | USD"
+    },
+    {
+      "name": "independent branches complete while the wait stays open",
+      "ok": true,
+      "detail": {
+        "assignment": "waiting",
+        "branch_a": "applied",
+        "branch_b": "applied",
+        "wait": "waiting"
+      }
+    },
+    {
+      "name": "independent branches have distinct operation receipts",
+      "ok": true,
+      "detail": {
+        "branch_a": "d54e9e3e-3a8c-4376-bb47-a22ecee80b70",
+        "branch_b": "c38422c4-ab6d-40c8-be5d-a224f1898502"
+      }
+    },
+    {
+      "name": "only the affected branch is re-evaluated",
+      "ok": true,
+      "detail": {
+        "before": "d54e9e3e-3a8c-4376-bb47-a22ecee80b70",
+        "after": "4feb1660-cf4b-4d50-b207-ca58fd0863c3",
+        "prior_result_count": 1
+      }
+    },
+    {
+      "name": "unrelated receipt and waiting operation are retained",
+      "ok": true,
+      "detail": {
+        "branch_b": {
+          "operation_id": "c38422c4-ab6d-40c8-be5d-a224f1898502",
+          "result_value": "750",
+          "result_summary": "calculated 750 USD"
+        },
+        "branch_b_after": {
+          "operation_id": "c38422c4-ab6d-40c8-be5d-a224f1898502",
+          "result_value": "750"
+        },
+        "wait": "fb944e08-c7f7-48d9-92a6-cc3e80dfdef7"
+      }
+    },
+    {
+      "name": "late response after cancellation is refused",
+      "ok": true,
+      "detail": {
+        "status_code": 409,
+        "detail": {
+          "detail": "The assignment is cancelled; the response was not used to resume work."
+        },
+        "assignment": "cancelled"
+      }
+    },
+    {
+      "name": "completed branch receipts survive cancellation",
+      "ok": true,
+      "detail": [
+        {
+          "step": "source-1",
+          "status": "applied",
+          "operation_id": "be208d4c-af73-4190-82f0-7c24a61d9151"
+        },
+        {
+          "step": "wait",
+          "status": "cancelled",
+          "operation_id": "fb944e08-c7f7-48d9-92a6-cc3e80dfdef7"
+        },
+        {
+          "step": "deliverable-1",
+          "status": "cancelled",
+          "operation_id": null
+        },
+        {
+          "step": "branch-a",
+          "status": "applied",
+          "operation_id": "4feb1660-cf4b-4d50-b207-ca58fd0863c3"
+        },
+        {
+          "step": "branch-b",
+          "status": "applied",
+          "operation_id": "c38422c4-ab6d-40c8-be5d-a224f1898502"
+        }
+      ]
+    },
+    {
+      "name": "controlled outbound awaits explicit approval",
+      "ok": true,
+      "detail": "awaiting_approval"
+    },
+    {
+      "name": "provider accepted then lost confirmation",
+      "ok": true,
+      "detail": {
+        "step": "uncertain",
+        "assignment": "blocked"
+      }
+    },
+    {
+      "name": "exactly one controlled effect exists",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "sha256": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf"
+      }
+    },
+    {
+      "name": "uncertain original operation survives restart",
+      "ok": true,
+      "detail": {
+        "status": "uncertain",
+        "operation_id": "8fb20294-a401-4912-ae8c-e3e6fe235b1e"
+      }
+    },
+    {
+      "name": "restart creates no second effect",
+      "ok": true,
+      "detail": {
+        "count": 1,
+        "sha256": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf"
+      }
+    },
+    {
+      "name": "original operation reconciles to applied",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "operation_id": "8fb20294-a401-4912-ae8c-e3e6fe235b1e"
+      }
+    },
+    {
+      "name": "reconciled assignment completes without a resend",
+      "ok": true,
+      "detail": {
+        "assignment": "completed",
+        "count": 1,
+        "sha256": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf"
+      }
+    }
+  ],
+  "event_order": [
+    "source_uploaded",
+    "artifact_started",
+    "artifact_verified",
+    "wait_assignment_started",
+    "independent_branches_adopted",
+    "affected_branch_invalidated",
+    "selective_retention_verified",
+    "waiting_assignment_cancelled",
+    "late_response_refused",
+    "controlled_outbound_started",
+    "uncertain_effect_recorded",
+    "restart_verified",
+    "uncertain_reconciled"
+  ],
+  "runs": {
+    "artifact": "d95de400-2c28-421d-81fa-95abb94e239d",
+    "branch": "e2721197-19bc-4600-b3a8-a5a237e65095",
+    "uncertain": "162f64f5-cd17-4438-9597-b48325cfc1a5"
+  },
+  "serving_identity_before": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-04T03:25:34.706409+00:00",
+    "identity": {
+      "pid": 95000,
+      "started_at": "2026-11-04T03:25:32.686894+00:00",
+      "cwd": "/private/tmp/atom-full-app/backend",
+      "git_commit": "55eb68aa30be",
+      "source_id": "55eb68aa30be",
+      "instance_id": "55eb68aa30be.95000.1793762734",
+      "revision": "55eb68aa30be5f698f11a6b2da19628a4f902d97",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-04T03:25:34.403239+00:00",
+      "process_started_at": "2026-11-04T03:25:34.403239+00:00",
+      "port": 8099,
+      "repo_path": "/private/tmp/atom-full-app",
+      "backend_path": "/private/tmp/atom-full-app/backend",
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-remaining-94999-6bbe0473/atom.db",
+      "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 602.17
+  },
+  "source": {
+    "document_id": "95628e34-1d6a-4f06-991d-15345c99d293",
+    "file_name": "price-book.xlsx",
+    "sha256": "87c5f5d69318a3a6e6f0820b290fce24b6659186d6363dc497a7cd55af52730f"
+  },
+  "artifact": {
+    "run_id": "d95de400-2c28-421d-81fa-95abb94e239d",
+    "deliverable": {
+      "deliverable_id": "del-deliverable-1",
+      "kind": "document",
+      "description": "Customer quote",
+      "required": true,
+      "step_id": "deliverable-1",
+      "status": "applied",
+      "artifact_revision": "09a43610ee6c7a69",
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-remaining-94999-6bbe0473/data/assignments/default/b2a0bf90-c37f-4d25-a167-f2b1658d730a/draft-c093388928fd/customer-quote-fe47518b.docx",
+      "sha256": "09a43610ee6c7a6989dc04d44c34a278662b8f061056040e3cb0db83a156f986"
+    },
+    "sha256": "09a43610ee6c7a6989dc04d44c34a278662b8f061056040e3cb0db83a156f986",
+    "text": "Prepare the customer quote document\nObjective\nPrepare the customer quote document\nSummary\n2*100.00 + 3*50.00 + freight = 370.00 USD\nFindings\nsource-1\ncalculate\nSources\nprice-book.xlsx\n95628e34-1d6a-4f06-991d-15345c99d293\nRow | excerpt\n | WORKBOOK INDEX: 1 sheets\n | - Prices: 2 data rows, 4 cols / headers: Item, Qty, Price, Currency\n | --- Sheet: Prices ---\n | COLS: A=Item / B=Qty / C=Price / D=Currency\n | ROWS: sheet rows 2..3\n | R2 / A / 2 / 100 / USD\n | R3 / B / 3 / 50 / USD\nRow | item_id | description | quantity | unit | pack_size | unit_price | price_basis | currency\n | A |  | 2 | each | 1 | 100.00 | contract | USD\n | B |  | 3 | each | 1 | 50.00 | contract | USD",
+    "expected_total": "370.00"
+  },
+  "branch": {
+    "run_id": "e2721197-19bc-4600-b3a8-a5a237e65095",
+    "branch_a_before": "d54e9e3e-3a8c-4376-bb47-a22ecee80b70",
+    "branch_a_after": "4feb1660-cf4b-4d50-b207-ca58fd0863c3",
+    "branch_b": {
+      "operation_id": "c38422c4-ab6d-40c8-be5d-a224f1898502",
+      "result_value": "750",
+      "result_summary": "calculated 750 USD"
+    },
+    "wait_operation_id": "fb944e08-c7f7-48d9-92a6-cc3e80dfdef7"
+  },
+  "serving_identity_after_restart": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-04T03:25:40.260611+00:00",
+    "identity": {
+      "pid": 95006,
+      "started_at": "2026-11-04T03:25:38.097393+00:00",
+      "cwd": "/private/tmp/atom-full-app/backend",
+      "git_commit": "55eb68aa30be",
+      "source_id": "55eb68aa30be",
+      "instance_id": "55eb68aa30be.95006.1793762740",
+      "revision": "55eb68aa30be5f698f11a6b2da19628a4f902d97",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-04T03:25:39.950728+00:00",
+      "process_started_at": "2026-11-04T03:25:39.950728+00:00",
+      "port": 8099,
+      "repo_path": "/private/tmp/atom-full-app",
+      "backend_path": "/private/tmp/atom-full-app/backend",
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-g5-remaining-94999-6bbe0473/atom.db",
+      "byok_key_store": "/private/tmp/atom-full-app/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 595.78
+  },
+  "uncertain": {
+    "run_id": "162f64f5-cd17-4438-9597-b48325cfc1a5",
+    "operation_id": "8fb20294-a401-4912-ae8c-e3e6fe235b1e",
+    "outbox_sha256_before": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf",
+    "outbox_sha256_after": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf",
+    "outbox_count": 1,
+    "step_id": "send"
+  },
+  "all_checks_passed": true
+}

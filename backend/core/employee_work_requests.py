@@ -13,7 +13,8 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-WORK_REQUEST_OPERATIONS = ("quote_calculation", "invoice_reconciliation")
+WORK_REQUEST_OPERATIONS = (
+    "quote_calculation", "invoice_reconciliation", "await_evidence")
 QUOTE_COLUMN_FIELDS = (
     "item_id", "quantity", "unit_price", "currency", "description", "unit",
     "pack_size", "price_basis", "category", "discount",
@@ -73,6 +74,31 @@ class QuoteCalculationRequest(BaseModel):
     reason: str = Field(default="", max_length=800)
 
 
+class AwaitEvidenceRequest(BaseModel):
+    """A material external fact the employee must wait for.
+
+    The model names the business fact, its subject and the authorized source/
+    channel expected to answer it. It never supplies operation ids, step ids,
+    correlation ids, callbacks, paths or executable mechanics; the compiler
+    derives and binds those to the durable run.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    operation: Literal["await_evidence"]
+    fact: str = Field(min_length=1, max_length=120)
+    subject: str = Field(min_length=1, max_length=200)
+    expected_from: str = Field(min_length=1, max_length=200)
+    expected_answer_type: Literal[
+        "quantity", "amount", "price", "date", "text", "confirmation",
+        "eligibility",
+    ]
+    blocks: str = Field(min_length=1, max_length=500)
+    deadline: Optional[str] = Field(default=None, max_length=40)
+    validity: Optional[str] = Field(default=None, max_length=40)
+    reason: str = Field(default="", max_length=800)
+
+
 class InvoiceReconciliationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -93,7 +119,10 @@ class InvoiceReconciliationRequest(BaseModel):
 
 
 WorkRequest = Annotated[
-    Union[QuoteCalculationRequest, InvoiceReconciliationRequest],
+    Union[
+        QuoteCalculationRequest, InvoiceReconciliationRequest,
+        AwaitEvidenceRequest,
+    ],
     Field(discriminator="operation"),
 ]
 
@@ -113,6 +142,14 @@ def work_request_schemas() -> List[Dict[str, Any]]:
                 "Reconcile invoice quantity and amount against accepted "
                 "purchase-order and receiving evidence."),
             "schema": InvoiceReconciliationRequest.model_json_schema(),
+        },
+        {
+            "operation": "await_evidence",
+            "description": (
+                "Wait for one material external fact that authorized evidence "
+                "cannot supply yet; the compiler binds the durable wait, "
+                "correlation and response requirement."),
+            "schema": AwaitEvidenceRequest.model_json_schema(),
         },
     ]
 

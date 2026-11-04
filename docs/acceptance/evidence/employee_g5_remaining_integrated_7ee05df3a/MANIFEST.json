@@ -1,0 +1,85 @@
+{
+  "artifacts": {
+    "README.md": "8068650630c2fd2044d14345f7e824b30c760965cc9edc18f950a1a20031984d",
+    "TEST_RESULTS.md": "563a939808b3e307c1c33066c413705fc8985dfbba3b2fc2a1c483f4307cec17",
+    "api/REPORT.md": "b1078161b00692a96772ae9e16c9d39d6d1fa766658610f5590cf20634c48e80",
+    "api/customer-quote.docx": "9db7930a22a0c9bbb3624ca9641cd0bdde1ec3c66d81b96dfa80c5365d98d809",
+    "api/harness-run.log": "bb1f5e11d6c66543ee81c6753b9553ccbc6242666307a2a0da11fed250557d6b",
+    "api/harness.py": "4be14cb5d9da34cf798830609d2af53140926e4eda4bc5788ae1a43bbd0cfa89",
+    "api/outbox.jsonl": "46f37510fc3dc914c1988fdfaebc77d9c066cfb7987ef5db1c623f602fbd6aaf",
+    "api/report.json": "b8e2978395d2c63bbf6c9a87f3530fe63d6b92b9e11be6e8fea7f0e6c82a72e6",
+    "api/server.log": "73c6f259be1642639d0399e777c0f8eeec3cbffd5c9f9eba2cb24f2fdfd1d13a",
+    "focused-tests.log": "116251b545d916a6116ec42570399e113bd87fd26fd67a0788e1782c946dc640",
+    "ui/build-identity.json": "6744a0f7e5340a9161d225180c55982bd7091fa0f3de7d40e847897008de9b28",
+    "ui/capture.json": "b4ea9a69a288c560153b66b823031fa2ca349563f791e025deaf6448843a7e45",
+    "ui/customer-quote.docx": "8605b8a82265ef7670936846244938a9d9d3e8305eead6704fea32c3112411ea",
+    "ui/detail.txt": "7e1df69bd8a95e489afeb0f3e1f4545f52d1d23c0a0fd3172e6cf38d703f0e2c",
+    "ui/exact-run-final.png": "f470c05bd52fa8a1b5e3f4b812e8c9a1b16841ddf004799672e8c99fcc29e644",
+    "ui/final.json": "61c20530ebd8744857f865a763b60dd65103cde3377a929f546aeb570790c55d",
+    "ui/harness-run.log": "fdda6de889584faf39d391a0895869f3af0d35a266c3d67a26b621ed3a6f1e63",
+    "ui/harness.py": "fdcd6f91d2526851b4be9a62f125a43a61e2a793337aaedb1e98e6c1d23aace3",
+    "ui/start-form.png": "9a893d76b24260fb69fa240744d2774bdf76bf36f47ac8c6916b1e4ba6920b8a"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "7ee05df3ad54beb7581b7055d472e66caf93c572",
+    "manifest_note": "One integrated source with ordinary Assignments UI artifact evidence and normal-app API evidence for independent branch progress, selective retention, cancellation/late reply and controlled uncertainty recovery.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app",
+    "worlds": [
+      "g5-ui-integrated-final",
+      "atom-g5-remaining scratch world"
+    ]
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_planner.py",
+    "backend/core/employee_job_runner.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_routes.py",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "frontend-nextjs/lib/assignment-api.ts",
+    "scripts/acceptance/employee_g5_remaining_normal_app.py",
+    "scripts/acceptance/employee_g5_ui_artifact.py"
+  ],
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/deployment authority",
+    "artifact request uses the existing explicit deliverable control; served-model artifact selection not claimed",
+    "independent branch uses a deterministic versioned plan patch; model branch discovery not claimed",
+    "browser exact-run reconciliation model choices remain the earlier ec2d9dbf0 bundle",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "schema": "atom-employee-g5-remaining-integrated-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "f2c277ec2c4eb3e04f1979a547ee5a31f3d5aa299ea37d52ea331fb00f8c1576",
+    "backend/core/assignment_executor.py": "6305d604e1791ff05558fcc41bfdd2341a814641463b5a9abe3fa949c3267c82",
+    "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
+    "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+    "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+    "backend/core/employee_work_compiler.py": "f0824a5c056c8ad9ad620e94fe2a100f212e211262418604a0fe2936a473721c",
+    "backend/tests/test_assignment_executor.py": "4da437d00c0bf996f1a8f994c74d74f737101b116f99165a8626ac316da7485e",
+    "backend/tests/test_assignment_routes.py": "8a3e18b77677b6ee17916c309f3ac1a10f71bbf0a2fd241101b851cb54827894",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "0ed109516b9d63393de90593b000478b70e2704eb749ff4421ba0ac73f40af30",
+    "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0",
+    "scripts/acceptance/employee_g5_remaining_normal_app.py": "4be14cb5d9da34cf798830609d2af53140926e4eda4bc5788ae1a43bbd0cfa89",
+    "scripts/acceptance/employee_g5_ui_artifact.py": "fdcd6f91d2526851b4be9a62f125a43a61e2a793337aaedb1e98e6c1d23aace3"
+  },
+  "status": "remaining-g5-integrated-verified",
+  "tests": {
+    "api_campaign": {
+      "report": "api/report.json",
+      "result": "18/18 checks"
+    },
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "305 passed"
+    },
+    "ui_artifact": {
+      "report": "ui/final.json",
+      "result": "10/10 checks"
+    }
+  }
+}

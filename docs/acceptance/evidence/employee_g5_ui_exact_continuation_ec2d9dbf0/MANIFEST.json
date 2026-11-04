@@ -1,0 +1,48 @@
+{
+ "schema": "atom-employee-g5-ui-exact-continuation-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "ec2d9dbf0",
+  "harness_successor": "7c9f1cdf2",
+  "tree_clean_at_run": false,
+  "dirty_note": "The exact run executed the integrated Agent-2 working tree before its commit; the captured runtime files are bound at the committed ec2d9dbf0 source.",
+  "manifest_note": "Exact returned run read exactly three authorized documents once and reconciled 270.00 completed."
+ },
+ "frontend_build": {
+  "source": "cf840c14d",
+  "build_id": "Sqe_aXJSKB66cAJQ3fniG",
+  "command": "next build --webpack"
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "75c3ea725b617f73bd5c0fd3fe69ab7c771a1edc96c53280fd9da0708de5c27c",
+  "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
+  "backend/core/employee_job_runner.py": "e76fb279236af0c6d6519179aad30475aebc2f00b83d469ae2c5007c7f553f61",
+  "backend/core/employee_proposal.py": "dcda4d4a055e42c71b0ed7145fe9f4e2502ff6498cb1e79889a3c49798ad95ff",
+  "backend/core/assignment_executor.py": "9d71ab338cccbe622b7bf20d862ba3befd308d01b5eb3734e72abd77843621fc",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "0ed109516b9d63393de90593b000478b70e2704eb749ff4421ba0ac73f40af30",
+  "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0"
+ },
+ "artifacts": {
+  "README.md": "6aec1c48b35de0a51b27a330062045945cd53ffd85bcc09270ef370dd2949a84",
+  "TEST_RESULTS.md": "fa188f25e9fd5aba9f5f1b4de0657387d536fedb157f8d173b81885beddd21f2",
+  "attempts.jsonl": "c281b7e807e58624dfc28c03b4d55fc0d5df2e2960e05255257b519b0d9b3e8f",
+  "capture.json": "350847b37cec88ddfecea8006d810a0adf376f378e9c7f3282114412bdfd260b",
+  "exact-run-detail.png": "756ac1acb933ba02aaa4825680887e6726532fa8096605d5c52ddef9b0896231",
+  "final.json": "44488cc4ee4357724f6f64075da6653be58ccc3561ab5a766c01a72fc317c775",
+  "server.log": "8403145b0f05c952ae41cdfec2409270327c11ef948f7832f840a8509d4e64cb"
+ },
+ "results": {
+  "request_status": 200,
+  "run_id": "67b4cd87-f589-4a8a-bdac-6a8cd05eeae9",
+  "selected_sources": 3,
+  "reads": 3,
+  "final_status": "completed",
+  "final_value": "270.00"
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "independent branch/qualification/artifact/late-response/served-uncertainty integration gates remain separate",
+  "no live provider, credential, consent, send, spend or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

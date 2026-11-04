@@ -242,3 +242,167 @@ def missing_prerequisite_question(
             "evidence_step_ids": evidence_steps,
         },
     }
+
+
+def _source_binding_identity(source: Mapping[str, Any]) -> str:
+    binding = source.get("binding") if isinstance(
+        source.get("binding"), Mapping) else {}
+    return "|".join(str(binding.get(key) or source.get(key) or "") for key in (
+        "resource_id", "dataset_name", "source", "external_id",
+        "source_version", "sheet"))
+
+
+def _step_source_identity(step: Mapping[str, Any]) -> str:
+    inputs = step.get("inputs") if isinstance(
+        step.get("inputs"), Mapping) else {}
+    binding = inputs.get("resource_binding") if isinstance(
+        inputs.get("resource_binding"), Mapping) else {}
+    return "|".join(str(binding.get(key) or "") for key in (
+        "resource_id", "dataset_name", "source", "external_id",
+        "source_version", "sheet"))
+
+
+def unread_authorized_sources(
+    assignment: Mapping[str, Any],
+) -> List[Dict[str, Any]]:
+    """Authorized handles retained at creation but not yet read in this job."""
+    read = {
+        _step_source_identity(step)
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping) and step.get("status") == "applied"
+    }
+    unread = []
+    for source in assignment.get("sources") or []:
+        if not isinstance(source, Mapping):
+            continue
+        identity = _source_binding_identity(source)
+        if identity and identity not in read:
+            unread.append(dict(source))
+    return unread
+
+
+def compile_evidence_read_patch(
+    assignment: Mapping[str, Any],
+    proposal: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Compile model-selected evidence reads from retained authorized handles."""
+    from core.assignment_planner import _source_step
+    from core.employee_patch import apply_plan_patch  # noqa: F401
+    from core.employee_proposal import source_handle, validate_employee_proposal
+
+    checked = validate_employee_proposal(proposal, context)
+    if not checked["valid"]:
+        raise ValueError("; ".join(checked["errors"]))
+    normalized = checked["proposal"]
+    by_handle = {
+        source_handle(source): dict(source)
+        for source in assignment.get("sources") or []
+        if isinstance(source, Mapping)
+    }
+    read_identities = {
+        _step_source_identity(step)
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    }
+    selected = []
+    for read in normalized.get("evidence_reads") or []:
+        handle = str(read.get("source_id") or "")
+        source = by_handle.get(handle)
+        if source is None:
+            raise ValueError(
+                f"selected source {handle!r} is not in the retained "
+                "authorized scope")
+        binding = source.get("binding") if isinstance(
+            source.get("binding"), Mapping) else {}
+        source = {**dict(binding), **source}
+        if isinstance(source.get("binding"), Mapping):
+            source.pop("binding", None)
+        identity = _source_binding_identity(source)
+        if identity in read_identities:
+            continue
+        read_identities.add(identity)
+        selected.append(source)
+    if not selected:
+        return {"selected": [], "patch": None}
+    existing_ids = [
+        str(step.get("step_id") or "") for step in assignment.get("steps") or []
+    ]
+    index = len(existing_ids) + 1
+    add_steps = []
+    for source in selected:
+        raw_step = _source_step(source, index)
+        index += 1
+        add_steps.append({
+            key: raw_step.get(key) for key in (
+                "step_id", "title", "operation_type", "adapter",
+                "depends_on", "inputs", "effect", "requires", "required")
+            if raw_step.get(key) is not None
+        })
+    return {
+        "selected": [
+            {"source_id": source_handle(source),
+             "file_name": source.get("file_name")
+             or source.get("original_file_name")
+             or (source.get("binding") or {}).get("file_name")}
+            for source in selected
+        ],
+        "patch": {
+            "patch_id": "evidence-read-" + __import__("hashlib").sha256(
+                "|".join(
+                    sorted(source_handle(source) for source in selected)
+                ).encode()).hexdigest()[:16],
+            "base_task_version": int(context.get("task_version") or 0),
+            "base_plan_revision": int(
+                assignment.get("plan_revision") or 1),
+            "reason": "Read additional authorized evidence selected by the model",
+            "observations": [{
+                "kind": "authorized_evidence_read",
+                "model_selected": True,
+                "source_ids": [
+                    source_handle(source) for source in selected],
+            }],
+            "invalidate_steps": [],
+            "remove_steps": [],
+            "add_steps": add_steps,
+            "update_steps": [],
+            "add_facts": [],
+            "set_requires": {},
+        },
+    }
+
+
+def deterministic_unread_evidence_proposal(
+    unread: Sequence[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Read remaining authorized handles when the model selects nothing new.
+
+    This is a bounded, labeled fallback inside the retained scope. It grants
+    no permission and is never presented as model discovery.
+    """
+    from core.employee_proposal import source_handle
+
+    reads = []
+    for index, source in enumerate(unread, start=1):
+        handle = source_handle(source)
+        if not handle:
+            continue
+        binding = source.get("binding") if isinstance(
+            source.get("binding"), Mapping) else {}
+        name = (
+            source.get("file_name")
+            or source.get("original_file_name")
+            or binding.get("original_file_name")
+            or handle)
+        reads.append({
+            "step_id": f"evidence-{index}",
+            "title": f"Read {name}",
+            "source_id": handle,
+        })
+    if not reads:
+        return None
+    return {
+        "proposal_kind": "evidence_read",
+        "reason": "Read remaining authorized evidence before asking the user",
+        "evidence_reads": reads,
+    }

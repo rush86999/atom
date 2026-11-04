@@ -6,6 +6,7 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+import copy
 import json
 import mimetypes
 import os
@@ -132,6 +133,7 @@ class EmployeeObjectiveStart(BaseModel):
     authorized_actions: List[str] = ["retrieve"]
     budget: Optional[Dict[str, Any]] = None
     teaching_terms: Dict[str, Any] = {}
+    requested_output: Optional[str] = None
     use_model: bool = True
 
 
@@ -857,10 +859,83 @@ def _consumed_observation_ids(assignment: Dict[str, Any]) -> set:
     return consumed
 
 
+def _mark_wait_reviewed(
+    executor: Any, run_id: str, step_id: str,
+) -> None:
+    """Bound independent-work review to one attempt per durable wait."""
+    from core.assignment_plan import step_by_id
+
+    def compute(record, assignment):
+        new_plan = copy.deepcopy(assignment)
+        step = step_by_id(new_plan, step_id)
+        if step is not None and isinstance(step.get("waiting"), dict):
+            waiting = dict(step["waiting"])
+            waiting["reviewed_at"] = datetime.now(timezone.utc).isoformat()
+            waiting["reviewed_by"] = "employee"
+            step["waiting"] = waiting
+        return new_plan, {}
+
+    try:
+        executor.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale="employee reviewed independent work during a wait")
+    except Exception:  # noqa: BLE001 — review marker is advisory
+        pass
+
+
+def _waiting_observations(
+    assignment: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Fresh reasoning observation for a durable wait with ready work.
+
+    The observation carries the blocked fact and the operations that remain
+    ready. Its id is server-derived from the durable wait, so a consumed wait
+    observation cannot drive a second identical proposal.
+    """
+    observations: List[Dict[str, Any]] = []
+    consumed = set()
+    for history in assignment.get("patch_history") or []:
+        for observed in history.get("observations") or []:
+            value = (
+                observed.get("observation_id") or observed.get("id")
+                if isinstance(observed, dict) else observed)
+            if value:
+                consumed.add(str(value))
+    for step in assignment.get("steps") or []:
+        if str(step.get("status") or "") != "waiting":
+            continue
+        if str(step.get("adapter") or "") != "assignment.wait":
+            continue
+        waiting = step.get("waiting") or {}
+        if waiting.get("reviewed_at"):
+            # The employee already considered independent work for this
+            # durable wait; only fresh evidence may ask again.
+            continue
+        correlation = str(waiting.get("correlation_id") or "").strip()
+        if not correlation:
+            continue
+        observation_id = f"waiting-{correlation}"
+        if observation_id in consumed:
+            continue
+        observations.append({
+            "observation_id": observation_id,
+            "kind": "waiting_state",
+            "step_id": step.get("step_id"),
+            "reason": (
+                f"waiting for {waiting.get('fact') or 'an external fact'} "
+                f"for {waiting.get('subject') or 'the subject'} from "
+                f"{waiting.get('party') or 'the authorized source'}; "
+                f"blocks {waiting.get('blocks') or 'dependent work'}"),
+        })
+        break
+    return observations
+
+
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
     provider_model: Optional[tuple] = None,
+    allow_completed_evidence: bool = False,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
 
@@ -868,33 +943,199 @@ async def _advance_employee_work(
     durable evidence result back to the same adaptation contract used by the
     served smokes, adopts the compiled work request, and lets the existing
     executor own execution. It never invents evidence or a plan patch.
+
+    ``allow_completed_evidence`` is set only when new authorized evidence
+    arrived after a completed job: the employee may reassess that evidence
+    and choose supported next work again. Consumed observations are excluded,
+    so a completed job with no fresh evidence still stops immediately.
     """
     from core.employee_job_runner import (
-        action_views, evidence_observations, missing_prerequisite_question,
+        action_views, compile_evidence_read_patch,
+        deterministic_unread_evidence_proposal, evidence_observations,
+        missing_prerequisite_question, unread_authorized_sources,
     )
+    from core.employee_proposal import operation_capabilities
     from core.task_lifecycle import open_unresolved_questions
 
+    deadline = time.monotonic() + max(0.0, float(deadline_seconds))
     rounds: List[Dict[str, Any]] = []
     for _ in range(max_rounds):
         record = executor.lifecycle.get_task(run_id) or {}
         assignment = record.get("assignment") or {}
         status = str(assignment.get("status") or "")
-        if status in ("completed", "failed", "cancelled"):
+        if status in ("failed", "cancelled"):
             break
-        if open_unresolved_questions(record):
+        # An open obligation blocks its dependent scope, not the whole job.
+        # Independent work may proceed while another capability waits for a
+        # material fact; the compiled request and readiness predicates still
+        # decide what is executable.
+        ready_operations = [
+            item for item in operation_capabilities(assignment)
+            if str(item.get("status") or "") == "ready"
+        ]
+        if open_unresolved_questions(record) and not ready_operations:
+            break
+        observations = evidence_observations(record)
+        if not observations and status == "waiting" and ready_operations:
+            observations = _waiting_observations(assignment)
+        if status == "completed" and not (
+                allow_completed_evidence and observations):
             break
         # Only new evidence reads can drive a proposal; a business calculation
         # result is not fresh evidence and must not cause the model to repeat
         # the same work.
-        observations = evidence_observations(record)
-        if not observations:
-            break
         context = context_from_record(
             record, action_views=action_views(assignment))
+        unread = unread_authorized_sources(assignment)
+        waiting_open = any(
+            str(step.get("status") or "") == "waiting"
+            and str(step.get("adapter") or "") == "assignment.wait"
+            for step in assignment.get("steps") or [])
+        # Discovery continuation: let the model choose an additional read from
+        # the retained handles when no supported operation is ready yet, or
+        # when a declared prerequisite is a business record that the remaining
+        # authorized scope can still supply. The compiler validates the handle;
+        # no upload or new authority.
+        needs_more_evidence = any(
+            str(item.get("status") or "") in (
+                "unavailable", "missing", "ambiguous")
+            for item in context.get("available_business_operations") or []
+            if isinstance(item, dict))
+        if unread and (
+                not context.get("work_request_schemas")
+                or (needs_more_evidence and not waiting_open)):
+            remaining = max(0.0, deadline - time.monotonic())
+            discovery = await propose_employee_work(
+                context, llm_service=llm,
+                deadline_seconds=remaining,
+                provider_model=provider_model)
+            proposal = discovery.get("proposal") or {}
+            round_record = {
+                "source": discovery.get("source"),
+                "technical_fallback": discovery.get(
+                    "technical_fallback", False),
+                "decision": "evidence_read",
+                "errors": discovery.get("errors") or [],
+                "failure_stage": discovery.get("failure_stage"),
+                "attempt_id": discovery.get("attempt_id"),
+                "unread_source_count": len(unread),
+                "proposal_kind": proposal.get("proposal_kind"),
+                "proposal_reason": proposal.get("reason"),
+                "proposal_sources": [
+                    read.get("source_id")
+                    for read in proposal.get("evidence_reads") or []
+                ],
+                "proposal_clarification": (
+                    proposal.get("clarification") or {}),
+                "observation_ids": [
+                    item["observation_id"] for item in observations],
+            }
+            rounds.append(round_record)
+            reads = list(proposal.get("evidence_reads") or [])
+
+            def _compile_reads(candidate):
+                try:
+                    compiled = compile_evidence_read_patch(
+                        assignment, candidate, context)
+                except Exception as exc:  # noqa: BLE001 - typed refusal
+                    round_record.setdefault(
+                        "adoption_errors", []).append(
+                            f"{type(exc).__name__}: {exc}")
+                    return None
+                round_record.setdefault("selected_sources", []).extend(
+                    compiled.get("selected") or [])
+                return compiled
+
+            compiled = _compile_reads(proposal) if reads else None
+            if compiled is None or not compiled.get("patch"):
+                # One bounded repair sees only the unread handles, so the
+                # model cannot repeat a source it already read. It still
+                # selects through the same proposal/compiler contract.
+                repair_sources = [
+                    dict(source) for source in context.get("sources") or []
+                    if isinstance(source, Mapping) and not source.get("read")
+                ]
+                remaining = max(0.0, deadline - time.monotonic())
+                if repair_sources and remaining > 0:
+                    repair_context = dict(context)
+                    repair_context["sources"] = repair_sources
+                    repair_context["unread_sources"] = repair_sources
+                    repair_context["unread_source_count"] = len(
+                        repair_sources)
+                    repair_context["repair"] = (
+                        "Select only from the unread authorized sources.")
+                    repaired = await propose_employee_work(
+                        repair_context, llm_service=llm,
+                        deadline_seconds=remaining,
+                        provider_model=provider_model)
+                    repair_proposal = repaired.get("proposal") or {}
+                    round_record["repair_source"] = repaired.get("source")
+                    round_record["repair_sources"] = [
+                        read.get("source_id")
+                        for read in repair_proposal.get("evidence_reads") or []
+                    ]
+                    if repair_proposal.get("evidence_reads"):
+                        repaired_compiled = _compile_reads(repair_proposal)
+                        if (repaired_compiled
+                                and repaired_compiled.get("patch")):
+                            compiled = repaired_compiled
+                            round_record["repair"] = "unread_scope"
+                if compiled is None or not compiled.get("patch"):
+                    # The authorized scope still has unread handles. A model
+                    # proposal that only re-reads known sources (or asks
+                    # without reading) must not become a user question while
+                    # the scope can satisfy the need. This fallback is labeled
+                    # and uses the same handle/compiler path; it grants no new
+                    # permission.
+                    fallback_proposal = deterministic_unread_evidence_proposal(
+                        unread)
+                    if fallback_proposal:
+                        round_record["fallback"] = (
+                            "deterministic_unread_scope")
+                        fallback_compiled = _compile_reads(fallback_proposal)
+                        if (fallback_compiled
+                                and fallback_compiled.get("patch")):
+                            compiled = fallback_compiled
+            if compiled is not None and compiled.get("patch"):
+                try:
+                    adopted = apply_plan_patch(
+                        executor.lifecycle, run_id, compiled["patch"],
+                        rationale=(
+                            "employee selected additional authorized evidence"))
+                except Exception as exc:  # noqa: BLE001
+                    round_record["adoption_error"] = (
+                        f"{type(exc).__name__}: {exc}")
+                    break
+                round_record["adoption_status"] = adopted.get("status")
+                execution = await executor.execute(run_id, max_steps=12)
+                round_record["execution_status"] = (
+                    (execution.get("assignment") or {}).get("status"))
+                if round_record["execution_status"] in (
+                        "completed", "failed", "cancelled"):
+                    break
+                continue
+            round_record["progress"] = "no_progress"
+            fallback = missing_prerequisite_question(context)
+            if fallback:
+                from core.task_lifecycle import add_unresolved_questions
+
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [fallback])
+                round_record["obligation"] = fallback
+                round_record["obligation_source"] = (
+                    "deterministic_missing_prerequisite")
+            break
+        if not observations:
+            break
         proposal_result = await propose_adaptation(
             context, observations, assignment=assignment, llm_service=llm,
             provider_model=provider_model,
-            deadline=time.monotonic() + max(0.0, float(deadline_seconds)))
+            deadline=deadline)
+        for observed in observations:
+            if observed.get("kind") == "waiting_state" and observed.get(
+                    "step_id"):
+                _mark_wait_reviewed(
+                    executor, run_id, str(observed["step_id"]))
         proposal = proposal_result.get("proposal") or {}
         round_record = {
             "source": proposal_result.get("source"),
@@ -1126,9 +1367,13 @@ async def start_employee_objective(
         )
     accepted_actions = list(dict.fromkeys(
         ["retrieve", *list(body.authorized_actions or [])]))
+    if body.requested_output:
+        accepted_actions = list(dict.fromkeys(
+            [*accepted_actions, "present"]))
     plan = plan_assignment(
         objective=body.objective,
         sources=list(compiled["plan_kwargs"].get("sources") or []),
+        authorized_sources=list(resolved_sources),
         deliverables=[],
         calculation=None,
         outbound=None,
@@ -1153,6 +1398,40 @@ async def start_employee_objective(
             "source_fingerprint": source_fingerprint(resolved_sources),
         },
     )
+    requested_output = str(body.requested_output or "").strip().lower()
+    if requested_output:
+        from core.assignment_plan import new_deliverable
+
+        if requested_output not in ("document", "presentation"):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "requested_output must be document or presentation for "
+                    "employee-decided artifact work"))
+        artifact_path = allocate_output_path(
+            employee, kind=requested_output, title=body.objective,
+            assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
+        deliverable_id = "del-requested-output"
+        plan["deliverables"].append(new_deliverable(
+            deliverable_id=deliverable_id,
+            kind=requested_output,
+            description=body.objective,
+            required=True,
+            step_id="requested-artifact",
+        ))
+        plan["provenance"].update({
+            "requested_output": requested_output,
+            "requested_output_path": artifact_path,
+            "requested_output_deliverable_id": deliverable_id,
+        })
+        plan["completion_criteria"].insert(0, {
+            "criterion_id": f"artifact_verified:{deliverable_id}",
+            "kind": "artifact_verified",
+            "required": True,
+            "verifier": "artifact_verified",
+            "scope": {"workspace_id": workspace_id},
+            "deliverable_id": deliverable_id,
+        })
     plan["completion_criteria"].append({
         "criterion_id": "employee_result:objective",
         "kind": "employee_result",
@@ -1195,7 +1474,7 @@ async def start_employee_objective(
             "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
         adaptive_rounds = await _advance_employee_work(
             executor, run_id, llm, provider_model=provider_model,
-            deadline_seconds=deadline_seconds)
+            deadline_seconds=deadline_seconds, max_rounds=5)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
@@ -1291,6 +1570,15 @@ async def list_assignment_sources(
         limit=max(1, min(int(limit or 50), 100)),
     )
     rows: List[Dict[str, Any]] = []
+    existing_files = {
+        str(entry.get("file_name") or "").lower()
+        for entry in entries if entry.get("file_name")
+    }
+    seen_source_versions = {
+        (str(entry.get("file_name") or "").lower(),
+         str(entry.get("content_hash") or ""))
+        for entry in entries if entry.get("file_name")
+    }
     for entry in entries:
         if str(entry.get("workspace_id") or "") not in ("", workspace_id):
             continue
@@ -1329,6 +1617,18 @@ async def list_assignment_sources(
             continue
         if query and query.lower() not in str(row.file_name or "").lower():
             continue
+        if str(row.file_name or "").lower() in existing_files:
+            # A workbook upload also materializes a sheet dataset; expose the
+            # tabular source once, not the same file as a text document too.
+            continue
+        source_key = (
+            str(row.file_name or "").lower(),
+            str(row.source_content_hash or row.external_id or ""))
+        if source_key in seen_source_versions:
+            # Repeated uploads of the same authorized file/version must not
+            # create duplicate source steps or ambiguous evidence roles.
+            continue
+        seen_source_versions.add(source_key)
         rows.append({
             "document_id": row.id,
             "dataset_name": None,
@@ -1499,6 +1799,38 @@ async def add_assignment_source(
             detail={"error": exc.code, "message": str(exc)}) from exc
     record = executor.lifecycle.get_task(run_id) or {}
     assignment = record.get("assignment") or {}
+    was_completed = str(assignment.get("status") or "") == "completed"
+    # A real change is a different version of the business source this job
+    # already depended on: either the same resource id, or the same named
+    # file uploaded as a new document version. Adding an unrelated authorized
+    # source is not a change and must not make the employee repeat accepted
+    # business work.
+    def _business_name(binding: Dict[str, Any]) -> str:
+        return str(
+            binding.get("original_file_name") or binding.get("file_name")
+            or "").strip().lower()
+
+    resolved_name = str(
+        resolved.get("original_file_name") or resolved.get("file_name")
+        or "").strip().lower()
+    resolved_version = str(resolved.get("source_version") or "")
+    same_resource_previous_version = False
+    for existing_step in assignment.get("steps") or []:
+        inputs = (existing_step.get("inputs")
+                  if isinstance(existing_step.get("inputs"), dict) else {})
+        binding = inputs.get("resource_binding")
+        if not isinstance(binding, dict):
+            continue
+        previous_version = str(binding.get("source_version") or "")
+        if previous_version and previous_version == resolved_version:
+            continue
+        same_resource = str(binding.get("resource_id") or "") == str(
+            resolved.get("resource_id") or "")
+        same_name = bool(resolved_name) and _business_name(
+            binding) == resolved_name
+        if same_resource or same_name:
+            same_resource_previous_version = True
+            break
     # A duplicate source addition must not add another read step or cause
     # duplicate arithmetic/effects later. Same resource identity/version is
     # already present: return the durable state unchanged.
@@ -1567,6 +1899,36 @@ async def add_assignment_source(
         status = await executor.execute(run_id, max_steps=12)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    # A genuinely new authorized version on a completed job is fresh
+    # evidence: let the same employee adaptation contract decide whether the
+    # changed evidence supports more work or a material clarification. The
+    # loop only runs for model-driven jobs and only while an unconsumed
+    # evidence observation exists, so duplicate adds and calculation-only
+    # results stay inert.
+    reassessment_rounds: List[Dict[str, Any]] = []
+    provenance = assignment.get("provenance") or {}
+    added_now = next((
+        item for item in (
+            executor.lifecycle.get_assignment(run_id) or {}).get("steps") or []
+        if item.get("step_id") == step.get("step_id")), {})
+    if (was_completed and same_resource_previous_version
+            and str(provenance.get("proposal_source") or "") in (
+                "model", "model_repaired")
+            and added_now.get("status") == "applied"):
+        try:
+            llm = _employee_llm(current_user, db)
+            reassessment_rounds = await _advance_employee_work(
+                executor, run_id, llm, max_rounds=1,
+                deadline_seconds=180.0,
+                provider_model=_employee_provider_model(),
+                allow_completed_evidence=True)
+            status = executor.status(run_id)
+        except Exception as exc:  # noqa: BLE001 — source add already durable
+            reassessment_rounds = [{
+                "source": "error",
+                "decision": "reassessment_failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }]
     # Settle only obligations that this accepted source actually made ready.
     current = executor.lifecycle.get_task(run_id) or {}
     current_assignment = current.get("assignment") or {}
@@ -1619,7 +1981,8 @@ async def add_assignment_source(
                 item.get("question_id") for item in settled],
             "mismatched_question_ids": [
                 item for item in mismatched if item],
-            "observed_purchase_order": observed_po or None}
+            "observed_purchase_order": observed_po or None,
+            "reassessment_rounds": reassessment_rounds}
 
 
 @router.post("/{run_id}/reassess")
@@ -1742,6 +2105,7 @@ async def record_assignment_response(
     correlation_id: str,
     body: AssignmentExternalResponse,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
@@ -1764,7 +2128,24 @@ async def record_assignment_response(
         # partial answer and the wait remains open. Do not resume and do not
         # turn it into a generic assignment projection the UI cannot explain.
         return result
-    return await executor.resume(run_id)
+    resumed = await executor.resume(run_id)
+    # An authorized reply can make a previously blocked capability ready.
+    # Hand the fresh evidence to the same adaptation contract so the model,
+    # not the route, chooses the supported next work.
+    if result.get("status") == "resumed":
+        assignment = executor.lifecycle.get_assignment(run_id) or {}
+        provenance = assignment.get("provenance") or {}
+        if str(provenance.get("proposal_source") or "") in (
+                "model", "model_repaired"):
+            llm = _employee_llm(current_user, db)
+            rounds = await _advance_employee_work(
+                executor, run_id, llm, max_rounds=1,
+                deadline_seconds=180.0,
+                provider_model=_employee_provider_model(),
+                allow_completed_evidence=True)
+            if rounds:
+                return {**resumed, "adaptive_rounds": rounds}
+    return resumed
 
 
 @router.post("/{run_id}/gaps/{question_id}/resolve")

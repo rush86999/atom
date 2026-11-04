@@ -36,6 +36,8 @@ core/llm/gateway/request_logger.py):
 """
 from __future__ import annotations
 
+import re
+
 import hashlib
 import logging
 import os
@@ -124,6 +126,106 @@ def has_current_extraction_version(stored_hash: Optional[str]) -> bool:
     return bool(stored_hash) and str(stored_hash).startswith(
         f"ev{EXTRACTION_VERSION}:"
     )
+
+
+_EXTRACTION_HASH_RE = re.compile(r"^ev(\d+):([0-9a-fA-F]{64})$")
+
+
+class ExtractionIdentityError(ValueError):
+    """An extraction/source revision is missing, malformed or incompatible."""
+
+
+def extraction_identity(value: Optional[str]) -> Dict[str, Any]:
+    """Classify a stored extraction/source revision without guessing.
+
+    Versioned automated extractions are ``ev<extractor-version>:<digest>``
+    where the digest hashes EXTRACTED TEXT. Manual uploads use an opaque bare
+    revision/hash under their own producer contract. The two kinds are never
+    interchangeable.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return {"kind": "missing", "raw": ""}
+    if text.lower().startswith("ev"):
+        match = _EXTRACTION_HASH_RE.fullmatch(text)
+        if match is None:
+            return {"kind": "malformed", "raw": text}
+        return {
+            "kind": "versioned",
+            "raw": text,
+            "extractor_version": match.group(1),
+            "digest": match.group(2).lower(),
+        }
+    return {"kind": "opaque", "raw": text, "value": text}
+
+
+def current_extraction_revision(
+    indexed: Optional[str],
+    authoritative: Optional[str],
+    expected: Optional[str] = None,
+) -> str:
+    """Return the exact authoritative revision accepted by both sides.
+
+    Current extractor-versioned evidence must use the repository's current
+    extractor version and the same digest on the indexed and authoritative
+    sides. Manual/opaque revisions must match exactly. Older extractor
+    versions are never promoted by stripping their prefix.
+    """
+    indexed_identity = extraction_identity(indexed)
+    authoritative_identity = extraction_identity(authoritative)
+    for label, item in (
+            ("indexed extraction", indexed_identity),
+            ("authoritative document", authoritative_identity)):
+        if item["kind"] == "missing":
+            raise ExtractionIdentityError(
+                f"{label} has no source/extraction revision")
+        if item["kind"] == "malformed":
+            raise ExtractionIdentityError(
+                f"{label} revision is malformed: {item['raw']!r}")
+    if indexed_identity["kind"] != authoritative_identity["kind"]:
+        raise ExtractionIdentityError(
+            "indexed extraction and authoritative document use different "
+            "revision kinds")
+    if indexed_identity["kind"] == "versioned":
+        expected_version = str(EXTRACTION_VERSION)
+        for label, item in (
+                ("indexed extraction", indexed_identity),
+                ("authoritative document", authoritative_identity)):
+            if item["extractor_version"] != expected_version:
+                raise ExtractionIdentityError(
+                    f"{label} uses extractor version "
+                    f"ev{item['extractor_version']} but ev{expected_version} "
+                    "is current; re-extract before use")
+        if indexed_identity["digest"] != authoritative_identity["digest"]:
+            raise ExtractionIdentityError(
+                "indexed extraction digest differs from the authoritative "
+                "source digest")
+        canonical = authoritative_identity["raw"]
+        if expected:
+            wanted = extraction_identity(expected)
+            if wanted["kind"] != "versioned":
+                raise ExtractionIdentityError(
+                    "binding revision kind does not match the current "
+                    "versioned extraction")
+            if wanted["extractor_version"] != expected_version or (
+                    wanted["digest"] != authoritative_identity["digest"]):
+                raise ExtractionIdentityError(
+                    "binding revision does not match the current authoritative "
+                    "extraction")
+        return canonical
+    if indexed_identity["value"] != authoritative_identity["value"]:
+        raise ExtractionIdentityError(
+            "indexed extraction revision differs from the authoritative "
+            "document revision")
+    canonical = authoritative_identity["value"]
+    if expected:
+        wanted = extraction_identity(expected)
+        if wanted["kind"] != "opaque" or (
+                wanted["value"] != authoritative_identity["value"]):
+            raise ExtractionIdentityError(
+                "binding revision does not match the authoritative document "
+                "revision")
+    return canonical
 
 
 def derive_status_from_hash(old_hash: Optional[str], new_hash: str) -> str:

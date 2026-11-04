@@ -519,6 +519,7 @@ async def upload_document(
                 f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MiB"
             )
         content = await file.read()
+        source_content_hash = hashlib.sha256(content).hexdigest()
         if len(content) > MAX_FILE_SIZE:
             raise router.validation_error(
                 "file",
@@ -590,6 +591,7 @@ async def upload_document(
         doc_id = str(_uuid.uuid4())
         metadata["pg_document_id"] = doc_id
         metadata["source_type"] = "upload"
+        metadata["source_content_hash"] = source_content_hash
 
         # to_thread: sync add_document from the loop thread can never embed
         # (embed_text same-thread guard) — the upload would always 500.
@@ -631,8 +633,7 @@ async def upload_document(
                     file_size_bytes=len(content),
                     content_preview=text[:500],
                     external_id=f"upload_{doc_id}",
-                    source_content_hash=hashlib.sha256(
-                        content).hexdigest(),
+                    source_content_hash=source_content_hash,
                     ingested_at=datetime.now(timezone.utc),
                     last_verified_at=datetime.now(timezone.utc),
                     freshness_status="fresh",

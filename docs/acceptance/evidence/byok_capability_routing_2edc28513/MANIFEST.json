@@ -1,0 +1,66 @@
+{
+  "artifacts": {
+    "README.md": "8dc6ed61fa11919f2d7e08622b8afe3edc38b850bb0e7b3698cc5a0143aa863c",
+    "TEST_RESULTS.md": "757f1044520d284226a40a2d10118cc7b875ffb7ba90e5368f0460a10699639f",
+    "focused-tests.log": "4ef424687b2739ffac553575262b4e403ffb1458355655ee43cdd1de7c835e19",
+    "probe.py": "5246bd12ac5a1b013556a94d3423ef5ffb8c45e48ef17bcae5ff85d259919f76",
+    "routing-probe.json": "37f13c3e417e6a2d36a6c30c4f241059363f4a8ae795621e8905da77ac4a005c"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "2edc28513415c980b8670568e472f1fa5e914514",
+    "manifest_note": "Controlled BYOK/BPC workload capability selection. Economy-first default, Flash first-class, explicit quality/balanced preference, measured profile evidence, no-suitable instead of silent floor relaxation, strict qualification pins. No provider call.",
+    "product_code_stable": "d752d6bb4",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-byok-clean"
+  },
+  "changed_files": [
+    "backend/api/byok_routes.py",
+    "backend/core/llm/byok_handler.py",
+    "backend/core/llm/capability_profiles.py",
+    "backend/core/llm/pinned_planning.py",
+    "backend/core/llm_service.py",
+    "backend/tests/test_workload_capability_routing.py",
+    "scripts/acceptance/byok_capability_probe.py"
+  ],
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/download/deployment authority",
+    "controlled candidates and production-path selection tests, not a general model qualification campaign",
+    "durable employee wait remains Agent 1 work",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "results": {
+    "economy_order": [
+      "fast/flash",
+      "frontier/expensive"
+    ],
+    "measured_failure_excludes": "fast/flash",
+    "no_suitable_pool": "quality 60 only",
+    "quality_preference_order": [
+      "frontier/expensive",
+      "fast/flash"
+    ],
+    "strict_pin_bad": "local/llama3.1:8b quality 75",
+    "strict_pin_good": "fast/flash"
+  },
+  "schema": "atom-byok-capability-routing-1",
+  "source_hashes": {
+    "backend/api/byok_routes.py": "d5da0145fc47c924f36191bcc3b1be33efe653ab74ce20ef19d3c5780bf6a5f0",
+    "backend/core/llm/byok_handler.py": "01515fcde36bd638bd0e9109b3e79c3e5a33cbe4343ee5004cecc970000867a1",
+    "backend/core/llm/capability_profiles.py": "b78fe078af3a40b37ae755d3400a192422b2847fc899da41083f07373217f410",
+    "backend/core/llm/pinned_planning.py": "5622f7ad53f9a17a3685f7d3437e4f0e787a84efa1ca6ec07179474790f990dc",
+    "backend/core/llm_service.py": "aa32f000d75a7664096a223594e865d46d032e912ea7befd8311ce10dc61e46e",
+    "backend/tests/test_workload_capability_routing.py": "003000b9b0f95cbcf7f9438f7bc9fe5eb37602e1488984cf14ddcc653481ccd5",
+    "scripts/acceptance/byok_capability_probe.py": "5246bd12ac5a1b013556a94d3423ef5ffb8c45e48ef17bcae5ff85d259919f76"
+  },
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "119 passed"
+    },
+    "probe": {
+      "report": "routing-probe.json",
+      "result": "controlled selection, exit 0"
+    }
+  }
+}

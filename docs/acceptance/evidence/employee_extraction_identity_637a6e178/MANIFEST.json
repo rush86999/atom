@@ -1,0 +1,42 @@
+{
+  "artifacts": {
+    "README.md": "c445c9c17889eeb844227488f8fb7e0b2125d759f14c857306dcdf4bae2c8de6",
+    "TEST_RESULTS.md": "c6ca4d48b7782201b1508076e7699884d9e309c629bf456b0015ae7d2f385d87",
+    "focused-tests.log": "b24b89386af2242760df43bdc3b31e3111792d496711ba076d96bd5bacaa325b",
+    "prefix-and-freshness-probes.log": "07d7ca461b5af12bd933dbeced2e6db62ad532379d9e1ab8261fba9346b89648"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "637a6e178b87d31d86fe828be1282c06e386418c",
+    "manifest_note": "Current ev4 identity preserved; old/malformed extractor versions and mismatched bindings refuse; bare uploads exact. No model inference.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/core/doc_freshness_service.py",
+    "backend/tests/test_employee_document_freshness.py"
+  ],
+  "exclusions": [
+    "browser packaging/continuation remains with the product owner",
+    "no live provider/send authority",
+    "historical scores unchanged"
+  ],
+  "schema": "atom-employee-extraction-identity-1",
+  "source_hashes": {
+    "backend/core/assignment_executor.py": "9d71ab338cccbe622b7bf20d862ba3befd308d01b5eb3734e72abd77843621fc",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_employee_document_freshness.py": "15a3cc3c9e369d29b21d71431e91e195fab4b4cfe84d384f0552dafdd039eafe"
+  },
+  "status": "focused-contract-verified",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "193 passed"
+    },
+    "prefix_freshness_probes": {
+      "log": "prefix-and-freshness-probes.log",
+      "result": "18 passed"
+    }
+  }
+}

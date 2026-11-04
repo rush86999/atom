@@ -41,7 +41,7 @@ class Observation(BaseModel):
     kind: Literal[
         "source_version", "quantity", "qualification", "external_response",
         "evidence_result", "uncertain_effect", "user_correction", "expiry",
-        "revocation",
+        "revocation", "waiting_state",
     ]
     subject_id: str = Field(default="", max_length=200)
     resource_id: str = Field(default="", max_length=200)
@@ -353,6 +353,17 @@ def _adaptation_prompt(
             "was read. If no listed operation is supported, choose clarify "
             "when one fact is missing, otherwise retain. On a replan, return "
             "one work_request from context.work_request_schemas.\n"
+            "- If context.waiting is present, that dependent scope is blocked "
+            "by an external fact the authorized evidence cannot supply yet. "
+            "Choose replan only with a ready operation that does not need "
+            "that fact (independent work); never return the same await again. "
+            "If no independent operation is ready, choose retain.\n"
+            "- To wait for a material external fact, choose replan with an "
+            "await_evidence work_request: name the business fact, its "
+            "subject, the authorized source/channel expected to answer, the "
+            "typed answer and the dependent work it blocks. The compiler "
+            "derives the durable wait and correlation; never author step, "
+            "operation or correlation ids.\n"
             if typed else (
                 "- The accepted evidence does not yet support a listed "
                 "business operation. If the objective still requires a "
@@ -364,10 +375,16 @@ def _adaptation_prompt(
         )
         + (
             "- context.available_business_operations entries with status "
-            "'missing' or 'ambiguous' name their prerequisites. Choose "
-            "clarify and ask for the named missing evidence; do not propose "
-            "that work_request until the prerequisite is supplied, and do "
-            "not return retain while the objective is unresolved.\n"
+            "'missing' or 'ambiguous' name their prerequisites. If the "
+            "objective explicitly requests that dependent work and the "
+            "missing item is an external business record/fact that only an "
+            "authorized source can supply, choose replan with an "
+            "await_evidence request for that fact (use the operation's "
+            "known_identities for the subject and its missing field for the "
+            "fact) before unrelated work. Never wait for a term or value the "
+            "agent can choose, and never propose the blocked work_request "
+            "until the fact arrives. Do not return retain while the objective "
+            "is unresolved.\n"
             if context.get("missing_prerequisites") else "")
     )
     return (

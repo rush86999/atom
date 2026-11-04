@@ -689,10 +689,15 @@ def _evidence_rows(result: Dict[str, Any]) -> List[Dict[str, Any]]:
         rows, list) else []
 
 
-def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
+def _collect_evidence(
+    context: Dict[str, Any],
+    only_step_ids: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
     facts: List[Dict[str, Any]] = []
     row_sets: List[Dict[str, Any]] = []
     labels: List[str] = []
+    selected = {
+        str(item) for item in (only_step_ids or []) if str(item).strip()}
 
     def add_label(value: Any) -> None:
         text = str(value or "").strip()
@@ -711,6 +716,8 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
 
     for step_id, result in (context.get("previous_results") or {}).items():
         if not isinstance(result, dict):
+            continue
+        if selected and str(step_id) not in selected:
             continue
         if result.get("expression") and result.get("value") is not None:
             facts.append({
@@ -811,6 +818,59 @@ def _row_columns(rows: List[Dict[str, Any]]) -> List[str]:
     return columns[:8]
 
 
+# Human-facing column labels for the values the typed adapters emit. Unknown
+# columns keep their source header so an unfamiliar source is never relabelled
+# silently.
+_DOCUMENT_COLUMN_LABELS = {
+    "item_id": "Item",
+    "sku": "Item",
+    "description": "Description",
+    "quantity": "Qty",
+    "unit": "Unit",
+    "pack_size": "Pack size",
+    "unit_price": "Unit price",
+    "price_basis": "Price basis",
+    "currency": "Currency",
+    "gross": "Gross",
+    "discount_rate": "Discount rate",
+    "discount_amount": "Discount",
+    "net": "Net",
+    "received_quantity": "Received qty",
+    "invoice_quantity": "Invoice qty",
+    "value": "Value",
+}
+# Internal lineage stays in the audit section instead of the business table.
+_DOCUMENT_AUDIT_COLUMNS = {
+    "source_ref", "evidence", "discount_rule", "resource_id",
+    "source_version", "version", "step_id"}
+_DOCUMENT_SCALAR_TYPES = (str, int, float, bool)
+
+
+_DOCUMENT_COLUMN_PRIORITY = (
+    "item_id", "sku", "description", "quantity", "unit", "unit_price",
+    "discount_amount", "net", "currency", "price_basis", "gross",
+    "discount_rate", "pack_size", "received_quantity", "invoice_quantity",
+    "value",
+)
+
+
+def _document_columns(rows: List[Dict[str, Any]]) -> List[str]:
+    available: List[str] = []
+    for key, value in (rows[0] if rows else {}).items():
+        name = str(key)
+        if name == "__sheet_row" or name in _DOCUMENT_AUDIT_COLUMNS:
+            continue
+        if value is not None and not isinstance(
+                value, _DOCUMENT_SCALAR_TYPES):
+            continue
+        available.append(name)
+    ordered = [
+        column for column in _DOCUMENT_COLUMN_PRIORITY if column in available]
+    ordered += [
+        column for column in available if column not in ordered]
+    return ordered[:8]
+
+
 def _row_set_label(entry: Dict[str, Any]) -> str:
     label = str(entry.get("source_label") or "").strip()
     if label:
@@ -826,7 +886,9 @@ def _compose_evidence_content(
     inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> str:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     facts = evidence["facts"]
     row_sets = evidence["row_sets"]
     labels = evidence["labels"]
@@ -868,10 +930,12 @@ def _compose_evidence_content(
         lines += ["", "## Findings"]
         for entry in row_sets[:3]:
             rows = entry["rows"]
-            columns = _row_columns(rows)
+            columns = _document_columns(rows)
             lines += ["", f"### {_row_set_label(entry)}"]
             if columns:
-                lines.append("| Row | " + " | ".join(columns) + " |")
+                lines.append("| Row | " + " | ".join(
+                    _DOCUMENT_COLUMN_LABELS.get(column, column)
+                    for column in columns) + " |")
                 lines.append("|" + "---|" * (len(columns) + 1))
                 for row in rows[:10]:
                     values = [
@@ -885,14 +949,63 @@ def _compose_evidence_content(
                 lines += [f"- {row}" for row in rows[:10]]
     lines += ["", "## Sources"]
     lines += [f"- {label}" for label in (labels[:12] or ["authorized source"])]
+    audit = _document_audit_lines(facts, row_sets)
+    if audit:
+        lines += ["", "## Audit"]
+        lines += audit
     return "\n".join(lines)
+
+
+def _document_audit_lines(
+    facts: Sequence[Dict[str, Any]],
+    row_sets: Sequence[Dict[str, Any]],
+) -> List[str]:
+    """Technical lineage kept out of the human-facing tables."""
+    lines: List[str] = []
+    for fact in facts[:8]:
+        step_id = str(fact.get("step_id") or "").strip()
+        if step_id:
+            lines.append(f"- Calculation step: {step_id}")
+    for entry in row_sets[:3]:
+        step_id = str(entry.get("step_id") or "").strip()
+        rows = entry.get("rows") or []
+        summary = f"- Row set: {step_id or 'authorized source'}"
+        if entry.get("source_label"):
+            summary += f" · {entry['source_label']}"
+        summary += f" · {len(rows)} row(s)"
+        lines.append(summary)
+        for row in rows[:10]:
+            ref = row.get("source_ref") if isinstance(
+                row.get("source_ref"), dict) else {}
+            evidence = row.get("evidence") if isinstance(
+                row.get("evidence"), list) else []
+            parts: List[str] = []
+            item = str(row.get("item_id") or "").strip()
+            if item:
+                parts.append(f"item={item}")
+            if ref.get("resource_id"):
+                parts.append(f"resource={ref['resource_id']}")
+            if ref.get("source_version"):
+                parts.append(f"version={ref['source_version']}")
+            for entry_ref in evidence[:2]:
+                if not isinstance(entry_ref, dict):
+                    continue
+                for key in ("row", "sheet", "resource_id", "source_version"):
+                    if entry_ref.get(key) in (None, ""):
+                        continue
+                    parts.append(f"{key}={entry_ref[key]}")
+            if parts:
+                lines.append(f"  - " + " · ".join(parts))
+    return lines
 
 
 def _compose_evidence_text(
     inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> str:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     if not evidence["facts"] and not evidence["row_sets"]:
         return ""
     lines: List[str] = []
@@ -919,9 +1032,12 @@ def _compose_evidence_text(
 
 
 def _compose_evidence_rows(
+    inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     if not evidence["row_sets"]:
         return []
     return list(evidence["row_sets"][0]["rows"])
@@ -1009,6 +1125,46 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
         columns += list(inputs.get("columns") or [])
         result = step.get("result") or {}
         columns += list(result.get("columns") or [])
+        # A structured record read (for example an authorized JSON receiving
+        # record) carries the fact in one object rather than a column schema.
+        # It qualifies only when the fact key is present and the read is not
+        # truncated; the subject comes from the record's own identity.
+        structured = result.get("data") if isinstance(
+            result.get("data"), dict) else {}
+        structured_key = next((
+            key for key in structured
+            if _normalized_fact_name(key) == wanted), None)
+        if structured and structured_key is not None:
+            if result.get("truncated") is True:
+                return {
+                    "status": "incomplete",
+                    "reason": "accepted_coverage_incomplete",
+                    "fact": fact,
+                    "source": {
+                        "resource_id": binding.get("resource_id"),
+                        "dataset_name": binding.get("dataset_name"),
+                        "file_name": binding.get("original_file_name"),
+                        "source_version": binding.get("source_version"),
+                    },
+                    "source_version": binding.get("source_version"),
+                }
+            subject = str(
+                structured.get("po_id")
+                or structured.get("subject_id")
+                or structured.get("id")
+                or "record")
+            source = {
+                "resource_id": binding.get("resource_id"),
+                "dataset_name": binding.get("dataset_name"),
+                "file_name": binding.get("original_file_name"),
+                "sheet": binding.get("sheet"),
+                "source_version": binding.get("source_version"),
+                "column": str(structured_key),
+                "coverage": dict(binding.get("coverage") or {}),
+            }
+            return _fact_resolution_from_records(
+                [{"subject": subject, "value": structured.get(structured_key)}],
+                fact=fact, column=str(structured_key), source=source)
         column = next((
             item for item in columns
             if _normalized_fact_name(item) == wanted), None)
@@ -1405,7 +1561,9 @@ def _verify_artifact_substance(
     is present in the saved file).
     """
     text = _artifact_text(kind, path)
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     facts = evidence["facts"]
     row_sets = evidence["row_sets"]
     labels = evidence["labels"]
@@ -2239,9 +2397,13 @@ class AssignmentExecutor:
             note=note,
         )
         request = approved.get("approval_request") or {}
+        hitl_id = (
+            (step.get("approval_request") or {}).get("hitl_action_id")
+            or request.get("hitl_action_id"))
         self._wake_run(run_id, {
-            "event": "human_checkpoint",
-            "hitl_id": request.get("hitl_action_id"),
+            "event": "human_input",
+            "correlation_id": hitl_id,
+            "hitl_id": hitl_id,
             "approved": True,
         })
         return {"status": "approved", "operation": approved}
@@ -3251,6 +3413,23 @@ class AssignmentExecutor:
             raise AssignmentError(f"no task record on run {run_id}")
         assignment_status = str(
             (record.get("assignment") or {}).get("status") or "")
+        # A replay of an already-accepted reply is idempotent even after the
+        # assignment becomes terminal: it neither revives nor re-executes
+        # anything. A brand-new late reply on terminal work still refuses.
+        for step in (record.get("assignment") or {}).get("steps") or []:
+            prior = step.get("external_response") if isinstance(
+                step.get("external_response"), dict) else {}
+            if (str(prior.get("correlation_id") or "") == str(
+                    correlation_id or "")
+                    and str(step.get("status") or "") == "applied"):
+                return {
+                    "status": "already_applied",
+                    "assignment_status": assignment_status,
+                    "message": (
+                        "This authorized reply was already accepted for the "
+                        "durable wait; no second effect or resume was made."),
+                    "step_id": step.get("step_id"),
+                }
         if assignment_status in TERMINAL_ASSIGNMENT_STATES:
             # A late reply must not match or wake terminal work, even when a
             # cancelled step still carries its historical wait record.
@@ -3273,6 +3452,7 @@ class AssignmentExecutor:
             }
         from core.task_lifecycle import open_unresolved_questions
 
+        assignment = record.get("assignment") or {}
         for question in open_unresolved_questions(record):
             waiting = question.get("waiting") or {}
             if str(waiting.get("correlation_id") or "") != str(
@@ -3292,6 +3472,66 @@ class AssignmentExecutor:
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
+            typed_binding = bool(waiting.get("typed_binding"))
+            expected_type = str(
+                waiting.get("expected_answer_type") or "").strip()
+            reply_value = value if value not in (None, "") else response
+            if typed_binding and expected_type in (
+                    "quantity", "amount", "price"):
+                try:
+                    parsed = Decimal(str(reply_value).strip())
+                except (InvalidOperation, ValueError):
+                    return {
+                        "status": "conflict",
+                        "message": (
+                            f"The authorized reply for '{waiting.get('fact')}' "
+                            "does not carry the expected "
+                            f"{expected_type}."),
+                        "fact": waiting.get("fact"),
+                        "conflict": {
+                            "correlation_id": correlation_id,
+                            "reason": "invalid_answer_type",
+                            "expected": expected_type,
+                            "response": _bounded(response, 2000),
+                            "at": _utc_now_iso(),
+                        },
+                    }
+                if not parsed.is_finite() or parsed < 0:
+                    return {
+                        "status": "conflict",
+                        "message": (
+                            f"The authorized reply for '{waiting.get('fact')}' "
+                            f"must be a finite nonnegative {expected_type}."),
+                        "fact": waiting.get("fact"),
+                        "conflict": {
+                            "correlation_id": correlation_id,
+                            "reason": "invalid_answer_value",
+                            "expected": expected_type,
+                            "response": _bounded(response, 2000),
+                            "at": _utc_now_iso(),
+                        },
+                    }
+            expected_party = _normalized_fact_name(waiting.get("party"))
+            actual_party = _normalized_fact_name(source)
+            if (typed_binding and expected_party and actual_party
+                    and expected_party not in actual_party
+                    and actual_party not in expected_party):
+                return {
+                    "status": "conflict",
+                    "message": (
+                        f"The reply came from '{source}', not the expected "
+                        f"authorized source/channel "
+                        f"'{waiting.get('party')}'."),
+                    "fact": waiting.get("fact"),
+                    "conflict": {
+                        "correlation_id": correlation_id,
+                        "reason": "wrong_source_channel",
+                        "expected": waiting.get("party"),
+                        "actual": source,
+                        "response": _bounded(response, 2000),
+                        "at": _utc_now_iso(),
+                    },
+                }
             fact = str(waiting.get("fact") or "").strip()
             fact_resolution = (
                 _source_fact_resolution(record, fact)
@@ -6525,6 +6765,80 @@ _READ_ONLY_RESEARCH_ACTIONS = {
 
 
 @register_assignment_adapter(
+    "assignment.wait",
+    description="Durably wait for one authorized external business fact",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False})
+async def _assignment_wait(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Persist a typed wait; an accepted reply becomes evidence.
+
+    The compiler owns the correlation id and subject binding. This adapter
+    never contacts a provider: it raises ``WaitingForExternal`` until the
+    authorized reply arrives through the normal response route, then reports
+    the received value as evidence for dependent work.
+    """
+    step = context.get("step") or {}
+    response = step.get("external_response")
+    if isinstance(response, dict) and response:
+        fact = str(inputs.get("fact") or "").strip()
+        value = response.get("value")
+        confirmation = response.get("fact_confirmation") if isinstance(
+            response.get("fact_confirmation"), dict) else {}
+        confirmed_values = confirmation.get("values") or []
+        if value in (None, "") and confirmed_values:
+            value = confirmed_values[0]
+        if value in (None, ""):
+            value = response.get("response")
+        return {
+            "status": "applied",
+            "summary": f"received {fact or 'the awaited fact'}",
+            "value": value,
+            "data": {
+                "fact": fact,
+                "subject": str(inputs.get("subject") or ""),
+                "value": value,
+            },
+            "verification": {
+                "status": "verified",
+                "resource_id": str(response.get("source") or ""),
+                "version": str(response.get("correlation_id") or ""),
+            },
+            "evidence": [{
+                "kind": "external_response",
+                "correlation_id": response.get("correlation_id"),
+                "source": response.get("source"),
+                "fact": fact,
+                "subject": str(inputs.get("subject") or ""),
+            }],
+        }
+    fact = str(inputs.get("fact") or "").strip()
+    subject = str(inputs.get("subject") or "").strip()
+    party = str(inputs.get("party") or "authorized source")
+    detail = str(inputs.get("detail") or fact or "external fact")
+    raise WaitingForExternal({
+        "event": "external_fact",
+        "state": "waiting_for_external",
+        "party": party,
+        "correlation_id": inputs.get("correlation_id"),
+        "resume_on": "response",
+        "detail": detail,
+        "fact": fact,
+        "subject": subject,
+        "expected_answer_type": str(
+            inputs.get("expected_answer_type") or ""),
+        "blocks": str(inputs.get("blocks") or ""),
+        "deadline": str(inputs.get("deadline") or ""),
+        "validity": str(inputs.get("validity") or ""),
+        # Only the compiler-owned await contract opts into strict subject,
+        # source/channel and typed-answer binding. Legacy/controlled waits keep
+        # their historical correlation-only matching.
+        "typed_binding": True,
+    })
+
+
+@register_assignment_adapter(
     "external.research",
     description="Retrieve one missing fact through a bounded read-only action",
     metadata={"effect": "read_only", "required_actions": ["retrieve"],
@@ -7001,6 +7315,19 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
         load_formulas_for_parquet(path), row_numbers)
     source = _connected_source_block(resolved, binding)
     source_label = _source_label(source)
+    truncated = matched > limit
+    coverage = dict(source.get("coverage") or {})
+    expected_count = coverage.get(
+        "source_row_count", coverage.get("expected_count"))
+    coverage.update({
+        "complete": not truncated,
+        "known": True,
+        "truncated": truncated,
+        "expected_count": expected_count if expected_count is not None else matched,
+        "observed_count": matched,
+    })
+    resource_id = str(source.get("resource_id") or "")
+    version = str(source.get("source_version") or "")
     return {
         "status": "applied",
         "summary": (
@@ -7010,8 +7337,16 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
         "schema": [{"column": column} for column in physical if column],
         "formulas": formulas,
         "matched_count": matched,
-        "truncated": matched > limit,
+        "truncated": truncated,
         "source_version": source["source_version"],
+        "resource_id": resource_id,
+        "coverage": coverage,
+        "verification": {
+            "status": "verified",
+            "resource_id": resource_id,
+            "version": version,
+            "coverage": coverage,
+        },
         "source": source,
         "source_label": source_label,
         "evidence": [{
@@ -7347,7 +7682,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         records = [record for record in records
                    if _matches(record.get(field))]
     limit = max(1, min(int(inputs.get("max_rows") or 500), 5000))
-    source_version = _sha256_file(path)
+    content_hash = _sha256_file(path)
     truncated = len(records) > limit
     binding = next((
         inputs.get(key) for key in (
@@ -7357,10 +7692,11 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         inputs.get("resource_id") or inputs.get("source_id")
         or binding.get("resource_id") or binding.get("source_id")
         or binding.get("id") or f"file:{path}")
-    version = str(
+    source_version = str(
         inputs.get("source_version") or inputs.get("version")
         or binding.get("source_version") or binding.get("version")
-        or source_version)
+        or content_hash)
+    version = source_version
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
     return {
@@ -7373,6 +7709,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "matched_count": len(records),
         "truncated": truncated,
         "source_version": source_version,
+        "sha256": content_hash,
         "resource_id": resource_id,
         "coverage": coverage,
         "verification": {
@@ -7385,7 +7722,7 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
             "kind": "workbook",
             "path": path,
             "sheet": sheet.title,
-            "content_hash": source_version,
+            "content_hash": content_hash,
         }],
     }
 
@@ -7433,7 +7770,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
             if isinstance(payload, dict):
                 structured = payload
                 text = json.dumps(payload, indent=2, sort_keys=True)
-    source_version = _sha256_file(path)
+    content_hash = _sha256_file(path)
     truncated = len(text) > 20000
     data = None
     if suffix == ".json":
@@ -7451,10 +7788,11 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         inputs.get("resource_id") or inputs.get("source_id")
         or binding.get("resource_id") or binding.get("source_id")
         or binding.get("id") or f"file:{path}")
-    version = str(
+    source_version = str(
         inputs.get("source_version") or inputs.get("version")
         or binding.get("source_version") or binding.get("version")
-        or source_version)
+        or content_hash)
+    version = source_version
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
     result = {
@@ -7466,6 +7804,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "text": text[:20000],
         "truncated": truncated,
         "source_version": source_version,
+        "sha256": content_hash,
         "resource_id": resource_id,
         "coverage": coverage,
         "data": data or {},
@@ -7481,7 +7820,7 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
         "evidence": [{
             "kind": "document",
             "path": path,
-            "content_hash": source_version,
+            "content_hash": content_hash,
         }],
     }
     if structured is not None:
@@ -7568,33 +7907,150 @@ async def _document_text_read(
     from core.database import get_db_session
     from core.models import IngestedDocument
 
-    version = str(
-        (document.get("metadata") or {}).get("source_content_hash") or "")
+    metadata = document.get("metadata") if isinstance(
+        document.get("metadata"), dict) else {}
+    indexed_version = str(
+        metadata.get("source_content_hash")
+        or metadata.get("content_hash")
+        or metadata.get("version") or "").strip()
+    if not indexed_version:
+        raise NeedsContext({
+            "concept": "document_extraction_version",
+            "reason": (
+                "the indexed extraction does not prove which source version "
+                "produced it"),
+            "question": (
+                "Which current source version should be read for this "
+                "document?"),
+            "next_retrieval": "re-index the authorized document and retry",
+            "kind": "missing_evidence",
+        })
+    indexed_document_id = str(metadata.get("pg_document_id") or "").strip()
+    if indexed_document_id and indexed_document_id != document_id:
+        raise NeedsContext({
+            "concept": "document_identity",
+            "reason": "the indexed extraction belongs to a different document",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "re-index the document and retry",
+            "kind": "missing_evidence",
+        })
     try:
         with get_db_session() as db:
             row = db.query(IngestedDocument).filter(
                 IngestedDocument.id == document_id).first()
-            if row is not None and row.source_content_hash:
-                version = str(row.source_content_hash)
-    except Exception:  # noqa: BLE001 - version falls back to metadata
-        pass
+    except Exception as exc:  # noqa: BLE001 - unverifiable authority
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": f"the authoritative document record is unavailable: {exc}",
+            "question": "The document authority is unavailable.",
+            "next_retrieval": "restore the document store and retry",
+            "kind": "missing_evidence",
+        }) from exc
+    if row is None:
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": "the authoritative document record is missing",
+            "question": "The document authority is unavailable.",
+            "next_retrieval": "re-upload or re-index the document",
+            "kind": "missing_evidence",
+        })
+    authoritative_version = str(row.source_content_hash or "").strip()
+    if not authoritative_version:
+        raise NeedsContext({
+            "concept": "document_authority",
+            "reason": "the authoritative document has no source version",
+            "question": "Which current document version should be read?",
+            "next_retrieval": "re-index the document and retry",
+            "kind": "missing_evidence",
+        })
+    expected_version = str(
+        binding.get("source_version") or inputs.get("source_version")
+        or "").strip()
+    from core.doc_freshness_service import (
+        ExtractionIdentityError, current_extraction_revision,
+    )
+
+    try:
+        source_version = current_extraction_revision(
+            indexed_version, authoritative_version, expected_version or None)
+    except ExtractionIdentityError as exc:
+        raise NeedsContext({
+            "concept": "document_extraction_stale",
+            "reason": str(exc),
+            "question": "The cached document text is stale; re-index it now?",
+            "next_retrieval": "re-extract the current authorized document",
+            "kind": "missing_evidence",
+        }) from exc
+    expected_workspace = str(
+        binding.get("workspace_id") or context.get("workspace_id") or "")
+    expected_tenant = str(
+        binding.get("tenant_id") or context.get("tenant_id") or "")
+    row_workspace = str(getattr(row, "workspace_id", "") or "")
+    row_tenant = str(getattr(row, "tenant_id", "") or "")
+    if expected_workspace and row_workspace and (
+            row_workspace != expected_workspace):
+        raise NeedsContext({
+            "concept": "document_scope",
+            "reason": "the document belongs to another workspace",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "select a document in this workspace",
+            "kind": "missing_evidence",
+        })
+    if expected_tenant and row_tenant and row_tenant != expected_tenant:
+        raise NeedsContext({
+            "concept": "document_scope",
+            "reason": "the document belongs to another tenant",
+            "question": "Which authorized document should be read?",
+            "next_retrieval": "select a document in this tenant",
+            "kind": "missing_evidence",
+        })
+    freshness = str(
+        getattr(row, "freshness_status", "fresh") or "fresh").lower()
+    if freshness not in ("fresh", "current", "active"):
+        raise NeedsContext({
+            "concept": "document_freshness",
+            "reason": f"the authoritative document is {freshness}",
+            "question": "Should the stale document be refreshed before use?",
+            "next_retrieval": "refresh the authorized source and retry",
+            "kind": "missing_evidence",
+        })
     truncated = len(text) > 20000
     coverage = {"complete": not truncated, "known": True,
                 "truncated": truncated}
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    # ``indexed_version`` may carry an extraction-format prefix (ev3:/ev4:);
+    # the source version consumed by readiness is the normalized authoritative
+    # source hash. The raw indexed label stays in the extraction lineage.
     result = {
         "status": "applied",
         "summary": f"read extracted text from {document.get('source') or document_id}",
         "text": text[:20000],
         "truncated": truncated,
-        "source_version": version or None,
+        "source_version": source_version,
         "resource_id": document_id,
         "coverage": coverage,
+        "extraction": {
+            "indexed_version": indexed_version,
+            "source_version": source_version,
+            "authoritative_version": authoritative_version,
+            "extractor_version": (
+                "opaque" if not str(source_version).startswith("ev")
+                else str(source_version).split(":", 1)[0]),
+            "text_sha256": text_hash,
+            "source": document.get("source"),
+        },
         "verification": {
             "status": "verified",
             "resource_id": document_id,
-            "version": version or None,
+            "version": source_version,
             "coverage": coverage,
         },
+        "evidence": [{
+            "kind": "document_extraction",
+            "resource_id": document_id,
+            "version": source_version,
+            "text_sha256": text_hash,
+        }],
     }
     if data is not None:
         result["data"] = data
@@ -7736,7 +8192,7 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
     rows = inputs.get("rows")
     if (not isinstance(rows, list) or not rows) and inputs.get(
             "compose_from_results"):
-        rows = _compose_evidence_rows(context)
+        rows = _compose_evidence_rows(inputs, context)
     if not path or not isinstance(rows, list) or not rows:
         raise NeedsContext({
             "concept": "artifact_rows",

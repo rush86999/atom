@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "README.md": "4013896650c9e0e8fbe19d60dcbe343383e822d8a5b5ea717b2ddb2bebc1b560",
+    "TEST_RESULTS.md": "15f283bcbc3e22da9eb1e7cef965a8dd17faca4169e250cfd41caf93aee5e73d",
+    "capture.json": "fc20cd333a3197525e977c21ffff0d229165deb2e9255bdbdddc37c29e680498",
+    "customer-quote.docx": "7f90fd9e5b73af2170aab33834d189a63fb2a44dcee8e4e43da4ff6ffc8d3adc",
+    "detail.txt": "8b222a9810bbf6cdb2e1afbc2c615c6e8bbb29797e2da8341ce161a16574d34f",
+    "exact-run-final.png": "5343a2460c171b5a198c9c7c8645002d729fe0ece0d2193d48dc6b89aeabdee3",
+    "final.json": "913cc2f63241f27d74152d225d41a5f8be493e56ad605e7e436a49503b27bf85",
+    "harness-run.log": "fdda6de889584faf39d391a0895869f3af0d35a266c3d67a26b621ed3a6f1e63",
+    "harness.py": "fdcd6f91d2526851b4be9a62f125a43a61e2a793337aaedb1e98e6c1d23aace3",
+    "start-form.png": "c504c087a89137d60b433fdb061da22ad058c35cac36714006389de746ef3664"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "1c1fd2c08",
+    "harness_successor": "7b6f39a1f7891599d7009e1f7007c6df412368bc",
+    "manifest_note": "Normal Assignments UI explicit quote-document journey: exact /api/assignments request/response and returned run, exact-run summary click, downloaded artifact bytes and 370.00 content. Explicit deliverable request, not model artifact selection.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app",
+    "world": "g5-ui-remaining-final"
+  },
+  "changed_files": [
+    "scripts/acceptance/employee_g5_ui_artifact.py"
+  ],
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/deployment authority",
+    "explicit deliverable request; served-model artifact selection not claimed",
+    "API-level branch/retention/cancellation/uncertainty is the separate 55eb68aa3 bundle",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "schema": "atom-employee-g5-ui-artifact-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "f2c277ec2c4eb3e04f1979a547ee5a31f3d5aa299ea37d52ea331fb00f8c1576",
+    "backend/core/assignment_executor.py": "6305d604e1791ff05558fcc41bfdd2341a814641463b5a9abe3fa949c3267c82",
+    "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
+    "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+    "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+    "backend/core/employee_work_compiler.py": "f0824a5c056c8ad9ad620e94fe2a100f212e211262418604a0fe2936a473721c",
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "0ed109516b9d63393de90593b000478b70e2704eb749ff4421ba0ac73f40af30",
+    "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0"
+  },
+  "status": "ui-artifact-journey-verified",
+  "tests": {
+    "ui_artifact": {
+      "report": "final.json",
+      "result": "10/10 checks"
+    }
+  }
+}

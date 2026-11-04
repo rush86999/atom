@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "README.md": "a1fca64fa04a0209854461944e3f8b880573850c6a96bc4037aa1fc158ecd3e9",
+    "TEST_RESULTS.md": "2ba6fca5dafa792aaeccbf9db0430d67546ae158cd2a80fec20872ed76b2516b",
+    "focused-tests.log": "26774b1e3eadbcb008bc899fe7e4a1ae8080a07539b848c6b9f889f8cc1486c2",
+    "independent-freshness-probe.log": "82c575830c71b3335f13f5c97e20adeca1620d490e383c8e88fa5b005c779c76"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "9b6e01e90ddbc8e8348e3b7b7683800cbc15f206",
+    "manifest_note": "Indexed extraction version/scope/freshness binding; stale SQL relabel false pass closed.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/core/assignment_executor.py",
+    "backend/api/document_ingestion_routes.py",
+    "backend/api/document_routes.py",
+    "backend/tests/test_employee_document_freshness.py"
+  ],
+  "exclusions": [
+    "normal browser UI journey remains with the product owner",
+    "no model inference used for this repair",
+    "no live provider/send authority",
+    "historical scores unchanged"
+  ],
+  "schema": "atom-employee-document-freshness-1",
+  "source_hashes": {
+    "backend/api/document_ingestion_routes.py": "ebe8b7ef6c2e3b1988bf2005502cf7db448205646cb95dc65546934842fc8bb2",
+    "backend/api/document_routes.py": "4902961b5331568df632a5bc5b806e84b952db143ebae0245a39d6b6f33707da",
+    "backend/core/assignment_executor.py": "ae845343ca7323c64c122ad6480c3d0885bd8e18272b2b46825b558b87dfcc38",
+    "backend/tests/test_employee_document_freshness.py": "09e844ed0d3766dd439863ff7d20a970627cf636af6326b8699e98862fdedd54"
+  },
+  "status": "focused-repair-verified",
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "188 passed"
+    },
+    "independent_probe": {
+      "log": "independent-freshness-probe.log",
+      "result": "2 passed"
+    }
+  }
+}

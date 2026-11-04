@@ -1,0 +1,966 @@
+{
+ "objective": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+ "taught_terms": {
+  "currency": "USD",
+  "freight": "20.00",
+  "tax_basis": "none"
+ },
+ "line_items_supplied": false,
+ "phase1": {
+  "request_status": 200,
+  "request": {
+   "objective": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+   "agent_id": "6cd689a3-9f81-4a97-a61a-d22c90c0ffb6",
+   "sources": [
+    {
+     "kind": "workbook",
+     "dataset_name": "upload_price_book__prices",
+     "source": "upload",
+     "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+     "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+     "sheet": "Prices"
+    }
+   ],
+   "task_context": {},
+   "authorized_actions": [
+    "retrieve",
+    "calculate"
+   ],
+   "teaching_terms": {
+    "currency": "USD",
+    "freight": "20.00",
+    "tax_basis": "none"
+   },
+   "requested_output": "document",
+   "budget": {
+    "max_steps": 20
+   },
+   "use_model": true
+  },
+  "run_id": "f6465719-3cf6-4087-913c-4d0c1b2a1a93",
+  "response": {
+   "run_id": "f6465719-3cf6-4087-913c-4d0c1b2a1a93",
+   "assignment": {
+    "run_id": "f6465719-3cf6-4087-913c-4d0c1b2a1a93",
+    "assignment": {
+     "assignment_id": "asg-e15049e160a84f6f",
+     "objective": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+     "employee_id": "e7a83ab5-e26c-444d-ba29-bf607db2f213",
+     "workspace_id": "default",
+     "plan_revision": 2,
+     "status": "completed",
+     "teaching_revision": "untrained",
+     "teaching_fingerprint": "0cb4930dc8104f9f52de1976a3b4d4ab",
+     "teaching_history": [],
+     "effective_lesson_ids": [],
+     "mappings": [],
+     "mapping_history": [],
+     "deliverables": [
+      {
+       "deliverable_id": "del-requested-output",
+       "kind": "document",
+       "description": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+       "required": true,
+       "step_id": "requested-artifact",
+       "status": "applied",
+       "artifact_revision": "4486b1274c0a9855",
+       "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-integrated-change-clean/data/assignments/default/e7a83ab5-e26c-444d-ba29-bf607db2f213/draft-d79268b1431a/prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx",
+       "sha256": "4486b1274c0a9855e6fd4e972eb428e5a4879fb08f20a519daa67ca44e8dfe5f"
+      }
+     ],
+     "sources": [
+      {
+       "kind": "workbook",
+       "binding": {
+        "resource_id": "5872e787-4f5f-4df3-96da-638e48ea4486",
+        "dataset_name": "upload_price_book__prices",
+        "source": "upload",
+        "source_kind": "file",
+        "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+        "original_file_name": "price-book.xlsx",
+        "representation": "parquet_frame",
+        "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+        "sheet": "Prices",
+        "columns": [
+         "Item",
+         "Qty",
+         "Price",
+         "Currency",
+         "__sheet_row"
+        ],
+        "numeric_columns": [
+         "Qty",
+         "Price"
+        ],
+        "row_count": 2,
+        "coverage": {
+         "known": true,
+         "source_row_count": 2,
+         "materialized_row_count": 2,
+         "truncated": false,
+         "row_cap": 500000
+        },
+        "access_scope": {
+         "user_id": "e7a83ab5-e26c-444d-ba29-bf607db2f213",
+         "workspace_id": "default",
+         "tenant_id": "default"
+        },
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "internal_fixture": false
+       },
+       "path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-integrated-change-clean/data/sheet_datasets/default/5a196b9f12ec/upload_price_book__prices.parquet",
+       "internal_fixture": true
+      }
+     ],
+     "authorized_actions": [
+      "calculate",
+      "present",
+      "retrieve"
+     ],
+     "standing_authority": null,
+     "budget": {
+      "max_steps": 20,
+      "max_attempts_per_step": 3,
+      "max_wall_seconds": 900.0,
+      "max_cost_usd": 0.0,
+      "deadline": null,
+      "cost_mode": "hard",
+      "soft_limit_authorized_by": null,
+      "reserved_cost_usd": 0.0,
+      "cost_reservations": [],
+      "cost_overrun_usd": 0.0,
+      "cost_violation": null,
+      "soft_limit_exceeded": false,
+      "steps_started": 4,
+      "started_at": "2026-11-04T11:46:27.130586+00:00",
+      "elapsed_seconds": 0.0,
+      "paused_seconds": 0.0,
+      "waiting_since": null,
+      "wait_credits": {},
+      "wait_credits_schema": 1,
+      "active_wait": null,
+      "cost_usd": 0.0,
+      "idle_ledger_schema": 2,
+      "idle_intervals": {},
+      "working_seconds": 36.446,
+      "wall_seconds": 36.446
+     },
+     "steps": [
+      {
+       "step_id": "source-1",
+       "title": "Read price-book.xlsx",
+       "operation_type": "retrieve",
+       "adapter": "dataset.read",
+       "depends_on": [],
+       "required": true,
+       "effect": "read_only",
+       "status": "applied",
+       "recovery_class": "terminal",
+       "operation_id": "a85fbe7f-0dba-478f-ab65-0874348ea5a8",
+       "attempts": 0,
+       "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+       "result_value": null,
+       "result_unit": null,
+       "readiness": null,
+       "result_measure": null,
+       "prior_result_count": 0,
+       "artifact_revision": null,
+       "gap_ids": [],
+       "waiting": {},
+       "external_response": {},
+       "approval_request": {},
+       "standing_authority_receipt": {},
+       "failure": {}
+      },
+      {
+       "step_id": "quote-lines",
+       "title": "Map accepted evidence to quote lines",
+       "operation_type": "calculate",
+       "adapter": "quote.lines_from_rows",
+       "depends_on": [
+        "source-1"
+       ],
+       "required": true,
+       "effect": "local",
+       "status": "applied",
+       "recovery_class": "terminal",
+       "operation_id": "e15e0759-6883-4057-9c89-9a6439597585",
+       "attempts": 0,
+       "result_summary": "mapped 2 quote row(s)",
+       "result_value": null,
+       "result_unit": null,
+       "readiness": null,
+       "result_measure": null,
+       "prior_result_count": 0,
+       "artifact_revision": null,
+       "gap_ids": [],
+       "waiting": {},
+       "external_response": {},
+       "approval_request": {},
+       "standing_authority_receipt": {},
+       "failure": {}
+      },
+      {
+       "step_id": "quote-total",
+       "title": "Calculate the evidence-backed quote total",
+       "operation_type": "calculate",
+       "adapter": "quote.calculate",
+       "depends_on": [
+        "quote-lines"
+       ],
+       "required": true,
+       "effect": "local",
+       "status": "applied",
+       "recovery_class": "terminal",
+       "operation_id": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+       "attempts": 0,
+       "result_summary": "quote total 370.00 USD (2 lines)",
+       "result_value": "370.00",
+       "result_unit": "USD",
+       "readiness": null,
+       "result_measure": "quote_total",
+       "prior_result_count": 0,
+       "artifact_revision": null,
+       "gap_ids": [],
+       "waiting": {},
+       "external_response": {},
+       "approval_request": {},
+       "standing_authority_receipt": {},
+       "failure": {}
+      },
+      {
+       "step_id": "requested-artifact",
+       "title": "Render the requested document",
+       "operation_type": "present",
+       "adapter": "artifact.document",
+       "depends_on": [
+        "quote-total"
+       ],
+       "required": true,
+       "effect": "local",
+       "status": "applied",
+       "recovery_class": "terminal",
+       "operation_id": "1042dbec-8b98-4800-8bc9-596ebc635137",
+       "attempts": 0,
+       "result_summary": "rendered prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx",
+       "result_value": null,
+       "result_unit": null,
+       "readiness": null,
+       "result_measure": null,
+       "prior_result_count": 0,
+       "artifact_revision": "4486b1274c0a9855",
+       "gap_ids": [],
+       "waiting": {},
+       "external_response": {},
+       "approval_request": {},
+       "standing_authority_receipt": {},
+       "failure": {}
+      }
+     ],
+     "created_at": "2026-11-04T11:46:27.123185+00:00",
+     "updated_at": "2026-11-04T11:47:03.570173+00:00",
+     "completed_at": "2026-11-04T11:47:03.570175+00:00",
+     "progress": {
+      "total_steps": 4,
+      "required_steps": 4,
+      "completed_steps": 4,
+      "waiting_steps": 0,
+      "failed_steps": 0,
+      "uncertain_steps": 0,
+      "open_gap_count": 0
+     }
+    },
+    "open_gaps": [],
+    "operations": [
+     {
+      "operation_id": "a85fbe7f-0dba-478f-ab65-0874348ea5a8",
+      "step_id": "source-1",
+      "type": "retrieve",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null,
+      "remote_id": null,
+      "provider_ref": null,
+      "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+     },
+     {
+      "operation_id": "e15e0759-6883-4057-9c89-9a6439597585",
+      "step_id": "quote-lines",
+      "type": "calculate",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null,
+      "remote_id": null,
+      "provider_ref": null,
+      "result_summary": "mapped 2 quote row(s)"
+     },
+     {
+      "operation_id": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+      "step_id": "quote-total",
+      "type": "calculate",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null,
+      "remote_id": null,
+      "provider_ref": null,
+      "result_summary": "quote total 370.00 USD (2 lines)"
+     },
+     {
+      "operation_id": "1042dbec-8b98-4800-8bc9-596ebc635137",
+      "step_id": "requested-artifact",
+      "type": "present",
+      "status": "applied",
+      "needs_reconciliation": false,
+      "approval": {},
+      "uncertainty_reason": null,
+      "remote_id": null,
+      "provider_ref": null,
+      "result_summary": "rendered prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx"
+     }
+    ]
+   },
+   "employee_job": {
+    "objective": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+    "identity": {
+     "employee_id": "e7a83ab5-e26c-444d-ba29-bf607db2f213",
+     "workspace_id": "default",
+     "tenant_id": "default",
+     "execution_owner": "assignment"
+    },
+    "criteria": [
+     {
+      "criterion_id": "artifact_verified:del-requested-output",
+      "kind": "artifact_verified",
+      "required": true,
+      "verifier": "artifact_verified",
+      "scope": {
+       "workspace_id": "default"
+      },
+      "deliverable_id": "del-requested-output"
+     },
+     {
+      "criterion_id": "required_work_complete:assignment",
+      "kind": "required_work_complete",
+      "required": true,
+      "verifier": "required_work_complete",
+      "scope": {
+       "workspace_id": "default"
+      }
+     },
+     {
+      "criterion_id": "employee_result:objective",
+      "kind": "employee_result",
+      "required": true,
+      "verifier": "employee_result",
+      "scope": {
+       "workspace_id": "default"
+      }
+     }
+    ],
+    "facts": [],
+    "sources": [
+     {
+      "source_id": "5872e787-4f5f-4df3-96da-638e48ea4486",
+      "kind": "workbook",
+      "representation": "parquet_frame",
+      "file_name": "price-book.xlsx",
+      "sheet": "Prices",
+      "columns": [
+       "Item",
+       "Qty",
+       "Price",
+       "Currency",
+       "__sheet_row"
+      ],
+      "numeric_columns": [
+       "Qty",
+       "Price"
+      ],
+      "row_count": 2,
+      "coverage": {
+       "known": true,
+       "source_row_count": 2,
+       "materialized_row_count": 2,
+       "truncated": false,
+       "row_cap": 500000
+      },
+      "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+      "read": true,
+      "authorized": true,
+      "preview": {
+       "sampled": true,
+       "kind": "source_metadata_not_rows",
+       "total_count": 2,
+       "shown_count": 0,
+       "omitted_count": 2,
+       "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read price-book.xlsx",
+      "status": "applied",
+      "required": true,
+      "effect": "read_only",
+      "requires": [],
+      "readiness": null,
+      "readiness_blocker": null,
+      "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "status": "applied",
+      "required": true,
+      "effect": "local",
+      "requires": [
+       {
+        "kind": "receipt",
+        "step_id": "source-1",
+        "require": "verified"
+       }
+      ],
+      "readiness": null,
+      "readiness_blocker": null,
+      "result_summary": "mapped 2 quote row(s)"
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "status": "applied",
+      "required": true,
+      "effect": "local",
+      "requires": [],
+      "readiness": null,
+      "readiness_blocker": null,
+      "result_summary": "quote total 370.00 USD (2 lines)"
+     },
+     {
+      "step_id": "requested-artifact",
+      "title": "Render the requested document",
+      "status": "applied",
+      "required": true,
+      "effect": "local",
+      "requires": [
+       {
+        "kind": "receipt",
+        "step_id": "quote-total",
+        "require": "verified"
+       }
+      ],
+      "readiness": null,
+      "readiness_blocker": null,
+      "result_summary": "rendered prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx"
+     }
+    ],
+    "open_obligations": [],
+    "budget": {
+     "max_steps": 20,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 900.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 4,
+     "started_at": "2026-11-04T11:46:27.130586+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 0.0,
+     "waiting_since": null,
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": null,
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {}
+    },
+    "status": "completed",
+    "task_version": 42,
+    "plan_revision": 2,
+    "business_outcome": {
+     "basis": "criteria_met",
+     "verdict": true,
+     "state": "satisfied",
+     "declared_state": "completed",
+     "outcome": {
+      "contract_version": 2,
+      "recorded_at": 1793792823.577662,
+      "execution_id": null,
+      "turn_id": null,
+      "objective": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+      "objective_state": {
+       "goal": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+       "target_entities": [],
+       "requested_attributes": [],
+       "source_constraints": {},
+       "authorized_actions": []
+      },
+      "objective_met": true,
+      "completion_criteria": [
+       {
+        "criterion_id": "artifact_verified:del-requested-output",
+        "kind": "artifact_verified",
+        "required": true,
+        "verifier": "artifact_verified",
+        "scope": {
+         "workspace_id": "default"
+        },
+        "deliverable_id": "del-requested-output"
+       },
+       {
+        "criterion_id": "required_work_complete:assignment",
+        "kind": "required_work_complete",
+        "required": true,
+        "verifier": "required_work_complete",
+        "scope": {
+         "workspace_id": "default"
+        }
+       },
+       {
+        "criterion_id": "employee_result:objective",
+        "kind": "employee_result",
+        "required": true,
+        "verifier": "employee_result",
+        "scope": {
+         "workspace_id": "default"
+        }
+       }
+      ],
+      "criterion_results": [
+       {
+        "criterion": "artifact_verified",
+        "met": true,
+        "verifier": "artifact_verified",
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ]
+       },
+       {
+        "criterion": "required_work_complete",
+        "met": true,
+        "verifier": "required_work_complete",
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ]
+       },
+       {
+        "criterion": "employee_result",
+        "met": true,
+        "verifier": "employee_result",
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ]
+       }
+      ],
+      "requested": {},
+      "source_constraints": {},
+      "authorized_actions": [
+       "calculate",
+       "present",
+       "retrieve"
+      ],
+      "tool_outcomes": [
+       {
+        "tool": "dataset.read",
+        "verified": true,
+        "outcome": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+        "required": true,
+        "evidence_refs": [],
+        "criterion_ids": [],
+        "failure_layer": null,
+        "failure_owner": null
+       },
+       {
+        "tool": "quote.lines_from_rows",
+        "verified": true,
+        "outcome": "mapped 2 quote row(s)",
+        "required": true,
+        "evidence_refs": [],
+        "criterion_ids": [],
+        "failure_layer": null,
+        "failure_owner": null
+       },
+       {
+        "tool": "quote.calculate",
+        "verified": true,
+        "outcome": "quote total 370.00 USD (2 lines)",
+        "required": true,
+        "evidence_refs": [],
+        "criterion_ids": [],
+        "failure_layer": null,
+        "failure_owner": null
+       },
+       {
+        "tool": "artifact.document",
+        "verified": true,
+        "outcome": "rendered prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx",
+        "required": true,
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ],
+        "criterion_ids": [],
+        "failure_layer": null,
+        "failure_owner": null
+       }
+      ],
+      "evidence_refs": [
+       {
+        "kind": "artifact"
+       }
+      ],
+      "evidence_ledger": {},
+      "gaps": [],
+      "implications": [],
+      "actions": [
+       {
+        "action_type": "retrieve",
+        "criterion_id": "",
+        "status": "applied",
+        "authorized": true,
+        "applied": true,
+        "required": true,
+        "evidence_refs": []
+       },
+       {
+        "action_type": "calculate",
+        "criterion_id": "",
+        "status": "applied",
+        "authorized": true,
+        "applied": true,
+        "required": true,
+        "evidence_refs": []
+       },
+       {
+        "action_type": "calculate",
+        "criterion_id": "",
+        "status": "applied",
+        "authorized": true,
+        "applied": true,
+        "required": true,
+        "evidence_refs": []
+       },
+       {
+        "action_type": "present",
+        "criterion_id": "",
+        "status": "applied",
+        "authorized": true,
+        "applied": true,
+        "required": true,
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ]
+       }
+      ],
+      "calculation": {
+       "computed": "370.00",
+       "unit": "USD",
+       "verified": true,
+       "step_id": "quote-total",
+       "adapter": "quote.calculate"
+      },
+      "mutation": {},
+      "delivery": {
+       "artifact_verified": true,
+       "artifact_revision": "4486b1274c0a9855",
+       "artifact_sha256": "4486b1274c0a9855e6fd4e972eb428e5a4879fb08f20a519daa67ca44e8dfe5f",
+       "calculation_verified": true,
+       "calculated_value": "370.00"
+      },
+      "user_corrections": [],
+      "limitations": [],
+      "latency_s": null,
+      "cost_usd": null,
+      "scope": {
+       "workspace_id": "default",
+       "teaching_revision": "untrained",
+       "plan_revision": 2
+      },
+      "policy_version": null,
+      "candidate_versions": {},
+      "learning_layers": {
+       "general_capability": {
+        "policy_version": null,
+        "candidate_versions": {}
+       },
+       "user_business_configuration": {
+        "scope": {
+         "workspace_id": "default",
+         "teaching_revision": "untrained",
+         "plan_revision": 2
+        }
+       },
+       "task_evidence": {
+        "requested": {},
+        "evidence_refs": [
+         {
+          "kind": "artifact"
+         }
+        ],
+        "evidence_ledger": {},
+        "gap_count": 0,
+        "corrections": []
+       }
+      },
+      "failure_layer": null,
+      "failure_owner": null,
+      "success_kinds": {
+       "task_success": null,
+       "tool_success": true,
+       "delivery_success": null,
+       "task_success_basis": "delivery_unknown"
+      }
+     }
+    }
+   },
+   "proposal": {
+    "proposal_kind": "evidence_read",
+    "reason": "To prepare the customer quote document, we need to read the authorized price list.",
+    "evidence_reads": [
+     {
+      "step_id": "evidence-1",
+      "title": "Read Price List",
+      "source_id": "5872e787-4f5f-4df3-96da-638e48ea4486",
+      "action": "",
+      "arguments": {},
+      "requires": [],
+      "reason": ""
+     }
+    ],
+    "clarification": null
+   },
+   "proposal_source": "model",
+   "technical_fallback": false,
+   "proposal_errors": [],
+   "adaptive_rounds": [
+    {
+     "source": "model",
+     "technical_fallback": false,
+     "decision": "replan",
+     "errors": [],
+     "failure_stage": null,
+     "attempt_id": "22bb1276e7c54190bafcba41e97bc395",
+     "observation_ids": [
+      "evidence-f4e5fd65cac76a04a995"
+     ],
+     "adoption_status": "applied",
+     "work_request_operation": "quote_calculation",
+     "execution_status": "completed"
+    }
+   ],
+   "plan_revision": 1,
+   "teaching_revision": "untrained"
+  },
+  "status": "completed",
+  "quote_total": "370.00",
+  "quote_operation": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+  "plan_revision": 2,
+  "artifact_sha256": "4486b1274c0a9855e6fd4e972eb428e5a4879fb08f20a519daa67ca44e8dfe5f",
+  "artifact_text": "Prepare the customer quote document from the authorized price list, using the taught commercial terms\nObjective\nPrepare the customer quote document from the authorized price list, using the taught commercial terms\nSummary\n2*100.00 + 3*50.00 + freight = 370.00 USD\nFindings\nquote-total\nSources\nupload_price_book__prices\nprice-book.xlsx\nPrices\n5872e787-4f5f-4df3-96da-638e48ea4486\nAudit\nCalculation step: quote-total\nRow set: quote-total \u00b7 2 row(s)\nitem=A\nitem=B\nRow | Item | Description | Qty | Unit | Unit price | Discount | Net | Currency\n | A | A | 2 | each | 100.00 | 0.00 | 200.00 | USD\n | B | B | 3 | each | 50.00 | 0.00 | 150.00 | USD",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "a85fbe7f-0dba-478f-ab65-0874348ea5a8",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "e15e0759-6883-4057-9c89-9a6439597585",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+    "result_value": "370.00"
+   },
+   {
+    "step_id": "requested-artifact",
+    "adapter": "artifact.document",
+    "status": "applied",
+    "operation_id": "1042dbec-8b98-4800-8bc9-596ebc635137",
+    "result_value": null
+   }
+  ]
+ },
+ "phase2": {
+  "note": {
+   "document_id": null,
+   "operation_id": "d963c2b1-5ceb-4cdc-9b82-154870fae9a9",
+   "result_sha256": "d6a9e2b45a87b33be8ea3340ac72eb52abaeacd40d3720f63b13c60ddf32f168"
+  },
+  "revised_source": {
+   "dataset_name": "upload_price_book__prices",
+   "sheet": "Prices",
+   "source_version": "a519254f8ccef6e9d52c3545a63b4c3a3f58926f",
+   "file_sha256": "71c051d67a9524135109230f265b8761da4e0fb75a9770ac44f8e21cd68d884f",
+   "add_request_status": 200,
+   "add_response": {
+    "status": "applied",
+    "step_id": null,
+    "reassessment_rounds": [
+     {
+      "source": "model",
+      "technical_fallback": false,
+      "decision": "replan",
+      "errors": [],
+      "failure_stage": null,
+      "attempt_id": "b7537e89f7a144a5b709aee11da20626",
+      "observation_ids": [
+       "evidence-165039d1366ac7e24a7c",
+       "evidence-98dc427618fd95301ec4"
+      ],
+      "adoption_status": "applied",
+      "work_request_operation": "quote_calculation",
+      "execution_status": "completed"
+     }
+    ]
+   }
+  },
+  "status": "completed",
+  "plan_revision": 5,
+  "quote_total": "425.00",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "a85fbe7f-0dba-478f-ab65-0874348ea5a8",
+    "plan_revision": "2026-11-04T11:46:27.146180+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "e15e0759-6883-4057-9c89-9a6439597585",
+    "plan_revision": "2026-11-04T11:47:03.497922+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+    "plan_revision": "2026-11-04T11:47:03.518225+00:00",
+    "result_value": "370.00",
+    "prior_results": []
+   },
+   {
+    "step_id": "requested-artifact",
+    "adapter": "artifact.document",
+    "status": "applied",
+    "operation_id": "1042dbec-8b98-4800-8bc9-596ebc635137",
+    "plan_revision": "2026-11-04T11:47:03.566279+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "d963c2b1-5ceb-4cdc-9b82-154870fae9a9",
+    "plan_revision": "2026-11-04T11:47:11.498705+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "8ef60766-d269-489e-85d2-bd29660ee808",
+    "plan_revision": "2026-11-04T11:47:11.615938+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "quote-lines-2",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "a2389e86-6909-4e63-a762-e3858c07badd",
+    "plan_revision": "2026-11-04T11:47:42.260494+00:00",
+    "result_value": null,
+    "prior_results": []
+   },
+   {
+    "step_id": "quote-total-2",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "25f3d699-f880-4c90-8475-f0ad6f86121f",
+    "plan_revision": "2026-11-04T11:47:42.306129+00:00",
+    "result_value": "425.00",
+    "prior_results": []
+   },
+   {
+    "step_id": "requested-artifact-2",
+    "adapter": "artifact.document",
+    "status": "applied",
+    "operation_id": "a950c2cb-a47d-4bfb-bcb8-50d2cfd5192b",
+    "plan_revision": "2026-11-04T11:47:42.381168+00:00",
+    "result_value": null,
+    "prior_results": []
+   }
+  ],
+  "artifact": {
+   "deliverable_id": "del-requested-output",
+   "kind": "document",
+   "description": "Prepare the customer quote document from the authorized price list, using the taught commercial terms",
+   "required": true,
+   "step_id": "requested-artifact",
+   "status": "applied",
+   "artifact_revision": "5d26049c83641f4d",
+   "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-integrated-change-clean/data/assignments/default/e7a83ab5-e26c-444d-ba29-bf607db2f213/draft-d79268b1431a/prepare-the-customer-quote-document-from-the-authorized-pric-db5ba333.docx",
+   "sha256": "5d26049c83641f4d155f9c20c0ce7d9f1f6b1294b53fa618ddd4cfadbe419cd2"
+  },
+  "artifact_sha256": "5d26049c83641f4d155f9c20c0ce7d9f1f6b1294b53fa618ddd4cfadbe419cd2",
+  "artifact_text": "Prepare the customer quote document from the authorized price list, using the taught commercial terms\nObjective\nPrepare the customer quote document from the authorized price list, using the taught commercial terms\nSummary\n2*120.00 + 3*55.00 + freight = 425.00 USD\nFindings\nquote-total-2\nSources\nupload_price_book__prices\nprice-book.xlsx\nPrices\n5872e787-4f5f-4df3-96da-638e48ea4486\nAudit\nCalculation step: quote-total-2\nRow set: quote-total-2 \u00b7 2 row(s)\nitem=A\nitem=B\nRow | Item | Description | Qty | Unit | Unit price | Discount | Net | Currency\n | A | A | 2 | each | 120.00 | 0.00 | 240.00 | USD\n | B | B | 3 | each | 55.00 | 0.00 | 165.00 | USD",
+  "checks": {
+   "phase1_completed": true,
+   "phase1_quote_370": true,
+   "phase1_artifact_has_370": true,
+   "phase1_no_line_items_supplied": true,
+   "revised_version_authorized": true,
+   "revised_version_identity_persisted": true,
+   "model_chose_next_work": true,
+   "model_chose_quote_work": true,
+   "phase2_completed": true,
+   "affected_quote_changed": true,
+   "prior_quote_result_retained": true,
+   "prior_quote_operation_retained": true,
+   "unrelated_note_operation_retained": true,
+   "unrelated_note_result_retained": true,
+   "artifact_revision_changed": true,
+   "artifact_has_new_total": true,
+   "artifact_excludes_superseded_total": true,
+   "artifact_criterion_still_met": true
+  },
+  "all_checks_passed": true
+ }
+}

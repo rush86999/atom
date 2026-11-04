@@ -6,6 +6,8 @@ predicates are issued here. The model never writes execution mechanics.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -27,6 +29,7 @@ from core.employee_money_terms import (
     validate_role_value,
 )
 from core.employee_work_requests import (
+    AwaitEvidenceRequest,
     InvoiceReconciliationRequest,
     QuoteCalculationRequest,
 )
@@ -95,6 +98,8 @@ def _unique_id(assignment: Mapping[str, Any], base: str) -> str:
 
 
 def _evidence_ids(request: Any) -> List[str]:
+    if isinstance(request, AwaitEvidenceRequest):
+        return []
     if isinstance(request, QuoteCalculationRequest):
         return [request.source_step_id]
     if isinstance(request, InvoiceReconciliationRequest):
@@ -587,6 +592,64 @@ def _quote_patch(
     return patch
 
 
+def _primary_calculation_step(patch: Mapping[str, Any]) -> str:
+    """The verified calculation/reconciliation the artifact must follow."""
+    for step in patch.get("add_steps") or []:
+        if str((step or {}).get("adapter") or "") in (
+                "quote.calculate", "invoice.reconcile"):
+            return str(step.get("step_id") or "")
+    return ""
+
+
+def _requested_artifact_step(
+    assignment: Mapping[str, Any], calculation_step: str,
+) -> Optional[Dict[str, Any]]:
+    """Render the user-requested output after the verified calculation.
+
+    The model chooses the business calculation; the deterministic compiler
+    owns the output mechanics. The output path, deliverable identity and
+    artifact criterion were fixed when the objective was accepted.
+    """
+    provenance = assignment.get("provenance") or {}
+    kind = str(provenance.get("requested_output") or "").strip().lower()
+    adapters = {
+        "document": "artifact.document",
+        "presentation": "artifact.presentation",
+    }
+    adapter = adapters.get(kind)
+    if not adapter:
+        return None
+    path = str(provenance.get("requested_output_path") or "").strip()
+    deliverable_id = str(
+        provenance.get("requested_output_deliverable_id") or "").strip()
+    if not path or not deliverable_id:
+        return None
+    return {
+        "step_id": _unique_id(assignment, "requested-artifact"),
+        "title": f"Render the requested {kind}",
+        "operation_type": "present",
+        "adapter": adapter,
+        "depends_on": [calculation_step],
+        "inputs": {
+            "path": path,
+            "title": str(assignment.get("objective") or "")[:200],
+            "deliverable_id": deliverable_id,
+            "content": "",
+            "compose_from_results": True,
+            # Render only the verified calculation/reconciliation this
+            # artifact follows, never an earlier superseded result.
+            "result_step_ids": [calculation_step],
+        },
+        "effect": "local",
+        "requires": [{
+            "kind": "receipt",
+            "step_id": calculation_step,
+            "require": "verified",
+        }],
+        "required": True,
+    }
+
+
 def _invoice_evidence_shape(
     assignment: Mapping[str, Any],
     step_id: str,
@@ -624,6 +687,7 @@ def _invoice_role_candidates(
     required_keys: Sequence[str],
 ) -> List[str]:
     candidates = []
+    seen_sources = set()
     for step in assignment.get("steps") or []:
         if not isinstance(step, Mapping) or step.get("status") != "applied":
             continue
@@ -636,6 +700,19 @@ def _invoice_role_candidates(
             and data.get(fields[key]) not in (None, "")
             for key in required_keys
         ):
+            inputs = step.get("inputs") if isinstance(
+                step.get("inputs"), Mapping) else {}
+            binding = inputs.get("resource_binding") if isinstance(
+                inputs.get("resource_binding"), Mapping) else {}
+            identity = "|".join(str(binding.get(key) or "") for key in (
+                "resource_id", "dataset_name", "source", "external_id",
+                "source_version", "sheet"))
+            if identity:
+                if identity in seen_sources:
+                    # A duplicate read of the exact same source version is
+                    # the same evidence, not an ambiguous business role.
+                    continue
+                seen_sources.add(identity)
             candidates.append(str(step.get("step_id") or ""))
     return [item for item in candidates if item]
 
@@ -812,6 +889,95 @@ def _invoice_patch(
     return patch
 
 
+def _await_key(value: Any) -> str:
+    return " ".join(
+        str(value or "").lower().replace("_", " ").split())
+
+
+def _await_correlation(
+    assignment: Mapping[str, Any], request: AwaitEvidenceRequest,
+) -> str:
+    """Server-derived durable identity; the model never authors it."""
+    provenance = assignment.get("provenance") or {}
+    run_id = str(
+        provenance.get("run_id") or assignment.get("assignment_id") or "")
+    payload = {
+        "run_id": run_id,
+        "fact": _await_key(request.fact),
+        "subject": _await_key(request.subject),
+        "expected_from": _await_key(request.expected_from),
+    }
+    digest = hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:20]
+    return f"await-{digest}"
+
+
+def _await_patch(
+    request: AwaitEvidenceRequest,
+    assignment: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    if not _await_key(request.fact):
+        raise WorkRequestCompileError("await_evidence requires a material fact")
+    if not _await_key(request.subject):
+        raise WorkRequestCompileError("await_evidence requires a subject")
+    if not _await_key(request.expected_from):
+        raise WorkRequestCompileError(
+            "await_evidence requires the authorized source or channel that "
+            "is expected to answer")
+    if not _await_key(request.blocks):
+        raise WorkRequestCompileError(
+            "await_evidence must explain which dependent work it blocks")
+    wanted = (
+        _await_key(request.fact), _await_key(request.subject))
+    for step in assignment.get("steps") or []:
+        if str(step.get("adapter") or "") != "assignment.wait":
+            continue
+        inputs = step.get("inputs") or {}
+        existing = (
+            _await_key(inputs.get("fact")), _await_key(inputs.get("subject")))
+        if existing == wanted and str(step.get("status") or "") in (
+                "pending", "waiting", "applied"):
+            raise WorkRequestCompileError(
+                "an equivalent external fact is already awaited for this "
+                "subject; resolve or supersede that durable wait instead of "
+                "creating another")
+    correlation = _await_correlation(assignment, request)
+    step_id = _unique_id(assignment, "await")
+    patch = _base_patch(assignment, request, context)
+    patch["observations"].append({
+        "kind": "await_evidence",
+        "fact": request.fact,
+        "subject": request.subject,
+        "expected_from": request.expected_from,
+        "expected_answer_type": request.expected_answer_type,
+        "correlation_id": correlation,
+    })
+    patch["add_steps"] = [{
+        "step_id": step_id,
+        "title": f"Wait for {request.fact} for {request.subject}"[:200],
+        "operation_type": "retrieve",
+        "adapter": "assignment.wait",
+        "depends_on": [],
+        "inputs": {
+            "correlation_id": correlation,
+            "party": request.expected_from,
+            "detail": f"{request.fact} for {request.subject}"[:300],
+            "fact": request.fact,
+            "subject": request.subject,
+            "expected_answer_type": request.expected_answer_type,
+            "blocks": request.blocks,
+            "deadline": request.deadline or "",
+            "validity": request.validity or "",
+        },
+        "effect": "read_only",
+        "requires": [],
+        "required": True,
+    }]
+    return patch
+
+
 def compile_work_request_patch(
     request: Any,
     assignment: Mapping[str, Any],
@@ -825,22 +991,42 @@ def compile_work_request_patch(
     """
     context = dict(context or {})
     if isinstance(request, QuoteCalculationRequest):
-        return _quote_patch(request, assignment, context)
-    if isinstance(request, InvoiceReconciliationRequest):
-        return _invoice_patch(request, assignment, context)
-    try:
-        if isinstance(request, Mapping):
-            operation = str(request.get("operation") or "")
-            if operation == "quote_calculation":
-                return _quote_patch(
-                    QuoteCalculationRequest.model_validate(dict(request)),
-                    assignment, context)
-            if operation == "invoice_reconciliation":
-                return _invoice_patch(
-                    InvoiceReconciliationRequest.model_validate(
-                        dict(request)), assignment, context)
-        raise WorkRequestCompileError(
-            "unsupported work request operation; expected quote_calculation "
-            "or invoice_reconciliation")
-    except ValidationError as exc:
-        raise WorkRequestCompileError(f"invalid work request: {exc}") from exc
+        patch = _quote_patch(request, assignment, context)
+    elif isinstance(request, InvoiceReconciliationRequest):
+        patch = _invoice_patch(request, assignment, context)
+    elif isinstance(request, AwaitEvidenceRequest):
+        patch = _await_patch(request, assignment, context)
+    else:
+        try:
+            if isinstance(request, Mapping):
+                operation = str(request.get("operation") or "")
+                if operation == "quote_calculation":
+                    patch = _quote_patch(
+                        QuoteCalculationRequest.model_validate(dict(request)),
+                        assignment, context)
+                elif operation == "invoice_reconciliation":
+                    patch = _invoice_patch(
+                        InvoiceReconciliationRequest.model_validate(
+                            dict(request)), assignment, context)
+                elif operation == "await_evidence":
+                    patch = _await_patch(
+                        AwaitEvidenceRequest.model_validate(
+                            dict(request)), assignment, context)
+                else:
+                    raise WorkRequestCompileError(
+                        "unsupported work request operation; expected "
+                        "quote_calculation or invoice_reconciliation")
+            else:
+                raise WorkRequestCompileError(
+                    "unsupported work request operation; expected "
+                    "quote_calculation or invoice_reconciliation")
+        except ValidationError as exc:
+            raise WorkRequestCompileError(
+                f"invalid work request: {exc}") from exc
+    # The requested output renders only after the typed calculation or
+    # reconciliation it belongs to has produced a verified receipt.
+    requested = _requested_artifact_step(
+        assignment, _primary_calculation_step(patch))
+    if requested:
+        patch["add_steps"].append(requested)
+    return patch

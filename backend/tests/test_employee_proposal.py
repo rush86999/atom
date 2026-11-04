@@ -222,3 +222,72 @@ def test_planner_carries_facts_and_source_requirements():
     assert plan["steps"][0]["requires"] == [
         {"kind": "authority", "allow": ["retrieve"]}]
     assert plan["completion_criteria"][0]["criterion_id"]
+
+
+def test_compiler_collapses_duplicate_source_reads():
+    context = _context()
+    source = {
+        "resource_id": "fixture:price-book.xlsx",
+        "kind": "workbook", "representation": "xlsx",
+        "file_name": "price-book.xlsx", "sheet": "Prices",
+        "columns": ["SKU", "Price"], "coverage": {"known": True},
+    }
+    proposal = {
+        "proposal_kind": "evidence_read", "reason": "read twice",
+        "evidence_reads": [
+            {"step_id": "evidence-1", "title": "Read prices",
+             "source_id": "fixture:price-book.xlsx"},
+            {"step_id": "evidence-2", "title": "Verify prices",
+             "source_id": "fixture:price-book.xlsx"},
+        ],
+    }
+    compiled = compile_employee_proposal(
+        proposal, context, sources=[source])
+    assert compiled["valid"] is True, compiled["errors"]
+    assert len(compiled["plan_kwargs"]["sources"]) == 1
+
+
+def test_duplicate_applied_reads_do_not_make_invoice_roles_ambiguous():
+    from core.employee_proposal import operation_capabilities
+
+    def read_step(step_id, resource_id, version, data):
+        step = new_step(
+            step_id=step_id, title=f"Read {resource_id}",
+            operation_type="retrieve", adapter="document.text",
+            inputs={"resource_binding": {
+                "resource_id": resource_id,
+                "source_version": version}},
+            effect="read_only")
+        step["status"] = "applied"
+        step["result"] = {
+            "verification": {"status": "verified"},
+            "data": data,
+        }
+        return step
+
+    assignment = new_assignment(
+        objective="Reconcile the invoice",
+        employee_id="employee-1", workspace_id="ws-a", tenant_id="t-a",
+        steps=[
+            read_step("source-1", "doc-po", "v1", {
+                "po_id": "PO-7", "vendor_id": "V-9"}),
+            read_step("source-2", "doc-rec", "v1", {
+                "po_id": "PO-7", "received_quantity": "2"}),
+            read_step("source-3", "doc-inv", "v1", {
+                "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+                "unit_price": "120.00"}),
+            read_step("source-4", "doc-po", "v1", {
+                "po_id": "PO-7", "vendor_id": "V-9"}),
+            read_step("source-5", "doc-rec", "v1", {
+                "po_id": "PO-7", "received_quantity": "2"}),
+        ])
+    invoice = next(
+        item for item in operation_capabilities(assignment)
+        if item["operation"] == "invoice_reconciliation")
+    assert invoice["status"] == "ready", invoice
+    assert invoice["ambiguous_roles"] == []
+    assert invoice["roles"] == {
+        "invoice": ["source-3"],
+        "purchase_order": ["source-1"],
+        "receiving": ["source-2"],
+    }

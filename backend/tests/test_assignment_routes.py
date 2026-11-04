@@ -3532,3 +3532,481 @@ def test_source_addition_settles_missing_prerequisite_without_duplicates(
     assert duplicate.json()["status"] == "already_present"
     assert len(route_env["lifecycle"].get_assignment(
         run_id)["steps"]) == steps_before
+
+
+def test_retained_authorized_scope_supports_later_evidence_reads(
+        route_env, tmp_path, monkeypatch):
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        InvoiceReconciliationRequest,
+    )
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    po = tmp_path / "purchase-order.json"
+    po.write_text(json.dumps({
+        "po_id": "PO-7", "vendor_id": "V-9", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    invoice = tmp_path / "invoice.json"
+    invoice.write_text(json.dumps({
+        "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    receiving = tmp_path / "receiving.json"
+    receiving.write_text(json.dumps({
+        "po_id": "PO-7", "received_quantity": "2"}))
+    source_paths = [str(receiving), str(po), str(invoice)]
+
+    async def fake_work(context, **_kwargs):
+        if context.get("stage") == "discovery":
+            chosen = list(context["sources"][1:])
+        else:
+            chosen = [context["sources"][0]]
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the next authorized evidence",
+                "evidence_reads": [{
+                    "step_id": f"evidence-{index}",
+                    "title": "Read authorized evidence",
+                    "source_id": source["source_id"],
+                } for index, source in enumerate(chosen, start=1)],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="all authorized evidence is now read",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=InvoiceReconciliationRequest(
+                    operation="invoice_reconciliation",
+                    invoice_step_id="source-3",
+                    purchase_order_step_id="source-2",
+                    receiving_step_id="source-1",
+                )).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    # The context does not expose step IDs directly; the compiler derives them
+    # in assignment order: receiving first, then PO and invoice from discovery.
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Reconcile the invoice from authorized sources",
+            "sources": [{"path": path} for path in source_paths],
+            "authorized_actions": ["retrieve", "calculate"],
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert len(internal["sources"]) == 3
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    assert [step["step_id"] for step in internal["steps"]] == [
+        "source-1", "source-2", "source-3", "invoice-reconcile"]
+    assert steps["source-2"]["adapter"] == "document.read"
+    assert steps["source-3"]["adapter"] == "document.read"
+    assert internal["status"] == "completed", internal["status"]
+    assert next(
+        step for step in internal["steps"]
+        if step["adapter"] == "invoice.reconcile")["result"]["value"] == (
+            "270.00")
+
+
+def test_discovery_outside_scope_asks_one_actionable_question(
+        route_env, tmp_path, monkeypatch):
+    from core.task_lifecycle import open_unresolved_questions
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    note = tmp_path / "commercial-notes.txt"
+    note.write_text("No invoice, purchase order or receiving data is here.\n")
+
+    async def fake_work(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the only authorized note",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the authorized note",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model", "technical_fallback": False,
+            "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        from core.employee_adaptation import AdaptationProposal
+
+        assert not context.get("work_request_schemas")
+        return {
+            "proposal": AdaptationProposal(
+                decision="clarify",
+                reason="the corrected invoice is outside the authorized scope",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                clarification={
+                    "question": (
+                        "Which authorized source contains the corrected "
+                        "invoice for purchase order PO-7?"),
+                    "concept": "invoice_reconciliation",
+                    "unblocks": "invoice reconciliation",
+                }).model_dump(),
+            "source": "model", "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Reconcile the supplier invoice",
+            "sources": [{"path": str(note)}],
+            "authorized_actions": ["retrieve", "calculate"],
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    questions = open_unresolved_questions(
+        route_env["lifecycle"].get_task(body["run_id"]))
+    assert questions
+    assert questions[0]["kind"] == "missing_evidence"
+    assert "invoice" in questions[0]["question"].lower()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert [step["step_id"] for step in internal["steps"]] == ["source-1"]
+    assert internal["steps"][0]["status"] == "applied"
+
+
+def test_discovery_repeated_read_falls_back_to_unread_authorized_scope(
+        route_env, tmp_path, monkeypatch):
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import InvoiceReconciliationRequest
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    payloads = {
+        "purchase-order.json": {
+            "po_id": "PO-7", "vendor_id": "V-9", "quantity": "2",
+            "unit_price": "120.00", "freight": "30.00", "currency": "USD"},
+        "invoice.json": {
+            "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+            "unit_price": "120.00", "freight": "30.00", "currency": "USD"},
+        "receiving.json": {
+            "po_id": "PO-7", "received_quantity": "2"},
+    }
+    for name, payload in payloads.items():
+        (tmp_path / name).write_text(json.dumps(payload))
+    order = ["receiving.json", "invoice.json", "purchase-order.json"]
+
+    async def fake_work(context, **_kwargs):
+        if context.get("stage") == "discovery":
+            # Deliberately re-read the first (already applied) handle. The
+            # bounded unread fallback must read the other authorized handles
+            # instead of asking the user to upload them again.
+            chosen = [context["sources"][0]]
+        else:
+            chosen = [context["sources"][0]]
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the next authorized evidence",
+                "evidence_reads": [{
+                    "step_id": f"evidence-{index}",
+                    "title": "Read authorized evidence",
+                    "source_id": source["source_id"],
+                } for index, source in enumerate(chosen, start=1)],
+            },
+            "source": "model", "technical_fallback": False,
+            "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="all authorized evidence is applied",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=InvoiceReconciliationRequest(
+                    operation="invoice_reconciliation",
+                    invoice_step_id="source-2",
+                    purchase_order_step_id="source-3",
+                    receiving_step_id="source-1")).model_dump(),
+            "source": "model", "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Reconcile the supplier invoice from authorized scope",
+            "sources": [
+                {"path": str(tmp_path / name)} for name in order],
+            "authorized_actions": ["retrieve", "calculate"],
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    rounds = body.get("adaptive_rounds") or []
+    assert any(
+        round_item.get("repair") == "unread_scope"
+        for round_item in rounds), rounds
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    assert steps["source-1"]["status"] == "applied"
+    assert steps["source-2"]["status"] == "applied"
+    assert steps["source-3"]["status"] == "applied"
+    assert internal["status"] == "completed", internal["status"]
+    assert next(
+        step for step in internal["steps"]
+        if step["adapter"] == "invoice.reconcile")["result"]["value"] == (
+            "270.00")
+
+
+def test_requested_document_compiles_after_verified_evidence_quote(
+        route_env, tmp_path, monkeypatch):
+    import docx
+
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+
+    async def fake_work(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the authorized price list",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the price list",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model", "technical_fallback": False, "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="derive the quote from the accepted price rows",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=QuoteCalculationRequest(
+                    operation="quote_calculation",
+                    source_step_id="source-1",
+                    columns=QuoteColumns(
+                        item_id="Item Number",
+                        description="Description",
+                        quantity="Quantity",
+                        unit_price="Unit Price",
+                        currency="Currency"),
+                    currency="USD",
+                    freight=MoneyTerm(
+                        value="20.00", authority_ref="freight"),
+                    tax=TaxTerm(
+                        basis="none", authority_ref="tax_basis"),
+                )).model_dump(),
+            "source": "model", "technical_fallback": False, "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": (
+                "Prepare the customer quote document from the authorized "
+                "price list"),
+            "sources": [{
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+            }],
+            "authorized_actions": ["retrieve", "calculate"],
+            "teaching_terms": {
+                "currency": "USD", "freight": "20.00",
+                "tax_basis": "none"},
+            "requested_output": "document",
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert internal["status"] == "completed", internal["status"]
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    assert "requested-artifact" in steps, steps
+    artifact_step = steps["requested-artifact"]
+    assert artifact_step["status"] == "applied"
+    assert artifact_step["depends_on"] == ["quote-total"]
+    assert artifact_step["inputs"]["compose_from_results"] is True
+    deliverable = internal["deliverables"][0]
+    assert deliverable["kind"] == "document"
+    assert deliverable["status"] == "applied"
+    artifact_path = Path(deliverable["artifact_path"])
+    assert artifact_path.is_file()
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            str(artifact_path)).paragraphs)
+    for table in docx.Document(str(artifact_path)).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "105.00" in text, text
+    assert "scotch-parts.xlsx" in text, text
+    criteria = (body.get("employee_job") or {}).get("criteria") or []
+    assert any(
+        item.get("kind") == "artifact_verified"
+        and item.get("deliverable_id") == deliverable["deliverable_id"]
+        for item in criteria), criteria
+
+
+def test_requested_document_compiles_after_verified_invoice_reconciliation(
+        route_env, tmp_path, monkeypatch):
+    """The same compiler renders the requested output for procurement.
+
+    The artifact must follow the verified reconciliation receipt and draw its
+    content from that durable result, not from an explicit body supplied by
+    the caller.
+    """
+    import docx
+
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import InvoiceReconciliationRequest
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    po = tmp_path / "purchase-order.json"
+    po.write_text(json.dumps({
+        "po_id": "PO-7", "vendor_id": "V-9", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    invoice = tmp_path / "invoice.json"
+    invoice.write_text(json.dumps({
+        "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+        "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
+    receiving = tmp_path / "receiving.json"
+    receiving.write_text(json.dumps({
+        "po_id": "PO-7", "received_quantity": "2"}))
+    source_paths = [str(receiving), str(po), str(invoice)]
+
+    async def fake_work(context, **_kwargs):
+        if context.get("stage") == "discovery":
+            chosen = list(context["sources"][0:])
+        else:
+            chosen = [context["sources"][0]]
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "read the authorized procurement evidence",
+                "evidence_reads": [{
+                    "step_id": f"evidence-{index}",
+                    "title": "Read authorized evidence",
+                    "source_id": source["source_id"],
+                } for index, source in enumerate(chosen, start=1)],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    async def fake_adaptation(context, observations, **_kwargs):
+        assert context["work_request_schemas"]
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="reconcile the invoice then render the review",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=InvoiceReconciliationRequest(
+                    operation="invoice_reconciliation",
+                    invoice_step_id="source-3",
+                    purchase_order_step_id="source-2",
+                    receiving_step_id="source-1")).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", fake_work)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", fake_adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": "Reconcile the invoice and issue the review document",
+            "sources": [{"path": path} for path in source_paths],
+            "authorized_actions": ["retrieve", "calculate"],
+            "requested_output": "document",
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert internal["status"] == "completed", internal["status"]
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    artifact_step = steps["requested-artifact"]
+    assert artifact_step["status"] == "applied"
+    assert artifact_step["depends_on"] == ["invoice-reconcile"]
+    assert artifact_step["inputs"]["compose_from_results"] is True
+    assert steps["invoice-reconcile"]["result"]["value"] == "270.00"
+    deliverable = internal["deliverables"][0]
+    assert deliverable["status"] == "applied"
+    artifact_path = Path(deliverable["artifact_path"])
+    assert artifact_path.is_file()
+    document = docx.Document(str(artifact_path))
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    for table in document.tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "270.00" in text, text
+    assert "purchase-order.json" in text, text
+    criteria = (body.get("employee_job") or {}).get("criteria") or []
+    assert any(
+        item.get("kind") == "artifact_verified"
+        and item.get("deliverable_id") == deliverable["deliverable_id"]
+        for item in criteria), criteria

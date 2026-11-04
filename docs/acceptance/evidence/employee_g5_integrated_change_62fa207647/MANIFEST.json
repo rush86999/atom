@@ -1,0 +1,66 @@
+{
+ "schema": "atom-employee-g5-integrated-change-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "62fa207647",
+  "tree_clean_at_run": false,
+  "dirty_note": "The run used the committed product code at 648aa9487; the only dirty paths were the generated next-env.d.ts and the campaign script before it was committed in this source.",
+  "frontend_build_id": "X8jwE6ACQOmwiGXPFjzKD",
+  "frontend_build_source": "f2aa6518d",
+  "manifest_note": "Same job: employee artifact 370.00, revised workbook version authorized, model chose quote_calculation again, affected artifact 425.00, prior quote/artifact and unrelated note retained."
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "9aa2d054076fd43bb1559386540e9305b3a28d76a36aea0e25aa8ba242b29de1",
+  "backend/core/employee_work_compiler.py": "1d9ea32327bf5493d22ea9a570688abff84bf2badbfae32b54409642b4aebfb8",
+  "backend/core/assignment_executor.py": "a9bb36bfe5691aa1f57d8447b6cce42e1822906163bd4e1d7515d9bf26e37310",
+  "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+  "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+  "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "c350ea23a347e56e9875c8b7793c02f9a37ec410c5473686638b5b7c3a299061",
+  "frontend-nextjs/lib/assignment-api.ts": "ff995f7bb5e9d777df9d3b9102ea290e4a7c6397cebd259e8eefdf53b00728f9",
+  "scripts/acceptance/employee_g5_integrated_change.py": "e577a5363b03c58144c51c7c550ff647478dfd801485cf020f5bcbac5597bb2c"
+ },
+ "artifacts": {
+  "README.md": "1a7d050a5f19f96e3c64b39947dc03dae2ef705b53ee9661387b4f4c73f8cc62",
+  "TEST_RESULTS.md": "661ee42525987041e98bcbb5b17d7d6a6927a5ab843d98afd64c7af12e3d0b0b",
+  "attempts.jsonl": "4a707dad7c7389204d0bca6dbea99e4e1c6ed073b2af817b94e76ad830e52455",
+  "capture.json": "279045321d36fcf265e806ffd20065b53eeac586269ec15989dfbf6926ce603b",
+  "customer-quote-v2.docx": "5d26049c83641f4d155f9c20c0ce7d9f1f6b1294b53fa618ddd4cfadbe419cd2",
+  "delivery-note.txt": "66566714c36c6f71586c7cb374678aa96aa977ec4eb194dbddaef7e522b499b1",
+  "detail-phase1.txt": "de1bb7b00ce50934a174d8e09e3224ed17e4cad7eab7cb90d02ed1865e3bf261",
+  "detail-phase2.txt": "de1bb7b00ce50934a174d8e09e3224ed17e4cad7eab7cb90d02ed1865e3bf261",
+  "exact-run-phase1.png": "f2d41b40c09aa36fa6e1c1e86aa482961b2c065ed2f12fdb683ee4cc68173226",
+  "exact-run-phase2.png": "e24c18d409933a1fabfa1db0d8a65baa1a17aa6378a2c810f67ee0cead380a6c",
+  "price-book-v2.xlsx": "71c051d67a9524135109230f265b8761da4e0fb75a9770ac44f8e21cd68d884f",
+  "server.log": "ed63d0f4df9a9f91915b696a930c3c2676c4ec0eef4875e4516ff6aa839a0872",
+  "start-form.png": "bc4b643f612d57e27e2e632ea605922df1648dd105db73882b58bff4a243085d"
+ },
+ "results": {
+  "run_id": "f6465719-3cf6-4087-913c-4d0c1b2a1a93",
+  "phase1": {
+   "status": "completed",
+   "quote_total": "370.00",
+   "artifact_sha256": "4486b1274c0a9855e6fd4e972eb428e5a4879fb08f20a519daa67ca44e8dfe5f"
+  },
+  "phase2": {
+   "status": "completed",
+   "quote_total": "425.00",
+   "artifact_sha256": "5d26049c83641f4d155f9c20c0ce7d9f1f6b1294b53fa618ddd4cfadbe419cd2",
+   "revised_source_version": "a519254f8ccef6e9d52c3545a63b4c3a3f58926f",
+   "reassessment_source": "model",
+   "technical_fallback": false,
+   "work_request_operation": "quote_calculation"
+  },
+  "retained_prior_quote_operation": "718e4a0e-d480-4ad0-921f-14c756cbe567",
+  "retained_unrelated_note_operation": "d963c2b1-5ceb-4cdc-9b82-154870fae9a9",
+  "checks_passed": 18,
+  "checks_total": 18
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "cancellation/late-response and controlled lost-confirmation are separate regression evidence",
+  "independent useful work during a durable wait is covered separately",
+  "no live provider, credential, consent, send, spend or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

@@ -1,0 +1,188 @@
+{
+  "schema": "byok-capability-routing-probe-1",
+  "profile": {
+    "name": "employee_adaptive_planning",
+    "version": "2026-11-04.1",
+    "min_quality": 82,
+    "policy": "quality_critical",
+    "preference": "economy",
+    "required_capabilities": [
+      "structured"
+    ],
+    "min_context_tokens": 8000,
+    "allow_escalation": true,
+    "max_escalations": 1
+  },
+  "pool": [
+    {
+      "provider": "frontier",
+      "model": "expensive",
+      "quality": 99,
+      "cost": 20.0,
+      "context_window": 32768,
+      "supports_structured": true,
+      "supports_tools": true
+    },
+    {
+      "provider": "fast",
+      "model": "flash",
+      "quality": 90,
+      "cost": 1.0,
+      "context_window": 32768,
+      "supports_structured": true,
+      "supports_tools": true
+    },
+    {
+      "provider": "weak",
+      "model": "tiny",
+      "quality": 60,
+      "cost": 0.01,
+      "context_window": 32768,
+      "supports_structured": true,
+      "supports_tools": true
+    }
+  ],
+  "economy_order": [
+    {
+      "provider": "fast",
+      "model": "flash",
+      "evidence_state": "prior"
+    },
+    {
+      "provider": "frontier",
+      "model": "expensive",
+      "evidence_state": "prior"
+    }
+  ],
+  "quality_order": [
+    {
+      "provider": "frontier",
+      "model": "expensive"
+    },
+    {
+      "provider": "fast",
+      "model": "flash"
+    }
+  ],
+  "measured_failure": {
+    "outcome": "selected",
+    "ranked": [
+      "expensive"
+    ],
+    "excluded": [
+      {
+        "route": "fast/flash",
+        "reasons": [
+          "measured_failure_rate"
+        ]
+      },
+      {
+        "route": "weak/tiny",
+        "reasons": [
+          "below_quality_prior"
+        ]
+      }
+    ],
+    "escalation_from_failed": null
+  },
+  "no_suitable": {
+    "outcome": "no_suitable",
+    "excluded": [
+      {
+        "route": "weak/tiny",
+        "reasons": [
+          "below_quality_prior"
+        ]
+      }
+    ]
+  },
+  "pins": {
+    "good": {
+      "eligible": true,
+      "route": [
+        "fast",
+        "flash"
+      ],
+      "profile": {
+        "name": "employee_adaptive_planning",
+        "version": "2026-11-04.1",
+        "min_quality": 82,
+        "policy": "quality_critical",
+        "preference": "economy",
+        "required_capabilities": [
+          "structured"
+        ],
+        "min_context_tokens": 8000,
+        "allow_escalation": true,
+        "max_escalations": 1
+      },
+      "reasons": [],
+      "evidence_state": "prior"
+    },
+    "bad": {
+      "eligible": false,
+      "route": [
+        "local",
+        "llama3.1:8b"
+      ],
+      "profile": {
+        "name": "employee_adaptive_planning",
+        "version": "2026-11-04.1",
+        "min_quality": 82,
+        "policy": "quality_critical",
+        "preference": "economy",
+        "required_capabilities": [
+          "structured"
+        ],
+        "min_context_tokens": 8000,
+        "allow_escalation": true,
+        "max_escalations": 1
+      },
+      "reasons": [
+        "below_quality_prior"
+      ],
+      "evidence_state": "prior"
+    }
+  },
+  "boundary_repairs": {
+    "semantic_transport_success": {
+      "outcome": "no_suitable",
+      "evidence": {
+        "fast/flash": {
+          "samples": 6,
+          "successes": 0,
+          "quality_successes": 0,
+          "semantic_failures": 0,
+          "unsafe_failures": 0,
+          "retries": 0,
+          "latency_ms": null,
+          "last_failure_kind": "",
+          "failure_kinds": "set()",
+          "profile": "employee_adaptive_planning",
+          "profile_version": "2026-11-04.1",
+          "workspace_id": "ws-a",
+          "tenant_id": "t-a"
+        }
+      }
+    },
+    "missing_workspace_evidence": {},
+    "single_unsafe": {
+      "outcome": "no_suitable",
+      "excluded": [
+        {
+          "route": "fast/flash",
+          "reasons": [
+            "measured_unsafe_action"
+          ]
+        }
+      ]
+    },
+    "reviewed_recovery": {
+      "outcome": "selected"
+    }
+  },
+  "limits": {
+    "live_provider_calls": 0,
+    "purpose": "controlled selection mechanics, not a model campaign"
+  }
+}

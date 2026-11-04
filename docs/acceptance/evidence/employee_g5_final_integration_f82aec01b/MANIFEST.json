@@ -1,0 +1,45 @@
+{
+ "schema": "atom-employee-g5-final-integration-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "f82aec01b7fb5c28bc6a17ba273054f4a4828bd8",
+  "code_stable_since": "62fa207647",
+  "manifest_note": "Index of the artifact, real-change and regression evidence. Each child bundle binds its own executed ref.",
+  "child_bundles": [
+   "docs/acceptance/evidence/employee_g5_ui_requested_artifact_c7a265c37/MANIFEST.json",
+   "docs/acceptance/evidence/employee_g5_integrated_change_62fa207647/MANIFEST.json",
+   "docs/acceptance/evidence/employee_g5_regression_b4c29e2b6d9e/MANIFEST.json",
+   "docs/acceptance/evidence/employee_g5_final_regressions_b4c29e2b6/MANIFEST.json"
+  ]
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "9aa2d054076fd43bb1559386540e9305b3a28d76a36aea0e25aa8ba242b29de1",
+  "backend/core/employee_work_compiler.py": "1d9ea32327bf5493d22ea9a570688abff84bf2badbfae32b54409642b4aebfb8",
+  "backend/core/assignment_executor.py": "a9bb36bfe5691aa1f57d8447b6cce42e1822906163bd4e1d7515d9bf26e37310",
+  "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+  "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+  "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "c350ea23a347e56e9875c8b7793c02f9a37ec410c5473686638b5b7c3a299061",
+  "frontend-nextjs/lib/assignment-api.ts": "ff995f7bb5e9d777df9d3b9102ea290e4a7c6397cebd259e8eefdf53b00728f9",
+  "scripts/acceptance/employee_g5_ui_requested_artifact.py": "ca886a401c4a1930f72031844d53420473b31225595b844b893aa512a8f4e9d9",
+  "scripts/acceptance/employee_g5_integrated_change.py": "e577a5363b03c58144c51c7c550ff647478dfd801485cf020f5bcbac5597bb2c"
+ },
+ "artifacts": {
+  "README.md": "0e4ca82ceb2caac86bc61d4d2262fafcfe860013e2edce12059e86a2a8b99407"
+ },
+ "results": {
+  "focused_tests": "370 passed",
+  "requested_artifact_checks": "22/22",
+  "integrated_change_checks": "18/18",
+  "remaining_regression_checks": "18/18",
+  "uncertainty_checks": "11/11",
+  "employee_artifact_quote": "370.00 USD",
+  "changed_source_quote": "425.00 USD"
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "independent work during a model-created wait is not demonstrated; deterministic branch mechanics remain at their earlier scope",
+  "no live provider, credential, consent, send, spend or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}

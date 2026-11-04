@@ -1,0 +1,12 @@
+{
+ "captured_exact_run": true,
+ "three_source_scope_not_required": true,
+ "assignment_completed": true,
+ "artifact_applied": true,
+ "artifact_criterion_met": true,
+ "artifact_download_ok": true,
+ "artifact_sha_matches": true,
+ "artifact_has_exact_total": true,
+ "artifact_has_source_and_lines": true,
+ "ui_shows_completed_exact_run": true
+}

@@ -27,6 +27,7 @@ import {
   listAssignments,
   listAssignmentSources,
   reconcileAssignmentStep,
+  recordAssignmentResponse,
   resolveAssignmentGap,
   resumeAssignment,
 } from "@/lib/assignment-api";
@@ -272,7 +273,8 @@ test("employee-decides starts objective-only work without a supplied DAG", async
     expect.objectContaining({
       objective: "Prepare a delivery answer for the customer",
       source_scope: { query: "commercial notes" },
-      authorized_actions: ["retrieve"],
+      authorized_actions: ["retrieve", "calculate"],
+      requested_output: "document",
       use_model: true,
     }),
   ));
@@ -312,4 +314,86 @@ test("answers an open prerequisite with the selected authorized source", async (
   await waitFor(() =>
     expect(advanceAssignment).toHaveBeenCalledWith("run-1")
   );
+});
+
+
+test("explains a durable wait and delivers the source-bound answer", async () => {
+  const waitingDetail = {
+    ...detail,
+    assignment: {
+      ...detail.assignment,
+      status: "waiting",
+      steps: [
+        {
+          step_id: "await",
+          title: "Wait for received_quantity for PO-7",
+          operation_type: "retrieve",
+          adapter: "assignment.wait",
+          depends_on: [],
+          required: true,
+          effect: "read_only",
+          status: "waiting",
+          recovery_class: "waiting",
+          operation_id: "op-wait",
+          attempts: 0,
+          result_summary: null,
+          artifact_revision: null,
+          gap_ids: [],
+          waiting: {
+            correlation_id: "await-abc",
+            party: "warehouse receiving",
+            fact: "received_quantity",
+            subject: "PO-7",
+            detail: "received_quantity for PO-7",
+            blocks: "invoice reconciliation",
+            expected_answer_type: "quantity",
+          },
+          approval_request: {},
+          failure: {},
+        },
+      ],
+    },
+    employee_job: {
+      ...detail.employee_job,
+      waiting: [{
+        step_id: "await",
+        fact: "received_quantity",
+        subject: "PO-7",
+        party: "warehouse receiving",
+        detail: "received_quantity for PO-7",
+        blocks: "invoice reconciliation",
+        expected_answer_type: "quantity",
+        correlation_id: "await-abc",
+      }],
+      ready_work: [{
+        operation: "quote_calculation",
+        label: "quote calculation",
+      }],
+    },
+  };
+  (getAssignment as jest.Mock).mockResolvedValue(waitingDetail);
+  (recordAssignmentResponse as jest.Mock).mockResolvedValue({
+    status: "resumed",
+  });
+  render(<AssignmentPanel />);
+  await waitFor(() =>
+    expect(screen.getByTestId("assignment-detail")).toBeInTheDocument());
+  const panel = screen.getByTestId("assignment-detail");
+  expect(panel.textContent).toContain(
+    "Waiting for received_quantity for PO-7");
+  expect(panel.textContent).toContain(
+    "This blocks invoice reconciliation.");
+  expect(panel.textContent).toContain(
+    "Work that can continue: quote calculation.");
+  fireEvent.change(
+    within(panel).getByLabelText("Correlated response"),
+    { target: { value: "received 2 units" } });
+  fireEvent.change(
+    within(panel).getByTestId("assignment-resolution-value"),
+    { target: { value: "2" } });
+  fireEvent.click(within(panel).getByText("Deliver"));
+  await waitFor(() => expect(recordAssignmentResponse)
+    .toHaveBeenCalledWith(
+      "run-1", "await-abc", "received 2 units", "", "2",
+      "warehouse receiving"));
 });

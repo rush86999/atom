@@ -1,0 +1,76 @@
+{
+  "artifacts": {
+    "README.md": "a7b27c7840cec0d37ddd1e79e100105f9757cc0e0d318a1e1bd69d5a715f613f",
+    "TEST_RESULTS.md": "4c7e2838cce4729041d5abe983258b6dfa4eb2a70976ecb444378b8ed10803b6",
+    "focused-tests.log": "eeaa38eae5995fcf5499760d3620c4adec33fe830830a2a47f70d6dd86cbc8f3",
+    "probe.py": "79572e867c6bbad30d7fb53078f1487de59e6ff676e86f56776d6a0c607fbbe1",
+    "routing-probe.json": "bcba4d5e48c2a2d1129f6e992ec39f7704db46a5506fe89b9e3bf9c4a49c5739",
+    "verifier-boundaries.log": "a3500f83d258ed2bf1745db23a25d532a72b831cd0c0ed5512158a5094515e85",
+    "verifier-recovery-epoch.log": "aa4a0a06830bc88a7ad963e5d35d00a1df911234dae281be39051048bd027eea"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "73cb1da513b2ecf6134b900ca3224750b48109a2",
+    "manifest_note": "Incident-bound recovery repair: recovery releases only reviewed feedback incidents, later unsafe evidence re-quarantines, strict pins/semantic outcomes/scope/history boundaries retained. No provider call or spend.",
+    "product_code_stable": "73cb1da51",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-byok-epoch"
+  },
+  "changed_files": [
+    "backend/api/byok_routes.py",
+    "backend/core/learning_llm_router.py",
+    "backend/core/llm/byok_handler.py",
+    "backend/core/llm/capability_profiles.py",
+    "backend/core/llm/pinned_planning.py",
+    "backend/core/llm_service.py",
+    "backend/tests/test_workload_capability_routing.py",
+    "scripts/acceptance/byok_capability_probe.py"
+  ],
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/download/deployment authority",
+    "controlled candidates and production-path selection, not general model qualification",
+    "two-domain wait campaign failure at 9a342109b is separate Agent 1 work",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "results": {
+    "decision_history": "workspace/tenant scoped",
+    "duplicate_recovery_idempotent": true,
+    "economy_default": "Flash wins when cheapest satisfactory",
+    "journal": "world-owned path",
+    "missing_identity_or_ordering_fails_closed": true,
+    "old_recovery_does_not_clear_new_incident": true,
+    "second_reviewed_recovery_releases_second_incident": true,
+    "semantic_transport_success": "no_suitable",
+    "single_unsafe": "quarantined immediately",
+    "strict_pin": "exact or failed; no unpinned retry"
+  },
+  "schema": "atom-byok-capability-routing-recovery-1",
+  "source_hashes": {
+    "backend/api/byok_routes.py": "5ab600c813454f290b784ebd08e697485e9c0a291961c819ed602e48f431db3a",
+    "backend/core/learning_llm_router.py": "aaaaf0924aa94b9d56a65adbddea414c008892a3da2248c77b3483d42b5dac86",
+    "backend/core/llm/byok_handler.py": "a8ff371a29892aefaae6ce315c6d9e33cae12be518f71354a5d984b1d2bf7197",
+    "backend/core/llm/capability_profiles.py": "c25d5e1d089f724948e3f5b00e5a04d8f2261b02fa78c6e45bff5fb3b0e5dd14",
+    "backend/core/llm/pinned_planning.py": "6b963603feb512fcce09c9bdaa3bd45bda2defea7a238dc42340a3ed3ecf6c4a",
+    "backend/core/llm_service.py": "aa32f000d75a7664096a223594e865d46d032e912ea7befd8311ce10dc61e46e",
+    "backend/tests/test_workload_capability_routing.py": "ea4427de9bd0b73caa0ff14fe1510bd492d186486e2735f7627c0889f6cadb22",
+    "scripts/acceptance/byok_capability_probe.py": "79572e867c6bbad30d7fb53078f1487de59e6ff676e86f56776d6a0c607fbbe1"
+  },
+  "tests": {
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "162 passed"
+    },
+    "probe": {
+      "report": "routing-probe.json",
+      "result": "controlled selection, exit 0"
+    },
+    "verifier_boundaries": {
+      "log": "verifier-boundaries.log",
+      "result": "5 passed"
+    },
+    "verifier_recovery_epoch": {
+      "log": "verifier-recovery-epoch.log",
+      "result": "1 passed"
+    }
+  }
+}
