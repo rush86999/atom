@@ -96,7 +96,10 @@ served route. The stages declare:
 
 `routing-feedback.json` binds the served route, stage profile, model source and
 business outcome so the procurement outcome is available to the existing
-scoped feedback consumer. This run does **not** claim automatic multi-model
+scoped feedback consumer. The derived export labels the compact reconciliation
+as `adaptation/replan` (not `evidence_selection/clarification`) and the
+deterministic wait-choice retain separately; the original state/traces were
+not rewritten. This run does **not** claim automatic multi-model
 BYOK selection; the later routing qualification is a separate Agent 2 lane.
 
 ## Boundaries

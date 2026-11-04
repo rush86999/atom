@@ -112,21 +112,47 @@ def model_selected_files(state: Mapping[str, Any]) -> List[str]:
     return sorted(set(selected))
 
 
+def _routing_stage(item: Mapping[str, Any], profile: str) -> str:
+    if profile == "employee_evidence_selection":
+        return "evidence_selection"
+    if profile in (
+            "employee_adaptive_planning_compact",
+            "employee_adaptive_planning"):
+        return "adaptation"
+    if profile == "employee_wait_choice":
+        return "wait_choice"
+    if item.get("decision") in ("replan", "reconcile"):
+        return "adaptation"
+    if item.get("proposal_kind") in (
+            "evidence_read", "evidence_and_clarification", "clarification"):
+        return "evidence_selection"
+    return "adaptation" if item.get("decision") else "evidence_selection"
+
+
 def routing_summary(state: Mapping[str, Any]) -> List[Dict[str, Any]]:
     rows = []
     for item in state.get("initial_adaptive_rounds") or []:
         if not isinstance(item, Mapping):
             continue
         routing = item.get("routing") or {}
+        profile = str((routing.get("profile") or {}).get("name") or "")
+        stage = _routing_stage(item, profile)
+        decision = item.get("decision")
+        proposal_kind = item.get("proposal_kind")
+        outcome = (
+            decision
+            or proposal_kind
+            or ("selected_sources" if item.get("selected_sources")
+                else "no_result"))
         rows.append({
-            "stage": "evidence_selection",
+            "stage": stage,
             "source": item.get("source"),
             "repair_source": item.get("repair_source"),
-            "profile": (routing.get("profile") or {}).get("name"),
+            "profile": profile or None,
             "served_route": routing.get("served_route"),
-            "outcome": (
-                "selected_sources" if item.get("selected_sources")
-                else "clarification"),
+            "decision": decision,
+            "proposal_kind": proposal_kind,
+            "outcome": outcome,
         })
     for item in state.get("advance_rounds") or []:
         for round_item in (item.get("rounds") or []
@@ -134,12 +160,19 @@ def routing_summary(state: Mapping[str, Any]) -> List[Dict[str, Any]]:
             if not isinstance(round_item, Mapping):
                 continue
             routing = round_item.get("routing") or {}
+            profile = str((routing.get("profile") or {}).get("name") or "")
+            stage = _routing_stage(round_item, profile)
             rows.append({
-                "stage": "adaptation",
+                "stage": stage,
                 "source": round_item.get("source"),
-                "profile": (routing.get("profile") or {}).get("name"),
+                "profile": profile or None,
                 "served_route": routing.get("served_route"),
-                "outcome": round_item.get("decision"),
+                "decision": round_item.get("decision"),
+                "proposal_kind": round_item.get("proposal_kind"),
+                "outcome": (
+                    round_item.get("decision")
+                    or round_item.get("proposal_kind")
+                    or "no_result"),
             })
     return rows
 

@@ -54,6 +54,8 @@ Run `b7286046-eaf7-4639-b6b1-6c41555f0fc7`.
 - Raw attempt journal: `attempts.jsonl` (7 dispatch events across both runs;
   successful evidence-selection/compact calls pinned; failed all-purpose
   attempts preserved as no-result).
+- Derived routing labels corrected: compact reconciliation is
+  `adaptation/replan`; original state/traces unchanged.
 - Fixtures and expected values: `fixtures/` and `fixtures/EXPECTED.json`.
 
 ## Scope

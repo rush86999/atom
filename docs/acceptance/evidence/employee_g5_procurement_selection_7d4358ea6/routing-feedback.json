@@ -14,7 +14,9 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
-   "outcome": "selected_sources"
+   "decision": "evidence_read",
+   "proposal_kind": "evidence_and_clarification",
+   "outcome": "evidence_read"
   },
   {
    "stage": "evidence_selection",
@@ -25,10 +27,12 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
-   "outcome": "selected_sources"
+   "decision": "evidence_read",
+   "proposal_kind": "evidence_read",
+   "outcome": "evidence_read"
   },
   {
-   "stage": "evidence_selection",
+   "stage": "adaptation",
    "source": "model_compact",
    "repair_source": null,
    "profile": "employee_adaptive_planning_compact",
@@ -36,7 +40,9 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
-   "outcome": "clarification"
+   "decision": "replan",
+   "proposal_kind": null,
+   "outcome": "replan"
   }
  ],
  "missing": [
@@ -49,7 +55,9 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
-   "outcome": "selected_sources"
+   "decision": "evidence_read",
+   "proposal_kind": "evidence_read",
+   "outcome": "evidence_read"
   },
   {
    "stage": "evidence_selection",
@@ -60,15 +68,19 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
-   "outcome": "selected_sources"
+   "decision": "evidence_read",
+   "proposal_kind": "clarification",
+   "outcome": "evidence_read"
   },
   {
-   "stage": "evidence_selection",
+   "stage": "wait_choice",
    "source": "deterministic",
    "repair_source": null,
    "profile": "employee_wait_choice",
    "served_route": null,
-   "outcome": "clarification"
+   "decision": "retain",
+   "proposal_kind": null,
+   "outcome": "retain"
   },
   {
    "stage": "adaptation",
@@ -78,6 +90,8 @@
     "provider": "ollama",
     "model": "llama3.1:8b"
    },
+   "decision": "replan",
+   "proposal_kind": null,
    "outcome": "replan"
   }
  ],
@@ -165,5 +179,6 @@
    }
   }
  },
- "attribution": "discovery/model selection, deterministic fallback and typed role mapping are recorded separately; no automatic multi-model selection claim"
+ "attribution": "discovery/model selection, deterministic fallback and typed role mapping are recorded separately; no automatic multi-model selection claim",
+ "label_correction": "Derived summary labels were corrected from the recorded profile/decision. The successful compact invoice reconciliation is adaptation/replan, not evidence_selection/clarification. The deterministic wait-choice retain is labelled wait_choice/retain. Original state files and traces are unchanged."
 }
