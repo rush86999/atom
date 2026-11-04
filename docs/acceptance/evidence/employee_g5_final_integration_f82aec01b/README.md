@@ -11,6 +11,7 @@ is self-contained and binds its source hashes to the exact ref it executed.
 | Employee decides the work from an authorized source and the requested DOCX output | `employee_g5_ui_requested_artifact_c7a265c37/` | 22/22 checks; quote **370.00 USD**, artifact `a6b8fffd...` |
 | Same job, real revised workbook version (A 100→120, B 50→55) | `employee_g5_integrated_change_62fa207647/` | 18/18 checks; model chose `quote_calculation` again, quote **425.00 USD**, prior quote/artifact and unrelated note retained |
 | Cancellation / late-response / controlled lost-confirmation regression on the integrated source | `employee_g5_regression_b4c29e2b6d9e/` | remaining **18/18**, uncertainty **11/11**, clean serving identity |
+| Final-source reassessment controls, qualification negative twins and provider recovery (companion) | `employee_g5_final_regressions_b4c29e2b6/` | uncertainty **11/11**, evidence tests **2/2**, negative twins **2/2**, focused **370 passed** |
 
 ### Model-attributable choices
 
@@ -38,7 +39,9 @@ is self-contained and binds its source hashes to the exact ref it executed.
 - The current changed document contains `425.00` and no longer prints the
   superseded `370.00`; the old value remains in durable history.
 - Evidence checkers: artifact bundle 19/19, integrated change 22/22,
-  regression 14/14 (`verify_evidence_from_git.py`).
+  regression 14/14 (`verify_evidence_from_git.py`), and the companion
+  final-regression bundle binds its own 370-test, uncertainty and negative-twin
+  evidence at `b4c29e2b6d9e`.
 
 ## Bounded gaps kept open
 

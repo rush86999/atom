@@ -8,7 +8,8 @@
   "child_bundles": [
    "docs/acceptance/evidence/employee_g5_ui_requested_artifact_c7a265c37/MANIFEST.json",
    "docs/acceptance/evidence/employee_g5_integrated_change_62fa207647/MANIFEST.json",
-   "docs/acceptance/evidence/employee_g5_regression_b4c29e2b6d9e/MANIFEST.json"
+   "docs/acceptance/evidence/employee_g5_regression_b4c29e2b6d9e/MANIFEST.json",
+   "docs/acceptance/evidence/employee_g5_final_regressions_b4c29e2b6/MANIFEST.json"
   ]
  },
  "source_hashes": {
@@ -24,7 +25,7 @@
   "scripts/acceptance/employee_g5_integrated_change.py": "e577a5363b03c58144c51c7c550ff647478dfd801485cf020f5bcbac5597bb2c"
  },
  "artifacts": {
-  "README.md": "95a8d420c473e51fe941e403496b3bd8f8d4a60d7172da12711f1b55634db3a6"
+  "README.md": "0e4ca82ceb2caac86bc61d4d2262fafcfe860013e2edce12059e86a2a8b99407"
  },
  "results": {
   "focused_tests": "370 passed",
