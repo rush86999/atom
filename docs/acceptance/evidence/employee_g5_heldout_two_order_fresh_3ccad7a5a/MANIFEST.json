@@ -1,0 +1,83 @@
+{
+ "schema": "atom-employee-evidence-1",
+ "status": "fresh held-out two-domain content and both event orders demonstrated at controlled local scope",
+ "executed_source": "3ccad7a5a99afdcef7784f903b3744e36d86ea4b",
+ "fixtures": {
+  "quote_items": [
+   {
+    "item": "QH-21",
+    "quantity": 5,
+    "unit_price": "14.00"
+   },
+   {
+    "item": "QH-22",
+    "quantity": 3,
+    "unit_price": "22.00"
+   }
+  ],
+  "quote_freight": "9.00",
+  "quote_expected": "145.00",
+  "purchase_order": "PO-QH-8100",
+  "invoice": "INV-QH-99",
+  "invoice_quantity": 4,
+  "invoice_unit_price": "25.00",
+  "invoice_freight": "13.00",
+  "reconciliation_expected": "113.00",
+  "receiving_quantity": 4,
+  "receiving_version": "rcv-qh-1"
+ },
+ "runs": {
+  "order1": {
+   "run_id": "cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4",
+   "wait_id": "await-9ac5fe9af53639aa278b",
+   "quote_operation_id": "f55964e1-2df6-47bc-9dd3-fd5843ff89d3",
+   "reconciliation_operation_id": "eb343a12-ac4c-4649-aae2-3661c2c4461e",
+   "artifact_sha256": "628fe6b1dbba38d7c6228cb667cf10c0cd39e6c8bc8758d72f385aa4d4f76ae7",
+   "checks": "10/10",
+   "event_order": "source authorized before restart"
+  },
+  "order2": {
+   "run_id": "88306561-92b4-492c-a6b3-00d0621c3d08",
+   "wait_id": "await-2a1cf445bfb818525fac",
+   "quote_operation_id": "44900a74-81aa-4a96-b327-617b97b2b1da",
+   "reconciliation_operation_id": "7f0981cf-8e1a-4634-b14b-f82a38e40159",
+   "artifact_sha256": "83d31a97ba8b694ac601e9534e3a281d783ac106996f30ee37febb2dd40775d3",
+   "checks": "10/10",
+   "event_order": "restart while waiting; source authorized after restart"
+  }
+ },
+ "checks": {
+  "batch": "20/20",
+  "focused_tests": "133 passed"
+ },
+ "source_files": {
+  "backend/core/employee_adaptation.py": "15b9c8051a1b526886a3fd992d34347205edfa30998099475b1c12c4aad0ccc1",
+  "backend/core/llm/byok_handler.py": "014c1d07e93e1f026451c6141890b13fea11cf3e5f7548be0640337a0d21fafc",
+  "backend/core/llm/capability_profiles.py": "c21d25f08da1f10790da3dd3f116e3ff45563545ad40fc8dbeb16740797fdf1f",
+  "backend/core/llm/pinned_planning.py": "3da871ba33d36b436c3e6120d46c3410f6061c7ffcf5cff5f53119a7dcfc02c7",
+  "backend/api/assignment_routes.py": "b4412cd6d6e6905b09b61eeefb2ab579ff7d76864dd2f37ff138cda0afed079d",
+  "backend/core/employee_attempt_journal.py": "63984ce2c5addd3c3e5423538bb5393c48dc17636e1fe38f92db7fd0cd85ab98"
+ },
+ "artifacts": {
+  "README.md": "c54504e7cef8b2424e98aa12285a4b7be6cc34ba44aee329c2bb9a0b91613669",
+  "TEST_RESULTS.md": "2b9bd21686f293467bd7c11359881616825e8a2b72dafb0ad962718cbc6b4c9c",
+  "attempts-order1-restart.jsonl": "09baff1c5350c91184c37492793cf223645d0846feb2a08860068d35c6dfcd46",
+  "attempts-order1-start.jsonl": "6af3327c464e45b7132e265fa100257d4dbe281eb924e00cb3634d61b5288cbb",
+  "attempts-order2-restart.jsonl": "b7999e0a2c64c590a98bc03f34f9d781aba7e6e4f02909053f06ee0ed7e3ca62",
+  "attempts-order2-start.jsonl": "2fe5f756e87480ba14ff1af1798d9373ed7a39e15d7594459ed4c4244b7ecd0d",
+  "focused-tests.log": "a25b8b1733153f6e1e83f04f6353ae47458dac2219a0093afc8ab38cb9d07514",
+  "review-order1.docx": "628fe6b1dbba38d7c6228cb667cf10c0cd39e6c8bc8758d72f385aa4d4f76ae7",
+  "review-order2.docx": "83d31a97ba8b694ac601e9534e3a281d783ac106996f30ee37febb2dd40775d3",
+  "server-order1.log": "caa4f29a989ef855e544337b86bc7f219b58f7ce39d020f52d7f3be62f2c5247",
+  "server-order2.log": "65afca7520e2ddcd6249329596d927a1f4e449edd39b45890722c4397c73ec33",
+  "state-order1.json": "2f330501ee03ea385a03c0ef2af15f1406794c6c403f70eacc24e0e1109f96be",
+  "state-order2.json": "92691f397f9f314668d05e7609894f0973e1324c57551f92f38d9fef717bda8b"
+ },
+ "boundaries": [
+  "controlled local inference only; no live/cloud provider, credential, spend, send, download or deployment authority",
+  "finite declared campaign; not general adaptive breadth or whole-app ORACLE",
+  "live Zoho/Microsoft, Linux/KVM and multi-worker/soak remain separate",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged",
+  "full G5 not claimed beyond this tested local scope"
+ ]
+}

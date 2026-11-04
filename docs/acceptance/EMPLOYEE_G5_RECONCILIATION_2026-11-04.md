@@ -18,8 +18,8 @@ episode as execution on a different source.
 | G5 employee-decided requested artifact from quote | Demonstrated at original source | `c7a265c37` and `62fa207647`; model-selected quote, verified receipt, artifact rendering and real revised-price reassessment. |
 | G5 real changed-source selective reassessment | Demonstrated at original source | `62fa207647` / `b4c29e2b6`; 370.00 → 425.00, prior and unrelated operation ids retained. |
 | G5 cancellation, late response, uncertain effect | Demonstrated at separate regression scope | `b4c29e2b6d9e`; not part of the single served browser episode. |
-| G5 held-out content / identifiers | **Same-job known-value recoveries only; fresh unseen batch still missing** | `367efddf…` recovered 96.30/140.25 at `8995f433d` after the compact schema-echo repair, owner budget extension/retry and artifact verification (19/19; `employee_g5_heldout_recovery_8995f433d`). `d40c94ee…` recovered 125.00/101.00 at `b16172c8d` (`employee_g5_heldout_continuation_60d464a5f`). Both sets are now known. |
-| G5 held-out event ordering | **Partial — order 1 completed on both frozen jobs; fresh two-order batch still missing** | `367efddf…` at `8995f433d` and `d40c94ee…` completed wait → independent quote → receiving source authorized → restart → exact reply → reconciliation → artifact. The second order (restart while waiting, source authorized after restart) is not demonstrated. |
+| G5 held-out content / identifiers | **Demonstrated at controlled local scope** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, 20/20 checks. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
+| G5 held-out event ordering | **Demonstrated at controlled local scope** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. The earlier frozen-job recoveries remain order-1-only. |
 | G5 breadth of adaptive judgment / general model competence | **Not qualified** | A finite campaign cannot establish general employee judgment. History and prior model verdicts are unchanged. |
 | Full G5 / whole-app ORACLE / live-provider breadth | **Not claimed** | Requires separate qualifications and authorities. |
 
@@ -36,13 +36,14 @@ correlations, dependencies, receipt verification, artifact composition and
 completion remain compiler/executor-owned. The report is an internal review
 document, not a customer-facing quotation template or accounting submission.
 
-## Why held-out content/order is still a separate row
+## Why the known-data episode did not establish the held-out row
 
-The successful episode used known acceptance-style values and a single order:
-wait, quote, restart, source add, reply, reconciliation, artifact. The G5
-acceptance campaign requires unseen values/identifiers and at least two
-meaningful event orderings. Those rows are not established by the known-data
-episode or by the separate cancellation/uncertainty regressions.
+The earlier successful episode used known acceptance-style values and a single
+order: wait, quote, restart, source add, reply, reconciliation, artifact. The
+G5 acceptance campaign requires unseen values/identifiers and at least two
+meaningful event orderings. Those rows were not established by the known-data
+episode or by the separate cancellation/uncertainty regressions; the fresh
+`QH` two-order batch above is the controlled local result for them.
 
 ## 2026-11-04 same-job continuation result
 
@@ -88,19 +89,41 @@ reconciliation **140.25 USD**, quote **96.30 USD** retained, artifact sha256
 original negative batch `6bc97759284` remains and a fresh unseen
 qualification is still required.
 
+## 2026-11-04 fresh held-out two-order batch (3ccad7a5a)
+
+The fresh unseen fixture set `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` was run
+twice at source `3ccad7a5a99afdcef7784f903b3744e36d86ea4b`, with independent
+expected values (quote **145.00 USD**, reconciliation **113.00 USD**) never
+supplied to the model.
+
+| Order | Run | Wait | Quote | Reconciliation | Artifact sha256 | Checks |
+|---|---|---|---|---|---|---|
+| source authorized before restart | `cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4` | `await-9ac5fe9af53639aa278b` | 145.00 | 113.00 | `628fe6b1…` | 10/10 |
+| restart while waiting; source authorized after restart | `88306561-92b4-492c-a6b3-00d0621c3d08` | `await-2a1cf445bfb818525fac` | 145.00 | 113.00 | `83d31a97…` | 10/10 |
+
+Both runs preserved the same run/wait/quote identities across the restart,
+satisfied every business requirement, applied the requested document with both
+totals and matched its sha256. The model chose the durable wait, the quote
+columns/terms and the invoice role IDs; the compiler resolved the taught terms,
+computed the totals and composed the document. Seven local model calls took
+8.4–54.9 s; the expected reconciliation total 113.00 never appeared in a
+prompt. The same-source focused regression passed **133** tests. Evidence:
+`employee_g5_heldout_two_order_fresh_3ccad7a5a`.
+
 ## Next finite qualification batch
 
 Use one frozen source, one local-inference owner and one candidate pointer.
 Do not feed final plans, expected totals or the oracle into the employee.
 
-The `PO-7302`/`INV-4491` set (96.30/140.25) and the
-`HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` set below are both known-value
+The fresh `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` set is now the controlled
+local held-out result above. The `PO-7302`/`INV-4491` set (96.30/140.25) and
+the `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` set below are known-value
 recovery/regression cases after the `367efddf…` and `d40c94ee…`
-continuations. The final held-out claim requires a new unseen fixture set with
-new identifiers and values; do not reuse either set or its totals as a fresh
-held-out result. Set an adequate wall/step budget
-up front (or use the increase-only owner route) so a budget boundary is not
-misdiagnosed as a model failure.
+continuations. A replication or broader-generalization batch must use a new
+unseen fixture set; do not reuse any existing set or its totals as a fresh
+held-out result. Set an adequate wall/step budget up front (or use the
+increase-only owner route) so a budget boundary is not misdiagnosed as a model
+failure.
 
 Held-out fixture set (new identifiers and values; independent Decimal oracle):
 
