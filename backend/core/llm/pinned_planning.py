@@ -444,6 +444,10 @@ async def pinned_structured_call(
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
         if strict_pin:
+            if set_routing_error is not None:
+                set_routing_error(
+                    "provider_failure",
+                    "the qualification pin produced no usable result")
             logger.warning(
                 "%s strict qualification pin (%s) returned no result — "
                 "failed qualification attempt, no unpinned fallback",
@@ -487,6 +491,10 @@ async def pinned_structured_call(
                     seconds=_time.monotonic() - _fallback_started,
                     parsed=_parsed_payload(fallback_result),
                     raw=_raw_payload(fallback_result))
+            elif set_routing_error is not None:
+                set_routing_error(
+                    "provider_failure",
+                    "the configured routes produced no usable result")
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(

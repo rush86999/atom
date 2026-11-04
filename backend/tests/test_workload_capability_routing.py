@@ -840,3 +840,35 @@ def test_route_attribution_is_call_local_and_clears_stale_served_state():
     assert attribution["requested_route"] is None
     assert attribution["served_route"] is None
     assert attribution["resolved_model"] is None
+
+
+@pytest.mark.asyncio
+async def test_strict_pin_no_result_is_explicit_and_not_served():
+    from pydantic import BaseModel
+
+    from core.llm.model_provenance import (
+        clear_route_attribution, get_route_attribution,
+    )
+    from core.llm.pinned_planning import pinned_structured_call
+
+    class EmptyLLM:
+        async def generate_structured_response(self, **_kwargs):
+            return None
+
+    class Reply(BaseModel):
+        decision: str
+
+    clear_route_attribution()
+    result = await pinned_structured_call(
+        EmptyLLM(), prompt="p", response_model=Reply,
+        system_instruction="json", log_label="employee work proposal",
+        call_kwargs={"provider_model": ("fast", "flash")},
+        capability_profile="employee_evidence_selection")
+    assert result is None
+    attribution = get_route_attribution()
+    assert attribution["mode"] == "pinned"
+    assert attribution["requested_route"] == {
+        "provider": "fast", "model": "flash"}
+    assert attribution["served_route"] is None
+    assert attribution["error"]["code"] == "provider_failure"
+    assert "qualification pin" in attribution["error"]["detail"]
