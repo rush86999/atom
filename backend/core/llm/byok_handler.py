@@ -5241,6 +5241,13 @@ class BYOKHandler:
                     "task_type": task_type,
                 })
                 logger.warning(
+                    "capability route: zero candidates for %s; clients=%s "
+                    "local_routes=%s policy=%s",
+                    _capability.name, sorted(self.clients or {}),
+                    sorted((self._local_routes or {}).keys()),
+                    getattr(getattr(self, "provider_policy", None),
+                            "public_dict", lambda: {} )())
+                logger.warning(
                     "capability route: no suitable configured model for "
                     "profile %s v%s — %s",
                     _capability.name, _capability.version,
