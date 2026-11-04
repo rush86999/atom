@@ -1341,6 +1341,11 @@ def employee_job_view(
             dict(assignment), dict(record or {}))
     except Exception:  # noqa: BLE001 — a read view must not crash
         business_outcome = None
+    routing_notice = business_routing_notice(routing)
+    if str(assignment.get("status") or "") in ("completed", "cancelled"):
+        # The route outcome is still in the audit history, but a finished or
+        # cancelled job must not show an "incomplete configuration" notice.
+        routing_notice = None
     return {
         "objective": assignment.get("objective"),
         "identity": {
@@ -1408,5 +1413,5 @@ def employee_job_view(
             else None),
         "plan_revision": assignment.get("plan_revision"),
         "business_outcome": business_outcome,
-        "routing_notice": business_routing_notice(routing),
+        "routing_notice": routing_notice,
     }

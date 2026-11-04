@@ -8,6 +8,7 @@ import pytest
 from core.employee_proposal import (
     EmployeeWorkProposal,
     build_employee_context,
+    business_routing_notice,
     compile_employee_proposal,
     employee_job_view,
     propose_employee_work,
@@ -196,6 +197,16 @@ def test_employee_job_view_reports_objective_facts_and_blockers():
     assert view["facts"][0]["evidence_state"] == "missing"
     assert view["steps"][0]["readiness_blocker"]["truth"] == "unknown"
     assert view["open_obligations"][0]["question_id"] == "q1"
+    notice = business_routing_notice({
+        "error": {"code": "no_suitable_configured_model"}})
+    assert notice["state"] == "configuration_required"
+    # A finished job keeps the route audit but does not display a stale
+    # configuration warning as though work were still pending.
+    assignment["status"] = "completed"
+    assert employee_job_view(
+        assignment, routing={"error": {
+            "code": "no_suitable_configured_model"}})[
+                "routing_notice"] is None
 
 
 def test_planner_carries_facts_and_source_requirements():
