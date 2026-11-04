@@ -3547,6 +3547,125 @@ def test_advance_route_accepts_model_wait_choice_source(
     assert calculate["result"]["value"] == "370.00"
 
 
+def test_advance_route_does_not_adopt_a_policy_forbidden_wait(
+        route_env, tmp_path, monkeypatch):
+    from core.employee_adaptation import propose_adaptation as real_propose
+    from core.task_lifecycle import open_unresolved_questions
+
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv(
+        "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+
+    def applied(step_id, data):
+        step = new_step(
+            step_id=step_id, title=step_id, operation_type="retrieve",
+            adapter="document.read", inputs={}, effect="read_only")
+        payload = tmp_path / f"{step_id}.json"
+        payload.write_text(json.dumps(data))
+        step.update(
+            status="applied", operation_id=f"op-{step_id}",
+            inputs={"path": str(payload)},
+            result={
+                "data": data, "resource_id": step_id,
+                "source_version": "v1",
+                "coverage": {"complete": True, "known": True,
+                             "truncated": False},
+                "verification": {
+                    "status": "verified", "resource_id": step_id,
+                    "version": "v1"},
+            })
+        return step
+
+    plan = new_assignment(
+        objective="Reconcile the supplier invoice for PO-ROUTE-77",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="route-guard-1"),
+        steps=[
+            applied("purchase-order", {
+                "po_id": "PO-ROUTE-77", "vendor_id": "V-9"}),
+            applied("receiving", {
+                "po_id": "PO-ROUTE-77", "received_quantity": "2"}),
+        ],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[
+            {"kind": "required_work_complete", "required": True},
+            {"criterion_id": "employee_result:objective",
+             "kind": "employee_result", "required": True,
+             "verifier": "employee_result"},
+        ])
+    record = route_env["executor"].create_assignment(
+        "conv-route-guard", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        if response_model.__name__ == "AdaptationProposal":
+            return response_model.model_validate({
+                "decision": "replan",
+                "reason": "await the missing invoice",
+                "observation_ids": [],
+                "work_request": {
+                    "operation": "await_evidence",
+                    "fact": "the supplier invoice for PO-ROUTE-77",
+                    "subject": "purchase order PO-ROUTE-77",
+                    "expected_from": "authorized procurement source",
+                    "expected_answer_type": "text",
+                    "blocks": "invoice reconciliation",
+                    "blocks_operation": "invoice_reconciliation",
+                },
+            })
+        return response_model.model_validate({
+            "decision": "replan",
+            "reason": "await the missing invoice",
+            "fact": "the supplier invoice for PO-ROUTE-77",
+            "subject": "purchase order PO-ROUTE-77",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+
+    async def guarded_propose(
+        context, observations, *, assignment, **kwargs,
+    ):
+        kwargs.pop("llm_service", None)
+        return await real_propose(
+            context, observations, assignment=assignment,
+            llm_service=object(), **kwargs)
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", guarded_propose)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/advance",
+        json={"use_model": True, "deadline_seconds": 30})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body.get("rounds"), body
+    round_record = body["rounds"][0]
+    assert round_record["source"] == "deterministic", round_record
+    assert round_record["failure_stage"] == "wait_choice_policy", round_record
+    assert round_record["decision"] in ("clarify", "retain"), round_record
+    assert any(
+        "replan_not_allowed" in item
+        for item in round_record["errors"]), round_record
+    assert round_record["decision"] == "clarify", round_record
+
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    steps = {step["step_id"]: step for step in internal["steps"]}
+    assert "assignment.wait" not in {
+        step.get("adapter") for step in internal["steps"]}
+    assert steps["purchase-order"]["status"] == "applied"
+    assert steps["purchase-order"]["result"]["data"]["po_id"] == (
+        "PO-ROUTE-77")
+    assert steps["receiving"]["status"] == "applied"
+    assert internal["status"] != "waiting"
+    questions = open_unresolved_questions(
+        route_env["lifecycle"].get_task(run_id))
+    assert questions, "the rejected wait must leave a targeted question"
+    assert "invoice" in str(questions[0]).lower()
+
+
 def test_source_addition_settles_missing_prerequisite_without_duplicates(
         route_env, tmp_path, monkeypatch):
     from core.task_lifecycle import (

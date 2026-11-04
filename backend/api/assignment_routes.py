@@ -1322,7 +1322,16 @@ async def _advance_employee_work(
         if proposal_result.get("source") not in (
                 "model", "model_repaired", "model_compact",
                 "model_wait_choice"):
-            break
+            # A semantic wait rejection returns a deterministic, targeted
+            # clarification. It is not model work, but the question must
+            # still be persisted so the rejected wait cannot silently
+            # abandon the missing prerequisite. Other deterministic
+            # fallbacks remain inert here.
+            if not (
+                    proposal.get("decision") == "clarify"
+                    and proposal_result.get("failure_stage")
+                    == "wait_choice_policy"):
+                break
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}
             question = str(clarification.get("question") or "").strip()

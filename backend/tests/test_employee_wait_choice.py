@@ -107,7 +107,7 @@ def _context(*, ready_quote=False):
             "source_id": "doc-invoice",
             "file_name": "supplier-invoice-inv-wait-77.json",
             "kind": "document",
-            "read": False,
+            "read": True,
             "source_version": "ev4:invoice",
         }],
         "evidence_results": [{
@@ -179,6 +179,250 @@ def test_compact_wait_subject_is_bound_to_a_known_identity_when_model_labels_it(
     assert proposal.work_request is not None
     assert proposal.work_request.subject == "purchase order PO-WAIT-520"
     assert proposal.work_request.blocks == "invoice reconciliation"
+
+
+def test_wait_is_refused_when_authorized_unread_evidence_remains(
+        monkeypatch):
+    context = _context()
+    next(
+        source for source in context["sources"]
+        if source["source_id"] == "doc-invoice")["read"] = False
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate({
+            "decision": "replan",
+            "fact": "the current supplier invoice for PO-WAIT-520",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=FakeLLM()))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"]["decision"] in ("clarify", "retain")
+    assert result["proposal"].get("work_request") is None
+    assert any("unread_authorized_evidence" in item
+               for item in result["errors"])
+
+
+def test_explicit_wrong_blocked_operation_is_refused(monkeypatch):
+    context = _context()
+    context["missing_prerequisites"][0]["status"] = "missing"
+    context["missing_prerequisites"][0]["missing"] = ["invoice"]
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate({
+            "decision": "replan",
+            "fact": "the current supplier invoice for PO-WAIT-520",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "quote_calculation",
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=FakeLLM()))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"].get("work_request") is None
+    assert any("blocked_operation" in item for item in result["errors"])
+
+
+def _fail_wait_policy(monkeypatch, payload):
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate(payload)
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    return FakeLLM()
+
+
+def test_all_read_ambiguity_with_clarify_only_policy_cannot_become_a_wait(
+        monkeypatch):
+    context = _context()
+    context["missing_prerequisites"][0].update(
+        status="ambiguous", missing=[])
+    for source in context["sources"]:
+        source["read"] = True
+    context["rules"]["allowed_proposal_kinds"] = ["clarify", "retain"]
+    context["rules"]["allowed_work_requests"] = []
+
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "replan",
+            "reason": "await the current invoice",
+            "fact": "the current supplier invoice",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"]["decision"] in ("clarify", "retain")
+    assert result["proposal"].get("work_request") is None
+    assert result["failure_stage"] == "wait_choice_policy"
+    assert any("replan_not_allowed" in item for item in result["errors"])
+    assert any("ambiguous_record" in item for item in result["errors"])
+
+
+def test_missing_prerequisite_without_a_named_role_requires_clarification(
+        monkeypatch):
+    context = _context()
+    context["missing_prerequisites"][0].update(status="missing", missing=[])
+    for source in context["sources"]:
+        source["read"] = True
+    context["rules"]["allowed_proposal_kinds"] = ["clarify", "retain"]
+
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "replan",
+            "fact": "the current supplier invoice",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"]["decision"] == "clarify"
+    assert result["proposal"]["clarification"]["question"]
+    assert result["proposal"].get("work_request") is None
+    assert any("unnamed_missing_role" in item for item in result["errors"])
+
+
+def test_genuine_missing_external_record_can_wait_after_all_sources_are_read(
+        monkeypatch):
+    context = _context()
+    context["missing_prerequisites"][0].update(
+        status="missing", missing=["invoice"])
+    for source in context["sources"]:
+        source["read"] = True
+    context["rules"]["allowed_proposal_kinds"] = [
+        "clarify", "replan", "retain"]
+    assert not [
+        item for item in context["available_business_operations"]
+        if item["status"] == "ready"]
+
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "replan",
+            "reason": "the invoice is a future external record",
+            "fact": "the current supplier invoice for PO-WAIT-520",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })))
+    assert result["source"] == "model_wait_choice", result
+    assert result["proposal"]["decision"] == "replan"
+    assert result["proposal"]["work_request"]["operation"] == "await_evidence"
+    assert result["errors"] == []
+
+
+def test_wait_is_refused_while_ready_independent_work_exists(monkeypatch):
+    context = _context(ready_quote=True)
+    context["missing_prerequisites"][0].update(
+        status="missing", missing=["invoice"])
+    for source in context["sources"]:
+        source["read"] = True
+    context["rules"]["allowed_proposal_kinds"] = [
+        "clarify", "replan", "retain"]
+    context["rules"]["allowed_work_requests"] = [
+        "quote_calculation", "await_evidence"]
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        assert response_model.__name__ == "AdaptationProposal"
+        return response_model.model_validate({
+            "decision": "replan",
+            "reason": "wait for the invoice",
+            "observation_ids": ["evidence-po-wait"],
+            "work_request": {
+                "operation": "await_evidence",
+                "fact": "the current supplier invoice for PO-WAIT-520",
+                "subject": "purchase order PO-WAIT-520",
+                "expected_from": "authorized procurement source",
+                "expected_answer_type": "text",
+                "blocks": "invoice reconciliation",
+                "blocks_operation": "invoice_reconciliation",
+            },
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=FakeLLM()))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"].get("work_request") is None
+    assert any("ready_independent_work" in item for item in result["errors"])
+
+
+def test_model_clarification_is_accepted_without_a_wait(monkeypatch):
+    result = asyncio.run(propose_adaptation(
+        _context(), _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "clarify",
+            "reason": "the invoice must be named or authorized",
+            "clarification_question": (
+                "Which authorized source contains invoice INV-WAIT-77?"),
+            "clarification_unblocks": "invoice reconciliation",
+        })))
+    assert result["source"] == "model_wait_choice", result
+    assert result["proposal"]["decision"] == "clarify"
+    assert result["proposal"]["clarification"]["question"]
+    assert result["proposal"].get("work_request") is None
+    assert result["errors"] == []
+
+
+def test_wait_without_a_named_blocked_operation_is_refused_when_multiple_exist(
+        monkeypatch):
+    context = _context()
+    context["missing_prerequisites"].append({
+        "operation": "quote_calculation",
+        "label": "quote calculation",
+        "status": "missing",
+        "missing": ["tabular price rows"],
+        "question_hint": "Which source contains the price rows?",
+        "known_identities": {},
+    })
+    context["rules"]["allowed_proposal_kinds"] = [
+        "clarify", "replan", "retain"]
+
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "replan",
+            "fact": "a missing external record",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            # blocks_operation intentionally omitted
+        })))
+    assert result["source"] == "deterministic", result
+    assert result["proposal"].get("work_request") is None
+    assert any(
+        "ambiguous_blocked_operation" in item for item in result["errors"])
 
 
 def test_compact_wait_context_preserves_a_ready_independent_operation():
