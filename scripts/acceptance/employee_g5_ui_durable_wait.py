@@ -126,7 +126,12 @@ def _login_page(page, base: str, password: str) -> None:
         page.fill('[data-testid="login-email-input"]', "admin@example.com")
         page.fill('[data-testid="login-password-input"]', password)
         page.locator('[data-testid="login-submit-button"]').click()
-        page.wait_for_timeout(6000)
+        try:
+            page.wait_for_url(
+                lambda url: "/login" not in url, timeout=60000)
+        except Exception:  # noqa: BLE001 — the upload gate below is the proof
+            pass
+        page.wait_for_timeout(2000)
 
 
 def _open_run(page, base: str, run_id: str) -> None:
@@ -174,6 +179,12 @@ def main() -> int:
                 args.base + "/assignments", wait_until="networkidle",
                 timeout=90000)
             page.get_by_test_id("assignment-start").wait_for(timeout=60000)
+            upload = page.get_by_test_id("assignment-source-upload")
+            upload.wait_for(state="visible", timeout=60000)
+            page.wait_for_function(
+                "() => { const el = document.querySelector("
+                "'[data-testid=\"assignment-source-upload\"]');"
+                " return el && !el.disabled; }", timeout=60000)
             for name in ("price-book.xlsx", "purchase-order.json",
                          "invoice-v1.json"):
                 page.get_by_test_id(
