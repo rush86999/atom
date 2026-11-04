@@ -885,6 +885,8 @@ def _mark_wait_reviewed(
 
 def _waiting_observations(
     assignment: Dict[str, Any],
+    *,
+    allow_reviewed: bool = False,
 ) -> List[Dict[str, Any]]:
     """Fresh reasoning observation for a durable wait with ready work.
 
@@ -907,9 +909,10 @@ def _waiting_observations(
         if str(step.get("adapter") or "") != "assignment.wait":
             continue
         waiting = step.get("waiting") or {}
-        if waiting.get("reviewed_at"):
+        if waiting.get("reviewed_at") and not allow_reviewed:
             # The employee already considered independent work for this
-            # durable wait; only fresh evidence may ask again.
+            # durable wait; only fresh evidence or an explicit user advance
+            # may ask again.
             continue
         correlation = str(waiting.get("correlation_id") or "").strip()
         if not correlation:
@@ -917,6 +920,13 @@ def _waiting_observations(
         observation_id = f"waiting-{correlation}"
         if observation_id in consumed:
             continue
+        from core.employee_proposal import operation_capabilities
+
+        ready = [
+            str(item.get("label") or item.get("operation"))
+            for item in operation_capabilities(assignment)
+            if str(item.get("status") or "") == "ready"
+        ]
         observations.append({
             "observation_id": observation_id,
             "kind": "waiting_state",
@@ -925,7 +935,8 @@ def _waiting_observations(
                 f"waiting for {waiting.get('fact') or 'an external fact'} "
                 f"for {waiting.get('subject') or 'the subject'} from "
                 f"{waiting.get('party') or 'the authorized source'}; "
-                f"blocks {waiting.get('blocks') or 'dependent work'}"),
+                f"blocks {waiting.get('blocks') or 'dependent work'}; "
+                f"ready independent work: {', '.join(ready) or 'none'}"),
         })
         break
     return observations
@@ -936,6 +947,7 @@ async def _advance_employee_work(
     deadline_seconds: float = 240.0,
     provider_model: Optional[tuple] = None,
     allow_completed_evidence: bool = False,
+    force_wait_review: bool = False,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
 
@@ -977,7 +989,8 @@ async def _advance_employee_work(
             break
         observations = evidence_observations(record)
         if not observations and status == "waiting" and ready_operations:
-            observations = _waiting_observations(assignment)
+            observations = _waiting_observations(
+                assignment, allow_reviewed=force_wait_review)
         if status == "completed" and not (
                 allow_completed_evidence and observations):
             break
@@ -1761,7 +1774,8 @@ async def advance_assignment(
             executor, run_id, llm,
             max_rounds=max(0, min(int(body.max_adaptations), 3)),
             deadline_seconds=max(0.0, float(body.deadline_seconds)),
-            provider_model=_employee_provider_model())
+            provider_model=_employee_provider_model(),
+            force_wait_review=True)
         return {
             "run_id": run_id,
             "assignment": executor.status(run_id),
