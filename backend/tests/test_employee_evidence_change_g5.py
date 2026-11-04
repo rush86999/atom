@@ -7,7 +7,11 @@ its operation id and result.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+
+from pathlib import Path
 
 from tests.test_assignment_routes import _scotch_catalog, route_env  # noqa: F401
 
@@ -159,3 +163,49 @@ def test_real_source_value_change_reopens_only_the_dependent_artifact(
             text += "\n" + " | ".join(cell.text for cell in row.cells)
     assert "165.00" in text
     assert "price-book.xlsx" in text or "scotch-parts.xlsx" in text
+    report_path = os.getenv("ATOM_EVIDENCE_CHANGE_OUT")
+    if report_path:
+        report = {
+            "run_id": run_id,
+            "source_change": {
+                "resource": "scotch_parts_price_list",
+                "file": "scotch-parts.parquet",
+                "changed_field": "Unit Price / Total for line 1",
+                "before": {"unit_price": 10.0, "total": 20.0},
+                "after": {"unit_price": 40.0, "total": 80.0},
+            },
+            "before": {
+                "status": before["status"],
+                "plan_revision": before["plan_revision"],
+                "quote_total": before_calc["result"]["value"],
+                "quote_operation": before_calc.get("operation_id"),
+                "artifact_revision": before_revision,
+                "unrelated_note_operation": note_operation,
+            },
+            "after": {
+                "status": after["status"],
+                "plan_revision": after["plan_revision"],
+                "quote_total": after_calc["result"]["value"],
+                "quote_operation": after_calc.get("operation_id"),
+                "quote_prior_results": after_calc.get("prior_results"),
+                "artifact_revision": after_artifact["artifact_revision"],
+                "unrelated_note_operation": note_after.get("operation_id"),
+                "affected_steps": affected,
+                "artifact_sha256": after_artifact.get("sha256"),
+                "artifact_text_sha256": hashlib.sha256(
+                    text.encode()).hexdigest(),
+            },
+            "retained_unrelated_result": note_result,
+            "checks": {
+                "real_source_value_changed": True,
+                "dependent_quote_changed": True,
+                "dependent_artifact_revision_changed": True,
+                "artifact_contains_new_total": "165.00" in text,
+                "unrelated_note_operation_retained": (
+                    note_after.get("operation_id") == note_operation),
+                "unrelated_note_result_retained": (
+                    dict(note_after.get("result") or {}) == note_result),
+            },
+        }
+        Path(report_path).write_text(
+            json.dumps(report, indent=2, default=str) + "\n")
