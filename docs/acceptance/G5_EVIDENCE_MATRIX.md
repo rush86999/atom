@@ -20,30 +20,46 @@ row's evidence.
 | Cancellation and late-response refusal | Demonstrated; regression-supported | `employee_g5_regression_b4c29e2b6d9e` (18/18); `2eb433f41` focused suite |
 | Controlled provider lost-confirmation/restart/reconcile/no resend | Demonstrated; regression-supported | regression bundle (11/11); `employee_g5_final_regressions_b4c29e2b6` |
 | Exact namespaced identity and empty-scope result invariant | Demonstrated on successor | `employee_identity_repair_2eb433f41` (410 tests; 16/16 Git) |
-| Held-out content with new identifiers/values and independent arithmetic | **Same-job recovery only; fresh unseen qualification missing** | `employee_g5_heldout_timeout_6bc97759284` remains the preserved negative (PO-7302/INV-4491; wait, quote 96.30, restart and answer passed; adaptation timed out; no 140.25, no artifact). `employee_g5_heldout_recovery_8995f433d` recovers the same frozen job after the compact schema-echo repair: quote 96.30 retained, reconciliation 140.25, artifact verified, 19/19 checks. The pre-dispatch wall-budget refusal was resolved by the supported owner extension/retry; values are now known. `employee_g5_heldout_continuation_60d464a5f` is a separate known-value HX recovery. Fresh unseen values still required |
-| Held-out event order (e.g. independent work after restart, reply order) | **Partial — original order completed; alternate order missing** | The original order (wait -> quote -> restart -> reply -> reconciliation -> artifact) now completes on the frozen job in `employee_g5_heldout_recovery_8995f433d`; no served alternate order (restart while waiting, source authorized after restart). The ordering policy is covered by compiler/validation tests only |
-| Held-out two-domain evidence selection without user-picked sources | **Missing (model-quality boundary)** | Prior probe `80e3bd702` / `20f3ffc19`: quote pass, procurement selection negative; invoice source omitted. Not repaired by the wait/identity work |
+| Held-out content with new identifiers/values and independent arithmetic | **Demonstrated on fresh source; bundle acceptance withheld** | `employee_g5_heldout_two_order_fresh_3ccad7a5a`: QH-21/QH-22/PO-QH-8100/INV-QH-99, two runs, quote 145.00, reconciliation 113.00, both review documents, **22/22** named finish checks (11/11 per run; earlier 10/10 omitted `same_wait`). The original negative `employee_g5_heldout_timeout_6bc97759284` and the same-job recoveries (`8995f433d`, `60d464a5f`) remain separate. Acceptance remains withheld for combined review; runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission |
+| Held-out event order (e.g. independent work after restart, reply order) | **Demonstrated both required orders; bundle acceptance withheld** | Fresh `3ccad7a5a`: order 1 source authorized before restart; order 2 restart while waiting, source authorized after restart. Both preserved run/wait/quote identity and produced the dependent result + artifact. The earlier frozen-job recoveries remain order-1-only. Same runtime/packaging caveat |
+| Held-out two-domain evidence selection without user-picked sources | **Missing (model-quality boundary; not closed)** | The fresh objective supplied the three relevant authorized source references (`price-book-fresh.xlsx`, `purchase-order-fresh.json`, `invoice-fresh.json`). Typed role selection from those sources is not independent procurement evidence discovery/selection among alternatives or distractors. Prior probe `80e3bd702` / `20f3ffc19` remains negative |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
 
 ## Held-out batch outcome
 
-The finite batch
+The frozen negative
 `docs/acceptance/evidence/employee_g5_heldout_timeout_6bc97759284/` used new
 identifiers, quantities and prices (quote 96.30, reconciliation 140.25). The
 model selected the receiving wait and the independent quote, the wait survived
 a real restart, and the same-job answer was accepted. The dependent
 reconciliation was not produced: the local model's adaptation hit the bounded
 deadline (initial and compact retries), so the job stayed blocked with the
-required result unresolved and no artifact. This is evidence of the held-out
-model/timeout boundary, not a completed held-out qualification.
+required result unresolved and no artifact. This remains valid negative
+evidence of the held-out model/timeout boundary.
 
-Two same-job recoveries now exist at later sources:
+Two same-job recoveries exist at later sources:
 `employee_g5_heldout_continuation_60d464a5f`
 (HX-1/HX-2/PO-HX-7001; 125.00/101.00) and
 `employee_g5_heldout_recovery_8995f433d` (the original PO-7302/INV-4491 job;
 96.30/140.25). Both are known-value recoveries, not fresh held-out
-qualifications. The original negative remains valid.
+qualifications.
+
+The fresh two-order batch
+`employee_g5_heldout_two_order_fresh_3ccad7a5a` (QH-21/QH-22/PO-QH-8100/
+INV-QH-99; 145.00/113.00) demonstrates both required event orders, 22/22 named
+finish checks, and documents whose totals and hashes match. The three fresh
+logs are now Git-tracked; the recovery manifest's loaded-source hash is
+corrected to `8995f433d` with the superseded working-tree hash disclosed.
+
+Successor bundle acceptance remains withheld for combined review. The runtime
+successor `5abbeaa48` records both worker repairs (caller context preserved at
+the thread bridge; cleanup bound to the claim generation) with a 15/15
+worker/context matrix and 198 affected tests; an independent Agent 1 re-run at
+that runtime source passed 69 tests, including both verifier probes. Independent
+procurement evidence selection also remains missing: the fresh requests named
+the three relevant authorized sources. No model/UI replay was used for these
+mechanical corrections.
 
 ## What this reconciliation does not claim
 

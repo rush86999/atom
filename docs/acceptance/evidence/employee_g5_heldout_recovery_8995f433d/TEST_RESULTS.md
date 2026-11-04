@@ -44,6 +44,19 @@ python -m pytest \
 
 Result: **422 passed** in 111.33 seconds. Full log: `focused-tests.log`.
 
+## Provenance correction
+
+The manifest source hash for `backend/core/employee_adaptation.py` was
+corrected from `dd3fe402c5cc…` to `291676860ff6…`. The former was collected
+from the working tree after the later concurrent commit `fd6b929f3`; the
+latter is `git show 8995f433d:backend/core/employee_adaptation.py`. The
+retained launch record proves the loaded source: `server.log` records
+`source_id=8995f433d6fb revision=8995f433d6fb dirty=False (0 modified, 0
+untracked)`, and `launch.log` records `source=8995f433d6fb`. The backend was
+not reloaded, and the recovery call (`19:27:47Z`) preceded the later commit
+(`19:30:28Z`). The superseded hash and reason are preserved in
+`MANIFEST.json` under `provenance`.
+
 ## Compact attempt diagnostics
 
 | Attempt | Source | Prompt chars | Model seconds | Outcome |

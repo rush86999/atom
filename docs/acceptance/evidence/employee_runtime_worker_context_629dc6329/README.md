@@ -78,6 +78,9 @@ passes.
 - `worker-contract-tests.log` — 15 passed, including
   `tests/test_worker_context_and_claims.py`, the existing structured
   cancellation controls and the two verifier probes.
+- `agent1-independent-probes.log` — independent Agent 1 re-run at the same
+  runtime source: 69 passed, including both verifier probes and the
+  worker/context matrix.
 - `successor-regression.log` — 198 passed across the employee adaptation,
   compact continuation, identity/completion, durable wait, work-request,
   capability routing, pinned planning, fallback-chain and budget-extension

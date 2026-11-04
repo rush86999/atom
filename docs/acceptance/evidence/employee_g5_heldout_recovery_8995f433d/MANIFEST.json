@@ -1,7 +1,7 @@
 {
  "artifacts": {
-  "README.md": "ee33eeb86d97be18a63c4ac0dfa209603d851ff9e43df16ba0a73c3bb158eaff",
-  "TEST_RESULTS.md": "c351887d064c934378255b23a4cb3fc4be31da5efaeb933c17c38bf5e7f673f0",
+  "README.md": "f3ac7f3ef3b35d70a37f49d8e5e55c73304ffb8addfe361760b1d665d0c5598a",
+  "TEST_RESULTS.md": "3f20501d53cd72fec5965ba762e0b876504799fffad1a94cebc6fe962e1bddd8",
   "advance.json": "54f858645f687e728a1ae06c836f6c9fe1ffa61f666b0550bb65e332ef572899",
   "attempts-compact.jsonl": "d32c2a501cf2644d1dbcbbb01d368956c3cdd475151856e39dc08ef0f105a991",
   "attempts-schema-echo.jsonl": "c31b86a909a87ca53943e340b861182f01ab008693312bfb9c2fe13536708ad6",
@@ -28,13 +28,30 @@
   "budget": "owner extension 900s -> 3600s; supported retry of a pre-dispatch refusal",
   "focused_tests": "422 passed",
   "model_calls": "one compact dispatch; 57.67s; no repair or fallback",
-  "recovery": "19/19"
+  "recovery": "19/19",
+  "source_attribution": "corrected to loaded source 8995f433d; superseded working-tree hash disclosed"
  },
- "evidence_note": "Evidence files were added after this source tip. A later concurrent commit fd6b929f3 adds a separate quote-while-waiting compact path; it is not part of this recovery's executed source or measured result.",
+ "evidence_note": "Evidence files were added after the executed source. A later concurrent commit fd6b929f3 changed employee_adaptation.py and its test after the recovery call; the running backend was not reloaded. The earlier manifest hashed that later working tree; the source hash is now taken from git show 8995f433d and the superseded value is disclosed under provenance.",
  "evidence_tip": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
  "executed_source": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
  "health_identity_source": "8995f433d6fb",
  "original_negative_evidence": "docs/acceptance/evidence/employee_g5_heldout_timeout_6bc97759284/",
+ "provenance": {
+  "dirty_interval": "Clean at launch and during the recovery call (dirty=False, 0 modified, 0 untracked). The later fd6b929f3 edit created a dirty evidence-writing interval after the call; no later runtime/test bytes executed here.",
+  "loaded_source": "8995f433d6fbf2f76a637f7fdce2c2cbf96550e7",
+  "loaded_source_proof": [
+   "server.log: runtime identity source_id=8995f433d6fb revision=8995f433d6fb dirty=False (0 modified, 0 untracked)",
+   "launch.log: backend=http://127.0.0.1:8085 pid=11995 source=8995f433d6fb",
+   "recovery compact call at 2026-11-04T19:27:47Z; later commit fd6b929f3 at 2026-11-04T19:30:28Z"
+  ],
+  "loaded_source_proof_sufficient": true,
+  "source_hash_basis": "git show 8995f433d:<path> for every source_files entry",
+  "superseded_source_hash": {
+   "hash": "dd3fe402c5ccb0a553ef0d965102dfdde70323c356165384074b1e86ee3d7d6c",
+   "path": "backend/core/employee_adaptation.py",
+   "reason": "An earlier manifest generation hashed the working tree after the concurrent fd6b929f3 edit. That later byte sequence did not execute in this recovery; the loaded backend was not reloaded."
+  }
+ },
  "run": {
   "artifact_sha256": "609281eb3bdc5dd4a42ea14cc389fb60775271bb5225f017a4a2b2fe88474e2b",
   "artifact_size": 37549,
@@ -56,7 +73,7 @@
  "source_files": {
   "backend/api/assignment_routes.py": "b4412cd6d6e6905b09b61eeefb2ab579ff7d76864dd2f37ff138cda0afed079d",
   "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
-  "backend/core/employee_adaptation.py": "dd3fe402c5ccb0a553ef0d965102dfdde70323c356165384074b1e86ee3d7d6c",
+  "backend/core/employee_adaptation.py": "291676860ff6dd04043f247ed5cf3525638ac8f1719cb4da109f7cffb559f6e4",
   "backend/core/employee_attempt_journal.py": "63984ce2c5addd3c3e5423538bb5393c48dc17636e1fe38f92db7fd0cd85ab98",
   "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
   "backend/core/employee_proposal.py": "f87313d90cf88033358712936ab8767280b900e40f6805ba28c3f6adfbf14a64",
@@ -67,6 +84,6 @@
   "backend/core/llm/pinned_planning.py": "3da871ba33d36b436c3e6120d46c3410f6061c7ffcf5cff5f53119a7dcfc02c7",
   "scripts/acceptance/employee_g5_heldout_two_domain.py": "6c2721f16067fdbd47b1a22f636cc622e217793e9f57606b5c2b1808dbecb3ce"
  },
- "status": "same-job recovery of the original held-out timeout job supported; fresh held-out content/event-order still open",
+ "status": "same-job recovery of the original held-out timeout job supported; manifest provenance corrected to the loaded source; fresh held-out content/event-order still open",
  "tree_clean_at_run": true
 }

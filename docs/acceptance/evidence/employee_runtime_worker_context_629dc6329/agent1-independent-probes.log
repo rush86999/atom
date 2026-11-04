@@ -1,0 +1,210 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-04 15:49:58 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 15:49:58 [    INFO] EscalationManager initialized
+2026-11-04 15:49:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:49:58 [    INFO] EscalationManager initialized
+2026-11-04 15:49:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:49:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 15:49:58 [    INFO] MCP Service initialized
+2026-11-04 15:49:58 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-04 15:49:58 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-04 15:49:58 [    INFO] No token storage file found, starting empty
+2026-11-04 15:49:58 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-04 15:49:58 [    INFO] EscalationManager initialized
+2026-11-04 15:49:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:49:58 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-04 15:49:58 [    INFO] EscalationManager initialized
+2026-11-04 15:49:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:49:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-04 15:49:58 [    INFO] Slack Enhanced Service initialized
+2026-11-04 15:49:58 [    INFO] Loaded 0 persisted sessions from file.
+
+::test_thread_bridge_preserves_callers_context PASSED                    [  1%]
+::test_expired_old_worker_cleanup_cannot_release_new_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [ WARNING] verifier-owner/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-owner/worker-model stale release ignored by 'worker-A' (held by 'worker-B')
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-owner/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [  2%]
+tests/test_worker_context_and_claims.py::test_thread_bridge_preserves_callers_context 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:49:58 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  4%]
+tests/test_worker_context_and_claims.py::test_thread_bridge_isolates_concurrent_callers PASSED [  5%]
+tests/test_worker_context_and_claims.py::test_worker_context_changes_do_not_leak_back_or_sideways PASSED [  7%]
+tests/test_worker_context_and_claims.py::test_claim_token_binds_release_to_one_generation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-token/worker-model stale release ignored (token generation changed)
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-token/worker-model released by 'worker-A' after 0.0s
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-token/worker-model stale release ignored (token generation changed)
+PASSED                                                                   [  8%]
+tests/test_worker_context_and_claims.py::test_expired_worker_cannot_release_a_newer_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [ WARNING] verifier-owner/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-owner/worker-model stale release ignored by 'worker-A' (held by 'worker-B')
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-owner/worker-model stale release ignored (token generation changed)
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-owner/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [ 10%]
+tests/test_worker_context_and_claims.py::test_stale_retain_cannot_extend_a_newer_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [ WARNING] verifier-retain/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-retain/worker-model stale retain ignored (token generation changed)
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-retain/worker-model stale retain ignored by 'worker-A' (held by 'worker-B')
+PASSED                                                                   [ 11%]
+tests/test_worker_context_and_claims.py::test_retain_lease_longer_than_ttl_uses_explicit_expiry 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-lease/worker-model retained for a running worker (240s lease, explicit expiry)
+PASSED                                                                   [ 13%]
+tests/test_worker_context_and_claims.py::test_release_is_idempotent_and_never_resurrects_a_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-idempotent/worker-model released by 'worker-A' after 0.0s
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-idempotent/worker-model stale release ignored (token generation changed)
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-idempotent/worker-model stale release ignored (token generation changed)
+2026-11-04 15:49:58 [    INFO] [inflight] verifier-idempotent/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [ 14%]
+tests/test_worker_context_and_claims.py::test_worker_exception_propagates_and_cleanup_runs_once PASSED [ 15%]
+tests/test_worker_context_and_claims.py::test_queued_before_start_cancellation_runs_cleanup_once PASSED [ 17%]
+tests/test_worker_context_and_claims.py::test_cancelled_worker_cleanup_runs_on_real_exit_not_cancellation PASSED [ 18%]
+tests/test_structured_cancellation.py::test_cancellation_retains_reservation_until_the_worker_exits 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:49:58 [    INFO] EscalationManager initialized
+2026-11-04 15:49:58 [    INFO] CognitiveTierService initialized for workspace: ws-cancel
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:49:58 [    INFO] [LearningRouter] auto-mode readiness: 3 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-04 15:49:58 [    INFO] LocalOnlyGuard initialized
+2026-11-04 15:49:58 [ WARNING] [structured-cancelled] local_cancel/llama3.1:8b route=canvas_edit_plan:exec-cancel attempt=1 waited=0.0s reservation_released=false cleanup_on_worker_exit=true worker_may_still_run=true worker_lease_s=150
+2026-11-04 15:49:59 [ WARNING] [structured-pool] depth=0 candidates=[('local_cancel', 'llama3.1:8b')] attempted=False credit_failed=[]
+2026-11-04 15:49:59 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 15:49:59 [ WARNING] [structured-pool] depth=1 candidates=[('local_cancel', 'llama3.1:8b')] attempted=False credit_failed=[]
+2026-11-04 15:49:59 [   ERROR] All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+2026-11-04 15:49:59 [   ERROR] All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+2026-11-04 15:50:00 [    INFO] Initialized router with 30 models
+2026-11-04 15:50:00 [    INFO] Loaded 3 routing feedback rows from DB
+2026-11-04 15:50:00 [    INFO] Learning router hydrated 3 feedback rows from DB
+2026-11-04 15:50:00 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 20%]
+tests/test_structured_cancellation.py::test_capability_profile_owns_the_transport_retry_budget 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:50:00 [    INFO] EscalationManager initialized
+2026-11-04 15:50:00 [    INFO] CognitiveTierService initialized for workspace: ws-cancel
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:50:00 [    INFO] Structured generation (free, Managed): local_cancel/llama3.1:8b
+2026-11-04 15:50:00 [    INFO] [structured-dispatch] local_cancel/llama3.1:8b route=structured-764b8a54f31c attempt=1 prompt_chars=31 cap=6000 instructor_retries=0
+2026-11-04 15:50:00 [    INFO] [inflight] local_cancel/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-04 15:50:00 [    INFO] [structured-trace] local_cancel/llama3.1:8b cap=6000 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CanvasEditPlan route=structured-764b8a54f31c attempt=1
+2026-11-04 15:50:00 [    INFO] Structured generation (free, Managed): local_cancel/llama3.1:8b
+2026-11-04 15:50:00 [    INFO] [structured-dispatch] local_cancel/llama3.1:8b route=structured-16b3d258cea9 attempt=1 prompt_chars=31 cap=6000 instructor_retries=default
+2026-11-04 15:50:00 [    INFO] [inflight] local_cancel/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-04 15:50:00 [    INFO] [structured-trace] local_cancel/llama3.1:8b cap=6000 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CanvasEditPlan route=structured-16b3d258cea9 attempt=1
+PASSED                                                                   [ 21%]
+tests/test_fallback_chain_workflow.py::TestChainDetection::test_user_instruction_matches_twice PASSED [ 23%]
+tests/test_fallback_chain_workflow.py::TestChainDetection::test_ordinary_edit_request_does_not_match PASSED [ 24%]
+tests/test_fallback_chain_workflow.py::TestChainDetection::test_people_extraction PASSED [ 26%]
+tests/test_fallback_chain_workflow.py::TestUnresolvedSet::test_none_and_multiple_are_unresolved PASSED [ 27%]
+tests/test_fallback_chain_workflow.py::TestUnresolvedSet::test_no_carrier_is_empty PASSED [ 28%]
+tests/test_fallback_chain_workflow.py::TestEvidencePhase::test_attachment_step_finds_values PASSED [ 30%]
+tests/test_fallback_chain_workflow.py::TestEvidencePhase::test_vendor_mail_step_finds_value PASSED [ 31%]
+tests/test_fallback_chain_workflow.py::TestEvidencePhase::test_no_unresolved_items_short_circuits PASSED [ 33%]
+tests/test_fallback_chain_workflow.py::TestEvidencePhase::test_step_failure_never_raises PASSED [ 34%]
+tests/test_fallback_chain_workflow.py::TestChainReport::test_report_lists_values_and_drafts_ask PASSED [ 36%]
+tests/test_fallback_chain_workflow.py::TestChainReport::test_nothing_to_report_is_empty PASSED [ 37%]
+tests/test_fallback_chain_workflow.py::TestOutcomeSectionChainMerge::test_chain_value_replaces_notfound_line PASSED [ 39%]
+tests/test_fallback_chain_workflow.py::TestCandidateFidelityOrdering::test_exact_match_leads_within_bucket PASSED [ 40%]
+tests/test_fallback_chain_workflow.py::TestCandidateFidelityOrdering::test_no_item_keeps_previous_order PASSED [ 42%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_detection_across_domains PASSED [ 43%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_value_noun_from_users_own_words PASSED [ 44%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_fields_come_from_the_reads_own_request PASSED [ 46%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_accented_and_honorific_people PASSED [ 47%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_report_uses_users_nouns_and_file PASSED [ 49%]
+tests/test_fallback_chain_workflow.py::TestChainDomainIndependence::test_german_basis_still_picks_the_value PASSED [ 50%]
+tests/test_fallback_chain_workflow.py::TestGuardTableExemption::test_table_with_no_match_rows_is_not_a_claim PASSED [ 52%]
+tests/test_fallback_chain_workflow.py::TestGuardTableExemption::test_prose_absence_still_flagged_beside_tables PASSED [ 53%]
+tests/test_fallback_chain_workflow.py::TestGuardTableExemption::test_figure_grounding_counts_canvas_values PASSED [ 55%]
+tests/test_fallback_chain_workflow.py::TestGuardRepresentationIndependence::test_html_table_rows_exempt PASSED [ 56%]
+tests/test_fallback_chain_workflow.py::TestGuardRepresentationIndependence::test_inline_html_table_exempt PASSED [ 57%]
+tests/test_fallback_chain_workflow.py::TestGuardRepresentationIndependence::test_restaurant_and_clinic_tables PASSED [ 59%]
+tests/test_fallback_chain_workflow.py::TestGuardRepresentationIndependence::test_prose_rewrite_keeps_table_intact PASSED [ 60%]
+tests/test_fallback_chain_workflow.py::TestFormulaAvailability::test_outcome_section_renders_formulas PASSED [ 62%]
+tests/test_fallback_chain_workflow.py::TestFormulaAvailability::test_outcome_section_omits_missing_formulas_cleanly PASSED [ 63%]
+tests/test_fallback_chain_workflow.py::TestFormulaAvailability::test_chain_found_carries_formula_into_report PASSED [ 65%]
+tests/test_fallback_chain_workflow.py::TestFormulaAvailability::test_reverify_due_on_missing_sidecar_for_sheet_files PASSED [ 66%]
+tests/test_fallback_chain_workflow.py::test_read_canvas_serves_draft_body_over_empty_shell PASSED [ 68%]
+tests/test_fallback_chain_workflow.py::TestCreditExhaustionRouting::test_quota_cooldown_defaults_to_30_minutes PASSED [ 69%]
+tests/test_fallback_chain_workflow.py::TestCreditExhaustionRouting::test_quota_bench_fires_on_credit_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:50:00 [ WARNING] openrouter benched for 1800s — account-level credit exhaustion; healthy providers take over
+PASSED                                                                   [ 71%]
+tests/test_fallback_chain_workflow.py::TestTbcCatalogProbe::test_unpriced_rows_detected_domain_free PASSED [ 72%]
+tests/test_fallback_chain_workflow.py::TestTbcCatalogProbe::test_no_unpriced_rows_no_section PASSED [ 73%]
+tests/test_fallback_chain_workflow.py::test_item_code_tokens_reach_the_per_term_pool PASSED [ 75%]
+tests/test_fallback_chain_workflow.py::TestArcIndependence::test_outcome_seek_gates_on_generic_sources PASSED [ 76%]
+tests/test_fallback_chain_workflow.py::TestArcIndependence::test_work_instruction_is_value_family_not_price_only PASSED [ 78%]
+tests/test_fallback_chain_workflow.py::TestArcIndependence::test_tbc_probe_placeholder_family PASSED [ 79%]
+tests/test_fallback_chain_workflow.py::test_search_auto_read_covers_truncated_hits PASSED [ 81%]
+tests/test_fallback_chain_workflow.py::test_inflight_claim_ttl_steals_leaked_claims 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:50:00 [    INFO] [inflight] opencode-go/kimi-k2.7-code released by '?' after 0.0s
+2026-11-04 15:50:00 [ WARNING] opencode-go/kimi-k2.7-code inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:50:00 [    INFO] [inflight] opencode-go/kimi-k2.7-code released by '?' after 0.0s
+PASSED                                                                   [ 82%]
+tests/test_fallback_chain_workflow.py::test_na_means_not_applicable_unless_asked_to_fill_all PASSED [ 84%]
+tests/test_fallback_chain_workflow.py::test_negated_edit_vocabulary_is_not_edit_shaped PASSED [ 85%]
+tests/test_fallback_chain_workflow.py::test_lesson_designated_file_resolves_from_teaching PASSED [ 86%]
+tests/test_fallback_chain_workflow.py::TestSweepInjectionControls::test_exclusion_applies_after_injection PASSED [ 88%]
+tests/test_fallback_chain_workflow.py::TestSweepInjectionControls::test_injection_build_skips_cooldown_providers PASSED [ 89%]
+tests/test_fallback_chain_workflow.py::test_required_source_chaining_is_general PASSED [ 91%]
+tests/test_fallback_chain_workflow.py::test_required_sources_derived_from_lessons_not_business_nouns 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:50:00 [    INFO] [source-requirements] required=['datasets', 'outlook'] evidence=[{'kind': 'lesson', 'source': 'datasets', 'lesson_id': None, 'scope': 'global', 'topic': None}, {'kind': 'lesson', 'source': 'outlook', 'lesson_id': None, 'scope': 'global', 'topic': None}] candidates=[{'lesson_id': None, 'source': 'datasets', 'scope': 'global', 'topic': None, 'accepted': True}, {'lesson_id': None, 'source': 'outlook', 'scope': 'global', 'topic': None, 'accepted': True}]
+2026-11-04 15:50:00 [    INFO] [source-requirements] required=[] evidence=[] candidates=[]
+PASSED                                                                   [ 92%]
+tests/test_fallback_chain_workflow.py::test_consulted_sources_accounting_keys_chain_not_block_emptiness PASSED [ 94%]
+tests/test_fallback_chain_workflow.py::test_canvas_deixis_allows_canvas_anchored_research_lookups PASSED [ 95%]
+tests/test_fallback_chain_workflow.py::test_singleflight_ledger_settle_is_not_gated_on_file_mentions PASSED [ 97%]
+tests/test_fallback_chain_workflow.py::test_search_receipt_separates_dispatch_from_retrieval PASSED [ 98%]
+tests/test_fallback_chain_workflow.py::test_chain_uses_unresolved_work_and_records_its_own_operation PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-runtime-verify-629dc6329/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 138 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_structured_cancellation.py::test_cancellation_retains_reservation_until_the_worker_exits
+  /private/tmp/atom-runtime-verify-629dc6329/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 69 passed, 146 warnings in 11.65s =======================

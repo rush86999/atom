@@ -1,25 +1,7 @@
 {
- "schema": "atom-employee-evidence-1",
- "status": "runtime worker-context and claim-generation repair supported locally; recorded episodes unchanged",
- "runtime_source": "5abbeaa48da46203f8029b70179e6ec1c0a2877b",
- "recorded_episode_source": "3ccad7a5a99afdcef7784f903b3744e36d86ea4b",
- "checks": {
-  "worker_context_claim_matrix": "15 passed",
-  "affected_consumer_regression": "198 passed",
-  "verifier_probes": [
-   "test_thread_bridge_preserves_callers_context",
-   "test_expired_old_worker_cleanup_cannot_release_new_claim"
-  ],
-  "model_ui_replay": "none"
- },
- "source_files": {
-  "backend/core/llm/byok_handler.py": "abd3465d31cade5bb75dc793a3bcd032b6092d9c7c57625ef6f9c7bc54ab958a",
-  "backend/tests/test_worker_context_and_claims.py": "7f975513113ee7030d41ff67cb1a046e2cb3812c4c2d56a0591cfb47d4b42862",
-  "backend/tests/test_structured_cancellation.py": "0492257ed5f55a8c38cee8033c638efc0b679f177edc6af116f3f5fb436e31d3",
-  "backend/tests/test_fallback_chain_workflow.py": "fa71e95f1ee34181340ee273f787a5a5d1ae215dc18c5c5bff1c703ebdfd2250"
- },
  "artifacts": {
-  "README.md": "871e97e2e20ab5eefa6a734bf9798aaad95fd8ab73abd9fd45d3c6057a6ece26",
+  "README.md": "988ae8211b334e42d367eef6b29f297331ceccec9878c15a6b07ae9da3cb5cf2",
+  "agent1-independent-probes.log": "9bb765ae6fb77b9692a8f73b9522efde2e6465f7615099121bbb102465303a51",
   "successor-regression.log": "3834b8fe8305cf0d732d79b01fe7ce622e3700df28ffde6949ba7824f4545622",
   "worker-contract-tests.log": "7ff62e6c860290cd5007d3d51f5184a94be7f514791e20f9cbb260050fc9d3c0"
  },
@@ -28,5 +10,25 @@
   "no live/cloud provider, credential, spend, send, download or deployment authority",
   "packaging/provenance and source-selection matrix row remain Agent 1 lane",
   "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
- ]
+ ],
+ "checks": {
+  "affected_consumer_regression": "198 passed",
+  "independent_agent1_probes": "69 passed",
+  "model_ui_replay": "none",
+  "verifier_probes": [
+   "test_thread_bridge_preserves_callers_context",
+   "test_expired_old_worker_cleanup_cannot_release_new_claim"
+  ],
+  "worker_context_claim_matrix": "15 passed"
+ },
+ "recorded_episode_source": "3ccad7a5a99afdcef7784f903b3744e36d86ea4b",
+ "runtime_source": "5abbeaa48da46203f8029b70179e6ec1c0a2877b",
+ "schema": "atom-employee-evidence-1",
+ "source_files": {
+  "backend/core/llm/byok_handler.py": "abd3465d31cade5bb75dc793a3bcd032b6092d9c7c57625ef6f9c7bc54ab958a",
+  "backend/tests/test_fallback_chain_workflow.py": "fa71e95f1ee34181340ee273f787a5a5d1ae215dc18c5c5bff1c703ebdfd2250",
+  "backend/tests/test_structured_cancellation.py": "0492257ed5f55a8c38cee8033c638efc0b679f177edc6af116f3f5fb436e31d3",
+  "backend/tests/test_worker_context_and_claims.py": "7f975513113ee7030d41ff67cb1a046e2cb3812c4c2d56a0591cfb47d4b42862"
+ },
+ "status": "runtime worker-context and claim-generation repair supported locally; recorded episodes unchanged"
 }

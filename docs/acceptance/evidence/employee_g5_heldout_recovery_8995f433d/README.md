@@ -14,6 +14,22 @@ compact path. It landed after the executed source and is not part of this
 recovery's measured result; the 422-test run and 19/19 checks remain tied to
 `8995f433d`.
 
+## Provenance correction (2026-11-04)
+
+The recovery manifest initially hashed `backend/core/employee_adaptation.py`
+from the working tree as `dd3fe402c5cc…`. That byte sequence matches the later
+concurrent commit `fd6b929f3`, not the executed source. The retained launch
+proof is explicit: `server.log` records
+`runtime identity: source_id=8995f433d6fb revision=8995f433d6fb dirty=False
+(0 modified, 0 untracked)`, and `launch.log` records
+`backend=... source=8995f433d6fb`. The backend was not reloaded. The recovery
+compact call completed at `2026-11-04T19:27:47Z`; the later commit is timestamped
+`2026-11-04T19:30:28Z`. The manifest now uses the loaded-source hash
+`291676860ff6…` from `git show 8995f433d:backend/core/employee_adaptation.py`.
+The superseded evidence-writing hash `dd3fe402c5cc…` is preserved in the
+manifest under `provenance.superseded_source_hash` with this explanation.
+No later runtime or test-file bytes executed in this recovery.
+
 ## Frozen job and independent arithmetic
 
 | Item | Value |

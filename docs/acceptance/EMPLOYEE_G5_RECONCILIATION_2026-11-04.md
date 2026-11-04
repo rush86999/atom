@@ -18,8 +18,9 @@ episode as execution on a different source.
 | G5 employee-decided requested artifact from quote | Demonstrated at original source | `c7a265c37` and `62fa207647`; model-selected quote, verified receipt, artifact rendering and real revised-price reassessment. |
 | G5 real changed-source selective reassessment | Demonstrated at original source | `62fa207647` / `b4c29e2b6`; 370.00 → 425.00, prior and unrelated operation ids retained. |
 | G5 cancellation, late response, uncertain effect | Demonstrated at separate regression scope | `b4c29e2b6d9e`; not part of the single served browser episode. |
-| G5 held-out content / identifiers | **Demonstrated at controlled local scope** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, 20/20 checks. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
-| G5 held-out event ordering | **Demonstrated at controlled local scope** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. The earlier frozen-job recoveries remain order-1-only. |
+| G5 held-out content / identifiers | **Demonstrated at controlled local scope; bundle acceptance withheld** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, **22/22** named finish checks (11/11 per run; the earlier 10/10 summary omitted `same_wait`). Tracked state/traces/documents support the episodes, but overall successor bundle acceptance is withheld for combined review; the runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
+| G5 held-out event ordering | **Demonstrated at controlled local scope; bundle acceptance withheld** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. The earlier frozen-job recoveries remain order-1-only. The same combined-review acceptance caveat applies. |
+| G5 independent procurement evidence selection | **Not demonstrated; earlier negative remains** | The fresh objective supplied the three relevant authorized source references (`price-book-fresh.xlsx`, `purchase-order-fresh.json`, `invoice-fresh.json`), and the model selected typed roles from them. This is not evidence discovery/selection among authorized alternatives or distractors. Prior probes `80e3bd702` / `20f3ffc19` remain open; successful typed role selection does not close them. |
 | G5 breadth of adaptive judgment / general model competence | **Not qualified** | A finite campaign cannot establish general employee judgment. History and prior model verdicts are unchanged. |
 | Full G5 / whole-app ORACLE / live-provider breadth | **Not claimed** | Requires separate qualifications and authorities. |
 
@@ -68,8 +69,9 @@ every business requirement satisfied, requested document applied with sha256
 `ollama/llama3.1:8b` under the separately declared
 `employee_adaptive_planning_compact` capability profile; the all-purpose
 `employee_adaptive_planning` profile remains measured-failure-disqualified in
-this world. This is a recovery/regression result, not a fresh held-out content
-or event-order qualification.
+this world. This recovery alone is not a fresh held-out content or event-order
+qualification; the separate QH batch below is the controlled local fresh
+result.
 
 ## 2026-11-04 original PO-7302 / INV-4491 recovery (8995f433d)
 
@@ -86,8 +88,9 @@ budget extension (900 → 3600 s) plus retry completed the same job:
 reconciliation **140.25 USD**, quote **96.30 USD** retained, artifact sha256
 `609281eb…`, 19/19 recovery checks. Evidence:
 `employee_g5_heldout_recovery_8995f433d`. This is a known-value recovery; the
-original negative batch `6bc97759284` remains and a fresh unseen
-qualification is still required.
+original negative batch `6bc97759284` remains. The separate fresh QH batch
+below is the controlled local unseen-value result; independent procurement
+source selection remains open.
 
 ## 2026-11-04 fresh held-out two-order batch (3ccad7a5a)
 
@@ -98,8 +101,8 @@ supplied to the model.
 
 | Order | Run | Wait | Quote | Reconciliation | Artifact sha256 | Checks |
 |---|---|---|---|---|---|---|
-| source authorized before restart | `cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4` | `await-9ac5fe9af53639aa278b` | 145.00 | 113.00 | `628fe6b1…` | 10/10 |
-| restart while waiting; source authorized after restart | `88306561-92b4-492c-a6b3-00d0621c3d08` | `await-2a1cf445bfb818525fac` | 145.00 | 113.00 | `83d31a97…` | 10/10 |
+| source authorized before restart | `cfa9cccf-4049-4f7d-96c8-8d42b4ef48b4` | `await-9ac5fe9af53639aa278b` | 145.00 | 113.00 | `628fe6b1…` | 11/11 |
+| restart while waiting; source authorized after restart | `88306561-92b4-492c-a6b3-00d0621c3d08` | `await-2a1cf445bfb818525fac` | 145.00 | 113.00 | `83d31a97…` | 11/11 |
 
 Both runs preserved the same run/wait/quote identities across the restart,
 satisfied every business requirement, applied the requested document with both
@@ -107,51 +110,56 @@ totals and matched its sha256. The model chose the durable wait, the quote
 columns/terms and the invoice role IDs; the compiler resolved the taught terms,
 computed the totals and composed the document. Seven local model calls took
 8.4–54.9 s; the expected reconciliation total 113.00 never appeared in a
-prompt. The same-source focused regression passed **133** tests. Evidence:
+prompt. The same-source focused regression passed **133** tests. Each state
+file contains **11 true named finish checks** (22/22 batch); the earlier 10/10
+summary omitted the separate `same_wait` check, and the historical state bytes
+were not altered. The objective supplied the three relevant authorized source
+references, so this is not an independent procurement source-selection result.
+Overall successor bundle acceptance remains withheld for combined review;
+the runtime successor `5abbeaa48` records both worker repairs (15/15 matrix,
+198 affected regression), and packaging/source-attribution corrections are
+included in this submission. Evidence:
 `employee_g5_heldout_two_order_fresh_3ccad7a5a`.
 
-## Next finite qualification batch
+## Known fixtures and remaining qualification
 
-Use one frozen source, one local-inference owner and one candidate pointer.
-Do not feed final plans, expected totals or the oracle into the employee.
+The fresh `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch is now a
+known-value regression fixture (145.00/113.00, both event orders). The
+`PO-7302`/`INV-4491` and `HX-1`/`HX-2` sets are known-value recovery
+fixtures. Do not reuse any of them as a fresh unseen qualification.
 
-The fresh `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` set is now the controlled
-local held-out result above. The `PO-7302`/`INV-4491` set (96.30/140.25) and
-the `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88` set below are known-value
-recovery/regression cases after the `367efddf…` and `d40c94ee…`
-continuations. A replication or broader-generalization batch must use a new
-unseen fixture set; do not reuse any existing set or its totals as a fresh
-held-out result. Set an adequate wall/step budget up front (or use the
-increase-only owner route) so a budget boundary is not misdiagnosed as a model
-failure.
+### Known-value fixtures (regression/recovery only)
 
-Held-out fixture set (new identifiers and values; independent Decimal oracle):
+- `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99`: quote 145.00,
+  reconciliation 113.00, both event orders; evidence
+  `employee_g5_heldout_two_order_fresh_3ccad7a5a`.
+- `PO-7302`/`INV-4491`: quote 96.30, reconciliation 140.25; evidence
+  `employee_g5_heldout_recovery_8995f433d`.
+- `HX-1`/`HX-2`/`PO-HX-7001`/`INV-HX-88`: quote 125.00,
+  reconciliation 101.00; evidence
+  `employee_g5_heldout_continuation_60d464a5f`.
 
-- Quote items: `HX-1` 4 × 12.50, `HX-2` 2 × 30.00; freight 15.00; tax none;
-  expected quote **125.00 USD**.
-- Purchase order / invoice: `PO-HX-7001` / `INV-HX-88`; 3 × 30.00 plus
-  freight 11.00; expected reconciliation **101.00 USD**.
-- Authorized receiving record: `PO-HX-7001`, received quantity 3,
-  `rcv-heldout-1`.
-- Requested output: internal review document containing both verified results.
+### Remaining held-out qualification
 
-Required event orders:
+Independent procurement evidence selection is still missing. A future batch
+must provide authorized alternatives or distractors and an objective that does
+not name the relevant source set. The earlier negative probes `80e3bd702` /
+`20f3ffc19` remain the evidence; successful typed role selection from
+user-selected sources does not close this row.
 
-1. Wait open, independent quote, receiving source authorized, restart, exact
-   reply, reconciliation and artifact.
-2. Restart while waiting, receiving source authorized after restart, exact
-   reply, reconciliation and artifact.
+The two worker/context runtime defects are repaired at `5abbeaa48` by the
+finite successor matrix and affected consumer regression (15/15 worker/context
+tests including both verifier probes; 198 affected tests), not by rerunning
+these model/UI episodes. No endless new-value model campaign is required for
+that mechanical repair.
 
-Both runs must preserve the same run/wait/quote identities, retain the quote
-operation, produce the independent totals, and leave the job unfinished and
-artifact unpublished if the model cannot select the dependent work. A model
-retain/None/no-suitable/invalid proposal is a preserved negative, not a
-positive twinned by a harness-injected plan. Exact-identity, empty-scope and
-publication guards apply to the held-out values.
-
-The batch should be diagnosed at the actual protocol, semantic or timeout
-stage. It must not silently switch models, use a strict pin with a different
-route, or reuse the known-data 370/270 values as the held-out result.
+If a replication batch is run later, use one frozen source, one local-inference
+owner and one candidate pointer. Do not feed final plans, expected totals or
+the oracle to the employee. Preserve retain/None/no-suitable/invalid proposals
+as negatives rather than injecting a plan. Set an adequate wall/step budget up
+front (or use the increase-only owner route) so a budget boundary is not
+misdiagnosed as a model failure. Exact-identity, empty-scope and publication
+guards apply.
 
 ## Boundaries
 

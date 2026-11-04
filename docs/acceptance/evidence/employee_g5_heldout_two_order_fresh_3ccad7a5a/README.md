@@ -3,11 +3,15 @@
 2026-11-04, America/Toronto.
 
 **Status: held-out content and both required event orders are demonstrated on a
-fresh, unseen fixture set at the controlled local scope.** Two independent
-employee jobs reached a durable receiving wait, produced the independent quote,
-survived a process restart, consumed the authorized receiving answer, selected
-the dependent invoice reconciliation through the narrow typed continuation and
-published the requested review document with both verified totals.
+fresh, unseen fixture set at the controlled local scope. Overall successor
+bundle acceptance is WITHHELD for combined review: the runtime successor
+`5abbeaa48` records both worker repairs (15/15 matrix, 198 affected
+regression), and the packaging/source-attribution corrections are included in
+this evidence commit. This bundle is evidence, not an acceptance claim.** Two independent employee jobs reached a durable
+receiving wait, produced the independent quote, survived a process restart,
+consumed the authorized receiving answer, selected the dependent invoice
+reconciliation through the narrow typed continuation and published the
+requested review document with both verified totals.
 
 This is a finite, declared local campaign. It does not establish universal
 employee judgment, live-provider breadth or a whole-app ORACLE claim.
@@ -18,7 +22,7 @@ employee judgment, live-provider breadth or a whole-app ORACLE claim.
 | Served model | `ollama/llama3.1:8b` (exact local pin) |
 | Frontend | unchanged from the accepted source; no UI change in this batch |
 | Focused regression | **133 passed** |
-| Batch checks | **20/20** (10/10 per run) |
+| Named finish checks | **22/22** (11/11 per run) |
 
 ## Fresh unseen fixtures
 
@@ -86,17 +90,33 @@ employee; it is not the dependent expected result.
 ## Checks and artifacts
 
 `state-order1.json` and `state-order2.json` contain the full run state,
-artifact text and 10/10 checks. Raw model requests, parsed responses and the
-one repaired quote are in the four `attempts-order*.jsonl` files. Server logs
-are `server-order1.log` and `server-order2.log`; the review documents are
-`review-order1.docx` and `review-order2.docx`. `focused-tests.log` records the
-same-source 133-test neighborhood.
+artifact text and **11 true named finish checks** (11/11 per run): `same_run`,
+`same_wait`, `restart_preserved_waiting`, `quote_total_145`,
+`reconciliation_total_113`, `assignment_completed`, `requirements_satisfied`,
+`artifact_applied`, `artifact_quote_145`, `artifact_reconciliation_113`,
+`artifact_sha_matches`. The earlier 10/10 summary omitted the separate
+`same_wait` check; the historical state bytes are unchanged. Raw model
+requests, parsed responses and the one repaired quote are in the four
+`attempts-order*.jsonl` files. Server logs are `server-order1.log` and
+`server-order2.log`; the review documents are `review-order1.docx` and
+`review-order2.docx`. `focused-tests.log` records the same-source 133-test
+neighborhood.
 
 ## Boundaries
+
+The objective supplied the three relevant authorized source references
+(`price-book-fresh.xlsx`, `purchase-order-fresh.json`,
+`invoice-fresh.json`). This demonstrates typed role selection and execution
+from those sources, not independent procurement evidence discovery/selection
+among authorized alternatives or distractors. The earlier negative
+source-selection probes `80e3bd702` / `20f3ffc19` remain open.
 
 Controlled local inference only: no live/cloud provider, credential, spend,
 send, download or deployment authority. The two runs are a finite declared
 campaign on one local machine; they do not prove general adaptive breadth,
 live Zoho/Microsoft behavior, Linux/KVM, multi-worker/soak or whole-app ORACLE
-equivalence. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap
-3.0 remain unchanged. Full G5 is not claimed beyond this tested scope.
+equivalence. Overall successor bundle acceptance remains withheld for combined review;
+the runtime successor `5abbeaa48` records both worker repairs, and
+packaging/source-attribution corrections are included in this evidence commit.
+Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain
+unchanged. Full G5 is not claimed beyond this tested scope.
