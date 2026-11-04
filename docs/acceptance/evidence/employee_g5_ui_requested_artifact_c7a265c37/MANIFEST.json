@@ -1,0 +1,57 @@
+{
+ "schema": "atom-employee-g5-requested-artifact-1",
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "c7a265c37",
+  "tree_clean_at_run": true,
+  "frontend_build_id": "X8jwE6ACQOmwiGXPFjzKD",
+  "frontend_build_source": "f2aa6518d",
+  "frontend_build_command": "NEXT_PUBLIC_API_URL=http://127.0.0.1:8085 NEXT_PUBLIC_ALLOW_LOOPBACK=1 NEXT_PUBLIC_ASSIGNMENT_TRANSPORT=controlled ./node_modules/.bin/next build --webpack",
+  "manifest_note": "Employee-decided /from-objective with requested_output=document; quote calculation from the read workbook; artifact compiled after the verified receipt and rendered from durable results."
+ },
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "37e8bf090c59da9fc00d440da511c89ca77ec746dab0057419ee8918913eb83f",
+  "backend/core/employee_work_compiler.py": "d5431b8b4d58396407145ece5303a22481125b1312779b0f3960d5cef7648cd6",
+  "backend/core/assignment_executor.py": "447f833a11f0b3e7a67ab6188372b3dbdbb0545e3a1d6e71b4c8d678d717028f",
+  "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+  "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+  "backend/core/task_outcome_contract.py": "3a97a85fa7d9bacdde62a4df3ea63c5fef1a398447b54a53da7a6a90a82ab63e",
+  "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "c350ea23a347e56e9875c8b7793c02f9a37ec410c5473686638b5b7c3a299061",
+  "frontend-nextjs/lib/assignment-api.ts": "ff995f7bb5e9d777df9d3b9102ea290e4a7c6397cebd259e8eefdf53b00728f9",
+  "scripts/acceptance/employee_g5_ui_requested_artifact.py": "ca886a401c4a1930f72031844d53420473b31225595b844b893aa512a8f4e9d9"
+ },
+ "artifacts": {
+  "README.md": "2541380bd1c5b6cf4cec4f25f88c020320d1b1cc683a7ab0e635c1f1c8d27ce4",
+  "TEST_RESULTS.md": "c7f61bf8158471a7be0e2efd6a1bf4bb5f2834bc9922ec9418a38960237352df",
+  "attempts.jsonl": "6f0cd9d972781fb20c8d2ee58021533ffcd5002b0d74ddbb2eaa64d3d23faa05",
+  "capture.json": "08b943c8bfaf996e81c6931de2abde96b1cbc6e9091a218d71ae40fa7df22b26",
+  "customer-quote.docx": "a6b8fffdb6d32dc6f2680310659db375ec71d3a7bd9ef0eef1996141ecee7583",
+  "detail.txt": "cacc6481a0195afc412d76f8e5e4279048dd08a9263e1a0b4ee140419e4d3c3d",
+  "exact-run-final.png": "6fc6bfb02e7c94507416d3fce77a5300d802858a10d6fe68f52f92ed18f797fc",
+  "final.json": "f7f339370a23f667c760d2a9536996d91536e0bf5330174d1e33e600d2c2631e",
+  "server.log": "a8cb14438ba9b757c260ca076057dbeccc113a2458e0ef4944273f9da2ab4cc5",
+  "start-form.png": "bc4b643f612d57e27e2e632ea605922df1648dd105db73882b58bff4a243085d"
+ },
+ "results": {
+  "run_id": "6e51794a-2d0b-43f2-bbfe-18a0884a1487",
+  "request_status": 200,
+  "selected_sources": 1,
+  "proposal_source": "model",
+  "technical_fallback": false,
+  "work_request_operation": "quote_calculation",
+  "receipt_total": "370.00",
+  "independent_total": "370.00",
+  "artifact_sha256": "a6b8fffdb6d32dc6f2680310659db375ec71d3a7bd9ef0eef1996141ecee7583",
+  "artifact_ui_equals_api": true,
+  "final_status": "completed",
+  "checks_passed": 22,
+  "checks_total": 22
+ },
+ "exclusions": [
+  "full G5 remains open",
+  "real source version/qualification change with selective retention is a separate gate",
+  "controlled cancellation/uncertainty on this integrated source remains separate",
+  "no live provider, credential, consent, send, spend or deployment",
+  "historical 111/123, planner 5/5, goal router 1/2, alignment gap 3.0 unchanged"
+ ]
+}
