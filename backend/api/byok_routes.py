@@ -1351,6 +1351,9 @@ async def get_provider_policy(
 ):
     """Effective installation provider policy (credentials stay masked)."""
     from core.llm.provider_policy import resolve_provider_policy
+    from core.llm.capability_profiles import (
+        capability_decisions, profile_descriptions,
+    )
 
     policy = resolve_provider_policy()
     return ApiResponse(success=True, data={
@@ -1359,6 +1362,11 @@ async def get_provider_policy(
             {"id": pid, "name": getattr(prov, "name", pid)}
             for pid, prov in sorted(byok_manager.providers.items())
         ],
+        "capability_routing": {
+            "profiles": profile_descriptions(),
+            "recent_decisions": capability_decisions(10),
+            "preference": "economy-first; quality is an explicit profile choice",
+        },
     })
 
 

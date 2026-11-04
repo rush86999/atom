@@ -279,6 +279,7 @@ async def pinned_structured_call(
     execution_id: Optional[str] = None,
     stage: Optional[str] = None,
     attempt_observer: Optional[Any] = None,
+    capability_profile: Optional[str] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
 
@@ -319,6 +320,19 @@ async def pinned_structured_call(
         base["disable_reasoning"] = True
     if task_type:
         base["task_type"] = task_type
+    # WORKLOAD PROFILE (owner clarification 2026-11-04): the server-coded
+    # call label selects a versioned capability contract. Route-only
+    # metadata stays out of provider generation kwargs; LLMService consumes
+    # and forwards it to BYOK ranking. An explicit profile wins.
+    try:
+        from core.llm.capability_profiles import resolve_capability_profile
+
+        _profile = resolve_capability_profile(
+            capability_profile, task_type, log_label)
+        if _profile is not None:
+            base["capability_profile"] = _profile.name
+    except Exception:  # noqa: BLE001 — legacy callers remain compatible
+        pass
     # THE CALLER'S SCOPE (J6 draft finding): a structured call without it
     # resolves the service's frozen constructor scope and never sees the
     # workspace-registered local providers. Both are optional — callers

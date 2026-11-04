@@ -805,6 +805,8 @@ class LLMService:
         model: str = "quality",
         workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
+        capability_profile: Optional[str] = None,
+        capability_preference: Optional[str] = None,
         **kwargs
     ) -> Any:
         """Generate structured response using Pydantic model."""
@@ -848,6 +850,8 @@ class LLMService:
             system_instruction=system_instruction,
             response_model=response_model,
             task_type=effective_task_type,
+            capability_profile=capability_profile,
+            capability_preference=capability_preference,
             **kwargs
         )
 
