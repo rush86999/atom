@@ -394,6 +394,9 @@ def main() -> int:
             "ui_shows_wait_business_language": (
                 "Waiting for received_quantity for PO-8841"
                 in state["restart_result"]["detail_text"]),
+            "ui_shows_unresolved_result": (
+                "Still required: invoice reconciliation"
+                in state["restart_result"]["detail_text"]),
             "reply_accepted": reply.status == 200,
             "assignment_completed": (
                 final_assignment.get("status") == "completed"),
@@ -413,7 +416,7 @@ def main() -> int:
                 _deliverable(final_assignment).get("status") == "applied"),
             "artifact_total_270": "270.00" in _artifact_text(
                 _deliverable(final_assignment)),
-            "artifact_excludes_quote_total": "370.00" not in _artifact_text(
+            "artifact_quote_total_370": "370.00" in _artifact_text(
                 _deliverable(final_assignment)),
             "no_live_provider": True,
         }
