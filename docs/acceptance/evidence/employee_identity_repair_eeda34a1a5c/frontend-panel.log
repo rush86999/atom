@@ -1,0 +1,6 @@
+PASS components/assignments/__tests__/AssignmentPanel.test.tsx
+
+Test Suites: 1 passed, 1 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        1.265 s
