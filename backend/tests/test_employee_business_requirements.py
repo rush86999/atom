@@ -284,6 +284,11 @@ def test_no_suitable_reply_failure_preserves_requirement_then_retry_reconciles(
         (step.get("step_id"), step.get("adapter"), step.get("status"))
         for step in final["steps"]]
     assert business_requirement_views(final)[0]["status"] == "satisfied"
+    completed_view = route_env["client"].get(
+        f"/api/assignments/{run_id}").json()["employee_job"]
+    assert completed_view["business_requirements"][0]["status"] == (
+        "satisfied")
+    assert completed_view["routing_notice"] is None
     reconcile = next(
         step for step in final["steps"]
         if step["adapter"] == "invoice.reconcile")
