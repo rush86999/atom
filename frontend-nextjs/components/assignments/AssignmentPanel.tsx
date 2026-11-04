@@ -314,7 +314,11 @@ export function AssignmentPanel({
           task_context: taskContext,
           authorized_actions: ["retrieve", "calculate"],
           teaching_terms: parsedTeachingTerms,
-          requested_output: startDraft.deliverableKind,
+          requested_output:
+            startDraft.deliverableKind === "document" ||
+            startDraft.deliverableKind === "presentation"
+              ? startDraft.deliverableKind
+              : undefined,
           budget: {max_steps: 20},
           use_model: true,
         });
@@ -344,7 +348,7 @@ export function AssignmentPanel({
           ? { query: startDraft.scopeQuery }
           : undefined,
         deliverables: [{
-          kind: startDraft.deliverableKind,
+          kind: startDraft.deliverableKind || "document",
           description: startDraft.objective,
           content: startDraft.content.trim() || undefined,
         }],
@@ -650,6 +654,9 @@ export function AssignmentPanel({
             aria-label="Deliverable kind"
             data-testid="assignment-deliverable-kind"
           >
+            {startDraft.employeeDecides ? (
+              <option value="">Answer only (no document)</option>
+            ) : null}
             <option value="document">Document</option>
             <option value="presentation">Presentation</option>
             <option value="email_draft">Email draft</option>

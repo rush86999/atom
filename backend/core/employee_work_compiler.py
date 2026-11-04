@@ -584,10 +584,16 @@ def _quote_patch(
             "required": True,
         },
     ]
-    requested = _requested_artifact_step(assignment, calc_id)
-    if requested:
-        patch["add_steps"].append(requested)
     return patch
+
+
+def _primary_calculation_step(patch: Mapping[str, Any]) -> str:
+    """The verified calculation/reconciliation the artifact must follow."""
+    for step in patch.get("add_steps") or []:
+        if str((step or {}).get("adapter") or "") in (
+                "quote.calculate", "invoice.reconcile"):
+            return str(step.get("step_id") or "")
+    return ""
 
 
 def _requested_artifact_step(
@@ -888,22 +894,36 @@ def compile_work_request_patch(
     """
     context = dict(context or {})
     if isinstance(request, QuoteCalculationRequest):
-        return _quote_patch(request, assignment, context)
-    if isinstance(request, InvoiceReconciliationRequest):
-        return _invoice_patch(request, assignment, context)
-    try:
-        if isinstance(request, Mapping):
-            operation = str(request.get("operation") or "")
-            if operation == "quote_calculation":
-                return _quote_patch(
-                    QuoteCalculationRequest.model_validate(dict(request)),
-                    assignment, context)
-            if operation == "invoice_reconciliation":
-                return _invoice_patch(
-                    InvoiceReconciliationRequest.model_validate(
-                        dict(request)), assignment, context)
-        raise WorkRequestCompileError(
-            "unsupported work request operation; expected quote_calculation "
-            "or invoice_reconciliation")
-    except ValidationError as exc:
-        raise WorkRequestCompileError(f"invalid work request: {exc}") from exc
+        patch = _quote_patch(request, assignment, context)
+    elif isinstance(request, InvoiceReconciliationRequest):
+        patch = _invoice_patch(request, assignment, context)
+    else:
+        try:
+            if isinstance(request, Mapping):
+                operation = str(request.get("operation") or "")
+                if operation == "quote_calculation":
+                    patch = _quote_patch(
+                        QuoteCalculationRequest.model_validate(dict(request)),
+                        assignment, context)
+                elif operation == "invoice_reconciliation":
+                    patch = _invoice_patch(
+                        InvoiceReconciliationRequest.model_validate(
+                            dict(request)), assignment, context)
+                else:
+                    raise WorkRequestCompileError(
+                        "unsupported work request operation; expected "
+                        "quote_calculation or invoice_reconciliation")
+            else:
+                raise WorkRequestCompileError(
+                    "unsupported work request operation; expected "
+                    "quote_calculation or invoice_reconciliation")
+        except ValidationError as exc:
+            raise WorkRequestCompileError(
+                f"invalid work request: {exc}") from exc
+    # The requested output renders only after the typed calculation or
+    # reconciliation it belongs to has produced a verified receipt.
+    requested = _requested_artifact_step(
+        assignment, _primary_calculation_step(patch))
+    if requested:
+        patch["add_steps"].append(requested)
+    return patch

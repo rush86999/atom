@@ -811,6 +811,48 @@ def _row_columns(rows: List[Dict[str, Any]]) -> List[str]:
     return columns[:8]
 
 
+# Human-facing column labels for the values the typed adapters emit. Unknown
+# columns keep their source header so an unfamiliar source is never relabelled
+# silently.
+_DOCUMENT_COLUMN_LABELS = {
+    "item_id": "Item",
+    "sku": "Item",
+    "description": "Description",
+    "quantity": "Qty",
+    "unit": "Unit",
+    "pack_size": "Pack size",
+    "unit_price": "Unit price",
+    "price_basis": "Price basis",
+    "currency": "Currency",
+    "gross": "Gross",
+    "discount_rate": "Discount rate",
+    "discount_amount": "Discount",
+    "net": "Net",
+    "received_quantity": "Received qty",
+    "invoice_quantity": "Invoice qty",
+    "value": "Value",
+}
+# Internal lineage stays in the audit section instead of the business table.
+_DOCUMENT_AUDIT_COLUMNS = {
+    "source_ref", "evidence", "discount_rule", "resource_id",
+    "source_version", "version", "step_id"}
+_DOCUMENT_SCALAR_TYPES = (str, int, float, bool)
+
+
+def _document_columns(rows: List[Dict[str, Any]]) -> List[str]:
+    columns: List[str] = []
+    for row in rows[:1]:
+        for key, value in row.items():
+            name = str(key)
+            if name == "__sheet_row" or name in _DOCUMENT_AUDIT_COLUMNS:
+                continue
+            if value is not None and not isinstance(
+                    value, _DOCUMENT_SCALAR_TYPES):
+                continue
+            columns.append(name)
+    return columns[:8]
+
+
 def _row_set_label(entry: Dict[str, Any]) -> str:
     label = str(entry.get("source_label") or "").strip()
     if label:
@@ -868,10 +910,12 @@ def _compose_evidence_content(
         lines += ["", "## Findings"]
         for entry in row_sets[:3]:
             rows = entry["rows"]
-            columns = _row_columns(rows)
+            columns = _document_columns(rows)
             lines += ["", f"### {_row_set_label(entry)}"]
             if columns:
-                lines.append("| Row | " + " | ".join(columns) + " |")
+                lines.append("| Row | " + " | ".join(
+                    _DOCUMENT_COLUMN_LABELS.get(column, column)
+                    for column in columns) + " |")
                 lines.append("|" + "---|" * (len(columns) + 1))
                 for row in rows[:10]:
                     values = [
@@ -885,7 +929,54 @@ def _compose_evidence_content(
                 lines += [f"- {row}" for row in rows[:10]]
     lines += ["", "## Sources"]
     lines += [f"- {label}" for label in (labels[:12] or ["authorized source"])]
+    audit = _document_audit_lines(facts, row_sets)
+    if audit:
+        lines += ["", "## Audit"]
+        lines += audit
     return "\n".join(lines)
+
+
+def _document_audit_lines(
+    facts: Sequence[Dict[str, Any]],
+    row_sets: Sequence[Dict[str, Any]],
+) -> List[str]:
+    """Technical lineage kept out of the human-facing tables."""
+    lines: List[str] = []
+    for fact in facts[:8]:
+        step_id = str(fact.get("step_id") or "").strip()
+        if step_id:
+            lines.append(f"- Calculation step: {step_id}")
+    for entry in row_sets[:3]:
+        step_id = str(entry.get("step_id") or "").strip()
+        rows = entry.get("rows") or []
+        summary = f"- Row set: {step_id or 'authorized source'}"
+        if entry.get("source_label"):
+            summary += f" · {entry['source_label']}"
+        summary += f" · {len(rows)} row(s)"
+        lines.append(summary)
+        for row in rows[:10]:
+            ref = row.get("source_ref") if isinstance(
+                row.get("source_ref"), dict) else {}
+            evidence = row.get("evidence") if isinstance(
+                row.get("evidence"), list) else []
+            parts: List[str] = []
+            item = str(row.get("item_id") or "").strip()
+            if item:
+                parts.append(f"item={item}")
+            if ref.get("resource_id"):
+                parts.append(f"resource={ref['resource_id']}")
+            if ref.get("source_version"):
+                parts.append(f"version={ref['source_version']}")
+            for entry_ref in evidence[:2]:
+                if not isinstance(entry_ref, dict):
+                    continue
+                for key in ("row", "sheet", "resource_id", "source_version"):
+                    if entry_ref.get(key) in (None, ""):
+                        continue
+                    parts.append(f"{key}={entry_ref[key]}")
+            if parts:
+                lines.append(f"  - " + " · ".join(parts))
+    return lines
 
 
 def _compose_evidence_text(
