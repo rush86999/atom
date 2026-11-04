@@ -626,8 +626,15 @@ async def _to_thread_safe(fn, *args, on_worker_done=None, **kwargs):
     structured dispatch uses to retain its endpoint reservation until provider
     work has actually stopped.
     """
+    # Each submission gets its own COPY of the caller's context. This is the
+    # same propagation asyncio.to_thread provided, without sharing one Context
+    # across concurrent jobs (which would serialize Context.run and leak
+    # worker-local changes sideways). The copy is created in the caller's
+    # task, before submission, so tenant/workspace/trace scope is inherited
+    # exactly and never re-read from another task later.
+    caller_context = contextvars.copy_context()
     submitted = _worker_executor().submit(
-        _stop_iteration_safe, fn, *args, **kwargs)
+        caller_context.run, _stop_iteration_safe, fn, *args, **kwargs)
     if on_worker_done is not None:
         def _finished(_future):
             try:
@@ -1059,6 +1066,12 @@ _MODEL_ATTEMPT_INFLIGHT: Dict[str, float] = {}  # pair -> claimed_at epoch
 # pair -> (holder label, claimed_at): WHO holds the single-flight claim
 # (owner assignment 1 telemetry; guarded by the same lock).
 _MODEL_ATTEMPT_HOLDERS: Dict[str, tuple] = {}
+# pair -> opaque claim token: the ownership generation for conditional
+# cleanup. A late worker from an expired claim must never pop a newer one.
+_MODEL_ATTEMPT_TOKENS: Dict[str, str] = {}
+# pair -> explicit lease expiry epoch. Kept separate from claimed_at so a
+# retained worker lease can be longer than the ordinary leak TTL.
+_MODEL_ATTEMPT_EXPIRY: Dict[str, float] = {}
 _MODEL_ATTEMPT_INFLIGHT_LOCK = threading.Lock()
 # Claims older than this are LEAKS (a hung/crashed turn that never
 # released) and are stolen by the next caller — a structured call's own
@@ -2679,64 +2692,110 @@ class BYOKHandler:
             return None
         return {"reasoning": {"max_tokens": budget}}
 
-    def _claim_model_attempt(self, provider_id: str, model: str,
-                             holder: str = "") -> bool:
+    def _claim_model_attempt(
+        self, provider_id: str, model: str, holder: str = "",
+        lease_seconds: Optional[float] = None,
+    ) -> Any:
+        """Claim a provider/model pair and return its opaque generation token.
+
+        The token is the ownership proof for cleanup. A worker whose claim
+        lease expired may finish later; it must not release a newer worker's
+        reservation. Every production release/retain passes this token.
+        """
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
             now = time.time()
-            if _MODEL_ATTEMPT_INFLIGHT.get(pair) is not None \
-                    and now - _MODEL_ATTEMPT_INFLIGHT[pair] \
-                    >= _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
-                logger.info(
-                    "[inflight] %s claim by %r STEALS expired hold "
-                    "(held %.0fs)", pair, holder,
-                    now - _MODEL_ATTEMPT_INFLIGHT[pair])
-            # TTL (2026-10-04, the taught-employee job): claims had no
-            # expiry — a turn that hung or crashed between claim and
-            # release held the pair for the PROCESS LIFETIME, and every
-            # later turn skipped the healthy route as "model_inflight"
-            # (live: opencode-go/kimi-k2.7-code blocked across turns while
-            # openrouter's corpse led every ranking). A claim older than
-            # the TTL is a leak: steal it.
-            _claimed_at = _MODEL_ATTEMPT_INFLIGHT.get(pair)
-            if _claimed_at is not None:
-                if now - _claimed_at < _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
+            claimed_at = _MODEL_ATTEMPT_INFLIGHT.get(pair)
+            if claimed_at is not None:
+                held_by, held_since = _MODEL_ATTEMPT_HOLDERS.get(
+                    pair, (None, None))
+                expires = _MODEL_ATTEMPT_EXPIRY.get(pair)
+                # Compatibility with callers/tests that directly adjust the
+                # legacy claimed_at clock: if it no longer matches the
+                # holder's original claim time, honor the legacy TTL from
+                # that clock instead of a stale explicit lease.
+                if (held_since is None
+                        or abs(float(claimed_at) - float(held_since)) > 1e-6):
+                    expires = (
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS)
+                elif expires is None:
+                    expires = (
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS)
+                else:
+                    expires = max(
+                        float(expires),
+                        claimed_at + _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
+                    )
+                if now < expires:
                     return False
                 logger.warning(
                     f"{pair} inflight claim expired after "
-                    f"{now - _claimed_at:.0f}s — stealing (leaked claim)")
-            # SINGLE-FLIGHT TELEMETRY (2026-10-08 owner assignment 1):
-            # who holds which pair, for how long, and when it releases —
-            # the deconfliction picture for the turn's own overlapped
-            # planning legs vs the async continuation.
+                    f"{now - claimed_at:.0f}s — stealing (leaked claim)")
+                # Clear the old generation before installing the new one.
+                _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
+                _MODEL_ATTEMPT_HOLDERS.pop(pair, None)
+                _MODEL_ATTEMPT_TOKENS.pop(pair, None)
+                _MODEL_ATTEMPT_EXPIRY.pop(pair, None)
+            token = uuid.uuid4().hex
+            try:
+                lease = max(1.0, float(lease_seconds))
+            except (TypeError, ValueError):
+                lease = _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS
             _MODEL_ATTEMPT_HOLDERS[pair] = (holder or "?", now)
             _MODEL_ATTEMPT_INFLIGHT[pair] = now
-            return True
+            _MODEL_ATTEMPT_TOKENS[pair] = token
+            _MODEL_ATTEMPT_EXPIRY[pair] = now + lease
+            return token
 
-    def _release_model_attempt(self, provider_id: str, model: str,
-                               holder: str = "") -> None:
+    def _release_model_attempt(
+        self, provider_id: str, model: str, holder: str = "",
+        token: Optional[str] = None,
+    ) -> bool:
+        """Release a claim only for the generation that owns it.
+
+        ``token`` is authoritative. Without a token, a named holder can only
+        release the same holder's live claim (the legacy diagnostic path);
+        an unnamed release remains the explicit test/cleanup escape hatch.
+        """
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
+            current_token = _MODEL_ATTEMPT_TOKENS.get(pair)
+            current_holder = _MODEL_ATTEMPT_HOLDERS.get(
+                pair, (None, None))[0]
+            if token is not None and current_token != token:
+                logger.info(
+                    "[inflight] %s stale release ignored (token generation "
+                    "changed)", pair)
+                return False
+            if (token is None and holder and current_holder
+                    and holder != current_holder):
+                logger.info(
+                    "[inflight] %s stale release ignored by %r (held by %r)",
+                    pair, holder, current_holder)
+                return False
             claimed_at = _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
             held_by, held_since = _MODEL_ATTEMPT_HOLDERS.pop(
                 pair, (None, None))
+            _MODEL_ATTEMPT_TOKENS.pop(pair, None)
+            _MODEL_ATTEMPT_EXPIRY.pop(pair, None)
             if claimed_at is not None:
-                # A running-worker lease back-dates the TTL clock; report the
-                # original hold time so the diagnosis is not inflated.
                 started = held_since or claimed_at
                 logger.info(
                     "[inflight] %s released by %r after %.1fs", pair,
                     held_by or holder or "?", time.time() - started)
+                return True
+            return False
 
-    def _retain_model_attempt(self, provider_id: str, model: str,
-                              seconds: float) -> None:
-        """Extend a live single-flight claim for a worker that outlived its
-        awaiting coroutine.
+    def _retain_model_attempt(
+        self, provider_id: str, model: str, seconds: float,
+        token: Optional[str] = None, holder: str = "",
+    ) -> bool:
+        """Extend the EXACT live claim for a worker that outlived its awaiter.
 
-        The awaiter being cancelled is not evidence that the synchronous
-        provider call stopped. Keep the claim until the worker's real future
-        completes, bounded by the provider request timeout plus a margin. The
-        ordinary TTL still recovers a leaked claim if the worker never exits.
+        The lease is stored as an explicit expiry, so a retention longer than
+        the ordinary leak TTL is represented correctly. A stale token or
+        holder cannot extend a replacement worker's claim, and a claim that
+        was already released is never resurrected.
         """
         pair = f"{provider_id}/{model}"
         try:
@@ -2745,15 +2804,29 @@ class BYOKHandler:
             keep = _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
             if pair not in _MODEL_ATTEMPT_INFLIGHT:
-                return
-            # Claim age is measured from claimed_at. Back-date it so the TTL
-            # expires after ``keep`` seconds rather than immediately.
-            _MODEL_ATTEMPT_INFLIGHT[pair] = (
-                time.time() - max(
-                    0.0, _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS - keep))
+                logger.info(
+                    "[inflight] %s retain ignored — claim already released",
+                    pair)
+                return False
+            current_token = _MODEL_ATTEMPT_TOKENS.get(pair)
+            current_holder = _MODEL_ATTEMPT_HOLDERS.get(
+                pair, (None, None))[0]
+            if token is not None and current_token != token:
+                logger.info(
+                    "[inflight] %s stale retain ignored (token generation "
+                    "changed)", pair)
+                return False
+            if (token is None and holder and current_holder
+                    and holder != current_holder):
+                logger.info(
+                    "[inflight] %s stale retain ignored by %r (held by %r)",
+                    pair, holder, current_holder)
+                return False
+            _MODEL_ATTEMPT_EXPIRY[pair] = time.time() + keep
             logger.info(
-                "[inflight] %s retained for a running worker (%.0fs lease)",
-                pair, keep)
+                "[inflight] %s retained for a running worker (%.0fs lease, "
+                "explicit expiry)", pair, keep)
+            return True
 
     def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
         """True while a (provider, model) pair is benched for bad output."""
@@ -6609,22 +6682,54 @@ class BYOKHandler:
                         provider_id, model, _cap)
                     if _reasoning_body:
                         _req_kwargs["extra_body"] = _reasoning_body
-                    if not self._claim_model_attempt(
-                            provider_id, model,
-                            holder="completion:" + str(
-                                task_type or "general")):
+                    _claim_holder = "completion:" + str(
+                        task_type or "general")
+                    _claim_token = self._claim_model_attempt(
+                        provider_id, model, holder=_claim_holder)
+                    if not _claim_token:
                         logger.info(
                             "Skipping %s/%s: model attempt already in flight",
                             provider_id, model,
                         )
                         continue
+                    _release_state = {
+                        "released": False,
+                        "lock": threading.Lock(),
+                    }
+
+                    def _release_once(*_args):
+                        with _release_state["lock"]:
+                            if _release_state["released"]:
+                                return
+                            _release_state["released"] = True
+                        self._release_model_attempt(
+                            provider_id, model, holder=_claim_holder,
+                            token=_claim_token)
+
                     try:
                         response = await _to_thread_safe(
                             client.chat.completions.create,
+                            on_worker_done=_release_once,
                             **_req_kwargs,
                         )
-                    finally:
-                        self._release_model_attempt(provider_id, model)
+                    except asyncio.CancelledError:
+                        _worker_lease = max(
+                            _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
+                            (
+                                _ollama_request_timeout()
+                                if provider_id == "ollama"
+                                else _llm_request_timeout()
+                            ) + 30.0,
+                        )
+                        self._retain_model_attempt(
+                            provider_id, model, _worker_lease,
+                            token=_claim_token, holder=_claim_holder)
+                        raise
+                    except BaseException:
+                        _release_once()
+                        raise
+                    else:
+                        _release_once()
                     self._capture_echoed_model(response)
                     self._stash_last_reasoning(response)
                     self._clear_model_cooldown(provider_id, model)
@@ -8814,17 +8919,23 @@ class BYOKHandler:
                                 "lock": threading.Lock(),
                             }
 
+                            _claim_token: Optional[str] = None
+
                             def _release_once(*_args):
                                 with _release_state["lock"]:
                                     if _release_state["released"]:
                                         return
                                     _release_state["released"] = True
                                 self._release_model_attempt(
-                                    provider_id, model)
+                                    provider_id, model, holder=_holder,
+                                    token=_claim_token)
                             _claim_wait_deadline = time.time() + float(
                                 claim_wait_seconds or 20.0)
-                            while not self._claim_model_attempt(
-                                    provider_id, model, holder=_holder):
+                            while not _claim_token:
+                                _claim_token = self._claim_model_attempt(
+                                    provider_id, model, holder=_holder)
+                                if _claim_token:
+                                    break
                                 if time.time() >= _claim_wait_deadline:
                                     raise _ModelAttemptInFlight(
                                         f"{provider_id}/{model} claim "
@@ -8888,7 +8999,8 @@ class BYOKHandler:
                                     ) + 30.0,
                                 )
                                 self._retain_model_attempt(
-                                    provider_id, model, _worker_lease)
+                                    provider_id, model, _worker_lease,
+                                    token=_claim_token, holder=_holder)
                                 logger.warning(
                                     "[structured-cancelled] %s/%s "
                                     "route=%s attempt=%d waited=%.1fs "
@@ -10242,9 +10354,10 @@ class BYOKHandler:
                 # provider: openrouter …` then, 115 s later, `reply generation:
                 # 115.0s` with no zero-chunk warning and no first-visible
                 # abort — neither bound could fire).
-                if not self._claim_model_attempt(
-                        attempt_provider_id, model,
-                        holder="structured:" + str(task_type or "?")):
+                _claim_holder = "structured:" + str(task_type or "?")
+                _claim_token = self._claim_model_attempt(
+                    attempt_provider_id, model, holder=_claim_holder)
+                if not _claim_token:
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
@@ -10259,7 +10372,9 @@ class BYOKHandler:
                     else:
                         stream = await client.chat.completions.create(**create_kwargs)
                 finally:
-                    self._release_model_attempt(attempt_provider_id, model)
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
                 # Bound inter-chunk silence (see _stream_with_idle_watchdog).
                 _idle_s = _stream_idle_timeout_seconds()
                 if _idle_s and _idle_s > 0:
@@ -10982,9 +11097,10 @@ class BYOKHandler:
             _attempt_cost: Optional[float] = None
             try:
                 request_start = datetime.now()
-                if not self._claim_model_attempt(
-                        attempt_provider_id, model,
-                        holder="structured:" + str(task_type or "?")):
+                _claim_holder = "structured:" + str(task_type or "?")
+                _claim_token = self._claim_model_attempt(
+                    attempt_provider_id, model, holder=_claim_holder)
+                if not _claim_token:
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
@@ -10993,7 +11109,9 @@ class BYOKHandler:
                 try:
                     response = await client.chat.completions.create(**_attempt_kwargs)
                 finally:
-                    self._release_model_attempt(attempt_provider_id, model)
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
                 self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 
