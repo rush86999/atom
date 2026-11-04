@@ -1,0 +1,136 @@
+
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route 
+-------------------------------- live log setup --------------------------------
+2026-11-04 16:59:47 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 16:59:47 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 16:59:47 [    INFO] EscalationManager initialized
+2026-11-04 16:59:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 16:59:47 [    INFO] EscalationManager initialized
+2026-11-04 16:59:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 16:59:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 16:59:47 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:47 [    INFO] EscalationManager initialized
+2026-11-04 16:59:47 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [    INFO] LocalOnlyGuard initialized
+2026-11-04 16:59:48 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-04 16:59:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 16:59:48 [    INFO] [LearningRouter] auto-mode readiness: 416 verdict row(s) in the last 7d, 4 model(s) with >= 8 observations -> re-ranking ENABLED (thresholds: >=30 rows, >=2 models)
+2026-11-04 16:59:48 [    INFO] Initialized router with 30 models
+2026-11-04 16:59:48 [    INFO] Loaded 416 routing feedback rows from DB
+2026-11-04 16:59:48 [    INFO] Learning router hydrated 416 feedback rows from DB
+2026-11-04 16:59:48 [    INFO] Learning router singleton initialized
+2026-11-04 16:59:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 16:59:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4a9ae800a698 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 16:59:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4a9ae800a698 attempt=1
+2026-11-04 16:59:48 [    INFO] Loaded 1 per-model predictors from data/router_models/per_model
+2026-11-04 16:59:48 [    INFO] Trained per-model predictor for llama3.1:8b: samples=40, accuracy=0.900
+2026-11-04 16:59:48 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 52 samples; predictors=[llama3.1:8b(0.90)]
+PASSED                                                                   [ 11%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_enforces_the_caller_deadline PASSED [ 22%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_measured_failure_excludes_cheap_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [    INFO] EscalationManager initialized
+2026-11-04 16:59:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 16:59:48 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 16:59:48 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-808a2f2e13bd attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 16:59:48 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-808a2f2e13bd attempt=1
+2026-11-04 16:59:48 [    INFO] Trained per-model predictor for llama3.1:8b: samples=40, accuracy=0.900
+2026-11-04 16:59:48 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 53 samples; predictors=[llama3.1:8b(0.90)]
+PASSED                                                                   [ 33%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_failed_costlier_route_does_not_displace_cheap 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [    INFO] EscalationManager initialized
+2026-11-04 16:59:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 16:59:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 16:59:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d4ed3e831f35 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 16:59:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d4ed3e831f35 attempt=1
+2026-11-04 16:59:48 [    INFO] Trained per-model predictor for llama3.1:8b: samples=41, accuracy=0.902
+2026-11-04 16:59:48 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 54 samples; predictors=[llama3.1:8b(0.90)]
+PASSED                                                                   [ 44%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_scope_failure_never_borrows_another_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [ WARNING] employee work proposal call raised: workspace resolution for tenant 'tenant-gone' is unresolved (unknown_tenant); dispatch refused rather than substituting another scope
+PASSED                                                                   [ 55%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [    INFO] EscalationManager initialized
+2026-11-04 16:59:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-04 16:59:48 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_adaptive_planning': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [ 66%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_no_eligible_route_keeps_deterministic_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [    INFO] EscalationManager initialized
+2026-11-04 16:59:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-04 16:59:48 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [ 77%]
+tests/test_employee_byok_consumer_routing.py::test_employee_wait_choice_uses_the_dedicated_profile 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:48 [    INFO] EscalationManager initialized
+2026-11-04 16:59:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:48 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 16:59:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 16:59:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-8b843f7726c6 attempt=1 prompt_chars=12424 cap=1800 instructor_retries=0
+2026-11-04 16:59:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-8b843f7726c6 attempt=1
+2026-11-04 16:59:49 [    INFO] Trained per-model predictor for llama3.1:8b: samples=42, accuracy=0.905
+2026-11-04 16:59:49 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 55 samples; predictors=[llama3.1:8b(0.90)]
+PASSED                                                                   [ 88%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_auto_route_records_served_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 16:59:49 [    INFO] EscalationManager initialized
+2026-11-04 16:59:49 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 16:59:49 [    INFO] BPC Ranking Successful for complex: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 16:59:49 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 16:59:49 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-5a1bdeee856f attempt=1 prompt_chars=1776 cap=1200 instructor_retries=0
+2026-11-04 16:59:49 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-5a1bdeee856f attempt=1
+2026-11-04 16:59:49 [    INFO] Trained per-model predictor for llama3.1:8b: samples=43, accuracy=0.907
+2026-11-04 16:59:49 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 56 samples; predictors=[llama3.1:8b(0.91)]
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 18 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_employee_byok_consumer_routing.py: 14 warnings
+  /private/tmp/atom-full-app/backend/core/llm/byok_handler.py:2385: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route
+  /private/tmp/atom-full-app/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 9 passed, 39 warnings in 9.77s ========================
