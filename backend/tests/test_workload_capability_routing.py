@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -484,10 +485,13 @@ def test_explicit_quality_preference_can_choose_stronger_eligible_route():
 # ---------------------------------------------------------------------------
 # Verifier boundary repairs
 # ---------------------------------------------------------------------------
-def _scoped_rows(profile, *, quality=True, workspace="ws-a", failure=""):
+def _scoped_rows(profile, *, quality=True, workspace="ws-a", failure="",
+                 created_at=None):
     return [{
         "tenant_id": "t-a", "model_id": "flash", "success": True,
         "quality_satisfied": quality,
+        "created_at": created_at or (
+            datetime.now(timezone.utc) - timedelta(seconds=10)),
         "prompt_features": {
             "capability_profile": profile.name,
             "profile_version": profile.version,
@@ -554,10 +558,11 @@ def test_single_unsafe_outcome_quarantines_until_reviewed_recovery(
         extraction, [_flash_candidate()], evidence={})
     assert other["outcome"] == "selected"
 
+    incident_id = evidence["fast/flash"]["incidents"][0]["incident_id"]
     recover_capability_quarantine(
         profile, "fast", "flash", reviewed_by="safety-reviewer",
-        reason="reviewed fixture recovery", workspace_id="ws-a",
-        tenant_id="t-a")
+        reason="reviewed fixture recovery", incident_ids=[incident_id],
+        workspace_id="ws-a", tenant_id="t-a")
     recovered = apply_capability_recoveries(
         profile, parse_evidence_rows(
             rows, profile, workspace_id="ws-a", tenant_id="t-a"),
@@ -699,3 +704,51 @@ def test_semantic_failure_overrides_transport_and_quality_flags():
     result = select_profile_candidates(
         profile, [_flash_candidate()], evidence=evidence)
     assert result["outcome"] == "no_suitable", result
+
+
+def test_old_recovery_does_not_release_a_new_unsafe_incident(
+        tmp_path, monkeypatch):
+    from core.llm.capability_profiles import (
+        apply_capability_recoveries, recover_capability_quarantine,
+        reset_capability_journal_memory,
+    )
+
+    journal = tmp_path / "epoch.json"
+    monkeypatch.setenv("ATOM_CAPABILITY_ROUTING_JOURNAL", str(journal))
+    reset_capability_journal_memory()
+    profile = get_profile("employee_adaptive_planning")
+    # A review from an earlier epoch, bound to an incident that is not the
+    # new one.
+    recover_capability_quarantine(
+        profile, "fast", "flash", reviewed_by="reviewer",
+        reason="reviewed an earlier incident", incident_ids=["old-incident"],
+        workspace_id="ws-a", tenant_id="t-a")
+    rows = _scoped_rows(
+        profile, quality=False, failure="unsafe_action",
+        created_at=datetime.now(timezone.utc))[:1]
+    evidence = parse_evidence_rows(
+        rows, profile, workspace_id="ws-a", tenant_id="t-a")
+    incident_id = evidence["fast/flash"]["incidents"][0]["incident_id"]
+    recovered = apply_capability_recoveries(
+        profile, evidence, workspace_id="ws-a", tenant_id="t-a")
+    assert select_profile_candidates(
+        profile, [_flash_candidate()], evidence=recovered)["outcome"] == (
+            "no_suitable")
+
+    # A review of the new incident releases it; duplicate review stays
+    # idempotent.
+    recover_capability_quarantine(
+        profile, "fast", "flash", reviewed_by="reviewer",
+        reason="reviewed the new incident", incident_ids=[incident_id],
+        workspace_id="ws-a", tenant_id="t-a")
+    recovered = apply_capability_recoveries(
+        profile, evidence, workspace_id="ws-a", tenant_id="t-a")
+    assert select_profile_candidates(
+        profile, [_flash_candidate()], evidence=recovered)["outcome"] == (
+            "selected")
+    again = apply_capability_recoveries(
+        profile, recovered, workspace_id="ws-a", tenant_id="t-a")
+    assert select_profile_candidates(
+        profile, [_flash_candidate()], evidence=again)["outcome"] == (
+            "selected")
+    assert again["fast/flash"]["samples"] == 0

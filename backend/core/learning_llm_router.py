@@ -1870,6 +1870,16 @@ class LearningBasedRouter:
                     prompt_features=prompt_features,
                 )
                 db.add(row)
+                # Fresh outcome evidence invalidates the live capability
+                # selector cache; restart reads the same persisted rows.
+                try:
+                    from core.llm.capability_profiles import (
+                        reset_capability_evidence_cache,
+                    )
+
+                    reset_capability_evidence_cache()
+                except Exception:  # noqa: BLE001 — cache reset is best-effort
+                    pass
         except Exception as e:
             logger.warning(
                 f"Could not persist routing feedback to DB (non-fatal, "

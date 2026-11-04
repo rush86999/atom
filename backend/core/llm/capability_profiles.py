@@ -21,6 +21,7 @@ import os
 import tempfile
 import threading
 import time
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
@@ -169,6 +170,49 @@ def get_profile(name: str) -> CapabilityProfile:
     return profile
 
 
+def _created_at(row: Mapping[str, Any]) -> Tuple[Optional[str], Optional[float]]:
+    created = row.get("created_at")
+    if created is None:
+        return None, None
+    if hasattr(created, "timestamp"):
+        try:
+            return created.isoformat(), float(created.timestamp())
+        except (TypeError, ValueError, OSError):
+            return str(created), None
+    if isinstance(created, (int, float)):
+        return str(created), float(created)
+    text = str(created).strip()
+    if not text:
+        return None, None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return text, parsed.timestamp()
+    except ValueError:
+        return text, None
+
+
+def _refresh_failure_summary(bucket: Dict[str, Any]) -> None:
+    active = [
+        incident for incident in bucket.get("incidents") or []
+        if not incident.get("reviewed_by")
+    ]
+    bucket["unsafe_failures"] = sum(
+        1 for item in active if item.get("kind") == "unsafe_action")
+    bucket["semantic_failures"] = sum(
+        1 for item in active if item.get("kind") == "semantic_failure")
+    bucket["failure_kinds"] = {
+        str(item.get("kind")) for item in active if item.get("kind")}
+    if active:
+        latest = max(
+            active,
+            key=lambda item: (
+                item.get("timestamp") if item.get("timestamp") is not None
+                else float("-inf"), item.get("incident_id") or ""))
+        bucket["last_failure_kind"] = str(latest.get("kind") or "")
+    else:
+        bucket["last_failure_kind"] = ""
+
+
 def parse_evidence_rows(
     rows: Iterable[Mapping[str, Any]],
     profile: CapabilityProfile,
@@ -176,17 +220,19 @@ def parse_evidence_rows(
     workspace_id: str = "",
     tenant_id: str = "",
 ) -> Dict[str, Dict[str, Any]]:
-    """Aggregate existing LLMRoutingFeedback-shaped rows for one profile.
+    """Aggregate feedback rows, preserving failure incident identities.
 
-    Scope and version are part of the key: a row from another workspace,
-    another tenant, an older profile version or an unrelated task never
-    poisons this profile. Rows without capability metadata are ignored for
-    task-specific selection (they remain useful to the existing learning
-    router).
+    Scope/version is exact. Each unsafe/semantic failure carries a stable
+    incident id and timestamp so reviewed recovery can release only the
+    observations actually reviewed; missing ordering fails closed later.
     """
     evidence: Dict[str, Dict[str, Any]] = {}
     cutoff = time.time() - profile.evidence_window_days * 86400
-    for row in rows:
+    semantic_failure_kinds = {
+        "semantic_failure", "invented_fact",
+        "invalid_plan_reference", "wrong_field_mapping",
+    }
+    for index, row in enumerate(rows):
         features = row.get("prompt_features")
         if not isinstance(features, Mapping):
             continue
@@ -195,29 +241,18 @@ def parse_evidence_rows(
         if str(features.get("profile_version") or "") != profile.version:
             continue
         row_workspace = str(features.get("workspace_id") or "").strip()
-        # Exact scope only. Missing scope is unknown evidence, never inferred
-        # from the current reader (verifier boundary 4).
         if workspace_id and row_workspace != str(workspace_id):
             continue
         row_tenant = str(
             row.get("tenant_id") or features.get("tenant_id") or "").strip()
         if tenant_id and row_tenant != str(tenant_id):
             continue
-        created = row.get("created_at")
-        if created is not None:
-            try:
-                stamp = (
-                    created.timestamp() if hasattr(created, "timestamp")
-                    else float(created))
-                if stamp < cutoff:
-                    continue
-            except (TypeError, ValueError):
-                pass
+        created_text, created_ts = _created_at(row)
+        if created_ts is not None and created_ts < cutoff:
+            continue
         model = str(row.get("model_id") or "").strip()
         provider = str(features.get("route_provider")
                        or features.get("provider_id") or "").strip()
-        # A model name alone is not a provider configuration identity: it
-        # must not transfer evidence across providers (verifier boundary 4).
         if not model or not provider:
             continue
         key = f"{provider}/{model}"
@@ -225,22 +260,14 @@ def parse_evidence_rows(
             "samples": 0, "successes": 0, "quality_successes": 0,
             "semantic_failures": 0, "unsafe_failures": 0,
             "retries": 0, "latency_ms": None, "last_failure_kind": "",
-            "failure_kinds": set(),
+            "failure_kinds": set(), "incidents": [],
             "profile": profile.name, "profile_version": profile.version,
-            "workspace_id": row_workspace or workspace_id,
-            "tenant_id": row_tenant or tenant_id,
+            "workspace_id": row_workspace, "tenant_id": row_tenant,
         })
         bucket["samples"] += 1
         failure_kind = str(features.get("failure_kind") or "").strip()
-        semantic_failure_kinds = {
-            "semantic_failure", "invented_fact",
-            "invalid_plan_reference", "wrong_field_mapping",
-        }
         unsafe = failure_kind == "unsafe_action"
         semantic = failure_kind in semantic_failure_kinds
-        # A transport-successful response is not a satisfactory business
-        # outcome. Require explicit quality satisfaction AND no known
-        # semantic/unsafe failure (verifier boundary 2).
         satisfactory = (
             bool(row.get("success"))
             and bool(row.get("quality_satisfied"))
@@ -248,13 +275,31 @@ def parse_evidence_rows(
         if satisfactory:
             bucket["successes"] += 1
             bucket["quality_successes"] += 1
-        if failure_kind:
-            bucket["last_failure_kind"] = failure_kind
-            bucket["failure_kinds"].add(failure_kind)
-            if unsafe:
-                bucket["unsafe_failures"] += 1
-            elif semantic:
-                bucket["semantic_failures"] += 1
+        if unsafe or semantic:
+            explicit_id = str(
+                row.get("incident_id") or row.get("id")
+                or row.get("routing_result_id") or "").strip()
+            if not explicit_id:
+                explicit_id = "feedback-" + hashlib.sha256(
+                    json.dumps({
+                        "profile": profile.name,
+                        "profile_version": profile.version,
+                        "workspace_id": row_workspace,
+                        "tenant_id": row_tenant,
+                        "provider": provider, "model": model,
+                        "created_at": created_text,
+                        "failure_kind": failure_kind,
+                        "index": index,
+                    }, sort_keys=True, default=str).encode()).hexdigest()[:24]
+            bucket["incidents"].append({
+                "incident_id": explicit_id,
+                "kind": "unsafe_action" if unsafe else "semantic_failure",
+                "timestamp": created_ts,
+                "created_at": created_text,
+                "route": key,
+                "reviewed_by": None,
+                "reviewed_at": None,
+            })
         if bool(features.get("retry")):
             bucket["retries"] += 1
         latency = row.get("actual_latency_ms")
@@ -263,6 +308,8 @@ def parse_evidence_rows(
                 bucket["latency_ms"] = float(latency)
             except (TypeError, ValueError):
                 pass
+    for bucket in evidence.values():
+        _refresh_failure_summary(bucket)
     return evidence
 
 
@@ -709,24 +756,33 @@ def recover_capability_quarantine(
     *,
     reviewed_by: str,
     reason: str = "",
+    incident_ids: Optional[Sequence[str]] = None,
     workspace_id: str = "",
     tenant_id: str = "",
 ) -> Dict[str, Any]:
-    """Explicit reviewed recovery for one profile/route quarantine.
+    """Explicit reviewed recovery for exact incidents on one route.
 
-    This records the review, not an automatic clearing. Historical feedback
-    rows remain intact; subsequent evidence reads apply this recovery only to
-    the exact profile/version/route/scope. No route outside the quarantine is
-    affected.
+    ``incident_ids`` must name the feedback observations actually reviewed.
+    A recovery with no incident binding is audit-only and releases nothing.
+    Incidents later than the review are never released by an older recovery.
+    Duplicate recovery is idempotent.
     """
     if not str(reviewed_by or "").strip():
         raise ValueError("reviewed_by is required for quarantine recovery")
+    if not str(reason or "").strip():
+        raise ValueError("reason is required for quarantine recovery")
+    ids = sorted({
+        str(item).strip() for item in (incident_ids or [])
+        if str(item).strip()
+    })
+    reset_capability_evidence_cache()
     return record_capability_decision({
         "event": "recovery",
         "profile": profile.metadata(),
         "route": [str(provider), str(model)],
         "reviewed_by": str(reviewed_by)[:200],
-        "reason": str(reason or "")[:800],
+        "reason": str(reason)[:800],
+        "incident_ids": ids,
         "workspace_id": str(workspace_id or ""),
         "tenant_id": str(tenant_id or ""),
     })
@@ -739,7 +795,7 @@ def apply_capability_recoveries(
     workspace_id: str = "",
     tenant_id: str = "",
 ) -> Dict[str, Dict[str, Any]]:
-    """Apply exact-scope reviewed recoveries to parsed profile evidence."""
+    """Apply reviewed recoveries only to the exact incidents they name."""
     recoveries = [
         entry for entry in capability_decisions(
             200, workspace_id=workspace_id, tenant_id=tenant_id)
@@ -757,14 +813,31 @@ def apply_capability_recoveries(
         bucket = evidence.get(key)
         if not bucket:
             continue
-        cleared = int(bucket.get("unsafe_failures") or 0) + int(
-            bucket.get("semantic_failures") or 0)
-        bucket["samples"] = max(
-            0, int(bucket.get("samples") or 0) - cleared)
-        bucket["unsafe_failures"] = 0
-        bucket["semantic_failures"] = 0
-        bucket["last_failure_kind"] = ""
-        bucket["failure_kinds"] = set()
-        bucket["recovered_by"] = entry.get("reviewed_by")
-        bucket["recovery_reason"] = entry.get("reason")
+        reviewed_ids = {
+            str(item).strip() for item in (entry.get("incident_ids") or [])
+            if str(item).strip()
+        }
+        if not reviewed_ids:
+            continue
+        _text, review_ts = _created_at({"created_at": entry.get("at")})
+        if review_ts is None:
+            continue
+        changed = False
+        for incident in bucket.get("incidents") or []:
+            if str(incident.get("incident_id") or "") not in reviewed_ids:
+                continue
+            if incident.get("reviewed_by"):
+                continue
+            incident_ts = incident.get("timestamp")
+            if incident_ts is None or float(incident_ts) > review_ts:
+                continue
+            incident["reviewed_by"] = entry.get("reviewed_by")
+            incident["reviewed_at"] = entry.get("at")
+            if int(bucket.get("samples") or 0) > 0:
+                bucket["samples"] = int(bucket["samples"]) - 1
+            changed = True
+        if changed:
+            _refresh_failure_summary(bucket)
+            bucket["recovered_by"] = entry.get("reviewed_by")
+            bucket["recovery_reason"] = entry.get("reason")
     return evidence

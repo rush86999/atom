@@ -8059,7 +8059,7 @@ class BYOKHandler:
                 if _capability is not None:
                     _forced_evidence = load_feedback_evidence(
                         _capability,
-                        workspace_id=workspace_id,
+                        workspace_id=self.workspace_id or "default",
                         tenant_id=self.tenant_id or "default",
                         policy_revision=str(getattr(
                             getattr(self, "provider_policy", None),
@@ -8096,7 +8096,7 @@ class BYOKHandler:
                             "selected" if _guard_ok else "no_suitable"),
                         "candidates": [list(r) for r in _forced_pool],
                         "allowed": [list(r) for r in _allowed_routes],
-                        "workspace_id": workspace_id,
+                        "workspace_id": self.workspace_id or "default",
                         "tenant_id": self.tenant_id or "default",
                     })
                     if not _guard_ok:
@@ -8132,7 +8132,7 @@ class BYOKHandler:
             if provider_model is not None and _capability is not None:
                 _pin_evidence = load_feedback_evidence(
                     _capability,
-                    workspace_id=workspace_id,
+                    workspace_id=self.workspace_id or "default",
                     tenant_id=self.tenant_id or "default",
                     policy_revision=str(getattr(
                         getattr(self, "provider_policy", None),
@@ -8168,7 +8168,7 @@ class BYOKHandler:
                     "eligible": _pin_decision["eligible"],
                     "reasons": _pin_decision["reasons"],
                     "evidence_state": _pin_decision["evidence_state"],
-                    "workspace_id": workspace_id,
+                    "workspace_id": self.workspace_id or "default",
                     "tenant_id": self.tenant_id or "default",
                 })
                 if not _pin_decision["eligible"]:
@@ -8296,7 +8296,7 @@ class BYOKHandler:
                     "event": "bounded_cascade",
                     "profile": _capability.metadata(),
                     "routes": [list(route) for route in options],
-                    "workspace_id": workspace_id,
+                    "workspace_id": self.workspace_id or "default",
                     "tenant_id": self.tenant_id or "default",
                 })
 

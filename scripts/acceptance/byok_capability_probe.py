@@ -8,6 +8,7 @@ model campaign or spend.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
 from core.llm.capability_profiles import (
     apply_capability_recoveries,
@@ -67,6 +68,7 @@ def main() -> int:
         return [{
             "tenant_id": "t-a", "model_id": "flash", "success": True,
             "quality_satisfied": quality,
+            "created_at": datetime.now(timezone.utc) - timedelta(seconds=10),
             "prompt_features": {
                 "capability_profile": profile.name,
                 "profile_version": profile.version,
@@ -91,9 +93,12 @@ def main() -> int:
     unsafe_blocked = select_profile_candidates(
         profile, [candidate("fast", "flash", 90, 1.0)],
         evidence=unsafe_evidence)
+    unsafe_incident_id = unsafe_evidence["fast/flash"][
+        "incidents"][0]["incident_id"]
     recover_capability_quarantine(
         profile, "fast", "flash", reviewed_by="probe-reviewer",
-        reason="controlled recovery", workspace_id="ws-a",
+        reason="controlled recovery",
+        incident_ids=[unsafe_incident_id], workspace_id="ws-a",
         tenant_id="t-a")
     recovered = apply_capability_recoveries(
         profile, parse_evidence_rows(
