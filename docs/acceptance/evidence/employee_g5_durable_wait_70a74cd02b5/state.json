@@ -1,0 +1,2064 @@
+{
+ "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+ "taught_terms": {
+  "currency": "USD",
+  "freight": "20.00",
+  "tax_basis": "none"
+ },
+ "request_status": 200,
+ "request": {
+  "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+  "agent_id": "5a34a8c8-d1cb-4ab2-bd43-8840061aa249",
+  "sources": [
+   {
+    "kind": "workbook",
+    "dataset_name": "upload_price_book__prices",
+    "source": "upload",
+    "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+    "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+    "sheet": "Prices"
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_ea253b5b31a81a65f1cff387",
+    "dataset_name": null,
+    "source": "manual_upload",
+    "external_id": "upload_doc_ea253b5b31a81a65f1cff387",
+    "source_version": "ev4:ea253b5b31a81a65f1cff387dfbfff5aa7a62415b8dbd11fd5c57bea6c8d26b4",
+    "sheet": null
+   },
+   {
+    "kind": "document",
+    "document_id": "doc_53bfd5c90e4420494fda63c0",
+    "dataset_name": null,
+    "source": "manual_upload",
+    "external_id": "upload_doc_53bfd5c90e4420494fda63c0",
+    "source_version": "ev4:53bfd5c90e4420494fda63c0405fbb8b8da73ee9c5dcf0ee1e01963b3c51fd76",
+    "sheet": null
+   }
+  ],
+  "task_context": {},
+  "authorized_actions": [
+   "retrieve",
+   "calculate"
+  ],
+  "teaching_terms": {
+   "currency": "USD",
+   "freight": "20.00",
+   "tax_basis": "none"
+  },
+  "requested_output": "document",
+  "budget": {
+   "max_steps": 20
+  },
+  "use_model": true
+ },
+ "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+ "response": {
+  "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+  "assignment": {
+   "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+   "assignment": {
+    "assignment_id": "asg-768d10d199f24373",
+    "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+    "employee_id": "41020066-53cb-4005-ae75-ce8cdfa991b7",
+    "workspace_id": "default",
+    "plan_revision": 5,
+    "status": "waiting",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "69d930ed2bb8ff67e8898a52767eb121",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [
+     {
+      "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+      "operation": "invoice_reconciliation",
+      "label": "invoice reconciliation",
+      "subject": "purchase order PO-8841",
+      "fact": "receiving evidence for purchase order PO-8841",
+      "correlation_id": "await-c44df7cdb608245de632",
+      "status": "unresolved",
+      "next_action": "Answer the authorized request for receiving evidence for purchase order PO-8841."
+     }
+    ],
+    "deliverables": [
+     {
+      "deliverable_id": "del-requested-output",
+      "kind": "document",
+      "description": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+      "required": true,
+      "step_id": "requested-artifact",
+      "status": "pending",
+      "artifact_revision": null,
+      "artifact_path": null,
+      "sha256": null
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "448ac0da-6270-4d67-9b2f-77f4bb7c6f42",
+       "dataset_name": "upload_price_book__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "original_file_name": "price-book.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "41020066-53cb-4005-ae75-ce8cdfa991b7",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_ea253b5b31a81a65f1cff387",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_ea253b5b31a81a65f1cff387",
+       "original_file_name": "invoice-v1.json",
+       "representation": "document_text",
+       "source_version": "ev4:ea253b5b31a81a65f1cff387dfbfff5aa7a62415b8dbd11fd5c57bea6c8d26b4",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 147
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_53bfd5c90e4420494fda63c0",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_53bfd5c90e4420494fda63c0",
+       "original_file_name": "purchase-order.json",
+       "representation": "document_text",
+       "source_version": "ev4:53bfd5c90e4420494fda63c0405fbb8b8da73ee9c5dcf0ee1e01963b3c51fd76",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 60
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 20,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 900.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 6,
+     "started_at": "2026-11-04T16:37:46.216678+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 119.482,
+     "waiting_since": "2026-11-04T16:39:46.333563+00:00",
+     "wait_credits": {},
+     "wait_credits_schema": 1,
+     "active_wait": {
+      "id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3",
+      "step_id": "await",
+      "correlation_id": "await-c44df7cdb608245de632",
+      "started_at": "2026-11-04T16:39:46.333563+00:00"
+     },
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {
+      "asg-768d10d199f24373:idle:1793810386.3554811": {
+       "started_at": "2026-11-04T16:39:46.355481+00:00",
+       "ended_at": "2026-11-04T16:41:45.822597+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      }
+     },
+     "idle_open": {
+      "id": "asg-768d10d199f24373:idle:1793810505.996502",
+      "started_at": "2026-11-04T16:41:45.996502+00:00",
+      "reason": "all runnable branches are waiting"
+     },
+     "working_seconds": 120.313,
+     "wall_seconds": 239.795
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read invoice-v1.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe",
+      "attempts": 0,
+      "result_summary": "read structured doc_ea253b5b31a81a65f1cff387.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read purchase-order.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:purchase-order.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read price-book.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "await",
+      "title": "Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+      "operation_type": "retrieve",
+      "adapter": "assignment.wait",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "waiting",
+      "recovery_class": "waiting_for_event",
+      "operation_id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3",
+      "attempts": 0,
+      "result_summary": null,
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {
+       "event": "external_fact",
+       "state": "waiting_for_external",
+       "party": "authorized receiving source",
+       "correlation_id": "await-c44df7cdb608245de632",
+       "resume_on": "response",
+       "detail": "receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+       "fact": "receiving evidence for purchase order PO-8841",
+       "subject": "purchase order PO-8841",
+       "expected_answer_type": "text",
+       "blocks": "invoice reconciliation",
+       "deadline": "",
+       "validity": "",
+       "typed_binding": true,
+       "since": "2026-11-04T16:39:46.333563+00:00"
+      },
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "operation_type": "calculate",
+      "adapter": "quote.lines_from_rows",
+      "depends_on": [
+       "source-3"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11",
+      "attempts": 0,
+      "result_summary": "mapped 2 quote row(s)",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "quote-lines"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+      "attempts": 0,
+      "result_summary": "quote total 370.00 USD (2 lines)",
+      "result_value": "370.00",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T16:37:46.205090+00:00",
+    "updated_at": "2026-11-04T16:41:45.980965+00:00",
+    "completed_at": null,
+    "progress": {
+     "total_steps": 6,
+     "required_steps": 6,
+     "completed_steps": 5,
+     "waiting_steps": 1,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 0
+    }
+   },
+   "open_gaps": [],
+   "operations": [
+    {
+     "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_ea253b5b31a81a65f1cff387.json"
+    },
+    {
+     "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:purchase-order.json"
+    },
+    {
+     "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+    },
+    {
+     "operation_id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "waiting",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": null
+    },
+    {
+     "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11",
+     "step_id": "quote-lines",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+     "step_id": "quote-total",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 370.00 USD (2 lines)"
+    }
+   ]
+  },
+  "employee_job": {
+   "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+   "identity": {
+    "employee_id": "41020066-53cb-4005-ae75-ce8cdfa991b7",
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "execution_owner": "assignment"
+   },
+   "criteria": [
+    {
+     "criterion_id": "artifact_verified:del-requested-output",
+     "kind": "artifact_verified",
+     "required": true,
+     "verifier": "artifact_verified",
+     "scope": {
+      "workspace_id": "default"
+     },
+     "deliverable_id": "del-requested-output"
+    },
+    {
+     "criterion_id": "required_work_complete:assignment",
+     "kind": "required_work_complete",
+     "required": true,
+     "verifier": "required_work_complete",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "employee_result:objective",
+     "kind": "employee_result",
+     "required": true,
+     "verifier": "employee_result",
+     "scope": {
+      "workspace_id": "default"
+     }
+    },
+    {
+     "criterion_id": "business_result:result-invoice_reconciliation-449540d77bdadfacfc01",
+     "kind": "business_result",
+     "required": true,
+     "verifier": "business_result",
+     "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+     "scope": {
+      "workspace_id": "default",
+      "tenant_id": "default",
+      "operation": "invoice_reconciliation"
+     }
+    }
+   ],
+   "facts": [],
+   "sources": [
+    {
+     "source_id": "448ac0da-6270-4d67-9b2f-77f4bb7c6f42",
+     "kind": "workbook",
+     "representation": "parquet_frame",
+     "file_name": "price-book.xlsx",
+     "sheet": "Prices",
+     "columns": [
+      "Item",
+      "Qty",
+      "Price",
+      "Currency",
+      "__sheet_row"
+     ],
+     "numeric_columns": [
+      "Qty",
+      "Price"
+     ],
+     "row_count": 2,
+     "coverage": {
+      "known": true,
+      "source_row_count": 2,
+      "materialized_row_count": 2,
+      "truncated": false,
+      "row_cap": 500000
+     },
+     "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": 2,
+      "shown_count": 0,
+      "omitted_count": 2,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_ea253b5b31a81a65f1cff387",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "invoice-v1.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 147
+     },
+     "source_version": "ev4:ea253b5b31a81a65f1cff387dfbfff5aa7a62415b8dbd11fd5c57bea6c8d26b4",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    },
+    {
+     "source_id": "doc_53bfd5c90e4420494fda63c0",
+     "kind": "document",
+     "representation": "document_text",
+     "file_name": "purchase-order.json",
+     "sheet": "",
+     "columns": [],
+     "numeric_columns": [],
+     "row_count": null,
+     "coverage": {
+      "known": true,
+      "freshness": "fresh",
+      "file_size_bytes": 60
+     },
+     "source_version": "ev4:53bfd5c90e4420494fda63c0405fbb8b8da73ee9c5dcf0ee1e01963b3c51fd76",
+     "read": true,
+     "authorized": true,
+     "preview": {
+      "sampled": true,
+      "kind": "source_metadata_not_rows",
+      "total_count": null,
+      "shown_count": 0,
+      "omitted_count": null,
+      "note": "reasoning handle only; execution resolves full durable evidence under the existing proof rules"
+     }
+    }
+   ],
+   "steps": [
+    {
+     "step_id": "source-1",
+     "title": "Read invoice-v1.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read structured doc_ea253b5b31a81a65f1cff387.json"
+    },
+    {
+     "step_id": "source-2",
+     "title": "Read purchase-order.json",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read extracted text from upload:purchase-order.json"
+    },
+    {
+     "step_id": "source-3",
+     "title": "Read price-book.xlsx",
+     "status": "applied",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+    },
+    {
+     "step_id": "await",
+     "title": "Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+     "status": "waiting",
+     "required": true,
+     "effect": "read_only",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": null
+    },
+    {
+     "step_id": "quote-lines",
+     "title": "Map accepted evidence to quote lines",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [
+      {
+       "kind": "receipt",
+       "step_id": "source-3",
+       "require": "verified"
+      }
+     ],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "step_id": "quote-total",
+     "title": "Calculate the evidence-backed quote total",
+     "status": "applied",
+     "required": true,
+     "effect": "local",
+     "requires": [],
+     "readiness": null,
+     "readiness_blocker": null,
+     "result_summary": "quote total 370.00 USD (2 lines)"
+    }
+   ],
+   "open_obligations": [],
+   "business_requirements": [
+    {
+     "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+     "operation": "invoice_reconciliation",
+     "label": "invoice reconciliation",
+     "subject": "purchase order PO-8841",
+     "fact": "receiving evidence for purchase order PO-8841",
+     "correlation_id": "await-c44df7cdb608245de632",
+     "status": "unresolved",
+     "next_action": "Answer the authorized request for receiving evidence for purchase order PO-8841."
+    }
+   ],
+   "waiting": [
+    {
+     "step_id": "await",
+     "fact": "receiving evidence for purchase order PO-8841",
+     "subject": "purchase order PO-8841",
+     "party": "authorized receiving source",
+     "detail": "receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+     "blocks": "invoice reconciliation",
+     "expected_answer_type": "text",
+     "correlation_id": "await-c44df7cdb608245de632",
+     "since": "2026-11-04T16:39:46.333563+00:00"
+    }
+   ],
+   "ready_work": [
+    {
+     "operation": "quote_calculation",
+     "label": "quote calculation"
+    }
+   ],
+   "budget": {
+    "max_steps": 20,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 900.0,
+    "max_cost_usd": 0.0,
+    "deadline": null,
+    "cost_mode": "hard",
+    "soft_limit_authorized_by": null,
+    "reserved_cost_usd": 0.0,
+    "cost_reservations": [],
+    "cost_overrun_usd": 0.0,
+    "cost_violation": null,
+    "soft_limit_exceeded": false,
+    "steps_started": 6,
+    "started_at": "2026-11-04T16:37:46.216678+00:00",
+    "elapsed_seconds": 0.0,
+    "paused_seconds": 119.46711611747742,
+    "waiting_since": "2026-11-04T16:39:46.333563+00:00",
+    "wait_credits": {},
+    "wait_credits_schema": 1,
+    "active_wait": {
+     "id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3",
+     "step_id": "await",
+     "correlation_id": "await-c44df7cdb608245de632",
+     "started_at": "2026-11-04T16:39:46.333563+00:00"
+    },
+    "cost_usd": 0.0,
+    "idle_ledger_schema": 2,
+    "idle_intervals": {
+     "asg-768d10d199f24373:idle:1793810386.3554811": {
+      "started_at": "2026-11-04T16:39:46.355481+00:00",
+      "ended_at": "2026-11-04T16:41:45.822597+00:00",
+      "reason": "all runnable branches are waiting",
+      "closed_by": "ready work resumed"
+     }
+    },
+    "idle_open": {
+     "id": "asg-768d10d199f24373:idle:1793810505.996502",
+     "started_at": "2026-11-04T16:41:45.996502+00:00",
+     "reason": "all runnable branches are waiting"
+    }
+   },
+   "status": "waiting",
+   "task_version": 64,
+   "plan_revision": 5,
+   "business_outcome": {
+    "basis": "criteria_not_met",
+    "verdict": false,
+    "state": "unsatisfied",
+    "declared_state": "waiting",
+    "outcome": {
+     "contract_version": 2,
+     "recorded_at": 1793810506.01857,
+     "execution_id": null,
+     "turn_id": null,
+     "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+     "objective_state": {
+      "goal": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+      "target_entities": [],
+      "requested_attributes": [],
+      "source_constraints": {},
+      "authorized_actions": []
+     },
+     "objective_met": false,
+     "completion_criteria": [
+      {
+       "criterion_id": "artifact_verified:del-requested-output",
+       "kind": "artifact_verified",
+       "required": true,
+       "verifier": "artifact_verified",
+       "scope": {
+        "workspace_id": "default"
+       },
+       "deliverable_id": "del-requested-output"
+      },
+      {
+       "criterion_id": "required_work_complete:assignment",
+       "kind": "required_work_complete",
+       "required": true,
+       "verifier": "required_work_complete",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "employee_result:objective",
+       "kind": "employee_result",
+       "required": true,
+       "verifier": "employee_result",
+       "scope": {
+        "workspace_id": "default"
+       }
+      },
+      {
+       "criterion_id": "business_result:result-invoice_reconciliation-449540d77bdadfacfc01",
+       "kind": "business_result",
+       "required": true,
+       "verifier": "business_result",
+       "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+       "scope": {
+        "workspace_id": "default",
+        "tenant_id": "default",
+        "operation": "invoice_reconciliation"
+       }
+      }
+     ],
+     "criterion_results": [
+      {
+       "criterion": "artifact_verified",
+       "met": null,
+       "verifier": "artifact_verified",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "required_work_complete",
+       "met": false,
+       "verifier": "required_work_complete",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "employee_result",
+       "met": true,
+       "verifier": "employee_result",
+       "evidence_refs": []
+      },
+      {
+       "criterion": "business_result",
+       "met": false,
+       "verifier": "business_result",
+       "evidence_refs": []
+      }
+     ],
+     "requested": {},
+     "source_constraints": {},
+     "authorized_actions": [
+      "calculate",
+      "present",
+      "retrieve"
+     ],
+     "tool_outcomes": [
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read structured doc_ea253b5b31a81a65f1cff387.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "document.text",
+       "verified": true,
+       "outcome": "read extracted text from upload:purchase-order.json",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "dataset.read",
+       "verified": true,
+       "outcome": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "assignment.wait",
+       "verified": false,
+       "outcome": "",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.lines_from_rows",
+       "verified": true,
+       "outcome": "mapped 2 quote row(s)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      },
+      {
+       "tool": "quote.calculate",
+       "verified": true,
+       "outcome": "quote total 370.00 USD (2 lines)",
+       "required": true,
+       "evidence_refs": [],
+       "criterion_ids": [],
+       "failure_layer": null,
+       "failure_owner": null
+      }
+     ],
+     "evidence_refs": [],
+     "evidence_ledger": {},
+     "gaps": [],
+     "implications": [],
+     "actions": [
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "retrieve",
+       "criterion_id": "",
+       "status": "waiting",
+       "authorized": true,
+       "applied": false,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      },
+      {
+       "action_type": "calculate",
+       "criterion_id": "",
+       "status": "applied",
+       "authorized": true,
+       "applied": true,
+       "required": true,
+       "evidence_refs": []
+      }
+     ],
+     "calculation": {
+      "computed": "370.00",
+      "unit": "USD",
+      "verified": true,
+      "step_id": "quote-total",
+      "adapter": "quote.calculate"
+     },
+     "mutation": {},
+     "business_requirements": [
+      {
+       "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+       "operation": "invoice_reconciliation",
+       "label": "invoice reconciliation",
+       "subject": "purchase order PO-8841",
+       "fact": "receiving evidence for purchase order PO-8841",
+       "correlation_id": "await-c44df7cdb608245de632",
+       "receipt_adapter": "invoice.reconcile",
+       "subject_fields": [
+        "po_id",
+        "invoice_id"
+       ],
+       "required": true
+      }
+     ],
+     "business_results": [
+      {
+       "operation": "quote_calculation",
+       "adapter": "quote.calculate",
+       "step_id": "quote-total",
+       "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+       "verified": true,
+       "value": "370.00",
+       "unit": "USD",
+       "subject_identity": {},
+       "source_version": null,
+       "verification": null
+      }
+     ],
+     "delivery": {
+      "calculation_verified": true,
+      "calculated_value": "370.00"
+     },
+     "user_corrections": [],
+     "limitations": [],
+     "latency_s": null,
+     "cost_usd": null,
+     "scope": {
+      "workspace_id": "default",
+      "teaching_revision": "untrained",
+      "plan_revision": 5
+     },
+     "policy_version": null,
+     "candidate_versions": {},
+     "learning_layers": {
+      "general_capability": {
+       "policy_version": null,
+       "candidate_versions": {}
+      },
+      "user_business_configuration": {
+       "scope": {
+        "workspace_id": "default",
+        "teaching_revision": "untrained",
+        "plan_revision": 5
+       }
+      },
+      "task_evidence": {
+       "requested": {},
+       "evidence_refs": [],
+       "evidence_ledger": {},
+       "gap_count": 0,
+       "corrections": []
+      }
+     },
+     "failure_layer": null,
+     "failure_owner": null,
+     "failure": {
+      "layer": "execution",
+      "owner": "capability",
+      "basis": "tool_verification_failed"
+     },
+     "success_kinds": {
+      "task_success": false,
+      "tool_success": false,
+      "delivery_success": null,
+      "task_success_basis": "objective_not_met"
+     }
+    }
+   },
+   "routing_notice": null
+  },
+  "proposal": {
+   "proposal_kind": "evidence_read",
+   "reason": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes.",
+   "evidence_reads": [
+    {
+     "step_id": "evidence-1",
+     "title": "Supplier Invoice Reconciliation",
+     "source_id": "doc_ea253b5b31a81a65f1cff387",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": "Verify the supplier invoice against the purchase order and receiving record."
+    },
+    {
+     "step_id": "evidence-2",
+     "title": "Purchase Order Verification",
+     "source_id": "doc_53bfd5c90e4420494fda63c0",
+     "action": "",
+     "arguments": {},
+     "requires": [],
+     "reason": "Confirm the purchase order details match the supplier invoice."
+    }
+   ],
+   "clarification": null
+  },
+  "proposal_source": "model",
+  "technical_fallback": false,
+  "proposal_errors": [],
+  "employee_routing": {
+   "mode": "pinned",
+   "requested_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "served_route": {
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+   },
+   "resolved_model": "llama3.1:8b",
+   "profile": {
+    "name": "employee_adaptive_planning",
+    "version": "2026-11-04.1"
+   },
+   "error": null
+  },
+  "adaptive_rounds": [
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": null,
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 2,
+    "proposal_kind": "evidence_and_clarification",
+    "proposal_reason": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+    "proposal_sources": [
+     "doc_ea253b5b31a81a65f1cff387",
+     "doc_53bfd5c90e4420494fda63c0"
+    ],
+    "proposal_clarification": {
+     "question": "Which authorized source contains the missing purchase_order, receiving evidence for purchase order PO-8841?",
+     "concept": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes.",
+     "unblocks": "Prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+     "expected_answer_type": "source_id"
+    },
+    "observation_ids": [
+     "evidence-f9a50151a3424473a420"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "doc_53bfd5c90e4420494fda63c0",
+      "file_name": "purchase-order.json"
+     }
+    ],
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model",
+    "technical_fallback": false,
+    "decision": "evidence_read",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": null,
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_evidence_selection",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "unread_source_count": 1,
+    "proposal_kind": "evidence_read",
+    "proposal_reason": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes.",
+    "proposal_sources": [
+     "doc_53bfd5c90e4420494fda63c0",
+     "doc_ea253b5b31a81a65f1cff387"
+    ],
+    "proposal_clarification": {},
+    "observation_ids": [
+     "evidence-f9a50151a3424473a420",
+     "evidence-1e868f2e9cbb98542404"
+    ],
+    "selected_sources": [
+     {
+      "source_id": "448ac0da-6270-4d67-9b2f-77f4bb7c6f42",
+      "file_name": "price-book.xlsx"
+     }
+    ],
+    "repair_source": "model",
+    "repair_sources": [
+     "448ac0da-6270-4d67-9b2f-77f4bb7c6f42",
+     "448ac0da-6270-4d67-9b2f-77f4bb7c6f42"
+    ],
+    "repair": "unread_scope",
+    "adoption_status": "applied",
+    "execution_status": "blocked"
+   },
+   {
+    "source": "model_repaired",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "e7c676a221d74849b783f4bd01b19898",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-f9a50151a3424473a420",
+     "evidence-1e868f2e9cbb98542404",
+     "evidence-5075d1ba677ac041ab23"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "await_evidence",
+    "execution_status": "waiting"
+   },
+   {
+    "source": "model_repaired",
+    "technical_fallback": false,
+    "decision": "replan",
+    "errors": [],
+    "failure_stage": null,
+    "attempt_id": "704651f4ff9d4054a905f1760e9e7cfe",
+    "routing": {
+     "mode": "pinned",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "resolved_model": "llama3.1:8b",
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": null
+    },
+    "observation_ids": [
+     "evidence-5075d1ba677ac041ab23"
+    ],
+    "adoption_status": "applied",
+    "work_request_operation": "quote_calculation",
+    "execution_status": "waiting"
+   }
+  ],
+  "plan_revision": 1,
+  "teaching_revision": "untrained"
+ },
+ "sources": [
+  {
+   "kind": "workbook",
+   "dataset_name": "upload_price_book__prices",
+   "source": "upload",
+   "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+   "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+   "sheet": "Prices"
+  },
+  {
+   "kind": "document",
+   "document_id": "doc_ea253b5b31a81a65f1cff387",
+   "dataset_name": null,
+   "source": "manual_upload",
+   "external_id": "upload_doc_ea253b5b31a81a65f1cff387",
+   "source_version": "ev4:ea253b5b31a81a65f1cff387dfbfff5aa7a62415b8dbd11fd5c57bea6c8d26b4",
+   "sheet": null
+  },
+  {
+   "kind": "document",
+   "document_id": "doc_53bfd5c90e4420494fda63c0",
+   "dataset_name": null,
+   "source": "manual_upload",
+   "external_id": "upload_doc_53bfd5c90e4420494fda63c0",
+   "source_version": "ev4:53bfd5c90e4420494fda63c0405fbb8b8da73ee9c5dcf0ee1e01963b3c51fd76",
+   "sheet": null
+  }
+ ],
+ "start_result": {
+  "status": "waiting",
+  "wait": {
+   "event": "external_fact",
+   "state": "waiting_for_external",
+   "party": "authorized receiving source",
+   "correlation_id": "await-c44df7cdb608245de632",
+   "resume_on": "response",
+   "detail": "receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+   "fact": "receiving evidence for purchase order PO-8841",
+   "subject": "purchase order PO-8841",
+   "expected_answer_type": "text",
+   "blocks": "invoice reconciliation",
+   "deadline": "",
+   "validity": "",
+   "typed_binding": true,
+   "since": "2026-11-04T16:39:46.333563+00:00"
+  },
+  "wait_step_id": "await",
+  "quote_total": "370.00",
+  "quote_step_id": "quote-total",
+  "quote_operation": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe"
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae"
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e"
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "waiting",
+    "operation_id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11"
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f"
+   }
+  ]
+ },
+ "restart_result": {
+  "status": "waiting",
+  "correlation_id": "await-c44df7cdb608245de632",
+  "same_wait": true,
+  "detail_text": "A\nATOM\nCORE\nDashboard\nChat\nWorkspace\nData\nAgents\nLearning\nAssignments\nApprovals\nActivity\nPLATFORM\nSettings\n\nadmin\n\nadmin@example.com\n\nNo unread notifications\nDurable assignments\n\nThis view reads the durable assignment projection. It does not infer progress from chat text and does not run restart recovery on load.\n\nAssignments\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nprice-book.xlsx / Prices \u00b7 2 rows\ninvoice-v1.json\npurchase-order.json\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Qty\nSum Price\nOther business concept\u2026\nLet the employee decide the next supported work\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\nStart assignment\nReconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.\nwaiting\n\nCurrent: Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841\n\n5/6 steps \u00b7 1 waiting\n\nReconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.\n\nwaiting\n\nPlan revision 5 \u00b7 teaching untrained\n\nBusiness outcome: unsatisfied \u00b7 criteria_not_met\n\nStill required: invoice reconciliation\n\nAnswer the authorized request for receiving evidence for purchase order PO-8841.\n\n5/6 required steps\n120s work \u00b7 207s paused\n\n1 waiting \u00b7 0 open question(s)\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nWaiting: Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841\n\nWaiting for authorized receiving source\n\nCorrelated response\n\nWaiting for receiving evidence for purchase order PO-8841 for purchase order PO-8841 from authorized receiving source \u00b7 subject: purchase order PO-8841. This blocks invoice reconciliation.\n\nWork that can continue: quote calculation.\n\nPaste only the authorized response (expected text); it is evidence, not teaching.\n\nDeliver\n\nCompleted work\n\nRead invoice-v1.json\nRead purchase-order.json\nRead price-book.xlsx\nMap accepted evidence to quote lines\nCalculate the evidence-backed quote total\nResult: 370.00 USD \u00b7 quote_total\n\nArtifacts\n\nReconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.\npending\nResume\nReassess teaching\nCancel\nDurable state persisted"
+ },
+ "reply_result": {
+  "status": 200,
+  "body": {
+   "run_id": "279a603f-fcb4-47a4-b092-c0a5227b8dbc",
+   "assignment": {
+    "assignment_id": "asg-768d10d199f24373",
+    "objective": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+    "employee_id": "41020066-53cb-4005-ae75-ce8cdfa991b7",
+    "workspace_id": "default",
+    "plan_revision": 6,
+    "status": "blocked",
+    "teaching_revision": "untrained",
+    "teaching_fingerprint": "69d930ed2bb8ff67e8898a52767eb121",
+    "teaching_history": [],
+    "effective_lesson_ids": [],
+    "mappings": [],
+    "mapping_history": [],
+    "business_requirements": [
+     {
+      "requirement_id": "result-invoice_reconciliation-449540d77bdadfacfc01",
+      "operation": "invoice_reconciliation",
+      "label": "invoice reconciliation",
+      "subject": "purchase order PO-8841",
+      "fact": "receiving evidence for purchase order PO-8841",
+      "correlation_id": "await-c44df7cdb608245de632",
+      "status": "unresolved",
+      "next_action": "The external fact is recorded; invoice reconciliation still needs completion."
+     }
+    ],
+    "deliverables": [
+     {
+      "deliverable_id": "del-requested-output",
+      "kind": "document",
+      "description": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+      "required": true,
+      "step_id": "requested-artifact",
+      "status": "pending",
+      "artifact_revision": null,
+      "artifact_path": null,
+      "sha256": null
+     }
+    ],
+    "sources": [
+     {
+      "kind": "workbook",
+      "binding": {
+       "resource_id": "448ac0da-6270-4d67-9b2f-77f4bb7c6f42",
+       "dataset_name": "upload_price_book__prices",
+       "source": "upload",
+       "source_kind": "file",
+       "external_id": "sha1:5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "original_file_name": "price-book.xlsx",
+       "representation": "parquet_frame",
+       "source_version": "5a196b9f12ecbf2f2619d9829dbc0eda388d49fc",
+       "sheet": "Prices",
+       "columns": [
+        "Item",
+        "Qty",
+        "Price",
+        "Currency",
+        "__sheet_row"
+       ],
+       "numeric_columns": [
+        "Qty",
+        "Price"
+       ],
+       "row_count": 2,
+       "coverage": {
+        "known": true,
+        "source_row_count": 2,
+        "materialized_row_count": 2,
+        "truncated": false,
+        "row_cap": 500000
+       },
+       "access_scope": {
+        "user_id": "41020066-53cb-4005-ae75-ce8cdfa991b7",
+        "workspace_id": "default",
+        "tenant_id": "default"
+       },
+       "workspace_id": "default",
+       "tenant_id": "default",
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_ea253b5b31a81a65f1cff387",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_ea253b5b31a81a65f1cff387",
+       "original_file_name": "invoice-v1.json",
+       "representation": "document_text",
+       "source_version": "ev4:ea253b5b31a81a65f1cff387dfbfff5aa7a62415b8dbd11fd5c57bea6c8d26b4",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 147
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     },
+     {
+      "kind": "document",
+      "binding": {
+       "resource_id": "doc_53bfd5c90e4420494fda63c0",
+       "dataset_name": null,
+       "source": "manual_upload",
+       "source_kind": null,
+       "external_id": "upload_doc_53bfd5c90e4420494fda63c0",
+       "original_file_name": "purchase-order.json",
+       "representation": "document_text",
+       "source_version": "ev4:53bfd5c90e4420494fda63c0405fbb8b8da73ee9c5dcf0ee1e01963b3c51fd76",
+       "sheet": null,
+       "columns": [],
+       "numeric_columns": [],
+       "row_count": null,
+       "coverage": {
+        "known": true,
+        "freshness": "fresh",
+        "file_size_bytes": 60
+       },
+       "access_scope": {},
+       "workspace_id": "default",
+       "tenant_id": null,
+       "internal_fixture": false
+      }
+     }
+    ],
+    "authorized_actions": [
+     "calculate",
+     "present",
+     "retrieve"
+    ],
+    "standing_authority": null,
+    "budget": {
+     "max_steps": 20,
+     "max_attempts_per_step": 3,
+     "max_wall_seconds": 900.0,
+     "max_cost_usd": 0.0,
+     "deadline": null,
+     "cost_mode": "hard",
+     "soft_limit_authorized_by": null,
+     "reserved_cost_usd": 0.0,
+     "cost_reservations": [],
+     "cost_overrun_usd": 0.0,
+     "cost_violation": null,
+     "soft_limit_exceeded": false,
+     "steps_started": 8,
+     "started_at": "2026-11-04T16:37:46.216678+00:00",
+     "elapsed_seconds": 0.0,
+     "paused_seconds": 239.227,
+     "wait_credits": {
+      "47a2218d-e7b6-4bb0-9df0-da25a8288ce3": {
+       "seconds": 0.0,
+       "started_at": "2026-11-04T16:39:46.333563+00:00",
+       "ended_at": "2026-11-04T16:43:45.786313+00:00",
+       "idle_ledger_authoritative": true
+      }
+     },
+     "wait_credits_schema": 1,
+     "active_wait": null,
+     "cost_usd": 0.0,
+     "idle_ledger_schema": 2,
+     "idle_intervals": {
+      "asg-768d10d199f24373:idle:1793810386.3554811": {
+       "started_at": "2026-11-04T16:39:46.355481+00:00",
+       "ended_at": "2026-11-04T16:41:45.822597+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      },
+      "asg-768d10d199f24373:idle:1793810505.996502": {
+       "started_at": "2026-11-04T16:41:45.996502+00:00",
+       "ended_at": "2026-11-04T16:43:29.168633+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      },
+      "asg-768d10d199f24373:idle:1793810609.207541": {
+       "started_at": "2026-11-04T16:43:29.207541+00:00",
+       "ended_at": "2026-11-04T16:43:45.795140+00:00",
+       "reason": "all runnable branches are waiting",
+       "closed_by": "ready work resumed"
+      }
+     },
+     "idle_open": null,
+     "working_seconds": 130.616,
+     "wall_seconds": 369.843
+    },
+    "steps": [
+     {
+      "step_id": "source-1",
+      "title": "Read invoice-v1.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe",
+      "attempts": 0,
+      "result_summary": "read structured doc_ea253b5b31a81a65f1cff387.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-2",
+      "title": "Read purchase-order.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae",
+      "attempts": 0,
+      "result_summary": "read extracted text from upload:purchase-order.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-3",
+      "title": "Read price-book.xlsx",
+      "operation_type": "retrieve",
+      "adapter": "dataset.read",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e",
+      "attempts": 0,
+      "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "await",
+      "title": "Wait for receiving evidence for purchase order PO-8841 for purchase order PO-8841",
+      "operation_type": "retrieve",
+      "adapter": "assignment.wait",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "9de4ae1b-652f-4a32-96e0-9dda3f161e38",
+      "attempts": 1,
+      "result_summary": "received receiving evidence for purchase order PO-8841",
+      "result_value": "received 2 units",
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {
+       "correlation_id": "await-c44df7cdb608245de632",
+       "fact": "receiving evidence for purchase order PO-8841",
+       "response": "received 2 units",
+       "source": "authorized receiving source",
+       "evidence": "",
+       "fact_resolution": {
+        "status": "missing",
+        "fact": "receiving evidence for purchase order PO-8841",
+        "reason": "no_bound_column"
+       },
+       "at": "2026-11-04T16:43:45.786313+00:00"
+      },
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-lines",
+      "title": "Map accepted evidence to quote lines",
+      "operation_type": "calculate",
+      "adapter": "quote.lines_from_rows",
+      "depends_on": [
+       "source-3"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11",
+      "attempts": 0,
+      "result_summary": "mapped 2 quote row(s)",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "quote-total",
+      "title": "Calculate the evidence-backed quote total",
+      "operation_type": "calculate",
+      "adapter": "quote.calculate",
+      "depends_on": [
+       "quote-lines"
+      ],
+      "required": true,
+      "effect": "local",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+      "attempts": 0,
+      "result_summary": "quote total 370.00 USD (2 lines)",
+      "result_value": "370.00",
+      "result_unit": "USD",
+      "readiness": null,
+      "result_measure": "quote_total",
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     },
+     {
+      "step_id": "source-4",
+      "title": "Read receiving-records.json",
+      "operation_type": "retrieve",
+      "adapter": "document.text",
+      "depends_on": [],
+      "required": true,
+      "effect": "read_only",
+      "status": "applied",
+      "recovery_class": "terminal",
+      "operation_id": "d22cd2d9-c388-4c42-972a-00f881fbc480",
+      "attempts": 0,
+      "result_summary": "read structured doc_71e1c4bec36cab9717433493.json",
+      "result_value": null,
+      "result_unit": null,
+      "readiness": null,
+      "result_measure": null,
+      "prior_result_count": 0,
+      "artifact_revision": null,
+      "gap_ids": [],
+      "waiting": {},
+      "external_response": {},
+      "approval_request": {},
+      "standing_authority_receipt": {},
+      "failure": {}
+     }
+    ],
+    "created_at": "2026-11-04T16:37:46.205090+00:00",
+    "updated_at": "2026-11-04T16:43:56.050073+00:00",
+    "completed_at": null,
+    "progress": {
+     "total_steps": 7,
+     "required_steps": 7,
+     "completed_steps": 7,
+     "waiting_steps": 0,
+     "failed_steps": 0,
+     "uncertain_steps": 0,
+     "open_gap_count": 0
+    }
+   },
+   "open_gaps": [],
+   "operations": [
+    {
+     "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe",
+     "step_id": "source-1",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_ea253b5b31a81a65f1cff387.json"
+    },
+    {
+     "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae",
+     "step_id": "source-2",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read extracted text from upload:purchase-order.json"
+    },
+    {
+     "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e",
+     "step_id": "source-3",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read 2 of 2 matching row(s) from price-book.xlsx / Prices"
+    },
+    {
+     "operation_id": "47a2218d-e7b6-4bb0-9df0-da25a8288ce3",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "superseded",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": null
+    },
+    {
+     "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11",
+     "step_id": "quote-lines",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "mapped 2 quote row(s)"
+    },
+    {
+     "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+     "step_id": "quote-total",
+     "type": "calculate",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "quote total 370.00 USD (2 lines)"
+    },
+    {
+     "operation_id": "d22cd2d9-c388-4c42-972a-00f881fbc480",
+     "step_id": "source-4",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "read structured doc_71e1c4bec36cab9717433493.json"
+    },
+    {
+     "operation_id": "9de4ae1b-652f-4a32-96e0-9dda3f161e38",
+     "step_id": "await",
+     "type": "retrieve",
+     "status": "applied",
+     "needs_reconciliation": false,
+     "approval": {},
+     "uncertainty_reason": null,
+     "remote_id": null,
+     "provider_ref": null,
+     "result_summary": "received receiving evidence for purchase order PO-8841"
+    }
+   ]
+  },
+  "path": "ui_correlated_reply"
+ },
+ "retry_result": {
+  "status": 200,
+  "rounds": [
+   {
+    "source": "deterministic",
+    "technical_fallback": true,
+    "decision": "retain",
+    "errors": [
+     "model returned no proposal"
+    ],
+    "failure_stage": null,
+    "attempt_id": "b6270fb73776442194d8389a0a20045d",
+    "routing": {
+     "mode": "unpinned_fallback",
+     "requested_route": {
+      "provider": "ollama",
+      "model": "llama3.1:8b"
+     },
+     "served_route": null,
+     "resolved_model": null,
+     "profile": {
+      "name": "employee_adaptive_planning",
+      "version": "2026-11-04.1"
+     },
+     "error": {
+      "code": "provider_failure",
+      "detail": "the configured routes produced no usable result"
+     }
+    },
+    "observation_ids": [
+     "evidence-b7e1152d94fcd20c0179"
+    ]
+   }
+  ]
+ },
+ "finish_result": {
+  "status": "completed",
+  "deliverable": {
+   "deliverable_id": "del-requested-output",
+   "kind": "document",
+   "description": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.",
+   "required": true,
+   "step_id": "requested-artifact",
+   "status": "applied",
+   "artifact_revision": "8d0d48773c7e1bca",
+   "artifact_path": "/private/tmp/atom-full-app/backend/data/acceptance_worlds/g5-wait-episode/data/assignments/default/41020066-53cb-4005-ae75-ce8cdfa991b7/draft-0eef628abf5f/reconcile-the-supplier-invoice-for-po-8841-against-the-purch-6a13a98b.docx",
+   "sha256": "8d0d48773c7e1bca5ee587872f818e0738035d868fb95e7e9245a53f5f6b063e"
+  },
+  "artifact_text": "Reconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list,\nObjective\nReconcile the supplier invoice for PO-8841 against the purchase order and the receiving record the warehouse still owes. While that record is pending, prepare the quote from the authorized price list, and deliver a review document when the reconciliation is settled.\nSummary\n2*100.00 + 3*50.00 + freight = 370.00 USD\nreconciled invoice total 270.00 USD against received quantity 2: 270.00 USD\nFindings\nquote-total\nSources\nupload_price_book__prices\nprice-book.xlsx\nPrices\n448ac0da-6270-4d67-9b2f-77f4bb7c6f42\ninvoice-v1.json\ndoc_ea253b5b31a81a65f1cff387\npurchase-order.json\ndoc_53bfd5c90e4420494fda63c0\nAudit\nCalculation step: quote-total\nCalculation step: invoice-reconcile\nRow set: quote-total \u00b7 2 row(s)\nitem=A\nitem=B\nRow | Item | Description | Qty | Unit | Unit price | Discount | Net | Currency\n | A | A | 2 | each | 100.00 | 0.00 | 200.00 | USD\n | B | B | 3 | each | 50.00 | 0.00 | 150.00 | USD",
+  "artifact_sha256": "8d0d48773c7e1bca5ee587872f818e0738035d868fb95e7e9245a53f5f6b063e",
+  "steps": [
+   {
+    "step_id": "source-1",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "6e35bd10-e741-464a-8f63-c7244cb6e4fe",
+    "result_value": null
+   },
+   {
+    "step_id": "source-2",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "d2977537-f31c-44e1-b5e6-68888bf498ae",
+    "result_value": null
+   },
+   {
+    "step_id": "source-3",
+    "adapter": "dataset.read",
+    "status": "applied",
+    "operation_id": "7a1ffb17-cc8c-4399-a8b5-a9240c4ade5e",
+    "result_value": null
+   },
+   {
+    "step_id": "await",
+    "adapter": "assignment.wait",
+    "status": "applied",
+    "operation_id": "9de4ae1b-652f-4a32-96e0-9dda3f161e38",
+    "result_value": "received 2 units"
+   },
+   {
+    "step_id": "quote-lines",
+    "adapter": "quote.lines_from_rows",
+    "status": "applied",
+    "operation_id": "bf811144-cb49-4a74-8b6e-b5abce152f11",
+    "result_value": null
+   },
+   {
+    "step_id": "quote-total",
+    "adapter": "quote.calculate",
+    "status": "applied",
+    "operation_id": "524e759f-6548-4cf6-ae74-3fdd6118be3f",
+    "result_value": "370.00"
+   },
+   {
+    "step_id": "source-4",
+    "adapter": "document.text",
+    "status": "applied",
+    "operation_id": "d22cd2d9-c388-4c42-972a-00f881fbc480",
+    "result_value": null
+   },
+   {
+    "step_id": "invoice-reconcile",
+    "adapter": "invoice.reconcile",
+    "status": "applied",
+    "operation_id": "842f6a37-6190-4d57-bb95-b0e300f917a2",
+    "result_value": "270.00"
+   },
+   {
+    "step_id": "requested-artifact",
+    "adapter": "artifact.document",
+    "status": "applied",
+    "operation_id": "f925dfff-1354-4c5b-91c0-298e0d6aa692",
+    "result_value": null
+   }
+  ],
+  "checks": {
+   "wait_survived_restart": true,
+   "ui_shows_wait_business_language": true,
+   "ui_shows_unresolved_result": true,
+   "reply_accepted": true,
+   "assignment_completed": true,
+   "wait_applied": true,
+   "reconciliation_total_270": true,
+   "reconcile_has_operation": true,
+   "quote_receipt_unchanged": true,
+   "quote_step_ids_retained": true,
+   "artifact_applied": true,
+   "artifact_total_270": true,
+   "artifact_quote_total_370": true,
+   "artifact_sha_matches": true,
+   "business_result_criterion_met": true,
+   "no_live_provider": true
+  },
+  "all_checks_passed": true
+ }
+}
