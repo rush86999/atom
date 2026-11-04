@@ -349,6 +349,56 @@ def _response_model_for(context: Mapping[str, Any]) -> Any:
         if context.get("work_request_schemas") else AdaptationProposal)
 
 
+def _compact_single_request_prompt(
+    context: Mapping[str, Any],
+) -> str:
+    """One narrow retry when exactly one supported request is allowed.
+
+    This is not a deterministic work choice: the model still selects and
+    returns the typed request. It only removes unrelated context that can make
+    a small local model return an empty structured completion.
+    """
+    rules = context.get("rules") or {}
+    allowed = [
+        str(item) for item in rules.get("allowed_work_requests") or []
+        if str(item).strip()
+    ]
+    if len(allowed) != 1:
+        return ""
+    operation = allowed[0]
+    schema = next((
+        item for item in context.get("work_request_schemas") or []
+        if isinstance(item, Mapping)
+        and str(item.get("operation") or "") == operation), None)
+    entry = next((
+        item for item in context.get("available_business_operations") or []
+        if isinstance(item, Mapping)
+        and str(item.get("operation") or "") == operation
+        and str(item.get("status") or "") == "ready"), None)
+    if schema is None or entry is None:
+        return ""
+    payload = {
+        "objective": str(context.get("objective") or "")[:1000],
+        "operation": operation,
+        "known_step_ids": list(context.get("existing_step_ids") or [])[:30],
+        "evidence": entry.get("evidence") or [],
+        "roles": entry.get("roles") or {},
+        "known_identities": entry.get("known_identities") or {},
+        "teaching_terms": (
+            (context.get("teaching") or {}).get("terms") or {}),
+        "schema": schema.get("schema") or {},
+    }
+    return (
+        "Choose exactly one supported employee work request. "
+        f"The only allowed operation is {operation}.\n"
+        "Use only accepted identities and step IDs from the context. "
+        "Return one JSON object matching the schema. Do not return retain, "
+        "clarification or a prose explanation.\n"
+        "CONTEXT:\n"
+        + json.dumps(payload, sort_keys=True, default=str)
+    )
+
+
 def _adaptation_prompt(
     context: Mapping[str, Any], observations: List[Mapping[str, Any]],
     response_model: Any = None,
@@ -638,6 +688,22 @@ async def propose_adaptation(
                 result = None
                 failure_stage = "initial"
                 checked_errors = [f"initial call: {exc}"]
+            if result is None:
+                compact_prompt = _compact_single_request_prompt(context)
+                if compact_prompt:
+                    try:
+                        result = await _call(
+                            compact_prompt,
+                            "employee adaptation compact", "compact")
+                    except asyncio.TimeoutError:
+                        _record_routing_failure("deadline_cancelled")
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            "deadline_exceeded: compact"]
+                    except Exception as exc:  # noqa: BLE001
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            f"compact call: {exc}"]
             if result is not None:
                 try:
                     normalized = _normalize(result)

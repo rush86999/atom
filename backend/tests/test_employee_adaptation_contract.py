@@ -223,3 +223,36 @@ def test_legacy_context_keeps_legacy_schema_separate():
         assignment=_assignment(), llm_service=llm))
     assert result["source"] == "model"
     assert llm.calls[0]["response_model"] is AdaptationProposal
+
+
+def test_compact_single_request_prompt_is_bounded_to_one_operation():
+    from core.employee_adaptation import _compact_single_request_prompt
+
+    context = {
+        "objective": "Reconcile the invoice after receiving",
+        "existing_step_ids": ["source-2", "source-3", "source-4"],
+        "teaching": {"terms": {"currency": "USD"}},
+        "work_request_schemas": work_request_schemas(),
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "status": "ready",
+            "evidence": [{"step_id": "source-2"},
+                         {"step_id": "source-3"},
+                         {"step_id": "source-4"}],
+            "roles": {"invoice": ["source-2"],
+                      "purchase_order": ["source-3"],
+                      "receiving": ["source-4"]},
+            "known_identities": {"invoice.po_id": "PO-8841"},
+        }],
+        "rules": {
+            "allowed_work_requests": ["invoice_reconciliation"],
+        },
+    }
+    prompt = _compact_single_request_prompt(context)
+    assert "only allowed operation is invoice_reconciliation" in prompt
+    assert "source-2" in prompt and "source-4" in prompt
+    assert "quote_calculation" not in prompt
+    assert len(prompt) < 14000
+
+    context["rules"]["allowed_work_requests"].append("quote_calculation")
+    assert _compact_single_request_prompt(context) == ""
