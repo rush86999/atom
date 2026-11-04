@@ -3491,6 +3491,62 @@ def test_advance_route_adopts_typed_work_from_applied_evidence(
     assert calculate["result"]["value"] == "370.00"
 
 
+def test_advance_route_accepts_model_wait_choice_source(
+        route_env, monkeypatch):
+    from core.employee_adaptation import WorkAdaptationProposal
+    from tests.test_employee_work_requests import (
+        _quote_request, _verified_quote_evidence,
+    )
+
+    teaching = new_teaching_snapshot(revision="route-wait-choice-1")
+    teaching["terms"] = {
+        "currency": "USD", "freight": "20.00", "tax_basis": "none",
+    }
+    plan = new_assignment(
+        objective="Quote the accepted customer request",
+        employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
+        teaching_snapshot=teaching, steps=[_verified_quote_evidence()],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[
+            {"kind": "required_work_complete", "required": True},
+            {"criterion_id": "employee_result:objective",
+             "kind": "employee_result", "required": True,
+             "verifier": "employee_result"},
+        ])
+    record = route_env["executor"].create_assignment(
+        "conv-route-wait-choice", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+
+    async def proposal(
+        _context, observations, *, assignment, **_kwargs,
+    ):
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="the accepted rows support an exact quote",
+                observation_ids=[observations[0]["observation_id"]],
+                work_request=_quote_request()).model_dump(),
+            "source": "model_wait_choice",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", proposal)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/advance",
+        json={"use_model": False, "deadline_seconds": 30})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["rounds"][0]["source"] == "model_wait_choice"
+    internal = route_env["lifecycle"].get_assignment(run_id)
+    calculate = next(
+        step for step in internal["steps"]
+        if step["adapter"] == "quote.calculate")
+    assert calculate["status"] == "applied"
+    assert calculate["result"]["value"] == "370.00"
+
+
 def test_source_addition_settles_missing_prerequisite_without_duplicates(
         route_env, tmp_path, monkeypatch):
     from core.task_lifecycle import (

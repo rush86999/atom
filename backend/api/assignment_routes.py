@@ -1270,7 +1270,8 @@ async def _advance_employee_work(
                 round_record["progress"] = "no_progress"
             break
         if proposal_result.get("source") not in (
-                "model", "model_repaired", "model_compact"):
+                "model", "model_repaired", "model_compact",
+                "model_wait_choice"):
             break
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}
