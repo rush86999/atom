@@ -13,6 +13,7 @@ existing task lifecycle, and the executor remains the sole operation driver.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
@@ -1317,17 +1318,39 @@ async def propose_employee_work(
     llm_service: Any = None,
     deadline_seconds: float = 120.0,
     provider_model: Optional[Sequence[str]] = None,
+    attempt_journal: Any = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
     The model receives only the bounded context. A provider/protocol failure
     falls back to a deterministic authorized read (or a source-access
-    clarification), and the result records which path produced it.
+    clarification), and the result records which path produced it. The
+    caller's deadline is enforced here, and the raw dispatch/parsed/failure
+    events are journaled under one attempt id like adaptation.
     """
+    journal = attempt_journal
+    if journal is None:
+        try:
+            from core.employee_attempt_journal import AttemptJournal
+
+            journal = AttemptJournal()
+        except Exception:  # noqa: BLE001 — diagnostics are optional
+            journal = None
+
+    def _observe(event: str, **fields: Any) -> None:
+        if journal is None:
+            return
+        if event == "failure":
+            exc = fields.pop("exception", None)
+            if exc is not None:
+                journal.failure(exc, **fields)
+                return
+        journal.record(event, **fields)
+
     if llm_service is not None:
         try:
             from core.llm.pinned_planning import pinned_structured_call
-            result = await pinned_structured_call(
+            call = pinned_structured_call(
                 llm_service,
                 prompt=_proposal_prompt(context),
                 response_model=EmployeeWorkProposal,
@@ -1347,7 +1370,23 @@ async def propose_employee_work(
                 task_type="planning",
                 workspace_id=context.get("identity", {}).get("workspace_id"),
                 tenant_id=context.get("identity", {}).get("tenant_id"),
+                attempt_observer=_observe,
             )
+            budget = max(0.0, float(deadline_seconds or 0.0))
+            result = (
+                await asyncio.wait_for(call, timeout=budget)
+                if budget > 0 else await call)
+        except asyncio.TimeoutError:
+            try:
+                from core.llm.model_provenance import set_routing_error
+
+                set_routing_error(
+                    "deadline_cancelled",
+                    "the employee evidence-selection stage exhausted its "
+                    "caller deadline")
+            except Exception:  # noqa: BLE001 — diagnostics are optional
+                pass
+            result = None
         except Exception:  # noqa: BLE001 — the fallback remains explicit
             result = None
         if result is not None:
@@ -1358,6 +1397,7 @@ async def propose_employee_work(
                     "source": "model",
                     "technical_fallback": False,
                     "errors": [],
+                    "attempt_id": getattr(journal, "attempt_id", None),
                     "routing": _routing_snapshot(),
                 }
             fallback = _deterministic_proposal(context)
@@ -1366,6 +1406,7 @@ async def propose_employee_work(
                 "source": "deterministic",
                 "technical_fallback": True,
                 "errors": checked["errors"],
+                "attempt_id": getattr(journal, "attempt_id", None),
                 "routing": _routing_snapshot(),
             }
     fallback = _deterministic_proposal(context)
@@ -1376,11 +1417,15 @@ async def propose_employee_work(
         detail = str(routing_error.get("detail") or "").strip()
         if detail:
             errors = [detail]
+    if journal is not None:
+        journal.record(
+            "attempt-summary", source="deterministic", errors=errors)
     return {
         "proposal": fallback,
         "source": "deterministic",
         "technical_fallback": llm_service is not None,
         "errors": errors,
+        "attempt_id": getattr(journal, "attempt_id", None),
         "routing": routing,
     }
 

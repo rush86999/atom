@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.employee_adaptation import propose_adaptation
+from core.employee_attempt_journal import AttemptJournal
 from core.employee_proposal import (
     build_employee_context,
     propose_employee_work,
@@ -134,17 +135,39 @@ def test_employee_proposal_auto_selects_cheaper_capable_route(monkeypatch):
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
         service = _service(handler)
+        journal = AttemptJournal()
         with patch(
                 "core.llm.byok_handler.instructor.from_openai",
                 _fake_instructor(selected, _proposal())):
             result = asyncio.run(propose_employee_work(
-                _proposal_context(), llm_service=service))
+                _proposal_context(), llm_service=service,
+                attempt_journal=journal))
     assert result["source"] == "model", result
+    parsed = [event for event in journal.events
+              if event.get("event") == "parsed"]
+    assert parsed, journal.events
+    assert parsed[-1]["routing"]["served_route"] == {
+        "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     assert result["routing"]["served_route"] == {
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     assert result["routing"]["profile"]["name"] == (
         "employee_evidence_selection")
     assert selected and selected[0] is handler.clients["local_ctrl1234"]
+
+
+def test_employee_proposal_enforces_the_caller_deadline():
+    class SlowService:
+        async def generate_structured_response(self, **_kwargs):
+            await asyncio.sleep(5)
+            return _proposal()
+
+    result = asyncio.run(propose_employee_work(
+        _proposal_context(), llm_service=SlowService(),
+        deadline_seconds=0.05))
+    assert result["source"] == "deterministic"
+    assert result["technical_fallback"] is True
+    assert result["routing"]["error"]["code"] == "deadline_cancelled"
+    assert result["errors"]
 
 
 def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
@@ -165,12 +188,19 @@ def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
             "core.llm.byok_handler.load_feedback_evidence",
             lambda *args, **kwargs: failure)
         service = _service(handler)
+        journal = AttemptJournal()
         with patch(
                 "core.llm.byok_handler.instructor.from_openai",
                 _fake_instructor(selected, _proposal())):
             result = asyncio.run(propose_employee_work(
-                _proposal_context(), llm_service=service))
+                _proposal_context(), llm_service=service,
+                attempt_journal=journal))
     assert result["source"] == "model", result
+    parsed = [event for event in journal.events
+              if event.get("event") == "parsed"]
+    assert parsed, journal.events
+    assert parsed[-1]["routing"]["served_route"] == {
+        "provider": "local_pricey", "model": "pricey-model"}
     assert result["routing"]["served_route"] == {
         "provider": "local_pricey", "model": "pricey-model"}
     assert selected and selected[0] is handler.clients["local_pricey"]
@@ -193,12 +223,19 @@ def test_employee_proposal_failed_costlier_route_does_not_displace_cheap(
             "core.llm.byok_handler.load_feedback_evidence",
             lambda *args, **kwargs: failure)
         service = _service(handler)
+        journal = AttemptJournal()
         with patch(
                 "core.llm.byok_handler.instructor.from_openai",
                 _fake_instructor(selected, _proposal())):
             result = asyncio.run(propose_employee_work(
-                _proposal_context(), llm_service=service))
+                _proposal_context(), llm_service=service,
+                attempt_journal=journal))
     assert result["source"] == "model", result
+    parsed = [event for event in journal.events
+              if event.get("event") == "parsed"]
+    assert parsed, journal.events
+    assert parsed[-1]["routing"]["served_route"] == {
+        "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     assert result["routing"]["served_route"] == {
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     # Same-route repair/retry is bounded; the failed costlier route is never

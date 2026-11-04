@@ -1436,7 +1436,9 @@ async def start_employee_objective(
     llm = _employee_llm(current_user, db) if body.use_model else None
     provider_model = _employee_provider_model()
     proposal_result = await propose_employee_work(
-        context, llm_service=llm, provider_model=provider_model)
+        context, llm_service=llm, provider_model=provider_model,
+        deadline_seconds=float(os.getenv(
+            "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240")))
     checked = validate_employee_proposal(
         proposal_result.get("proposal"), context)
     if not checked["valid"]:
