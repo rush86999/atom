@@ -976,14 +976,17 @@ def _await_patch(
         if str(step.get("adapter") or "") != "assignment.wait":
             continue
         inputs = step.get("inputs") or {}
+        if str(step.get("status") or "") in ("pending", "waiting"):
+            raise WorkRequestCompileError(
+                "one external fact is already awaited; resolve that durable "
+                "wait or continue independent work instead of creating a "
+                "second wait")
         existing = (
             _await_key(inputs.get("fact")), _await_key(inputs.get("subject")))
-        if existing == wanted and str(step.get("status") or "") in (
-                "pending", "waiting", "applied"):
+        if existing == wanted and str(step.get("status") or "") == "applied":
             raise WorkRequestCompileError(
-                "an equivalent external fact is already awaited for this "
-                "subject; resolve or supersede that durable wait instead of "
-                "creating another")
+                "an equivalent external fact was already awaited for this "
+                "subject; renew it only with a new material change")
     correlation = _await_correlation(assignment, request)
     step_id = _unique_id(assignment, "await")
     patch = _base_patch(assignment, request, context)
