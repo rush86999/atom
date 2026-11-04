@@ -153,6 +153,12 @@ def test_compact_context_is_single_operation_and_keeps_scope():
     assert "96.30" not in compact["prompt"]
     assert compact["response_model"].__name__ == (
         "CompactEmployeeWorkProposal")
+    # The prompt names the instance shape and explicitly refuses a schema
+    # echo; the live local model copied instructor's injected JSON schema
+    # until this guard was present.
+    assert "Return JSON only with this shape" in compact["prompt"]
+    assert "work_request fields:" in compact["prompt"]
+    assert "Never output $defs" in compact["prompt"]
     # The narrow model accepts the typed invoice request and rejects another
     # operation's request.
     from pydantic import ValidationError
@@ -179,6 +185,46 @@ def test_compact_context_is_single_operation_and_keeps_scope():
         pass
     else:  # pragma: no cover — the narrow schema must reject it
         raise AssertionError("compact schema accepted an unrelated operation")
+
+
+def test_compact_schema_echo_is_rejected_and_a_valid_instance_is_kept():
+    from pydantic import ValidationError
+
+    compact = _compact_single_request_context(
+        _context(), [{
+            "observation_id": "evidence-receiving",
+            "kind": "evidence_result", "step_id": "receiving"}])
+    assert compact is not None
+    # Exactly the payload the served model returned when it copied
+    # instructor's injected schema instead of an instance.
+    schema_echo = compact["response_model"].model_json_schema()
+    assert {"$defs", "properties", "required", "title", "type"} <= set(
+        schema_echo)
+    try:
+        compact["response_model"].model_validate(schema_echo)
+    except ValidationError as exc:
+        assert any(
+            error["type"] == "extra_forbidden" for error in exc.errors())
+        assert any(
+            error["loc"] == ("decision",) for error in exc.errors())
+    else:  # pragma: no cover — a schema echo must never be accepted
+        raise AssertionError("compact schema accepted its own JSON schema")
+
+    accepted = compact["response_model"].model_validate({
+        "decision": "replan",
+        "reason": "accepted invoice, purchase order and receiving evidence",
+        "observation_ids": ["evidence-receiving"],
+        "work_request": {
+            "operation": "invoice_reconciliation",
+            "invoice_step_id": "invoice",
+            "purchase_order_step_id": "purchase-order",
+            "receiving_step_id": "receiving",
+            "currency": "USD",
+        },
+        "clarification": None,
+    })
+    assert accepted.work_request.receiving_step_id == "receiving"
+    assert accepted.work_request.purchase_order_step_id == "purchase-order"
 
 
 def test_compact_invoice_schema_keeps_compiler_owned_fields_out():
@@ -256,6 +302,12 @@ def test_compact_path_is_called_before_the_full_adaptation_prompt(monkeypatch):
     assert "WorkAdaptationProposal" not in calls[0]["prompt"]
     assert (result["proposal"].get("work_request") or {}).get(
         "operation") == "invoice_reconciliation"
+    assert (result["proposal"].get("work_request") or {}).get(
+        "invoice_step_id") == "invoice"
+    assert (result["proposal"].get("work_request") or {}).get(
+        "purchase_order_step_id") == "purchase-order"
+    assert (result["proposal"].get("work_request") or {}).get(
+        "receiving_step_id") == "receiving"
     # Opaque observation ids are bound from the compact call's own context;
     # the model is not asked to repeat lifecycle plumbing.
     assert result["proposal"]["observation_ids"] == ["evidence-receiving"]

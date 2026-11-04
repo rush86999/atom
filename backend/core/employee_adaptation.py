@@ -499,16 +499,24 @@ def _compact_single_request_context(
             "array; the compiler resolves the accepted default field names "
             "and binds the role step IDs.\n"
         )
+    request_fields = ", ".join(
+        str(name) for name in (getattr(request_model, "model_fields", {}) or {})
+    )
     prompt = (
         "You choose one bounded employee response. The only allowed operation "
         f"is {operation}.\n"
         "Choose replan only when the accepted evidence and taught terms "
-        "support that operation; return one typed work_request matching the "
-        "provided schema and accepted step IDs/identities. Choose retain when "
-        "no material work is justified, or clarify when one specific fact is "
-        "missing. Do not invent rows, prices, totals, identities or "
-        "authority; do not return a different operation.\n"
+        "support that operation; return one typed work_request with accepted "
+        "step IDs/identities. Choose retain when no material work is "
+        "justified, or clarify when one specific fact is missing. Do not "
+        "invent rows, prices, totals, identities or authority; do not return "
+        "a different operation.\n"
         + operation_rule
+        + "Return JSON only with this shape: {decision, reason, "
+        "observation_ids, work_request, clarification}.\n"
+        f"work_request fields: {request_fields}.\n"
+        "Return concrete VALUES, not the JSON schema. Never output $defs, "
+        "properties, required, title or type.\n"
         + "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(compact_observations[:8], sort_keys=True, default=str)

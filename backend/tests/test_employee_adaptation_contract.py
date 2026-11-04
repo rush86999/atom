@@ -252,6 +252,8 @@ def test_compact_single_request_prompt_is_bounded_to_one_operation():
     assert "only allowed operation is invoice_reconciliation" in prompt
     assert "source-2" in prompt and "source-4" in prompt
     assert "quote_calculation" not in prompt
+    assert "Return JSON only with this shape" in prompt
+    assert "Never output $defs" in prompt
     assert len(prompt) < 14000
 
     context["rules"]["allowed_work_requests"].append("quote_calculation")
