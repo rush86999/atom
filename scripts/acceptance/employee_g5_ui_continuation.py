@@ -187,10 +187,18 @@ def main() -> int:
             path=str(out / "exact-run-detail.png"), full_page=True)
 
         deadline = time.time() + 420
-        body: Dict[str, Any] = {}
+        # The submitted response is already scoped to the exact run; use it as
+        # the fallback if a restart/transient transport error interrupts
+        # polling. Never substitute an older assignment.
+        body: Dict[str, Any] = dict(response_body or {})
         while time.time() < deadline:
-            body = _assignment(args.api, token, run_id)
-            assignment = (body.get("assignment") or {}).get("assignment") or {}
+            try:
+                body = _assignment(args.api, token, run_id)
+            except Exception as exc:  # noqa: BLE001 — keep captured response
+                capture["poll_error"] = f"{type(exc).__name__}: {exc}"
+                break
+            assignment = (
+                body.get("assignment") or {}).get("assignment") or {}
             status = str(assignment.get("status") or "")
             if status in ("completed", "failed", "cancelled", "blocked"):
                 break
