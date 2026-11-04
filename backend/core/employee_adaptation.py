@@ -276,6 +276,29 @@ def _adaptation_errors(
     if normalized.decision != "replan":
         return []
     if normalized.work_request is not None:
+        operation = str(getattr(
+            normalized.work_request, "operation", "") or "")
+        if operation and operation != "await_evidence" and not context.get(
+                "waiting"):
+            # A missing external record the OBJECTIVE explicitly names must
+            # become a durable wait before unrelated work, or the job could
+            # silently complete a partial objective. The model still chooses
+            # the fact/subject/source; only the ordering is policy.
+            objective_tokens = set(
+                " ".join(str(context.get("objective") or "").lower()
+                         .replace("_", " ").split()).split())
+            for item in context.get("missing_prerequisites") or []:
+                if not isinstance(item, Mapping):
+                    continue
+                for role in item.get("missing") or []:
+                    role_tokens = set(
+                        " ".join(str(role or "").lower().replace("_", " ")
+                                 .split()).split())
+                    if role_tokens & objective_tokens:
+                        return [
+                            "the objective explicitly requires the missing "
+                            f"'{role}' evidence; choose await_evidence for "
+                            "that external fact before unrelated work"]
         if normalized.new_steps or normalized.update_steps or normalized.facts:
             return [
                 "work_request cannot be combined with model-authored steps "
