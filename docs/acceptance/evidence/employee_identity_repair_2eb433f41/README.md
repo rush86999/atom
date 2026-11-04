@@ -4,12 +4,17 @@ Status: focused completion-safety repair (final successor to the
 `a2c3a8872` matcher/report-guard repair). The previously accepted employee episode remains
 evidence at its original source; no UI/model rerun was made for this repair.
 
-## Defect
+## Defects
 
-A required invoice reconciliation for `PO-8841` was satisfied by a receipt
-whose `po_id` was `PO-88410`, `PO-884`, or whose `invoice_id` happened to contain
-`PO-8841`. The prior matcher compared normalized substrings across every
-business identity field.
+The original matcher satisfied a required invoice reconciliation for
+`PO-8841` with a receipt whose `po_id` was `PO-88410`, `PO-884`, or whose
+`invoice_id` happened to contain `PO-8841`; it compared normalized substrings
+across every business identity field.
+
+The successor review then reproduced a second narrow defect: an empty
+subject and empty identity map returned satisfied **without any result
+receipt**, because the empty human label was treated as proof before results
+were inspected. This bundle includes both repairs.
 
 ## Repair
 
