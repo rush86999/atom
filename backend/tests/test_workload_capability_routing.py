@@ -235,6 +235,32 @@ def test_strict_pin_is_exact_or_failed_no_escape():
     assert "below_quality_prior" in bad["reasons"]
 
 
+def test_selected_local_only_policy_admits_the_runtime_route(monkeypatch):
+    from core.llm.byok_handler import BYOKHandler
+    from core.llm.provider_policy import ProviderPolicy
+
+    handler = BYOKHandler.__new__(BYOKHandler)
+    handler.workspace_id = "ws-local-policy"
+    handler.clients = {"ollama": object()}
+    handler._local_routes = {}
+    handler.provider_policy = ProviderPolicy(
+        mode="selected", allowed_providers=frozenset({"ollama"}),
+        preferred=("ollama", "llama3.1:8b"))
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.1:8b")
+    monkeypatch.setenv("OLLAMA_CONTEXT_WINDOW", "16384")
+    monkeypatch.setattr(
+        handler, "_local_only_active", lambda: False)
+    monkeypatch.setattr(
+        handler, "_served_local_models_for",
+        lambda provider: ["llama3.1:8b"])
+    handler._admit_runtime_local_route()
+    route = handler._local_routes["llama3.1:8b"]
+    assert route["provider_key"] == "ollama"
+    assert route["quality_score"] == 0.9
+    assert route["context_window"] == 16384
+    assert route["runtime_declared"] is True
+
+
 def test_profile_resolution_uses_server_label_not_model_name():
     assert resolve_capability_profile(
         None, "planning", "employee adaptation").name == (

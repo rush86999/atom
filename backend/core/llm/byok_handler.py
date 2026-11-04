@@ -3864,6 +3864,23 @@ class BYOKHandler:
                 "workspace_id": route["workspace_id"],
             }
 
+    def _policy_is_local_only(self) -> bool:
+        """True when the owner's provider policy permits only local routes.
+
+        A selected policy that names only local providers is authority for the
+        same runtime admission as ATOM_LOCAL_ONLY. It is not an authority
+        expansion: every cloud provider remains outside the allowed set.
+        """
+        policy = getattr(self, "provider_policy", None)
+        if policy is None or policy.mode != "selected":
+            return False
+        allowed = set(policy.allowed_providers or ())
+        if not allowed:
+            return False
+        return all(
+            not _provider_is_cloud(provider, self._local_routes)
+            for provider in allowed)
+
     def _admit_runtime_local_route(self) -> None:
         """Materialize the healthy auto-local runtime as a declared local route.
 
@@ -3896,7 +3913,7 @@ class BYOKHandler:
 
         Scoped to LOCAL-ONLY mode: mixed-mode ranking is unchanged.
         """
-        if not self._local_only_active():
+        if not (self._local_only_active() or self._policy_is_local_only()):
             return
         for provider_id in ("ollama",):
             if provider_id not in self.clients:
