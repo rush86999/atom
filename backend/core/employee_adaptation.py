@@ -528,9 +528,11 @@ def _compact_single_request_context(
     if operation == "invoice_reconciliation":
         operation_rule = (
             "Use the accepted invoice, purchase-order and receiving step IDs "
-            "from the context. Do not supply field maps or an evidence "
-            "array; the compiler resolves the accepted default field names "
-            "and binds the role step IDs.\n"
+            "from the context. Choose the exact role step IDs whose data "
+            "match the objective's named invoice and purchase order; if none "
+            "matches, return clarify for the exact missing record. Do not "
+            "supply field maps or an evidence array; the compiler resolves "
+            "the accepted default field names and binds the role step IDs.\n"
         )
     elif operation == "quote_calculation":
         operation_rule = (
@@ -675,7 +677,11 @@ def _adaptation_prompt(
             "- For invoice_reconciliation, bind invoice/purchase order/"
             "receiving step IDs to context.evidence_results entries whose "
             "business_role is invoice/purchase_order/receiving. Never bind "
-            "by numeric step order alone.\n"
+            "by numeric step order alone. If a role lists several accepted "
+            "candidates, choose the exact step whose identity fields match "
+            "the objective's named invoice and purchase order; do not ask "
+            "the user while a matching candidate exists. If none matches, "
+            "ask for the exact missing record.\n"
             if typed else ""
         )
         + "- Do not invent source/action IDs or authority; do not remove "

@@ -35,6 +35,7 @@ from core.employee_proposal import (
     compile_employee_proposal,
     context_from_record,
     employee_job_view,
+    objective_identity_hints,
     propose_employee_work,
     validate_employee_proposal,
 )
@@ -1493,6 +1494,8 @@ async def start_employee_objective(
                 "technical_fallback", False),
             "use_model": bool(body.use_model),
             "source_fingerprint": source_fingerprint(resolved_sources),
+            "objective_identities": objective_identity_hints(
+                body.objective),
         },
     )
     requested_output = str(body.requested_output or "").strip().lower()

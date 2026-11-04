@@ -820,6 +820,46 @@ INVOICE_ROLE_REQUIREMENTS = {
 }
 
 
+def _invoice_requirement_identity(
+    assignment: Mapping[str, Any],
+) -> Dict[str, str]:
+    """Exact invoice/PO identity the unresolved requirement must satisfy."""
+    for requirement in assignment.get("business_requirements") or []:
+        if not isinstance(requirement, Mapping):
+            continue
+        if str(requirement.get("operation") or "") != (
+                "invoice_reconciliation"):
+            continue
+        if str(requirement.get("status") or "") == "satisfied":
+            continue
+        identity = dict(
+            requirement.get("subject_identity") or {})
+        provenance = (
+            assignment.get("provenance") or {}).get(
+                "objective_identities") or {}
+        if isinstance(provenance, Mapping):
+            for key in ("invoice_id", "po_id"):
+                value = str(provenance.get(key) or "").strip()
+                if value and not identity.get(key):
+                    identity[key] = value
+        return {
+            str(key): str(value)
+            for key, value in identity.items()
+            if value not in (None, "")
+        }
+    provenance = (
+        assignment.get("provenance") or {}).get(
+            "objective_identities") or {}
+    if isinstance(provenance, Mapping):
+        return {
+            str(key): str(value)
+            for key, value in provenance.items()
+            if key in ("invoice_id", "po_id")
+            and value not in (None, "")
+        }
+    return {}
+
+
 def _invoice_patch(
     request: InvoiceReconciliationRequest,
     assignment: Mapping[str, Any],
@@ -854,6 +894,30 @@ def _invoice_patch(
     receiving_data = _invoice_evidence_shape(
         assignment, receiving_step_id, receiving_fields,
         receiving_fields, INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
+    required_identity = _invoice_requirement_identity(assignment)
+    if required_identity:
+        expected_invoice = str(
+            required_identity.get("invoice_id") or "").strip()
+        expected_po = str(
+            required_identity.get("po_id") or "").strip()
+        actual_invoice = str(
+            invoice_data.get(invoice_fields["invoice_id"]) or "").strip()
+        actual_invoice_po = str(
+            invoice_data.get(invoice_fields["po_id"]) or "").strip()
+        actual_po = str(po_data.get(po_fields["po_id"]) or "").strip()
+        actual_receiving_po = str(
+            receiving_data.get(receiving_fields["po_id"]) or "").strip()
+        if expected_invoice and actual_invoice != expected_invoice:
+            raise WorkRequestCompileError(
+                f"selected invoice {actual_invoice!r} does not match the "
+                f"required invoice identity {expected_invoice!r}")
+        if expected_po and (
+                actual_invoice_po != expected_po
+                or actual_po != expected_po
+                or actual_receiving_po != expected_po):
+            raise WorkRequestCompileError(
+                "the selected invoice, purchase order and receiving evidence "
+                f"must all belong to purchase order {expected_po!r}")
     po_identity = str(po_data.get(po_fields["po_id"]) or "").strip()
     for label, data, fields in (
             ("invoice", invoice_data, invoice_fields),

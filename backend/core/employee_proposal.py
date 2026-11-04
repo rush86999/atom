@@ -14,6 +14,7 @@ existing task lifecycle, and the executor remains the sole operation driver.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -64,6 +65,30 @@ class EmployeeWorkProposal(BaseModel):
 
 def _text(value: Any, limit: int = 400) -> str:
     return str(value or "").strip()[:limit]
+
+
+_OBJECTIVE_IDENTITY_RE = re.compile(
+    r"\b(INV|PO)-[A-Za-z0-9][A-Za-z0-9-]*", re.IGNORECASE)
+
+
+def objective_identity_hints(objective: Any) -> Dict[str, str]:
+    """Extract only unambiguous invoice/PO identifiers named by the user.
+
+    This is a scope hint for candidate filtering, never an answer subset or a
+    role mapping. Multiple identifiers for one namespace produce no hint.
+    """
+    found: Dict[str, List[str]] = {"invoice_id": [], "po_id": []}
+    for match in _OBJECTIVE_IDENTITY_RE.finditer(str(objective or "")):
+        value = match.group(0)
+        key = (
+            "invoice_id" if match.group(1).upper() == "INV"
+            else "po_id")
+        if value not in found[key]:
+            found[key].append(value)
+    return {
+        key: values[0] for key, values in found.items()
+        if len(values) == 1
+    }
 
 
 def source_handle(source: Mapping[str, Any]) -> str:
@@ -727,14 +752,72 @@ def operation_capabilities(
             assignment, role_fields[role], INVOICE_ROLE_REQUIREMENTS[role])
         for role in INVOICE_ROLE_REQUIREMENTS
     }
+    requirement_identity: Dict[str, Any] = {}
+    for requirement in assignment.get("business_requirements") or []:
+        if not isinstance(requirement, Mapping):
+            continue
+        if str(requirement.get("operation") or "") != (
+                "invoice_reconciliation"):
+            continue
+        if str(requirement.get("status") or "") == "satisfied":
+            continue
+        requirement_identity = dict(
+            requirement.get("subject_identity") or {})
+        break
+    provenance_identities = (
+        assignment.get("provenance") or {}).get("objective_identities") or {}
+    if isinstance(provenance_identities, Mapping):
+        for key in ("invoice_id", "po_id"):
+            value = str(provenance_identities.get(key) or "").strip()
+            if value and not requirement_identity.get(key):
+                requirement_identity[key] = value
     if structured:
         candidate_steps = {
             str(step.get("step_id")): step for step in structured
         }
+        identity_missing: List[str] = []
+        if requirement_identity:
+            # Exact identity is the acceptance scope, not candidate
+            # relevance. Keep distractors visible in the evidence previews,
+            # but do not offer a wrong-PO/obsolete invoice as a role choice.
+            filtered: Dict[str, List[str]] = {}
+            expected_invoice = str(
+                requirement_identity.get("invoice_id") or "").strip()
+            expected_po = str(
+                requirement_identity.get("po_id") or "").strip()
+            for role, candidates in role_candidates.items():
+                if not candidates:
+                    filtered[role] = []
+                    continue
+                matching = []
+                for step_id in candidates:
+                    data = candidate_steps.get(
+                        step_id, {}).get("data") or {}
+                    if role == "invoice":
+                        if expected_invoice and str(
+                                data.get("invoice_id") or "") != (
+                                    expected_invoice):
+                            continue
+                        if expected_po and str(
+                                data.get("po_id") or "") != expected_po:
+                            continue
+                    elif role in ("purchase_order", "receiving"):
+                        if expected_po and str(
+                                data.get("po_id") or "") != expected_po:
+                            continue
+                    matching.append(step_id)
+                if matching:
+                    filtered[role] = matching
+                else:
+                    identity_missing.append(role)
+                    filtered[role] = []
+            role_candidates = filtered
         missing = [
             role for role, candidates in role_candidates.items()
             if not candidates
         ]
+        if identity_missing:
+            missing = list(dict.fromkeys([*missing, *identity_missing]))
         ambiguous = [
             role for role, candidates in role_candidates.items()
             if len(candidates) > 1
@@ -769,13 +852,23 @@ def operation_capabilities(
             subject = (
                 known_identities.get("purchase_order.po_id")
                 or known_identities.get("receiving.po_id")
-                or known_identities.get("invoice.po_id"))
-            hint = (
-                "Which authorized source contains the missing "
-                + ", ".join(missing_roles)
-                + " evidence"
-                + (f" for purchase order {subject}" if subject else "")
-                + "?")
+                or known_identities.get("invoice.po_id")
+                or str(requirement_identity.get("po_id") or ""))
+            expected_invoice = str(
+                requirement_identity.get("invoice_id") or "").strip()
+            if expected_invoice and "invoice" in missing_roles:
+                hint = (
+                    f"Which authorized source contains invoice "
+                    f"{expected_invoice}"
+                    + (f" for purchase order {subject}" if subject else "")
+                    + "?")
+            else:
+                hint = (
+                    "Which authorized source contains the missing "
+                    + ", ".join(missing_roles)
+                    + " evidence"
+                    + (f" for purchase order {subject}" if subject else "")
+                    + "?")
         capabilities.append({
             "operation": "invoice_reconciliation",
             "label": "invoice reconciliation",
