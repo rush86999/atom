@@ -62,7 +62,10 @@ LAST_FAILURE: dict = {"kind": None, "detail": "", "label": ""}
 def _publish_failure(label: str, err: BaseException) -> None:
     name = type(err).__name__
     text = f"{name} {err}".lower()
-    if "timeout" in name.lower() or "timeout" in text or "cancel" in name.lower():
+    if "nosuitableconfiguredmodelerror" in name.lower() or (
+            "no_suitable_configured_model" in text):
+        kind = "no_suitable_configured_model"
+    elif "timeout" in name.lower() or "timeout" in text or "cancel" in name.lower():
         kind = "deadline_cancelled"
     elif any(k in text for k in ("json", "parse", "schema", "malformed",
                                  "truncat", "validation")):
@@ -350,8 +353,40 @@ async def pinned_structured_call(
     if extra_kwargs:
         base.update(extra_kwargs)
 
+    try:
+        from core.llm.model_provenance import (
+            clear_route_attribution, clear_routing_error,
+            get_route_attribution, set_requested_route, set_route_mode,
+            set_routing_error, set_routing_profile,
+        )
+
+        clear_route_attribution()
+        if base.get("capability_profile"):
+            try:
+                from core.llm.capability_profiles import (
+                    resolve_capability_profile,
+                )
+
+                _attribute_profile = resolve_capability_profile(
+                    base.get("capability_profile"), task_type, log_label)
+                if _attribute_profile is not None:
+                    set_routing_profile(
+                        _attribute_profile.name, _attribute_profile.version)
+            except Exception:
+                pass
+    except Exception:  # noqa: BLE001 — attribution is observational
+        get_route_attribution = None  # type: ignore[assignment]
+        set_requested_route = set_route_mode = None  # type: ignore[assignment]
+        set_routing_error = set_routing_profile = None  # type: ignore[assignment]
+        clear_routing_error = None  # type: ignore[assignment]
     pin_kwargs = dict(call_kwargs or {})
     pinned = bool(pin_kwargs.get("provider_model"))
+    if set_route_mode is not None:
+        set_route_mode("pinned" if pinned else "unpinned")
+    if pinned and set_requested_route is not None:
+        _pin_route = tuple(pin_kwargs.get("provider_model") or ())
+        if len(_pin_route) == 2:
+            set_requested_route(_pin_route[0], _pin_route[1])
     # EXPLICIT PROFILE + PIN = STRICT QUALIFICATION PIN (verifier boundary 1).
     # The auto-derived profile used by ordinary employee calls keeps its
     # historical unpinned fallback; an explicit server qualification profile
@@ -383,6 +418,12 @@ async def pinned_structured_call(
                 exception=pinned_err)
             _publish_failure(log_label, pinned_err)
             if strict_pin:
+                if set_routing_error is not None:
+                    _kind = "no_suitable_configured_model" if (
+                        "nosuitableconfiguredmodelerror"
+                        in type(pinned_err).__name__.lower()
+                    ) else "provider_failure"
+                    set_routing_error(_kind, str(pinned_err))
                 logger.warning(
                     "%s strict qualification pin (%s) raised (%s): %s — "
                     "no unpinned fallback",
@@ -395,6 +436,8 @@ async def pinned_structured_call(
                 pin_kwargs.get("provider_model"),
                 pinned_err,
             )
+            if clear_routing_error is not None:
+                clear_routing_error()
             result = None
         if result is not None:
             _observer_notify(
@@ -404,6 +447,10 @@ async def pinned_structured_call(
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
         if strict_pin:
+            if set_routing_error is not None:
+                set_routing_error(
+                    "provider_failure",
+                    "the qualification pin produced no usable result")
             logger.warning(
                 "%s strict qualification pin (%s) returned no result — "
                 "failed qualification attempt, no unpinned fallback",
@@ -422,6 +469,8 @@ async def pinned_structured_call(
         # repeated the failure until the plan budget died. A failed pin is
         # evidence about that ROUTE, not about the pool: exclude it from
         # the fallback so the cascade lands on a different model.
+        if set_route_mode is not None:
+            set_route_mode("unpinned_fallback")
         fallback_kwargs = dict(base)
         _failed_pin = pin_kwargs.get("provider_model")
         if _failed_pin:
@@ -439,12 +488,18 @@ async def pinned_structured_call(
                 llm_service.generate_structured_response(**fallback_kwargs),
                 log_label, task_type, _t0)
             if fallback_result is not None:
+                if clear_routing_error is not None:
+                    clear_routing_error()
                 _observer_notify(
                     attempt_observer, "parsed", label=log_label, attempt=2,
                     route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
                     parsed=_parsed_payload(fallback_result),
                     raw=_raw_payload(fallback_result))
+            elif set_routing_error is not None:
+                set_routing_error(
+                    "provider_failure",
+                    "the configured routes produced no usable result")
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -453,6 +508,12 @@ async def pinned_structured_call(
                 seconds=_time.monotonic() - _fallback_started,
                 exception=unpinned_err)
             _publish_failure(log_label, unpinned_err)
+            if set_routing_error is not None:
+                _kind = "no_suitable_configured_model" if (
+                    "nosuitableconfiguredmodelerror"
+                    in type(unpinned_err).__name__.lower()
+                ) else "provider_failure"
+                set_routing_error(_kind, str(unpinned_err))
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
             return None
 

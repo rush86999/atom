@@ -276,6 +276,29 @@ def _adaptation_errors(
     if normalized.decision != "replan":
         return []
     if normalized.work_request is not None:
+        operation = str(getattr(
+            normalized.work_request, "operation", "") or "")
+        if operation and operation != "await_evidence" and not context.get(
+                "waiting"):
+            # A missing external record the OBJECTIVE explicitly names must
+            # become a durable wait before unrelated work, or the job could
+            # silently complete a partial objective. The model still chooses
+            # the fact/subject/source; only the ordering is policy.
+            objective_tokens = set(
+                " ".join(str(context.get("objective") or "").lower()
+                         .replace("_", " ").split()).split())
+            for item in context.get("missing_prerequisites") or []:
+                if not isinstance(item, Mapping):
+                    continue
+                for role in item.get("missing") or []:
+                    role_tokens = set(
+                        " ".join(str(role or "").lower().replace("_", " ")
+                                 .split()).split())
+                    if role_tokens & objective_tokens:
+                        return [
+                            "the objective explicitly requires the missing "
+                            f"'{role}' evidence; choose await_evidence for "
+                            "that external fact before unrelated work"]
         if normalized.new_steps or normalized.update_steps or normalized.facts:
             return [
                 "work_request cannot be combined with model-authored steps "
@@ -354,10 +377,11 @@ def _adaptation_prompt(
             "when one fact is missing, otherwise retain. On a replan, return "
             "one work_request from context.work_request_schemas.\n"
             "- If context.waiting is present, that dependent scope is blocked "
-            "by an external fact the authorized evidence cannot supply yet. "
-            "Choose replan only with a ready operation that does not need "
-            "that fact (independent work); never return the same await again. "
-            "If no independent operation is ready, choose retain.\n"
+            "by an external fact and the wait is already durable. Never return "
+            "await_evidence again in this state. Choose replan with one ready "
+            "operation from context.ready_operations (independent work) and "
+            "name the fact it must not depend on; choose retain only when "
+            "ready_operations is empty.\n"
             "- To wait for a material external fact, choose replan with an "
             "await_evidence work_request: name the business fact, its "
             "subject, the authorized source/channel expected to answer, the "
@@ -381,10 +405,12 @@ def _adaptation_prompt(
             "authorized source can supply, choose replan with an "
             "await_evidence request for that fact (use the operation's "
             "known_identities for the subject and its missing field for the "
-            "fact) before unrelated work. Never wait for a term or value the "
-            "agent can choose, and never propose the blocked work_request "
-            "until the fact arrives. Do not return retain while the objective "
-            "is unresolved.\n"
+            "fact) before unrelated work. In 'blocks', name the blocked "
+            "operation label exactly as listed (for example 'invoice "
+            "reconciliation'); do not claim an unrelated operation is "
+            "blocked. Never wait for a term or value the agent can choose, "
+            "and never propose the blocked work_request until the fact "
+            "arrives. Do not return retain while the objective is unresolved.\n"
             if context.get("missing_prerequisites") else "")
     )
     return (
@@ -429,6 +455,34 @@ def _adaptation_prompt(
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(observations, sort_keys=True, default=str)
     )
+
+
+def _routing_snapshot() -> Dict[str, Any]:
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+        if not attribution.get("mode"):
+            attribution["mode"] = "deterministic"
+        return attribution
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        return {"mode": "deterministic"}
+
+
+def _record_routing_failure(code: str) -> None:
+    """Attach a business-safe failure code at the employee boundary.
+
+    A deadline that expires around the pinned-call wrapper never reaches the
+    provider's own error classification. The employee still needs to explain
+    why no model response was used, without exposing a raw exception.
+    """
+    try:
+        from core.llm.model_provenance import set_routing_error
+
+        set_routing_error(
+            code, "the employee reasoning step produced no usable response")
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        pass
 
 
 async def propose_adaptation(
@@ -539,6 +593,7 @@ async def propose_adaptation(
         try:
             return await asyncio.wait_for(call, timeout=remaining)
         except asyncio.TimeoutError as exc:
+            _record_routing_failure("deadline_cancelled")
             if journal is not None:
                 journal.failure(
                     exc, call_stage=stage_name, label=label, attempt=0,
@@ -571,6 +626,7 @@ async def propose_adaptation(
                         context, observations, response_model=response_model),
                     "employee adaptation", "initial")
             except asyncio.TimeoutError:
+                _record_routing_failure("deadline_cancelled")
                 result = None
                 failure_stage = "initial"
                 checked_errors = ["deadline_exceeded: initial"]
@@ -591,6 +647,7 @@ async def propose_adaptation(
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
+                            "routing": _routing_snapshot(),
                         }
                     remaining = _remaining()
                     if remaining is not None and remaining <= 0:
@@ -627,6 +684,7 @@ async def propose_adaptation(
                                         "errors": [],
                                         "attempt_id": getattr(
                                             journal, "attempt_id", None),
+                                        "routing": _routing_snapshot(),
                                         "repair": {
                                             "first_errors": first_errors,
                                             "recovered": True,
@@ -663,6 +721,7 @@ async def propose_adaptation(
         "errors": checked_errors,
         "failure_stage": failure_stage,
         "attempt_id": getattr(journal, "attempt_id", None),
+        "routing": _routing_snapshot(),
     }
 
 

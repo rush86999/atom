@@ -196,6 +196,30 @@ test("shows objective, completed work, gaps, waiting party and approval payload"
   expect(resumeAssignment).not.toHaveBeenCalled();
 });
 
+test("shows a business-safe configuration notice without model branding", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    employee_job: {
+      ...detail.employee_job,
+      routing_notice: {
+        state: "configuration_required",
+        code: "no_suitable_configured_model",
+        message:
+          "No configured model currently meets this work's requirements. "
+          + "The employee's job, completed work and questions are preserved.",
+        next_action:
+          "Add or enable an eligible model in settings, then resume the same job.",
+      },
+    },
+  });
+  render(<AssignmentPanel />);
+  const notice = await screen.findByTestId("assignment-routing-notice");
+  expect(notice.textContent).toContain("No configured model");
+  expect(notice.textContent).toContain("resume the same job");
+  expect(notice.textContent).not.toContain("ollama");
+  expect(notice.textContent).not.toContain("llama");
+});
+
 test("approve sends the concrete step identity", async () => {
   render(<AssignmentPanel />);
   const approve = await screen.findByRole("button", {

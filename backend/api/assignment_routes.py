@@ -885,6 +885,8 @@ def _mark_wait_reviewed(
 
 def _waiting_observations(
     assignment: Dict[str, Any],
+    *,
+    allow_reviewed: bool = False,
 ) -> List[Dict[str, Any]]:
     """Fresh reasoning observation for a durable wait with ready work.
 
@@ -907,9 +909,10 @@ def _waiting_observations(
         if str(step.get("adapter") or "") != "assignment.wait":
             continue
         waiting = step.get("waiting") or {}
-        if waiting.get("reviewed_at"):
+        if waiting.get("reviewed_at") and not allow_reviewed:
             # The employee already considered independent work for this
-            # durable wait; only fresh evidence may ask again.
+            # durable wait; only fresh evidence or an explicit user advance
+            # may ask again.
             continue
         correlation = str(waiting.get("correlation_id") or "").strip()
         if not correlation:
@@ -917,6 +920,13 @@ def _waiting_observations(
         observation_id = f"waiting-{correlation}"
         if observation_id in consumed:
             continue
+        from core.employee_proposal import operation_capabilities
+
+        ready = [
+            str(item.get("label") or item.get("operation"))
+            for item in operation_capabilities(assignment)
+            if str(item.get("status") or "") == "ready"
+        ]
         observations.append({
             "observation_id": observation_id,
             "kind": "waiting_state",
@@ -925,10 +935,77 @@ def _waiting_observations(
                 f"waiting for {waiting.get('fact') or 'an external fact'} "
                 f"for {waiting.get('subject') or 'the subject'} from "
                 f"{waiting.get('party') or 'the authorized source'}; "
-                f"blocks {waiting.get('blocks') or 'dependent work'}"),
+                f"blocks {waiting.get('blocks') or 'dependent work'}; "
+                f"ready independent work: {', '.join(ready) or 'none'}"),
         })
         break
     return observations
+
+
+def _routing_history_entry(
+    routing: Any, *, stage: str, attempt_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Persist route attribution without raw provider text.
+
+    Requested/served identity is internal audit data; the business-facing
+    notice is derived separately and never carries model branding or scores.
+    """
+    if not isinstance(routing, Mapping):
+        return None
+    error = routing.get("error")
+    error_code = (
+        str(error.get("code") or "")
+        if isinstance(error, Mapping) else "")
+    if not error_code and not routing.get("mode"):
+        return None
+    return {
+        "kind": "employee_route",
+        "stage": str(stage or "employee")[:80],
+        "attempt_id": str(attempt_id or "")[:120] or None,
+        "mode": routing.get("mode"),
+        "requested_route": routing.get("requested_route"),
+        "served_route": routing.get("served_route"),
+        "resolved_model": routing.get("resolved_model"),
+        "profile": routing.get("profile"),
+        "error_code": error_code or None,
+    }
+
+
+def _record_employee_routing(
+    executor: Any, run_id: str, routing: Any, *,
+    stage: str, attempt_id: Optional[str] = None,
+) -> None:
+    entry = _routing_history_entry(
+        routing, stage=stage, attempt_id=attempt_id)
+    if entry is None:
+        return
+    try:
+        executor.lifecycle.runs.append_decision(run_id, entry)
+    except Exception:  # noqa: BLE001 — attribution cannot break the job
+        pass
+
+
+def _latest_employee_routing(executor: Any, run_id: str) -> Optional[Dict[str, Any]]:
+    try:
+        decisions = executor.lifecycle.runs.get_decisions(run_id)
+    except Exception:  # noqa: BLE001 — a read view must not crash
+        return None
+    for decision in reversed(decisions or []):
+        if not isinstance(decision, Mapping):
+            continue
+        if decision.get("kind") != "employee_route":
+            continue
+        return {
+            "mode": decision.get("mode"),
+            "requested_route": decision.get("requested_route"),
+            "served_route": decision.get("served_route"),
+            "resolved_model": decision.get("resolved_model"),
+            "profile": decision.get("profile"),
+            "error": (
+                {"code": decision.get("error_code")}
+                if decision.get("error_code") else None),
+        }
+    return None
 
 
 async def _advance_employee_work(
@@ -936,6 +1013,7 @@ async def _advance_employee_work(
     deadline_seconds: float = 240.0,
     provider_model: Optional[tuple] = None,
     allow_completed_evidence: bool = False,
+    force_wait_review: bool = False,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
 
@@ -977,7 +1055,8 @@ async def _advance_employee_work(
             break
         observations = evidence_observations(record)
         if not observations and status == "waiting" and ready_operations:
-            observations = _waiting_observations(assignment)
+            observations = _waiting_observations(
+                assignment, allow_reviewed=force_wait_review)
         if status == "completed" and not (
                 allow_completed_evidence and observations):
             break
@@ -1018,6 +1097,7 @@ async def _advance_employee_work(
                 "errors": discovery.get("errors") or [],
                 "failure_stage": discovery.get("failure_stage"),
                 "attempt_id": discovery.get("attempt_id"),
+                "routing": discovery.get("routing"),
                 "unread_source_count": len(unread),
                 "proposal_kind": proposal.get("proposal_kind"),
                 "proposal_reason": proposal.get("reason"),
@@ -1031,6 +1111,10 @@ async def _advance_employee_work(
                     item["observation_id"] for item in observations],
             }
             rounds.append(round_record)
+            _record_employee_routing(
+                executor, run_id, discovery.get("routing"),
+                stage="employee_evidence_selection",
+                attempt_id=discovery.get("attempt_id"))
             reads = list(proposal.get("evidence_reads") or [])
 
             def _compile_reads(candidate):
@@ -1145,10 +1229,15 @@ async def _advance_employee_work(
             "errors": proposal_result.get("errors") or [],
             "failure_stage": proposal_result.get("failure_stage"),
             "attempt_id": proposal_result.get("attempt_id"),
+            "routing": proposal_result.get("routing"),
             "observation_ids": [item["observation_id"]
                                 for item in observations],
         }
         rounds.append(round_record)
+        _record_employee_routing(
+            executor, run_id, proposal_result.get("routing"),
+            stage="employee_adaptation",
+            attempt_id=proposal_result.get("attempt_id"))
         if not proposal or proposal.get("decision") in ("retain",):
             question = missing_prerequisite_question(assignment)
             if question and not open_unresolved_questions(
@@ -1395,6 +1484,7 @@ async def start_employee_objective(
             "proposal_reason": proposal.get("reason"),
             "technical_fallback": proposal_result.get(
                 "technical_fallback", False),
+            "use_model": bool(body.use_model),
             "source_fingerprint": source_fingerprint(resolved_sources),
         },
     )
@@ -1454,6 +1544,10 @@ async def start_employee_objective(
         requested_fields=[],
     )
     run_id = record["run_id"]
+    _record_employee_routing(
+        executor, run_id, proposal_result.get("routing"),
+        stage="employee_proposal",
+        attempt_id=proposal_result.get("attempt_id"))
     if clarification:
         from core.task_lifecycle import add_unresolved_questions
         add_unresolved_questions(
@@ -1474,16 +1568,18 @@ async def start_employee_objective(
             "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
         adaptive_rounds = await _advance_employee_work(
             executor, run_id, llm, provider_model=provider_model,
-            deadline_seconds=deadline_seconds, max_rounds=5)
+            deadline_seconds=deadline_seconds, max_rounds=4)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
     current = executor.lifecycle.get_task(run_id) or {}
     from core.task_lifecycle import open_unresolved_questions
+    employee_routing = _latest_employee_routing(executor, run_id)
     job = employee_job_view(
         current.get("assignment") or {},
         record=current,
         open_obligations=open_unresolved_questions(current),
+        routing=employee_routing,
     )
     return {
         "run_id": run_id,
@@ -1494,6 +1590,7 @@ async def start_employee_objective(
         "technical_fallback": proposal_result.get(
             "technical_fallback", False),
         "proposal_errors": proposal_result.get("errors") or [],
+        "employee_routing": employee_routing,
         "adaptive_rounds": adaptive_rounds,
         "plan_revision": plan.get("plan_revision"),
         "teaching_revision": (
@@ -1657,10 +1754,13 @@ async def assignment_status(
     executor = _executor(run)
     status = executor.status(run_id)
     record = executor.lifecycle.get_task(run_id) or {}
+    employee_routing = _latest_employee_routing(executor, run_id)
+    status["employee_routing"] = employee_routing
     status["employee_job"] = employee_job_view(
         record.get("assignment") or {},
         record=record,
         open_obligations=status.get("open_gaps") or [],
+        routing=employee_routing,
     )
     return status
 
@@ -1761,7 +1861,8 @@ async def advance_assignment(
             executor, run_id, llm,
             max_rounds=max(0, min(int(body.max_adaptations), 3)),
             deadline_seconds=max(0.0, float(body.deadline_seconds)),
-            provider_model=_employee_provider_model())
+            provider_model=_employee_provider_model(),
+            force_wait_review=True)
         return {
             "run_id": run_id,
             "assignment": executor.status(run_id),
@@ -2135,8 +2236,10 @@ async def record_assignment_response(
     if result.get("status") == "resumed":
         assignment = executor.lifecycle.get_assignment(run_id) or {}
         provenance = assignment.get("provenance") or {}
-        if str(provenance.get("proposal_source") or "") in (
-                "model", "model_repaired"):
+        # A deterministic initial discovery does not make the job
+        # non-model-driven: later adaptation rounds may be model-selected.
+        # Only an explicit objective start with use_model=false stays offline.
+        if provenance.get("use_model", True) is not False:
             llm = _employee_llm(current_user, db)
             rounds = await _advance_employee_work(
                 executor, run_id, llm, max_rounds=1,

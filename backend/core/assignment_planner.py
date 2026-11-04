@@ -673,9 +673,14 @@ def plan_assignment(
             {
                 "kind": source.get("kind"),
                 "binding": resource_binding(source),
+                # Only a true internal fixture persists its path + marker.
+                # Catalog/upload resources keep their typed binding and are
+                # re-resolved through it; carrying their materialized path
+                # here would falsely mark them as controlled fixtures and
+                # make later discovery reads require the fixture env flag.
                 **({"path": str(source["path"]),
                     "internal_fixture": True}
-                   if source.get("path") else {}),
+                   if source.get("internal_fixture") else {}),
             }
             for source in (
                 authorized_sources

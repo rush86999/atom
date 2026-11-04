@@ -414,6 +414,24 @@ def _quote_patch(
             raise WorkRequestCompileError(
                 f"quote mapping {key!r} names column {column!r} absent from "
                 f"the accepted source schema")
+    # One accepted evidence population must not be turned into the same
+    # quote chain twice. A changed term/column set is a reassessment; an
+    # identical chain is duplicate work, usually from a repeated review of a
+    # durable wait.
+    rows_ref = f"${{{request.source_step_id}.rows}}"
+    for step in assignment.get("steps") or []:
+        if str(step.get("adapter") or "") != "quote.lines_from_rows":
+            continue
+        if str(step.get("status") or "") not in (
+                "applied", "pending", "waiting", "running"):
+            continue
+        inputs = step.get("inputs") or {}
+        if (str(inputs.get("rows") or "") == rows_ref
+                and dict(inputs.get("columns") or {}) == dict(columns)):
+            raise WorkRequestCompileError(
+                "an equivalent quote calculation from this evidence is "
+                "already present; resolve the durable wait or continue "
+                "different work instead of repeating it")
     sample_rows = [
         row for row in (result.get("rows") or [])
         if isinstance(row, Mapping)
@@ -610,6 +628,21 @@ def _requested_artifact_step(
     owns the output mechanics. The output path, deliverable identity and
     artifact criterion were fixed when the objective was accepted.
     """
+    if not str(calculation_step or "").strip():
+        # A wait/read-only intent has no verified calculation to render; the
+        # artifact is compiled with the business calculation that follows.
+        return None
+    if any(
+        str(step.get("adapter") or "") == "assignment.wait"
+        and str(step.get("status") or "") == "waiting"
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    ):
+        # The requested output describes the whole objective. Rendering it
+        # while a blocking external fact is still open produces a partial
+        # document; compile it with the calculation/reconciliation that the
+        # accepted reply makes possible.
+        return None
     provenance = assignment.get("provenance") or {}
     kind = str(provenance.get("requested_output") or "").strip().lower()
     adapters = {
@@ -896,6 +929,7 @@ def _await_key(value: Any) -> str:
 
 def _await_correlation(
     assignment: Mapping[str, Any], request: AwaitEvidenceRequest,
+    expected_from: str,
 ) -> str:
     """Server-derived durable identity; the model never authors it."""
     provenance = assignment.get("provenance") or {}
@@ -905,7 +939,7 @@ def _await_correlation(
         "run_id": run_id,
         "fact": _await_key(request.fact),
         "subject": _await_key(request.subject),
-        "expected_from": _await_key(request.expected_from),
+        "expected_from": _await_key(expected_from),
     }
     digest = hashlib.sha256(json.dumps(
         payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -922,35 +956,88 @@ def _await_patch(
         raise WorkRequestCompileError("await_evidence requires a material fact")
     if not _await_key(request.subject):
         raise WorkRequestCompileError("await_evidence requires a subject")
-    if not _await_key(request.expected_from):
+    # Bind the subject to the job's own accepted identities when the blocked
+    # capability exposes them. A model cannot invent a PO/invoice/item id for
+    # a wait; when no identity is known yet, the human-readable subject is
+    # still bounded by the declared blocked work.
+    from core.employee_proposal import operation_capabilities
+
+    blocked = [
+        item for item in operation_capabilities(dict(assignment))
+        if str(item.get("status") or "") in ("missing", "ambiguous")
+    ]
+    expected_from = _await_key(request.expected_from)
+    if not expected_from:
         raise WorkRequestCompileError(
             "await_evidence requires the authorized source or channel that "
             "is expected to answer")
+    if expected_from in {
+            "authorized source", "authorized", "any source", "source",
+            "unknown", "external", "external source", "someone"}:
+        role = next((
+            str(role).strip()
+            for item in blocked
+            for role in (item.get("missing") or [])
+            if str(role).strip()), "")
+        if not role:
+            raise WorkRequestCompileError(
+                "await_evidence must name the specific authorized source or "
+                "channel expected to answer (for example warehouse receiving), "
+                "not a generic placeholder")
+        # Ground the human label in the declared missing role instead of a
+        # generic placeholder; the model still chose the fact/subject.
+        expected_from = f"authorized {_await_key(role)} source"
     if not _await_key(request.blocks):
         raise WorkRequestCompileError(
             "await_evidence must explain which dependent work it blocks")
+    known_subjects = set()
+    for item in blocked:
+        for value in (item.get("known_identities") or {}).values():
+            normalized = _await_key(value)
+            if normalized:
+                known_subjects.add(normalized)
+    subject_tokens = set(_await_key(request.subject).split())
+    if known_subjects and not any(
+            set(known.split()).issubset(subject_tokens)
+            for known in known_subjects):
+        raise WorkRequestCompileError(
+            "await_evidence subject does not match an accepted identity for "
+            f"the blocked work: {sorted(known_subjects)[:6]}")
+    if blocked:
+        blocked_tokens = set()
+        for item in blocked:
+            blocked_tokens.update(_await_key(
+                item.get("label") or item.get("operation")).split())
+        blocks_tokens = set(_await_key(request.blocks).split())
+        if blocked_tokens and not (blocked_tokens & blocks_tokens):
+            raise WorkRequestCompileError(
+                "await_evidence blocks must name the dependent work it "
+                f"blocks: {sorted(blocked_tokens)[:6]}")
     wanted = (
         _await_key(request.fact), _await_key(request.subject))
     for step in assignment.get("steps") or []:
         if str(step.get("adapter") or "") != "assignment.wait":
             continue
         inputs = step.get("inputs") or {}
+        if str(step.get("status") or "") in ("pending", "waiting"):
+            raise WorkRequestCompileError(
+                "one external fact is already awaited; resolve that durable "
+                "wait or continue independent work instead of creating a "
+                "second wait")
         existing = (
             _await_key(inputs.get("fact")), _await_key(inputs.get("subject")))
-        if existing == wanted and str(step.get("status") or "") in (
-                "pending", "waiting", "applied"):
+        if existing == wanted and str(step.get("status") or "") == "applied":
             raise WorkRequestCompileError(
-                "an equivalent external fact is already awaited for this "
-                "subject; resolve or supersede that durable wait instead of "
-                "creating another")
-    correlation = _await_correlation(assignment, request)
+                "an equivalent external fact was already awaited for this "
+                "subject; renew it only with a new material change")
+    correlation = _await_correlation(assignment, request, expected_from)
     step_id = _unique_id(assignment, "await")
     patch = _base_patch(assignment, request, context)
     patch["observations"].append({
         "kind": "await_evidence",
         "fact": request.fact,
         "subject": request.subject,
-        "expected_from": request.expected_from,
+        "expected_from": expected_from,
         "expected_answer_type": request.expected_answer_type,
         "correlation_id": correlation,
     })
@@ -962,7 +1049,7 @@ def _await_patch(
         "depends_on": [],
         "inputs": {
             "correlation_id": correlation,
-            "party": request.expected_from,
+            "party": expected_from,
             "detail": f"{request.fact} for {request.subject}"[:300],
             "fact": request.fact,
             "subject": request.subject,

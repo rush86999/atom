@@ -319,7 +319,7 @@ async def upload_document(
         upload_root.mkdir(parents=True, exist_ok=True)
         materialized_path = upload_root / f"{doc_id}.{file_ext or 'bin'}"
         materialized_path.write_bytes(content_bytes)
-        from core.doc_freshness_service import hash_text
+        from core.doc_freshness_service import extraction_content_hash
 
         metadata = {
             "source": "upload",
@@ -333,7 +333,10 @@ async def upload_document(
             "pg_document_id": doc_id,
             "source_type": "upload",
             "integration_id": "manual_upload",
-            "source_content_hash": hash_text(content),
+            # The authoritative and indexed revisions must be the same kind:
+            # extraction revisions are versioned (ev<version>:<digest>), so a
+            # manual upload stores the extraction revision, not a bare hash.
+            "source_content_hash": extraction_content_hash(content),
             "author": current_user.email if current_user else "unknown"
         }
 
@@ -361,7 +364,7 @@ async def upload_document(
             with get_db_session() as db:
                 # Upsert on the stable doc key: a re-upload of the same file
                 # refreshes the mirror row instead of hitting the PK.
-                from core.doc_freshness_service import hash_text
+                from core.doc_freshness_service import extraction_content_hash
 
                 _row = (
                     db.query(IngestedDocument)
@@ -383,7 +386,7 @@ async def upload_document(
                 _row.file_size_bytes = len(content_bytes)
                 _row.content_preview = content[:500]
                 _row.ingested_at = datetime.now(timezone.utc)
-                _row.source_content_hash = hash_text(content)
+                _row.source_content_hash = extraction_content_hash(content)
                 _row.last_verified_at = datetime.now(timezone.utc)
                 _row.freshness_status = "fresh"
                 db.commit()

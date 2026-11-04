@@ -56,6 +56,12 @@ from core.llm.capability_profiles import (
     resolve_capability_profile,
     select_profile_candidates,
 )
+from core.llm.model_provenance import (
+    set_requested_route,
+    set_routing_error,
+    set_routing_profile,
+    set_served_route,
+)
 
 
 # Dedicated daemon loop for __init__-time credential resolution. FastAPI async
@@ -7993,6 +7999,8 @@ class BYOKHandler:
             complexity = self.analyze_query_complexity(prompt, task_type)
             _capability = resolve_capability_profile(
                 capability_profile, task_type)
+            if _capability is not None:
+                set_routing_profile(_capability.name, _capability.version)
             
             # Structured generation requires structured support (Phase 6.6)
             requires_tools = _task_requires_tools(agent_id, task_type)
@@ -8172,6 +8180,10 @@ class BYOKHandler:
                     "tenant_id": self.tenant_id or "default",
                 })
                 if not _pin_decision["eligible"]:
+                    set_routing_error(
+                        "pin_failed",
+                        "the qualification pin does not meet the workload "
+                        "capability contract")
                     raise NoSuitableConfiguredModelError(
                         _capability, {
                             "outcome": "pin_failed",
@@ -8314,6 +8326,9 @@ class BYOKHandler:
                         "workspace_id": self.workspace_id or "default",
                         "tenant_id": self.tenant_id or "default",
                     })
+                    set_routing_error(
+                        "no_suitable_configured_model",
+                        detail.get("selection_reason"))
                     raise NoSuitableConfiguredModelError(_capability, detail)
                 return None
 
@@ -8415,6 +8430,7 @@ class BYOKHandler:
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
                 cascade_idx += 1
+                set_requested_route(provider_id, model)
                 if provider_id in failed_providers:
                     self._trace_structured_route(
                         route_trace_id, provider_id, model, "skip",
@@ -9002,6 +9018,9 @@ class BYOKHandler:
 
                             raise
                     self._capture_echoed_model(result)  # reads _raw_response.model
+                    # This route produced the accepted structured response.
+                    # Failed/skipped attempts above never claim service.
+                    set_served_route(provider_id, model)
                     # PROVENANCE (2026-10-28): structured successes must set
                     # the same last-used pair as text completions. Review
                     # finalization reads this to report the route that actually

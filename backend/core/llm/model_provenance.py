@@ -259,3 +259,88 @@ def get_drift_detector() -> ModelDriftDetector:
             if _detector is None:
                 _detector = ModelDriftDetector()
     return _detector
+
+
+# ---------------------------------------------------------------------------
+# Route attribution for employee reasoning boundaries.
+# Requested = the route selected by BPC/pin before dispatch; served = the
+# route whose response was actually accepted. A failed attempt is never
+# reported as served. These are context-local so concurrent assignments do
+# not overwrite one another's attribution.
+# ---------------------------------------------------------------------------
+from contextvars import ContextVar as _ContextVar
+from typing import Any as _Any, Tuple as _Tuple
+
+_requested_route_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_requested_route", default=None)
+_served_route_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_served_route", default=None)
+_route_mode_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_route_mode", default=None)
+_routing_profile_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_routing_profile", default=None)
+_routing_error_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_routing_error", default=None)
+
+
+def set_requested_route(provider_id: Optional[str], model: Optional[str]) -> None:
+    if provider_id or model:
+        _requested_route_cv.set((str(provider_id or ""), str(model or "")))
+
+
+def set_served_route(provider_id: Optional[str], model: Optional[str]) -> None:
+    if provider_id or model:
+        _served_route_cv.set((str(provider_id or ""), str(model or "")))
+
+
+def set_route_mode(mode: Optional[str]) -> None:
+    _route_mode_cv.set(str(mode or "") or None)
+
+
+def set_routing_profile(name: Optional[str], version: Optional[str] = None) -> None:
+    if name:
+        _routing_profile_cv.set((str(name), str(version or "")))
+
+
+def set_routing_error(code: Optional[str], detail: Optional[str] = None) -> None:
+    if code:
+        _routing_error_cv.set({
+            "code": str(code)[:120],
+            "detail": str(detail or "")[:500],
+        })
+
+
+def clear_routing_error() -> None:
+    """A successful fallback supersedes an earlier route's failure."""
+    _routing_error_cv.set(None)
+
+
+def clear_route_attribution() -> None:
+    _requested_route_cv.set(None)
+    _served_route_cv.set(None)
+    _route_mode_cv.set(None)
+    _routing_profile_cv.set(None)
+    _routing_error_cv.set(None)
+    # A previous call's echoed checkpoint must not be attributed to this one.
+    clear_resolved_model()
+
+
+def get_route_attribution() -> Dict[str, _Any]:
+    """Business-safe route attribution; never contains raw provider errors."""
+    requested = _requested_route_cv.get()
+    served = _served_route_cv.get()
+    profile = _routing_profile_cv.get()
+    return {
+        "mode": _route_mode_cv.get(),
+        "requested_route": (
+            {"provider": requested[0], "model": requested[1]}
+            if requested else None),
+        "served_route": (
+            {"provider": served[0], "model": served[1]}
+            if served else None),
+        "resolved_model": get_resolved_model(),
+        "profile": (
+            {"name": profile[0], "version": profile[1]}
+            if profile else None),
+        "error": _routing_error_cv.get(),
+    }

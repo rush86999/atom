@@ -268,6 +268,7 @@ def build_employee_context(
     available_work_requests: Optional[Sequence[str]] = None,
     operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
     waiting: Optional[Sequence[Mapping[str, Any]]] = None,
+    completed_operations: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -429,6 +430,14 @@ def build_employee_context(
             _text(item.get("operation"), 120)
             for item in operations
             if str(item.get("status") or "") == "ready"
+        ],
+        "completed_operations": [
+            {
+                "operation": _text(item.get("operation"), 120),
+                "reason": _text(item.get("reason"), 200),
+            }
+            for item in (completed_operations or [])[:10]
+            if isinstance(item, Mapping)
         ],
         "authorized_actions": [
             _text(item, 120) for item in (authorized_actions or [])
@@ -777,6 +786,84 @@ def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
         if item.get("status") != "unavailable"
     ]
 
+def _binding_business_name(binding: Mapping[str, Any]) -> str:
+    return str(
+        binding.get("dataset_name") or binding.get("original_file_name")
+        or binding.get("resource_id") or "").strip().lower()
+
+
+def completed_operations(
+    assignment: Mapping[str, Any],
+) -> List[Dict[str, Any]]:
+    """Operations already applied for the current evidence population.
+
+    A completed quote is not reopened by a wait reply or an unrelated read;
+    a genuinely newer version of the same business source keeps it eligible
+    for reassessment.
+    """
+    steps = [
+        dict(step) for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    ]
+    by_id = {str(step.get("step_id") or ""): step for step in steps}
+    applied_sources = []
+    for step in steps:
+        if str(step.get("status") or "") != "applied":
+            continue
+        inputs = step.get("inputs") if isinstance(
+            step.get("inputs"), dict) else {}
+        binding = inputs.get("resource_binding") if isinstance(
+            inputs.get("resource_binding"), dict) else {}
+        name = _binding_business_name(binding)
+        if name and str(step.get("adapter") or "") in (
+                "dataset.read", "workbook.read", "document.read",
+                "document.text"):
+            applied_sources.append({
+                "step_id": str(step.get("step_id") or ""),
+                "name": name,
+                "version": str(binding.get("source_version") or ""),
+            })
+    completed: List[Dict[str, Any]] = []
+    quote_chains = [
+        step for step in steps
+        if str(step.get("adapter") or "") == "quote.calculate"
+        and str(step.get("status") or "") == "applied"
+    ]
+    for chain in quote_chains:
+        parent_id = (chain.get("depends_on") or [None])[0]
+        parent = by_id.get(str(parent_id or "")) or {}
+        source_id = (parent.get("depends_on") or [None])[0]
+        source = by_id.get(str(source_id or "")) or {}
+        source_binding = ((source.get("inputs") or {}).get(
+            "resource_binding") or {})
+        name = _binding_business_name(source_binding)
+        version = str(source_binding.get("source_version") or "")
+        newer_version = any(
+            item["name"] == name and version
+            and item["version"] not in ("", version)
+            for item in applied_sources)
+        if newer_version:
+            continue
+        completed.append({
+            "operation": "quote_calculation",
+            "reason": "applied for the current accepted evidence",
+            "step_id": chain.get("step_id"),
+        })
+        break
+    invoice_chains = [
+        step for step in steps
+        if str(step.get("adapter") or "") == "invoice.reconcile"
+        and str(step.get("status") or "") == "applied"
+    ]
+    if invoice_chains:
+        completed.append({
+            "operation": "invoice_reconciliation",
+            "reason": "applied for the current accepted evidence",
+            "step_id": invoice_chains[0].get("step_id"),
+        })
+    return completed
+
+
 def context_from_record(
     record: Mapping[str, Any],
     *,
@@ -836,6 +923,13 @@ def context_from_record(
         if question.get("status") == "open":
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
+    completed = completed_operations(assignment)
+    completed_names = {
+        str(item.get("operation") or "") for item in completed}
+    for item in eligibility:
+        if str(item.get("operation") or "") in completed_names:
+            item["status"] = "completed"
+            item["completed"] = True
     scoped_sources = scoped_source_views(assignment)
     waiting = []
     for step in assignment.get("steps") or []:
@@ -874,6 +968,7 @@ def context_from_record(
             if item.get("status") != "unavailable"],
         operation_eligibility=eligibility,
         waiting=waiting,
+        completed_operations=completed,
     )
 
 
@@ -1041,6 +1136,57 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
     )
 
 
+def _routing_snapshot() -> Dict[str, Any]:
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+        if not attribution.get("mode"):
+            attribution["mode"] = "deterministic"
+        return attribution
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        return {"mode": "deterministic"}
+
+
+def business_routing_notice(
+    routing: Optional[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """A business-safe explanation for a reasoning route that was unavailable.
+
+    Never includes provider exceptions, internal scores or model branding.
+    A route failure is a configuration/availability fact: the employee's
+    job, completed work and questions stay intact.
+    """
+    if not isinstance(routing, Mapping):
+        return None
+    error = routing.get("error")
+    if not isinstance(error, Mapping) or not error.get("code"):
+        return None
+    code = str(error.get("code") or "")[:120]
+    if code in ("no_suitable_configured_model", "pin_failed"):
+        return {
+            "state": "configuration_required",
+            "code": code,
+            "message": (
+                "No configured model currently meets this work's "
+                "requirements. The employee's job, completed work and "
+                "questions are preserved."),
+            "next_action": (
+                "Add or enable an eligible model in settings, then resume "
+                "the same job."),
+        }
+    return {
+        "state": "reasoning_unavailable",
+        "code": code,
+        "message": (
+            "The reasoning step is temporarily unavailable. The employee's "
+            "job, completed work and questions are preserved."),
+        "next_action": (
+            "Resume the same job when the reasoning service is available, "
+            "or supply the requested business answer."),
+    }
+
+
 async def propose_employee_work(
     context: Mapping[str, Any],
     *,
@@ -1088,6 +1234,7 @@ async def propose_employee_work(
                     "source": "model",
                     "technical_fallback": False,
                     "errors": [],
+                    "routing": _routing_snapshot(),
                 }
             fallback = _deterministic_proposal(context)
             return {
@@ -1095,6 +1242,7 @@ async def propose_employee_work(
                 "source": "deterministic",
                 "technical_fallback": True,
                 "errors": checked["errors"],
+                "routing": _routing_snapshot(),
             }
     fallback = _deterministic_proposal(context)
     return {
@@ -1102,6 +1250,7 @@ async def propose_employee_work(
         "source": "deterministic",
         "technical_fallback": llm_service is not None,
         "errors": [],
+        "routing": _routing_snapshot(),
     }
 
 
@@ -1182,6 +1331,7 @@ def employee_job_view(
     *,
     record: Optional[Mapping[str, Any]] = None,
     open_obligations: Optional[Sequence[Mapping[str, Any]]] = None,
+    routing: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """The bounded business view used by the normal job surface."""
     steps = list(assignment.get("steps") or [])
@@ -1191,6 +1341,11 @@ def employee_job_view(
             dict(assignment), dict(record or {}))
     except Exception:  # noqa: BLE001 — a read view must not crash
         business_outcome = None
+    routing_notice = business_routing_notice(routing)
+    if str(assignment.get("status") or "") in ("completed", "cancelled"):
+        # The route outcome is still in the audit history, but a finished or
+        # cancelled job must not show an "incomplete configuration" notice.
+        routing_notice = None
     return {
         "objective": assignment.get("objective"),
         "identity": {
@@ -1258,4 +1413,5 @@ def employee_job_view(
             else None),
         "plan_revision": assignment.get("plan_revision"),
         "business_outcome": business_outcome,
+        "routing_notice": routing_notice,
     }
