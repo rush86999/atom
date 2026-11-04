@@ -1,7 +1,8 @@
 {
  "schema": "atom-employee-evidence-1",
  "status": "controlled scratch-DB proof: evaluated business failures persist on the served generation, scoped capability evidence excludes the route, and the next unpinned decision serves one eligible alternative",
- "executed_source": "1cb0d92e4180340dfe7a9d4e2b538fff954ab8e8",
+ "executed_source": "2ab959fc0be8c18724e1e143172d9e51ef630369",
+ "implementation_source": "1cb0d92e4180340dfe7a9d4e2b538fff954ab8e8",
  "label_correction_source": "d6a561b2bb7b17f26360440a077cd18eff430b16",
  "consumer_path": "propose_employee_work -> LLMService -> BYOKHandler -> capability profile/evidence selector",
  "proof": {
@@ -19,11 +20,12 @@
   "next_profile": {
    "name": "employee_evidence_selection",
    "version": "2026-11-04.1"
-  }
+  },
+  "strict_pin_failed_without_escape": true
  },
  "checks": {
-  "feedback_controls": "6 passed",
-  "focused_affected": "212 passed",
+  "feedback_controls": "7 passed",
+  "focused_affected": "213 passed",
   "broader_employee_assignment": "180 passed"
  },
  "source_files": {
@@ -36,23 +38,23 @@
   "backend/core/llm/capability_profiles.py": "5601ebeefdb72362669545d593e8a3c6ba76e32069308699399d1f65eb867ddb",
   "backend/core/llm/fabrication_accounting.py": "411056e2ff666ebd3d64d86364899d10dca2b601facbe94de34af79b12f1a3b7",
   "backend/core/llm/model_provenance.py": "2a914cd61ede131e877f0b681765b9a462b9668e2ffe6203a3a4ca7afb806ccb",
-  "backend/tests/test_employee_business_feedback.py": "f2f44f23fba9abb02ea082b58e7f353888241c6c3d0d27af6bb47f0854ba18d1"
+  "backend/tests/test_employee_business_feedback.py": "180790bbc6f0a895fbdf56cc957a6173c4808e69b93854e854c6beb3d00ddabc"
  },
  "artifacts": {
-  "README.md": "cf39621c916aac5bb3300ff1c5a8f239fa578a72d6aae3dc27ab6307a67bc5de",
+  "README.md": "5458c0e75ac30ec50bd89aca6dbf4e943d94161424a02a0aef779174aaf14ee5",
   "broader-employee.log": "036df5c1b309de0f1891c0146d683df7dfe86612607d1685950e52a445218466",
-  "business-feedback-tests.log": "ab29f6de98a8497d2a3cbd02d0cf231d320ec00a60679f819b2f50b28b3291ea",
-  "feedback-proof.json": "1d41da87950376f45bd903d83b5aa5b9fcc434577334e3b9b81bd3e90b23aeb8",
-  "focused-affected.log": "96d124d4e79176656d3bde0ba88a40a7de00e8b8ee55c3e2c8b476fd7a3f9c27",
-  "proof.log": "c3406146c703fcfbebdbb1905dd1f3d9cb54c448eff8f7c87e053e5410a6195c",
-  "proof.py": "4f05d15e06e1e39b573f01e778ac3899a8a65d1448a3c9bfac5ddc5a52a1289f"
+  "business-feedback-tests.log": "ce78585ce0390bd2d19ed1febeb9bb1aad9759b6953091eeeddda85e1f326432",
+  "feedback-proof.json": "0fb11e9af9a69ef5ded08f0796add55294fd2ace6356d886d5f88497e2f37e96",
+  "focused-affected.log": "fa2efe64cbb152b817061986e79de583fd8ac5dcd8d808924c06c19ba1685f60",
+  "proof.log": "ab5478136efd4459c97786e6069c92460d4d65696ec96c84634a9cdde01e821e",
+  "proof.py": "529196002de185a40d3b91f0228b9a3eb2dc0409f290ab2cbd566614f2500c52"
  },
  "boundaries": [
   "scratch SQLite feedback table; no live application DB",
   "provider transport doubled; no live model inference or served multi-model comparison",
   "three deterministic evaluations meet the profile evidence floor; no quality label invented",
   "one eligible alternative served; no multi-route sweep or broad escalation claim",
-  "exact qualification pins and one-escalation policy unchanged",
+  "exact qualification pins fail closed and one-escalation policy is unchanged",
   "no provider, credential, spend, send, download or deployment authority used",
   "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
  ]

@@ -12,14 +12,14 @@ inference, provider, credential, spend, download or deployment was used.
 
 | Item | Value |
 |---|---|
-| Executed source | `1cb0d92e4180340dfe7a9d4e2b538fff954ab8e8` |
+| Executed source | `2ab959fc0be8c18724e1e143172d9e51ef630369` |
 | Consumer | `propose_employee_work` / `propose_adaptation` |
 | Feedback store | scratch SQLite `LLMRoutingFeedback` table |
 | Profile | `employee_evidence_selection` v`2026-11-04.1` |
 | Failed route | `local_ctrl1234/llama3.1:8b` |
 | Next served route | `local_pricey/pricey-model` |
-| Feedback controls | **6 passed** |
-| Focused affected regression | **212 passed** |
+| Feedback controls | **7 passed** |
+| Focused affected regression | **213 passed** |
 | Broader employee/assignment regression | **180 passed** |
 
 ## The gap this closes
@@ -116,7 +116,7 @@ The `test_employee_business_feedback.py` controls also cover:
 
 - `feedback-proof.json` — persisted rows, aggregated evidence and next decision.
 - `proof.py` — deterministic reproducer (no live model).
-- `business-feedback-tests.log` — 6 feedback controls.
-- `focused-affected.log` — 212 affected routing/feedback/employee tests.
+- `business-feedback-tests.log` — 7 feedback controls.
+- `focused-affected.log` — 213 affected routing/feedback/employee tests.
 - `broader-employee.log` — 180 employee/assignment tests.
 - `MANIFEST.json` — source and artifact hashes.

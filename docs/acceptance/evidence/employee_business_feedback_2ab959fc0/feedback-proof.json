@@ -1,10 +1,6 @@
-🧪 pytest detected: forcing isolated test DB (/private/tmp/atom-full-app/backend/test_integration.db)
-⚠️ Generated temporary SECRET_KEY for development: a4T1M9ve...
-⚠️ Generated temporary SECRET_KEY for development: DYZu5PmO...
-{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-04T22:52:11.587973+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
 {
  "schema": "atom-business-feedback-proof-1",
- "executed_source": "1cb0d92e4180340dfe7a9d4e2b538fff954ab8e8",
+ "executed_source": "2ab959fc0be8c18724e1e143172d9e51ef630369",
  "sequence": [
   "consumer evaluated 3 served model proposals as wrong_evidence_selection",
   "each evaluation annotated its own transport outcome row",
@@ -26,7 +22,7 @@
     "profile_version": "2026-11-04.1",
     "provider": "local_ctrl1234",
     "model": "llama3.1:8b",
-    "routing_result_id": "d42dd0f5-2af0-4fb8-891d-17a431da94ad"
+    "routing_result_id": "69689b90-dfcf-43bc-bfa7-50faea575b74"
    }
   },
   {
@@ -43,7 +39,7 @@
     "profile_version": "2026-11-04.1",
     "provider": "local_ctrl1234",
     "model": "llama3.1:8b",
-    "routing_result_id": "db031dd9-9e83-401d-95dc-a23939570ad1"
+    "routing_result_id": "7e0e7d91-7cf0-4c35-84de-59df949012b5"
    }
   },
   {
@@ -60,7 +56,7 @@
     "profile_version": "2026-11-04.1",
     "provider": "local_ctrl1234",
     "model": "llama3.1:8b",
-    "routing_result_id": "6467ebc0-b019-4a31-86f9-ef9f511448b9"
+    "routing_result_id": "d79549be-b58c-41c0-b4ae-8caaf31d7aa6"
    }
   }
  ],
@@ -76,7 +72,7 @@
    "failure_kind": "wrong_evidence_selection",
    "business_outcome": "failed",
    "business_stage": "employee_evidence_selection",
-   "attempt_id": "b9a9ce98854f4c93aa6fa2888401d77a"
+   "attempt_id": "effa40d2f02943fab1f3f461d621f2df"
   },
   {
    "model_id": "llama3.1:8b",
@@ -89,7 +85,7 @@
    "failure_kind": "wrong_evidence_selection",
    "business_outcome": "failed",
    "business_stage": "employee_evidence_selection",
-   "attempt_id": "9207902d4a634b509a88961b0000d340"
+   "attempt_id": "fabada0203bc44ce85da47b3c6ebcb69"
   },
   {
    "model_id": "llama3.1:8b",
@@ -102,7 +98,7 @@
    "failure_kind": "wrong_evidence_selection",
    "business_outcome": "failed",
    "business_stage": "employee_evidence_selection",
-   "attempt_id": "6ee71933935f4cb99312acb0e11988bc"
+   "attempt_id": "c92456da0a8e44e1a36ed416414829e5"
   }
  ],
  "evidence": {
@@ -113,22 +109,72 @@
    "semantic_failures": 3,
    "unsafe_failures": 0,
    "retries": 0,
-   "latency_ms": 0.11682510375976562,
+   "latency_ms": 0.1201629638671875,
    "last_failure_kind": "semantic_failure",
    "failure_kinds": "{'semantic_failure'}",
    "incidents": [
     {
-     "incident_id": "feedback-02509292-7c01-4f3f-b0e6-2ad55457b9fb-c86c270d20511e71",
+     "incident_id": "feedback-2e902e1f-05fc-4f3d-b0a2-950a32c56383-5ec16768def6f409",
      "identity_source": "row_id",
      "identity_reliable": true,
-     "material_digest": "c86c270d20511e719d2bca256a7504eefaeba8e50b2be50e526d9b145ff0b78c",
-     "routing_result_id": "d42dd0f5-2af0-4fb8-891d-17a431da94ad",
+     "material_digest": "5ec16768def6f4094087a0323a8f4c6e4079879204dedd0b1d94cb08d2c0cd7f",
+     "routing_result_id": "69689b90-dfcf-43bc-bfa7-50faea575b74",
      "kind": "semantic_failure",
-     "timestamp": 1793850731.0,
-     "created_at": "2026-11-04T22:52:11",
+     "timestamp": 1793851034.0,
+     "created_at": "2026-11-04T22:57:14",
      "route": "local_ctrl1234/llama3.1:8b",
      "reviewed_by": null,
      "reviewed_at": null
     },
     {
-     "incident_id": "feedback-a0d532eb-3ce4-4382-973
+     "incident_id": "feedback-4fa2daf0-06ef-42be-8e3c-ee118873211d-5ec16768def6f409",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "5ec16768def6f4094087a0323a8f4c6e4079879204dedd0b1d94cb08d2c0cd7f",
+     "routing_result_id": "7e0e7d91-7cf0-4c35-84de-59df949012b5",
+     "kind": "semantic_failure",
+     "timestamp": 1793851034.0,
+     "created_at": "2026-11-04T22:57:14",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    },
+    {
+     "incident_id": "feedback-bf25a704-050d-4621-992c-81e0a2d3ef96-5ec16768def6f409",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "5ec16768def6f4094087a0323a8f4c6e4079879204dedd0b1d94cb08d2c0cd7f",
+     "routing_result_id": "d79549be-b58c-41c0-b4ae-8caaf31d7aa6",
+     "kind": "semantic_failure",
+     "timestamp": 1793851034.0,
+     "created_at": "2026-11-04T22:57:14",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    }
+   ],
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "tenant_id": "tenant-ctrl"
+  }
+ },
+ "next_decision": {
+  "source": "model",
+  "served_route": {
+   "provider": "local_pricey",
+   "model": "pricey-model"
+  },
+  "profile": {
+   "name": "employee_evidence_selection",
+   "version": "2026-11-04.1"
+  },
+  "dispatched_clients": 2
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; no live application DB",
+  "provider transport doubled; no live model inference",
+  "three deterministic consumer evaluations meet the profile evidence floor; no quality label was invented",
+  "one eligible alternative served; no multi-route sweep"
+ ]
+}
