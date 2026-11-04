@@ -404,12 +404,14 @@ def main() -> int:
             "artifact_has_new_total": "425.00" in artifact_text,
             "artifact_excludes_superseded_total": "370.00"
             not in artifact_text,
-            "artifact_criterion_still_met": any(
-                (item.get("kind") == "artifact_verified"
-                 and item.get("met")) for item in (
-                    (second.get("employee_job") or {}).get(
-                        "business_outcome") or {}).get(
-                            "criterion_results") or []),
+            "artifact_criterion_still_met": (
+                ((second.get("employee_job") or {}).get(
+                    "business_outcome") or {}).get("state") == "satisfied"
+                and any(
+                    item.get("kind") == "artifact_verified"
+                    and item.get("required")
+                    for item in ((second.get("employee_job") or {}).get(
+                        "criteria") or []))),
         }
         capture["phase2"].update({
             "note": {
@@ -425,7 +427,7 @@ def main() -> int:
                 "source_version": revised_source.get("source_version"),
                 "file_sha256": hashlib.sha256(
                     revised.read_bytes()).hexdigest(),
-                "add_request_status": change.status,
+                "add_request_status": change.status_code,
                 "add_response": {
                     "status": change_body.get("status"),
                     "step_id": change_body.get("step_id"),
