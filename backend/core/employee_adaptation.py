@@ -40,6 +40,15 @@ from core.employee_work_requests import (
 ADAPTATION_SCHEMA = "atom-employee-adaptation-1"
 
 
+class _BudgetExhausted(Exception):
+    """The shared call budget was already spent before a stage dispatched.
+
+    This is deliberately distinct from a dispatched stage that timed out: a
+    skipped stage is not another model semantic failure and must not be counted
+    as one in the attempt journal or the campaign diagnosis.
+    """
+
+
 class Observation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -710,18 +719,20 @@ async def propose_adaptation(
                 kinds.append(kind)
         return "no parsed proposal: " + ", ".join(kinds)
 
+    def _record_skipped(stage_name: str, label: str) -> None:
+        if journal is not None:
+            journal.record(
+                "skipped_due_to_budget", call_stage=stage_name, label=label,
+                attempt=0, route="deadline", seconds=0.0)
+
     async def _call(
         prompt: str, label: str, stage_name: str, *,
         model: Any = None, max_tokens: int = 1800,
     ) -> Any:
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
-            error = TimeoutError(f"{stage_name} deadline exhausted")
-            if journal is not None:
-                journal.failure(
-                    error, call_stage=stage_name, label=label, attempt=0,
-                    route="deadline", seconds=0.0)
-            raise error
+            _record_skipped(stage_name, label)
+            raise _BudgetExhausted(stage_name)
         call = pinned_structured_call(
             llm_service,
             prompt=prompt,
@@ -791,6 +802,9 @@ async def propose_adaptation(
                         compact["prompt"], "employee adaptation compact",
                         "compact", model=compact["response_model"],
                         max_tokens=1200)
+                except _BudgetExhausted:
+                    failure_stage = "compact"
+                    checked_errors = ["skipped_due_to_budget: compact"]
                 except asyncio.TimeoutError:
                     _record_routing_failure("deadline_cancelled")
                     failure_stage = "compact"
@@ -818,8 +832,11 @@ async def propose_adaptation(
                             }
                         remaining = _remaining()
                         if remaining is not None and remaining <= 0:
+                            _record_skipped(
+                                "compact_repair",
+                                "employee adaptation compact repair")
                             checked_errors = errors + [
-                                "deadline_exceeded: compact_repair"]
+                                "skipped_due_to_budget: compact_repair"]
                             failure_stage = "compact"
                         else:
                             repair_prompt = (
@@ -837,6 +854,11 @@ async def propose_adaptation(
                                     "compact_repair",
                                     model=compact["response_model"],
                                     max_tokens=1200)
+                            except _BudgetExhausted:
+                                repaired = None
+                                failure_stage = "compact_repair"
+                                errors = errors + [
+                                    "skipped_due_to_budget: compact_repair"]
                             except asyncio.TimeoutError:
                                 repaired = None
                                 failure_stage = "compact_repair"
@@ -903,6 +925,10 @@ async def propose_adaptation(
                     _adaptation_prompt(
                         context, observations, response_model=response_model),
                     "employee adaptation", "initial")
+            except _BudgetExhausted:
+                result = None
+                failure_stage = "initial"
+                checked_errors = ["skipped_due_to_budget: initial"]
             except asyncio.TimeoutError:
                 _record_routing_failure("deadline_cancelled")
                 result = None
@@ -919,6 +945,10 @@ async def propose_adaptation(
                         result = await _call(
                             compact_prompt,
                             "employee adaptation compact", "compact")
+                    except _BudgetExhausted:
+                        failure_stage = "compact"
+                        checked_errors = checked_errors + [
+                            "skipped_due_to_budget: compact"]
                     except asyncio.TimeoutError:
                         _record_routing_failure("deadline_cancelled")
                         failure_stage = "compact"
@@ -945,8 +975,10 @@ async def propose_adaptation(
                         }
                     remaining = _remaining()
                     if remaining is not None and remaining <= 0:
+                        _record_skipped(
+                            "repair", "employee adaptation repair")
                         checked_errors = errors + [
-                            "deadline_exceeded: repair"]
+                            "skipped_due_to_budget: repair"]
                         failure_stage = "repair"
                     else:
                         try:
@@ -954,6 +986,11 @@ async def propose_adaptation(
                                 _adaptation_retry_prompt(
                                     context, observations, normalized, errors),
                                 "employee adaptation repair", "repair")
+                        except _BudgetExhausted:
+                            repaired = None
+                            failure_stage = "repair"
+                            errors = errors + [
+                                "skipped_due_to_budget: repair"]
                         except asyncio.TimeoutError:
                             repaired = None
                             failure_stage = "repair"

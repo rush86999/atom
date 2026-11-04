@@ -92,6 +92,15 @@ _PROFILES: Dict[str, CapabilityProfile] = {
         name="employee_adaptive_planning", version="2026-11-04.1",
         min_quality=82, policy="quality_critical", preference="economy",
         allow_escalation=True),
+    # Separately declared qualification configuration for the compact
+    # single-ready-operation continuation. It is a distinct workload contract,
+    # so pre-repair failures measured under employee_adaptive_planning do not
+    # silently disqualify the narrow request path (and vice versa).
+    "employee_adaptive_planning_compact": CapabilityProfile(
+        name="employee_adaptive_planning_compact", version="2026-11-04.1",
+        min_quality=82, policy="quality_critical", preference="economy",
+        allow_escalation=True,
+        min_context_tokens=4000, min_output_tokens=512),
     "employee_wait_choice": CapabilityProfile(
         name="employee_wait_choice", version="2026-11-04.1",
         min_quality=82, policy="quality_critical", preference="economy",
@@ -123,6 +132,8 @@ _PROFILES: Dict[str, CapabilityProfile] = {
 
 _LOG_LABEL_PROFILES = {
     "employee work proposal": "employee_evidence_selection",
+    # Longest/most-specific label MUST precede the generic adaptation label.
+    "employee adaptation compact": "employee_adaptive_planning_compact",
     "employee adaptation": "employee_adaptive_planning",
     "employee wait": "employee_wait_choice",
     "goal replanning": "goal_replanning",

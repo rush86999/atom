@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from decimal import Decimal
 
 from core.assignment_plan import (
@@ -177,8 +178,15 @@ def test_followup_transport_contract_and_repair_feedback(env):
     shape = first["prompt"].split(
         "Return JSON only with this shape: ", 1)[1].split(".\n", 1)[0]
     assert "step_ids" not in shape and "facts" not in shape
-    assert '"operation": "quote_calculation"' in first["prompt"]
-    assert '"operation": "invoice_reconciliation"' not in first["prompt"]
+    prompt_context = json.loads(
+        first["prompt"].split("CONTEXT:\n", 1)[1].split(
+            "\n\nOBSERVATIONS:", 1)[0])
+    assert [item["operation"] for item in prompt_context[
+        "work_request_schemas"]] == ["quote_calculation"]
+    # The all-purpose context may still list the unavailable operation for
+    # transparency; the model is not offered its typed schema.
+    assert "invoice_reconciliation" not in {
+        item["operation"] for item in prompt_context["work_request_schemas"]}
     assert "previous proposal was invalid" in second["prompt"]
     assert "absent" in second["prompt"]
     assert proposal["repair"]["first_errors"]

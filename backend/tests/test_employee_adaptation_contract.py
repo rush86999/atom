@@ -258,6 +258,55 @@ def test_compact_single_request_prompt_is_bounded_to_one_operation():
     assert _compact_single_request_prompt(context) == ""
 
 
+def test_exhausted_budget_skips_compact_without_a_dispatch():
+    context = {
+        "identity": {"workspace_id": "ws_assign", "tenant_id": "tenant_assign"},
+        "objective": "Reconcile PO-HX-7001 with the accepted receiving record",
+        "teaching": {"terms": {"currency": "USD"}},
+        "rules": {"allowed_work_requests": ["invoice_reconciliation"]},
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "status": "ready",
+            "evidence": [
+                {"step_id": "invoice"}, {"step_id": "purchase-order"},
+                {"step_id": "receiving"}],
+            "roles": {"invoice": ["invoice"],
+                      "purchase_order": ["purchase-order"],
+                      "receiving": ["receiving"]},
+            "known_identities": {"invoice.po_id": "PO-HX-7001"},
+        }],
+        "evidence_results": [
+            {"step_id": "invoice", "business_role": "invoice",
+             "data_keys": ["po_id", "quantity"]},
+            {"step_id": "purchase-order", "business_role": "purchase_order",
+             "data_keys": ["po_id"]},
+            {"step_id": "receiving", "business_role": "receiving",
+             "data_keys": ["received_quantity"]},
+        ],
+        "business_requirements": [{
+            "requirement_id": "result-invoice-1",
+            "operation": "invoice_reconciliation",
+            "status": "unresolved",
+        }],
+    }
+    journal = AttemptJournal()
+    llm = CapturingLLM([])
+    result = asyncio.run(propose_adaptation(
+        context, [{"observation_id": "o-skip", "kind": "evidence_result",
+                   "step_id": "receiving"}],
+        assignment=_assignment(), llm_service=llm,
+        deadline=time.monotonic() - 1.0,
+        attempt_journal=journal))
+    assert result["source"] == "deterministic"
+    assert result["failure_stage"] == "compact"
+    assert "skipped_due_to_budget: compact" in result["errors"]
+    assert not llm.calls, "an exhausted budget must not dispatch the model"
+    skipped = [e for e in journal.events
+               if e["event"] == "skipped_due_to_budget"]
+    assert skipped and skipped[0]["call_stage"] == "compact"
+    assert not [e for e in journal.events if e["event"] == "failure"]
+
+
 def test_typed_work_request_rejects_a_reconcile_decision():
     from core.employee_adaptation import _adaptation_errors
     from core.employee_work_requests import (

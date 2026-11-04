@@ -239,6 +239,13 @@ def test_profile_resolution_uses_server_label_not_model_name():
     assert resolve_capability_profile(
         None, "planning", "employee adaptation").name == (
             "employee_adaptive_planning")
+    # The narrow single-operation continuation is a separate declared
+    # capability configuration, not a relabel of the all-purpose profile.
+    compact = resolve_capability_profile(
+        None, "planning", "employee adaptation compact")
+    assert compact.name == "employee_adaptive_planning_compact"
+    assert compact.name != "employee_adaptive_planning"
+    assert compact.min_context_tokens == 4000
     assert resolve_capability_profile(
         None, "planning", "employee work proposal").name == (
             "employee_evidence_selection")

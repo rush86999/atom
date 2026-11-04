@@ -254,6 +254,24 @@ def _parsed_payload(result: Any) -> Any:
         return None
 
 
+def _usage_payload(result: Any) -> Any:
+    """Token usage when the provider exposed it; never inferred."""
+    raw = getattr(result, "_raw_response", None)
+    usage = getattr(raw, "usage", None)
+    if usage is None:
+        return None
+    values = {}
+    for name in (
+            "prompt_tokens", "completion_tokens", "total_tokens",
+            "input_tokens", "output_tokens"):
+        value = getattr(usage, name, None)
+        if value is None and isinstance(usage, dict):
+            value = usage.get(name)
+        if value is not None:
+            values[name] = value
+    return values or None
+
+
 def _raw_payload(result: Any) -> Any:
     """Best-effort raw provider completion for the attempt journal."""
     raw = getattr(result, "_raw_response", None)
@@ -401,7 +419,7 @@ async def pinned_structured_call(
         _pinned_attempt = 1
         _observer_notify(
             attempt_observer, "dispatch", label=log_label, attempt=1,
-            route="pinned", prompt=prompt,
+            route="pinned", prompt=prompt, prompt_chars=len(prompt),
             system_instruction=system_instruction,
             response_model=getattr(response_model, "__name__", str(response_model)),
             response_schema=_schema_json(response_model),
@@ -444,6 +462,7 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="pinned",
                 seconds=_time.monotonic() - _pinned_started,
+                usage=_usage_payload(result),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
         if strict_pin:
@@ -477,7 +496,7 @@ async def pinned_structured_call(
             fallback_kwargs["exclude_provider_model"] = _failed_pin
         _observer_notify(
             attempt_observer, "dispatch", label=log_label, attempt=2,
-            route="unpinned_fallback", prompt=prompt,
+            route="unpinned_fallback", prompt=prompt, prompt_chars=len(prompt),
             system_instruction=system_instruction,
             response_model=getattr(response_model, "__name__", str(response_model)),
             response_schema=_schema_json(response_model),
@@ -494,6 +513,7 @@ async def pinned_structured_call(
                     attempt_observer, "parsed", label=log_label, attempt=2,
                     route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
+                    usage=_usage_payload(fallback_result),
                     parsed=_parsed_payload(fallback_result),
                     raw=_raw_payload(fallback_result))
             elif set_routing_error is not None:
@@ -519,7 +539,7 @@ async def pinned_structured_call(
 
     _observer_notify(
         attempt_observer, "dispatch", label=log_label, attempt=1,
-        route="unpinned", prompt=prompt,
+        route="unpinned", prompt=prompt, prompt_chars=len(prompt),
         system_instruction=system_instruction,
         response_model=getattr(response_model, "__name__", str(response_model)),
         response_schema=_schema_json(response_model),
@@ -534,6 +554,7 @@ async def pinned_structured_call(
                 attempt_observer, "parsed", label=log_label, attempt=1,
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
+                usage=_usage_payload(direct_result),
                 parsed=_parsed_payload(direct_result),
                 raw=_raw_payload(direct_result))
         return direct_result

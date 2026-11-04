@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
-"""Cancellation semantics of the structured dispatch (verifier round
-19, W5): the structured attempt runs a SYNCHRONOUS Instructor client in
-a worker thread. Cancelling the awaiting task does not cancel the
-worker — and the dispatch's `finally` releases the model-attempt
-reservation immediately, so another request can claim the endpoint
-while the original still occupies it.
+"""Cancellation semantics of the structured dispatch.
 
-Demonstrated with a controlled blocking client (model-independent), on
-a TEST-OWNED pricing fetcher and a deterministically forced route —
-this file shares no singleton state with other files and passes in any
-test order. Blocking workers are ALWAYS released in a finally.
+The structured attempt runs a SYNCHRONOUS Instructor client in a worker
+thread. Cancelling the awaiting task does not cancel the worker. The
+single-flight reservation must therefore belong to the WORKER's real
+future, not to the cancelled awaiter:
 
   1. cancellation is logged as its own event
-     ([structured-cancelled], reservation_released=true);
+     ([structured-cancelled], reservation_released=false,
+     cleanup_on_worker_exit=true);
   2. the worker is STILL RUNNING after the awaiter is cancelled;
-  3. the reservation is released while the worker runs — a second
-     dispatch claims the same model and reaches the endpoint: the
-     overlap.
+  3. the reservation is STILL HELD while the worker runs, so a second
+     boundary cannot overlap provider work;
+  4. when the worker really exits, cleanup releases the reservation once
+     and a later boundary can dispatch.
+
+Demonstrated with a controlled blocking client (model-independent), on
+a TEST-OWNED pricing fetcher and a deterministically forced route.
+Blocking workers are ALWAYS released in a finally.
 """
 import os
 os.environ.setdefault("TESTING", "1")
@@ -58,6 +59,7 @@ class _BlockingWrapper:
         self.lock = threading.Lock()
         self.started = 0
         self.finished = 0
+        self.last_kwargs = {}
         self.release = threading.Event()
 
     def as_instructor(self):
@@ -66,6 +68,7 @@ class _BlockingWrapper:
         def create(**kwargs):
             with wrapper.lock:
                 wrapper.started += 1
+                wrapper.last_kwargs = dict(kwargs)
             wrapper.release.wait(timeout=60)
             plan = CanvasEditPlan(
                 wants_edit=True,
@@ -105,7 +108,7 @@ def isolated_env(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
+async def test_cancellation_retains_reservation_until_the_worker_exits(
         isolated_env, monkeypatch, caplog):
     import core.llm.byok_handler as _bh2
 
@@ -115,8 +118,6 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
         async def _forced_rank(*args, **kwargs):
             # This test is about CANCELLATION semantics, not ranking
             # correctness (the dispatch-policy file pins ranking).
-            # Force the route so the demonstration is model-independent
-            # and immune to fetcher singleton state.
             return [(LOCAL_PROVIDER, LOCAL_MODEL)]
 
         with patch.object(_bh2.BYOKHandler, "get_ranked_providers",
@@ -133,6 +134,7 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                     response_model=CanvasEditPlan,
                     task_type="planning",
                     route_trace_id="canvas_edit_plan:exec-cancel",
+                    claim_wait_seconds=0.5,
                 ))
             for _ in range(3000):
                 with wrapper.lock:
@@ -152,7 +154,10 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                          and "route=canvas_edit_plan:exec-cancel"
                          in r.getMessage()]
             assert cancelled, "cancellation must be its own logged event"
-            assert "reservation_released=true" in cancelled[0].getMessage()
+            message = cancelled[0].getMessage()
+            assert "reservation_released=false" in message
+            assert "cleanup_on_worker_exit=true" in message
+            assert "worker_may_still_run=true" in message
 
             with wrapper.lock:
                 assert wrapper.started == 1 and wrapper.finished == 0, (
@@ -160,10 +165,12 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                     "awaiter is cancelled")
 
             assert handler._claim_model_attempt(
-                LOCAL_PROVIDER, LOCAL_MODEL, holder="probe"), (
-                "the reservation was released while the worker still runs")
-            handler._release_model_attempt(LOCAL_PROVIDER, LOCAL_MODEL)
+                LOCAL_PROVIDER, LOCAL_MODEL, holder="probe") is False, (
+                "the reservation must stay with the running worker")
 
+            # A second boundary cannot reach the endpoint while the first
+            # worker is still running. It waits its bounded claim window,
+            # then returns no structured result instead of overlapping.
             second = asyncio.create_task(
                 handler.generate_structured_response(
                     prompt="update the valid until date",
@@ -172,6 +179,45 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                     response_model=CanvasEditPlan,
                     task_type="planning",
                     route_trace_id="canvas_edit_plan:exec-second",
+                    claim_wait_seconds=0.3,
+                ))
+            second_result = await asyncio.wait_for(second, timeout=10)
+            assert second_result is None
+            with wrapper.lock:
+                assert wrapper.started == 1, (
+                    "the second boundary overlapped the running worker")
+                assert wrapper.finished == 0
+
+            # Release the worker. Cleanup runs on its real completion, not on
+            # the cancelled awaiter.
+            wrapper.release.set()
+            for _ in range(3000):
+                with wrapper.lock:
+                    if wrapper.finished:
+                        break
+                await asyncio.sleep(0.01)
+            assert wrapper.finished == 1
+            released = False
+            for _ in range(3000):
+                if handler._claim_model_attempt(
+                        LOCAL_PROVIDER, LOCAL_MODEL, holder="probe"):
+                    released = True
+                    handler._release_model_attempt(
+                        LOCAL_PROVIDER, LOCAL_MODEL)
+                    break
+                await asyncio.sleep(0.01)
+            assert released, (
+                "the worker completion callback must release the claim")
+
+            third = asyncio.create_task(
+                handler.generate_structured_response(
+                    prompt="update the valid until date",
+                    system_instruction="You return only the requested "
+                                       "JSON object.",
+                    response_model=CanvasEditPlan,
+                    task_type="planning",
+                    route_trace_id="canvas_edit_plan:exec-third",
+                    claim_wait_seconds=0.5,
                 ))
             for _ in range(3000):
                 with wrapper.lock:
@@ -180,9 +226,12 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                 await asyncio.sleep(0.01)
             with wrapper.lock:
                 assert wrapper.started == 2, (
-                    "a second request dispatched while the first worker "
-                    f"was still running (started={wrapper.started}, "
-                    f"finished={wrapper.finished}) — the overlap is real")
+                    "a later boundary must dispatch after real cleanup")
+            third.cancel()
+            try:
+                await third
+            except asyncio.CancelledError:
+                pass
     finally:
         wrapper.release.set()
         for _ in range(3000):
@@ -190,3 +239,40 @@ async def test_cancellation_leaves_worker_running_and_releases_the_reservation(
                 if wrapper.finished >= wrapper.started:
                     break
             await asyncio.sleep(0.01)
+
+
+@pytest.mark.asyncio
+async def test_capability_profile_owns_the_transport_retry_budget(
+        isolated_env, monkeypatch):
+    """An unprofiled legacy call keeps Instructor's historical retries; a
+    capability-bound employee call sends exactly one wire attempt per outer
+    dispatch so the outer deadline/retry owner is the only budget."""
+    import core.llm.byok_handler as _bh2
+
+    handler = isolated_env
+    wrapper = _BlockingWrapper()
+    wrapper.release.set()
+
+    async def _forced_rank(*args, **kwargs):
+        return [(LOCAL_PROVIDER, LOCAL_MODEL)]
+
+    with patch.object(_bh2.BYOKHandler, "get_ranked_providers",
+                      _forced_rank), \
+         patch.object(bh.instructor, "from_openai",
+                      lambda client, **k: wrapper.as_instructor()):
+        await handler.generate_structured_response(
+            prompt="update the valid until date",
+            system_instruction="json",
+            response_model=CanvasEditPlan,
+            task_type="planning",
+            capability_profile="employee_adaptive_planning_compact",
+        )
+        assert wrapper.last_kwargs.get("max_retries") == 0
+
+        await handler.generate_structured_response(
+            prompt="update the valid until date",
+            system_instruction="json",
+            response_model=CanvasEditPlan,
+            task_type="planning",
+        )
+        assert "max_retries" not in wrapper.last_kwargs
