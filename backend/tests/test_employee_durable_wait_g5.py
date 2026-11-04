@@ -17,15 +17,15 @@ from tests.test_assignment_routes import _scotch_catalog, route_env  # noqa: F40
 def _fixtures(tmp_path):
     po = tmp_path / "purchase-order.json"
     po.write_text(json.dumps({
-        "po_id": "PO-7", "vendor_id": "V-9", "quantity": "2",
+        "po_id": "PO-8841", "vendor_id": "V-9", "quantity": "2",
         "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
     invoice = tmp_path / "invoice.json"
     invoice.write_text(json.dumps({
-        "invoice_id": "INV-7", "po_id": "PO-7", "quantity": "2",
+        "invoice_id": "INV-7", "po_id": "PO-8841", "quantity": "2",
         "unit_price": "120.00", "freight": "30.00", "currency": "USD"}))
     receiving = tmp_path / "receiving.json"
     receiving.write_text(json.dumps({
-        "po_id": "PO-7", "received_quantity": "2", "version": "rcv-1"}))
+        "po_id": "PO-8841", "received_quantity": "2", "version": "rcv-1"}))
     return po, invoice, receiving
 
 
@@ -72,7 +72,7 @@ def _install(monkeypatch, *, independent=True, await_first=True):
             request = AwaitEvidenceRequest(
                 operation="await_evidence",
                 fact="received_quantity",
-                subject="PO-7",
+                subject="PO-8841",
                 expected_from="warehouse receiving",
                 expected_answer_type="quantity",
                 blocks="invoice reconciliation")
@@ -144,7 +144,7 @@ def _start(route_env, tmp_path, monkeypatch):
         "/api/assignments/from-objective",
         json={
             "objective": (
-                "Reconcile the supplier invoice for PO-7 and prepare the "
+                "Reconcile the supplier invoice for PO-8841 and prepare the "
                 "quote from the authorized price list"),
             "sources": [
                 {"kind": "workbook",
@@ -187,7 +187,7 @@ def test_wait_allows_model_chosen_independent_work_and_exact_reply(
     assert wait["status"] == "waiting"
     assert wait["waiting"]["correlation_id"].startswith("await-")
     assert wait["waiting"]["fact"] == "received_quantity"
-    assert wait["waiting"]["subject"] == "PO-7"
+    assert wait["waiting"]["subject"] == "PO-8841"
     assert wait["waiting"]["typed_binding"] is True
     assert wait["inputs"]["correlation_id"] == (
         wait["waiting"]["correlation_id"])
@@ -314,7 +314,7 @@ def test_duplicate_wait_intent_is_refused_and_cancel_refuses_late_reply(
         compile_work_request_patch(
             AwaitEvidenceRequest(
                 operation="await_evidence", fact="received_quantity",
-                subject="PO-7", expected_from="warehouse receiving",
+                subject="PO-8841", expected_from="warehouse receiving",
                 expected_answer_type="quantity",
                 blocks="invoice reconciliation"),
             assignment, context={})
@@ -433,7 +433,7 @@ def test_wait_independent_review_is_bounded_no_hot_polling(
         f"/api/assignments/{run_id}").json()
     view = detail.get("employee_job") or {}
     assert view["waiting"][0]["fact"] == "received_quantity"
-    assert view["waiting"][0]["subject"] == "PO-7"
+    assert view["waiting"][0]["subject"] == "PO-8841"
     assert view["waiting"][0]["blocks"] == "invoice reconciliation"
     assert "quote_calculation" in [
         item.get("operation") for item in view["ready_work"]]

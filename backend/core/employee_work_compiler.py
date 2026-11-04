@@ -929,6 +929,26 @@ def _await_patch(
     if not _await_key(request.blocks):
         raise WorkRequestCompileError(
             "await_evidence must explain which dependent work it blocks")
+    # Bind the subject to the job's own accepted identities when the blocked
+    # capability exposes them. A model cannot invent a PO/invoice/item id for
+    # a wait; when no identity is known yet, the human-readable subject is
+    # still bounded by the declared blocked work.
+    from core.employee_proposal import operation_capabilities
+
+    blocked = [
+        item for item in operation_capabilities(dict(assignment))
+        if str(item.get("status") or "") in ("missing", "ambiguous")
+    ]
+    known_subjects = set()
+    for item in blocked:
+        for value in (item.get("known_identities") or {}).values():
+            normalized = _await_key(value)
+            if normalized:
+                known_subjects.add(normalized)
+    if known_subjects and _await_key(request.subject) not in known_subjects:
+        raise WorkRequestCompileError(
+            "await_evidence subject does not match an accepted identity for "
+            f"the blocked work: {sorted(known_subjects)[:6]}")
     wanted = (
         _await_key(request.fact), _await_key(request.subject))
     for step in assignment.get("steps") or []:
