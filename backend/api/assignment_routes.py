@@ -1251,7 +1251,8 @@ async def _advance_employee_work(
                     "deterministic_missing_prerequisite")
                 round_record["progress"] = "no_progress"
             break
-        if proposal_result.get("source") not in ("model", "model_repaired"):
+        if proposal_result.get("source") not in (
+                "model", "model_repaired", "model_compact"):
             break
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}

@@ -84,6 +84,22 @@ def durable(db: str, run_id: str) -> Dict[str, Any]:
     return lifecycle.get("assignment") or {}
 
 
+def _served_providers(value, found=None):
+    """Collect actually served provider identities from captured rounds."""
+    if found is None:
+        found = set()
+    if isinstance(value, dict):
+        route = value.get("served_route")
+        if isinstance(route, dict) and route.get("provider"):
+            found.add(str(route["provider"]))
+        for item in value.values():
+            _served_providers(item, found)
+    elif isinstance(value, list):
+        for item in value:
+            _served_providers(item, found)
+    return found
+
+
 def artifact_text(deliverable: Dict[str, Any]) -> str:
     import docx
 
@@ -272,6 +288,26 @@ def main() -> int:
         item for item in durable_assignment.get("deliverables") or []
         if item.get("kind") == "document"), {})
     text = artifact_text(deliverable)
+    employee_job = body.get("employee_job") or {}
+    requirement_views = employee_job.get("business_requirements") or []
+    criterion_declared = any(
+        item.get("kind") == "business_result" and item.get("required")
+        for item in durable_assignment.get("completion_criteria") or [])
+    all_results_met = bool(requirement_views) and all(
+        str(item.get("status") or "") == "satisfied"
+        for item in requirement_views)
+    outcome_satisfied = (
+        (employee_job.get("business_outcome") or {}).get("state")
+        == "satisfied")
+    external_effects = [
+        item for item in durable_assignment.get("steps") or []
+        if str(item.get("effect") or "") == "external"
+        and str(item.get("status") or "") == "applied"]
+    served_providers = sorted(
+        _served_providers(state) | _served_providers(body))
+    local_only = all(
+        provider == "ollama" or provider.startswith("local")
+        for provider in served_providers)
     checks = {
         "wait_survived_restart": (
             state["restart"]["same_wait"] is True
@@ -283,9 +319,9 @@ def main() -> int:
             str((reconcile.get("result") or {}).get("value"))
             == EXPECTED_RECONCILE),
         "assignment_completed": final.get("status") == "completed",
-        "business_result_criterion": any(
-            item.get("kind") == "business_result" and item.get("required")
-            for item in durable_assignment.get("completion_criteria") or []),
+        "criterion_declared": criterion_declared,
+        "all_required_business_results_met": all_results_met,
+        "overall_outcome_satisfied": outcome_satisfied,
         "artifact_applied": deliverable.get("status") == "applied",
         "artifact_has_quote": EXPECTED_QUOTE in text,
         "artifact_has_reconcile": EXPECTED_RECONCILE in text,
@@ -293,8 +329,10 @@ def main() -> int:
         and hashlib.sha256(
             Path(str(deliverable.get("artifact_path"))).read_bytes()
         ).hexdigest() == deliverable.get("sha256"),
-        "no_live_provider": True,
+        "no_external_effect": not external_effects,
+        "served_routes_local_only": local_only,
     }
+    state["served_providers"] = served_providers
     state["finish"] = {
         "status": final.get("status"),
         "steps": [{

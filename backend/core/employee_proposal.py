@@ -270,6 +270,7 @@ def build_employee_context(
     operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
     waiting: Optional[Sequence[Mapping[str, Any]]] = None,
     completed_operations: Optional[Sequence[Mapping[str, Any]]] = None,
+    business_requirements: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -439,6 +440,26 @@ def build_employee_context(
             }
             for item in (completed_operations or [])[:10]
             if isinstance(item, Mapping)
+        ],
+        "business_requirements": [
+            {
+                "requirement_id": _text(item.get("requirement_id"), 120),
+                "operation": _text(item.get("operation"), 120),
+                "label": _text(item.get("label"), 200),
+                "subject": _text(item.get("subject"), 200),
+                "subject_identity": {
+                    _text(key, 80): _text(value, 200)
+                    for key, value in (
+                        item.get("subject_identity") or {}).items()
+                    if _text(key, 80) and _text(value, 200)
+                },
+                "fact": _text(item.get("fact"), 120),
+                "status": _text(item.get("status"), 40),
+                "next_action": _text(item.get("next_action"), 300) or None,
+            }
+            for item in (business_requirements or [])[:10]
+            if isinstance(item, Mapping)
+            and item.get("requirement_id")
         ],
         "authorized_actions": [
             _text(item, 120) for item in (authorized_actions or [])
@@ -924,6 +945,14 @@ def context_from_record(
         if question.get("status") == "open":
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
+    try:
+        from core.employee_business_outcomes import (
+            business_requirement_views,
+        )
+
+        requirement_views = business_requirement_views(assignment)
+    except Exception:  # noqa: BLE001 — read view must not crash
+        requirement_views = []
     completed = completed_operations(assignment)
     completed_names = {
         str(item.get("operation") or "") for item in completed}
@@ -970,6 +999,7 @@ def context_from_record(
         operation_eligibility=eligibility,
         waiting=waiting,
         completed_operations=completed,
+        business_requirements=requirement_views,
     )
 
 
