@@ -1084,10 +1084,11 @@ def compile_employee_proposal(
                     "errors": [f"compiled source {source_id!r} disappeared"],
                     "plan_kwargs": None,
                 }
-            if source_id in selected_ids:
-                # Repeated model reads of the same authorized source are one
-                # durable read, not another step or another observation.
-                continue
+            if selected_ids:
+                # The first proposal selects one evidence read. Other
+                # authorized handles stay in the retained scope for the next
+                # bounded proposal instead of being read in bulk or lost.
+                break
             selected_ids.add(source_id)
             item = dict(source)
             item["requires"] = list(read.get("requires") or [])

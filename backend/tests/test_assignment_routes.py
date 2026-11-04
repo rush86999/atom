@@ -3554,13 +3554,13 @@ def test_retained_authorized_scope_supports_later_evidence_reads(
     receiving = tmp_path / "receiving.json"
     receiving.write_text(json.dumps({
         "po_id": "PO-7", "received_quantity": "2"}))
-    source_paths = [str(po), str(invoice), str(receiving)]
+    source_paths = [str(receiving), str(po), str(invoice)]
 
     async def fake_work(context, **_kwargs):
         if context.get("stage") == "discovery":
-            chosen = [context["sources"][0]]
-        else:
             chosen = list(context["sources"][1:])
+        else:
+            chosen = [context["sources"][0]]
         return {
             "proposal": {
                 "proposal_kind": "evidence_read",
@@ -3618,8 +3618,8 @@ def test_retained_authorized_scope_supports_later_evidence_reads(
     internal = route_env["lifecycle"].get_assignment(body["run_id"])
     assert len(internal["sources"]) == 3
     steps = {step["step_id"]: step for step in internal["steps"]}
-    assert "source-1" in steps
-    assert "source-2" in steps and "source-3" in steps
+    assert [step["step_id"] for step in internal["steps"]] == [
+        "source-1", "source-2", "source-3", "invoice-reconcile"]
     assert steps["source-2"]["adapter"] == "document.read"
     assert steps["source-3"]["adapter"] == "document.read"
     assert internal["status"] == "completed", internal["status"]
