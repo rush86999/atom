@@ -429,6 +429,12 @@ def _compact_single_request_context(
         str(item) for item in rules.get("allowed_work_requests") or []
         if str(item).strip()
     ]
+    if context.get("waiting"):
+        # A durable wait is already open. The full context may still list
+        # await_evidence as a legal request shape; it is not legal again in
+        # this state, and counting it would suppress the narrow independent
+        # work path.
+        allowed = [item for item in allowed if item != "await_evidence"]
     if len(allowed) != 1:
         return None
     operation = allowed[0]

@@ -234,7 +234,8 @@ def test_compact_context_allows_the_independent_quote_while_waiting():
         "identity": {"workspace_id": "ws-1", "tenant_id": "tenant-1"},
         "teaching": {"terms": {
             "currency": "USD", "freight": "9.00", "tax_basis": "none"}},
-        "rules": {"allowed_work_requests": ["quote_calculation"]},
+        "rules": {"allowed_work_requests": [
+            "quote_calculation", "await_evidence"]},
         "waiting": [{
             "step_id": "await", "fact": "receiving",
             "subject": "purchase order PO-QH-8100",
