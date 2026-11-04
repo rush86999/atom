@@ -870,10 +870,12 @@ async def _advance_employee_work(
     executor own execution. It never invents evidence or a plan patch.
     """
     from core.employee_job_runner import (
-        action_views, evidence_observations, missing_prerequisite_question,
+        action_views, compile_evidence_read_patch, evidence_observations,
+        missing_prerequisite_question, unread_authorized_sources,
     )
     from core.task_lifecycle import open_unresolved_questions
 
+    deadline = time.monotonic() + max(0.0, float(deadline_seconds))
     rounds: List[Dict[str, Any]] = []
     for _ in range(max_rounds):
         record = executor.lifecycle.get_task(run_id) or {}
@@ -887,14 +889,108 @@ async def _advance_employee_work(
         # result is not fresh evidence and must not cause the model to repeat
         # the same work.
         observations = evidence_observations(record)
-        if not observations:
-            break
         context = context_from_record(
             record, action_views=action_views(assignment))
+        unread = unread_authorized_sources(assignment)
+        # Discovery continuation: if no supported business operation is ready
+        # but authorized sources remain unread, let the model choose an
+        # additional read from the retained handles. The compiler validates
+        # the handle and materializes the read; no upload or new authority.
+        if unread and not context.get("work_request_schemas"):
+            remaining = max(0.0, deadline - time.monotonic())
+            discovery = await propose_employee_work(
+                context, llm_service=llm,
+                deadline_seconds=remaining,
+                provider_model=provider_model)
+            proposal = discovery.get("proposal") or {}
+            round_record = {
+                "source": discovery.get("source"),
+                "technical_fallback": discovery.get(
+                    "technical_fallback", False),
+                "decision": "evidence_read",
+                "errors": discovery.get("errors") or [],
+                "failure_stage": discovery.get("failure_stage"),
+                "attempt_id": discovery.get("attempt_id"),
+                "unread_source_count": len(unread),
+                "observation_ids": [
+                    item["observation_id"] for item in observations],
+            }
+            rounds.append(round_record)
+            reads = list(proposal.get("evidence_reads") or [])
+            if reads:
+                try:
+                    compiled = compile_evidence_read_patch(
+                        assignment, proposal, context)
+                except Exception as exc:  # noqa: BLE001 - typed refusal
+                    round_record["adoption_error"] = (
+                        f"{type(exc).__name__}: {exc}")
+                    fallback = missing_prerequisite_question(context)
+                    if fallback:
+                        from core.task_lifecycle import (
+                            add_unresolved_questions,
+                        )
+
+                        add_unresolved_questions(
+                            executor.lifecycle, run_id, [fallback])
+                        round_record["obligation"] = fallback
+                        round_record["obligation_source"] = (
+                            "deterministic_missing_prerequisite")
+                        round_record["progress"] = "no_progress"
+                    break
+                round_record["selected_sources"] = compiled["selected"]
+                if not compiled.get("patch"):
+                    round_record["progress"] = "no_progress"
+                    fallback = missing_prerequisite_question(context)
+                    if fallback:
+                        from core.task_lifecycle import (
+                            add_unresolved_questions,
+                        )
+
+                        add_unresolved_questions(
+                            executor.lifecycle, run_id, [fallback])
+                        round_record["obligation"] = fallback
+                        round_record["obligation_source"] = (
+                            "deterministic_missing_prerequisite")
+                    break
+                try:
+                    adopted = apply_plan_patch(
+                        executor.lifecycle, run_id, compiled["patch"],
+                        rationale=(
+                            "model selected additional authorized evidence"))
+                except Exception as exc:  # noqa: BLE001
+                    round_record["adoption_error"] = (
+                        f"{type(exc).__name__}: {exc}")
+                    break
+                round_record["adoption_status"] = adopted.get("status")
+                execution = await executor.execute(run_id, max_steps=12)
+                round_record["execution_status"] = (
+                    (execution.get("assignment") or {}).get("status"))
+                if round_record["execution_status"] in (
+                        "completed", "failed", "cancelled"):
+                    break
+                continue
+            clarification = proposal.get("clarification") or {}
+            question = str(clarification.get("question") or "").strip()
+            if question:
+                from core.task_lifecycle import add_unresolved_questions
+
+                add_unresolved_questions(
+                    executor.lifecycle, run_id, [{
+                        "kind": "missing_evidence",
+                        "question": question,
+                        "concept": clarification.get("concept") or None,
+                        "reason": clarification.get("unblocks") or None,
+                        "next_action": "Authorize or name the missing source.",
+                        "next_retrieval": clarification.get("unblocks") or None,
+                    }])
+                round_record["obligation_source"] = "model_discovery"
+            break
+        if not observations:
+            break
         proposal_result = await propose_adaptation(
             context, observations, assignment=assignment, llm_service=llm,
             provider_model=provider_model,
-            deadline=time.monotonic() + max(0.0, float(deadline_seconds)))
+            deadline=deadline)
         proposal = proposal_result.get("proposal") or {}
         round_record = {
             "source": proposal_result.get("source"),
@@ -1129,6 +1225,7 @@ async def start_employee_objective(
     plan = plan_assignment(
         objective=body.objective,
         sources=list(compiled["plan_kwargs"].get("sources") or []),
+        authorized_sources=list(resolved_sources),
         deliverables=[],
         calculation=None,
         outbound=None,

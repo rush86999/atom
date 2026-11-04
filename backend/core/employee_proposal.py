@@ -74,7 +74,12 @@ def _source_id(source: Mapping[str, Any]) -> str:
     explicit = _text(source.get("source_id"), 200)
     if explicit:
         return explicit
-    binding = resource_binding(dict(source)) if isinstance(source, Mapping) else {}
+    raw = dict(source) if isinstance(source, Mapping) else {}
+    nested = raw.get("binding")
+    if isinstance(nested, Mapping):
+        for key, value in nested.items():
+            raw.setdefault(key, value)
+    binding = resource_binding(raw) if raw else {}
     for candidate in (
             binding.get("resource_id"),
             source.get("resource_id"),
@@ -119,6 +124,8 @@ def _source_view(source: Mapping[str, Any]) -> Dict[str, Any]:
         "coverage": dict(source.get("coverage") or {}),
         "source_version": _text(
             source.get("source_version") or binding.get("source_version"), 160),
+        "read": bool(source.get("read")),
+        "authorized": True,
         "preview": {
             "sampled": True,
             "kind": "source_metadata_not_rows",
@@ -279,6 +286,10 @@ def build_employee_context(
             "tenant_id": _text(tenant_id, 120) or None,
             "execution_owner": "assignment",
         },
+        "authorized_source_count": len(sources or []),
+        "unread_source_count": sum(
+            1 for item in (sources or [])
+            if isinstance(item, Mapping) and not item.get("read")),
         "task_version": (
             int(task_version) if task_version is not None else None),
         "plan_revision": (
@@ -739,6 +750,34 @@ def context_from_record(
         if question.get("status") == "open":
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
+    def _binding_identity(source: Mapping[str, Any]) -> str:
+        binding = source.get("binding") if isinstance(
+            source.get("binding"), Mapping) else {}
+        return "|".join(str(binding.get(key) or source.get(key) or "")
+                        for key in ("resource_id", "dataset_name", "source",
+                                    "external_id", "source_version", "sheet"))
+
+    def _step_identity(step: Mapping[str, Any]) -> str:
+        inputs = step.get("inputs") if isinstance(
+            step.get("inputs"), Mapping) else {}
+        binding = inputs.get("resource_binding") if isinstance(
+            inputs.get("resource_binding"), Mapping) else {}
+        return "|".join(str(binding.get(key) or "") for key in (
+            "resource_id", "dataset_name", "source", "external_id",
+            "source_version", "sheet"))
+
+    read_identities = {
+        _step_identity(step)
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping) and step.get("status") == "applied"
+    }
+    scoped_sources = []
+    for source in assignment.get("sources") or []:
+        if not isinstance(source, Mapping):
+            continue
+        item = dict(source)
+        item["read"] = _binding_identity(source) in read_identities
+        scoped_sources.append(item)
     return build_employee_context(
         objective=assignment.get("objective") or "",
         employee_id=assignment.get("employee_id") or "",
@@ -746,7 +785,7 @@ def context_from_record(
         workspace_id=assignment.get("workspace_id") or "",
         tenant_id=assignment.get("tenant_id") or "",
         teaching=teaching or assignment.get("teaching_snapshot") or {},
-        sources=assignment.get("sources") or [],
+        sources=scoped_sources,
         task_context=task_context or {},
         criteria=assignment.get("completion_criteria") or [],
         facts=assignment.get("facts") or [],
@@ -916,6 +955,10 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
         "- A question must name the exact fact/choice and what it unblocks.\n"
         "- Do not ask the user to choose implementation steps or provide "
         "data already available from an authorized source.\n"
+        "- context.sources entries carry read:true/false. When the accepted "
+        "evidence is incomplete and unread authorized sources remain, select "
+        "those source_id handles instead of asking the user or re-reading a "
+        "source already read.\n"
         "- Return JSON matching this shape: "
         '{"proposal_kind":"evidence_read|clarification|'
         'evidence_and_clarification","reason":"...",'
@@ -1012,6 +1055,7 @@ def compile_employee_proposal(
         for source in (sources or [])
         if _source_id(source)
     }
+    selected_ids = set()
     for read in reads:
         source_id = str(read.get("source_id") or "")
         if source_id:
@@ -1022,6 +1066,11 @@ def compile_employee_proposal(
                     "errors": [f"compiled source {source_id!r} disappeared"],
                     "plan_kwargs": None,
                 }
+            if source_id in selected_ids:
+                # Repeated model reads of the same authorized source are one
+                # durable read, not another step or another observation.
+                continue
+            selected_ids.add(source_id)
             item = dict(source)
             item["requires"] = list(read.get("requires") or [])
             selected_sources.append(item)

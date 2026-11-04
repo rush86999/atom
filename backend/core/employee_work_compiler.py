@@ -624,6 +624,7 @@ def _invoice_role_candidates(
     required_keys: Sequence[str],
 ) -> List[str]:
     candidates = []
+    seen_sources = set()
     for step in assignment.get("steps") or []:
         if not isinstance(step, Mapping) or step.get("status") != "applied":
             continue
@@ -636,6 +637,19 @@ def _invoice_role_candidates(
             and data.get(fields[key]) not in (None, "")
             for key in required_keys
         ):
+            inputs = step.get("inputs") if isinstance(
+                step.get("inputs"), Mapping) else {}
+            binding = inputs.get("resource_binding") if isinstance(
+                inputs.get("resource_binding"), Mapping) else {}
+            identity = "|".join(str(binding.get(key) or "") for key in (
+                "resource_id", "dataset_name", "source", "external_id",
+                "source_version", "sheet"))
+            if identity:
+                if identity in seen_sources:
+                    # A duplicate read of the exact same source version is
+                    # the same evidence, not an ambiguous business role.
+                    continue
+                seen_sources.add(identity)
             candidates.append(str(step.get("step_id") or ""))
     return [item for item in candidates if item]
 
