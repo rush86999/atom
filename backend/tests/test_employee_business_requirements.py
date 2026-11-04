@@ -613,3 +613,77 @@ def test_public_status_uses_exact_namespaced_reconciliation_identity(
             "po_id": "PO-8841", "invoice_id": "INV-7"}
     assert business_requirement_views(fresh_assignment)[0]["status"] == (
         "satisfied" if completed else "unresolved")
+
+
+@pytest.mark.parametrize("observed_po,published", [
+    ("PO-88410", False),
+    ("PO-884", False),
+    ("PO-8841", True),
+])
+def test_wrong_subject_cannot_publish_the_requested_report(
+        route_env, tmp_path, observed_po, published):
+    """A receipt for another PO must not render the objective's report."""
+    from core.assignment_plan import new_assignment, new_step
+    from core.employee_business_outcomes import normalize_business_requirement
+
+    requirement = normalize_business_requirement({
+        "requirement_id": "result-eligible-report",
+        "operation": "invoice_reconciliation",
+        "label": "invoice reconciliation",
+        "subject": "purchase order PO-8841",
+        "subject_identity": {"po_id": "PO-8841"},
+        "fact": "receiving",
+        "correlation_id": "await-report",
+        "receipt_adapter": "invoice.reconcile",
+    })
+    reconcile = new_step(
+        step_id="invoice-reconcile", title="Reconcile", operation_type="calculate",
+        adapter="invoice.reconcile", inputs={}, effect="local")
+    reconcile.update(status="applied", operation_id="op-report-reconcile", result={
+        "value": "270.00", "unit": "USD",
+        "verification": {"status": "verified"},
+        "data": {"po_id": observed_po, "invoice_id": "INV-7"}})
+    artifact_path = tmp_path / f"review-{observed_po}.docx"
+    artifact = new_step(
+        step_id="review-document", title="Render review", operation_type="present",
+        adapter="artifact.document",
+        inputs={
+            "path": str(artifact_path),
+            "content": "# Review\n\n- reconciled total 270.00 USD\n",
+            "sources": ["receiving.json"],
+        },
+        depends_on=["invoice-reconcile"], effect="local")
+    plan = new_assignment(
+        objective="Reconcile the invoice for PO-8841 and publish the review",
+        employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1",
+        steps=[reconcile, artifact],
+        sources=[{
+            "kind": "document",
+            "binding": {
+                "resource_id": "doc-receiving-1",
+                "original_file_name": "receiving.json",
+                "representation": "document_text",
+            },
+        }],
+        business_requirements=[requirement],
+        completion_criteria=[
+            {"criterion_id": "artifact_verified:review",
+             "kind": "artifact_verified", "verifier": "artifact_verified",
+             "deliverable_id": "del-review"},
+            {"criterion_id": "required_work_complete:assignment",
+             "kind": "required_work_complete",
+             "verifier": "required_work_complete"},
+            {"criterion_id": "business_result:result-eligible-report",
+             "kind": "business_result", "verifier": "business_result",
+             "requirement_id": "result-eligible-report"},
+        ])
+    record = route_env["executor"].create_assignment(
+        f"conv-report-{observed_po}", plan["objective"], assignment=plan)
+    run_id = record["run_id"]
+    asyncio.run(route_env["executor"].execute(run_id))
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert (final.get("status") == "completed") is published
+    assert artifact_path.exists() is published
+    step = next(
+        item for item in final["steps"] if item["step_id"] == "review-document")
+    assert (step.get("status") == "applied") is published
