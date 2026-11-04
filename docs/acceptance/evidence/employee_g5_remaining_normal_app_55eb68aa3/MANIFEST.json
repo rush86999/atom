@@ -1,0 +1,63 @@
+{
+  "artifacts": {
+    "README.md": "1f12545ff375af51567f9fb1841d89d1ebfb3ba0b1a13a53302ea9a50ebae738",
+    "REPORT.md": "08bf302baab36599873120f0cf687455a177435ec4299e8e1836f7b9e8a0a967",
+    "TEST_RESULTS.md": "8021c1c2b78cce709eb5bfe641172cb7f6998412fb4d943212b56a8d643d391d",
+    "customer-quote.docx": "09a43610ee6c7a6989dc04d44c34a278662b8f061056040e3cb0db83a156f986",
+    "focused-tests.log": "1ae57adcbeb5bd54997ef656f54ccee85278819c7bcfc99985bf59f99aabb1e3",
+    "harness-run.log": "11f27bae341ff17ea6645ea822e303a156a0afc747c6a8f7ab5a32414ef90f11",
+    "outbox.jsonl": "860aaa53b286fcc0784dc03288528a489b054b9c5569bd7035a6ee972f5e8cbf",
+    "report.json": "d8ea10b3f7fd8f19c6a8448542c45424e3a724aa0ab9e6c55757c497df6c0268",
+    "server.log": "d2dfa03627bb6a7c3aff01339ada68a59b07bd8e34383961fbd3dcb162fa63e9"
+  },
+  "candidate": {
+    "branch": "codex/brennan-full-app-20261102",
+    "executed_source": "55eb68aa30be5f698f11a6b2da19628a4f902d97",
+    "manifest_note": "One real normal-application backend/world: requested document artifact, independent branch progress during a durable wait, selective branch re-evaluation with retained receipts, cancellation plus late-response refusal, and controlled lost-confirmation recovery with no resend. API-level normal-app evidence; browser artifact/final journey remains with Agent 1.",
+    "tree_clean_at_run": true,
+    "worktree": "/private/tmp/atom-full-app"
+  },
+  "changed_files": [
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_planner.py",
+    "backend/core/employee_job_runner.py",
+    "backend/core/employee_proposal.py",
+    "backend/core/employee_work_compiler.py",
+    "backend/tests/test_assignment_executor.py",
+    "backend/tests/test_assignment_routes.py",
+    "scripts/acceptance/employee_g5_remaining_normal_app.py",
+    "scripts/acceptance/employee_g5_ui_continuation.py"
+  ],
+  "exclusions": [
+    "no live provider/credential/consent/send/spend/deployment authority",
+    "artifact request uses the existing explicit deliverable route; model artifact selection not claimed",
+    "independent branch uses a deterministic versioned plan patch; model branch discovery not claimed",
+    "browser artifact/final user journey remains with Agent 1",
+    "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+  ],
+  "schema": "atom-employee-g5-remaining-normal-app-1",
+  "source_hashes": {
+    "backend/api/assignment_routes.py": "f2c277ec2c4eb3e04f1979a547ee5a31f3d5aa299ea37d52ea331fb00f8c1576",
+    "backend/core/assignment_executor.py": "6305d604e1791ff05558fcc41bfdd2341a814641463b5a9abe3fa949c3267c82",
+    "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
+    "backend/core/employee_job_runner.py": "f570ad883d090b81d8b6fec92c443fe3c83aef261ff61f7520cddb4c0214f67e",
+    "backend/core/employee_proposal.py": "c32b8f73db3d36a63064bb6822fd4e0fbacd8f4ae5565b9f9cc72806233d3df4",
+    "backend/core/employee_work_compiler.py": "f0824a5c056c8ad9ad620e94fe2a100f212e211262418604a0fe2936a473721c",
+    "backend/tests/test_assignment_executor.py": "4da437d00c0bf996f1a8f994c74d74f737101b116f99165a8626ac316da7485e",
+    "backend/tests/test_assignment_routes.py": "8a3e18b77677b6ee17916c309f3ac1a10f71bbf0a2fd241101b851cb54827894",
+    "scripts/acceptance/employee_g5_remaining_normal_app.py": "4be14cb5d9da34cf798830609d2af53140926e4eda4bc5788ae1a43bbd0cfa89",
+    "scripts/acceptance/employee_g5_ui_continuation.py": "e1b1157f0bd983fa3be3e908d556064e016a4e1cfb6214c367bbe019782ccc41"
+  },
+  "status": "remaining-normal-app-behaviors-verified",
+  "tests": {
+    "campaign": {
+      "report": "report.json",
+      "result": "18/18 checks"
+    },
+    "focused": {
+      "log": "focused-tests.log",
+      "result": "305 passed"
+    }
+  }
+}
