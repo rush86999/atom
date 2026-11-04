@@ -4016,9 +4016,18 @@ class AssignmentExecutor:
             from core.task_outcome_contract import (
                 build_task_outcome, sent_record_confirmed_evidence,
             )
+            from core.employee_business_outcomes import (
+                business_results_from_assignment,
+            )
         except Exception:
             return assignment
         steps = assignment.get("steps") or []
+        business_requirements = [
+            dict(item) for item in
+            assignment.get("business_requirements") or []
+            if isinstance(item, dict)
+        ]
+        business_results = business_results_from_assignment(assignment)
         operations = {
             operation.get("operation_id"): operation
             for operation in record.get("operations") or []
@@ -4133,6 +4142,8 @@ class AssignmentExecutor:
             gaps=gaps,
             actions=actions,
             calculation=calculation,
+            business_requirements=business_requirements,
+            business_results=business_results,
             objective_met=objective_met,
             scope={
                 "workspace_id": assignment.get("workspace_id"),

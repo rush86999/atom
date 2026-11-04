@@ -94,6 +94,12 @@ class AwaitEvidenceRequest(BaseModel):
         "eligibility",
     ]
     blocks: str = Field(min_length=1, max_length=500)
+    # The supported business result whose receipt depends on this fact. The
+    # compiler binds the durable requirement; plain-language ``blocks`` is
+    # explanatory only.
+    blocks_operation: Optional[Literal[
+        "quote_calculation", "invoice_reconciliation",
+    ]] = None
     deadline: Optional[str] = Field(default=None, max_length=40)
     validity: Optional[str] = Field(default=None, max_length=40)
     reason: str = Field(default="", max_length=800)
@@ -147,8 +153,10 @@ def work_request_schemas() -> List[Dict[str, Any]]:
             "operation": "await_evidence",
             "description": (
                 "Wait for one material external fact that authorized evidence "
-                "cannot supply yet; the compiler binds the durable wait, "
-                "correlation and response requirement."),
+                "cannot supply yet. Name the supported operation whose "
+                "verified result depends on it; the compiler binds that "
+                "durable result requirement plus the wait, correlation and "
+                "response requirement."),
             "schema": AwaitEvidenceRequest.model_json_schema(),
         },
     ]

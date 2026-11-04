@@ -495,3 +495,4 @@ def test_requested_artifact_renders_after_wait_and_reconciliation(
         for row in table.rows:
             text += "\n" + " | ".join(cell.text for cell in row.cells)
     assert "270.00" in text
+    assert "105.00" in text

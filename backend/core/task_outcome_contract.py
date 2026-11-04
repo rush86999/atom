@@ -258,6 +258,8 @@ def build_task_outcome(
     actions: Optional[List[Dict[str, Any]]] = None,
     calculation: Optional[Dict[str, Any]] = None,
     mutation: Optional[Dict[str, Any]] = None,
+    business_requirements: Optional[List[Dict[str, Any]]] = None,
+    business_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build one task outcome without treating delivery as task success."""
     delivery_data = _copy_dict(delivery)
@@ -297,6 +299,14 @@ def build_task_outcome(
         ],
         "calculation": _copy_dict(calculation),
         "mutation": _copy_dict(mutation),
+        "business_requirements": [
+            dict(item) for item in (business_requirements or [])
+            if isinstance(item, dict)
+        ],
+        "business_results": [
+            dict(item) for item in (business_results or [])
+            if isinstance(item, dict)
+        ],
         "delivery": delivery_data,
         "user_corrections": [_copy_dict(item) for item in (user_corrections or [])],
         "limitations": list(limitations or []),
@@ -725,6 +735,49 @@ def sent_record_confirmed_evidence(step: Dict[str, Any],
         if observed_account[key] != value:
             return False
     return present
+
+
+def _business_result_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """Every scoped business-result requirement has a verified receipt.
+
+    This is additive to the legacy existential employee_result check: a
+    quote receipt cannot satisfy an open invoice-reconciliation requirement.
+    """
+    from core.employee_business_outcomes import (
+        normalize_business_requirement, requirement_satisfied,
+    )
+
+    criteria = [
+        item for item in outcome.get("completion_criteria") or []
+        if isinstance(item, dict)
+        and str(item.get("kind") or "") == "business_result"
+    ]
+    if not criteria:
+        return None
+    requirements = {
+        str(item.get("requirement_id") or ""): item
+        for item in outcome.get("business_requirements") or []
+        if isinstance(item, dict)
+    }
+    results = [
+        item for item in outcome.get("business_results") or []
+        if isinstance(item, dict)
+    ]
+    for criterion in criteria:
+        requirement_id = str(criterion.get("requirement_id") or "")
+        raw = requirements.get(requirement_id)
+        if raw is None:
+            return False
+        try:
+            requirement = normalize_business_requirement(raw)
+        except ValueError:
+            return False
+        if not requirement_satisfied(requirement, results):
+            return False
+    return True
+
+
+register_criteria_verifier("business_result", _business_result_verifier)
 
 
 def _employee_result_verifier(outcome: Dict[str, Any]) -> "bool | None":
@@ -1204,6 +1257,14 @@ def build_assignment_outcome(
     """
     assignment = assignment if isinstance(assignment, dict) else {}
     record = record if isinstance(record, dict) else {}
+    from core.employee_business_outcomes import (
+        business_results_from_assignment,
+    )
+    business_requirements = [
+        dict(item) for item in assignment.get("business_requirements") or []
+        if isinstance(item, dict)
+    ]
+    business_results = business_results_from_assignment(assignment)
     steps = [step for step in (assignment.get("steps") or [])
              if isinstance(step, dict)]
     operations = {
@@ -1326,6 +1387,8 @@ def build_assignment_outcome(
         gaps=gaps,
         actions=actions,
         calculation=calculation,
+        business_requirements=business_requirements,
+        business_results=business_results,
         scope={
             "workspace_id": assignment.get("workspace_id"),
             "teaching_revision": (

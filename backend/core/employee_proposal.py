@@ -19,6 +19,7 @@ from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequen
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.assignment_resources import resource_binding
+from core.employee_business_outcomes import business_requirement_views
 from core.employee_work_requests import work_request_schemas
 
 PROPOSAL_SCHEMA = "atom-employee-work-proposal-1"
@@ -1379,6 +1380,7 @@ def employee_job_view(
             dict(item) for item in (open_obligations or [])
             if isinstance(item, Mapping)
         ],
+        "business_requirements": business_requirement_views(assignment),
         "waiting": [
             {
                 "step_id": step.get("step_id"),
