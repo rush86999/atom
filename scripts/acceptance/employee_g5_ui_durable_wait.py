@@ -368,7 +368,7 @@ def main() -> int:
                     f"/responses/{correlation}" in response.url
                     and response.request.method == "POST"),
                 timeout=300000) as reply_info:
-            detail.get_by_text("Deliver").click()
+            detail.get_by_role("button", name="Deliver").click()
         reply = reply_info.value
         reply_body = reply.json()
         state["reply_result"] = {
