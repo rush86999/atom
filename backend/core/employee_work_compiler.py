@@ -631,6 +631,9 @@ def _requested_artifact_step(
             "deliverable_id": deliverable_id,
             "content": "",
             "compose_from_results": True,
+            # Render only the verified calculation/reconciliation this
+            # artifact follows, never an earlier superseded result.
+            "result_step_ids": [calculation_step],
         },
         "effect": "local",
         "requires": [{

@@ -689,10 +689,15 @@ def _evidence_rows(result: Dict[str, Any]) -> List[Dict[str, Any]]:
         rows, list) else []
 
 
-def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
+def _collect_evidence(
+    context: Dict[str, Any],
+    only_step_ids: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
     facts: List[Dict[str, Any]] = []
     row_sets: List[Dict[str, Any]] = []
     labels: List[str] = []
+    selected = {
+        str(item) for item in (only_step_ids or []) if str(item).strip()}
 
     def add_label(value: Any) -> None:
         text = str(value or "").strip()
@@ -711,6 +716,8 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
 
     for step_id, result in (context.get("previous_results") or {}).items():
         if not isinstance(result, dict):
+            continue
+        if selected and str(step_id) not in selected:
             continue
         if result.get("expression") and result.get("value") is not None:
             facts.append({
@@ -879,7 +886,9 @@ def _compose_evidence_content(
     inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> str:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     facts = evidence["facts"]
     row_sets = evidence["row_sets"]
     labels = evidence["labels"]
@@ -994,7 +1003,9 @@ def _compose_evidence_text(
     inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> str:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     if not evidence["facts"] and not evidence["row_sets"]:
         return ""
     lines: List[str] = []
@@ -1021,9 +1032,12 @@ def _compose_evidence_text(
 
 
 def _compose_evidence_rows(
+    inputs: Dict[str, Any],
     context: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     if not evidence["row_sets"]:
         return []
     return list(evidence["row_sets"][0]["rows"])
@@ -1507,7 +1521,9 @@ def _verify_artifact_substance(
     is present in the saved file).
     """
     text = _artifact_text(kind, path)
-    evidence = _collect_evidence(context)
+    only = inputs.get("result_step_ids")
+    evidence = _collect_evidence(
+        context, only if isinstance(only, list) else None)
     facts = evidence["facts"]
     row_sets = evidence["row_sets"]
     labels = evidence["labels"]
@@ -7984,7 +8000,7 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
     rows = inputs.get("rows")
     if (not isinstance(rows, list) or not rows) and inputs.get(
             "compose_from_results"):
-        rows = _compose_evidence_rows(context)
+        rows = _compose_evidence_rows(inputs, context)
     if not path or not isinstance(rows, list) or not rows:
         raise NeedsContext({
             "concept": "artifact_rows",

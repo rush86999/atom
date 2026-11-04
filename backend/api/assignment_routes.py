@@ -862,6 +862,7 @@ async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
     provider_model: Optional[tuple] = None,
+    allow_completed_evidence: bool = False,
 ) -> List[Dict[str, Any]]:
     """Run the ordinary objective's typed follow-up through the product.
 
@@ -869,6 +870,11 @@ async def _advance_employee_work(
     durable evidence result back to the same adaptation contract used by the
     served smokes, adopts the compiled work request, and lets the existing
     executor own execution. It never invents evidence or a plan patch.
+
+    ``allow_completed_evidence`` is set only when new authorized evidence
+    arrived after a completed job: the employee may reassess that evidence
+    and choose supported next work again. Consumed observations are excluded,
+    so a completed job with no fresh evidence still stops immediately.
     """
     from core.employee_job_runner import (
         action_views, compile_evidence_read_patch,
@@ -883,14 +889,17 @@ async def _advance_employee_work(
         record = executor.lifecycle.get_task(run_id) or {}
         assignment = record.get("assignment") or {}
         status = str(assignment.get("status") or "")
-        if status in ("completed", "failed", "cancelled"):
+        if status in ("failed", "cancelled"):
             break
         if open_unresolved_questions(record):
+            break
+        observations = evidence_observations(record)
+        if status == "completed" and not (
+                allow_completed_evidence and observations):
             break
         # Only new evidence reads can drive a proposal; a business calculation
         # result is not fresh evidence and must not cause the model to repeat
         # the same work.
-        observations = evidence_observations(record)
         context = context_from_record(
             record, action_views=action_views(assignment))
         unread = unread_authorized_sources(assignment)
@@ -1689,6 +1698,18 @@ async def add_assignment_source(
             detail={"error": exc.code, "message": str(exc)}) from exc
     record = executor.lifecycle.get_task(run_id) or {}
     assignment = record.get("assignment") or {}
+    was_completed = str(assignment.get("status") or "") == "completed"
+    # A real change is a different version of a resource this job already
+    # depended on. Adding an unrelated authorized source is not a change and
+    # must not make the employee repeat accepted business work.
+    same_resource_previous_version = any(
+        str(((step.get("inputs") or {}).get("resource_binding") or {}).get(
+            "resource_id") or "") == str(resolved.get("resource_id") or "")
+        and str(((step.get("inputs") or {}).get("resource_binding") or {}).get(
+            "source_version") or "") != str(
+                resolved.get("source_version") or "")
+        for step in assignment.get("steps") or []
+        if isinstance(step.get("inputs"), dict))
     # A duplicate source addition must not add another read step or cause
     # duplicate arithmetic/effects later. Same resource identity/version is
     # already present: return the durable state unchanged.
@@ -1757,6 +1778,36 @@ async def add_assignment_source(
         status = await executor.execute(run_id, max_steps=12)
     except Exception as exc:  # noqa: BLE001 — durable state remains
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    # A genuinely new authorized version on a completed job is fresh
+    # evidence: let the same employee adaptation contract decide whether the
+    # changed evidence supports more work or a material clarification. The
+    # loop only runs for model-driven jobs and only while an unconsumed
+    # evidence observation exists, so duplicate adds and calculation-only
+    # results stay inert.
+    reassessment_rounds: List[Dict[str, Any]] = []
+    provenance = assignment.get("provenance") or {}
+    added_now = next((
+        item for item in (
+            executor.lifecycle.get_assignment(run_id) or {}).get("steps") or []
+        if item.get("step_id") == step.get("step_id")), {})
+    if (was_completed and same_resource_previous_version
+            and str(provenance.get("proposal_source") or "") in (
+                "model", "model_repaired")
+            and added_now.get("status") == "applied"):
+        try:
+            llm = _employee_llm(current_user, db)
+            reassessment_rounds = await _advance_employee_work(
+                executor, run_id, llm, max_rounds=1,
+                deadline_seconds=180.0,
+                provider_model=_employee_provider_model(),
+                allow_completed_evidence=True)
+            status = executor.status(run_id)
+        except Exception as exc:  # noqa: BLE001 — source add already durable
+            reassessment_rounds = [{
+                "source": "error",
+                "decision": "reassessment_failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }]
     # Settle only obligations that this accepted source actually made ready.
     current = executor.lifecycle.get_task(run_id) or {}
     current_assignment = current.get("assignment") or {}
@@ -1809,7 +1860,8 @@ async def add_assignment_source(
                 item.get("question_id") for item in settled],
             "mismatched_question_ids": [
                 item for item in mismatched if item],
-            "observed_purchase_order": observed_po or None}
+            "observed_purchase_order": observed_po or None,
+            "reassessment_rounds": reassessment_rounds}
 
 
 @router.post("/{run_id}/reassess")
