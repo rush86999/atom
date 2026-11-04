@@ -415,6 +415,7 @@ def _compact_single_request_context(
     observations: List[Mapping[str, Any]],
     *,
     require_unresolved_requirement: bool = False,
+    allow_waiting_quote: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """Narrow typed continuation when exactly one operation is ready.
 
@@ -447,9 +448,21 @@ def _compact_single_request_context(
         and str(item.get("operation") or "") == operation
         and str(item.get("status") or "") != "satisfied"), None)
     if require_unresolved_requirement and requirement is None:
-        # Compact-first is for the continuation of an unresolved scoped
-        # requirement, not for every single-ready proposal.
-        return None
+        # Compact-first is primarily for the continuation of an unresolved
+        # scoped requirement. The independent quote is the other legitimate
+        # single-ready continuation: a durable external wait is open and the
+        # only ready operation is the quote. Without this, the model must
+        # re-read the full all-purpose prompt just to choose the independent
+        # work, and a small model can repeat the wait instead.
+        independent_quote = bool(
+            allow_waiting_quote
+            and operation == "quote_calculation"
+            and context.get("waiting")
+            and str(entry.get("status") or "") == "ready"
+            and not context.get("missing_prerequisites")
+        )
+        if not independent_quote:
+            return None
     relevant_ids = {
         str(item.get("step_id"))
         for item in entry.get("evidence") or []
@@ -498,6 +511,14 @@ def _compact_single_request_context(
             "from the context. Do not supply field maps or an evidence "
             "array; the compiler resolves the accepted default field names "
             "and binds the role step IDs.\n"
+        )
+    elif operation == "quote_calculation":
+        operation_rule = (
+            "Use exact column NAMES from the accepted tabular evidence; map "
+            "item_id, quantity and unit_price to DIFFERENT columns with "
+            "matching meaning. authority_ref values are taught TERM KEYS "
+            "(for example freight, tax_basis), never term values. Do not "
+            "invent rows, prices or totals.\n"
         )
     request_fields = ", ".join(
         str(name) for name in (getattr(request_model, "model_fields", {}) or {})

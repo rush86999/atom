@@ -228,6 +228,51 @@ def test_compact_schema_echo_is_rejected_and_a_valid_instance_is_kept():
     assert accepted.work_request.purchase_order_step_id == "purchase-order"
 
 
+def test_compact_context_allows_the_independent_quote_while_waiting():
+    context = {
+        "objective": "Quote the price list while the receiving record is owed",
+        "identity": {"workspace_id": "ws-1", "tenant_id": "tenant-1"},
+        "teaching": {"terms": {
+            "currency": "USD", "freight": "9.00", "tax_basis": "none"}},
+        "rules": {"allowed_work_requests": ["quote_calculation"]},
+        "waiting": [{
+            "step_id": "await", "fact": "receiving",
+            "subject": "purchase order PO-QH-8100",
+            "blocks": "invoice reconciliation",
+        }],
+        "available_business_operations": [{
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "ready",
+            "missing": [],
+            "evidence": [{
+                "step_id": "price-rows", "shape": "tabular",
+                "verified": True, "title": "Read price-book-fresh.xlsx",
+                "columns": ["Currency", "Item", "Price", "Qty"],
+            }],
+            "roles": {},
+            "known_identities": {},
+        }],
+        "evidence_results": [{
+            "step_id": "price-rows", "business_role": "quote_rows",
+            "data_keys": [], "data_preview": {},
+            "schema": [{"column": "Item"}, {"column": "Qty"},
+                       {"column": "Price"}, {"column": "Currency"}],
+        }],
+        "business_requirements": [],
+    }
+    compact = _compact_single_request_context(
+        context, [{
+            "observation_id": "waiting-1", "kind": "waiting_state",
+            "step_id": "await"}],
+        require_unresolved_requirement=True)
+    assert compact is not None
+    assert compact["operation"] == "quote_calculation"
+    assert "column NAMES" in compact["prompt"]
+    assert "quote_calculation" in compact["prompt"]
+    assert "invoice_reconciliation" not in compact["prompt"]
+
+
 def test_compact_invoice_schema_keeps_compiler_owned_fields_out():
     compact = _compact_single_request_context(
         _context(), [{
