@@ -1568,7 +1568,7 @@ async def start_employee_objective(
             "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS", "240"))
         adaptive_rounds = await _advance_employee_work(
             executor, run_id, llm, provider_model=provider_model,
-            deadline_seconds=deadline_seconds, max_rounds=5)
+            deadline_seconds=deadline_seconds, max_rounds=4)
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
