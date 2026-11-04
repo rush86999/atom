@@ -1073,6 +1073,17 @@ async def _advance_employee_work(
         context = context_from_record(
             record, action_views=action_views(assignment))
         unread = unread_authorized_sources(assignment)
+        # The discovery prompt already tells the model to use
+        # context.unread_sources when it is non-empty. Populate that contract
+        # from the same bounded source views the model can already see; this
+        # does not add authority or raw content.
+        unread_views = [
+            dict(source) for source in context.get("sources") or []
+            if isinstance(source, Mapping) and not source.get("read")
+        ]
+        if unread_views:
+            context["unread_sources"] = unread_views
+            context["unread_source_count"] = len(unread_views)
         waiting_open = any(
             str(step.get("status") or "") == "waiting"
             and str(step.get("adapter") or "") == "assignment.wait"

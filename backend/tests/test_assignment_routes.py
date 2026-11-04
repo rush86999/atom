@@ -3760,9 +3760,15 @@ def test_discovery_repeated_read_falls_back_to_unread_authorized_scope(
 
     async def fake_work(context, **_kwargs):
         if context.get("stage") == "discovery":
-            # Deliberately re-read the first (already applied) handle. The
-            # bounded unread fallback must read the other authorized handles
-            # instead of asking the user to upload them again.
+            # The consumer contract exposes the already-authorized unread
+            # handles explicitly; the fallback then reads them instead of
+            # asking the user to upload them again.
+            assert context["unread_sources"]
+            assert context["unread_source_count"] == len(
+                context["unread_sources"])
+            assert all(
+                source.get("read") is False
+                for source in context["unread_sources"])
             chosen = [context["sources"][0]]
         else:
             chosen = [context["sources"][0]]
