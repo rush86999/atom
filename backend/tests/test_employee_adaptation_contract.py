@@ -258,6 +258,20 @@ def test_compact_single_request_prompt_is_bounded_to_one_operation():
     assert _compact_single_request_prompt(context) == ""
 
 
+def test_attempt_journal_preserves_token_counts_and_redacts_secrets():
+    journal = AttemptJournal()
+    event = journal.record("parsed", usage={
+        "prompt_tokens": 3152,
+        "completion_tokens": 195,
+        "total_tokens": 3347,
+        "access_token": "must-not-survive",
+    })
+    assert event["usage"]["prompt_tokens"] == 3152
+    assert event["usage"]["completion_tokens"] == 195
+    assert event["usage"]["total_tokens"] == 3347
+    assert event["usage"]["access_token"] == "[redacted]"
+
+
 def test_exhausted_budget_skips_compact_without_a_dispatch():
     context = {
         "identity": {"workspace_id": "ws_assign", "tenant_id": "tenant_assign"},

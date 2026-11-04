@@ -28,12 +28,20 @@ _SECRET_HINTS = (
 _MAX_BODY = 24000
 
 
+_TOKEN_COUNT_KEYS = {
+    "tokens", "prompt_tokens", "completion_tokens", "total_tokens",
+    "input_tokens", "output_tokens", "reasoning_tokens",
+}
+
+
 def _redact(value: Any) -> Any:
     if isinstance(value, Mapping):
         cleaned = {}
         for key, item in value.items():
             name = str(key).lower()
-            if any(hint in name for hint in _SECRET_HINTS):
+            is_count = name in _TOKEN_COUNT_KEYS and isinstance(
+                item, (int, float)) and not isinstance(item, bool)
+            if any(hint in name for hint in _SECRET_HINTS) and not is_count:
                 cleaned[str(key)] = "[redacted]"
             else:
                 cleaned[str(key)] = _redact(item)
