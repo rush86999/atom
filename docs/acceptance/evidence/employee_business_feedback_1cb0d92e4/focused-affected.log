@@ -1,0 +1,647 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-04 17:51:14 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_employee_business_feedback.py::test_evaluated_bad_work_persists_and_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:14 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 17:51:14 [    INFO] EscalationManager initialized
+2026-11-04 17:51:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 17:51:14 [    INFO] EscalationManager initialized
+2026-11-04 17:51:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 17:51:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 17:51:14 [    INFO] AgentTaskRegistry initialized
+2026-11-04 17:51:15 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:15 [    INFO] EscalationManager initialized
+2026-11-04 17:51:15 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:15 [    INFO] LocalOnlyGuard initialized
+2026-11-04 17:51:15 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-04 17:51:15 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:15 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:15 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-82fb9a550057 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:15 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-82fb9a550057 attempt=1
+2026-11-04 17:51:15 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:15 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:15 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-ad3e75fa8b5b attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:15 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-ad3e75fa8b5b attempt=1
+2026-11-04 17:51:15 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:15 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:15 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1b8fd3c58fee attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:15 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1b8fd3c58fee attempt=1
+2026-11-04 17:51:15 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 17:51:15 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 17:51:15 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-75a98df08696 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:15 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-75a98df08696 attempt=1
+PASSED                                                                   [  0%]
+tests/test_employee_business_feedback.py::test_evaluated_business_failure_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:16 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:16 [    INFO] EscalationManager initialized
+2026-11-04 17:51:16 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:16 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:16 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:16 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-74797c54826f attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:16 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-74797c54826f attempt=1
+2026-11-04 17:51:16 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:16 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:16 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-aed11f82154c attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:16 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-aed11f82154c attempt=1
+2026-11-04 17:51:16 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:16 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:16 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d3b81d6fd890 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:16 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d3b81d6fd890 attempt=1
+2026-11-04 17:51:16 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 17:51:16 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 17:51:16 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-4e3352bd4a0d attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:16 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4e3352bd4a0d attempt=1
+PASSED                                                                   [  0%]
+tests/test_employee_business_feedback.py::test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:17 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:17 [    INFO] EscalationManager initialized
+2026-11-04 17:51:17 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:17 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:17 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:17 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-aae38d87fd83 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:17 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-aae38d87fd83 attempt=1
+2026-11-04 17:51:17 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:17 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:17 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-df0fc6d39684 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:17 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-df0fc6d39684 attempt=1
+2026-11-04 17:51:17 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:17 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:17 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1d6780dbe069 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:17 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1d6780dbe069 attempt=1
+PASSED                                                                   [  1%]
+tests/test_employee_business_feedback.py::test_satisfied_business_outcome_annotates_the_same_generation 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:17 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:17 [    INFO] EscalationManager initialized
+2026-11-04 17:51:17 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:17 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:17 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:17 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-8af1aa63f2d2 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:17 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-8af1aa63f2d2 attempt=1
+PASSED                                                                   [  1%]
+tests/test_employee_business_feedback.py::test_compact_evaluation_stays_in_the_compact_profile 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:18 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  2%]
+tests/test_employee_business_feedback.py::test_deterministic_fallback_is_never_credited_as_model_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 17:51:18 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:18 [    INFO] EscalationManager initialized
+2026-11-04 17:51:18 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:18 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:18 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:18 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-aa80ef0393f7 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:18 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-aa80ef0393f7 attempt=1
+PASSED                                                                   [  2%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:18 [    INFO] EscalationManager initialized
+2026-11-04 17:51:18 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:18 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:18 [    INFO] [LearningRouter] auto-mode readiness: 452 verdict row(s) in the last 7d, 4 model(s) with >= 8 observations -> re-ranking ENABLED (thresholds: >=30 rows, >=2 models)
+2026-11-04 17:51:18 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:18 [    INFO] Loaded 452 routing feedback rows from DB
+2026-11-04 17:51:18 [    INFO] Learning router hydrated 452 feedback rows from DB
+2026-11-04 17:51:18 [    INFO] Learning router singleton initialized
+2026-11-04 17:51:18 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:18 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-6e1d4a09ffc3 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:18 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-6e1d4a09ffc3 attempt=1
+2026-11-04 17:51:18 [    INFO] Loaded 1 per-model predictors from data/router_models/per_model
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=67, accuracy=0.881
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 85 samples; predictors=[llama3.1:8b(0.88)]
+PASSED                                                                   [  3%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_enforces_the_caller_deadline PASSED [  3%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_measured_failure_excludes_cheap_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 17:51:19 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 17:51:19 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-7bf32db954e6 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:19 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-7bf32db954e6 attempt=1
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=67, accuracy=0.881
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 86 samples; predictors=[llama3.1:8b(0.88)]
+PASSED                                                                   [  4%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_failed_costlier_route_does_not_displace_cheap 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-81dee3718db6 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 17:51:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-81dee3718db6 attempt=1
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=68, accuracy=0.882
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 87 samples; predictors=[llama3.1:8b(0.88)]
+PASSED                                                                   [  4%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_scope_failure_never_borrows_another_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee work proposal call raised: workspace resolution for tenant 'tenant-gone' is unresolved (unknown_tenant); dispatch refused rather than substituting another scope
+PASSED                                                                   [  5%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-04 17:51:19 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_adaptive_planning': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [  5%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_no_eligible_route_keeps_deterministic_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-04 17:51:19 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [  6%]
+tests/test_employee_byok_consumer_routing.py::test_employee_wait_choice_uses_the_dedicated_profile 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-36b021b3ad9c attempt=1 prompt_chars=12424 cap=1800 instructor_retries=0
+2026-11-04 17:51:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-36b021b3ad9c attempt=1
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=69, accuracy=0.884
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 88 samples; predictors=[llama3.1:8b(0.88)]
+PASSED                                                                   [  6%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_auto_route_records_served_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for complex: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-24d8870ba436 attempt=1 prompt_chars=1776 cap=1200 instructor_retries=0
+2026-11-04 17:51:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-24d8870ba436 attempt=1
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=70, accuracy=0.886
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 89 samples; predictors=[llama3.1:8b(0.89)]
+2026-11-04 17:51:19 [    INFO] Trained per-model predictor for llama3.1:8b: samples=70, accuracy=0.871
+2026-11-04 17:51:19 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 89 samples; predictors=[llama3.1:8b(0.87)]
+PASSED                                                                   [  7%]
+tests/test_workload_capability_routing.py::test_flash_like_cheap_candidate_beats_equivalent_expensive_candidate PASSED [  7%]
+tests/test_workload_capability_routing.py::test_complex_profile_keeps_qualified_flash_eligible PASSED [  8%]
+tests/test_workload_capability_routing.py::test_measured_failure_excludes_flash_and_escalates_once PASSED [  8%]
+tests/test_workload_capability_routing.py::test_expensive_model_with_measured_failure_is_excluded_too PASSED [  8%]
+tests/test_workload_capability_routing.py::test_no_eligible_candidate_is_explicit_not_relaxed PASSED [  9%]
+tests/test_workload_capability_routing.py::test_context_window_mismatch_is_ineligible PASSED [  9%]
+tests/test_workload_capability_routing.py::test_evidence_scope_and_version_do_not_poison_other_workspace PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_measured_success_does_not_exclude_efficient_route PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_alignment_failure_does_not_ban_extraction_profile PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_strict_pin_is_exact_or_failed_no_escape PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_actual_request_size_beats_the_coarse_complexity_context_floor 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:19 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-04 17:51:19 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 12%]
+tests/test_workload_capability_routing.py::test_selected_local_only_policy_admits_the_runtime_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: llama3.1:8b)
+PASSED                                                                   [ 12%]
+tests/test_workload_capability_routing.py::test_profile_resolution_uses_server_label_not_model_name PASSED [ 13%]
+tests/test_workload_capability_routing.py::test_decision_journal_persists_across_memory_reset PASSED [ 13%]
+tests/test_workload_capability_routing.py::test_llm_service_forwards_capability_profile_to_handler PASSED [ 14%]
+tests/test_workload_capability_routing.py::test_pinned_call_adds_profile_from_server_label PASSED [ 14%]
+tests/test_workload_capability_routing.py::test_production_bpc_ranks_economical_flash_over_expensive_equal 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 17:51:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for moderate: Top model flash (Value: 2.70)
+2026-11-04 17:51:19 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown; frontier/expensive: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_workload_capability_routing.py::test_production_bpc_no_suitable_returns_empty_and_journals 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 17:51:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'fast/weak', 'reasons': ['below_quality_prior']}])
+PASSED                                                                   [ 15%]
+tests/test_workload_capability_routing.py::test_bounded_escalation_selects_a_better_eligible_candidate_once PASSED [ 16%]
+tests/test_workload_capability_routing.py::test_no_escalation_when_profile_does_not_allow_it PASSED [ 16%]
+tests/test_workload_capability_routing.py::test_profile_floor_keeps_capable_flash_eligible_on_complex_call 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 17:51:19 [    INFO] EscalationManager initialized
+2026-11-04 17:51:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 17:51:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 17:51:19 [    INFO] BPC Ranking Successful for complex: Top model flash (Value: 72.25)
+2026-11-04 17:51:19 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown
+PASSED                                                                   [ 16%]
+tests/test_workload_capability_routing.py::test_explicit_quality_preference_can_choose_stronger_eligible_route PASSED [ 17%]
+tests/test_workload_capability_routing.py::test_semantic_transport_success_is_not_satisfactory PASSED [ 17%]
+tests/test_workload_capability_routing.py::test_missing_workspace_evidence_is_not_assigned_to_reader PASSED [ 18%]
+tests/test_workload_capability_routing.py::test_provider_missing_evidence_is_not_transferred_across_providers PASSED [ 18%]
+tests/test_workload_capability_routing.py::test_single_unsafe_outcome_quarantines_until_reviewed_recovery PASSED [ 19%]
+tests/test_workload_capability_routing.py::test_strict_profile_pin_does_not_escape_through_wrapper 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee adaptation strict qualification pin (('local', 'failed')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_adaptive_planning': controlled rejected pin — no unpinned fallback
+PASSED                                                                   [ 19%]
+tests/test_workload_capability_routing.py::test_decision_history_requires_exact_workspace_and_tenant PASSED [ 20%]
+tests/test_workload_capability_routing.py::test_journal_path_is_world_owned_when_configured PASSED [ 20%]
+tests/test_workload_capability_routing.py::test_provider_policy_route_hides_other_scope_decisions PASSED [ 21%]
+tests/test_workload_capability_routing.py::test_feedback_carries_profile_metadata_for_persistence PASSED [ 21%]
+tests/test_workload_capability_routing.py::test_semantic_failure_overrides_transport_and_quality_flags PASSED [ 22%]
+tests/test_workload_capability_routing.py::test_old_recovery_does_not_release_a_new_unsafe_incident PASSED [ 22%]
+tests/test_workload_capability_routing.py::test_employee_proposal_and_pin_attribution_are_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee work proposal strict qualification pin (('local', 'weak')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_evidence_selection': controlled no suitable route — no unpinned fallback
+PASSED                                                                   [ 23%]
+tests/test_workload_capability_routing.py::test_route_attribution_is_call_local_and_clears_stale_served_state PASSED [ 23%]
+tests/test_workload_capability_routing.py::test_strict_pin_no_result_is_explicit_and_not_served 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee work proposal strict qualification pin (('fast', 'flash')) returned no result — failed qualification attempt, no unpinned fallback
+PASSED                                                                   [ 24%]
+tests/test_workload_capability_routing.py::test_successful_unpinned_fallback_clears_prior_pin_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee work proposal pinned call raised (('pin', 'unavailable')): no_suitable_configured_model for profile 'employee_evidence_selection': pinned candidate unavailable — retrying unpinned
+2026-11-04 17:51:19 [    INFO] employee work proposal pinned call (('pin', 'unavailable')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 24%]
+tests/test_workload_incident_identity.py::test_production_loader_preserves_reviewed_identity_when_feedback_added PASSED [ 25%]
+tests/test_workload_incident_identity.py::test_unrelated_rows_and_reordering_do_not_change_identity PASSED [ 25%]
+tests/test_workload_incident_identity.py::test_new_unsafe_observation_after_review_requarantines PASSED [ 25%]
+tests/test_workload_incident_identity.py::test_changed_observation_material_cannot_inherit_old_review PASSED [ 26%]
+tests/test_workload_incident_identity.py::test_legacy_row_without_identity_or_ordering_fails_closed PASSED [ 26%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_verdict_is_not_clobbered_by_the_decision_stash 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 27%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_annotation_lands_when_no_decision_was_stashed 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 27%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_repeated_corrections_stay_one_row 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 28%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectedRowIsInternallyConsistent::test_quality_fields_agree_with_the_verdict 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 28%]
+tests/test_correction_lifecycle_end_to_end.py::TestRestartConsistency::test_learning_matches_persistence_before_and_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 29%]
+tests/test_correction_lifecycle_end_to_end.py::TestFallbackGenerations::test_fallback_and_primary_are_separate_generations 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/qwen/qwen3.8-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 29%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_annotates_the_generation_row 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 30%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_keeps_the_real_quality_measurement 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 30%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_does_not_downgrade_a_fabrication_verdict 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+2026-11-04 17:51:19 [    INFO] [LearningRouter] fabrication observed for openrouter/deepseek/deepseek-v4-flash-0731 (question_answering): unsupported_figures
+PASSED                                                                   [ 31%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_accounting_counts_the_marker_as_evaluated 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 31%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_one_fabrication_among_four_generations_is_one_quarter PASSED [ 32%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_repeated_corrections_are_idempotent PASSED [ 32%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_primary_and_fallback_attempts_are_distinct_generations PASSED [ 33%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_fabricated_fallback_does_not_condemn_the_primary PASSED [ 33%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_rows_without_a_turn_id_do_not_merge PASSED [ 33%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_orm_style_rows_and_dicts_are_accepted PASSED [ 34%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_low_score_without_provenance_is_unknown PASSED [ 34%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_missing_score_is_unknown PASSED [ 35%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_score_without_a_grounding_verdict_is_unevaluated PASSED [ 35%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounding_verdict_puts_a_generation_in_the_denominator PASSED [ 36%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_score_above_the_band_without_grounding_is_unevaluated PASSED [ 36%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounding_marker_qualifies_a_generation PASSED [ 37%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_unrecognised_verdict_is_unknown_not_clean PASSED [ 37%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_availability_verdicts_are_excluded_from_both_terms PASSED [ 38%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_fabrication_outranks_a_companion_availability_verdict PASSED [ 38%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounded_row_wins_over_a_companion_availability_row PASSED [ 39%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_rate_is_none_when_nothing_was_evaluated PASSED [ 39%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[[1, 2, 3]] PASSED [ 40%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[{"verdict": ] PASSED [ 40%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[not json at all] PASSED [ 41%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property["a string"] PASSED [ 41%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[payload4] PASSED [ 41%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[42] PASSED [ 42%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[True] PASSED [ 42%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[None] PASSED [ 43%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[] PASSED [ 43%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[   ] PASSED [ 44%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[payload3] PASSED [ 44%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[null] PASSED [ 45%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_non_string_verdict_is_not_coerced PASSED [ 45%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_one_malformed_row_does_not_hide_the_others PASSED [ 46%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_unreadable_row_object_is_counted_not_raised PASSED [ 46%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_rows_are_reported_in_the_dict PASSED [ 47%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_correction_annotates_the_generation_row PASSED [ 47%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_repeated_correction_does_not_duplicate PASSED [ 48%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_bench_fires_on_one_fabrication_in_four_generations 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 48%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_bench_is_durable_across_a_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+2026-11-04 17:51:19 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 49%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_one_malformed_row_does_not_fail_the_bench_open 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] FABRICATION BENCH: openai/m1 benched — 3/3 evaluated generations verdict-flagged as fabricated in the last 48h (>=3 events and >=25% rate). rows=3 clean=0 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 49%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_an_unstamped_verdict_cannot_bench PASSED [ 50%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_a_stamped_verdict_from_the_same_rows_still_benches 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] FABRICATION BENCH: openai/m1 benched — 3/3 evaluated generations verdict-flagged as fabricated in the last 48h (>=3 events and >=25% rate). rows=3 clean=0 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 50%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_health_rows_do_not_bench_a_model PASSED [ 50%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_unprovenanced_history_cannot_bench_or_exonerate PASSED [ 51%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_primary_and_fallback_rows_both_count PASSED [ 51%]
+tests/test_employee_proposal.py::test_context_is_bounded_and_excludes_paths PASSED [ 52%]
+tests/test_employee_proposal.py::test_valid_evidence_and_clarification_proposal PASSED [ 52%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal0-at least one read] PASSED [ 53%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal1-requires a question] PASSED [ 53%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal2-unknown source_id] PASSED [ 54%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal3-unknown action] PASSED [ 54%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal4-not both] PASSED [ 55%]
+tests/test_employee_proposal.py::test_deterministic_fallback_is_a_read_not_a_business_fact PASSED [ 55%]
+tests/test_employee_proposal.py::test_model_proposal_is_captured_with_scoped_json_mode PASSED [ 56%]
+tests/test_employee_proposal.py::test_invalid_model_output_falls_back_and_preserves_errors PASSED [ 56%]
+tests/test_employee_proposal.py::test_compiler_builds_planner_kwargs_with_facts_and_requirements PASSED [ 57%]
+tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_and_blockers PASSED [ 57%]
+tests/test_employee_proposal.py::test_planner_carries_facts_and_source_requirements PASSED [ 58%]
+tests/test_employee_proposal.py::test_compiler_collapses_duplicate_source_reads PASSED [ 58%]
+tests/test_employee_proposal.py::test_duplicate_applied_reads_do_not_make_invoice_roles_ambiguous PASSED [ 58%]
+tests/test_employee_proposal.py::test_deterministic_unread_fallback_is_capped_to_the_proposal_limit PASSED [ 59%]
+tests/test_employee_compact_adaptation.py::test_compact_context_is_single_operation_and_keeps_scope PASSED [ 59%]
+tests/test_employee_compact_adaptation.py::test_compact_schema_echo_is_rejected_and_a_valid_instance_is_kept PASSED [ 60%]
+tests/test_employee_compact_adaptation.py::test_compact_context_allows_the_independent_quote_while_waiting PASSED [ 60%]
+tests/test_employee_compact_adaptation.py::test_compact_quote_expands_to_the_existing_typed_request PASSED [ 61%]
+tests/test_employee_compact_adaptation.py::test_compact_invoice_schema_keeps_compiler_owned_fields_out PASSED [ 61%]
+tests/test_employee_compact_adaptation.py::test_compact_path_is_called_before_the_full_adaptation_prompt PASSED [ 62%]
+tests/test_employee_compact_adaptation.py::test_compact_no_result_is_reported_as_a_compact_failure PASSED [ 62%]
+tests/test_employee_compact_adaptation.py::test_compact_path_allows_truthful_retain PASSED [ 63%]
+tests/test_employee_compact_adaptation.py::test_compact_call_binds_triggering_observations_when_role_filter_is_empty PASSED [ 63%]
+tests/test_employee_compact_adaptation.py::test_legacy_compact_fallback_uses_the_narrow_model_and_binds_observations PASSED [ 64%]
+tests/test_employee_adaptation_contract.py::test_final_transport_request_uses_the_selected_schema PASSED [ 64%]
+tests/test_employee_adaptation_contract.py::test_raw_malformed_completion_is_preserved_under_one_attempt 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:19 [ WARNING] employee adaptation call raised: InstructorRetryException: validation error
+PASSED                                                                   [ 65%]
+tests/test_employee_adaptation_contract.py::test_bounded_repair_shares_deadline_and_selected_schema PASSED [ 65%]
+tests/test_employee_adaptation_contract.py::test_exhausted_deadline_is_typed_and_does_not_start_repair PASSED [ 66%]
+tests/test_employee_adaptation_contract.py::test_legacy_context_keeps_legacy_schema_separate PASSED [ 66%]
+tests/test_employee_adaptation_contract.py::test_compact_single_request_prompt_is_bounded_to_one_operation PASSED [ 66%]
+tests/test_employee_adaptation_contract.py::test_attempt_journal_preserves_token_counts_and_redacts_secrets PASSED [ 67%]
+tests/test_employee_adaptation_contract.py::test_exhausted_budget_skips_compact_without_a_dispatch PASSED [ 67%]
+tests/test_employee_adaptation_contract.py::test_typed_work_request_rejects_a_reconcile_decision PASSED [ 68%]
+tests/test_employee_business_requirements.py::test_model_retain_after_reply_cannot_complete_unperformed_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:20 [    INFO] runtime identity: source_id=44178e2a8f7a-dirty.f1ce8bfc7de0 revision=44178e2a8f7a dirty=True (8 modified, 2 untracked)
+2026-11-04 17:51:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 17:51:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/5d5fcdbe-9b30-4710-be55-30444a22e010/sources "HTTP/1.1 200 OK"
+2026-11-04 17:51:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/5d5fcdbe-9b30-4710-be55-30444a22e010/responses/await-75a4d1fb6cc8e4c38ffc "HTTP/1.1 200 OK"
+2026-11-04 17:51:21 [    INFO] HTTP Request: GET http://testserver/api/assignments/5d5fcdbe-9b30-4710-be55-30444a22e010 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_employee_business_requirements.py::test_retain_without_artifact_request_still_keeps_result_requirement 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 17:51:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b5817de5-5f1b-4741-af91-6fdb0ccfffe2/sources "HTTP/1.1 200 OK"
+2026-11-04 17:51:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b5817de5-5f1b-4741-af91-6fdb0ccfffe2/responses/await-280d595ecbf01d78dea8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_employee_business_requirements.py::test_requirement_and_quote_receipt_survive_restart_before_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 17:51:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/41e98e0b-abfa-4e66-a0c3-7f2a312994cc/sources "HTTP/1.1 200 OK"
+2026-11-04 17:51:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/41e98e0b-abfa-4e66-a0c3-7f2a312994cc/responses/await-b5341bdba8135912f2d5 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_employee_business_requirements.py::test_quote_result_cannot_satisfy_invoice_requirement PASSED [ 70%]
+tests/test_employee_business_requirements.py::test_no_suitable_reply_failure_preserves_requirement_then_retry_reconciles 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-04 17:51:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/7a5c4de0-fd34-4751-aa98-79850f5575eb/sources "HTTP/1.1 200 OK"
+2026-11-04 17:51:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/7a5c4de0-fd34-4751-aa98-79850f5575eb/responses/await-ab0e51d62f9c0902fc93 "HTTP/1.1 200 OK"
+2026-11-04 17:51:23 [    INFO] HTTP Request: GET http://testserver/api/assignments/7a5c4de0-fd34-4751-aa98-79850f5575eb "HTTP/1.1 200 OK"
+2026-11-04 17:51:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/7a5c4de0-fd34-4751-aa98-79850f5575eb/advance "HTTP/1.1 200 OK"
+2026-11-04 17:51:23 [    INFO] HTTP Request: GET http://testserver/api/assignments/7a5c4de0-fd34-4751-aa98-79850f5575eb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_employee_business_requirements.py::test_plan_patch_cannot_add_an_unbacked_result_criterion PASSED [ 71%]
+tests/test_employee_business_requirements.py::test_invoice_requirement_needs_the_matching_business_identity PASSED [ 71%]
+tests/test_employee_business_requirements.py::test_business_requirement_patch_is_bound_to_the_task_version PASSED [ 72%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required0-observed0-True] PASSED [ 72%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required1-observed1-False] PASSED [ 73%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required2-observed2-False] PASSED [ 73%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required3-observed3-False] PASSED [ 74%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required4-observed4-True] PASSED [ 74%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required5-observed5-False] PASSED [ 75%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required6-observed6-True] PASSED [ 75%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required7-observed7-False] PASSED [ 75%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required8-observed8-False] PASSED [ 76%]
+tests/test_employee_business_requirements.py::test_requirement_identity_is_exact_and_namespaced[required9-observed9-False] PASSED [ 76%]
+tests/test_employee_business_requirements.py::test_ambiguous_known_identities_do_not_bind_a_subject PASSED [ 77%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-88410-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:24 [    INFO] HTTP Request: GET http://testserver/api/assignments/02f35449-36cb-4803-9261-788a420f678d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-884-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:25 [    INFO] HTTP Request: GET http://testserver/api/assignments/c33cd8bd-775c-4544-a37c-2f58a2309feb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_employee_business_requirements.py::test_public_status_uses_exact_namespaced_reconciliation_identity[PO-8841-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:25 [    INFO] HTTP Request: GET http://testserver/api/assignments/c44d6436-93c0-4180-9674-95bbd0e0e9d0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-88410-False] PASSED [ 79%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-884-False] PASSED [ 79%]
+tests/test_employee_business_requirements.py::test_wrong_subject_cannot_publish_the_requested_report[PO-8841-True] PASSED [ 80%]
+tests/test_employee_business_requirements.py::test_unscoped_result_matrix_requires_an_actual_verified_receipt PASSED [ 80%]
+tests/test_employee_business_requirements.py::test_empty_invoice_identity_never_completes_public_job 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] HTTP Request: GET http://testserver/api/assignments/ef2157c6-86a0-4ae2-9082-714e71313ccb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_employee_business_requirements.py::test_artifact_guard_uses_requirement_projection_for_empty_and_exact_scope PASSED [ 81%]
+tests/test_pinned_planning_scope.py::test_startup_lacks_provider_requested_workspace_has_it_pin_retained PASSED [ 82%]
+tests/test_pinned_planning_scope.py::test_startup_has_provider_requested_workspace_lacks_it_pin_refused PASSED [ 82%]
+tests/test_pinned_planning_scope.py::test_two_overlapping_workspaces_retain_their_respective_scopes PASSED [ 83%]
+tests/test_pinned_planning_scope.py::test_unresolved_scope_cannot_borrow_another_handler PASSED [ 83%]
+tests/test_pinned_planning_scope.py::test_local_only_policy_still_blocks_cloud_pins 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [ WARNING] LOCAL-ONLY: pin opencode-go/deepseek-v4-pro refused — cloud dispatch is blocked; the call routes locally instead
+PASSED                                                                   [ 83%]
+tests/test_pinned_planning_scope.py::test_unpinned_fallback_behavior_unchanged 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] test pinned call (('opencode-go', 'deepseek-v4-pro')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 84%]
+tests/test_pinned_planning_scope.py::test_resolve_pinned_provider_model_threads_scope PASSED [ 84%]
+tests/test_pinned_planning_scope.py::test_plan_structured_threads_turn_scope_into_the_gate PASSED [ 85%]
+tests/test_structured_dispatch_policy.py::TestControlCManagedRestrictedPerRoute::test_managed_nonallowlisted_excluded_local_exempt 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] EscalationManager initialized
+2026-11-04 17:51:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:28 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-04 17:51:28 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-04 17:51:28 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+PASSED                                                                   [ 85%]
+tests/test_structured_dispatch_policy.py::TestControlCManagedRestrictedPerRoute::test_managed_nonallowlisted_excluded_without_local 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] EscalationManager initialized
+2026-11-04 17:51:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:28 [ WARNING] [provider-policy] BPC has no allowed provider (allowed=[] revision= error=None)
+PASSED                                                                   [ 86%]
+tests/test_structured_dispatch_policy.py::TestControlALocalReachesEndpoint::test_structured_dispatch_reaches_the_workspace_client 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] EscalationManager initialized
+2026-11-04 17:51:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:28 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-04 17:51:28 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4b62b5e79012 attempt=1 prompt_chars=69 cap=6000 instructor_retries=default
+2026-11-04 17:51:28 [    INFO] [inflight] local_ctrl1234/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-04 17:51:28 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=6000 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CanvasEditPlan route=structured-4b62b5e79012 attempt=1
+2026-11-04 17:51:28 [    INFO] Trained per-model predictor for llama3.1:8b: samples=71, accuracy=0.873
+2026-11-04 17:51:28 [    INFO] Updated router for tenant=tenant-ctrl, task=general with 90 samples; predictors=[llama3.1:8b(0.87)]
+PASSED                                                                   [ 86%]
+tests/test_structured_dispatch_policy.py::TestControlBNoProviderNoDispatch::test_zero_configured_providers_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] EscalationManager initialized
+2026-11-04 17:51:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:28 [ WARNING] No LLM clients available
+PASSED                                                                   [ 87%]
+tests/test_structured_dispatch_policy.py::TestControlBNoProviderNoDispatch::test_planner_reports_truthful_unavailability 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 1, "included": true, "truncated": false}, {"section": "history", "size": 77, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-04 17:51:28 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=1 contract=- detail=structured call returned None
+PASSED                                                                   [ 87%]
+tests/test_structured_dispatch_policy.py::test_malformed_native_payload_settles_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:28 [    INFO] EscalationManager initialized
+2026-11-04 17:51:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 17:51:28 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-04 17:51:28 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 17:51:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 17:51:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=diagnostic_minimal:bad attempt=1 prompt_chars=69 cap=6000 instructor_retries=default
+2026-11-04 17:51:28 [    INFO] Retrying request to /chat/completions in 0.448074 seconds
+2026-11-04 17:51:29 [    INFO] Retrying request to /chat/completions in 0.875088 seconds
+2026-11-04 17:51:30 [   ERROR] API call failed on attempt 1: Connection error.
+2026-11-04 17:51:30 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Connection error.
+2026-11-04 17:51:30 [    INFO] [inflight] local_ctrl1234/llama3.1:8b released by 'completion2:planning' after 1.3s
+2026-11-04 17:51:30 [ WARNING] Structured attempt failed for local_ctrl1234/llama3.1:8b: Connection error.
+2026-11-04 17:51:30 [ WARNING] Circuit breaker OPEN for provider local_ctrl1234 (1 consecutive connection failures) — skipping for 60s
+2026-11-04 17:51:30 [ WARNING] [structured-pool] depth=0 candidates=[('local_ctrl1234', 'llama3.1:8b')] attempted=True credit_failed=[]
+2026-11-04 17:51:30 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 17:51:30 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"local_ctrl1234": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "diagnostic_minimal:bad"}
+2026-11-04 17:51:30 [ WARNING] BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+2026-11-04 17:51:30 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Connection error.
+PASSED                                                                   [ 88%]
+tests/test_employee_source_selection_contract.py::test_objective_identity_hints_are_unambiguous_only PASSED [ 88%]
+tests/test_employee_source_selection_contract.py::test_provenance_identity_hint_filters_without_a_requirement PASSED [ 89%]
+tests/test_employee_source_selection_contract.py::test_exact_identity_filters_wrong_po_and_obsolete_candidates PASSED [ 89%]
+tests/test_employee_source_selection_contract.py::test_missing_required_invoice_is_a_targeted_obligation PASSED [ 90%]
+tests/test_employee_source_selection_contract.py::test_duplicate_identity_matching_invoices_are_ambiguous PASSED [ 90%]
+tests/test_employee_source_selection_contract.py::test_compiler_rejects_a_wrong_invoice_even_when_bound_explicitly PASSED [ 91%]
+tests/test_employee_work_requests.py::test_quote_request_compiles_and_executes_from_full_evidence PASSED [ 91%]
+tests/test_employee_work_requests.py::test_requested_artifact_waits_for_the_open_business_fact PASSED [ 91%]
+tests/test_employee_work_requests.py::test_quote_mapping_rejects_unknown_column_and_bad_terms PASSED [ 92%]
+tests/test_employee_work_requests.py::test_invoice_request_compiles_and_reconciles_full_evidence PASSED [ 92%]
+tests/test_employee_work_requests.py::test_work_request_rejects_model_authored_steps_and_bad_references PASSED [ 93%]
+tests/test_employee_work_requests.py::test_context_previews_are_labeled_and_discovery_is_not_followup PASSED [ 93%]
+tests/test_employee_work_requests.py::test_money_terms_must_resolve_and_match_the_proposed_value PASSED [ 94%]
+tests/test_employee_work_requests.py::test_expired_fact_term_is_not_authority PASSED [ 94%]
+tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_match_accepted_values PASSED [ 95%]
+tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [ 95%]
+tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
+-------------------------------- live log call ---------------------------------
+2026-11-04 17:51:30 [    INFO] Created HITL action f588f939-d5de-4021-8a53-fe11466f063b for agent None
+PASSED                                                                   [ 96%]
+tests/test_employee_work_requests.py::test_invoice_role_bindings_resolve_from_evidence_shape PASSED [ 96%]
+tests/test_employee_work_requests.py::test_invoice_wrong_purchase_order_identity_is_refused PASSED [ 97%]
+tests/test_employee_work_requests.py::test_quote_mapping_resolves_type_swapped_unfamiliar_headers PASSED [ 97%]
+tests/test_employee_work_requests.py::test_quote_currency_preserves_observed_values_and_refuses_conflicts PASSED [ 98%]
+tests/test_employee_work_requests.py::test_quote_missing_currency_column_inherits_only_explicit_job_default PASSED [ 98%]
+tests/test_employee_work_requests.py::test_executor_refuses_currency_changed_after_compilation PASSED [ 99%]
+tests/test_employee_work_requests.py::test_mapped_unit_cannot_be_defaulted_over_empty_source_value PASSED [ 99%]
+tests/test_employee_work_requests.py::test_valid_cad_twin_executes_without_relabelling PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 424 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_employee_business_feedback.py: 10 warnings
+tests/test_employee_byok_consumer_routing.py: 14 warnings
+tests/test_workload_capability_routing.py: 5 warnings
+tests/test_fabrication_accounting.py: 8 warnings
+tests/test_structured_dispatch_policy.py: 5 warnings
+  /private/tmp/atom-full-app/backend/core/llm/byok_handler.py:2385: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_employee_business_feedback.py: 17 warnings
+tests/test_workload_capability_routing.py: 1 warning
+tests/test_workload_incident_identity.py: 14 warnings
+  /private/tmp/atom-full-app/backend/core/llm/capability_profiles.py:755: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route
+  /private/tmp/atom-full-app/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 212 passed, 506 warnings in 34.30s ======================
