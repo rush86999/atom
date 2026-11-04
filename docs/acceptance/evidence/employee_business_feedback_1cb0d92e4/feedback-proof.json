@@ -1,0 +1,180 @@
+{
+ "schema": "atom-business-feedback-proof-1",
+ "executed_source": "1cb0d92e4180340dfe7a9d4e2b538fff954ab8e8",
+ "sequence": [
+  "consumer evaluated 3 served model proposals as wrong_evidence_selection",
+  "each evaluation annotated its own transport outcome row",
+  "fresh capability evidence read excluded the route",
+  "next unpinned decision served the one eligible alternative"
+ ],
+ "evaluations": [
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "d42dd0f5-2af0-4fb8-891d-17a431da94ad"
+   }
+  },
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "db031dd9-9e83-401d-95dc-a23939570ad1"
+   }
+  },
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "6467ebc0-b019-4a31-86f9-ef9f511448b9"
+   }
+  }
+ ],
+ "persisted_rows": [
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "b9a9ce98854f4c93aa6fa2888401d77a"
+  },
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "9207902d4a634b509a88961b0000d340"
+  },
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "6ee71933935f4cb99312acb0e11988bc"
+  }
+ ],
+ "evidence": {
+  "local_ctrl1234/llama3.1:8b": {
+   "samples": 3,
+   "successes": 0,
+   "quality_successes": 0,
+   "semantic_failures": 3,
+   "unsafe_failures": 0,
+   "retries": 0,
+   "latency_ms": 0.11682510375976562,
+   "last_failure_kind": "semantic_failure",
+   "failure_kinds": "{'semantic_failure'}",
+   "incidents": [
+    {
+     "incident_id": "feedback-02509292-7c01-4f3f-b0e6-2ad55457b9fb-c86c270d20511e71",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "c86c270d20511e719d2bca256a7504eefaeba8e50b2be50e526d9b145ff0b78c",
+     "routing_result_id": "d42dd0f5-2af0-4fb8-891d-17a431da94ad",
+     "kind": "semantic_failure",
+     "timestamp": 1793850731.0,
+     "created_at": "2026-11-04T22:52:11",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    },
+    {
+     "incident_id": "feedback-a0d532eb-3ce4-4382-9733-d6e0844413b2-c86c270d20511e71",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "c86c270d20511e719d2bca256a7504eefaeba8e50b2be50e526d9b145ff0b78c",
+     "routing_result_id": "db031dd9-9e83-401d-95dc-a23939570ad1",
+     "kind": "semantic_failure",
+     "timestamp": 1793850731.0,
+     "created_at": "2026-11-04T22:52:11",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    },
+    {
+     "incident_id": "feedback-d24bbf7f-d3e5-4b80-a17e-b4c75ae43925-c86c270d20511e71",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "c86c270d20511e719d2bca256a7504eefaeba8e50b2be50e526d9b145ff0b78c",
+     "routing_result_id": "6467ebc0-b019-4a31-86f9-ef9f511448b9",
+     "kind": "semantic_failure",
+     "timestamp": 1793850731.0,
+     "created_at": "2026-11-04T22:52:11",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    }
+   ],
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "tenant_id": "tenant-ctrl"
+  }
+ },
+ "next_decision": {
+  "source": "model",
+  "served_route": {
+   "provider": "local_pricey",
+   "model": "pricey-model"
+  },
+  "profile": {
+   "name": "employee_evidence_selection",
+   "version": "2026-11-04.1"
+  },
+  "dispatched_clients": 2
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; no live application DB",
+  "provider transport doubled; no live model inference",
+  "three deterministic consumer evaluations meet the profile evidence floor; no quality label was invented",
+  "one eligible alternative served; no multi-route sweep"
+ ]
+}
