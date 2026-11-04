@@ -632,6 +632,17 @@ def _requested_artifact_step(
         # A wait/read-only intent has no verified calculation to render; the
         # artifact is compiled with the business calculation that follows.
         return None
+    if any(
+        str(step.get("adapter") or "") == "assignment.wait"
+        and str(step.get("status") or "") == "waiting"
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    ):
+        # The requested output describes the whole objective. Rendering it
+        # while a blocking external fact is still open produces a partial
+        # document; compile it with the calculation/reconciliation that the
+        # accepted reply makes possible.
+        return None
     provenance = assignment.get("provenance") or {}
     kind = str(provenance.get("requested_output") or "").strip().lower()
     adapters = {

@@ -122,6 +122,42 @@ def test_quote_request_compiles_and_executes_from_full_evidence(env):
     assert status["assignment"]["status"] == "completed"
 
 
+def test_requested_artifact_waits_for_the_open_business_fact():
+    read = _verified_quote_evidence()
+    wait = new_step(
+        step_id="await", title="Wait for receiving", operation_type="retrieve",
+        adapter="assignment.wait", inputs={"correlation_id": "await-1"},
+        effect="read_only")
+    wait["status"] = "waiting"
+    assignment = new_assignment(
+        objective="Quote the held-out request and reconcile the invoice",
+        steps=[read, wait], teaching_snapshot=_terms_teaching(),
+        authorized_actions=["retrieve", "calculate"],
+        provenance={
+            "requested_output": "document",
+            "requested_output_path": "/tmp/requested-output.docx",
+            "requested_output_deliverable_id": "del-requested-output",
+        })
+    patch = compile_work_request_patch(
+        _quote_request(), assignment, context={})
+    assert not any(
+        step.get("adapter") == "artifact.document"
+        for step in patch["add_steps"])
+
+    next(
+        step for step in assignment["steps"]
+        if step.get("step_id") == "await")["status"] = "applied"
+    later = compile_work_request_patch(
+        _quote_request(), assignment, context={})
+    artifact = next(
+        step for step in later["add_steps"]
+        if step.get("adapter") == "artifact.document")
+    calculation = next(
+        step for step in later["add_steps"]
+        if step.get("adapter") == "quote.calculate")
+    assert artifact["depends_on"] == [calculation["step_id"]]
+
+
 def test_quote_mapping_rejects_unknown_column_and_bad_terms():
     read = _verified_quote_evidence()
     assignment = new_assignment(
