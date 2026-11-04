@@ -362,6 +362,8 @@ def main() -> int:
             and str(quote_result.get("expression") or "") in artifact_text,
             "artifact_has_both_lines": all(
                 item in artifact_text for item in ("A", "B")),
+            "artifact_shows_line_nets": "Net" in artifact_text
+            and all(net in artifact_text for net in EXPECTED_LINE_NETS.values()),
             "artifact_has_source": "price-book.xlsx" in artifact_text,
             "artifact_has_human_labels": (
                 "Unit price" in artifact_text

@@ -839,18 +839,29 @@ _DOCUMENT_AUDIT_COLUMNS = {
 _DOCUMENT_SCALAR_TYPES = (str, int, float, bool)
 
 
+_DOCUMENT_COLUMN_PRIORITY = (
+    "item_id", "sku", "description", "quantity", "unit", "unit_price",
+    "discount_amount", "net", "currency", "price_basis", "gross",
+    "discount_rate", "pack_size", "received_quantity", "invoice_quantity",
+    "value",
+)
+
+
 def _document_columns(rows: List[Dict[str, Any]]) -> List[str]:
-    columns: List[str] = []
-    for row in rows[:1]:
-        for key, value in row.items():
-            name = str(key)
-            if name == "__sheet_row" or name in _DOCUMENT_AUDIT_COLUMNS:
-                continue
-            if value is not None and not isinstance(
-                    value, _DOCUMENT_SCALAR_TYPES):
-                continue
-            columns.append(name)
-    return columns[:8]
+    available: List[str] = []
+    for key, value in (rows[0] if rows else {}).items():
+        name = str(key)
+        if name == "__sheet_row" or name in _DOCUMENT_AUDIT_COLUMNS:
+            continue
+        if value is not None and not isinstance(
+                value, _DOCUMENT_SCALAR_TYPES):
+            continue
+        available.append(name)
+    ordered = [
+        column for column in _DOCUMENT_COLUMN_PRIORITY if column in available]
+    ordered += [
+        column for column in available if column not in ordered]
+    return ordered[:8]
 
 
 def _row_set_label(entry: Dict[str, Any]) -> str:
