@@ -1,0 +1,71 @@
+{
+ "artifacts": {
+  "README.md": "63fb16bf5289cd16bbf5c83e7143a0ad879a9e2b6e98035db93595951d06fecb",
+  "TEST_RESULTS.md": "b5b796ec9c2e4027ff37267cad9152e6eb8ef605eab50ee07c871df843f099d3",
+  "focused-tests.log": "4593081f8cba6c0932f4289a9a3999b635eaa9da65770ce849f4a354b0b89b75",
+  "frontend-panel.log": "ebd1060d590a34818d3e941690fa2ff545179de0ca4f82f132cc39d22110ad1a",
+  "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "verifier-empty-subject.log": "0494bb99971d0bb9d9799c1377c6fbbb05f9876a6ffb59fb725e99a3aa39c5f6"
+ },
+ "candidate": {
+  "branch": "codex/brennan-full-app-20261102",
+  "executed_source": "2eb433f41fdcaeca1a51dd774bfe6bea5b9791be",
+  "manifest_note": "Empty-scope requirements cannot self-satisfy; every profile needs a verified matching receipt, and invoice scope requires exact namespaced identity. Episode remains at its original source.",
+  "previous_episode_evidence": "4fd8951cc20cfe20063da336029d421843220e51",
+  "previous_episode_source": "70a74cd02b5d12acc6b6fead3215196e155640f8",
+  "supersedes_focused_source": "a2c3a8872ad8239de342776b481f442ae0d97166",
+  "tree_clean_at_run": true,
+  "ui_rerun_performed": false
+ },
+ "exclusions": [
+  "no full UI/model rerun for this focused predicate repair",
+  "no live/cloud provider, credential, consent, send, spend, download or deployment authority",
+  "full G5 and general model judgment remain subject to independent acceptance",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ],
+ "results": {
+  "empty_results_never_satisfy": true,
+  "exact_identity_accepted": true,
+  "failed_result_rejected": true,
+  "fresh_session_durable": true,
+  "invoice_identity_required": true,
+  "missing_scope_artifact_blocked": true,
+  "prior_episode_preserved": true,
+  "public_route_negative": true,
+  "public_route_positive": true,
+  "unrelated_result_rejected": true,
+  "unscoped_quote_requires_verified_receipt": true,
+  "wrong_identity_rejected": true
+ },
+ "schema": "atom-employee-identity-repair-3",
+ "source_hashes": {
+  "backend/api/assignment_routes.py": "02bf072f579bc69f5ea3127780fe99c9984fa691c6a926ffd61277b6b6a63429",
+  "backend/core/assignment_executor.py": "dc1df14ddb761ac587884c795a7f551899dcfd742e729cd4654ebfff189e94d2",
+  "backend/core/employee_business_outcomes.py": "1a7a4e928e49182ee59cc76747535fdc8beae0145a614e055caf8b66ef355fcb",
+  "backend/core/employee_patch.py": "15b16f4f67abe6d2579ea04154fe772de6bc91e78d8793c9b896e1e9fe06ea51",
+  "backend/core/employee_proposal.py": "9ebeb585a0b77ed32e056f46c1a2e2edbe1d3a2634472ec2a2a5c1d6adb84ae0",
+  "backend/core/employee_work_compiler.py": "13ca9c3f0b273395546addfd9c2aa9471b6ee0c3677dc34960723ed425424479",
+  "backend/core/employee_work_requests.py": "1e2b3457b9c0f4a1834f9133e638d3ffcae8ca6f41ea2594f02ff37c69d95dfa",
+  "backend/core/task_outcome_contract.py": "d348cf64f7a8a57432c097f2079099fec8de37413666cabb1c3b4e20ebef7d69",
+  "backend/tests/test_employee_business_requirements.py": "26e45efdc3728add9e66063acd15e69a3b9b262cdc9408d0f44b09e7abe9b646",
+  "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173"
+ },
+ "tests": {
+  "focused": {
+   "log": "focused-tests.log",
+   "result": "410 passed"
+  },
+  "frontend_panel": {
+   "log": "frontend-panel.log",
+   "result": "9 passed"
+  },
+  "frontend_tsc": {
+   "log": "frontend-tsc.log",
+   "result": "exit 0"
+  },
+  "verifier_empty_and_subject": {
+   "log": "verifier-empty-subject.log",
+   "result": "5 passed"
+  }
+ }
+}
