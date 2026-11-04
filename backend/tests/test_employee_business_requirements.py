@@ -409,3 +409,41 @@ def test_invoice_requirement_needs_the_matching_business_identity():
     assert wrong["verdict"] is False
     right = _outcome("PO-8841")
     assert right["verdict"] is True
+
+
+def test_business_requirement_patch_is_bound_to_the_task_version():
+    from core.assignment_plan import new_assignment
+    from core.employee_patch import PlanPatchProposal, validate_plan_patch
+
+    assignment = new_assignment(
+        objective="Reconcile and quote", steps=[],
+        completion_criteria=[{
+            "criterion_id": "employee_result:objective",
+            "kind": "employee_result", "verifier": "employee_result"}])
+    patch = PlanPatchProposal(
+        patch_id="patch-stale-requirement",
+        base_task_version=6,
+        base_plan_revision=1,
+        reason="stale requirement proposal",
+        observations=[{"kind": "test"}],
+        add_business_requirements=[{
+            "requirement_id": "result-stale",
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "subject": "PO-8841",
+            "fact": "receiving",
+            "correlation_id": "await-stale",
+            "receipt_adapter": "invoice.reconcile",
+        }],
+        add_criteria=[{
+            "criterion_id": "business_result:result-stale",
+            "kind": "business_result",
+            "required": True,
+            "verifier": "business_result",
+            "requirement_id": "result-stale",
+        }],
+    )
+    checked = validate_plan_patch(
+        patch.model_dump(), {"task_version": 7, "assignment": assignment})
+    assert checked["valid"] is False
+    assert any("stale task version" in error for error in checked["errors"])
