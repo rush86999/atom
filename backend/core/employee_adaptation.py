@@ -469,6 +469,22 @@ def _routing_snapshot() -> Dict[str, Any]:
         return {"mode": "deterministic"}
 
 
+def _record_routing_failure(code: str) -> None:
+    """Attach a business-safe failure code at the employee boundary.
+
+    A deadline that expires around the pinned-call wrapper never reaches the
+    provider's own error classification. The employee still needs to explain
+    why no model response was used, without exposing a raw exception.
+    """
+    try:
+        from core.llm.model_provenance import set_routing_error
+
+        set_routing_error(
+            code, "the employee reasoning step produced no usable response")
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        pass
+
+
 async def propose_adaptation(
     context: Mapping[str, Any],
     observations: List[Mapping[str, Any]],
@@ -577,6 +593,7 @@ async def propose_adaptation(
         try:
             return await asyncio.wait_for(call, timeout=remaining)
         except asyncio.TimeoutError as exc:
+            _record_routing_failure("deadline_cancelled")
             if journal is not None:
                 journal.failure(
                     exc, call_stage=stage_name, label=label, attempt=0,
@@ -609,6 +626,7 @@ async def propose_adaptation(
                         context, observations, response_model=response_model),
                     "employee adaptation", "initial")
             except asyncio.TimeoutError:
+                _record_routing_failure("deadline_cancelled")
                 result = None
                 failure_stage = "initial"
                 checked_errors = ["deadline_exceeded: initial"]

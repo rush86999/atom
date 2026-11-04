@@ -177,14 +177,24 @@ def test_exhausted_deadline_is_typed_and_does_not_start_repair():
             await asyncio.sleep(5)
             return None
 
+    from core.llm.model_provenance import (
+        clear_route_attribution, get_route_attribution,
+    )
+
+    clear_route_attribution()
     llm = SlowLLM()
     journal = AttemptJournal()
-    result = asyncio.run(propose_adaptation(
-        _context(), [{"observation_id": "o-4",
-                      "kind": "evidence_result"}],
-        assignment=_assignment(), llm_service=llm,
-        deadline=time.monotonic() + 0.05,
-        attempt_journal=journal))
+
+    async def _bounded_attempt():
+        attempted = await propose_adaptation(
+            _context(), [{"observation_id": "o-4",
+                          "kind": "evidence_result"}],
+            assignment=_assignment(), llm_service=llm,
+            deadline=time.monotonic() + 0.05,
+            attempt_journal=journal)
+        return attempted, get_route_attribution()
+
+    result, routing = asyncio.run(_bounded_attempt())
     assert result["source"] == "deterministic"
     assert result["failure_stage"] == "initial"
     assert "deadline_exceeded: initial" in result["errors"]
@@ -193,6 +203,12 @@ def test_exhausted_deadline_is_typed_and_does_not_start_repair():
     assert len(dispatches) == 1
     failures = [e for e in journal.events if e["event"] == "failure"]
     assert failures and failures[-1]["kind"] == "deadline_cancelled"
+    # The wrapper deadline is still attributable: requested stays visible,
+    # nothing is reported as served, and the failure has a business-safe code.
+    assert routing["mode"] == "unpinned"
+    assert routing["served_route"] is None
+    assert routing["error"]["code"] == "deadline_cancelled"
+    assert "employee reasoning step" in routing["error"]["detail"]
 
 
 def test_legacy_context_keeps_legacy_schema_separate():
