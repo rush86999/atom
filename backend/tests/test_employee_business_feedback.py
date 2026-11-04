@@ -321,6 +321,51 @@ def test_evaluated_business_failure_changes_next_routing_decision(
         client is handler.clients["local_pricey"] for client in selected)
 
 
+def test_strict_qualification_pin_fails_instead_of_escaping(
+        feedback_db, fresh_router, monkeypatch):
+    """An exact pin is not silently replaced by the healthy alternative."""
+    from core.llm.capability_profiles import (
+        capability_decisions,
+        reset_capability_journal_memory,
+    )
+
+    handler = _handler()
+    _configure_pool(handler, monkeypatch)
+    service = _service(handler)
+    context = _context()
+    invalid_client = handler.clients["local_ctrl1234"]
+    for _ in range(3):
+        with patch(
+                "core.llm.byok_handler.instructor.from_openai",
+                _route_aware_instructor(
+                    [], invalid_client=invalid_client,
+                    valid_proposal=_valid_proposal())):
+            asyncio.run(propose_employee_work(
+                context, llm_service=service))
+
+    reset_capability_evidence_cache()
+    reset_capability_journal_memory()
+    result = asyncio.run(service.generate_structured_response(
+        prompt="Return a bounded employee proposal.",
+        response_model=EmployeeWorkProposal,
+        capability_profile="employee_evidence_selection",
+        task_type="planning",
+        provider_model=("local_ctrl1234", "llama3.1:8b"),
+        workspace_id="ws-ctrl", tenant_id="tenant-ctrl",
+        max_tokens=1800,
+    ))
+    assert result is None, "the strict pin must fail, not escape"
+    pins = [
+        item for item in capability_decisions(
+            limit=50, workspace_id="ws-ctrl", tenant_id="tenant-ctrl")
+        if item.get("event") == "pin"
+        and item.get("route") == ["local_ctrl1234", "llama3.1:8b"]
+    ]
+    assert pins and pins[-1]["eligible"] is False
+    assert "measured_failure_rate" in (
+        pins[-1].get("reasons") or [])
+
+
 def test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version(
         feedback_db, fresh_router, monkeypatch):
     handler = _handler()
