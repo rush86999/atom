@@ -310,6 +310,11 @@ def set_routing_error(code: Optional[str], detail: Optional[str] = None) -> None
         })
 
 
+def clear_routing_error() -> None:
+    """A successful fallback supersedes an earlier route's failure."""
+    _routing_error_cv.set(None)
+
+
 def clear_route_attribution() -> None:
     _requested_route_cv.set(None)
     _served_route_cv.set(None)

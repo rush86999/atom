@@ -872,3 +872,44 @@ async def test_strict_pin_no_result_is_explicit_and_not_served():
     assert attribution["served_route"] is None
     assert attribution["error"]["code"] == "provider_failure"
     assert "qualification pin" in attribution["error"]["detail"]
+
+
+@pytest.mark.asyncio
+async def test_successful_unpinned_fallback_clears_prior_pin_failure():
+    from pydantic import BaseModel
+
+    from core.llm.byok_handler import NoSuitableConfiguredModelError
+    from core.llm.model_provenance import (
+        clear_route_attribution, get_route_attribution, set_served_route,
+    )
+    from core.llm.pinned_planning import pinned_structured_call
+
+    class FallbackLLM:
+        def __init__(self):
+            self.calls = 0
+
+        async def generate_structured_response(self, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise NoSuitableConfiguredModelError(
+                    get_profile("employee_evidence_selection"),
+                    {"selection_reason": "pinned candidate unavailable"})
+            set_served_route("fallback", "capable-flash")
+            return Reply(decision="read")
+
+    class Reply(BaseModel):
+        decision: str
+
+    clear_route_attribution()
+    result = await pinned_structured_call(
+        FallbackLLM(), prompt="p", response_model=Reply,
+        system_instruction="json", log_label="employee work proposal",
+        call_kwargs={"provider_model": ("pin", "unavailable")})
+    assert result is not None
+    attribution = get_route_attribution()
+    assert attribution["mode"] == "unpinned_fallback"
+    assert attribution["requested_route"] == {
+        "provider": "pin", "model": "unavailable"}
+    assert attribution["served_route"] == {
+        "provider": "fallback", "model": "capable-flash"}
+    assert attribution["error"] is None

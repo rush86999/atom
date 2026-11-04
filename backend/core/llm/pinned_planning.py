@@ -355,9 +355,9 @@ async def pinned_structured_call(
 
     try:
         from core.llm.model_provenance import (
-            clear_route_attribution, get_route_attribution,
-            set_requested_route, set_route_mode, set_routing_error,
-            set_routing_profile,
+            clear_route_attribution, clear_routing_error,
+            get_route_attribution, set_requested_route, set_route_mode,
+            set_routing_error, set_routing_profile,
         )
 
         clear_route_attribution()
@@ -378,6 +378,7 @@ async def pinned_structured_call(
         get_route_attribution = None  # type: ignore[assignment]
         set_requested_route = set_route_mode = None  # type: ignore[assignment]
         set_routing_error = set_routing_profile = None  # type: ignore[assignment]
+        clear_routing_error = None  # type: ignore[assignment]
     pin_kwargs = dict(call_kwargs or {})
     pinned = bool(pin_kwargs.get("provider_model"))
     if set_route_mode is not None:
@@ -435,6 +436,8 @@ async def pinned_structured_call(
                 pin_kwargs.get("provider_model"),
                 pinned_err,
             )
+            if clear_routing_error is not None:
+                clear_routing_error()
             result = None
         if result is not None:
             _observer_notify(
@@ -485,6 +488,8 @@ async def pinned_structured_call(
                 llm_service.generate_structured_response(**fallback_kwargs),
                 log_label, task_type, _t0)
             if fallback_result is not None:
+                if clear_routing_error is not None:
+                    clear_routing_error()
                 _observer_notify(
                     attempt_observer, "parsed", label=log_label, attempt=2,
                     route="unpinned_fallback",
