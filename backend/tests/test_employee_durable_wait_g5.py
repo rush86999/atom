@@ -8,6 +8,7 @@ same job. No wait step, correlation id or formula is supplied by the caller.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -135,7 +136,8 @@ def _install(monkeypatch, *, independent=True, await_first=True):
     return calls
 
 
-def _start(route_env, tmp_path, monkeypatch):
+def _start(route_env, tmp_path, monkeypatch, *, requested_output=None,
+           budget=None):
     """Wait-first order: read all sources, choose the wait, then quote."""
     _scotch_catalog(route_env, tmp_path, monkeypatch)
     po, invoice, _receiving = _fixtures(tmp_path)
@@ -156,6 +158,8 @@ def _start(route_env, tmp_path, monkeypatch):
             "teaching_terms": {
                 "currency": "USD", "freight": "20.00",
                 "tax_basis": "none"},
+            "requested_output": requested_output,
+            "budget": budget,
             "use_model": True,
         })
     assert response.status_code == 200, response.text
@@ -437,3 +441,57 @@ def test_wait_independent_review_is_bounded_no_hot_polling(
     assert view["waiting"][0]["blocks"] == "invoice reconciliation"
     assert "quote_calculation" in [
         item.get("operation") for item in view["ready_work"]]
+
+
+
+def test_requested_artifact_renders_after_wait_and_reconciliation(
+        route_env, tmp_path, monkeypatch):
+    artifact_root = tmp_path / "artifacts"
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", str(artifact_root))
+    run_id = _start(
+        route_env, tmp_path, monkeypatch, requested_output="document",
+        budget={"max_steps": 20})
+    assignment = route_env["lifecycle"].get_assignment(run_id)
+    assert assignment["status"] == "waiting"
+    correlation = _wait_step(assignment)["waiting"]["correlation_id"]
+    # The quote may be complete, but the requested output belongs to the
+    # objective's remaining reconciliation, so it is not rendered yet.
+    assert not any(
+        step["adapter"].startswith("artifact.")
+        for step in assignment["steps"])
+
+    receiving = tmp_path / "receiving.json"
+    added = route_env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"path": str(receiving)},
+              "reason": "warehouse supplied the receiving record"})
+    assert added.status_code == 200, added.text
+    reply = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/{correlation}",
+        json={"response": "received 2 units",
+              "source": "warehouse receiving", "value": "2"})
+    assert reply.status_code == 200, reply.text
+
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert final["status"] == "completed", final["status"]
+    reconcile = next(
+        step for step in final["steps"]
+        if step["adapter"] == "invoice.reconcile")
+    assert reconcile["result"]["value"] == "270.00"
+    artifact = next(
+        step for step in final["steps"]
+        if step["adapter"] == "artifact.document")
+    assert artifact["status"] == "applied"
+    deliverable = next(
+        item for item in final["deliverables"]
+        if item["deliverable_id"] == "del-requested-output")
+    path = Path(deliverable["artifact_path"])
+    assert path.is_file()
+    import docx
+
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(path).paragraphs)
+    for table in docx.Document(path).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "270.00" in text
