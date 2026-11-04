@@ -276,23 +276,44 @@ def parse_evidence_rows(
             bucket["successes"] += 1
             bucket["quality_successes"] += 1
         if unsafe or semantic:
-            explicit_id = str(
-                row.get("incident_id") or row.get("id")
-                or row.get("routing_result_id") or "").strip()
-            if not explicit_id:
-                explicit_id = "feedback-" + hashlib.sha256(
-                    json.dumps({
-                        "profile": profile.name,
-                        "profile_version": profile.version,
-                        "workspace_id": row_workspace,
-                        "tenant_id": row_tenant,
-                        "provider": provider, "model": model,
-                        "created_at": created_text,
-                        "failure_kind": failure_kind,
-                        "index": index,
-                    }, sort_keys=True, default=str).encode()).hexdigest()[:24]
+            # Durable observation identity: prefer the feedback row primary
+            # key, and bind the material digest so an in-place update from
+            # safe to unsafe cannot inherit an old review. Routing-result id
+            # is separate provenance, not the observation key.
+            material = {
+                "profile": profile.name,
+                "profile_version": profile.version,
+                "workspace_id": row_workspace,
+                "tenant_id": row_tenant,
+                "provider": provider, "model": model,
+                "created_at": created_text,
+                "failure_kind": failure_kind,
+                "success": bool(row.get("success")),
+                "quality_satisfied": bool(row.get("quality_satisfied")),
+            }
+            material_digest = hashlib.sha256(
+                json.dumps(material, sort_keys=True, default=str).encode()
+            ).hexdigest()
+            row_id = str(
+                row.get("feedback_id") or row.get("id") or "").strip()
+            if row_id:
+                incident_id = f"feedback-{row_id}-{material_digest[:16]}"
+                identity_source = "row_id"
+                identity_reliable = True
+            else:
+                incident_id = "feedback-" + material_digest[:32]
+                identity_source = "material"
+                # Missing creation ordering is not a trustworthy material
+                # binding. Such legacy events still quarantine, but cannot be
+                # released by an automated recovery.
+                identity_reliable = created_ts is not None
             bucket["incidents"].append({
-                "incident_id": explicit_id,
+                "incident_id": incident_id,
+                "identity_source": identity_source,
+                "identity_reliable": identity_reliable,
+                "material_digest": material_digest,
+                "routing_result_id": str(
+                    row.get("routing_result_id") or "").strip() or None,
                 "kind": "unsafe_action" if unsafe else "semantic_failure",
                 "timestamp": created_ts,
                 "created_at": created_text,
@@ -309,6 +330,14 @@ def parse_evidence_rows(
             except (TypeError, ValueError):
                 pass
     for bucket in evidence.values():
+        counts: Dict[str, int] = {}
+        for incident in bucket["incidents"]:
+            key_id = str(incident.get("incident_id") or "")
+            counts[key_id] = counts.get(key_id, 0) + 1
+        for incident in bucket["incidents"]:
+            key_id = str(incident.get("incident_id") or "")
+            if counts.get(key_id, 0) > 1:
+                incident["ambiguous"] = True
         _refresh_failure_summary(bucket)
     return evidence
 
@@ -718,6 +747,8 @@ def load_feedback_evidence(
             for row in query.order_by(
                     LLMRoutingFeedback.created_at.desc()).limit(500).all():
                 rows.append({
+                    "id": row.id,
+                    "routing_result_id": row.routing_result_id,
                     "tenant_id": row.tenant_id,
                     "model_id": row.model_id,
                     "success": row.success,
@@ -827,6 +858,10 @@ def apply_capability_recoveries(
             if str(incident.get("incident_id") or "") not in reviewed_ids:
                 continue
             if incident.get("reviewed_by"):
+                continue
+            if incident.get("ambiguous") or not incident.get(
+                    "identity_reliable", False):
+                # Untrustworthy or ambiguous identity fails closed.
                 continue
             incident_ts = incident.get("timestamp")
             if incident_ts is None or float(incident_ts) > review_ts:
