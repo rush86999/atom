@@ -1,0 +1,133 @@
+
+tests/test_worker_context_and_claims.py::test_thread_bridge_preserves_callers_context 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:45:48 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 15:45:48 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 15:45:48 [    INFO] EscalationManager initialized
+2026-11-04 15:45:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:45:48 [    INFO] EscalationManager initialized
+2026-11-04 15:45:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 15:45:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 15:45:48 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  6%]
+tests/test_worker_context_and_claims.py::test_thread_bridge_isolates_concurrent_callers PASSED [ 13%]
+tests/test_worker_context_and_claims.py::test_worker_context_changes_do_not_leak_back_or_sideways PASSED [ 20%]
+tests/test_worker_context_and_claims.py::test_claim_token_binds_release_to_one_generation 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-token/worker-model stale release ignored (token generation changed)
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-token/worker-model released by 'worker-A' after 0.0s
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-token/worker-model stale release ignored (token generation changed)
+PASSED                                                                   [ 26%]
+tests/test_worker_context_and_claims.py::test_expired_worker_cannot_release_a_newer_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [ WARNING] verifier-owner/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-owner/worker-model stale release ignored by 'worker-A' (held by 'worker-B')
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-owner/worker-model stale release ignored (token generation changed)
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-owner/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [ 33%]
+tests/test_worker_context_and_claims.py::test_stale_retain_cannot_extend_a_newer_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [ WARNING] verifier-retain/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-retain/worker-model stale retain ignored (token generation changed)
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-retain/worker-model stale retain ignored by 'worker-A' (held by 'worker-B')
+PASSED                                                                   [ 40%]
+tests/test_worker_context_and_claims.py::test_retain_lease_longer_than_ttl_uses_explicit_expiry 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-lease/worker-model retained for a running worker (240s lease, explicit expiry)
+PASSED                                                                   [ 46%]
+tests/test_worker_context_and_claims.py::test_release_is_idempotent_and_never_resurrects_a_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-idempotent/worker-model released by 'worker-A' after 0.0s
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-idempotent/worker-model stale release ignored (token generation changed)
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-idempotent/worker-model stale release ignored (token generation changed)
+2026-11-04 15:45:48 [    INFO] [inflight] verifier-idempotent/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [ 53%]
+tests/test_worker_context_and_claims.py::test_worker_exception_propagates_and_cleanup_runs_once PASSED [ 60%]
+tests/test_worker_context_and_claims.py::test_queued_before_start_cancellation_runs_cleanup_once PASSED [ 66%]
+tests/test_worker_context_and_claims.py::test_cancelled_worker_cleanup_runs_on_real_exit_not_cancellation PASSED [ 73%]
+tests/test_structured_cancellation.py::test_cancellation_retains_reservation_until_the_worker_exits 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:45:48 [    INFO] EscalationManager initialized
+2026-11-04 15:45:48 [    INFO] CognitiveTierService initialized for workspace: ws-cancel
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:48 [    INFO] [LearningRouter] auto-mode readiness: 359 verdict row(s) in the last 7d, 3 model(s) with >= 8 observations -> re-ranking ENABLED (thresholds: >=30 rows, >=2 models)
+2026-11-04 15:45:49 [    INFO] Initialized router with 30 models
+2026-11-04 15:45:49 [    INFO] Loaded 359 routing feedback rows from DB
+2026-11-04 15:45:49 [    INFO] Learning router hydrated 359 feedback rows from DB
+2026-11-04 15:45:49 [    INFO] Learning router singleton initialized
+2026-11-04 15:45:49 [    INFO] LocalOnlyGuard initialized
+2026-11-04 15:45:49 [ WARNING] [structured-cancelled] local_cancel/llama3.1:8b route=canvas_edit_plan:exec-cancel attempt=1 waited=0.0s reservation_released=false cleanup_on_worker_exit=true worker_may_still_run=true worker_lease_s=150
+2026-11-04 15:45:49 [ WARNING] [structured-pool] depth=0 candidates=[('local_cancel', 'llama3.1:8b')] attempted=False credit_failed=[]
+2026-11-04 15:45:49 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 15:45:50 [ WARNING] [structured-pool] depth=1 candidates=[('local_cancel', 'llama3.1:8b')] attempted=False credit_failed=[]
+2026-11-04 15:45:50 [   ERROR] All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+2026-11-04 15:45:50 [   ERROR] All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+2026-11-04 15:45:50 [    INFO] Loaded 1 per-model predictors from data/router_models/per_model
+2026-11-04 15:45:50 [    INFO] Trained per-model predictor for llama3.1:8b: samples=47, accuracy=1.000
+2026-11-04 15:45:50 [    INFO] Updated router for tenant=tenant-cancel, task=general with 47 samples; predictors=[llama3.1:8b(1.00)]
+PASSED                                                                   [ 80%]
+tests/test_structured_cancellation.py::test_capability_profile_owns_the_transport_retry_budget 
+-------------------------------- live log setup --------------------------------
+2026-11-04 15:45:50 [    INFO] EscalationManager initialized
+2026-11-04 15:45:50 [    INFO] CognitiveTierService initialized for workspace: ws-cancel
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:50 [    INFO] Structured generation (free, Managed): local_cancel/llama3.1:8b
+2026-11-04 15:45:50 [    INFO] [structured-dispatch] local_cancel/llama3.1:8b route=structured-16ce33736479 attempt=1 prompt_chars=31 cap=6000 instructor_retries=0
+2026-11-04 15:45:50 [    INFO] [inflight] local_cancel/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-04 15:45:50 [    INFO] [structured-trace] local_cancel/llama3.1:8b cap=6000 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CanvasEditPlan route=structured-16ce33736479 attempt=1
+2026-11-04 15:45:50 [    INFO] Trained per-model predictor for llama3.1:8b: samples=48, accuracy=1.000
+2026-11-04 15:45:50 [    INFO] Updated router for tenant=tenant-cancel, task=general with 48 samples; predictors=[llama3.1:8b(1.00)]
+2026-11-04 15:45:50 [    INFO] Structured generation (free, Managed): local_cancel/llama3.1:8b
+2026-11-04 15:45:50 [    INFO] [structured-dispatch] local_cancel/llama3.1:8b route=structured-8100536c3791 attempt=1 prompt_chars=31 cap=6000 instructor_retries=default
+2026-11-04 15:45:50 [    INFO] [inflight] local_cancel/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-04 15:45:50 [    INFO] [structured-trace] local_cancel/llama3.1:8b cap=6000 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CanvasEditPlan route=structured-8100536c3791 attempt=1
+2026-11-04 15:45:50 [    INFO] Trained per-model predictor for llama3.1:8b: samples=49, accuracy=1.000
+2026-11-04 15:45:50 [    INFO] Updated router for tenant=tenant-cancel, task=general with 49 samples; predictors=[llama3.1:8b(1.00)]
+PASSED                                                                   [ 86%]
+::test_thread_bridge_preserves_callers_context PASSED                    [ 93%]
+::test_expired_old_worker_cleanup_cannot_release_new_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-04 15:45:50 [ WARNING] verifier-owner/worker-model inflight claim expired after 121s — lease-recovery takeover; the prior generation's late cleanup will be ignored
+2026-11-04 15:45:50 [    INFO] [inflight] verifier-owner/worker-model stale release ignored by 'worker-A' (held by 'worker-B')
+2026-11-04 15:45:50 [    INFO] [inflight] verifier-owner/worker-model released by 'worker-B' after 0.0s
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 30 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_structured_cancellation.py::test_cancellation_retains_reservation_until_the_worker_exits
+  /private/tmp/atom-full-app/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 15 passed, 37 warnings in 10.98s =======================
