@@ -256,3 +256,27 @@ def test_compact_single_request_prompt_is_bounded_to_one_operation():
 
     context["rules"]["allowed_work_requests"].append("quote_calculation")
     assert _compact_single_request_prompt(context) == ""
+
+
+def test_typed_work_request_rejects_a_reconcile_decision():
+    from core.employee_adaptation import _adaptation_errors
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    proposal = AdaptationProposal(
+        decision="reconcile",
+        reason="wrong decision for new typed work",
+        work_request=QuoteCalculationRequest(
+            operation="quote_calculation",
+            source_step_id="read",
+            columns=QuoteColumns(
+                item_id="Item", quantity="Qty", unit_price="Price"),
+            currency="USD",
+            freight=MoneyTerm(value="20.00", authority_ref="freight"),
+            tax=TaxTerm(basis="none", authority_ref="tax_basis"),
+        ),
+    )
+    errors = _adaptation_errors(proposal, _assignment(), _context())
+    assert any("work_request requires decision 'replan'" in error
+               for error in errors)

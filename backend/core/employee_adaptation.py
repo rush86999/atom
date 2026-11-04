@@ -273,6 +273,12 @@ def _adaptation_errors(
             f"prerequisite: {missing}. Choose clarify and ask for the named "
             "missing evidence, or propose supported work that does not need "
             "it."]
+    if normalized.work_request is not None and normalized.decision not in (
+            "replan", "work_request"):
+        return [
+            "a typed work_request requires decision 'replan' or "
+            "'work_request'; 'reconcile' is only for an existing uncertain "
+            "effect"]
     if normalized.decision != "replan":
         return []
     if normalized.work_request is not None:
@@ -392,8 +398,9 @@ def _compact_single_request_prompt(
         "Choose exactly one supported employee work request. "
         f"The only allowed operation is {operation}.\n"
         "Use only accepted identities and step IDs from the context. "
-        "Return one JSON object matching the schema. Do not return retain, "
-        "clarification or a prose explanation.\n"
+        "Return one JSON object matching the schema with decision 'replan'. "
+        "Do not return retain, clarification, 'reconcile' or a prose "
+        "explanation.\n"
         "CONTEXT:\n"
         + json.dumps(payload, sort_keys=True, default=str)
     )
