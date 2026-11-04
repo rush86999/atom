@@ -268,6 +268,7 @@ def build_employee_context(
     available_work_requests: Optional[Sequence[str]] = None,
     operation_eligibility: Optional[Sequence[Mapping[str, Any]]] = None,
     waiting: Optional[Sequence[Mapping[str, Any]]] = None,
+    completed_operations: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Bounded context for the reasoning consumer, with stable handles only.
 
@@ -429,6 +430,14 @@ def build_employee_context(
             _text(item.get("operation"), 120)
             for item in operations
             if str(item.get("status") or "") == "ready"
+        ],
+        "completed_operations": [
+            {
+                "operation": _text(item.get("operation"), 120),
+                "reason": _text(item.get("reason"), 200),
+            }
+            for item in (completed_operations or [])[:10]
+            if isinstance(item, Mapping)
         ],
         "authorized_actions": [
             _text(item, 120) for item in (authorized_actions or [])
@@ -777,6 +786,84 @@ def _operations_from_evidence(assignment: Mapping[str, Any]) -> List[str]:
         if item.get("status") != "unavailable"
     ]
 
+def _binding_business_name(binding: Mapping[str, Any]) -> str:
+    return str(
+        binding.get("dataset_name") or binding.get("original_file_name")
+        or binding.get("resource_id") or "").strip().lower()
+
+
+def completed_operations(
+    assignment: Mapping[str, Any],
+) -> List[Dict[str, Any]]:
+    """Operations already applied for the current evidence population.
+
+    A completed quote is not reopened by a wait reply or an unrelated read;
+    a genuinely newer version of the same business source keeps it eligible
+    for reassessment.
+    """
+    steps = [
+        dict(step) for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    ]
+    by_id = {str(step.get("step_id") or ""): step for step in steps}
+    applied_sources = []
+    for step in steps:
+        if str(step.get("status") or "") != "applied":
+            continue
+        inputs = step.get("inputs") if isinstance(
+            step.get("inputs"), dict) else {}
+        binding = inputs.get("resource_binding") if isinstance(
+            inputs.get("resource_binding"), dict) else {}
+        name = _binding_business_name(binding)
+        if name and str(step.get("adapter") or "") in (
+                "dataset.read", "workbook.read", "document.read",
+                "document.text"):
+            applied_sources.append({
+                "step_id": str(step.get("step_id") or ""),
+                "name": name,
+                "version": str(binding.get("source_version") or ""),
+            })
+    completed: List[Dict[str, Any]] = []
+    quote_chains = [
+        step for step in steps
+        if str(step.get("adapter") or "") == "quote.calculate"
+        and str(step.get("status") or "") == "applied"
+    ]
+    for chain in quote_chains:
+        parent_id = (chain.get("depends_on") or [None])[0]
+        parent = by_id.get(str(parent_id or "")) or {}
+        source_id = (parent.get("depends_on") or [None])[0]
+        source = by_id.get(str(source_id or "")) or {}
+        source_binding = ((source.get("inputs") or {}).get(
+            "resource_binding") or {})
+        name = _binding_business_name(source_binding)
+        version = str(source_binding.get("source_version") or "")
+        newer_version = any(
+            item["name"] == name and version
+            and item["version"] not in ("", version)
+            for item in applied_sources)
+        if newer_version:
+            continue
+        completed.append({
+            "operation": "quote_calculation",
+            "reason": "applied for the current accepted evidence",
+            "step_id": chain.get("step_id"),
+        })
+        break
+    invoice_chains = [
+        step for step in steps
+        if str(step.get("adapter") or "") == "invoice.reconcile"
+        and str(step.get("status") or "") == "applied"
+    ]
+    if invoice_chains:
+        completed.append({
+            "operation": "invoice_reconciliation",
+            "reason": "applied for the current accepted evidence",
+            "step_id": invoice_chains[0].get("step_id"),
+        })
+    return completed
+
+
 def context_from_record(
     record: Mapping[str, Any],
     *,
@@ -836,6 +923,13 @@ def context_from_record(
         if question.get("status") == "open":
             obligations.append(question)
     eligibility = operation_capabilities(assignment)
+    completed = completed_operations(assignment)
+    completed_names = {
+        str(item.get("operation") or "") for item in completed}
+    for item in eligibility:
+        if str(item.get("operation") or "") in completed_names:
+            item["status"] = "completed"
+            item["completed"] = True
     scoped_sources = scoped_source_views(assignment)
     waiting = []
     for step in assignment.get("steps") or []:
@@ -874,6 +968,7 @@ def context_from_record(
             if item.get("status") != "unavailable"],
         operation_eligibility=eligibility,
         waiting=waiting,
+        completed_operations=completed,
     )
 
 
