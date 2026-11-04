@@ -209,6 +209,42 @@ async def test_worker_exception_propagates_and_cleanup_runs_once():
 
 
 @pytest.mark.asyncio
+async def test_queued_before_start_cancellation_runs_cleanup_once(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    monkeypatch.setattr(bh, "_worker_executor", lambda: executor)
+    started = threading.Event()
+    release = threading.Event()
+    queued_done = threading.Event()
+
+    def blocker() -> str:
+        started.set()
+        release.wait(5.0)
+        return "blocked"
+
+    first = asyncio.create_task(bh._to_thread_safe(blocker))
+    for _ in range(3000):
+        if started.is_set():
+            break
+        await asyncio.sleep(0.01)
+    assert started.is_set()
+
+    second = asyncio.create_task(
+        bh._to_thread_safe(lambda: "queued", on_worker_done=queued_done.set))
+    await asyncio.sleep(0.05)
+    second.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await second
+
+    release.set()
+    assert await first == "blocked"
+    assert queued_done.wait(3.0), (
+        "a queued-before-start cancellation must still run cleanup once")
+    executor.shutdown(wait=False)
+
+
+@pytest.mark.asyncio
 async def test_cancelled_worker_cleanup_runs_on_real_exit_not_cancellation():
     started = threading.Event()
     release = threading.Event()

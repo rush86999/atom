@@ -2730,7 +2730,8 @@ class BYOKHandler:
                     return False
                 logger.warning(
                     f"{pair} inflight claim expired after "
-                    f"{now - claimed_at:.0f}s — stealing (leaked claim)")
+                    f"{now - claimed_at:.0f}s — lease-recovery takeover; "
+                    "the prior generation's late cleanup will be ignored")
                 # Clear the old generation before installing the new one.
                 _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
                 _MODEL_ATTEMPT_HOLDERS.pop(pair, None)
