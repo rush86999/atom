@@ -17,11 +17,10 @@
   "backend/api/assignment_routes.py": "75c3ea725b617f73bd5c0fd3fe69ab7c771a1edc96c53280fd9da0708de5c27c",
   "backend/core/assignment_planner.py": "4c521ac5b08f734d357d2b4e6a303b021b4a1eca9f2d74a48d574200c457ddd1",
   "backend/core/employee_job_runner.py": "e76fb279236af0c6d6519179aad30475aebc2f00b83d469ae2c5007c7f553f61",
-  "backend/core/employee_proposal.py": "f7a73c75597451c67f5b79184307c834f80a91678fbee46ca4c3c726c291d966",
+  "backend/core/employee_proposal.py": "dcda4d4a055e42c71b0ed7145fe9f4e2502ff6498cb1e79889a3c49798ad95ff",
   "backend/core/assignment_executor.py": "9d71ab338cccbe622b7bf20d862ba3befd308d01b5eb3734e72abd77843621fc",
   "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "0ed109516b9d63393de90593b000478b70e2704eb749ff4421ba0ac73f40af30",
-  "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0",
-  "scripts/acceptance/employee_g5_ui_continuation.py": "1ae44957f7777a18609d4b4bb68e7ef25617d7cbb33d39a6b24d7621c7cd3576"
+  "frontend-nextjs/lib/assignment-api.ts": "2255ecf2face14affeca97e463efdbbc3054844e44977df385aaaeb63d8cced0"
  },
  "artifacts": {
   "README.md": "6aec1c48b35de0a51b27a330062045945cd53ffd85bcc09270ef370dd2949a84",
