@@ -7184,6 +7184,7 @@ class BYOKHandler:
         resolved_model: Optional[str] = None,
         unsupported_figures: Optional[list] = None,
         ungrounded_claims: Optional[list] = None,
+        capability_profile: Optional[Any] = None,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
@@ -7279,6 +7280,13 @@ class BYOKHandler:
                 actual_cost=cost,
                 actual_latency_ms=latency_ms,
                 provider_id=provider_id,
+                capability_profile=(
+                    getattr(capability_profile, "name", None)
+                    or (str(capability_profile)
+                        if capability_profile else None)),
+                capability_profile_version=getattr(
+                    capability_profile, "version", None),
+                workspace_id=self.workspace_id,
             )
             await learning_router.record_feedback(fb)
             # RE-PUBLISH the EFFECTIVE id: when this generation is a RETRY that
@@ -8044,6 +8052,62 @@ class BYOKHandler:
                         "spinning exhaust cycles",
                         [f"{p}/{m}" for p, m in _force_candidates[:4]])
                     return None
+                # FORCED-CANDIDATE PROFILE GATE (verifier boundary): a sweep
+                # must not re-admit a route outside the workload capability
+                # profile after the ranked pool was filtered. Apply the same
+                # selector to the injected candidates; no hidden fallback.
+                if _capability is not None:
+                    _forced_evidence = load_feedback_evidence(
+                        _capability,
+                        workspace_id=workspace_id,
+                        tenant_id=self.tenant_id or "default",
+                        policy_revision=str(getattr(
+                            getattr(self, "provider_policy", None),
+                            "revision", "") or ""),
+                    )
+                    _forced_pool = []
+                    for _fp, _fm in _guard_ok:
+                        _local = (self._local_routes or {}).get(_fm) or {}
+                        _forced_pool.append({
+                            "provider": _fp, "model": _fm,
+                            "quality": (
+                                int(round(float(
+                                    _local.get("quality_score") or 0.0)
+                                    * 100.0))
+                                if _local else get_quality_score(_fm)),
+                            "cost": 0.0,
+                            "supports_structured": True,
+                            "supports_tools": True,
+                        })
+                    _forced_selection = select_profile_candidates(
+                        _capability, _forced_pool,
+                        evidence=_forced_evidence,
+                        preference=capability_preference)
+                    _allowed_routes = {
+                        (c["provider"], c["model"])
+                        for c in _forced_selection["ranked"]}
+                    _guard_ok = [
+                        (p, m) for p, m in _guard_ok
+                        if (p, m) in _allowed_routes]
+                    record_capability_decision({
+                        "event": "forced_candidates",
+                        "profile": _capability.metadata(),
+                        "outcome": (
+                            "selected" if _guard_ok else "no_suitable"),
+                        "candidates": [list(r) for r in _forced_pool],
+                        "allowed": [list(r) for r in _allowed_routes],
+                        "workspace_id": workspace_id,
+                        "tenant_id": self.tenant_id or "default",
+                    })
+                    if not _guard_ok:
+                        raise NoSuitableConfiguredModelError(
+                            _capability, {
+                                "outcome": "no_suitable",
+                                "selection_reason": (
+                                    "forced/catalog fallback candidates "
+                                    "do not meet the workload capability "
+                                    "profile"),
+                            })
                 options = list(_guard_ok)
                 # EXCLUSION STILL APPLIES (2026-10-04 control check): the
                 # injection replaces the starved ranked list, but a route
@@ -8223,6 +8287,19 @@ class BYOKHandler:
                     logger.warning("No standard vision models found for structured output. Defaulting to GPT-4o.")
                     options = [("openai", "gpt-4o")] # Panic fallback
 
+            # A capability-profile production call gets the primary eligible
+            # route plus at most ONE bounded escalation candidate. The normal
+            # structured cascade can otherwise walk the whole ranked pool.
+            if _capability is not None and len(options) > 2:
+                options = options[:2]
+                record_capability_decision({
+                    "event": "bounded_cascade",
+                    "profile": _capability.metadata(),
+                    "routes": [list(route) for route in options],
+                    "workspace_id": workspace_id,
+                    "tenant_id": self.tenant_id or "default",
+                })
+
             if not options:
                 if _capability is not None:
                     detail = {
@@ -8234,7 +8311,7 @@ class BYOKHandler:
                     }
                     record_capability_decision({
                         "event": "no_suitable", **detail,
-                        "workspace_id": workspace_id,
+                        "workspace_id": self.workspace_id or "default",
                         "tenant_id": self.tenant_id or "default",
                     })
                     raise NoSuitableConfiguredModelError(_capability, detail)
@@ -9008,6 +9085,7 @@ class BYOKHandler:
                         success=True, cost=_structured_cost, latency_ms=_structured_latency_ms,
                         schema_error=False,
                         routing_result_id=structured_decision_id,
+                        capability_profile=_capability,
                     )
                     _AUTH_FAILED.discard(f"{provider_id}/{model}")
                     _save_pair_memos()
@@ -9222,6 +9300,7 @@ class BYOKHandler:
                         schema_error=is_schema_err,
                         exception=attempt_err if not is_schema_err else None,
                         routing_result_id=structured_decision_id,
+                        capability_profile=_capability,
                     )
                     # Fall through to the cascade check below (no continue).
 

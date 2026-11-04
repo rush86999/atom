@@ -18,6 +18,7 @@ import hashlib
 import json
 import logging
 import os
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -193,11 +194,14 @@ def parse_evidence_rows(
             continue
         if str(features.get("profile_version") or "") != profile.version:
             continue
-        row_workspace = str(features.get("workspace_id") or "")
-        if workspace_id and row_workspace and row_workspace != workspace_id:
+        row_workspace = str(features.get("workspace_id") or "").strip()
+        # Exact scope only. Missing scope is unknown evidence, never inferred
+        # from the current reader (verifier boundary 4).
+        if workspace_id and row_workspace != str(workspace_id):
             continue
-        row_tenant = str(row.get("tenant_id") or features.get("tenant_id") or "")
-        if tenant_id and row_tenant and row_tenant != tenant_id:
+        row_tenant = str(
+            row.get("tenant_id") or features.get("tenant_id") or "").strip()
+        if tenant_id and row_tenant != str(tenant_id):
             continue
         created = row.get("created_at")
         if created is not None:
@@ -212,30 +216,44 @@ def parse_evidence_rows(
         model = str(row.get("model_id") or "").strip()
         provider = str(features.get("route_provider")
                        or features.get("provider_id") or "").strip()
-        if not model:
+        # A model name alone is not a provider configuration identity: it
+        # must not transfer evidence across providers (verifier boundary 4).
+        if not model or not provider:
             continue
-        key = f"{provider}/{model}" if provider else model
+        key = f"{provider}/{model}"
         bucket = evidence.setdefault(key, {
             "samples": 0, "successes": 0, "quality_successes": 0,
             "semantic_failures": 0, "unsafe_failures": 0,
             "retries": 0, "latency_ms": None, "last_failure_kind": "",
+            "failure_kinds": set(),
             "profile": profile.name, "profile_version": profile.version,
             "workspace_id": row_workspace or workspace_id,
             "tenant_id": row_tenant or tenant_id,
         })
         bucket["samples"] += 1
-        if bool(row.get("success")):
-            bucket["successes"] += 1
-        if bool(row.get("quality_satisfied")):
-            bucket["quality_successes"] += 1
         failure_kind = str(features.get("failure_kind") or "").strip()
+        semantic_failure_kinds = {
+            "semantic_failure", "invented_fact",
+            "invalid_plan_reference", "wrong_field_mapping",
+        }
+        unsafe = failure_kind == "unsafe_action"
+        semantic = failure_kind in semantic_failure_kinds
+        # A transport-successful response is not a satisfactory business
+        # outcome. Require explicit quality satisfaction AND no known
+        # semantic/unsafe failure (verifier boundary 2).
+        satisfactory = (
+            bool(row.get("success"))
+            and bool(row.get("quality_satisfied"))
+            and not semantic and not unsafe)
+        if satisfactory:
+            bucket["successes"] += 1
+            bucket["quality_successes"] += 1
         if failure_kind:
             bucket["last_failure_kind"] = failure_kind
-            if failure_kind == "unsafe_action":
+            bucket["failure_kinds"].add(failure_kind)
+            if unsafe:
                 bucket["unsafe_failures"] += 1
-            elif failure_kind in (
-                    "semantic_failure", "invented_fact",
-                    "invalid_plan_reference", "wrong_field_mapping"):
+            elif semantic:
                 bucket["semantic_failures"] += 1
         if bool(features.get("retry")):
             bucket["retries"] += 1
@@ -328,14 +346,19 @@ def select_profile_candidates(
                 pass
         measured = _evidence_for(evidence, provider, model)
         evidence_state = "prior"
+        if measured and int(measured.get("unsafe_failures") or 0) > 0:
+            # A verified unsafe outcome is a quarantine signal at the first
+            # observation, not behind the ordinary sample floor.
+            reasons.append("measured_unsafe_action")
+            evidence_state = "measured"
         if measured and int(measured.get("samples") or 0) >= (
                 profile.evidence_min_samples):
             samples = max(1, int(measured.get("samples") or 1))
             success_rate = float(measured.get("successes") or 0) / samples
             retry_rate = float(measured.get("retries") or 0) / samples
             failure_rate = 1.0 - success_rate
-            if int(measured.get("unsafe_failures") or 0) > 0:
-                reasons.append("measured_unsafe_action")
+            if "measured_unsafe_action" in reasons:
+                pass
             elif failure_rate > profile.max_failure_rate:
                 reasons.append("measured_failure_rate")
             elif str(measured.get("last_failure_kind") or "") in (
@@ -485,8 +508,21 @@ def _journal_path() -> Path:
     override = os.getenv("ATOM_CAPABILITY_ROUTING_JOURNAL")
     if override:
         return Path(override)
-    return Path(__file__).resolve().parent.parent.parent / "data" / (
-        "llm_capability_routing.json")
+    # World-owned storage, never a repository-shared runtime history. Prefer
+    # the isolated world data root, then the SQLite database directory, then
+    # the office data root. The temp fallback is diagnostic-only for callers
+    # with no configured world.
+    data_root = os.getenv("ATOM_DATA_DIR")
+    if data_root:
+        return Path(data_root) / "llm_capability_routing.json"
+    database_url = str(os.getenv("DATABASE_URL") or "")
+    if database_url.startswith("sqlite:///"):
+        return Path(database_url[len("sqlite:///"):]).resolve().parent / (
+            "llm_capability_routing.json")
+    office_root = os.getenv("ATOM_OFFICE_DIR")
+    if office_root:
+        return Path(office_root) / "llm_capability_routing.json"
+    return Path(tempfile.gettempdir()) / "atom-llm-capability-routing.json"
 
 
 def record_capability_decision(entry: Mapping[str, Any]) -> Dict[str, Any]:
@@ -504,6 +540,11 @@ def record_capability_decision(entry: Mapping[str, Any]) -> Dict[str, Any]:
     global _MEMORY_DECISIONS
     with _JOURNAL_LOCK:
         _MEMORY_DECISIONS = [*_MEMORY_DECISIONS, payload][-_JOURNAL_MAX:]
+        if os.getenv("TESTING") and not os.getenv(
+                "ATOM_CAPABILITY_ROUTING_JOURNAL"):
+            # Tests that do not own a world journal stay in memory; never
+            # create a repository-shared runtime history.
+            return payload
         path = _journal_path()
         try:
             existing: List[Dict[str, Any]] = []
@@ -521,17 +562,44 @@ def record_capability_decision(entry: Mapping[str, Any]) -> Dict[str, Any]:
     return payload
 
 
-def capability_decisions(limit: int = 20) -> List[Dict[str, Any]]:
+def _decision_in_scope(
+    item: Mapping[str, Any], workspace_id: str, tenant_id: str,
+) -> bool:
+    if workspace_id and str(item.get("workspace_id") or "") != str(
+            workspace_id):
+        return False
+    if tenant_id and str(item.get("tenant_id") or "") != str(tenant_id):
+        return False
+    return True
+
+
+def capability_decisions(
+    limit: int = 20,
+    *,
+    workspace_id: str = "",
+    tenant_id: str = "",
+) -> List[Dict[str, Any]]:
+    """Recent decisions, optionally scoped to an authenticated owner.
+
+    A scoped read requires exact workspace AND tenant identity on the stored
+    record. Missing scope is never inferred from the reader; an unscoped
+    diagnostic call is internal-only and must not be exposed by a route.
+    """
+    def _read(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        scoped = [
+            item for item in entries
+            if _decision_in_scope(item, workspace_id, tenant_id)]
+        return scoped[-max(1, int(limit)):]
+
     with _JOURNAL_LOCK:
         if _MEMORY_DECISIONS:
-            return list(_MEMORY_DECISIONS[-max(1, int(limit)):])
+            return _read(list(_MEMORY_DECISIONS))
     try:
         path = _journal_path()
         if path.is_file():
             raw = json.loads(path.read_text())
             if isinstance(raw, list):
-                return [item for item in raw if isinstance(item, dict)][
-                    -max(1, int(limit)):]
+                return _read([item for item in raw if isinstance(item, dict)])
     except Exception:
         pass
     return []
@@ -616,6 +684,8 @@ def load_feedback_evidence(
         rows = []
     evidence = parse_evidence_rows(
         rows, profile, workspace_id=workspace_id, tenant_id=tenant_id)
+    evidence = apply_capability_recoveries(
+        profile, evidence, workspace_id=workspace_id, tenant_id=tenant_id)
     with _EVIDENCE_CACHE_LOCK:
         _EVIDENCE_CACHE[cache_key] = (now, evidence)
     return evidence
@@ -630,3 +700,71 @@ def profile_descriptions() -> List[Dict[str, Any]]:
              "preferred within the static floor and measured evidence.")}
         for profile in sorted(_PROFILES.values(), key=lambda item: item.name)
     ]
+
+
+def recover_capability_quarantine(
+    profile: CapabilityProfile,
+    provider: str,
+    model: str,
+    *,
+    reviewed_by: str,
+    reason: str = "",
+    workspace_id: str = "",
+    tenant_id: str = "",
+) -> Dict[str, Any]:
+    """Explicit reviewed recovery for one profile/route quarantine.
+
+    This records the review, not an automatic clearing. Historical feedback
+    rows remain intact; subsequent evidence reads apply this recovery only to
+    the exact profile/version/route/scope. No route outside the quarantine is
+    affected.
+    """
+    if not str(reviewed_by or "").strip():
+        raise ValueError("reviewed_by is required for quarantine recovery")
+    return record_capability_decision({
+        "event": "recovery",
+        "profile": profile.metadata(),
+        "route": [str(provider), str(model)],
+        "reviewed_by": str(reviewed_by)[:200],
+        "reason": str(reason or "")[:800],
+        "workspace_id": str(workspace_id or ""),
+        "tenant_id": str(tenant_id or ""),
+    })
+
+
+def apply_capability_recoveries(
+    profile: CapabilityProfile,
+    evidence: Dict[str, Dict[str, Any]],
+    *,
+    workspace_id: str = "",
+    tenant_id: str = "",
+) -> Dict[str, Dict[str, Any]]:
+    """Apply exact-scope reviewed recoveries to parsed profile evidence."""
+    recoveries = [
+        entry for entry in capability_decisions(
+            200, workspace_id=workspace_id, tenant_id=tenant_id)
+        if entry.get("event") == "recovery"
+        and str((entry.get("profile") or {}).get("name") or "")
+        == profile.name
+        and str((entry.get("profile") or {}).get("version") or "")
+        == profile.version
+    ]
+    for entry in recoveries:
+        route = entry.get("route") or []
+        if not isinstance(route, list) or len(route) != 2:
+            continue
+        key = f"{route[0]}/{route[1]}"
+        bucket = evidence.get(key)
+        if not bucket:
+            continue
+        cleared = int(bucket.get("unsafe_failures") or 0) + int(
+            bucket.get("semantic_failures") or 0)
+        bucket["samples"] = max(
+            0, int(bucket.get("samples") or 0) - cleared)
+        bucket["unsafe_failures"] = 0
+        bucket["semantic_failures"] = 0
+        bucket["last_failure_kind"] = ""
+        bucket["failure_kinds"] = set()
+        bucket["recovered_by"] = entry.get("reviewed_by")
+        bucket["recovery_reason"] = entry.get("reason")
+    return evidence

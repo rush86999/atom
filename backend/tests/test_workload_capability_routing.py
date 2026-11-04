@@ -210,6 +210,7 @@ def test_alignment_failure_does_not_ban_extraction_profile():
             "capability_profile": alignment.name,
             "profile_version": alignment.version,
             "workspace_id": "ws-a",
+            "route_provider": "fast",
             "failure_kind": "invented_fact",
         },
     }]
@@ -478,3 +479,223 @@ def test_explicit_quality_preference_can_choose_stronger_eligible_route():
         ],
         preference="economy")
     assert economy["ranked"][0]["model"] == "flash"
+
+
+# ---------------------------------------------------------------------------
+# Verifier boundary repairs
+# ---------------------------------------------------------------------------
+def _scoped_rows(profile, *, quality=True, workspace="ws-a", failure=""):
+    return [{
+        "tenant_id": "t-a", "model_id": "flash", "success": True,
+        "quality_satisfied": quality,
+        "prompt_features": {
+            "capability_profile": profile.name,
+            "profile_version": profile.version,
+            "workspace_id": workspace,
+            "route_provider": "fast",
+            "failure_kind": failure,
+        },
+    } for _ in range(6)]
+
+
+def _flash_candidate():
+    return _candidate("fast", "flash", 90, 1.0)
+
+
+def test_semantic_transport_success_is_not_satisfactory():
+    profile = get_profile("employee_adaptive_planning")
+    evidence = parse_evidence_rows(
+        _scoped_rows(profile, quality=False), profile,
+        workspace_id="ws-a", tenant_id="t-a")
+    result = select_profile_candidates(
+        profile, [_flash_candidate()], evidence=evidence)
+    assert result["outcome"] == "no_suitable", result
+
+
+def test_missing_workspace_evidence_is_not_assigned_to_reader():
+    profile = get_profile("employee_adaptive_planning")
+    assert parse_evidence_rows(
+        _scoped_rows(profile, workspace=""), profile,
+        workspace_id="ws-a", tenant_id="t-a") == {}
+
+
+def test_provider_missing_evidence_is_not_transferred_across_providers():
+    profile = get_profile("employee_adaptive_planning")
+    rows = _scoped_rows(profile)
+    for row in rows:
+        row["prompt_features"].pop("route_provider")
+    assert parse_evidence_rows(
+        rows, profile, workspace_id="ws-a", tenant_id="t-a") == {}
+
+
+def test_single_unsafe_outcome_quarantines_until_reviewed_recovery(
+        tmp_path, monkeypatch):
+    from core.llm.capability_profiles import (
+        apply_capability_recoveries, capability_decisions,
+        recover_capability_quarantine, reset_capability_journal_memory,
+    )
+
+    journal = tmp_path / "decisions.json"
+    monkeypatch.setenv("ATOM_CAPABILITY_JOURNAL", str(journal))
+    monkeypatch.setenv("ATOM_CAPABILITY_ROUTING_JOURNAL", str(journal))
+    reset_capability_journal_memory()
+    profile = get_profile("employee_adaptive_planning")
+    rows = _scoped_rows(profile, quality=False, failure="unsafe_action")[:1]
+    evidence = parse_evidence_rows(
+        rows, profile, workspace_id="ws-a", tenant_id="t-a")
+    blocked = select_profile_candidates(
+        profile, [_flash_candidate()], evidence=evidence)
+    assert blocked["outcome"] == "no_suitable"
+    assert blocked["excluded"][0]["reasons"] == ["measured_unsafe_action"]
+
+    # A different workload is not quarantined by this safety evidence.
+    extraction = get_profile("extraction")
+    other = select_profile_candidates(
+        extraction, [_flash_candidate()], evidence={})
+    assert other["outcome"] == "selected"
+
+    recover_capability_quarantine(
+        profile, "fast", "flash", reviewed_by="safety-reviewer",
+        reason="reviewed fixture recovery", workspace_id="ws-a",
+        tenant_id="t-a")
+    recovered = apply_capability_recoveries(
+        profile, parse_evidence_rows(
+            rows, profile, workspace_id="ws-a", tenant_id="t-a"),
+        workspace_id="ws-a", tenant_id="t-a")
+    allowed = select_profile_candidates(
+        profile, [_flash_candidate()], evidence=recovered)
+    assert allowed["outcome"] == "selected", allowed
+    assert capability_decisions(
+        10, workspace_id="ws-a", tenant_id="t-a")
+
+    # Recovery survives the in-memory reset (read from the world-owned file).
+    reset_capability_journal_memory()
+    again = apply_capability_recoveries(
+        profile, parse_evidence_rows(
+            rows, profile, workspace_id="ws-a", tenant_id="t-a"),
+        workspace_id="ws-a", tenant_id="t-a")
+    assert select_profile_candidates(
+        profile, [_flash_candidate()], evidence=again)["outcome"] == (
+            "selected")
+
+
+@pytest.mark.asyncio
+async def test_strict_profile_pin_does_not_escape_through_wrapper():
+    from pydantic import BaseModel
+
+    from core.llm.byok_handler import NoSuitableConfiguredModelError
+    from core.llm.pinned_planning import pinned_structured_call
+
+    profile = get_profile("employee_adaptive_planning")
+
+    class Reply(BaseModel):
+        decision: str
+
+    calls = []
+
+    class LLM:
+        async def generate_structured_response(self, **kwargs):
+            calls.append(kwargs.get("provider_model"))
+            if kwargs.get("provider_model"):
+                raise NoSuitableConfiguredModelError(
+                    profile, {"selection_reason": "controlled rejected pin"})
+            return Reply(decision="returned_by_other_model")
+
+    result = await pinned_structured_call(
+        LLM(), prompt="Choose next work", response_model=Reply,
+        system_instruction="Controlled contract",
+        log_label="employee adaptation",
+        call_kwargs={"provider_model": ("local", "failed")},
+        capability_profile=profile.name)
+    assert calls == [("local", "failed")], calls
+    assert result is None
+
+
+def test_decision_history_requires_exact_workspace_and_tenant(
+        tmp_path, monkeypatch):
+    from core.llm.capability_profiles import (
+        capability_decisions, record_capability_decision,
+        reset_capability_journal_memory,
+    )
+
+    monkeypatch.setenv(
+        "ATOM_CAPABILITY_ROUTING_JOURNAL", str(tmp_path / "j.json"))
+    reset_capability_journal_memory()
+    record_capability_decision({
+        "event": "selection", "workspace_id": "ws-a", "tenant_id": "t-a",
+        "route": ["fast", "flash"]})
+    record_capability_decision({
+        "event": "selection", "workspace_id": "ws-b", "tenant_id": "t-b",
+        "route": ["private", "model"]})
+    scoped = capability_decisions(
+        10, workspace_id="ws-a", tenant_id="t-a")
+    assert len(scoped) == 1
+    assert scoped[0]["workspace_id"] == "ws-a"
+
+
+def test_journal_path_is_world_owned_when_configured(tmp_path, monkeypatch):
+    from core.llm.capability_profiles import (
+        _journal_path, record_capability_decision,
+        reset_capability_journal_memory,
+    )
+
+    monkeypatch.delenv("ATOM_CAPABILITY_ROUTING_JOURNAL", raising=False)
+    monkeypatch.setenv("ATOM_DATA_DIR", str(tmp_path / "world-data"))
+    expected = tmp_path / "world-data" / "llm_capability_routing.json"
+    assert _journal_path() == expected
+    monkeypatch.delenv("TESTING", raising=False)
+    reset_capability_journal_memory()
+    record_capability_decision({"event": "selection"})
+    assert expected.is_file()
+
+
+@pytest.mark.asyncio
+async def test_provider_policy_route_hides_other_scope_decisions(monkeypatch):
+    from types import SimpleNamespace
+
+    from api.byok_routes import get_provider_policy
+    import core.llm.capability_profiles as profiles
+    import core.llm.provider_policy as provider_policy
+
+    monkeypatch.setattr(
+        provider_policy, "resolve_provider_policy",
+        lambda: SimpleNamespace(public_dict=lambda: {}))
+    monkeypatch.setattr(
+        profiles, "capability_decisions",
+        lambda limit: [{
+            "workspace_id": "ws-b", "tenant_id": "t-b",
+            "route": ["private-provider", "private-model"]}])
+    response = await get_provider_policy(
+        current_user=SimpleNamespace(
+            id="viewer-a", workspace_id="ws-a", tenant_id="t-a",
+            role="viewer"),
+        byok_manager=SimpleNamespace(providers={}))
+    assert response.data["capability_routing"]["recent_decisions"] == []
+
+
+def test_feedback_carries_profile_metadata_for_persistence():
+    from types import SimpleNamespace
+
+    from core.learning_llm_router import LearningBasedRouter
+
+    quality = SimpleNamespace(
+        success=True, quality_satisfied=True, quality_score=1.0)
+    feedback = LearningBasedRouter.build_feedback(
+        routing_result_id="r1", tenant_id="t-a", model_id="flash",
+        task_type="planning", quality=quality, provider_id="fast",
+        capability_profile="employee_adaptive_planning",
+        capability_profile_version="2026-11-04.1", workspace_id="ws-a")
+    assert feedback.capability_profile == "employee_adaptive_planning"
+    assert feedback.capability_profile_version == "2026-11-04.1"
+    assert feedback.workspace_id == "ws-a"
+
+
+def test_semantic_failure_overrides_transport_and_quality_flags():
+    profile = get_profile("employee_adaptive_planning")
+    rows = _scoped_rows(
+        profile, quality=True, failure="semantic_failure")
+    evidence = parse_evidence_rows(
+        rows, profile, workspace_id="ws-a", tenant_id="t-a")
+    result = select_profile_candidates(
+        profile, [_flash_candidate()], evidence=evidence)
+    assert result["outcome"] == "no_suitable", result

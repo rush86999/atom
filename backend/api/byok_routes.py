@@ -1356,6 +1356,21 @@ async def get_provider_policy(
     )
 
     policy = resolve_provider_policy()
+    workspace_id = str(
+        getattr(current_user, "workspace_id", None) or "default")
+    tenant_id = str(getattr(current_user, "tenant_id", None) or "default")
+    try:
+        decisions = capability_decisions(
+            10, workspace_id=workspace_id, tenant_id=tenant_id)
+    except TypeError:
+        # Compatibility with a test/double exposing the old one-argument
+        # signature; the route still applies the authoritative scope below.
+        decisions = capability_decisions(10)
+    decisions = [
+        item for item in decisions
+        if str(item.get("workspace_id") or "") == workspace_id
+        and str(item.get("tenant_id") or "") == tenant_id
+    ]
     return ApiResponse(success=True, data={
         "policy": policy.public_dict(),
         "providers": [
@@ -1364,7 +1379,7 @@ async def get_provider_policy(
         ],
         "capability_routing": {
             "profiles": profile_descriptions(),
-            "recent_decisions": capability_decisions(10),
+            "recent_decisions": decisions,
             "preference": "economy-first; quality is an explicit profile choice",
         },
     })

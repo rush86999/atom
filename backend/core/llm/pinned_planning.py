@@ -352,6 +352,12 @@ async def pinned_structured_call(
 
     pin_kwargs = dict(call_kwargs or {})
     pinned = bool(pin_kwargs.get("provider_model"))
+    # EXPLICIT PROFILE + PIN = STRICT QUALIFICATION PIN (verifier boundary 1).
+    # The auto-derived profile used by ordinary employee calls keeps its
+    # historical unpinned fallback; an explicit server qualification profile
+    # is exact-route-or-failure. It never escapes on exception, None,
+    # timeout or malformed output.
+    strict_pin = bool(pinned and capability_profile)
 
     _t0 = _time.monotonic()
     _pinned_attempt = 0
@@ -376,6 +382,13 @@ async def pinned_structured_call(
                 route="pinned", seconds=_time.monotonic() - _pinned_started,
                 exception=pinned_err)
             _publish_failure(log_label, pinned_err)
+            if strict_pin:
+                logger.warning(
+                    "%s strict qualification pin (%s) raised (%s): %s — "
+                    "no unpinned fallback",
+                    log_label, pin_kwargs.get("provider_model"),
+                    type(pinned_err).__name__, pinned_err)
+                return None
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
                 log_label,
@@ -390,6 +403,12 @@ async def pinned_structured_call(
                 seconds=_time.monotonic() - _pinned_started,
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
             return result
+        if strict_pin:
+            logger.warning(
+                "%s strict qualification pin (%s) returned no result — "
+                "failed qualification attempt, no unpinned fallback",
+                log_label, pin_kwargs.get("provider_model"))
+            return None
         logger.info(
             "%s pinned call (%s) returned no result — retrying unpinned "
             "across the workspace's configured providers",
