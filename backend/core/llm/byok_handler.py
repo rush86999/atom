@@ -3857,6 +3857,8 @@ class BYOKHandler:
                 "output_cost": 0.0,
                 "max_input_tokens": route.get("context_window") or 8192,
                 "supports_tools": bool(route.get("supports_tools")),
+                "supports_structured": bool(
+                    route.get("supports_structured", True)),
                 "supports_vision": bool(route.get("supports_vision")),
                 "supports_reasoning": bool(route.get("supports_reasoning")),
                 "quality_score": route.get("quality_score"),
@@ -3975,6 +3977,7 @@ class BYOKHandler:
                 # The runtime is the authority for its own models — the same
                 # convention is_model_approved documents for pulled names.
                 "supports_tools": True,
+                "supports_structured": True,
                 "supports_vision": False,
                 "supports_reasoning": False,
                 "quality_score": quality,
@@ -5110,8 +5113,22 @@ class BYOKHandler:
                     except Exception:  # noqa: BLE001 — measurement must never break routing
                         pass
 
-                # Phase 226.4-04: Check capability filter
-                if not self._filter_by_capabilities(model_id, required_capability, capability_index):
+                # Phase 226.4-04: Check capability filter. A route declared
+                # by this handler (registered local or admitted healthy
+                # runtime) is authoritative for its own protocol support; the
+                # shared capability index carries no entry for a pulled local
+                # name and must not silently hide a working structured route.
+                if _own_route is not None and required_capability in (
+                        "structured", "tools"):
+                    if (required_capability == "structured"
+                            and not _own_route.get(
+                                "supports_structured", True)):
+                        continue
+                    if (required_capability == "tools"
+                            and not _own_route.get("supports_tools", False)):
+                        continue
+                elif not self._filter_by_capabilities(
+                        model_id, required_capability, capability_index):
                     continue
 
                 # Phase 226.4-04: Check if model is excluded from general routing
