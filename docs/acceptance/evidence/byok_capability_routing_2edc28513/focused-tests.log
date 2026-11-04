@@ -1,0 +1,401 @@
+
+tests/test_workload_capability_routing.py::test_flash_like_cheap_candidate_beats_equivalent_expensive_candidate 
+-------------------------------- live log setup --------------------------------
+2026-11-04 08:13:06 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 08:13:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 08:13:07 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_workload_capability_routing.py::test_complex_profile_keeps_qualified_flash_eligible PASSED [  1%]
+tests/test_workload_capability_routing.py::test_measured_failure_excludes_flash_and_escalates_once PASSED [  2%]
+tests/test_workload_capability_routing.py::test_expensive_model_with_measured_failure_is_excluded_too PASSED [  3%]
+tests/test_workload_capability_routing.py::test_no_eligible_candidate_is_explicit_not_relaxed PASSED [  4%]
+tests/test_workload_capability_routing.py::test_context_window_mismatch_is_ineligible PASSED [  5%]
+tests/test_workload_capability_routing.py::test_evidence_scope_and_version_do_not_poison_other_workspace PASSED [  5%]
+tests/test_workload_capability_routing.py::test_measured_success_does_not_exclude_efficient_route PASSED [  6%]
+tests/test_workload_capability_routing.py::test_alignment_failure_does_not_ban_extraction_profile PASSED [  7%]
+tests/test_workload_capability_routing.py::test_strict_pin_is_exact_or_failed_no_escape PASSED [  8%]
+tests/test_workload_capability_routing.py::test_profile_resolution_uses_server_label_not_model_name PASSED [  9%]
+tests/test_workload_capability_routing.py::test_decision_journal_persists_across_memory_reset PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_llm_service_forwards_capability_profile_to_handler PASSED [ 10%]
+tests/test_workload_capability_routing.py::test_pinned_call_adds_profile_from_server_label PASSED [ 11%]
+tests/test_workload_capability_routing.py::test_production_bpc_ranks_economical_flash_over_expensive_equal 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 08:13:07 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [    INFO] LocalOnlyGuard initialized
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model flash (Value: 2.70)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown; frontier/expensive: provider_catalog_unknown
+PASSED                                                                   [ 12%]
+tests/test_workload_capability_routing.py::test_production_bpc_no_suitable_returns_empty_and_journals 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 08:13:07 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'fast/weak', 'reasons': ['below_quality_prior']}])
+PASSED                                                                   [ 13%]
+tests/test_workload_capability_routing.py::test_bounded_escalation_selects_a_better_eligible_candidate_once PASSED [ 14%]
+tests/test_workload_capability_routing.py::test_no_escalation_when_profile_does_not_allow_it PASSED [ 15%]
+tests/test_workload_capability_routing.py::test_profile_floor_keeps_capable_flash_eligible_on_complex_call 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 08:13:07 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for complex: Top model flash (Value: 72.25)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown
+PASSED                                                                   [ 15%]
+tests/test_workload_capability_routing.py::test_explicit_quality_preference_can_choose_stronger_eligible_route PASSED [ 16%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_lux_excluded_from_general_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 17%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_lux_included_for_computer_use 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 18%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_filter_vision_only 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown
+PASSED                                                                   [ 19%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_filter_no_requirement 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 20%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_specific_quality_score 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 21%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_fallback_to_generic_score 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 7.22)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 21%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_excluded_models_cache PASSED [ 22%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_refresh_excluded_cache PASSED [ 23%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_unhealthy_excluded 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model deepseek-chat (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: deepseek/deepseek-chat: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 24%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_healthy_included 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 25%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_health_filter_unknown_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 26%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_capability_and_health_combined 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 9.03)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 26%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_multiple_capability_models 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.46)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (3 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 27%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_vision_capability_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.10)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown
+PASSED                                                                   [ 28%]
+tests/test_capability_routing.py::TestCapabilityRouting::test_tools_capability_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] Could not bulk-load capability index: no catalog
+2026-11-04 08:13:07 [    INFO] BPC Ranking Successful for moderate: Top model gpt-4o (Value: 8.65)
+2026-11-04 08:13:07 [ WARNING] no ranked route is verified against a provider catalogue (4 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: openai/gpt-4o: provider_catalog_unknown; anthropic/claude-3.5-sonnet: provider_catalog_unknown; anthropic/lux-1.0: provider_catalog_unknown; deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 29%]
+tests/test_pinned_planning_scope.py::test_startup_lacks_provider_requested_workspace_has_it_pin_retained PASSED [ 30%]
+tests/test_pinned_planning_scope.py::test_startup_has_provider_requested_workspace_lacks_it_pin_refused PASSED [ 31%]
+tests/test_pinned_planning_scope.py::test_two_overlapping_workspaces_retain_their_respective_scopes PASSED [ 31%]
+tests/test_pinned_planning_scope.py::test_unresolved_scope_cannot_borrow_another_handler PASSED [ 32%]
+tests/test_pinned_planning_scope.py::test_local_only_policy_still_blocks_cloud_pins 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [ WARNING] LOCAL-ONLY: pin opencode-go/deepseek-v4-pro refused — cloud dispatch is blocked; the call routes locally instead
+PASSED                                                                   [ 33%]
+tests/test_pinned_planning_scope.py::test_unpinned_fallback_behavior_unchanged 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] test pinned call (('opencode-go', 'deepseek-v4-pro')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 34%]
+tests/test_pinned_planning_scope.py::test_resolve_pinned_provider_model_threads_scope PASSED [ 35%]
+tests/test_pinned_planning_scope.py::test_plan_structured_threads_turn_scope_into_the_gate PASSED [ 36%]
+tests/test_pinned_planning_transport.py::test_constructed_client_carries_go_url_and_required_headers 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+PASSED                                                                   [ 36%]
+tests/test_pinned_planning_transport.py::test_pinned_dispatch_reaches_go_url_with_intended_model 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:07 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 08:13:07 [    INFO] EscalationManager initialized
+2026-11-04 08:13:07 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+2026-11-04 08:13:07 [    INFO] Auto-populating pricing cache synchronously...
+2026-11-04 08:13:07 [    INFO] HTTP Request: GET https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json "HTTP/1.1 200 OK"
+2026-11-04 08:13:07 [    INFO] Fetched 4539 model prices from LiteLLM
+2026-11-04 08:13:07 [    INFO] HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"
+2026-11-04 08:13:07 [    INFO] Fetched 454 model prices from OpenRouter (incl. curated overrides)
+2026-11-04 08:13:07 [    INFO] HTTP Request: GET https://opencode.ai/zen/v1/models "HTTP/1.1 200 OK"
+2026-11-04 08:13:07 [    INFO] OpenCode Zen serves 1 model(s) missing from OPCODE_KNOWN_PRICES — dropped until priced: muse-wonder-1.0
+2026-11-04 08:13:07 [    INFO] Fetched 69 OpenCode Zen model prices (80 served; table-merged)
+2026-11-04 08:13:07 [    INFO] Inferring capabilities for all models...
+2026-11-04 08:13:07 [    INFO] Saved 4995 model prices to cache
+2026-11-04 08:13:07 [    INFO] Pricing cache populated with 4995 models
+2026-11-04 08:13:08 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 13308.30)
+2026-11-04 08:13:08 [ WARNING] no ranked route is verified against a provider catalogue (11 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: opencode-go/glm-5.3-flash: provider_catalog_unknown; opencode-go/minimax-m3: provider_catalog_unknown; opencode-go/minimax-m2.7: provider_catalog_unknown; opencode-go/deepseek-v4.1-flash: provider_catalog_unknown
+2026-11-04 08:13:08 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-04 08:13:08 [    INFO] Structured generation (free, Managed): opencode-go/deepseek-v4-pro
+2026-11-04 08:13:08 [    INFO] [structured-dispatch] opencode-go/deepseek-v4-pro route=structured-7163af948e00 attempt=1 prompt_chars=22 cap=1000 instructor_retries=2
+2026-11-04 08:13:08 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-04 08:13:08 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion2:planning' after 0.0s
+2026-11-04 08:13:08 [    INFO] [structured-trace] opencode-go/deepseek-v4-pro cap=1000 dur=0.0s finish=tool_calls content_present=True tool_calls_present=True result_type=_Out route=structured-7163af948e00 attempt=1
+2026-11-04 08:13:08 [    INFO] Initialized router with 30 models
+2026-11-04 08:13:08 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-04 08:13:08 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 37%]
+tests/test_pinned_planning_transport.py::test_failed_pin_fallback_does_not_disguise_an_incompatible_route 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:08 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-04 08:13:08 [    INFO] EscalationManager initialized
+2026-11-04 08:13:08 [    INFO] CognitiveTierService initialized for workspace: ws-transport
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 13308.30)
+2026-11-04 08:13:08 [    INFO] Structured generation (free, Managed): opencode-go/deepseek-v4-pro
+2026-11-04 08:13:08 [    INFO] [structured-dispatch] opencode-go/deepseek-v4-pro route=structured-ea07033f94d5 attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 08:13:08 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 08:13:08 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion2:general' after 0.0s
+2026-11-04 08:13:08 [ WARNING] Structured attempt failed for opencode-go/deepseek-v4-pro: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [ WARNING] [structured-pool] depth=0 candidates=[('opencode-go', 'deepseek-v4-pro')] attempted=True credit_failed=[]
+2026-11-04 08:13:08 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 08:13:08 [    INFO] [route-exclusions] {"classification": {"pre_pool_catalog_not_in_provider": 5}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"opencode-go": 1}, "size": 1}, "pre_pool_skips": [{"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.1", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.3", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/gpt-5.3-codex-spark", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.5", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.7-code", "stage": "ranking"}], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-ea07033f94d5"}
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 08:13:08 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 08:13:08 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-ea07033f94d5 attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 08:13:08 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 08:13:08 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 08:13:08 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [ WARNING] [structured-pool] depth=1 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 08:13:08 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [    INFO] transport-fallback pinned call (('opencode-go', 'deepseek-v4-pro')) returned no result — retrying unpinned across the workspace's configured providers
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 08:13:08 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 08:13:08 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-6f9f2aca2e0d attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 08:13:08 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 08:13:08 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 08:13:08 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [ WARNING] [structured-pool] depth=0 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 08:13:08 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-04 08:13:08 [    INFO] [route-exclusions] {"classification": {"pre_pool_catalog_not_in_provider": 5, "prior_attempt_failed": 5}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [{"reason": "already_failed_provider", "route": "opencode-go/minimax-m3"}, {"reason": "already_failed_provider", "route": "opencode-go/minimax-m2.7"}, {"reason": "already_failed_provider", "route": "opencode-go/deepseek-v4.1-flash"}, {"reason": "already_failed_provider", "route": "opencode-go/minimax-m2.5"}, {"reason": "already_failed_provider", "route": "opencode-go/mistral-large-4"}], "interactive": false, "pool": {"families": {"opencode-go": 6}, "size": 6}, "pre_pool_skips": [{"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.1", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/glm-5.3", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/gpt-5.3-codex-spark", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.5", "stage": "ranking"}, {"reason": "catalog_not_in_provider", "route": "opencode-go/kimi-k2.7-code", "stage": "ranking"}], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-6f9f2aca2e0d"}
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.1 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/glm-5.3 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/gpt-5.3-codex-spark excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.5 excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] structured gate: opencode-go/kimi-k2.7-code excluded — not_in_provider_catalog (fresh, identifier not present in opencode-go's discovered catalogue (7 identifiers))
+2026-11-04 08:13:08 [    INFO] BPC Ranking Successful for simple: Top model glm-5.3-flash (Value: 6654.15)
+2026-11-04 08:13:08 [    INFO] Structured generation (free, Managed): opencode-go/glm-5.3-flash
+2026-11-04 08:13:08 [    INFO] [structured-dispatch] opencode-go/glm-5.3-flash route=structured-6f9f2aca2e0d attempt=1 prompt_chars=22 cap=6000 instructor_retries=2
+2026-11-04 08:13:08 [    INFO] HTTP Request: POST https://opencode.ai/inference/go/openai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-11-04 08:13:08 [   ERROR] API call failed on attempt 1: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] Max retries exceeded. Total attempts: 1, Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [    INFO] [inflight] opencode-go/glm-5.3-flash released by 'completion2:general' after 0.0s
+2026-11-04 08:13:08 [ WARNING] Structured attempt failed for opencode-go/glm-5.3-flash: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [ WARNING] [structured-pool] depth=1 candidates=[('opencode-go', 'glm-5.3-flash'), ('opencode-go', 'minimax-m3'), ('opencode-go', 'minimax-m2.7'), ('opencode-go', 'deepseek-v4.1-flash'), ('opencode-go', 'minimax-m2.5'), ('opencode-go', 'mistral-large-4')] attempted=True credit_failed=[]
+2026-11-04 08:13:08 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+2026-11-04 08:13:08 [   ERROR] All structured providers failed after 1 attempt(s). Last error: Error code: 400 - {'error': {'type': 'invalid_request_error', 'message': 'model not supported on this route'}}
+PASSED                                                                   [ 38%]
+tests/test_llm_service_task_type_forwarding.py::test_caller_task_type_is_forwarded_not_duplicated PASSED [ 39%]
+tests/test_llm_service_task_type_forwarding.py::test_default_task_type_preserved_when_caller_omits_it PASSED [ 40%]
+tests/test_employee_proposal.py::test_context_is_bounded_and_excludes_paths PASSED [ 41%]
+tests/test_employee_proposal.py::test_valid_evidence_and_clarification_proposal PASSED [ 42%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal0-at least one read] PASSED [ 42%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal1-requires a question] PASSED [ 43%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal2-unknown source_id] PASSED [ 44%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal3-unknown action] PASSED [ 45%]
+tests/test_employee_proposal.py::test_invalid_proposals_are_refused[proposal4-not both] PASSED [ 46%]
+tests/test_employee_proposal.py::test_deterministic_fallback_is_a_read_not_a_business_fact PASSED [ 47%]
+tests/test_employee_proposal.py::test_model_proposal_is_captured_with_scoped_json_mode PASSED [ 47%]
+tests/test_employee_proposal.py::test_invalid_model_output_falls_back_and_preserves_errors PASSED [ 48%]
+tests/test_employee_proposal.py::test_compiler_builds_planner_kwargs_with_facts_and_requirements PASSED [ 49%]
+tests/test_employee_proposal.py::test_employee_job_view_reports_objective_facts_and_blockers PASSED [ 50%]
+tests/test_employee_proposal.py::test_planner_carries_facts_and_source_requirements PASSED [ 51%]
+tests/test_employee_proposal.py::test_compiler_collapses_duplicate_source_reads PASSED [ 52%]
+tests/test_employee_proposal.py::test_duplicate_applied_reads_do_not_make_invoice_roles_ambiguous PASSED [ 52%]
+tests/test_employee_adaptation_contract.py::test_final_transport_request_uses_the_selected_schema PASSED [ 53%]
+tests/test_employee_adaptation_contract.py::test_raw_malformed_completion_is_preserved_under_one_attempt 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:09 [ WARNING] employee adaptation call raised: InstructorRetryException: validation error
+PASSED                                                                   [ 54%]
+tests/test_employee_adaptation_contract.py::test_bounded_repair_shares_deadline_and_selected_schema PASSED [ 55%]
+tests/test_employee_adaptation_contract.py::test_exhausted_deadline_is_typed_and_does_not_start_repair PASSED [ 56%]
+tests/test_employee_adaptation_contract.py::test_legacy_context_keeps_legacy_schema_separate PASSED [ 57%]
+tests/test_employee_work_requests.py::test_quote_request_compiles_and_executes_from_full_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:09 [    INFO] runtime identity: source_id=2edc28513415 revision=2edc28513415 dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 57%]
+tests/test_employee_work_requests.py::test_quote_mapping_rejects_unknown_column_and_bad_terms PASSED [ 58%]
+tests/test_employee_work_requests.py::test_invoice_request_compiles_and_reconciles_full_evidence PASSED [ 59%]
+tests/test_employee_work_requests.py::test_work_request_rejects_model_authored_steps_and_bad_references PASSED [ 60%]
+tests/test_employee_work_requests.py::test_context_previews_are_labeled_and_discovery_is_not_followup PASSED [ 61%]
+tests/test_employee_work_requests.py::test_money_terms_must_resolve_and_match_the_proposed_value PASSED [ 62%]
+tests/test_employee_work_requests.py::test_expired_fact_term_is_not_authority PASSED [ 63%]
+tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_match_accepted_values PASSED [ 63%]
+tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [ 64%]
+tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:09 [    INFO] Created HITL action 3aed3b98-a3af-4b13-9642-75a31bed660c for agent None
+PASSED                                                                   [ 65%]
+tests/test_employee_work_requests.py::test_invoice_role_bindings_resolve_from_evidence_shape PASSED [ 66%]
+tests/test_employee_work_requests.py::test_invoice_wrong_purchase_order_identity_is_refused PASSED [ 67%]
+tests/test_employee_work_requests.py::test_quote_mapping_resolves_type_swapped_unfamiliar_headers PASSED [ 68%]
+tests/test_employee_work_requests.py::test_quote_currency_preserves_observed_values_and_refuses_conflicts PASSED [ 68%]
+tests/test_employee_work_requests.py::test_quote_missing_currency_column_inherits_only_explicit_job_default PASSED [ 69%]
+tests/test_employee_work_requests.py::test_executor_refuses_currency_changed_after_compilation PASSED [ 70%]
+tests/test_employee_work_requests.py::test_mapped_unit_cannot_be_defaulted_over_empty_source_value PASSED [ 71%]
+tests/test_employee_work_requests.py::test_valid_cad_twin_executes_without_relabelling PASSED [ 72%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-False] PASSED [ 73%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-True] PASSED [ 73%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_source-None] PASSED [ 74%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-0] PASSED [ 75%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[require_verified_evidence-false] PASSED [ 76%]
+tests/test_employee_work_request_bindings.py::test_model_payload_cannot_carry_proof_switches[unknown_field-x] PASSED [ 77%]
+tests/test_employee_work_request_bindings.py::test_unverified_and_skipped_evidence_are_not_proof PASSED [ 78%]
+tests/test_employee_work_request_bindings.py::test_compiled_steps_keep_mandatory_verified_receipts PASSED [ 78%]
+tests/test_employee_work_request_bindings.py::test_executor_negative_preserves_independent_progress PASSED [ 79%]
+tests/test_employee_work_request_bindings.py::test_valid_twin_still_compiles_and_completes PASSED [ 80%]
+tests/test_employee_work_request_bindings.py::test_term_must_resolve_scope_revision_currency_and_value PASSED [ 81%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_tax_modes_bind_their_taught_term PASSED [ 82%]
+tests/test_employee_work_request_bindings.py::test_role_comparison_is_normalized_and_cross_field_is_refused PASSED [ 83%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[expired] PASSED [ 84%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[stale] PASSED [ 84%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[wrong_scope] PASSED [ 85%]
+tests/test_employee_work_request_bindings.py::test_executor_rechecks_the_term_after_restart[value_changed] PASSED [ 86%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_twins_complete_with_authority[terms0-tax0-405.00] PASSED [ 87%]
+tests/test_employee_work_request_bindings.py::test_rate_and_amount_twins_complete_with_authority[terms1-tax1-375.00] PASSED [ 88%]
+tests/test_employee_work_request_bindings.py::test_typed_receipt_requires_authoritative_context_and_is_not_tamper_proof PASSED [ 89%]
+tests/test_employee_work_request_bindings.py::test_fact_term_scope_revision_dates_and_currency PASSED [ 89%]
+tests/test_employee_work_request_bindings.py::test_term_provenance_is_revalidated_at_consumption PASSED [ 90%]
+tests/test_employee_work_request_bindings.py::test_money_term_roles_are_not_interchangeable PASSED [ 91%]
+tests/test_employee_work_request_bindings.py::test_explicit_role_metadata_and_aliases_are_trusted PASSED [ 92%]
+tests/test_employee_work_request_bindings.py::test_fact_role_must_be_declared_and_match_the_field PASSED [ 93%]
+tests/test_employee_work_request_bindings.py::test_expiry_between_compile_and_consumption_refuses PASSED [ 94%]
+tests/test_employee_work_request_bindings.py::test_source_replacement_and_teaching_revision_refuse_at_consumption PASSED [ 94%]
+tests/test_employee_work_request_bindings.py::test_binding_survives_a_restart_context_round_trip PASSED [ 95%]
+tests/test_employee_work_request_bindings.py::test_executor_blocks_expired_term_between_compile_and_dispatch PASSED [ 96%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote PASSED [ 97%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_waits_corrects_and_posts_supported_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:11 [    INFO] Created HITL action c68f0af8-c533-4f1f-8114-edca17544322 for agent None
+PASSED                                                                   [ 98%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_period_close_blocks_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-04 08:13:11 [    INFO] Created HITL action 879a1ae0-540e-47b7-96c2-d51147422909 for agent None
+PASSED                                                                   [ 99%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refuses_infeasible_delivery PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 238 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_workload_capability_routing.py::test_flash_like_cheap_candidate_beats_equivalent_expensive_candidate
+  /private/tmp/atom-byok-clean/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_workload_capability_routing.py: 4 warnings
+tests/test_capability_routing.py: 42 warnings
+tests/test_pinned_planning_transport.py: 44 warnings
+  /private/tmp/atom-byok-clean/backend/core/llm/byok_handler.py:2332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_workload_capability_routing.py::test_production_bpc_ranks_economical_flash_over_expensive_equal
+  /private/tmp/atom-byok-clean/backend/core/llm/capability_profiles.py:595: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_pinned_planning_transport.py::test_pinned_dispatch_reaches_go_url_with_intended_model
+  /private/tmp/atom-byok-clean/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 119 passed, 337 warnings in 19.61s ======================
