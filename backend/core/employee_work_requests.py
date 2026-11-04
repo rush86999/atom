@@ -109,9 +109,12 @@ class InvoiceReconciliationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     operation: Literal["invoice_reconciliation"]
-    invoice_step_id: str = Field(min_length=1, max_length=80)
-    purchase_order_step_id: str = Field(min_length=1, max_length=80)
-    receiving_step_id: str = Field(min_length=1, max_length=80)
+    # Role references are optional when the accepted evidence has exactly one
+    # candidate for the role; the compiler infers it and still validates the
+    # mapped fields and proof. Name a step only to disambiguate.
+    invoice_step_id: Optional[str] = Field(default=None, max_length=80)
+    purchase_order_step_id: Optional[str] = Field(default=None, max_length=80)
+    receiving_step_id: Optional[str] = Field(default=None, max_length=80)
     vendor_step_id: Optional[str] = Field(default=None, max_length=80)
     coa_step_id: Optional[str] = Field(default=None, max_length=80)
     period_step_id: Optional[str] = Field(default=None, max_length=80)

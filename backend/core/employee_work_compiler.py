@@ -832,13 +832,13 @@ def _invoice_patch(
     receiving_fields = dict(
         request.receiving_fields) or dict(RECEIVING_FIELD_DEFAULTS)
     invoice_step_id = _bind_invoice_role(
-        assignment, request.invoice_step_id, invoice_fields,
+        assignment, request.invoice_step_id or "", invoice_fields,
         INVOICE_ROLE_REQUIREMENTS["invoice"], "invoice")
     purchase_order_step_id = _bind_invoice_role(
-        assignment, request.purchase_order_step_id, po_fields,
+        assignment, request.purchase_order_step_id or "", po_fields,
         INVOICE_ROLE_REQUIREMENTS["purchase_order"], "purchase order")
     receiving_step_id = _bind_invoice_role(
-        assignment, request.receiving_step_id, receiving_fields,
+        assignment, request.receiving_step_id or "", receiving_fields,
         INVOICE_ROLE_REQUIREMENTS["receiving"], "receiving")
     for step_id in (
             invoice_step_id, purchase_order_step_id, receiving_step_id):

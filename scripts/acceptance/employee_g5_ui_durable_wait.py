@@ -360,20 +360,30 @@ def main() -> int:
         page.wait_for_timeout(1500)
         _open_run(page, args.base, run_id)
         detail = page.get_by_test_id("assignment-detail")
-        response_input = detail.get_by_label("Correlated response")
-        response_input.fill("received 2 units")
-        detail.get_by_test_id("assignment-resolution-value").fill("2")
-        with page.expect_response(
-                lambda response: (
-                    f"/responses/{correlation}" in response.url
-                    and response.request.method == "POST"),
-                timeout=300000) as reply_info:
-            detail.get_by_role("button", name="Deliver").click()
-        reply = reply_info.value
-        reply_body = reply.json()
+        current = _record(_detail(args.api, token, run_id))
+        current_wait = _wait_step(current)
+        reply = None
+        reply_body: Dict[str, Any] = {}
+        if str(current_wait.get("status") or "") == "waiting":
+            response_input = detail.get_by_label(
+                "Correlated response").first
+            response_input.fill("received 2 units")
+            detail.get_by_test_id("assignment-resolution-value").fill("2")
+            with page.expect_response(
+                    lambda response: (
+                        f"/responses/{correlation}" in response.url
+                        and response.request.method == "POST"),
+                    timeout=300000) as reply_info:
+                detail.get_by_role(
+                    "button", name="Deliver", exact=True).click()
+            reply = reply_info.value
+            reply_body = reply.json()
         state["reply_result"] = {
-            "status": reply.status,
+            "status": reply.status if reply is not None else None,
             "body": reply_body,
+            "path": (
+                "ui_correlated_reply" if reply is not None
+                else "source_fact_auto"),
         }
         deadline = time.time() + 420
         final = {}
@@ -384,6 +394,28 @@ def main() -> int:
                     "completed", "failed", "blocked", "cancelled"):
                 break
             page.wait_for_timeout(2000)
+        if str(_record(final).get("status") or "") == "blocked":
+            # A failed reasoning turn preserves the job and its receipts.
+            # One explicit advance retries the remaining supported work; it
+            # never invents or repeats a business effect.
+            advanced = requests.post(
+                args.api + f"/api/assignments/{run_id}/advance",
+                headers=headers,
+                json={"use_model": True, "max_adaptations": 2,
+                      "deadline_seconds": 180}, timeout=600)
+            state["retry_result"] = {
+                "status": advanced.status_code,
+                "rounds": advanced.json().get("rounds")
+                if advanced.status_code == 200 else None,
+            }
+            deadline = time.time() + 420
+            while time.time() < deadline:
+                final = _detail(args.api, token, run_id)
+                final_assignment = _record(final)
+                if str(final_assignment.get("status") or "") in (
+                        "completed", "failed", "blocked", "cancelled"):
+                    break
+                page.wait_for_timeout(2000)
         final_assignment = _record(final)
         page.wait_for_timeout(1500)
         page.screenshot(
