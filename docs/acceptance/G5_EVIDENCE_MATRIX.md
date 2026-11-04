@@ -20,11 +20,23 @@ row's evidence.
 | Cancellation and late-response refusal | Demonstrated; regression-supported | `employee_g5_regression_b4c29e2b6d9e` (18/18); `2eb433f41` focused suite |
 | Controlled provider lost-confirmation/restart/reconcile/no resend | Demonstrated; regression-supported | regression bundle (11/11); `employee_g5_final_regressions_b4c29e2b6` |
 | Exact namespaced identity and empty-scope result invariant | Demonstrated on successor | `employee_identity_repair_2eb433f41` (410 tests; 16/16 Git) |
-| Held-out content with new identifiers/values and independent arithmetic | **Missing** | No served held-out episode yet; this is the next finite batch |
-| Held-out event order (e.g. independent work after restart, reply order) | **Missing as served evidence** | Controlled order tests exist; no served alternate-order episode |
+| Held-out content with new identifiers/values and independent arithmetic | **Partial; completion missing** | `employee_g5_heldout_timeout_6bc97759284`: PO-7302/INV-4491 values; wait, quote 96.30, restart and answer passed; dependent 140.25 not produced because the local model adaptation timed out (`deadline_exceeded`, 180s then 300s). Job blocked, no artifact. Full held-out completion not established |
+| Held-out event order (e.g. independent work after restart, reply order) | **Missing as served evidence** | Served order was wait -> quote -> restart -> reply. No served alternate order. The ordering policy is covered by compiler/validation tests only |
 | Held-out two-domain evidence selection without user-picked sources | **Missing (model-quality boundary)** | Prior probe `80e3bd702` / `20f3ffc19`: quote pass, procurement selection negative; invoice source omitted. Not repaired by the wait/identity work |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
 | Live cloud/provider breadth, Zoho/Microsoft, Linux/KVM, multi-worker/soak | **Out of scope / separate** | No credentials/platform/authority in this batch |
+
+## Held-out batch outcome
+
+The finite batch
+`docs/acceptance/evidence/employee_g5_heldout_timeout_6bc97759284/` used new
+identifiers, quantities and prices (quote 96.30, reconciliation 140.25). The
+model selected the receiving wait and the independent quote, the wait survived
+a real restart, and the same-job answer was accepted. The dependent
+reconciliation was not produced: the local model's adaptation hit the bounded
+deadline (initial and compact retries), so the job stayed blocked with the
+required result unresolved and no artifact. This is evidence of the held-out
+model/timeout boundary, not a completed held-out qualification.
 
 ## What this reconciliation does not claim
 
