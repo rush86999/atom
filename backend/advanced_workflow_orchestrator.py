@@ -1990,7 +1990,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             "step_id": str(step.step_id or ""),
             "guarded_step": str(step.parameters.get("guarded_step") or ""),
             "input_digest": hashlib.sha256(json.dumps(
-                {"input": context.input_data, "variables": context.variables},
+                {
+                    "input": context.input_data,
+                    "guarded_step": step.parameters.get("guarded_step"),
+                },
                 sort_keys=True, default=str).encode()).hexdigest()[:24],
         }
         if workspace_id:
@@ -2163,6 +2166,16 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                         "requires_confirmation": True,
                         "hitl_action_id": getattr(existing, "id", None),
                     }
+                action_id = await self._create_durable_approval(
+                    material, step, context)
+                context.status = WorkflowStatus.WAITING_APPROVAL
+                return {
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "hitl_action_id": action_id or result.get(
+                        "hitl_action_id"),
+                    "message": "Step requires human approval.",
+                }
             context.status = WorkflowStatus.WAITING_APPROVAL
             return {
                 "status": "waiting_approval",
