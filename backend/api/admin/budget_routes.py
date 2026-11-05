@@ -14,13 +14,15 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
+from core.admin_write_service import update_tenant_budget as _update_tenant_budget
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import Tenant, TenantSetting, User
@@ -46,6 +48,27 @@ class BudgetSettingUpdate(BaseModel):
             "immediately), approval (require admin override)."
         ),
     )
+
+    @field_validator("budget_limit_usd", mode="before")
+    @classmethod
+    def _finite_limit(cls, value):
+        """Reject non-finite values without echoing them in a 422 payload.
+
+        FastAPI's default validation-error renderer cannot serialize NaN/inf
+        inputs; converting them to a plain sentinel keeps the refusal a safe
+        JSON 422 while the service keeps its own finiteness guard.
+        """
+        if value is None:
+            return value
+        candidate = value
+        if isinstance(value, str):
+            try:
+                candidate = float(value)
+            except (TypeError, ValueError):
+                return value
+        if isinstance(candidate, float) and not math.isfinite(candidate):
+            return "__non_finite_budget_limit__"
+        return value
 
 
 def _read_billing_setting(db: Session, tenant_id: str) -> Dict[str, Any]:
@@ -143,46 +166,64 @@ def get_tenant_budget(
     return _resolve_budget_state(db, tenant_id)
 
 
+def _raise_admin_budget(result: Dict[str, Any]) -> None:
+    status = str(result.get("status") or "")
+    if status == "refused":
+        http_status = int(result.get("http_status") or 422)
+        message = str(result.get("error") or "Budget request refused")
+        raise HTTPException(status_code=http_status, detail=message)
+    if status == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": result.get("error") or "Tenant budget changed",
+                "code": result.get("error_code"),
+                "operation_id": result.get("operation_id"),
+            },
+        )
+    if status in ("committed_unverified", "effect_unknown"):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": (
+                        "ADMIN_EFFECT_UNKNOWN"
+                        if status == "effect_unknown"
+                        else "ADMIN_COMMITTED_UNVERIFIED"),
+                    "message": result.get("message") or (
+                        "Tenant budget outcome is not confirmed."),
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "replay": "do_not_repeat",
+            },
+        )
+
+
 @router.put("/{tenant_id}/budget")
 def update_tenant_budget(
     tenant_id: str,
     update: BudgetSettingUpdate,
+    operation_id: Optional[str] = None,
     admin: User = Depends(get_platform_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Update the tenant's budget limit and/or enforcement mode.
-
-    Persists to TenantSetting['billing']. Only the supplied fields are changed
-    (partial update). Takes effect immediately — the in-loop budget gate reads
-    this setting on the next agent iteration.
-    """
-    if not db.query(Tenant).filter(Tenant.id == tenant_id).first():
-        raise HTTPException(status_code=404, detail="Tenant not found")
-
-    billing = _read_billing_setting(db, tenant_id)
-    enforcement = billing.get("enforcement", {}) if isinstance(billing.get("enforcement"), dict) else {}
-
-    changed: Dict[str, Any] = {}
-    if update.budget_limit_usd is not None:
-        billing["budget_limit_usd"] = float(update.budget_limit_usd)
-        changed["budget_limit_usd"] = float(update.budget_limit_usd)
-
-    if update.enforcement_mode is not None:
-        if update.enforcement_mode not in _VALID_MODES:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid enforcement_mode. Must be one of {sorted(_VALID_MODES)}",
-            )
-        enforcement["mode"] = update.enforcement_mode
-        billing["enforcement"] = enforcement
-        changed["enforcement_mode"] = update.enforcement_mode
-
-    if changed:
-        _write_billing_setting(db, tenant_id, billing)
-        db.commit()
-        logger.info(
-            f"Admin {getattr(admin, 'id', '?')} updated budget for tenant "
-            f"{tenant_id}: {changed}"
-        )
-
-    return _resolve_budget_state(db, tenant_id)
+    """Update tenant billing under a material CAS and durable audit receipt."""
+    result = _update_tenant_budget(
+        db,
+        actor=admin,
+        tenant_id=tenant_id,
+        budget_limit_usd=update.budget_limit_usd,
+        enforcement_mode=update.enforcement_mode,
+        operation_id=operation_id,
+    )
+    _raise_admin_budget(result)
+    db.expire_all()
+    response = _resolve_budget_state(db, tenant_id)
+    response.update({
+        "verification": result.get("verification"),
+        "operation_id": result.get("operation_id"),
+        "audit_id": result.get("audit_id"),
+    })
+    return response

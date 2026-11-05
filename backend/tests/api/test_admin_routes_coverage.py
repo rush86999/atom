@@ -29,7 +29,7 @@ from api.admin_routes import router
 # Import models
 from core.models import (
     Base, User, AdminUser, AdminRole, WebSocketState,
-    FailedRatingUpload, SkillRating, ConflictLog, SkillCache
+    FailedRatingUpload, SkillRating, ConflictLog, SkillCache, AuditLog
 )
 
 # Import auth for password hashing
@@ -52,7 +52,7 @@ def test_db():
     # Create only the tables we need for admin routes testing
     # This avoids JSONB/SQLite incompatibility issues with other models
     from core.models import (
-        AdminUser, AdminRole, User, WebSocketState,
+        AdminUser, AdminRole, AuditLog, User, WebSocketState,
         FailedRatingUpload, SkillRating, ConflictLog, SkillCache,
         CustomRole, Tenant, WorkflowTemplate
     )
@@ -64,6 +64,7 @@ def test_db():
     WorkflowTemplate.__table__.create(bind=engine, checkfirst=True)
     AdminUser.__table__.create(bind=engine, checkfirst=True)
     AdminRole.__table__.create(bind=engine, checkfirst=True)
+    AuditLog.__table__.create(bind=engine, checkfirst=True)
     WebSocketState.__table__.create(bind=engine, checkfirst=True)
     FailedRatingUpload.__table__.create(bind=engine, checkfirst=True)
     SkillRating.__table__.create(bind=engine, checkfirst=True)
@@ -86,6 +87,7 @@ def test_db():
     WebSocketState.__table__.drop(bind=engine)
     AdminUser.__table__.drop(bind=engine)
     AdminRole.__table__.drop(bind=engine)
+    AuditLog.__table__.drop(bind=engine)
     WorkflowTemplate.__table__.drop(bind=engine)
     User.__table__.drop(bind=engine)
     CustomRole.__table__.drop(bind=engine)
