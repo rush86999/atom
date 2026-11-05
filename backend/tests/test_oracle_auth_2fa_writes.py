@@ -337,11 +337,12 @@ def test_backup_code_concurrent_single_use(env):
         env, enabled=True, secret=TEST_SECRET,
         codes=["ABCD-1234-EFGH-5678", "WXYZ-9999"])
     barrier = threading.Barrier(2)
+    user_id = user.id
 
     def _consume(operation_id):
         barrier.wait()
         return verify_backup_code_verified(
-            user_id=user.id,
+            user_id=user_id,
             code="ABCD-1234-EFGH-5678",
             request=None,
             operation_id=operation_id,
@@ -566,11 +567,12 @@ def test_totp_concurrent_same_code_approves_one_action(env):
     _make_action(env, "action-1", user_id=user.id)
     _make_action(env, "action-2", user_id=user.id)
     barrier = threading.Barrier(2)
+    user_id = user.id
 
     def _verify(action_id, operation_id, code):
         barrier.wait()
         return asyncio.run(verify_action_2fa_verified(
-            user_id=user.id,
+            user_id=user_id,
             action_id=action_id,
             code=code,
             request=None,
