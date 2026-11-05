@@ -310,6 +310,17 @@ def _content_digest(value: Any) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def canvas_content_digest(value: Any) -> str:
+    """Public alias for the canonical canvas material digest.
+
+    The direct HTTP write service must freeze the SAME material the oracle
+    verifier reads back. Keeping one digest prevents a self-consistent
+    parallel representation from passing while the real consumer sees a
+    different value.
+    """
+    return _content_digest(value)
+
+
 def _read_with_db(ctx: Dict[str, Any], reader):
     db = ctx.get("db")
     if db is not None:
@@ -424,8 +435,49 @@ def _canvas_write_postcondition(restore: bool):
             or ctx.get("canvas_id") or "").strip()
         if not canvas_id:
             return OracleResult(action, False, "missing canvas_id")
+        expected_tenant = str(
+            ctx.get("_oracle_expected_tenant_id") or "").strip()
+        expected_workspace = str(
+            ctx.get("_oracle_expected_workspace_id") or "").strip()
+        expected_actor = str(
+            ctx.get("_oracle_expected_actor_id") or "").strip()
         write_outcome = str(ctx.get("write_outcome") or "")
         no_change = bool(ctx.get("no_change"))
+
+        def _read_canvas(session):
+            from core.models import Canvas
+            return (
+                session.query(Canvas)
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
+
+        def _scope_reasons(row, canvas, *, check_actor: bool):
+            reasons = []
+            if expected_tenant:
+                if str(row.tenant_id or "") != expected_tenant:
+                    reasons.append(
+                        f"audit tenant={row.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+                if canvas is not None and str(
+                        canvas.tenant_id or "") != expected_tenant:
+                    reasons.append(
+                        f"canvas tenant={canvas.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+            if check_actor and expected_actor:
+                if str(row.user_id or "") != expected_actor:
+                    reasons.append(
+                        f"audit actor={row.user_id!r}, expected "
+                        f"{expected_actor!r}")
+            if expected_workspace:
+                if canvas is None:
+                    reasons.append(
+                        "canvas mirror missing for workspace verification")
+                elif str(canvas.workspace_id or "") != expected_workspace:
+                    reasons.append(
+                        f"canvas workspace={canvas.workspace_id!r}, expected "
+                        f"{expected_workspace!r}")
+            return reasons
 
         def _read_new(session, audit_id: str):
             from core.models import CanvasAudit, Canvas
@@ -484,9 +536,25 @@ def _canvas_write_postcondition(restore: bool):
                         action, False,
                         "no-change restore could not read the target/current "
                         "version")
-                target_digest = _content_digest(
-                    _details(target).get("content",
-                                         _details(target).get("data")))
+                if expected_tenant and str(
+                        target.tenant_id or "") != expected_tenant:
+                    return OracleResult(
+                        action, False,
+                        f"target audit tenant={target.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+                canvas = _read_with_db(ctx, _read_canvas)
+                scope_reasons = _scope_reasons(
+                    latest, canvas, check_actor=False)
+                if scope_reasons:
+                    return OracleResult(
+                        action, False, "; ".join(scope_reasons))
+                from tools.canvas_crud_tool import (
+                    canonical_restore_content,
+                )
+
+                _, restored_content = canonical_restore_content(
+                    latest, target)
+                target_digest = _content_digest(restored_content)
                 latest_digest = _content_digest(
                     _details(latest).get("content",
                                          _details(latest).get("data")))
@@ -509,6 +577,10 @@ def _canvas_write_postcondition(restore: bool):
                 return OracleResult(
                     action, False,
                     f"canvas_audit {new_audit_id[:12]} not found")
+            scope_reasons = _scope_reasons(row, canvas, check_actor=True)
+            if scope_reasons:
+                return OracleResult(
+                    action, False, "; ".join(scope_reasons))
             if str(row.action_type or "") != "update":
                 return OracleResult(
                     action, False,
@@ -536,9 +608,12 @@ def _canvas_write_postcondition(restore: bool):
                 if target is None:
                     return OracleResult(
                         action, False, "authorized target version not found")
-                expected_digest = _content_digest(
-                    _details(target).get("content",
-                                         _details(target).get("data")))
+                from tools.canvas_crud_tool import (
+                    canonical_restore_content,
+                )
+
+                _, restored_content = canonical_restore_content(row, target)
+                expected_digest = _content_digest(restored_content)
             else:
                 expected_digest = str(
                     ctx.get("_oracle_expected_canvas_content_sha256") or "")
