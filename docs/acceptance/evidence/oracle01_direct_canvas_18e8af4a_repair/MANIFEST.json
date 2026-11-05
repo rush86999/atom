@@ -1,0 +1,69 @@
+{
+  "schema": "atom-oracle-direct-canvas-manifest-repair-2",
+  "status": "repair submitted for independent verification; whole-app ORACLE-01 remains open",
+  "branch": "codex/oracle01-http-canvas-20261105",
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+  "previous_withheld_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+  "previous_evidence_commit": "d8a2e019b3b5e7b0ad47dd3d56f00d0d38667c95",
+  "repair_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/canvas_routes.py": "c49b48409fb7d78c62a95503721642ca99eab6ea7081da79fc8071978733772c",
+    "backend/core/canvas_write_service.py": "e28326508bc6a31c027e0d971d56df43ea43ba7e3b933996043375b0b6b22d96",
+    "backend/core/oracle/postcondition_verifiers.py": "a62a3fb41d93d07d95a66eaccd9492c04a8f9f65ac0f355fee06de0afe13d723",
+    "backend/tools/canvas_crud_tool.py": "b40198bf180b0f7ed72861952c03e87482a91486e0b53bb1c0469f35de21fdb4",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "2f92bfb2811bdce80303eb47c8305dd2ae76bb3678ebb88aa5fc7e5112ddfc9b",
+    "backend/tests/test_verifier_canvas_scope_5eede.py": "066be1342ddcc7bfad4b80cc203f0c830a7f9627547b660db77c004c1dbfe489",
+    "backend/tests/api/test_canvas_routes_coverage_w51.py": "5edee0aeb1f8a01439bee3a720ba2a551a8d5cd70a63a08b2ba5561f76128ab0",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0"
+  },
+  "artifacts": {
+    "README.md": "ab9f1623ecd6669c31ed34bc43abdcaf8f515c20338082cc76e086aab114e576",
+    "TEST_RESULTS.md": "ae62598129e906db8a701e21593de7589618175b70bc43bf463458c478967816",
+    "adjacent-314.log": "93cb26d7d4639979df780c44b7f3059bfb87d40aa2f9e84e19284ec773194fb5",
+    "affected-311.log": "29a71091c630e6552780b57cd6fc758b11f6bbc5e5463b8766ea2b098cc6d1be",
+    "affected-314.log": "e477cca059a55d39edb3adb38175fa51ff55f27b3fea7f3ebdd573ee98d95f75",
+    "base-editor-pre-existing.log": "1a3ec0aa7cd49871b4bbb2ad649c5f576050f0578bf86fc32e3ef8be3893ecb7",
+    "base-regtrio-pre-existing.log": "332ac01242ea455f5cb23afec0e0b763694d1b9917928f599d3beca7c97a9336",
+    "base-routes-w51-pre-existing.log": "db65b6832f77a9db0d38ce6eb42bf502a2a94e9a3212a64fde79fe9318506c9a",
+    "base-ws-pre-existing.log": "b60ad3b148b904d90588a1d4c030ff0a00e8596d90d7485f17d437f2aef96b93",
+    "focused-311.log": "5d8c7fa2f9d32ebd2fe5e0819de3617d4b0bfb0a71064d53f2b5537350dffdfe",
+    "focused-314.log": "de95ab1327c787311035128e6b83cfe022dee9dafd5bb3d5f7aef7f782869fb6",
+    "patch-seams-314.log": "ab17df75b25072e2c53249d21c93d253f76e9627b4fd0f4d64fd8322acf2b914",
+    "routes-w51-314.log": "d94f42f5742e69c24d279fc2d8513b399b0561c388ce321ec24bf1d1fa9e399c",
+    "routes.json": "0b9c1bb20e6500c1db4571b1bbda5396f795cfe2886e2b408a245101473d2789",
+    "verification.json": "c06e0e97fca79cc4d8481004411759bcf209986afeaf11e6d25016e35af9faa6"
+  },
+  "checks": {
+    "focused_python314": "45 passed",
+    "focused_python311": "45 passed",
+    "affected_python314": "177 passed, 8 deselected",
+    "affected_python311": "177 passed, 8 deselected",
+    "adjacent_python314": "34 passed",
+    "patch_seams_python314": "3 passed",
+    "route_coverage_w51_python314": "53 passed, 5 pre-existing failures",
+    "direct_control_count": 39,
+    "independent_probe_case_count": 6,
+    "model_calls": 0,
+    "provider_calls": 0
+  },
+  "exclusions": {
+    "websocket_fixture_gap": "tests/test_covpush_canvasroutes.py::TestCanvasWebSocket; 4 failed/4 passed on base 81c5962bd",
+    "canvas_editor": "14 failed/91 passed on base 81c5962bd and repair source",
+    "vfs_document_search": "2 failed on base 81c5962bd",
+    "route_coverage_w51": "5 failed on base 81c5962bd (fork, logic not-found, 3 WebSocket)"
+  },
+  "boundaries": [
+    "bounded two-route family, not whole-app ORACLE-01 coverage",
+    "no second oracle, mutation store or digest",
+    "PostgreSQL concurrency/soak not qualified",
+    "other canvas routes, goals routes, provider writes and multi-worker operation remain outside this slice",
+    "no new approval flow for ordinary saves",
+    "no cross-workspace restore",
+    "no tenant inferred from model content",
+    "no live model, provider, credential, spend, send, download or deployment authority",
+    "accepted CAS/feedback/wait/episode evidence and closed lanes are unchanged"
+  ],
+  "parent_repair_source": "21c32937a87544f7ba2249f76c5be605d039bc17",
+  "parent_repair_evidence_commit": "a7f61f73020d25af73a6a79638babd7fd23b0bd6"
+}

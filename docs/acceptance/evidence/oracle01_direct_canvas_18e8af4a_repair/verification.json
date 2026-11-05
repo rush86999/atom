@@ -1,0 +1,187 @@
+{
+  "schema": "atom-oracle-direct-canvas-repair-1",
+  "status": "repair submitted for independent verification; whole-app ORACLE-01 remains open",
+  "candidate": {
+    "branch": "codex/oracle01-http-canvas-20261105",
+    "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+    "previous_withheld_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+    "previous_evidence_commit": "d8a2e019b3b5e7b0ad47dd3d56f00d0d38667c95",
+    "repair_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+    "tree_clean_at_execution": true,
+    "runtime": "local authenticated FastAPI TestClient + SQLite; no browser/LLM/provider",
+    "repair_guidance": "/private/tmp/brennan-brief/VERIFIER_ORACLE_HTTP_CANVAS_5EEDE_REPAIR_20261105.md",
+    "parent_repair_source": "21c32937a87544f7ba2249f76c5be605d039bc17",
+    "parent_repair_evidence_commit": "a7f61f73020d25af73a6a79638babd7fd23b0bd6"
+  },
+  "repairs": {
+    "foreign_scope_effect": {
+      "before": "Creator/audit authorship was the only writer gate; a canvas moved to another workspace/tenant could be saved or restored, appending an audit and replacing the mirror before the oracle refuted scope.",
+      "after": "canvas_write_scope_error resolves the principal tenant/workspace against the authoritative Canvas row and restore target. The service preflights before dispatch; the writer rechecks inside the mutation transaction with a row lock where supported. Foreign scope returns 403 (404 for missing/foreign ownership) with unchanged audit/mirror and no broadcast or learning capture. New audit rows use the authoritative Canvas tenant. Post-effect scope refutation remains as defense in depth.",
+      "scope_policy": {
+        "real_canvas_scope": "exact principal match required",
+        "unscoped_canvas": "available to an authorized same-tenant editor",
+        "null_principal_scope": "legacy default only for an unscoped/default canvas",
+        "foreign_scope_mapped_to_default": false,
+        "same_scope_coediting": "preserved via creator or authoring audit history"
+      }
+    },
+    "old_identical_audit": {
+      "before": "A manual save without an operation_id had no server-owned request identity; a controlled CRUD result could return a prior update audit with identical content and still report verified.",
+      "after": "Every direct update gets a fresh http-canvas-update:<uuid> identity when the caller omits one. Supplied operation ids remain idempotent retries bound to exact canonical material and accepted review state; different material is 409 before effect. Restores get a fresh http-canvas-restore:<uuid> identity written to the new audit. The verifier requires the returned audit to be the current content revision, so an old identical audit cannot certify a new save. No-change restores do not invent an audit/operation receipt."
+    },
+    "no_change_stale_mirror": {
+      "before": "The no-change verifier compared target and latest audit content but not the durable Canvas.content mirror; a stale mirror could be reported verified.",
+      "after": "The no-change branch checks target action/content/tenant, current content revision, authoritative canvas mirror digest and scope. A stale mirror is no_change_unverified/refuted with effect none and replay=do_not_repeat, no audit, and no silent state change."
+    }
+  },
+  "checks": {
+    "foreign_workspace_put_refused_before_effect": true,
+    "foreign_tenant_put_refused_before_effect": true,
+    "foreign_workspace_restore_refused_before_effect": true,
+    "foreign_tenant_restore_refused_before_effect": true,
+    "foreign_target_audit_tenant_refused_before_effect": true,
+    "writer_rechecks_scope_in_transaction": true,
+    "post_effect_scope_refutation_retained": true,
+    "same_scope_coediting_preserved": true,
+    "legacy_unscoped_scope_preserved": true,
+    "null_principal_scope_not_mapped_to_real_scope": true,
+    "manual_save_has_server_operation_identity": true,
+    "supplied_operation_id_material_bound": true,
+    "different_material_same_operation_refused": true,
+    "restore_has_server_operation_identity": true,
+    "old_identical_audit_not_verified": true,
+    "current_content_revision_required": true,
+    "no_change_stale_mirror_not_verified": true,
+    "no_change_no_write_receipt": true,
+    "post_commit_stale_mirror_identity_retained": true,
+    "post_commit_scope_change_identity_retained": true,
+    "real_multisession_readback": true,
+    "independent_verifier_six_probes_pass": true,
+    "affected_canvas_controls_green": true,
+    "feedback_episode_adjacent_green": true
+  },
+  "controls": {
+    "direct_control_count": 39,
+    "independent_probe_case_count": 6,
+    "total_focused_controls": 45,
+    "direct_controls": [
+      "test_direct_put_is_verified_against_durable_material",
+      "test_direct_put_same_title_and_length_still_checks_exact_content",
+      "test_direct_put_duplicate_operation_is_idempotent",
+      "test_direct_put_byte_identical_without_operation_is_a_distinct_edit",
+      "test_direct_restore_is_verified_and_append_only",
+      "test_direct_restore_no_change_is_truthful_and_adds_no_audit",
+      "test_direct_put_foreign_workspace_refuses_before_effect",
+      "test_direct_put_stale_prior_audit_is_refused_without_effect",
+      "test_direct_restore_foreign_canvas_is_refused_without_effect",
+      "test_direct_put_oracle_unavailable_preserves_committed_identity",
+      "test_direct_put_oracle_refuted_preserves_committed_identity",
+      "test_direct_put_kill_switch_never_fabricates_verified",
+      "test_direct_put_verifier_gets_no_request_session",
+      "test_direct_put_foreign_tenant_refuses_before_effect",
+      "test_direct_put_oracle_exception_preserves_committed_identity",
+      "test_direct_restore_wrong_canvas_audit_is_refused_without_effect",
+      "test_direct_restore_old_identical_material_is_no_change",
+      "test_verifier_refuses_operation_mismatch",
+      "test_verifier_refuses_absent_audit",
+      "test_verifier_refuses_stale_mirror",
+      "test_verifier_refuses_restore_target_mismatch",
+      "test_direct_put_duplicate_operation_after_later_edit_is_not_verified",
+      "test_direct_put_effect_unknown_keeps_identity",
+      "test_direct_restore_no_change_kill_switch_is_unverified_no_effect",
+      "test_direct_restore_foreign_workspace_refuses_before_effect",
+      "test_direct_restore_foreign_tenant_refuses_before_effect",
+      "test_direct_restore_no_change_stale_mirror_is_not_verified",
+      "test_direct_put_old_identical_audit_is_not_verified",
+      "test_direct_put_manual_save_gets_server_operation_identity",
+      "test_direct_put_operation_id_different_material_is_refused",
+      "test_direct_restore_gets_server_operation_identity",
+      "test_writer_rechecks_scope_after_service_preflight",
+      "test_direct_put_post_commit_stale_mirror_is_committed_unverified",
+      "test_same_scope_coeditor_can_save_without_creator_ownership",
+      "test_direct_put_commits_across_real_sessions",
+      "test_direct_restore_foreign_target_tenant_refuses_before_effect",
+      "test_direct_put_null_workspace_cannot_edit_scoped_canvas",
+      "test_direct_put_workspace_principal_can_edit_legacy_unscoped_canvas",
+      "test_direct_put_post_commit_scope_change_is_committed_unverified"
+    ],
+    "independent_probe_cases": [
+      "test_out_of_scope_canvas_refuses_before_mutation[put-workspace]",
+      "test_out_of_scope_canvas_refuses_before_mutation[put-tenant]",
+      "test_out_of_scope_canvas_refuses_before_mutation[restore-workspace]",
+      "test_out_of_scope_canvas_refuses_before_mutation[restore-tenant]",
+      "test_no_change_restore_does_not_verify_a_stale_mirror",
+      "test_manual_save_cannot_be_verified_by_old_identical_audit"
+    ]
+  },
+  "results": {
+    "python314": {
+      "focused": {
+        "passed": 45,
+        "log": "focused-314.log"
+      },
+      "affected": {
+        "passed": 177,
+        "deselected": 8,
+        "log": "affected-314.log"
+      },
+      "adjacent": {
+        "passed": 34,
+        "log": "adjacent-314.log"
+      },
+      "patch_seams": {
+        "passed": 3,
+        "log": "patch-seams-314.log"
+      },
+      "route_coverage_w51": {
+        "passed": 53,
+        "failed": 5,
+        "failed_pre_existing_on_base": true,
+        "log": "routes-w51-314.log",
+        "base_log": "base-routes-w51-pre-existing.log"
+      }
+    },
+    "python311": {
+      "focused": {
+        "passed": 45,
+        "log": "focused-311.log"
+      },
+      "affected": {
+        "passed": 177,
+        "deselected": 8,
+        "log": "affected-311.log"
+      }
+    }
+  },
+  "exclusions": {
+    "websocket_fixture_gap": {
+      "tests": "tests/test_covpush_canvasroutes.py::TestCanvasWebSocket",
+      "base_result": "4 failed, 4 passed",
+      "reason": "fixture mounts router but not ws_router; reproduces on base 81c5962bd",
+      "log": "base-ws-pre-existing.log"
+    },
+    "canvas_editor": {
+      "base_result": "14 failed, 91 passed",
+      "reason": "pre-existing on base 81c5962bd; same result on the repair source",
+      "log": "base-editor-pre-existing.log"
+    },
+    "vfs_document_search": {
+      "base_result": "2 failed",
+      "reason": "pre-existing on base 81c5962bd",
+      "log": "base-regtrio-pre-existing.log"
+    },
+    "route_coverage_w51": {
+      "base_result": "5 failed",
+      "reason": "fork, logic not-found and 3 WebSocket cases reproduce on base",
+      "log": "base-routes-w51-pre-existing.log"
+    }
+  },
+  "limits": [
+    "Whole-app ORACLE-01 remains open; this is a two-route family, not the hundreds of mutation routes/provider methods in the historical discovery map",
+    "PostgreSQL concurrency/soak is not qualified; the row lock is exercised on SQLite where FOR UPDATE is a no-op",
+    "Other canvas routes (context/state, logic, WebSocket state updates), goals routes, provider writes and multi-worker operation remain outside this slice",
+    "No new approval flow for ordinary saves; no tenant inferred from model content; no cross-workspace restore",
+    "No live model, provider, credential, spend, send, download or deployment authority was added",
+    "Accepted CAS/feedback/wait/episode evidence and closed lanes are unchanged"
+  ]
+}
