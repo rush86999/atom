@@ -1,0 +1,14 @@
+executed_source: 88ee1e901
+product_source: 88ee1e901
+prior_memory_source: aab2b620d
+prior_memory_evidence: fa651e165
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-memory-write-20261105
+git_status_short:
+git_log:
+88ee1e901 fix(memory): bind current authority to memory writes
+fa651e165 docs(memory): submit the scoped durable memory evidence
+aab2b620d test(memory): cover scoped durable store, context and delete
+4a32ce30b feat(memory): scope and verify durable memory and context writes
+30757ee3c docs: add the continuous delivery directive

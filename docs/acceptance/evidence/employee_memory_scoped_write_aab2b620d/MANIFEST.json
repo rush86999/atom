@@ -1,0 +1,66 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "scoped durable key/value and session-context memory family submitted for independent verification; remaining memory surfaces and whole-app ORACLE-01 remain open",
+  "branch": "codex/oracle01-memory-write-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "4a32ce30b03a47163fdd790297a96108d2c5c70f",
+  "executed_source": "aab2b620df3e740c6c255c6a869e72fcc7eb4af7",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/memory_routes.py": "483b97abb296ffb9e306cd3caace5146cb0a583fa91c3a728d3bec14019e0555",
+    "backend/core/memory_write_service.py": "f40ce3a0b42e5f6e45ece9043f9ad9aaeece9572197a7a142acbaeb1995428bb",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/api_governance.py": "a6921b5e994caaa734529087b16e2cb7d1f7ce2bc297620d0983f1b1d41aa05f",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_memory_write_contract.py": "32e8adcb25f76dd7f31412e45b4d50a2b1399e192978dc44b514e6f339f3f815",
+    "backend/tests/test_covpush_w10d_routes.py": "ddf5dfaa121110da191e813451020ed748739d034a8330185101157c8695529f",
+    "backend/tests/test_covpush_w10d_routes_b.py": "e3e202c0ba304b8bbffde25a6eb6674bb99b76b6cc81b22caabf3cb84250d3d5",
+    "backend/tests/test_covpush_w79a_api_routes.py": "2aec7bd5d352c7d543d5932c2987a8f47603ebc29403d6eb5444d0ab367e1237",
+    "backend/tests/unit/api/test_memory_routes.py": "d468e52cc652d364415fe2246024a6367ae1dccee408a8181520fbf0e65346a1",
+    "backend/tests/test_round26_memory_security.py": "8e5f6e722d01b31b0a3d7c359e6f6472049c84fcf6b99c1a033c5c929704a8ca"
+  },
+  "artifacts": {
+    "README.md": "f5b4450b7bf9048effe6931c318ea0b0f9443a58279a53f739f7f907cacc9e6a",
+    "TEST_RESULTS.md": "43f5a85d6aaa4bfbc533076c03015d2c61112517b2db92afd1f75c431afe9007",
+    "affected-311.log": "1073fb26eca2168b9ae59a5100a85b8cfc04751f43e3f40e3adca881d571b958",
+    "affected-314.log": "8e898d8c393b65c9658e56740709280fa33d07ac3d6152cced30abca94d93079",
+    "baseline-affected-95f7-311.log": "502ce66a722cb6842c6dec0a29dff0bac4db9013ff6d628c081580cd56c9746f",
+    "baseline-affected-95f7-314.log": "ed1fa9cbd21ab6fc47781810ce1cf0301874356ee403d106a527b42372b93d54",
+    "focused-311.log": "ba61958b02afc747006c25119ec8ecf7998aa368419fd881185ada5b77c05373",
+    "focused-314.log": "322d9b1a650db3188f08000c3e6ba9e5172c08b39dd7e8139dae58e839860be8",
+    "routes.json": "de13f37e3bbc4125d4df597f0a672a374e30478c9ea4ce00958be1358c953542",
+    "source-tree.txt": "c90d0ed4be7e216d01bc71177dd6ab88721b699ab0e70881afb866411140700a",
+    "verification.json": "369656df39d6066533214f94312658d03d4f1c702519934d5e9bb6760d16cb7c"
+  },
+  "checks": {
+    "focused_python314": "74 passed",
+    "focused_python311": "74 passed",
+    "affected_python314": "690 passed, 1 skipped, 7 baseline failures",
+    "affected_python311": "690 passed, 1 skipped, 7 baseline failures",
+    "baseline_python314": "665 passed, 1 skipped, 7 failures",
+    "baseline_python311": "665 passed, 1 skipped, 7 failures",
+    "baseline_failure_lists_identical": true,
+    "new_passing_controls": 25,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "unrelated_w79a_6": "6 MiniApp/Office controls; memory class green; identical on 9d73552d2",
+    "agent_memory_consolidation_1": "pre-existing multi-tenant AgentMemory consolidation control; identical on 9d73552d2"
+  },
+  "boundaries": [
+    "three mutation routes plus three scoped read/search consumers",
+    "no live model/provider/credential/spend/send/download/deployment or administrator/account/budget",
+    "no new memory table, migration or second memory/approval/authorization engine",
+    "existing TenantSetting and AuditLog reused; memory namespace isolated from billing/governance/BYOK keys",
+    "PostgreSQL runtime/soak, multi-worker serialization and live provider memory not qualified",
+    "submitted tool-mutation review branch is independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}
