@@ -1,0 +1,60 @@
+{
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "artifacts": {
+    "README.md": "135fdfbec00c7e5de8bc75a645e9a9fa24c59e301ca3e18af11770ec0edf526d",
+    "TEST_RESULTS.md": "d7451ab8dfbd225d469e2129509b679e25f3612a8dc76db05075ea9918eb53cb",
+    "affected-311.log": "e1c4772b3149e858329c29627813f2130b012f3936367995a7502ee1b63d8b5d",
+    "affected-314.log": "e03b9b5040984b3e4803391e4c21d1a46d94c5213f6bb00bd52fdbbdbc0e1991",
+    "baseline-311.log": "502ce66a722cb6842c6dec0a29dff0bac4db9013ff6d628c081580cd56c9746f",
+    "baseline-314.log": "2faf634cc85de799462ab68f6ab49435494f19214c360f43161bc5189c5eb3d9",
+    "focused-311.log": "249ae61e3b438f66c1ad843e8b3caceceea60f91674436ecdfb35b167dee35de",
+    "focused-314.log": "8654ca75b5a539339c0ca8e98284dfbe2ec84bc91e9119e470f11689bc600adf",
+    "routes.json": "77db4362dbc0576ffc8b30cc5d7116d61f93ee4bad02164d8c715ff4c1ce06cf",
+    "source-tree.txt": "2ad65d3402f093e90d2de92805efae0b6135e92f62e4b4587cecfe1eb8bfbf9e",
+    "verification.json": "95c078c915e40377e4b3beb6f041f72a752d5c679c9711beffa6f38fa607e478",
+    "verifier-probes-314.log": "27e24cf9551e6e26e3566a640d051433f7e821aea174fe1c94e90fe1bd7c190a"
+  },
+  "boundaries": [
+    "same bounded key/value and session-context family",
+    "current active User row bound in the same transaction as target/audit",
+    "deactivated/moved actors refused with effect=none and no audit",
+    "no new table, migration or authorization engine",
+    "no live model/provider/credential/spend/send/download/deployment or browser",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted tool-mutation review remain independent"
+  ],
+  "branch": "codex/oracle01-memory-write-20261105",
+  "checks": {
+    "affected_python311": "678 passed, 1 skipped, 7 baseline failures",
+    "affected_python314": "678 passed, 1 skipped, 7 baseline failures",
+    "baseline_python311": "665 passed, 1 skipped, 7 failures",
+    "baseline_python314": "665 passed, 1 skipped, 7 failures",
+    "browser_calls": 0,
+    "focused_python311": "87 passed",
+    "focused_python314": "87 passed",
+    "model_calls": 0,
+    "new_authority_controls": 13,
+    "new_schema": false,
+    "provider_calls": 0,
+    "verifier_authority_probes_python314": "6 passed"
+  },
+  "executed_source": "88ee1e901",
+  "prior_memory_evidence": "fa651e165",
+  "prior_memory_product": "4a32ce30b",
+  "prior_memory_source": "aab2b620d",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/api/memory_routes.py": "483b97abb296ffb9e306cd3caace5146cb0a583fa91c3a728d3bec14019e0555",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/memory_write_service.py": "1e47aa51fb492006a3207d6dea97cf755a5991a7ff56e3f1bdf9dc9915f91ca9",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/tests/test_memory_authority_contract.py": "a3a8b744f78ad16f0b79b4297c03c4c55bad246e22b2a6796f34bb56b4b5dc2d",
+    "backend/tests/test_memory_write_contract.py": "32e8adcb25f76dd7f31412e45b4d50a2b1399e192978dc44b514e6f339f3f815"
+  },
+  "status": "scoped-memory current-authority repair submitted for independent verification; durable storage/CAS/audit/replay preserved",
+  "tree_clean_at_execution": true
+}
