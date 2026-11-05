@@ -1,0 +1,86 @@
+{
+ "schema": "atom-feedback-cas-proof-1",
+ "executed_source": "6cdc50cc7c6a6434f891adce2f598575092a18cf",
+ "stale_positive_vs_committed_failure": {
+  "weak_kind": "positive",
+  "weak_status": "skipped_verdict",
+  "weak_recorded": false,
+  "strong_status": "annotated",
+  "final_success": false,
+  "final_quality_satisfied": false,
+  "final_business_outcome": "failed",
+  "final_verdict": "wrong_evidence_selection",
+  "final_failure_kind": "wrong_evidence_selection",
+  "selector": {
+   "samples": 1,
+   "successes": 0,
+   "semantic_failures": 1,
+   "last_failure_kind": "semantic_failure",
+   "incident_ids": [
+    "feedback-170b77a2-ee74-4013-9501-b8b5f8988c18-6a38d4a7899c74cc"
+   ]
+  }
+ },
+ "stale_pending_vs_committed_failure": {
+  "weak_kind": "pending",
+  "weak_status": "skipped_verdict",
+  "weak_recorded": false,
+  "strong_status": "annotated",
+  "final_success": false,
+  "final_quality_satisfied": false,
+  "final_business_outcome": "failed",
+  "final_verdict": "wrong_evidence_selection",
+  "final_failure_kind": "wrong_evidence_selection",
+  "selector": {
+   "samples": 2,
+   "successes": 0,
+   "semantic_failures": 2,
+   "last_failure_kind": "semantic_failure",
+   "incident_ids": [
+    "feedback-170b77a2-ee74-4013-9501-b8b5f8988c18-6a38d4a7899c74cc",
+    "feedback-61858175-b680-4738-ab7d-de0f15707a99-6a38d4a7899c74cc"
+   ]
+  }
+ },
+ "stronger_failure_vs_positive": {
+  "positive_status": "annotated",
+  "failure_status": "annotated",
+  "final_success": false,
+  "final_verdict": "wrong_evidence_selection",
+  "selector": {
+   "samples": 3,
+   "successes": 0,
+   "semantic_failures": 3,
+   "last_failure_kind": "semantic_failure",
+   "incident_ids": [
+    "feedback-170b77a2-ee74-4013-9501-b8b5f8988c18-6a38d4a7899c74cc",
+    "feedback-61858175-b680-4738-ab7d-de0f15707a99-6a38d4a7899c74cc",
+    "feedback-0c7a495f-47a3-4f16-835c-27968bfe2508-6a38d4a7899c74cc"
+   ]
+  }
+ },
+ "duplicate_same_verdict": {
+  "first_status": "annotated",
+  "second_status": "skipped_verdict",
+  "second_recorded": false,
+  "incident_id_stable": true,
+  "final_success": false
+ },
+ "changed_binding_during_evaluation": {
+  "weak_status": "refused_workspace",
+  "weak_recorded": false,
+  "final_workspace_id": "ws-changed",
+  "final_business_outcome": null,
+  "final_success": true
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "doubled transport; no live model inference",
+  "database-enforced CAS, authoritative reload, bounded retry",
+  "stale positive/pending writers cannot erase a committed failure",
+  "stronger failure wins over a committed positive",
+  "duplicate verdict is idempotent with stable incident identity",
+  "changed binding during evaluation refuses",
+  "selector evidence reflects the committed failure"
+ ]
+}
