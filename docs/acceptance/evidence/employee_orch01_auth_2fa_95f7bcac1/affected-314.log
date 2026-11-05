@@ -1,0 +1,617 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 13:49:14 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 13:49:14 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 13:49:14 [    INFO] No token storage file found, starting empty
+2026-11-05 13:49:14 [    INFO] OutlookEnhancedService initialized
+
+tests/test_round21_2fa_enable_disable_rate_limit.py::Test2FAEnableDisableRateLimited::test_enable_2fa_has_rate_limit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 13:49:14 [    INFO] EscalationManager initialized
+2026-11-05 13:49:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:49:14 [    INFO] EscalationManager initialized
+2026-11-05 13:49:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:49:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 13:49:14 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_round21_2fa_enable_disable_rate_limit.py::Test2FAEnableDisableRateLimited::test_disable_2fa_has_rate_limit PASSED [  1%]
+tests/test_round21_2fa_enable_disable_rate_limit.py::Test2FAEnableDisableRateLimited::test_rate_limiter_is_the_totp_limiter PASSED [  1%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_denied_below_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:14 [    INFO] Created HITL action 34de098e-e843-4757-870a-7767a5781208 for agent None
+PASSED                                                                   [  2%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:14 [    INFO] Created HITL action 489d53bb-3409-4c64-b15d-e59afd93cddf for agent None
+PASSED                                                                   [  2%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_required_role_matching_is_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 128b2c54-f065-4abb-aab2-06e1983d348f for agent None
+PASSED                                                                   [  3%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unknown_required_role_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 9d66e2cf-6b01-45c5-afe5-c9f19bb8080f for agent None
+2026-11-05 13:49:15 [   ERROR] HITL action 9d66e2cf-6b01-45c5-afe5-c9f19bb8080f requires unknown role 'grand_wizard'; denying (fail closed)
+PASSED                                                                   [  3%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unverified_approver_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 89000cf8-a638-4e05-a33b-273689519b16 for agent None
+PASSED                                                                   [  4%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_enforces_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 02430406-bfa3-422f-8449-c9062255eeb3 for agent None
+PASSED                                                                   [  4%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 318ea3f2-10fe-42c2-a1d7-94c8f6c6f724 for agent None
+PASSED                                                                   [  5%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_cannot_reject_non_pending_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action 2e922861-3efb-49d3-9401-02b384d28bb1 for agent None
+PASSED                                                                   [  5%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_modified_params_persist_on_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:15 [    INFO] Created HITL action b6698006-258a-4588-8e5f-a0d5bd88ddc6 for agent None
+PASSED                                                                   [  6%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_returns_plain_array 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/ca5d68f4-4904-4271-bcc4-26289b90cd6b "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2a9ab706-ae36-435f-90aa-e5e801692765 "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/some-action "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_respects_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/bfd79f4d-6bcc-4adf-b485-98a62f2cd6fe "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_modified_params_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:16 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/16766386-6113-4b20-95db-eee37e916bf0 "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_stale_goal_decision_is_refused_before_hitl_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/0d94695f-352f-497e-8847-41fa6042f8fe "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 10%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: reject_workflow on Workflow Approval
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_supervisor_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_member_cannot_approve_proposal PASSED [ 11%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_supervisor_can_approve_proposal PASSED [ 12%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_intervention_approve_uses_working_service_and_gates PASSED [ 12%]
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes PASSED [ 13%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [ 13%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] MCP Service initialized
+2026-11-05 13:49:17 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+PASSED                                                                   [ 14%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 14%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [ 15%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [ 15%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [ 16%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [ 16%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [ 17%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [ 17%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_empty_list 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_no_waiting_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_context_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_input_data_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_context_and_input 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_created_at 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_anonymous_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_legacy_waiting_marker 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [   ERROR] Failed to resume workflow: boom
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_no_comments 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_unknown_execution_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-zz/respond "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_not_waiting_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_decision_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_step_id_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_bad_decision_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_anonymous_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:17 [    INFO] Created HITL action bfa178b6-6284-4865-97db-96c02f4d4320 for agent agent-1
+PASSED                                                                   [ 27%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_without_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action af551d41-ec00-4576-a92f-abde9f50c8c6 for agent None
+PASSED                                                                   [ 28%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_persist_failure_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [   ERROR] Failed to request intervention: disk full
+PASSED                                                                   [ 28%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_all_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action 79b8be94-1ac6-4bfb-9b03-0888f9366ca7 for agent None
+2026-11-05 13:49:18 [    INFO] Created HITL action 2b02a639-4885-485d-9b44-55886ecec267 for agent None
+PASSED                                                                   [ 29%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_workspace_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action a189a088-db9c-455a-ae96-991e2adc75cd for agent None
+2026-11-05 13:49:18 [    INFO] Created HITL action 433ff7da-551c-42ce-ac5f-8a9386253a05 for agent None
+PASSED                                                                   [ 29%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action 07b95c81-5c66-494e-bdd5-e880837ecfb3 for agent None
+2026-11-05 13:49:18 [    INFO] Created HITL action 11ceff20-1acc-4d28-bbee-8a62bcf89392 for agent None
+FAILED                                                                   [ 30%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_serialized_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action 290d94df-5ad2-4abe-8613-fa8448b0b920 for agent agent-1
+PASSED                                                                   [ 30%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_agent_name_resolved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:18 [    INFO] Created HITL action 4ad86815-e1ff-441a-86ca-0071fda45b38 for agent agent-1
+PASSED                                                                   [ 31%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_unknown_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [    INFO] Created HITL action 38c00258-7eb6-4951-b289-fabe74c7c1b1 for agent ghost-agent
+PASSED                                                                   [ 31%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_no_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [    INFO] Created HITL action 9448b49d-8939-46ee-8527-a8587f020f06 for agent None
+PASSED                                                                   [ 32%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_empty PASSED [ 32%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_missing_action PASSED [ 33%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_non_pending_action PASSED [ 33%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_success PASSED [ 34%]
+tests/test_covpush_w104_intervention.py::TestRejectIntervention::test_missing_action PASSED [ 34%]
+tests/test_covpush_w104_intervention.py::TestRejectIntervention::test_success PASSED [ 35%]
+tests/test_covpush_w104_intervention.py::TestSingleton::test_module_singleton PASSED [ 35%]
+tests/test_covpush_w82_intervention.py::TestExecuteIntervention::test_dispatches_to_handler 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [    INFO] Executing Intervention iv-1: draft_retention_email with {'client_name': 'Acme'}
+PASSED                                                                   [ 36%]
+tests/test_covpush_w82_intervention.py::TestExecuteIntervention::test_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [    INFO] Executing Intervention iv-1: delete_everything with {}
+PASSED                                                                   [ 36%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_success PASSED [ 37%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_no_draft PASSED [ 37%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Gmail draft failed: SMTP down
+PASSED                                                                   [ 38%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_outlook_missing_user_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Outlook draft failed: Missing user_id for authentication
+PASSED                                                                   [ 38%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_outlook_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [    INFO] Drafting Outlook email for Acme on behalf of user u-1
+PASSED                                                                   [ 39%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_no_provider_available PASSED [ 39%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_defaults PASSED [ 40%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_missing_subscription_id PASSED [ 40%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_missing_stripe_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Missing stripe_token for subscription cancellation
+PASSED                                                                   [ 41%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_success PASSED [ 41%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_api_error_not_reported_as_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Stripe cancellation failed: card_declined
+PASSED                                                                   [ 42%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_unavailable PASSED [ 42%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_empty_invoices PASSED [ 43%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_no_valid_recipients PASSED [ 43%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_success PASSED [ 44%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_no_result PASSED [ 44%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Gmail bulk send failed: burst limit
+PASSED                                                                   [ 45%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_missing_user_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Outlook bulk send failed: Missing user_id for authentication
+PASSED                                                                   [ 45%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_success PASSED [ 46%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_send_failed PASSED [ 46%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:19 [   ERROR] Outlook bulk send failed: graph down
+PASSED                                                                   [ 47%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_no_provider_available PASSED [ 47%]
+tests/test_covpush_w82_intervention.py::TestSingleton::test_module_singleton_is_service PASSED [ 48%]
+tests/test_covpush_w82_intervention.py::TestImportBranches::test_all_import_variants PASSED [ 48%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 49%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 49%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 50%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 50%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 51%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 51%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 52%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 52%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 53%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 53%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 54%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 54%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 55%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 55%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 56%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 56%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 57%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 57%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 58%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 58%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [    INFO] Old audit log removed
+2026-11-05 13:49:20 [    INFO] Old audit log removed
+2026-11-05 13:49:20 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 59%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 59%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] AuditLogger initialized
+2026-11-05 13:49:20 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [ 60%]
+tests/test_audit_routes_api.py::TestEventsEndpoint::test_lists_events_with_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events "HTTP/1.1 200 OK"
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events?success=false "HTTP/1.1 200 OK"
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events?agent_id=agent-2 "HTTP/1.1 200 OK"
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events?event_type=llm_call "HTTP/1.1 200 OK"
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events?execution_id=e1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_audit_routes_api.py::TestEventsEndpoint::test_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events?limit=2&offset=3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_full_timeline 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/e1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_unknown_execution_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 62%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_falls_back_to_agent_execution_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/legacy-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_audit_routes_api.py::TestExecutionList::test_lists_runs_with_counts_and_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/executions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_audit_routes_api.py::TestExecutionList::test_agent_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/executions?agent_id=a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_audit_routes_api.py::TestSummary::test_summary_aggregates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_audit_routes_api.py::TestSummary::test_summary_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_audit_routes_api.py::test_debug_override 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] HTTP Request: GET http://testserver/api/audit/events "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_writes_audit_row_with_execution_linkage PASSED [ 65%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_no_context_still_writes_row PASSED [ 66%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_failure_never_raises_but_logs_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=tool:x execution=None): db down
+Traceback (most recent call last):
+  File "/private/tmp/atom-auth2fa/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+PASSED                                                                   [ 66%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_payload_truncation PASSED [ 67%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_logged_inside_agent_context PASSED [ 67%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_skipped_outside_agent_context PASSED [ 68%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_passthrough_and_ledger PASSED [ 68%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_ledgers_failure PASSED [ 69%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_complete_when_audits_cover_expected PASSED [ 69%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_gap_detected_when_audits_missing PASSED [ 70%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_count_failure_reported_not_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for exec-1: boom
+PASSED                                                                   [ 70%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_successful_tool_call_audited PASSED [ 71%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_error_string_result_marked_failed PASSED [ 71%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_exception_audited_then_reraised PASSED [ 72%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_audit_failure_does_not_break_tool PASSED [ 72%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_initialization PASSED [ 73%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_to_dict PASSED [ 73%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_passwords PASSED [ 74%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_tokens PASSED [ 74%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_api_keys PASSED [ 75%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_secrets PASSED [ 75%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_dicts PASSED [ 76%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 76%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_without_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 77%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: jira.create_issue: Test error
+NoneType: None
+PASSED                                                                   [ 77%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_without_params 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: zoom.create_meeting: Invalid input
+NoneType: None
+PASSED                                                                   [ 78%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_returns_context PASSED [ 78%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_captures_time PASSED [ 79%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 79%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: jira.create_issue: Creation failed
+NoneType: None
+PASSED                                                                   [ 80%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_returns_duration_ms 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: test.test_method
+PASSED                                                                   [ 80%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_without_result_or_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 81%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_custom_timestamp PASSED [ 81%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_default_timestamp_is_current PASSED [ 82%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_has_iso_timestamp PASSED [ 82%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_epoch PASSED [ 83%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_all_fields PASSED [ 83%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_exception_object 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: test.test_method: Invalid value
+NoneType: None
+PASSED                                                                   [ 84%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_custom_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [   ERROR] Integration error: test.test_method: Custom error message
+NoneType: None
+PASSED                                                                   [ 84%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_none_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:20 [    INFO] Integration call: test.test_method
+PASSED                                                                   [ 85%]
+tests/test_execution_insert_path_audit.py::test_no_production_insert_path_bypasses_the_owner_stamp PASSED [ 85%]
+tests/test_execution_insert_path_audit.py::test_the_listener_is_actually_registered_and_fires PASSED [ 86%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [ 86%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [ 87%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_a_false_oracle_pass PASSED [ 87%]
+tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix PASSED [ 88%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 88%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:49:21 [ WARNING] [Oracle] postcondition check for test.oracle.raises.2d9e64ca failed: oracle transport unavailable
+PASSED                                                                   [ 89%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 89%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 90%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 90%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [ 91%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 91%]
+tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [ 92%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 92%]
+tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [ 93%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 93%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 94%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 94%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 95%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 95%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 96%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 96%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 97%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 97%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 98%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 98%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 99%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 99%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: assert 0 == 2
+     +  where 0 = len([])
+     +    where [] = get_pending_interventions(workspace_id='default')
+     +      where get_pending_interventions = <core.intervention_service.InterventionService object at 0x1291c7710>.get_pending_interventions
+------------------------------ Captured log call -------------------------------
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 07b95c81-5c66-494e-bdd5-e880837ecfb3 for agent None
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 11ceff20-1acc-4d28-bbee-8a62bcf89392 for agent None
+/private/tmp/atom-auth2fa/backend/tests/test_covpush_w104_intervention.py:149: AssertionError: assert 0 == 2
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/token_storage.py:17
+  /private/tmp/atom-auth2fa/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 400 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_round21_2fa_enable_disable_rate_limit.py::Test2FAEnableDisableRateLimited::test_enable_2fa_has_rate_limit
+  /private/tmp/atom-auth2fa/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1 failed, 199 passed, 409 warnings in 25.01s =================
