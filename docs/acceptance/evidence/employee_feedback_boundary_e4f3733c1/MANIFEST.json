@@ -1,0 +1,116 @@
+{
+ "schema": "atom-employee-evidence-1",
+ "status": "feedback write binding and cross-task generation receipt repaired; parsed wait-choice origin integrated without automatic business success",
+ "executed_source": "e4f3733c1399ac1ca5ecef44adc02eec2fbe4da2",
+ "predecessor_source": "2ab959fc0be8c18724e1e143172d9e51ef630369",
+ "predecessor_evidence": "employee_business_feedback_2ab959fc0",
+ "wait_guard_source": "0a9df5377c0f5f85667c90e69b129d2b3ade3b1e",
+ "label_correction_source": "d6a561b2bb7b17f26360440a077cd18eff430b16",
+ "proof": {
+  "wrong_or_missing_scope_refusals": 8,
+  "correct_binding_status": "annotated",
+  "correct_binding_inserted_rows": 0,
+  "cost_preserved": true,
+  "latency_preserved": true,
+  "unknown_generation_status": "skipped_missing_generation",
+  "unknown_generation_orphan_rows": 0,
+  "same_model_two_providers": {
+   "status": "annotated",
+   "selected_provider_row_updated": true,
+   "other_provider_row_unchanged": true
+  },
+  "duplicate_evaluation": {
+   "first": "annotated",
+   "second": "skipped_verdict",
+   "final_success": false
+  },
+  "concurrent_precedence": {
+   "final_success": false,
+   "final_failure_kind": "wrong_evidence_selection"
+  },
+  "child_task_receipt": {
+   "source": "model",
+   "routing_result_id": "generation-a",
+   "served_route": {
+    "provider": "controlled",
+    "model": "model-a"
+   },
+   "profile": {
+    "name": "employee_evidence_selection",
+    "version": "2026-11-04.1"
+   },
+   "mode": "unpinned"
+  },
+  "wait_choice": {
+   "parsed_pending": {
+    "status": "annotated",
+    "business_outcome": "unresolved",
+    "transport_success": true,
+    "counted_as_capability_sample": false
+   },
+   "validated_decision": {
+    "status": "annotated",
+    "business_outcome": "satisfied",
+    "scope": "decision",
+    "verdict": "business_satisfied"
+   },
+   "rejected_wait": {
+    "status": "annotated",
+    "failure_kind": "invalid_plan_reference",
+    "business_outcome": "failed",
+    "success": false
+   }
+  },
+  "controlled_decision_change": {
+   "served_route": {
+    "provider": "local_pricey",
+    "model": "pricey-model"
+   },
+   "source": "model"
+  }
+ },
+ "checks": {
+  "feedback_controls": "22 passed",
+  "broad_affected_python311": "466 passed",
+  "broad_affected_python314": "466 passed",
+  "independent_boundary_probes": "3/3 passed on 3.11 and 3.14"
+ },
+ "source_files": {
+  "backend/api/assignment_routes.py": "a5131a1d0a8719ed748014d247010cacdd2745ba9c7c94b6c4c8065081d96699",
+  "backend/core/employee_adaptation.py": "9575eb5fc967671d5f8fb59ddfe4fab3256c5b9d06b3abaa100b92d43c2db15d",
+  "backend/core/employee_proposal.py": "cdba3222a450e2b050c5f94efdd6c99889dcc417d9be6554c2894705c349b660",
+  "backend/core/employee_routing_feedback.py": "d3fb8d92d996cb9750290cb93c8b7fce6c0a15c325a1b2b17148029139759d77",
+  "backend/core/learning_llm_router.py": "a93a5fffcddaffb08a48353c3eee211ed59379928878e97229eee1c460a920a2",
+  "backend/core/llm/capability_profiles.py": "0bf20b5ad3bb893b35df85e9129491bddc273a4c66441f5dad7d37dfb934497c",
+  "backend/core/llm/pinned_planning.py": "af1694053dd8fd447523ab04620d599fe84ec987612b7f34746a901b96f2da48",
+  "backend/tests/test_employee_adaptation_contract.py": "038c3f42dfded82e9756afc6720c6215c586db07700d01a99b9cc2b9d0a36c5d",
+  "backend/tests/test_employee_business_feedback.py": "51e094a5797ff319fbd9daf8d0bcd97c12692e1660fd35c3ab6661c415925714",
+  "backend/tests/test_employee_wait_choice.py": "1b7b406715538339f3acf6d42735f4beefd4597fd5a58968517cac5857799d66",
+  "backend/tests/test_assignment_routes.py": "9403d284cc99e1712727b25183de03fcb9d2397341b0222693398e17318dc6d0"
+ },
+ "artifacts": {
+  "README.md": "7e2cbd750177a5ef65a6df64a9fb04cb13c7076376018642ed769fcf74caf41f",
+  "feedback-boundary-proof.json": "719ef45b7cfda0c67d820696d0be2ba79133bd1daffd91af567001e99d83ac83",
+  "feedback-tests.log": "07f5148c88b82246008afecefc8c89f840c2b8570b719d06378be1b7f4c77cdd",
+  "frozen-affected-311.log": "c562d3f510e440437b6184ebfbfb9302b77bac9fbebaf759ebeaf5c7297fa7c2",
+  "frozen-affected-314.log": "4ca374865931d691161130d8d1096c47695af010ddd52d3692620d8929b01518",
+  "probes-311.log": "f0e94b8e16d5c1c368a63dcd91e49a8cfc5e2203db95a930b8ad7ae76d0b13b6",
+  "probes-314.log": "e37b0dd29c24612a8b7d6248ac8fe56bb1eddbb34d354829a521fc087bce5dff",
+  "proof.log": "b22b5d04303d45c11f8dd1b3312d4392e3222e9e564257ad78fa7f142204765c",
+  "proof.py": "9697f1c5f0075cd164121658a39dd20793a2798b40535564741a1a3eb979ab62"
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "provider transport doubled; no live model inference",
+  "wrong/missing scope/provider/model/profile/version refuse",
+  "no orphan business row for an unknown generation",
+  "same model on two providers binds to the exact provider",
+  "duplicate evaluation is idempotent; stronger verdict wins",
+  "child-task wait_for receipt is returned explicitly",
+  "parsed wait is unresolved; only a validated decision or explicit result is satisfactory",
+  "no live model inference, provider, credential, spend, download or deployment",
+  "predecessor proof preserved unchanged; this is the successor qualification",
+  "legacy fabrication/correction annotation behavior preserved",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ]
+}
