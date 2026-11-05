@@ -49,6 +49,11 @@ REVOKE_MIN_ROWS = 20
 GLOBAL_WORKLOAD_KEY = "__global__"
 
 
+def _merge_error(existing: Optional[str], message: str) -> str:
+    existing = str(existing or "").strip()
+    return f"{existing}; {message}" if existing else message
+
+
 def workload_key_for(request: str) -> str:
     """Anonymized workload signature: sha1 of the normalized request, 16 hex."""
     if not request:
@@ -74,6 +79,12 @@ def record_fleet_decision(
 ) -> Optional[str]:
     """Persist one fleet-routing decision (shadow or enforced). Never raises.
 
+    The authenticated ``AgentExecution`` row is the scope authority. Caller
+    scope is never allowed to become default authority: when it conflicts with
+    the execution row the execution scope is recorded and the conflict is made
+    explicit; when the execution row is missing/incomplete the row is marked
+    ``scope_unverified`` and is not outcome/calibration eligible.
+
     Returns the audit row id (for callers that need to reference it), or None
     on any failure — the hot path must never be blocked by telemetry.
     """
@@ -81,9 +92,56 @@ def record_fleet_decision(
         import uuid as _uuid
 
         from core.database import get_db_session
-        from core.models import FleetRoutingAudit
+        from core.models import AgentExecution, FleetRoutingAudit
 
         with get_db_session() as db:
+            execution = None
+            if execution_id:
+                execution = (
+                    db.query(AgentExecution)
+                    .filter(AgentExecution.id == str(execution_id))
+                    .first()
+                )
+
+            scope_conflict = False
+            if execution is not None:
+                auth_tenant = execution.tenant_id
+                auth_workspace = execution.workspace_id
+                auth_agent = execution.agent_id
+                if tenant_id is not None and str(tenant_id) != str(
+                        auth_tenant or ""):
+                    scope_conflict = True
+                if workspace_id is not None and str(workspace_id) != str(
+                        auth_workspace or ""):
+                    scope_conflict = True
+                if (
+                    agent_id is not None
+                    and auth_agent is not None
+                    and str(agent_id) != str(auth_agent)
+                ):
+                    scope_conflict = True
+                tenant_id = auth_tenant
+                workspace_id = auth_workspace
+                agent_id = auth_agent or agent_id
+                if not auth_tenant or not auth_workspace:
+                    decision_source = "scope_unverified"
+                    error = _merge_error(
+                        error, "authenticated execution scope is incomplete")
+                elif scope_conflict:
+                    decision_source = "scope_conflict"
+                    error = _merge_error(
+                        error,
+                        "caller scope conflicted with authenticated execution; "
+                        "authoritative execution scope recorded",
+                    )
+            else:
+                # No authenticated execution to bind to. Preserve an explicit
+                # caller scope for diagnostics, but never manufacture a
+                # default scope and never let the row certify an outcome.
+                decision_source = "scope_unverified"
+                error = _merge_error(
+                    error, "authenticated execution scope unavailable")
+
             row = FleetRoutingAudit(
                 id=str(_uuid.uuid4()),
                 execution_id=execution_id,
@@ -115,25 +173,77 @@ def record_fleet_execution_outcome(
     actual_latency_ms: Optional[float] = None,
     actual_model: Optional[str] = None,
     actual_provider: Optional[str] = None,
-) -> None:
-    """Join a finalized meta-agent execution onto its fleet audit rows.
+    *,
+    audit_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Join a finalized meta-agent execution onto its exact fleet audit row.
 
-    Called from both finalize points in ``AtomMetaAgent.execute()``. Updates
-    every audit row with the given ``execution_id`` (in practice one). Rows
-    missing (e.g. execution never reached the fleet branch) are a no-op.
-    Never raises.
+    The authenticated ``AgentExecution`` row is the scope authority. The
+    join binds that scope and, when supplied, the exact decision ``audit_id``.
+    It is first-writer-wins: a duplicate delivery with the same success is
+    idempotent; a stale/different writer is refused and never overwrites the
+    authoritative outcome. Never raises.
     """
+    result: Dict[str, Any] = {
+        "status": "not_found",
+        "execution_id": str(execution_id or ""),
+        "audit_id": audit_id,
+        "applied": [],
+        "already_applied": [],
+        "conflicts": [],
+    }
     try:
         from core.database import get_db_session
-        from core.models import FleetRoutingAudit
+        from core.models import AgentExecution, FleetRoutingAudit
 
         with get_db_session() as db:
-            rows = (
-                db.query(FleetRoutingAudit)
-                .filter(FleetRoutingAudit.execution_id == execution_id)
-                .all()
-            )
+            execution = None
+            if execution_id:
+                execution = (
+                    db.query(AgentExecution)
+                    .filter(AgentExecution.id == str(execution_id))
+                    .first()
+                )
+            if execution is None:
+                result["status"] = "scope_unavailable"
+                return result
+            auth_tenant = execution.tenant_id
+            auth_workspace = execution.workspace_id
+            if not auth_tenant or not auth_workspace:
+                result["status"] = "scope_unavailable"
+                return result
+            if tenant_id is not None and str(tenant_id) != str(auth_tenant):
+                result["status"] = "scope_conflict"
+                return result
+            if workspace_id is not None and str(workspace_id) != str(
+                    auth_workspace):
+                result["status"] = "scope_conflict"
+                return result
+
+            query = db.query(FleetRoutingAudit)
+            if audit_id:
+                rows = query.filter(
+                    FleetRoutingAudit.id == str(audit_id)).all()
+            else:
+                rows = query.filter(
+                    FleetRoutingAudit.execution_id == str(execution_id)).all()
+
             for row in rows:
+                if (
+                    str(row.execution_id or "") != str(execution_id)
+                    or str(row.tenant_id or "") != str(auth_tenant)
+                    or str(row.workspace_id or "") != str(auth_workspace)
+                ):
+                    result["conflicts"].append(row.id)
+                    continue
+                if row.success is not None:
+                    if bool(row.success) == bool(success):
+                        result["already_applied"].append(row.id)
+                    else:
+                        result["conflicts"].append(row.id)
+                    continue
                 row.success = bool(success)
                 if error_message:
                     row.error = str(error_message)[:400]
@@ -143,19 +253,33 @@ def record_fleet_execution_outcome(
                     row.actual_model = actual_model
                 if actual_provider:
                     row.actual_provider = actual_provider
+                result["applied"].append(row.id)
             db.commit()
+
+            if result["applied"]:
+                result["status"] = "applied"
+            elif result["already_applied"] and not result["conflicts"]:
+                result["status"] = "already_applied"
+            elif result["conflicts"]:
+                result["status"] = "conflict"
+            else:
+                result["status"] = "not_found"
 
         # P4 contribution credit (AGENT_ORG_POLITICS_PLAN.md): feed bucket-
         # brigade weights into graduation on fleet finalization. Flag-gated;
         # never raises; no-op when no chain/links exist.
-        try:
-            from core.contribution_credit import record_chain_credit
+        if result["status"] in ("applied", "already_applied"):
+            try:
+                from core.contribution_credit import record_chain_credit
 
-            record_chain_credit(execution_id)
-        except Exception as cc_err:
-            logger.debug("contribution credit skipped: %s", cc_err)
+                record_chain_credit(execution_id)
+            except Exception as cc_err:
+                logger.debug("contribution credit skipped: %s", cc_err)
+        return result
     except Exception as e:
         logger.warning("Fleet routing outcome join failed: %s", e)
+        result["status"] = "error"
+        return result
 
 
 def _workload_stats(db) -> Dict[str, Dict[str, Any]]:
@@ -172,11 +296,16 @@ def _workload_stats(db) -> Dict[str, Dict[str, Any]]:
         wk = row.workload_key or "unknown"
         s = stats.setdefault(
             wk,
-            {"n": 0, "successes": 0, "recruit_attempts": 0, "recruit_successes": 0},
+            {"n": 0, "successes": 0, "recruit_attempts": 0,
+             "recruit_successes": 0, "enforced_n": 0, "shadow_n": 0},
         )
         s["n"] += 1
         if row.success:
             s["successes"] += 1
+        if row.enforced:
+            s["enforced_n"] += 1
+        else:
+            s["shadow_n"] += 1
         if row.recruitment_succeeded is not None:
             s["recruit_attempts"] += 1
             if row.recruitment_succeeded:
@@ -193,6 +322,8 @@ def _workload_stats(db) -> Dict[str, Dict[str, Any]]:
                 if s["recruit_attempts"]
                 else None
             ),
+            "enforced_n": s["enforced_n"],
+            "shadow_n": s["shadow_n"],
         }
     return out
 
