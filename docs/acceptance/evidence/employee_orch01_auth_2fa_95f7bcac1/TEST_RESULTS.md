@@ -4,12 +4,12 @@ Executed source: `95f7bcac1a0375b4f0465a77e15130f68fc9665d`
 Accepted canvas base: `fe401e1112fdb544ce07650f7733519c14b25790`
 Runtime: real scratch SQLite with fresh sessions; controlled time/rate limiter.
 
-Frozen extraction roots:
+Execution root: `/private/tmp/atom-auth2fa/backend`, on the clean source
+commit `95f7bcac1a0375b4f0465a77e15130f68fc9665d` (`git status --short` was
+empty before the final runs). The previous `892dad660` extraction roots were
+not used for these final results.
 
-- Python 3.14: `/private/tmp/atom-auth2fa-892-314/backend`
-- Python 3.11: `/private/tmp/atom-auth2fa-892-311/backend`
-
-Every command ran from the corresponding extraction root with:
+Every command ran from that root with:
 
 ```sh
 export PYTHONDONTWRITEBYTECODE=1
@@ -36,6 +36,19 @@ gives **82 passed** (`focused-311.log`).
 This is the original 47 route/durable controls, 34 boundary/valid-twin
 controls (including stale-mirror cleanup) and the pre-migration
 scratch-database upgrade control.
+
+## Original 47 frozen controls
+
+The two focused files from the withheld source `892dad660` were extracted to
+`/private/tmp/auth2fa-frozen47` and replayed unchanged against the repaired
+source:
+
+```sh
+$PY314 -B -m pytest /private/tmp/auth2fa-frozen47 -q --tb=line
+```
+
+Result: **47 passed** (`original-47-frozen.log`). This is the retention check
+for the original accepted controls; it is not added to the focused count.
 
 ## Independent boundary probes
 
@@ -113,6 +126,7 @@ unrelated millisecond-clock assertion, not a 2FA route regression.
 ## Counts
 
 - Focused: 82 passed on both versions.
+- Original 47 frozen replay: 47 passed on Python 3.14.
 - Independent boundary probes: 12 passed on both versions.
 - W80B 2FA: 33 passed on both versions.
 - Affected: 199 passed + 1 pre-existing failure on both versions.
@@ -141,7 +155,10 @@ The focused real controls include:
   fields;
 - concurrent actor workspace/status/role and action material changes before the
   claim;
-- pre-migration SQLite Alembic upgrade and recovery-code backfill;
+- stale legacy mirror cleanup when a consumed fingerprint would otherwise
+  remain listed or counted;
+- pre-migration SQLite Alembic upgrade, guarded re-upgrade and recovery-code
+  backfill;
 - no secret/OTP/recovery code in audit metadata, operation receipts, HTTP
   responses or captured logs.
 

@@ -1,13 +1,13 @@
 
 tests/test_auth_2fa_migration_upgrade.py::test_migration_upgrades_pre_migration_scratch_account_db 
 -------------------------------- live log setup --------------------------------
-2026-11-05 13:42:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-05 13:42:22 [    INFO] EscalationManager initialized
-2026-11-05 13:42:22 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 13:42:22 [    INFO] EscalationManager initialized
-2026-11-05 13:42:22 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 13:42:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-05 13:42:22 [    INFO] AgentTaskRegistry initialized
+2026-11-05 13:52:45 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 13:52:45 [    INFO] EscalationManager initialized
+2026-11-05 13:52:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:52:45 [    INFO] EscalationManager initialized
+2026-11-05 13:52:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:52:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 13:52:45 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
@@ -49,4 +49,4 @@ tests/test_auth_2fa_migration_upgrade.py::test_migration_upgrades_pre_migration_
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 9 warnings in 9.36s =========================
+======================== 1 passed, 9 warnings in 9.38s =========================

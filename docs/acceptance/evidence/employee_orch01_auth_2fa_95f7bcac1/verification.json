@@ -44,7 +44,8 @@
     "totp_time_step_is_single_use": true,
     "unverified_auth_grants_return_503": true,
     "unverified_retry_cannot_become_success": true,
-    "verified_retry_acknowledges_without_new_event": true
+    "verified_retry_acknowledges_without_new_event": true,
+    "original_47_frozen_controls_pass": true
   },
   "exclusions": {
     "intervention_default_workspace": {
@@ -130,8 +131,12 @@
       "deselected": 308,
       "log": "w80b-2fa-314.log",
       "passed": 33
+    },
+    "original_47_frozen_python314": {
+      "log": "original-47-frozen.log",
+      "passed": 47
     }
   },
   "schema": "atom-oracle-auth-2fa-1",
-  "status": "five-route auth/2FA slice submitted for independent verification; whole-app ORACLE-01 remains open"
+  "status": "five-route auth/2FA boundary repair submitted for independent verification; supersedes ef4a2fb4d with stale-mirror cleanup and guarded migration re-entry; whole-app ORACLE-01 remains open"
 }

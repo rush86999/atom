@@ -1,9 +1,10 @@
 # ORACLE-01 / five-route auth-2FA verified-write slice
 
 Status: **submitted for independent verification.** This is the bounded
-five-route auth/2FA slice from the accepted canvas evidence
-`fe401e111` (runtime `82ac9681a`). Whole-app ORACLE-01 and the full auth family
-remain open.
+five-route auth/2FA boundary repair from the accepted canvas evidence
+`fe401e111` (runtime `82ac9681a`). It supersedes the intermediate `ef4a2fb4d`
+submission with stale legacy-mirror cleanup and guarded migration re-entry.
+Whole-app ORACLE-01 and the full auth family remain open.
 
 ## Executed source
 
@@ -139,6 +140,8 @@ authority was used.
   route/durable controls, 34 boundary/valid-twin controls (including stale
   legacy-mirror cleanup) and the pre-migration scratch-database upgrade
   control.
+- **Original 47 frozen replay: 47 passed** on Python 3.14 — the withheld
+  `892dad660` focused files replayed unchanged against this source.
 - **Independent boundary probes: 12 passed** on both versions, matching the
   verifier's failure-first matrix.
 - **W80B 2FA classes: 33 passed** on both versions (the unrelated workflow
@@ -186,6 +189,7 @@ session, and no secret/code in audit or receipt artifacts.
 ## Artifacts
 
 `focused-*.log`, `boundary-probes-*.log`, `migration-*.log`,
-`w80b-2fa-*.log`, `affected-*.log`, `base-pre-existing.log`, `README.md`,
-`TEST_RESULTS.md`, `verification.json`, `routes.json`. `MANIFEST.json` records
-the SHA-256 of every artifact and changed source file.
+`w80b-2fa-*.log`, `affected-*.log`, `base-pre-existing.log`,
+`original-47-frozen.log`, `README.md`, `TEST_RESULTS.md`,
+`verification.json`, `routes.json`. `MANIFEST.json` records the SHA-256 of
+every artifact and changed source file.

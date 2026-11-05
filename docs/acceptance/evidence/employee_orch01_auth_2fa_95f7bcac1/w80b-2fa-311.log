@@ -1,146 +1,146 @@
 
 ----------------------------- live log collection ------------------------------
-2026-11-05 13:47:01 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-05 13:47:01 [    INFO] EscalationManager initialized
-2026-11-05 13:47:01 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 13:47:01 [    INFO] EscalationManager initialized
-2026-11-05 13:47:01 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 13:47:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-05 13:47:01 [    INFO] MCP Service initialized
+2026-11-05 13:51:04 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 13:51:04 [    INFO] EscalationManager initialized
+2026-11-05 13:51:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:51:04 [    INFO] EscalationManager initialized
+2026-11-05 13:51:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:51:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 13:51:04 [    INFO] MCP Service initialized
 
 tests/test_covpush_w80b_api_routes.py::Test2FAStatus::test_status_disabled 
 -------------------------------- live log setup --------------------------------
-2026-11-05 13:47:02 [    INFO] AgentTaskRegistry initialized
+2026-11-05 13:51:05 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:03 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
+2026-11-05 13:51:05 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
 PASSED                                                                   [  3%]
 tests/test_covpush_w80b_api_routes.py::Test2FAStatus::test_status_enabled 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:05 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
+2026-11-05 13:51:06 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
 PASSED                                                                   [  6%]
 tests/test_covpush_w80b_api_routes.py::Test2FAStatus::test_status_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:07 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:07 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [  9%]
 tests/test_covpush_w80b_api_routes.py::Test2FASetup::test_setup_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:08 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
+2026-11-05 13:51:08 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
 PASSED                                                                   [ 12%]
 tests/test_covpush_w80b_api_routes.py::Test2FASetup::test_setup_saves_secret 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:11 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
+2026-11-05 13:51:09 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
 PASSED                                                                   [ 15%]
 tests/test_covpush_w80b_api_routes.py::Test2FASetup::test_setup_already_enabled_409 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:13 [ WARNING] API Error: CONFLICT - 2FA is already enabled
-2026-11-05 13:47:13 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 409 Conflict"
+2026-11-05 13:51:09 [ WARNING] API Error: CONFLICT - 2FA is already enabled
+2026-11-05 13:51:09 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 18%]
 tests/test_covpush_w80b_api_routes.py::Test2FASetup::test_setup_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:16 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:10 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 21%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_success_with_backup_codes 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:17 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+2026-11-05 13:51:11 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
 PASSED                                                                   [ 24%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_invalid_code 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:18 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
-2026-11-05 13:47:18 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:12 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:51:12 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 27%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_not_initiated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:20 [ WARNING] API Error: VALIDATION_ERROR - 2FA setup not initiated
-2026-11-05 13:47:20 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:12 [ WARNING] API Error: VALIDATION_ERROR - 2FA setup not initiated
+2026-11-05 13:51:12 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 30%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_already_enabled 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:22 [ WARNING] API Error: CONFLICT - 2FA is already enabled
-2026-11-05 13:47:22 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 409 Conflict"
+2026-11-05 13:51:13 [ WARNING] API Error: CONFLICT - 2FA is already enabled
+2026-11-05 13:51:13 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 33%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_missing_code_422 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:23 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:14 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 36%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_rate_limited_429 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:26 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 429 Too Many Requests"
+2026-11-05 13:51:14 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 429 Too Many Requests"
 PASSED                                                                   [ 39%]
 tests/test_covpush_w80b_api_routes.py::Test2FAEnable::test_enable_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:26 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:15 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 42%]
 tests/test_covpush_w80b_api_routes.py::Test2FADisable::test_disable_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:29 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 200 OK"
+2026-11-05 13:51:16 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 200 OK"
 PASSED                                                                   [ 45%]
 tests/test_covpush_w80b_api_routes.py::Test2FADisable::test_disable_not_enabled 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:30 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
-2026-11-05 13:47:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:17 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
+2026-11-05 13:51:17 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 48%]
 tests/test_covpush_w80b_api_routes.py::Test2FADisable::test_disable_invalid_code 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:32 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
-2026-11-05 13:47:32 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:17 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:51:17 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 51%]
 tests/test_covpush_w80b_api_routes.py::Test2FADisable::test_disable_rate_limited_429 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:33 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 429 Too Many Requests"
+2026-11-05 13:51:18 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 429 Too Many Requests"
 PASSED                                                                   [ 54%]
 tests/test_covpush_w80b_api_routes.py::Test2FADisable::test_disable_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:35 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:19 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 57%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupVerify::test_backup_verify_success_consumes_code 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:38 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 200 OK"
+2026-11-05 13:51:20 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 200 OK"
 PASSED                                                                   [ 60%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupVerify::test_backup_verify_not_enabled 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:38 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
-2026-11-05 13:47:38 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:20 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
+2026-11-05 13:51:20 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 63%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupVerify::test_backup_verify_invalid_code 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:39 [ WARNING] API Error: VALIDATION_ERROR - Invalid backup code
-2026-11-05 13:47:39 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:21 [ WARNING] API Error: VALIDATION_ERROR - Invalid backup code
+2026-11-05 13:51:21 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 66%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupVerify::test_backup_verify_no_codes_stored 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:41 [ WARNING] API Error: VALIDATION_ERROR - Invalid backup code
-2026-11-05 13:47:41 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:22 [ WARNING] API Error: VALIDATION_ERROR - Invalid backup code
+2026-11-05 13:51:22 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 69%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupVerify::test_backup_verify_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:42 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:23 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 72%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:46 [    INFO] Resuming workflow for action act-1
-2026-11-05 13:47:46 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 200 OK"
+2026-11-05 13:51:24 [    INFO] Resuming workflow for action act-1
+2026-11-05 13:51:24 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 200 OK"
 PASSED                                                                   [ 75%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_not_enabled 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:48 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled for your account
-2026-11-05 13:47:48 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:24 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled for your account
+2026-11-05 13:51:24 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 78%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_invalid_code 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:49 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
-2026-11-05 13:47:49 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 13:51:25 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:51:25 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 81%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_missing_action_404 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:51 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/missing-action "HTTP/1.1 404 Not Found"
+2026-11-05 13:51:26 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/missing-action "HTTP/1.1 404 Not Found"
 PASSED                                                                   [ 84%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_rate_limited_429 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:52 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 429 Too Many Requests"
+2026-11-05 13:51:27 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 429 Too Many Requests"
 PASSED                                                                   [ 87%]
 tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_unauthenticated 
 -------------------------------- live log call ---------------------------------
-2026-11-05 13:47:53 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 401 Unauthorized"
+2026-11-05 13:51:28 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/act-1 "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 90%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupCodeGeneration::test_generate_backup_codes_format_and_length PASSED [ 93%]
 tests/test_covpush_w80b_api_routes.py::Test2FABackupCodeGeneration::test_generate_backup_codes_default PASSED [ 96%]
@@ -192,4 +192,4 @@ tests/test_covpush_w80b_api_routes.py::Test2FAVerifyAction::test_verify_action_i
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-========== 33 passed, 308 deselected, 16 warnings in 67.87s (0:01:07) ==========
+=============== 33 passed, 308 deselected, 16 warnings in 38.51s ===============
