@@ -1,15 +1,17 @@
 {
  "artifacts": {
   "ORCH02_07_CALLER_MAP.md": "9813489e735bcdf8b1b2ca4c44eca2b3c685806f6adb823e4fd37eb124ccc4d2",
-  "README.md": "161e3826be143f1340267851ae6d794c7fadb8d520fd08a8e7f0b2b508b717f8",
-  "TEST_RESULTS.md": "77a093f6f19a876232134f9bc3f3254bd38714bf38ef68dfa538f667089a96a0",
-  "focused-311.log": "9a6acd79139524e72e23d695b07f56a1c0abd7bc367da4c97a5d5472b039ef36",
-  "focused-314.log": "43d6281b08cd48b3dc6ca6ec3314bbc661ddb5451f3312b3c47b3e92a9150b8e",
+  "README.md": "fd660a07a765f99df5730e41233a659dee6daa280e4fc3002e2aea067ef9ac97",
+  "TEST_RESULTS.md": "16de0b3b435f97ec6e60cf39df9b3693602734ded2aa9e7961ea2a4045080ef2",
+  "focused-311.log": "ddf835d1b1e33422460db6786604230b834fb645cbe3c96d52a6dec1f91dc8f9",
+  "focused-314.log": "35e0e1ae5dc019a1cf8e1b1c3670fcde72caf3cbfaa479e892dcf7a31b8e723a",
+  "served-candidates-recompiled.json": "eaf64ba4215d350f27d47b7e60758afe23f971defec859a37dc0f47c0e5e7d7d",
   "served-protocol-negative.log": "d3aee11efa7bbf8815d565d49c2c38b18853d90c4524fff5723a5545b5fe2004",
   "served-qualification.json": "d1d4363cfdd37e5074621c9ae868680a00efabc04d43f5be74210759e1216218",
   "served-qualification.log": "317864be66fe64f3ec77bf9f4f2d0dc562f0a94678d7eec2a3e55b55a06e0a4e",
   "served-qualification.py": "568c37eebefc0805177932fbf8b65b3a6e452edb8d15df4f5b548c99cd5451f7",
-  "verification.json": "269e15a4f7619ac8351f716ad78d7e972689a9731a2fb4c6193d033dfa481f94",
+  "verification.json": "fbf4a2d60d64bcbb78dd2811902a032bb48a2ff54b9af4fd3e826a83e4e02e32",
+  "verifier-contract.log": "ab5ed860054fb7462de20912628298e30da201c54f31c5ec69ce645c2a85a807",
   "workflow-neighborhood.log": "7fc56aa6b186024d02ac6bb0e3756c0b2aea1f7598afc52c565fab694fff464f"
  },
  "base_source": "81c5962bd",
@@ -19,17 +21,23 @@
   "generation does not execute a workflow or activate a trigger",
   "invalid/missing/unavailable cases create no runnable workflow",
   "no cloud provider, credential, spend, download or deployment",
-  "PostgreSQL runtime qualification remains separate"
+  "PostgreSQL runtime qualification remains separate",
+  "design metadata cannot inject execution authority",
+  "server-required checkpoints are durable and block descendants until approved",
+  "unbound capabilities are reviewable but non-executable and unregistered"
  ],
  "branch": "codex/orch01-blueprint-20261105",
  "checks": {
-  "focused_affected_python311": "634 passed",
-  "focused_affected_python314": "634 passed",
-  "orch01_controls": "15 passed",
-  "served_qualification": "2/2 accepted; 2 model calls; exact readback",
+  "focused_affected_python311": "647 passed",
+  "focused_affected_python314": "647 passed",
+  "independent_contract_probe": "3/3 passed",
+  "orch01_checkpoint_controls": "25 passed",
+  "served_candidates": "2/2 compiled/persisted; exact readback; execution_ready=false after repair",
   "workflow_neighborhood": "443 passed"
  },
- "executed_source": "7bda6a25f",
+ "executed_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
+ "original_source": "7bda6a25f",
+ "repair_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
  "schema": "atom-employee-evidence-1",
  "served_qualification": {
   "cases": [
@@ -44,14 +52,15 @@
   "version": "2026-11-05.1"
  },
  "source_files": {
-  "backend/advanced_workflow_api.py": "9748eff0c1eb0671245af5003e6ec31031a5bfd0f9df5c6345e7e04afc0f4163",
-  "backend/advanced_workflow_orchestrator.py": "60c7c2c38cea56432840667be0066d8838e8095faf6e4886585358ae567eb798",
+  "backend/advanced_workflow_api.py": "cefb11b2a01d5e4cb2d79d76a02d163748e0eaf1386dac89e6b4cbf052a969ea",
+  "backend/advanced_workflow_orchestrator.py": "77f0dd5d6f90f1cc3687e8ec0e1949bdf0ae3083cfd234270a955bd77da936bf",
   "backend/core/agents/queen_agent.py": "3fc12233ce597563b51d6dff2a0716157ce2582694708ecefde8edc75362ecb9",
-  "backend/core/agents/workflow_blueprint.py": "700517e58691b67b107d0a2cc11edd6dc993e92db1cacb480700117a0fea73d5",
+  "backend/core/agents/workflow_blueprint.py": "1483d0eee7693ca87857ab44fc8cc5981d1110bae809219bcdd792b682a15377",
   "backend/core/llm/capability_profiles.py": "1aff00d9366ae053d071a76bc5cbce512b1fcf1d906b4590404b4e117a91de56",
-  "backend/core/workflow_blueprint_service.py": "afb5f54fd2a5bf7313925e33d2e6015b3c87008bd149245d3323ca67b6070187",
+  "backend/core/workflow_blueprint_service.py": "51ba9bbe36c7705250bb3ea61c3735e8a7a5cfd149b55874b0cd6497a3ebf603",
   "backend/tests/test_bughunt_agents_wave10c.py": "d539c14ab043cc108c864361579fbc57db0d5d026a473433274ac6c1cfe2c67d",
-  "backend/tests/test_orch01_workflow_blueprint.py": "b29075f5218f27c4e052d9f2af98d538b5b6b8858b71f8c116b99a9ea6062e4d",
+  "backend/tests/test_orch01_checkpoint_contract.py": "d5a016b381c451eb078394faf599cb6d24f4039d75125cf82a0f128986a6b628",
+  "backend/tests/test_orch01_workflow_blueprint.py": "fe1a243f2f047a2bf404b8173e87ad019d5878da78b91c386d1d5121832c948a",
   "backend/tests/test_round69_async_unguarded_surfaces.py": "c27c498c9e57336b858709eed6c601d2ff291a3dd92d2ca2647426b689ff8a2f"
  },
  "status": "plain-language workflow request produces a validated, HITL-gated, durably scoped workflow blueprint with exact fresh-session readback"

@@ -1,0 +1,232 @@
+{
+ "schema": "orch01-served-candidate-recompile-1",
+ "note": "No inference; captured raw candidates recompiled with the repaired compiler.",
+ "cases": [
+  {
+   "case": "service_intake_review",
+   "status": "accepted",
+   "recompile_status": "compiled",
+   "execution_ready": false,
+   "execution_blockers": [
+    "intake_request: capability <none> is not bound to a registered business agent",
+    "triage_request: capability <none> is not bound to a registered business agent",
+    "notify_reviewer: capability <none> is not bound to a registered business agent",
+    "record_review_decision: capability <none> is not bound to a registered business agent"
+   ],
+   "hitl_gates": [
+    "approval_notify_reviewer",
+    "approval_record_review_decision"
+   ],
+   "start_step": "intake_request",
+   "definition_digest": "60b177daf659e9e083b383c5b8d13ac9d3510493e80d0771243a8cc8f4a089b1",
+   "steps": [
+    {
+     "step_id": "intake_request",
+     "step_type": "business_agent_execution",
+     "description": "Request Intake",
+     "parameters": {
+      "trigger_event": "user_request",
+      "capability_required": null,
+      "design_action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "triage_request"
+     ]
+    },
+    {
+     "step_id": "triage_request",
+     "step_type": "business_agent_execution",
+     "description": "Request Triage",
+     "parameters": {
+      "condition": "request_triaged",
+      "capability_required": null,
+      "design_action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "approval_notify_reviewer"
+     ]
+    },
+    {
+     "step_id": "approval_notify_reviewer",
+     "step_type": "approval_required",
+     "description": "Approve Notify Reviewer",
+     "parameters": {
+      "action": "workflow_step",
+      "checkpoint": "approval_required",
+      "guarded_step": "notify_reviewer",
+      "server_required": true,
+      "workflow_id": "ai_wf_2ac5ae696199",
+      "workspace_id": "ws-orch",
+      "tenant_id": "tenant-orch"
+     },
+     "next_steps": [
+      "notify_reviewer"
+     ]
+    },
+    {
+     "step_id": "notify_reviewer",
+     "step_type": "business_agent_execution",
+     "description": "Notify Reviewer",
+     "parameters": {
+      "condition": "reviewer_notified",
+      "capability_required": null,
+      "design_action": {
+       "kind": "notify",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "approval_record_review_decision"
+     ]
+    },
+    {
+     "step_id": "approval_record_review_decision",
+     "step_type": "approval_required",
+     "description": "Approve Record Review Decision",
+     "parameters": {
+      "action": "workflow_step",
+      "checkpoint": "approval_required",
+      "guarded_step": "record_review_decision",
+      "server_required": true,
+      "workflow_id": "ai_wf_2ac5ae696199",
+      "workspace_id": "ws-orch",
+      "tenant_id": "tenant-orch"
+     },
+     "next_steps": [
+      "record_review_decision"
+     ]
+    },
+    {
+     "step_id": "record_review_decision",
+     "step_type": "business_agent_execution",
+     "description": "Record Review Decision",
+     "parameters": {
+      "condition": "review_decided",
+      "capability_required": null,
+      "design_action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": []
+    }
+   ]
+  },
+  {
+   "case": "inventory_operations_review",
+   "status": "accepted",
+   "recompile_status": "compiled",
+   "execution_ready": false,
+   "execution_blockers": [
+    "collect_stock_counts: capability <none> is not bound to a registered business agent",
+    "compare_with_thresholds: capability <none> is not bound to a registered business agent",
+    "update_stock_review_record: capability <none> is not bound to a registered business agent"
+   ],
+   "hitl_gates": [
+    "approval_update_stock_review_record"
+   ],
+   "start_step": "schedule_trigger",
+   "definition_digest": "831a18a9689701d0caa53038c2d6c9cf7ad2dea7a4a1e80a812e1245244f452e",
+   "steps": [
+    {
+     "step_id": "schedule_trigger",
+     "step_type": "trigger",
+     "description": "Schedule Trigger",
+     "parameters": {
+      "trigger_event": "schedule",
+      "schedule": "0 8 * * 1",
+      "condition": "",
+      "capability_required": null,
+      "design_action": {
+       "kind": "read"
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "collect_stock_counts"
+     ]
+    },
+    {
+     "step_id": "collect_stock_counts",
+     "step_type": "business_agent_execution",
+     "description": "Collect Stock Counts",
+     "parameters": {
+      "capability_required": null,
+      "design_action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "compare_with_thresholds"
+     ]
+    },
+    {
+     "step_id": "compare_with_thresholds",
+     "step_type": "business_agent_execution",
+     "description": "Compare with Thresholds",
+     "parameters": {
+      "capability_required": null,
+      "design_action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": [
+      "approval_update_stock_review_record"
+     ]
+    },
+    {
+     "step_id": "approval_update_stock_review_record",
+     "step_type": "approval_required",
+     "description": "Approve Update Stock Review Record",
+     "parameters": {
+      "action": "workflow_step",
+      "checkpoint": "approval_required",
+      "guarded_step": "update_stock_review_record",
+      "server_required": true,
+      "workflow_id": "ai_wf_782443b3a642",
+      "workspace_id": "ws-orch",
+      "tenant_id": "tenant-orch"
+     },
+     "next_steps": [
+      "update_stock_review_record"
+     ]
+    },
+    {
+     "step_id": "update_stock_review_record",
+     "step_type": "business_agent_execution",
+     "description": "Update Stock Review Record",
+     "parameters": {
+      "capability_required": null,
+      "design_action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      },
+      "hitl": false
+     },
+     "next_steps": []
+    }
+   ]
+  }
+ ]
+}

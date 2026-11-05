@@ -7,10 +7,10 @@ transport was not doubled for the two served cases.
 ## ORCH-01 controls
 
 ```text
-pytest tests/test_orch01_workflow_blueprint.py -q
+pytest tests/test_orch01_workflow_blueprint.py   tests/test_orch01_checkpoint_contract.py -q
 ```
 
-Result: **15 passed**. The table covers:
+Result: **25 passed**. The table covers:
 
 - two domains (service intake/review; recurring inventory/operations review);
 - exact persisted readback from a fresh session;
@@ -19,7 +19,13 @@ Result: **15 passed**. The table covers:
 - malformed, empty, unknown type/action, duplicate, dangling, cyclic,
   multiple-start, missing-capability and trigger negatives;
 - timeout/unavailable typed responses with no persisted workflow;
-- bounded model calls (one per request).
+- bounded model calls (one per request);
+- unknown service/action references and metadata read/create injection;
+- real governance PENDING_APPROVAL, BLOCKED, rejected/expired and mature
+  APPROVED states; no descendant dispatch before valid approval;
+- exactly one downstream effect after a valid approval and duplicate
+  continuation;
+- unbound capabilities are non-executable and unregistered.
 
 ## Focused affected selection
 
@@ -46,11 +52,19 @@ pytest \
   tests/test_workload_incident_identity.py -q
 ```
 
-Result: **634 passed** in 91.18 s (`focused-314.log`) and **634 passed** in
-106.92 s (`focused-311.log`, `-p no:randomly`).
+Result: **647 passed** in 95.60 s (`focused-314.log`) and **647 passed** in
+110.94 s (`focused-311.log`, `-p no:randomly`).
 
 `workflow-neighborhood.log`: **443 passed** (the workflow files in the same
-selection; included in the 634).
+selection; included in the 647).
+
+Independent contract probe:
+
+```text
+pytest /private/tmp/test_verifier_orch01_contract_7bda.py -q
+```
+
+Result: **3/3 passed**.
 
 Known baseline-only timing tests excluded from the focused selection:
 
@@ -71,10 +85,19 @@ TESTING=1 PYTHONPATH=$PWD/backend \
 ```
 
 Two cases, one structured call each, no expected blueprint supplied. The
-served run used the same structured consumer and persistence service directly;
-the HTTP route/persistence boundary is covered by the 15 controlled tests with
-a doubled transport. This avoided a second server process and competing
-inference.
+served harness called `Queen._workflow_blueprint_prompt` then
+`pinned_structured_call` directly, not production
+`generate_workflow_blueprint`; the cases are candidate-generation plus
+service-persistence evidence, not served HTTP or exact production-method
+qualification. The HTTP route/persistence boundary is covered by the
+controlled tests with a doubled transport. No second server process or
+competing inference was used.
+
+`served-candidates-recompiled.json` recompiles both captured raw candidates
+with the repaired compiler (no inference): both are reviewable designs with
+HITL gates, but `execution_ready=false` because their skill capabilities are
+not bound to registered business agents. They are deliberately not registered
+as runnable workflows.
 
 | Case | Status | Latency | Prompt/completion tokens | Workflow | Readback |
 |---|---|---:|---:|---|---|
@@ -85,6 +108,13 @@ Both served the configured `ollama/llama3.1:8b` route under profile
 `workflow_blueprint` v2026-11-05.1. Actual structured prompts, raw completions,
 usage, routing and persisted/readback definitions are in
 `served-qualification.json`.
+
+`served-candidates-recompiled.json` recompiles both captured raw candidates
+with the repaired compiler (no inference). Both remain reviewable designs with
+HITL gates but have `execution_ready=false` because their skill capabilities
+are not bound to registered business agents; they are deliberately not
+registered as runnable workflows. The execution-ready entity/checkpoint path
+is covered by the 25 controlled tests.
 
 The two accepted cases had:
 - service: two HITL gates (`notify_reviewer`, `record_review_decision`);
