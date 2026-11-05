@@ -31,7 +31,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.auth import SECRET_KEY
-from core.models import AuditEventType, AuditLog, SecurityLevel, TenantSetting
+from core.models import (
+    AuditEventType,
+    AuditLog,
+    SecurityLevel,
+    TenantSetting,
+    User,
+)
 from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
@@ -195,13 +201,116 @@ def _fresh_session(db: Session) -> Session:
     return sessionmaker(bind=db.get_bind())()
 
 
-def _actor_snapshot(actor: Any) -> Dict[str, Any]:
+def _authority_refusal(authority: Dict[str, Any]) -> Dict[str, Any]:
+    return _refused(
+        str(authority.get("message") or "Authentication required"),
+        http_status=int(authority.get("http_status") or 401),
+        error_code=str(authority.get("error_code") or "UNAUTHENTICATED"),
+    )
+
+
+def _authority_changed() -> Dict[str, Any]:
     return {
-        "id": str(getattr(actor, "id", "") or ""),
-        "email": str(getattr(actor, "email", "") or ""),
-        "role": str(getattr(actor, "role", "") or ""),
-        "tenant_id": str(resolve_tenant_id(actor)),
+        "status": "conflict",
+        "error": (
+            "Authorization or scope changed; refresh and sign in again "
+            "before retrying"),
+        "error_code": "AUTHORITY_CHANGED",
+        "http_status": 409,
+        "verification": {"status": "refused", "effect": "none"},
     }
+
+
+def _resolve_authority(db: Session, actor: Any) -> Dict[str, Any]:
+    """Resolve the current principal and its effective personal scope.
+
+    The request-entry User object is a snapshot. A concurrent deactivation or
+    tenant reassignment must not let a mutation commit under stale authority,
+    so this reads the authoritative row and freezes the claim material. The
+    mutation later binds the same material in guarded DML in its own
+    transaction (``_claim_authority``).
+    """
+    actor_id = str(getattr(actor, "id", "") or "")
+    if not actor_id:
+        return {
+            "ok": False,
+            "http_status": 401,
+            "error_code": "UNAUTHENTICATED",
+            "message": "Authentication required",
+        }
+    try:
+        with _fresh_session(db) as fresh:
+            row = fresh.query(User).filter(User.id == actor_id).first()
+            if row is None:
+                return {
+                    "ok": False,
+                    "http_status": 401,
+                    "error_code": "UNAUTHENTICATED",
+                    "message": "Authentication required",
+                }
+            raw_status = str(row.status or "")
+            raw_is_active = row.is_active is True
+            if raw_status != "active" or not raw_is_active:
+                return {
+                    "ok": False,
+                    "http_status": 403,
+                    "error_code": "ACCOUNT_INACTIVE",
+                    "message": (
+                        "This account is not active; refresh and sign in "
+                        "again"),
+                }
+            raw_tenant_id = row.tenant_id
+            return {
+                "ok": True,
+                "id": actor_id,
+                "email": str(row.email or ""),
+                "role": str(row.role or ""),
+                "tenant_id": str(resolve_tenant_id(row)),
+                "raw_status": raw_status,
+                "raw_is_active": raw_is_active,
+                "raw_tenant_id": raw_tenant_id,
+            }
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "memory authority read failed: actor=%s error_class=%s",
+            actor_id, type(exc).__name__)
+        return {
+            "ok": False,
+            "http_status": 503,
+            "error_code": "AUTHORITY_UNAVAILABLE",
+            "message": "Authorization could not be confirmed; retry",
+        }
+
+
+def _claim_authority(db: Session, authority: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Bind the frozen principal in the same transaction as the effect.
+
+    A zero-match means the User row was deactivated, moved or deleted after
+    the request-entry snapshot. Roll back everything and refuse with
+    effect=none; do not let a later target/audit commit stand.
+    """
+    try:
+        claimed = db.execute(
+            update(User)
+            .where(
+                User.id == authority["id"],
+                User.status == authority["raw_status"],
+                User.is_active == authority["raw_is_active"],
+                User.tenant_id == authority["raw_tenant_id"],
+            )
+            .values(status=User.status))
+        if claimed.rowcount != 1:
+            db.rollback()
+            return _authority_changed()
+        return None
+    except Exception as exc:  # noqa: BLE001 — unconfirmed authority fails closed
+        db.rollback()
+        logger.error(
+            "memory authority claim failed: actor=%s error_class=%s",
+            authority.get("id"), type(exc).__name__)
+        return _not_applied(
+            "The memory operation could not confirm current authorization; "
+            "no effect was committed")
 
 
 def _scope(actor: Dict[str, Any], agent_id: Optional[str]) -> Dict[str, Any]:
@@ -592,11 +701,10 @@ def store_memory(
         return _refused("key must be non-empty", field="key")
     if metadata is not None and not isinstance(metadata, dict):
         return _refused("metadata must be an object", field="metadata")
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
-        return _refused(
-            "Authentication required", http_status=401,
-            error_code="UNAUTHENTICATED")
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
+        return _authority_refusal(authority)
+    actor_snapshot = authority
     try:
         operation_id = _operation_id("store", operation_id)
     except ValueError as exc:
@@ -625,10 +733,17 @@ def store_memory(
     replay = _replay(
         db, operation_id, expected_base, replay_data=replay_data)
     if replay is not None:
+        claim = _claim_authority(db, authority)
+        if claim is not None:
+            return claim
+        db.rollback()
         return replay
 
     current = _read_setting(
         db, scope["tenant_id"], setting_key)
+    claim = _claim_authority(db, authority)
+    if claim is not None:
+        return claim
     prior_value = current["setting_value"] if current else None
     prior_document = (
         _parse_document(prior_value, MEMORY_SCHEMA, scope)
@@ -682,7 +797,13 @@ def store_memory(
         db.rollback()
         replay = _replay(
             db, operation_id, expected_base, replay_data=replay_data)
-        return replay or _conflict(
+        if replay is not None:
+            claim = _claim_authority(db, authority)
+            if claim is not None:
+                return claim
+            db.rollback()
+            return replay
+        return _conflict(
             "memory entry changed; refresh and retry",
             code="STALE_TARGET")
     except Exception as exc:  # noqa: BLE001 — mutation did not commit
@@ -715,11 +836,10 @@ def update_context(
         return _refused("session_id must be non-empty", field="session_id")
     if not isinstance(context, dict):
         return _refused("context must be an object", field="context")
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
-        return _refused(
-            "Authentication required", http_status=401,
-            error_code="UNAUTHENTICATED")
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
+        return _authority_refusal(authority)
+    actor_snapshot = authority
     try:
         operation_id = _operation_id("context", operation_id)
     except ValueError as exc:
@@ -748,10 +868,17 @@ def update_context(
     replay = _replay(
         db, operation_id, expected_base, replay_data=replay_data)
     if replay is not None:
+        claim = _claim_authority(db, authority)
+        if claim is not None:
+            return claim
+        db.rollback()
         return replay
 
     current = _read_setting(
         db, scope["tenant_id"], setting_key)
+    claim = _claim_authority(db, authority)
+    if claim is not None:
+        return claim
     prior_value = current["setting_value"] if current else None
     prior_document = (
         _parse_document(prior_value, CONTEXT_SCHEMA, scope)
@@ -811,7 +938,13 @@ def update_context(
         db.rollback()
         replay = _replay(
             db, operation_id, expected_base, replay_data=replay_data)
-        return replay or _conflict(
+        if replay is not None:
+            claim = _claim_authority(db, authority)
+            if claim is not None:
+                return claim
+            db.rollback()
+            return replay
+        return _conflict(
             "memory context changed; refresh and retry",
             code="STALE_TARGET")
     except Exception as exc:  # noqa: BLE001 — mutation did not commit
@@ -841,11 +974,10 @@ def delete_memory(
     key = str(key or "").strip()
     if not key:
         return _refused("key must be non-empty", field="key")
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
-        return _refused(
-            "Authentication required", http_status=401,
-            error_code="UNAUTHENTICATED")
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
+        return _authority_refusal(authority)
+    actor_snapshot = authority
     try:
         operation_id = _operation_id("delete", operation_id)
     except ValueError as exc:
@@ -871,6 +1003,10 @@ def delete_memory(
     replay = _replay(
         db, operation_id, expected_base, replay_data=replay_data)
     if replay is not None:
+        claim = _claim_authority(db, authority)
+        if claim is not None:
+            return claim
+        db.rollback()
         return replay
 
     current = _read_setting(db, scope["tenant_id"], setting_key)
@@ -878,6 +1014,9 @@ def delete_memory(
         return _refused(
             f"Memory key not found: {key}", http_status=404,
             error_code="NOT_FOUND")
+    claim = _claim_authority(db, authority)
+    if claim is not None:
+        return claim
     prior_value = current["setting_value"]
     prior_document = _parse_document(prior_value, MEMORY_SCHEMA, scope)
     if prior_document is None:
@@ -931,9 +1070,10 @@ def read_memory(
     db: Session, *, actor: Any, key: str,
     agent_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
         return None
+    actor_snapshot = authority
     scope = _scope(actor_snapshot, agent_id)
     current = _read_setting(
         db, scope["tenant_id"],
@@ -949,9 +1089,10 @@ def search_memory(
     db: Session, *, actor: Any, q: str, limit: int = 10,
     agent_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
         return []
+    actor_snapshot = authority
     scope = _scope(actor_snapshot, agent_id)
     query_text = str(q or "").lower()
     results: List[Dict[str, Any]] = []
@@ -973,9 +1114,10 @@ def read_context(
     db: Session, *, actor: Any, session_id: str,
     agent_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
+    authority = _resolve_authority(db, actor)
+    if not authority.get("ok"):
         return None
+    actor_snapshot = authority
     scope = _scope(actor_snapshot, agent_id)
     current = _read_setting(
         db, scope["tenant_id"],
