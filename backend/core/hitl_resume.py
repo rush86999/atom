@@ -363,10 +363,50 @@ async def _resume_chat_obligation(
         }
 
 
+async def _resume_advanced_workflow(
+    action: Dict[str, Any], approved: bool, guidance: Optional[str],
+    execution_id: str,
+) -> Dict[str, Any]:
+    """Resume an ORCH-01 execution through its authoritative checkpoint.
+
+    The advanced orchestrator persists executions in ``WorkflowExecution``
+    rather than the workflow-engine state store. Its resume method re-reads
+    the durable HITLAction and refuses pending/rejected/missing/mismatched
+    reviews, so the HITL queue cannot bypass the checkpoint.
+    """
+    params = action.get("params") or {}
+    step_id = str(params.get("step_id") or "")
+    if not step_id:
+        return {
+            "handled": False,
+            "reason": "advanced workflow action has no step_id",
+        }
+    try:
+        from advanced_workflow_orchestrator import get_orchestrator
+
+        context = await get_orchestrator().resume_workflow(
+            execution_id, step_id)
+    except Exception as exc:  # noqa: BLE001 — decision already committed
+        return {
+            "handled": True,
+            "resumed": False,
+            "kind": "workflow",
+            "error": str(exc)[:500],
+        }
+    status = getattr(context, "status", None)
+    status_value = getattr(status, "value", str(status or ""))
+    return {
+        "handled": True,
+        "resumed": status_value == "completed",
+        "kind": "workflow",
+        "status": status_value.upper(),
+    }
+
+
 async def _resume_workflow(action: Dict[str, Any], approved: bool,
                             guidance: Optional[str]) -> Dict[str, Any]:
     params = action.get("params") or {}
-    execution_id = params.get("execution_id")
+    execution_id = params.get("execution_id") or params.get("workflow_id")
     if not execution_id:
         return {"handled": False, "reason": "workflow action has no execution_id"}
 
@@ -375,7 +415,8 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
     state_manager = get_state_manager()
     state = await state_manager.get_execution_state(execution_id)
     if not state:
-        return {"handled": True, "resumed": False, "reason": "execution not found"}
+        return await _resume_advanced_workflow(
+            action, approved, guidance, str(execution_id))
 
     if not approved:
         await state_manager.update_execution_status(

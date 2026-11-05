@@ -56,7 +56,9 @@ def _action_binding_error(
     params = action.params or {}
     if not isinstance(params, dict):
         return "Approval has no readable execution binding"
-    if str(params.get("workflow_id") or "") != str(execution_id):
+    bound_execution = str(
+        params.get("execution_id") or params.get("workflow_id") or "")
+    if bound_execution != str(execution_id):
         return "Approval does not match this execution"
     if str(params.get("step_id") or "") != str(step_id):
         return "Approval does not match this step"
@@ -70,7 +72,10 @@ def _action_binding_error(
 async def get_pending_approvals(db: Session = Depends(get_db), user = Depends(get_current_user)):
     """List all workflow executions waiting for human approval"""
     pending = db.query(WorkflowExecution).filter(
-        WorkflowExecution.status == WorkflowExecutionStatus.PAUSED.value
+        WorkflowExecution.status.in_([
+            WorkflowExecutionStatus.PAUSED.value,
+            WorkflowStatus.WAITING_APPROVAL.value,
+        ])
     ).all()
     
     results = []

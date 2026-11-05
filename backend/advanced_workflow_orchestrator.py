@@ -1384,6 +1384,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 
                 # Update status and data
                 execution.status = context.status.value
+                execution.completed_at = context.completed_at
                 execution.input_data = json.dumps(context.input_data)
                 execution.outputs = json.dumps(context.results)
                 
@@ -1402,6 +1403,66 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 logger.info(f"Persisted state for workflow {context.workflow_id} (Status: {context.status.value})")
         except Exception as e:
             logger.error(f"Failed to persist workflow state: {e}")
+
+    def _load_definition_from_blueprint(
+        self, definition_id: str, context: WorkflowContext,
+    ) -> Optional[WorkflowDefinition]:
+        """Load a persisted ORCH-01 definition for a fresh process/session."""
+        if not definition_id or not MODELS_AVAILABLE:
+            return None
+        workspace_id = str(
+            context.variables.get("workspace_id")
+            or context.input_data.get("workspace_id")
+            or "default")
+        tenant_id = str(
+            context.variables.get("tenant_id")
+            or context.input_data.get("tenant_id")
+            or "default")
+        try:
+            from core.database import get_db_session
+            from core.workflow_blueprint_service import load_blueprint
+
+            with get_db_session() as db:
+                view = load_blueprint(
+                    db,
+                    workflow_id=definition_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "Could not load durable workflow definition %s: %s",
+                definition_id, exc)
+            return None
+        if not view:
+            return None
+        steps: List[WorkflowStep] = []
+        for raw in view.get("steps") or []:
+            try:
+                step_type = WorkflowStepType(str(raw.get("step_type")))
+            except ValueError:
+                step_type = WorkflowStepType.BUSINESS_AGENT_EXECUTION
+            steps.append(WorkflowStep(
+                step_id=str(raw.get("step_id")),
+                step_type=step_type,
+                description=str(raw.get("description") or ""),
+                parameters=dict(raw.get("parameters") or {}),
+                next_steps=list(raw.get("next_steps") or []),
+            ))
+        definition = WorkflowDefinition(
+            workflow_id=str(view.get("workflow_id") or definition_id),
+            name=str(view.get("name") or "Persisted workflow"),
+            description=str(view.get("description") or ""),
+            steps=steps,
+            start_step=str(view.get("start_step") or ""),
+            triggers=[],
+            allow_event_critical=False,
+            definition_digest=str(view.get("definition_digest") or ""),
+        )
+        self.workflows[definition.workflow_id] = definition
+        context.variables.setdefault(
+            "_workflow_definition_digest", definition.definition_digest)
+        return definition
 
     async def resume_workflow(self, execution_id: str, step_id: str) -> WorkflowContext:
         """Resume a workflow execution after approval.
@@ -1433,6 +1494,11 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             # the execution id is also the definition id. Never scan by step.
             workflow_def = self.workflows[context.workflow_id]
             definition_id = workflow_def.workflow_id
+        if workflow_def is None and definition_id:
+            # A fresh process/session may have no in-memory registration. The
+            # persisted blueprint is the durable definition identity.
+            workflow_def = self._load_definition_from_blueprint(
+                definition_id, context)
         if workflow_def is None:
             raise ValueError(
                 "Could not resolve the workflow definition for execution "
@@ -2118,6 +2184,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         material = {
             # Execution identity, not the definition id: two runs of the same
             # definition must never share an approval receipt.
+            "execution_id": str(context.workflow_id or ""),
             "workflow_id": str(context.workflow_id or ""),
             "definition_id": definition_id,
             "step_id": str(step.step_id or ""),
@@ -2149,8 +2216,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         if not all(
                 str(params.get(key) or "") == str(material.get(key) or "")
                 for key in (
-                    "workflow_id", "step_id", "guarded_digest",
-                    "input_digest")):
+                    "execution_id", "workflow_id", "step_id",
+                    "guarded_digest", "input_digest")):
             return False
         # New checkpoints bind the immutable definition identity. Legacy rows
         # that predate these keys remain readable, but a present binding must

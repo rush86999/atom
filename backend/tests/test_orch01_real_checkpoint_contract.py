@@ -26,6 +26,7 @@ from advanced_workflow_orchestrator import (
 from core.agents.workflow_blueprint import compile_blueprint
 from core.database import Base
 from core.models import HITLAction, Tenant, User, Workspace, WorkflowExecution
+from core.workflow_blueprint_service import persist_blueprint
 
 
 SCOPE = {"workspace_id": "ws-real", "tenant_id": "tenant-real"}
@@ -162,6 +163,20 @@ def _execute(orch, definition, execution_id, input_data):
     ))
 
 
+def _persist(real_db, compiled):
+    db = real_db["Session"]()
+    try:
+        persist_blueprint(
+            db,
+            compiled=compiled,
+            tenant_id=SCOPE["tenant_id"],
+            workspace_id=SCOPE["workspace_id"],
+            user_id=APPROVER_ID,
+        )
+    finally:
+        db.close()
+
+
 def _rows(real_db):
     db = real_db["Session"]()
     try:
@@ -182,6 +197,7 @@ def test_pending_resume_refuses_then_exact_approval_releases_once(
     approval_step = _approval_step(compiled)
     execution_id = "exec-real-approve"
     effects = []
+    _persist(real_db, compiled)
     orch, definition = _orchestrator(compiled, effects)
 
     context = _execute(orch, definition, execution_id, {"amount": 100})
@@ -204,6 +220,7 @@ def test_pending_resume_refuses_then_exact_approval_releases_once(
     # A pending review never releases the branch, even from a fresh
     # orchestrator whose only memory is the persisted execution.
     pending_orch, _ = _orchestrator(compiled, effects)
+    pending_orch.workflows = {}
     resumed = asyncio.run(pending_orch.resume_workflow(
         execution_id, approval_step["step_id"]))
     assert effects == []
@@ -244,11 +261,9 @@ def test_pending_resume_refuses_then_exact_approval_releases_once(
     )
     approved_orch, _ = _orchestrator(
         compiled, effects, extra_definitions=[decoy])
-    # Put the decoy first: scan-by-step-id would pick it.
-    approved_orch.workflows = {
-        decoy.workflow_id: decoy,
-        **approved_orch.workflows,
-    }
+    # The original definition is not in memory: it must be loaded from the
+    # durable blueprint by execution identity, while the decoy stays ignored.
+    approved_orch.workflows = {decoy.workflow_id: decoy}
     resumed = asyncio.run(approved_orch.resume_workflow(
         execution_id, approval_step["step_id"]))
     assert effects == ["record"]
@@ -256,6 +271,7 @@ def test_pending_resume_refuses_then_exact_approval_releases_once(
 
     # Duplicate continuation must not repeat the governed effect.
     duplicate_orch, _ = _orchestrator(compiled, effects)
+    duplicate_orch.workflows = {}
     asyncio.run(duplicate_orch.resume_workflow(
         execution_id, approval_step["step_id"]))
     assert effects == ["record"]
@@ -347,6 +363,58 @@ def test_changed_reviewed_material_cannot_reuse_old_approval(
         "unavailable")
 
 
+def test_hitl_queue_decision_uses_the_same_advanced_consumer(
+        real_db, governance_pending, monkeypatch):
+    from core.hitl_resume import resume_after_hitl_decision
+    from core.intervention_service import intervention_service
+
+    compiled = _compiled()
+    approval_step = _approval_step(compiled)
+    execution_id = "exec-hitl-queue"
+    effects = []
+    _persist(real_db, compiled)
+    orch, definition = _orchestrator(compiled, effects)
+    _execute(orch, definition, execution_id, {"amount": 7})
+    row = _row_for_execution(real_db, execution_id)
+
+    queue_orch, _ = _orchestrator(compiled, effects)
+    queue_orch.workflows = {}
+    monkeypatch.setattr(
+        "advanced_workflow_orchestrator.get_orchestrator",
+        lambda: queue_orch)
+
+    approved = asyncio.run(intervention_service.approve_intervention(
+        row.id, APPROVER_ID))
+    assert approved["success"] is True
+    result = asyncio.run(resume_after_hitl_decision(
+        row.id, approved=True, reviewer_id=APPROVER_ID))
+    assert result["handled"] is True
+    assert result["resumed"] is True
+    assert effects == ["record"]
+
+    # The rejection path uses the same consumer and still dispatches nothing.
+    rejected_id = "exec-hitl-queue-rejected"
+    rejected_orch, rejected_definition = _orchestrator(compiled, effects)
+    _execute(rejected_orch, rejected_definition, rejected_id, {"amount": 8})
+    rejected_row = _row_for_execution(real_db, rejected_id)
+    rejected = asyncio.run(intervention_service.reject_intervention(
+        rejected_row.id, APPROVER_ID, "not approved"))
+    assert rejected["success"] is True
+
+    queue_reject_orch, _ = _orchestrator(compiled, effects)
+    queue_reject_orch.workflows = {}
+    monkeypatch.setattr(
+        "advanced_workflow_orchestrator.get_orchestrator",
+        lambda: queue_reject_orch)
+    result = asyncio.run(resume_after_hitl_decision(
+        rejected_row.id, approved=False, reviewer_id=APPROVER_ID,
+        guidance="not approved"))
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["status"] == "FAILED"
+    assert effects == ["record"]
+
+
 def test_public_approval_route_requires_scope_and_exact_binding(
         real_db, governance_pending, monkeypatch):
     from fastapi import HTTPException
@@ -358,6 +426,7 @@ def test_public_approval_route_requires_scope_and_exact_binding(
     first_id = "exec-route-first"
     second_id = "exec-route-second"
     effects = []
+    _persist(real_db, compiled)
     orch, definition = _orchestrator(compiled, effects)
     _execute(orch, definition, first_id, {"amount": 1})
     _execute(orch, definition, second_id, {"amount": 2})
@@ -365,6 +434,8 @@ def test_public_approval_route_requires_scope_and_exact_binding(
     second_row = _row_for_execution(real_db, second_id)
 
     route_orch, _ = _orchestrator(compiled, effects)
+    # No in-memory registration: the route must use the persisted definition.
+    route_orch.workflows = {}
 
     def get_route_orchestrator():
         return route_orch
