@@ -509,6 +509,13 @@ class User(Base):
     two_factor_enabled = Column(Boolean, default=False)
     two_factor_secret = Column(String, nullable=True)
     two_factor_backup_codes = Column(JSONColumn, nullable=True)
+    #: Last accepted TOTP time-step. RFC6238 one-time use: a code/time-step
+    #: already accepted for this factor can never be accepted again.
+    two_factor_last_totp_step = Column(Integer, nullable=True)
+    #: Monotonic factor revision. Setup/enable/disable increment it; replay
+    #: and backup-code consumption bind to this exact revision.
+    two_factor_revision = Column(
+        Integer, nullable=False, default=0, server_default="0")
 
     @property
     def name(self) -> str:
@@ -839,6 +846,67 @@ class AuditLog(Base):
     # Relationships
     user = relationship("User", backref="audit_logs")
     workspace = relationship("Workspace", backref="audit_logs")
+
+class AuthTwoFactorBackupCode(Base):
+    """Durable single-use state for one recovery code.
+
+    The plaintext code remains on ``User.two_factor_backup_codes`` for the
+    existing UI contract, but this row is the consumption arbiter. A
+    conditional UPDATE on ``consumed_at`` makes concurrent/replayed use
+    match zero rows.
+    """
+    __tablename__ = "auth_2fa_backup_codes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "code_fingerprint",
+                         name="uq_auth_2fa_backup_code"),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True)
+    #: Keyed HMAC of the code, never the code itself.
+    code_fingerprint = Column(String, nullable=False, index=True)
+    factor_revision = Column(Integer, nullable=False, index=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+    operation_id = Column(String, nullable=True, index=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now())
+
+
+class AuthTwoFactorOperation(Base):
+    """Durable receipt for one logical 2FA mutation.
+
+    ``id`` is the caller-visible operation id. The row is inserted in the
+    same transaction as the factor/HITL conditional write, so a retry can
+    recover only the exact same operation. It stores no secrets or raw OTP
+    codes; sensitive material is represented by a keyed fingerprint.
+    """
+    __tablename__ = "auth_2fa_operations"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True)
+    action = Column(String, nullable=False, index=True)
+    target_id = Column(String, nullable=True, index=True)
+    factor_revision = Column(Integer, nullable=False)
+    #: Keyed HMAC over the exact operation material (never a raw code).
+    material_fingerprint = Column(String, nullable=False)
+    status = Column(String, nullable=False, index=True)
+    audit_id = Column(String, nullable=True)
+    #: Safe response receipt; never contains secrets/recovery codes.
+    response_json = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(),
+        onupdate=func.now())
+
 
 class UserSession(Base):
     __tablename__ = "user_sessions"

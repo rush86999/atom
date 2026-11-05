@@ -13,6 +13,8 @@ Security regression surface checked this wave:
   * backup codes are single-use (consumed after verification — BUG-074),
   * /setup refuses to regenerate when 2FA already enabled (409).
 """
+import contextlib
+
 import pyotp
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -26,7 +28,7 @@ from sqlalchemy.pool import StaticPool
 from api.auth_2fa_routes import router as auth_2fa_router
 from core.auth import get_current_user
 from core.database import Base, get_db
-from core.models import User
+from core.models import HITLAction, User
 
 AUTH_HEADERS = {"Authorization": "Bearer test-token"}
 
@@ -41,14 +43,33 @@ def bypass_2fa_rate_limit():
 
 
 @pytest.fixture()
-def db():
+def db(tmp_path, monkeypatch):
     engine = create_engine(
-        "sqlite://",
+        f"sqlite:///{tmp_path}/auth-2fa.db",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
-    session = sessionmaker(bind=engine)()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    @contextlib.contextmanager
+    def fresh_session():
+        fresh = Session()
+        try:
+            yield fresh
+            fresh.commit()
+        except Exception:
+            fresh.rollback()
+            raise
+        finally:
+            fresh.close()
+
+    # The verified-write service and the HITL/audit bridges intentionally use
+    # fresh sessions; point them at this scratch database.
+    monkeypatch.setattr("core.database.SessionLocal", Session)
+    monkeypatch.setattr("core.database.get_db_session", fresh_session)
+    monkeypatch.setattr("core.intervention_service.get_db_session", fresh_session)
+    monkeypatch.setattr("core.hitl_service.get_db_session", fresh_session)
     yield session
     session.close()
     engine.dispose()
@@ -74,6 +95,23 @@ def _make_user(db, user_id="user-1", *, two_factor_enabled=False,
     db.add(user)
     db.commit()
     return user
+
+
+def _make_action(db, action_id="action-1", user_id=None):
+    action = HITLAction(
+        id=action_id,
+        tenant_id="t1",
+        workspace_id=None,
+        action_type="send_message",
+        platform="internal",
+        params={},
+        status="pending",
+        priority="MEDIUM",
+        user_id=user_id,
+    )
+    db.add(action)
+    db.commit()
+    return action
 
 
 @pytest.fixture()
@@ -147,6 +185,7 @@ class TestStatusAndSetup:
         assert "otpauth_url" in body
         assert "Atom%20AI%20%28Upstream%29" in body["otpauth_url"]
         assert "user-1%40example.com" in body["otpauth_url"]
+        db.expire_all()
         user = db.query(User).filter(User.id == "user-1").first()
         assert user.two_factor_secret == body["secret"]
 
@@ -175,6 +214,7 @@ class TestEnableDisable:
         codes = body["data"]["backup_codes"]
         assert len(codes) == 5
         assert all(len(c) == 19 for c in codes)
+        db.expire_all()
         user = db.query(User).filter(User.id == "setup-user").first()
         assert user.two_factor_enabled is True
         audit.log_event.assert_called_once()
@@ -221,6 +261,7 @@ class TestEnableDisable:
                                headers=AUTH_HEADERS)
         assert resp.status_code == 200
         assert resp.json()["success"] is True
+        db.expire_all()
         user = db.query(User).filter(User.id == "enabled-user").first()
         assert user.two_factor_enabled is False
         assert user.two_factor_secret is None
@@ -256,17 +297,17 @@ class TestBackupCodeVerify:
         _make_user(db, "enabled-user", two_factor_enabled=True,
                    two_factor_backup_codes=["ABCD-1234-EFGH-5678", "WXYZ-9999"])
         client = client_factory("enabled-user")
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client.post("/api/auth/2fa/backup/verify",
-                               json={"code": "ABCD-1234-EFGH-5678"},
-                               headers=AUTH_HEADERS)
-        assert resp.status_code == 200
+        resp = client.post("/api/auth/2fa/backup/verify",
+                           json={"code": "ABCD-1234-EFGH-5678"},
+                           headers=AUTH_HEADERS)
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
         assert body["data"]["remaining_codes"] == 1
+        assert body["verification"]["status"] == "verified"
+        db.expire_all()
         user = db.query(User).filter(User.id == "enabled-user").first()
         assert user.two_factor_backup_codes == ["WXYZ-9999"]
-        audit.log_event.assert_called_once()
 
     def test_verify_invalid_code_422(self, client_factory, db):
         _make_user(db, "enabled-user", two_factor_enabled=True,
@@ -305,18 +346,22 @@ class TestVerifyAction:
         return resp
 
     def test_verify_action_success(self, client_factory, db):
-        _make_user(db, "enabled-user", two_factor_enabled=True,
-                   two_factor_secret=TEST_SECRET)
+        user = _make_user(db, "enabled-user", two_factor_enabled=True,
+                          two_factor_secret=TEST_SECRET)
+        _make_action(db, "action-1", user.id)
         client = client_factory("enabled-user")
-        with patch("core.hitl_service.hitl_service.resolve_action",
-                   new=AsyncMock(return_value={"status": "approved"})), \
-             patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = self._approve(client)
-        assert resp.status_code == 200
+        resp = self._approve(client)
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
         assert body["data"] == {"status": "approved"}
-        audit.log_event.assert_called_once()
+        assert body["verification"]["status"] == "verified"
+        db.expire_all()
+        action = db.query(HITLAction).filter(
+            HITLAction.id == "action-1").one()
+        assert action.status == "approved"
+        assert action.reviewed_by == user.id
+        assert action.reviewed_at is not None
 
     def test_verify_action_2fa_not_enabled_422(self, client):
         resp = client.post("/api/auth/2fa/verify-action/action-1",
@@ -324,22 +369,38 @@ class TestVerifyAction:
         assert resp.status_code == 422
 
     def test_verify_action_invalid_code_422(self, client_factory, db):
-        _make_user(db, "enabled-user", two_factor_enabled=True,
-                   two_factor_secret=TEST_SECRET)
+        user = _make_user(db, "enabled-user", two_factor_enabled=True,
+                          two_factor_secret=TEST_SECRET)
+        _make_action(db, "action-1", user.id)
         client = client_factory("enabled-user")
         resp = client.post("/api/auth/2fa/verify-action/action-1",
                            json={"code": "000000"}, headers=AUTH_HEADERS)
         assert resp.status_code == 422
 
-    def test_verify_action_resolve_failure_500(self, client_factory, db):
+    def test_verify_action_missing_action_404(self, client_factory, db):
         _make_user(db, "enabled-user", two_factor_enabled=True,
                    two_factor_secret=TEST_SECRET)
         client = client_factory("enabled-user")
-        with patch("core.hitl_service.hitl_service.resolve_action",
-                   new=AsyncMock(side_effect=Exception("hitl down"))):
+        resp = self._approve(client, action_id="missing-action")
+        assert resp.status_code == 404
+
+    def test_verify_action_callback_failure_still_verifies(
+            self, client_factory, db):
+        user = _make_user(db, "enabled-user", two_factor_enabled=True,
+                          two_factor_secret=TEST_SECRET)
+        _make_action(db, "action-1", user.id)
+        client = client_factory("enabled-user")
+        with patch(
+                "core.hitl_service.hitl_service._resume_workflow",
+                new=AsyncMock(side_effect=Exception("callback down"))):
             resp = self._approve(client)
-        assert resp.status_code == 500
-        assert "Failed to resolve action" in resp.json()["detail"]
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["verification"]["status"] == "verified"
+        db.expire_all()
+        action = db.query(HITLAction).filter(
+            HITLAction.id == "action-1").one()
+        assert action.status == "approved"
+        assert action.reviewed_by == user.id
 
     def test_verify_action_rate_limited_429(self, client_factory, db):
         _make_user(db, "enabled-user", two_factor_enabled=True,
