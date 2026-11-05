@@ -1,0 +1,57 @@
+{
+ "artifacts": {
+  "README.md": "c7d23bc0875f7d8e84a4d1dc587755810b4d389ac664191b0be4087f5d4716f0",
+  "TEST_RESULTS.md": "34c84997ac0ae6cbd6d31f50a71968cf3f09f7b28c3e5837cae632dc7f0006b7",
+  "focused-311.log": "9a6acd79139524e72e23d695b07f56a1c0abd7bc367da4c97a5d5472b039ef36",
+  "focused-314.log": "43d6281b08cd48b3dc6ca6ec3314bbc661ddb5451f3312b3c47b3e92a9150b8e",
+  "served-protocol-negative.log": "d3aee11efa7bbf8815d565d49c2c38b18853d90c4524fff5723a5545b5fe2004",
+  "served-qualification.json": "d1d4363cfdd37e5074621c9ae868680a00efabc04d43f5be74210759e1216218",
+  "served-qualification.log": "317864be66fe64f3ec77bf9f4f2d0dc562f0a94678d7eec2a3e55b55a06e0a4e",
+  "served-qualification.py": "568c37eebefc0805177932fbf8b65b3a6e452edb8d15df4f5b548c99cd5451f7",
+  "verification.json": "269e15a4f7619ac8351f716ad78d7e972689a9731a2fb4c6193d033dfa481f94",
+  "workflow-neighborhood.log": "7fc56aa6b186024d02ac6bb0e3756c0b2aea1f7598afc52c565fab694fff464f"
+ },
+ "base_source": "81c5962bd",
+ "boundaries": [
+  "controlled SQLite and one already-configured local route",
+  "workflow design/readback only; execution quality is not claimed",
+  "generation does not execute a workflow or activate a trigger",
+  "invalid/missing/unavailable cases create no runnable workflow",
+  "no cloud provider, credential, spend, download or deployment",
+  "PostgreSQL runtime qualification remains separate"
+ ],
+ "branch": "codex/orch01-blueprint-20261105",
+ "checks": {
+  "focused_affected_python311": "634 passed",
+  "focused_affected_python314": "634 passed",
+  "orch01_controls": "15 passed",
+  "served_qualification": "2/2 accepted; 2 model calls; exact readback",
+  "workflow_neighborhood": "443 passed"
+ },
+ "executed_source": "7bda6a25f",
+ "schema": "atom-employee-evidence-1",
+ "served_qualification": {
+  "cases": [
+   "service_intake_review",
+   "inventory_operations_review"
+  ],
+  "model": "llama3.1:8b",
+  "model_calls": 2,
+  "profile": "workflow_blueprint",
+  "provider": "ollama",
+  "readback_exact": true,
+  "version": "2026-11-05.1"
+ },
+ "source_files": {
+  "backend/advanced_workflow_api.py": "9748eff0c1eb0671245af5003e6ec31031a5bfd0f9df5c6345e7e04afc0f4163",
+  "backend/advanced_workflow_orchestrator.py": "60c7c2c38cea56432840667be0066d8838e8095faf6e4886585358ae567eb798",
+  "backend/core/agents/queen_agent.py": "3fc12233ce597563b51d6dff2a0716157ce2582694708ecefde8edc75362ecb9",
+  "backend/core/agents/workflow_blueprint.py": "700517e58691b67b107d0a2cc11edd6dc993e92db1cacb480700117a0fea73d5",
+  "backend/core/llm/capability_profiles.py": "1aff00d9366ae053d071a76bc5cbce512b1fcf1d906b4590404b4e117a91de56",
+  "backend/core/workflow_blueprint_service.py": "afb5f54fd2a5bf7313925e33d2e6015b3c87008bd149245d3323ca67b6070187",
+  "backend/tests/test_bughunt_agents_wave10c.py": "d539c14ab043cc108c864361579fbc57db0d5d026a473433274ac6c1cfe2c67d",
+  "backend/tests/test_orch01_workflow_blueprint.py": "b29075f5218f27c4e052d9f2af98d538b5b6b8858b71f8c116b99a9ea6062e4d",
+  "backend/tests/test_round69_async_unguarded_surfaces.py": "c27c498c9e57336b858709eed6c601d2ff291a3dd92d2ca2647426b689ff8a2f"
+ },
+ "status": "plain-language workflow request produces a validated, HITL-gated, durably scoped workflow blueprint with exact fresh-session readback"
+}

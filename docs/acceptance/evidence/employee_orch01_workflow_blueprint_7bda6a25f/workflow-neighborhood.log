@@ -1,0 +1,1532 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 06:35:56 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 06:35:56 [    INFO] No token storage file found, starting empty
+2026-11-05 06:35:56 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 06:35:56 [    INFO] EscalationManager initialized
+2026-11-05 06:35:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:35:56 [    INFO] EscalationManager initialized
+2026-11-05 06:35:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:35:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 06:35:56 [    INFO] MCP Service initialized
+2026-11-05 06:35:56 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_advanced_workflow_system.py::TestParameterTypeEnum::test_enum_values 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_advanced_workflow_system.py::TestParameterTypeEnum::test_string_enum PASSED [  0%]
+tests/test_advanced_workflow_system.py::TestParameterTypeEnum::test_parameter_types PASSED [  0%]
+tests/test_advanced_workflow_system.py::TestWorkflowStateEnum::test_state_values PASSED [  0%]
+tests/test_advanced_workflow_system.py::TestWorkflowStateEnum::test_state_transitions PASSED [  1%]
+tests/test_advanced_workflow_system.py::TestWorkflowStateEnum::test_default_state PASSED [  1%]
+tests/test_advanced_workflow_system.py::TestInputParameter::test_valid_parameter PASSED [  1%]
+tests/test_advanced_workflow_system.py::TestInputParameter::test_required_validation PASSED [  1%]
+tests/test_advanced_workflow_system.py::TestInputParameter::test_type_validation PASSED [  2%]
+tests/test_advanced_workflow_system.py::TestInputParameter::test_default_values PASSED [  2%]
+tests/test_advanced_workflow_system.py::TestWorkflowStep::test_step_creation PASSED [  2%]
+tests/test_advanced_workflow_system.py::TestWorkflowStep::test_step_execution PASSED [  2%]
+tests/test_advanced_workflow_system.py::TestWorkflowStep::test_step_validation PASSED [  2%]
+tests/test_advanced_workflow_system.py::TestMultiOutputConfig::test_multi_output_config PASSED [  3%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_creation PASSED [  3%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_validation PASSED [  3%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_with_steps PASSED [  3%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_with_input_schema PASSED [  4%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_with_output_config PASSED [  4%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_state_transitions PASSED [  4%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_advance_to_step PASSED [  4%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_get_missing_inputs PASSED [  4%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_parameter_with_default_not_missing PASSED [  5%]
+tests/test_advanced_workflow_system.py::TestAdvancedWorkflowDefinition::test_workflow_conditional_parameter_visibility PASSED [  5%]
+tests/test_covpush_w28_advanced_workflow.py::TestDefinitionModel::test_advance_to_step PASSED [  5%]
+tests/test_covpush_w28_advanced_workflow.py::TestDefinitionModel::test_get_missing_inputs PASSED [  5%]
+tests/test_covpush_w28_advanced_workflow.py::TestDefinitionModel::test_should_show_parameter PASSED [  6%]
+tests/test_covpush_w28_advanced_workflow.py::TestDefinitionModel::test_step_outputs PASSED [  6%]
+tests/test_covpush_w28_advanced_workflow.py::TestDefinitionModel::test_validate_step_ids PASSED [  6%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_save_and_load_memory PASSED [  6%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_load_from_file PASSED [  6%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_load_missing PASSED [  7%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_persist_sanitizes_id PASSED [  7%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_persist_invalid_id_raises PASSED [  7%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_load_invalid_file PASSED [  7%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_save_exception_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to save state for wf-1: disk full
+PASSED                                                                   [  8%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_list_workflows_memory_and_dir 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Found 2 workflows
+PASSED                                                                   [  8%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_list_workflows_filters_and_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Found 1 workflows matching filters
+PASSED                                                                   [  8%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_list_workflows_offset 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Found 1 workflows
+PASSED                                                                   [  8%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_list_workflows_bad_sort_key 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Found 1 workflows
+PASSED                                                                   [  9%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_list_workflows_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Found 0 workflows
+PASSED                                                                   [  9%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_create_summary_enum_state PASSED [  9%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_delete_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Deleted workflow state for del-1
+PASSED                                                                   [  9%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_delete_state_no_file PASSED [  9%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_delete_state_invalid_id PASSED [ 10%]
+tests/test_covpush_w28_advanced_workflow.py::TestStateManager::test_delete_state_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to delete state for wf-1: boom
+PASSED                                                                   [ 10%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_required_missing PASSED [ 10%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_default_used PASSED [ 10%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_optional_none_valid PASSED [ 11%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_string_type PASSED [ 11%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_number_type PASSED [ 11%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_boolean_type PASSED [ 11%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_array_type PASSED [ 11%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_select_type PASSED [ 12%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_multiselect_type PASSED [ 12%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_length_rules PASSED [ 12%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_value_rules PASSED [ 12%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_pattern_rule PASSED [ 13%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_pattern_too_complex PASSED [ 13%]
+tests/test_covpush_w28_advanced_workflow.py::TestParameterValidator::test_exception_returns_validation_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Parameter validation error: boom
+PASSED                                                                   [ 13%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_workflow_success PASSED [ 13%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_workflow_invalid PASSED [ 13%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_validate_workflow_missing_dep PASSED [ 14%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_validate_workflow_circular PASSED [ 14%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_validate_workflow_ok PASSED [ 14%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_validate_workflow_exception PASSED [ 14%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_has_circular_dependencies PASSED [ 15%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_not_found PASSED [ 15%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_already_running PASSED [ 15%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_missing_inputs PASSED [ 15%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_validation_errors PASSED [ 16%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_success PASSED [ 16%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_get_missing_inputs_global_and_step PASSED [ 16%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_should_show_parameter_complex PASSED [ 16%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_execution_plan PASSED [ 16%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_execution_plan_cycle_marker PASSED [ 17%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed PASSED [ 17%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_error_step_fails PASSED [ 17%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_paused_breaks PASSED [ 17%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_skips_completed PASSED [ 18%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Workflow execution failed: boom
+PASSED                                                                   [ 18%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_step_all_types PASSED [ 18%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_step_exception PASSED [ 18%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_step_executors PASSED [ 18%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_pause_workflow PASSED [ 19%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_pause_workflow_cancels_task PASSED [ 19%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_resume_workflow_not_paused PASSED [ 19%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_resume_workflow_paused PASSED [ 19%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_cancel_workflow PASSED [ 20%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_get_workflow_status PASSED [ 20%]
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_calculate_progress PASSED [ 20%]
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_parallel PASSED [ 20%]
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_conditional PASSED [ 20%]
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_execute_with_retry PASSED [ 21%]
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_result_objects PASSED [ 21%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestPublishOrchestrationEvent::test_invalid_event_type_returns PASSED [ 21%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestPublishOrchestrationEvent::test_event_bus_failure_swallowed PASSED [ 21%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestEvaluateCondition::test_generic_exception_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Error evaluating condition '${input.x} > 1': eval boom
+PASSED                                                                   [ 22%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGetValueFromPath::test_step_output_branch_non_dict_mid_path PASSED [ 22%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGetValueFromPath::test_input_branch_non_dict_mid_path PASSED [ 22%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecuteStepFallbackTimeout::test_fallback_timeout_raises_step_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:57 [ WARNING] Primary service email.send failed: primary down
+2026-11-05 06:35:57 [    INFO] Attempting fallback service slack.send
+2026-11-05 06:35:57 [   ERROR] Fallback service slack.send also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Primary service failed: primary down; fallback slack also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:57 [ WARNING] Primary service email.send failed: primary down
+2026-11-05 06:35:57 [    INFO] Attempting fallback service slack.send
+2026-11-05 06:35:57 [   ERROR] Fallback service slack.send also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Primary service failed: primary down; fallback slack also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:57 [ WARNING] Primary service email.send failed: primary down
+2026-11-05 06:35:57 [    INFO] Attempting fallback service slack.send
+2026-11-05 06:35:57 [   ERROR] Fallback service slack.send also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Primary service failed: primary down; fallback slack also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:57 [ WARNING] Primary service email.send failed: primary down
+2026-11-05 06:35:57 [    INFO] Attempting fallback service slack.send
+2026-11-05 06:35:57 [   ERROR] Fallback service slack.send also failed: Fallback service slack.send timed out after 0.05s
+2026-11-05 06:35:57 [   ERROR] _execute_step failed after 4 attempts. Final error: Primary service failed: primary down; fallback slack also failed: Fallback service slack.send timed out after 0.05s
+PASSED                                                                   [ 22%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_success_path_completed PASSED [ 23%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_success_activates_connection PASSED [ 23%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_partial_when_step_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] Variable input.go not found in condition: ${input.go} == true
+2026-11-05 06:35:57 [ WARNING] Workflow execution ex-g2 ended with pending steps
+PASSED                                                                   [ 23%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_step_failure_fails_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Step a failed: step boom
+2026-11-05 06:35:57 [   ERROR] Workflow execution ex-g3 failed due to step failure: step boom
+PASSED                                                                   [ 23%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_continue_on_error_activates_downstream 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Step a failed: step a boom
+2026-11-05 06:35:57 [ WARNING] Step a failed but continue_on_error is True, marking as failed but continuing workflow
+2026-11-05 06:35:57 [ WARNING] Workflow execution ex-g4 ended with pending steps
+PASSED                                                                   [ 23%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_resume_activates_completed_step_connections PASSED [ 24%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestGraphExecutorBranches::test_graph_skips_non_pending_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] Workflow execution ex-g6 ended with pending steps
+PASSED                                                                   [ 24%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_governance_fail_open 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Governance check failed, failing open for safety but logging error: governance down
+2026-11-05 06:35:57 [    INFO] Event bus started
+PASSED                                                                   [ 24%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_step_record_create_failure_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to create step execution record: db add boom
+2026-11-05 06:35:57 [ WARNING] Failed to create Time Travel snapshot: db add boom
+PASSED                                                                   [ 24%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_snapshot_failure_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] Failed to create Time Travel snapshot: snapshot boom
+PASSED                                                                   [ 25%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_step_record_update_failure_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to create step execution record: db commit boom
+2026-11-05 06:35:57 [ WARNING] Failed to create Time Travel snapshot: db commit boom
+2026-11-05 06:35:57 [   ERROR] Failed to update step execution record: unsupported operand type(s) for -: 'datetime.datetime' and 'NoneType'
+PASSED                                                                   [ 25%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_failure_path_marketplace_tracking 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Step s1 failed: boom
+PASSED                                                                   [ 25%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestRunExecutionGuards::test_outer_exception_marks_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Execution ex-outer failed: status boom
+PASSED                                                                   [ 25%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_success_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=2628fe99-5ffa-4434-a229-0b4b8eb53721 tier=solo
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.89
+PASSED                                                                   [ 25%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_failure_path_prunes_test_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=2432cf4d-dac3-4b65-afb3-84e61311f83b tier=solo
+2026-11-05 06:35:57 [ WARNING] [Arbor/Workflow] Workflow execution FAILED: boom
+PASSED                                                                   [ 26%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_exception_prunes_manual_and_reraises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=8415669f-da56-45e2-b059-fef98ec69ec7 tier=solo
+2026-11-05 06:35:57 [   ERROR] [Arbor/Workflow] HTR execution wrapper failed: exec boom
+PASSED                                                                   [ 26%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_previous_tree_negative_constraints_inherited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=e904d2e8-a544-4550-854a-4c33ecc8c83c tier=solo
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.89
+PASSED                                                                   [ 26%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_low_parallel_ratio_uses_low_cost_potential 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=71e176ae-5dab-48de-8a8e-f10bef86b40b tier=solo
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.51
+PASSED                                                                   [ 26%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_polling_loop_break_on_empty_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=ad2b3bf4-23e4-469e-9eff-e95b25c917f5 tier=solo
+2026-11-05 06:35:57 [ WARNING] [Arbor/Workflow] Workflow execution FAILED: None
+PASSED                                                                   [ 27%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_polling_loop_sleep_continue 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=592dda14-9760-4634-996e-10a9955430cb tier=solo
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.89
+PASSED                                                                   [ 27%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_persist_failure_in_exception_path_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=0f82bd9b-731f-4c3c-bcd6-1473995209e2 tier=solo
+2026-11-05 06:35:57 [   ERROR] [Arbor/Workflow] HTR execution wrapper failed: exec boom
+PASSED                                                                   [ 27%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestArborRefinement::test_graph_format_workflow_measures_converted_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Initialized Workflow OptimizationTree=8c156a25-cc86-4a18-a4d4-7e19d901ece0 tier=solo
+2026-11-05 06:35:57 [    INFO] [Arbor/Workflow] Workflow execution SUCCESS. Node promise=0.91
+PASSED                                                                   [ 27%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_slack_get_channel_history_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-05 06:35:57 [    INFO] Executing Slack action get_channel_history with connection c1 (Token found: True)
+PASSED                                                                   [ 27%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_gmail_send_email_no_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing Gmail action send_email with connection None (Token found: False)
+2026-11-05 06:35:57 [   ERROR] Gmail execution failed: [AUTH_1001] Gmail authentication required (no token found)
+PASSED                                                                   [ 28%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_gmail_token_fallback_to_google 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing Gmail action send_email with connection c1 (Token found: True)
+PASSED                                                                   [ 28%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_gmail_create_draft_no_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing Gmail action create_draft with connection None (Token found: False)
+2026-11-05 06:35:57 [   ERROR] Gmail execution failed: [AUTH_1001] Gmail authentication required
+PASSED                                                                   [ 28%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_github_exception_reraises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing GitHub action create_issue with connection c1
+2026-11-05 06:35:57 [   ERROR] GitHub execution failed: gh down
+PASSED                                                                   [ 28%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_zoom_exception_reraises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Zoom execution failed: zoom down
+PASSED                                                                   [ 29%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_notion_exception_reraises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Notion execution failed: notion down
+PASSED                                                                   [ 29%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_zoho_unknown_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Zoho CRM execution failed: Unknown Zoho CRM action: nonexistent_action
+2026-11-05 06:35:57 [   ERROR] Zoho Books execution failed: Unknown Zoho Books action: nonexistent_action
+2026-11-05 06:35:57 [   ERROR] Zoho Inventory execution failed: Unknown Zoho Inventory action: nonexistent_action
+PASSED                                                                   [ 29%]
+tests/test_covpush_w29_workflow_engine_graph.py::TestExecutorEdges::test_zoho_sync_method_calls PASSED [ 29%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestUpdateDeleteBranches::test_update_workflow_icon_payload PASSED [ 30%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestUpdateDeleteBranches::test_delete_workflow_db_404 PASSED [ 30%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteByIdBranches::test_background_task_runs PASSED [ 30%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteByIdBranches::test_schedule_failure_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to schedule workflow execution: scheduler down
+Traceback (most recent call last):
+  File "/private/tmp/atom-orch01-agent1/backend/core/workflow_ui_endpoints.py", line 693, in execute_workflow_by_id
+    background_tasks.add_task(_run_orchestration)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: scheduler down
+PASSED                                                                   [ 30%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestMergeDedup::test_duplicate_rows_skipped PASSED [ 30%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_dict_contexts_and_errors PASSED [ 31%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_bad_context_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Error parsing execution context: 'NoneType' object has no attribute 'get'
+PASSED                                                                   [ 31%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_orchestrator_failure_falls_back_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to load orchestrator executions: boom
+PASSED                                                                   [ 31%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_merge_failure_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to merge persisted executions: db down
+PASSED                                                                   [ 31%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteMappingBranches::test_finance_and_project_mapping PASSED [ 32%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteMappingBranches::test_bridge_email_and_delay_step_types PASSED [ 32%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteMappingBranches::test_background_execution_failure_marks_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Background execution failed: boom
+2026-11-05 06:35:57 [   ERROR] Traceback (most recent call last):
+  File "/private/tmp/atom-orch01-agent1/backend/core/workflow_ui_endpoints.py", line 991, in _run_orchestration
+    await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 2333, in _execute_mock_call
+    raise effect
+RuntimeError: boom
+
+PASSED                                                                   [ 32%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecuteMappingBranches::test_found_mock_step_count_fallback PASSED [ 32%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestCancelBranches::test_cancel_dict_context PASSED [ 32%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestCancelBranches::test_cancel_context_setter_failure PASSED [ 33%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestCancelBranches::test_cancel_orchestrator_error_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to cancel orchestrator execution ghost: boom
+PASSED                                                                   [ 33%]
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestCancelBranches::test_get_workflow_history_empty PASSED [ 33%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_empty_primitives_raise PASSED [ 33%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_single_primitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow comp_wf_f0e60093462b437e: 1 nodes, 1.00s estimated
+PASSED                                                                   [ 34%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_auto_workflow_id_generated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow comp_wf_cdc99e21a2bf4ccd: 1 nodes, 1.00s estimated
+PASSED                                                                   [ 34%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_explicit_workflow_id_respected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow my-wf: 1 nodes, 1.00s estimated
+PASSED                                                                   [ 34%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_node_count_counts_tree 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow comp_wf_e478e9d071d74089: 3 nodes, 2.00s estimated
+PASSED                                                                   [ 34%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_validation_disabled_skips 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow comp_wf_b5b8600df5334214: 1 nodes, 10.00s estimated
+PASSED                                                                   [ 34%]
+tests/test_covpush_w103_workflow_composer.py::TestCompose::test_validation_error_reported 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Composed workflow comp_wf_2ff7aa96303d4a85: 1 nodes, 1.00s estimated
+PASSED                                                                   [ 35%]
+tests/test_covpush_w103_workflow_composer.py::TestBuildCompositionTree::test_sequence_appends_to_root PASSED [ 35%]
+tests/test_covpush_w103_workflow_composer.py::TestBuildCompositionTree::test_choice_appends_to_root PASSED [ 35%]
+tests/test_covpush_w103_workflow_composer.py::TestBuildCompositionTree::test_loop_appends_to_root PASSED [ 35%]
+tests/test_covpush_w103_workflow_composer.py::TestBuildCompositionTree::test_parallel_re_roots PASSED [ 36%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_parallel_takes_max PASSED [ 36%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_parallel_empty_children_base PASSED [ 36%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_sequence_sums_children PASSED [ 36%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_loop_multiplies_children PASSED [ 37%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_duration_ms_override PASSED [ 37%]
+tests/test_covpush_w103_workflow_composer.py::TestEstimateDuration::test_duration_stored_on_node PASSED [ 37%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_depth_exceeded_reported PASSED [ 37%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_cycle_detected PASSED [ 37%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_parallel_requires_two_children PASSED [ 38%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_loop_requires_condition PASSED [ 38%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_loop_with_condition_valid PASSED [ 38%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_get_max_depth_bfs PASSED [ 38%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_detect_cycles_reports_cycle_string PASSED [ 39%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_detect_cycles_visited_skip PASSED [ 39%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_detect_cycles_no_cycle PASSED [ 39%]
+tests/test_covpush_w103_workflow_composer.py::TestValidation::test_validate_primitives_recursion PASSED [ 39%]
+tests/test_covpush_w103_workflow_composer.py::TestDecompose::test_no_root_returns_empty PASSED [ 39%]
+tests/test_covpush_w103_workflow_composer.py::TestDecompose::test_pre_order_extraction PASSED [ 40%]
+tests/test_covpush_w103_workflow_composer.py::TestMisc::test_get_statistics PASSED [ 40%]
+tests/test_covpush_w103_workflow_composer.py::TestMisc::test_composer_default_config PASSED [ 40%]
+tests/test_covpush_w103_workflow_composer.py::TestMisc::test_factory_creates_and_caches PASSED [ 40%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_none_required_rejected PASSED [ 41%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_none_optional_accepted PASSED [ 41%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_string_ok PASSED [ 41%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_string_wrong_type PASSED [ 41%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_string_pattern_match PASSED [ 41%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_integer_type_check PASSED [ 42%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_integer_min_max PASSED [ 42%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_integer_min_only PASSED [ 42%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_integer_max_only PASSED [ 42%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_float_accepts_int PASSED [ 43%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_float_min_max PASSED [ 43%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_boolean_strict PASSED [ 43%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_array_requires_list PASSED [ 43%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_enum_allowed_values PASSED [ 44%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateParameterValidate::test_enum_without_allowed_values_passes_any PASSED [ 44%]
+tests/test_covpush_w103_workflow_templates.py::TestValidateParameters::test_valid_params PASSED [ 44%]
+tests/test_covpush_w103_workflow_templates.py::TestValidateParameters::test_missing_required PASSED [ 44%]
+tests/test_covpush_w103_workflow_templates.py::TestValidateParameters::test_type_failure PASSED [ 44%]
+tests/test_covpush_w103_workflow_templates.py::TestValidateParameters::test_schema_validation_success PASSED [ 45%]
+tests/test_covpush_w103_workflow_templates.py::TestValidateParameters::test_schema_validation_failure PASSED [ 45%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_success_builds_workflow PASSED [ 45%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_invalid_params_raise_valueerror PASSED [ 45%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_parameter_substitution_in_steps PASSED [ 46%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_unresolved_placeholder_passthrough PASSED [ 46%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_whole_value_placeholder_keeps_type PASSED [ 46%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_empty_steps PASSED [ 46%]
+tests/test_covpush_w103_workflow_templates.py::TestInstantiate::test_original_template_parameters_not_mutated PASSED [ 46%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_standard_templates_seeded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 47%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_register_and_get 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+2026-11-05 06:35:57 [    INFO] Registered template: t1
+PASSED                                                                   [ 47%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_get_templates_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 47%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_get_templates_by_category_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 47%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_search_by_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 48%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_search_by_description_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 48%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_search_by_tag 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 48%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_search_no_match 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 48%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_statistics 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 48%]
+tests/test_covpush_w103_workflow_templates.py::TestTemplateLibrary::test_registered_template_in_category_index 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+2026-11-05 06:35:57 [    INFO] Registered template: t1
+PASSED                                                                   [ 49%]
+tests/test_covpush_w103_workflow_templates.py::TestFactory::test_factory_returns_singleton 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Registered template: data_sync_automation
+2026-11-05 06:35:57 [    INFO] Registered template: report_generation
+2026-11-05 06:35:57 [    INFO] Registered template: approval_workflow
+2026-11-05 06:35:57 [    INFO] Registered template: monitoring_alert
+PASSED                                                                   [ 49%]
+tests/test_covpush_w103_workflow_templates.py::TestEnums::test_category_values PASSED [ 49%]
+tests/test_covpush_w103_workflow_templates.py::TestEnums::test_parameter_type_values PASSED [ 49%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_parameter_label_default PASSED [ 50%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_step_alias_id PASSED [ 50%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_step_dependency_validator_passthrough PASSED [ 50%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_validate_step_connections_ok PASSED [ 50%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_validate_step_connections_bad_dep PASSED [ 51%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_template_id_generated PASSED [ 51%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_calculate_estimated_duration_mixed PASSED [ 51%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_add_usage PASSED [ 51%]
+tests/test_covpush_w109_workflow_templates.py::TestModelValidators::test_update_rating_first_and_subsequent PASSED [ 51%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_af60d1083d41)
+PASSED                                                                   [ 52%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_template_invalid_raises 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to create template: 2 validation errors for WorkflowTemplate
+category
+  Field required [type=missing, input_value={'name': 'N', 'description': 'D'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+complexity
+  Field required [type=missing, input_value={'name': 'N', 'description': 'D'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+PASSED                                                                   [ 52%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_get_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_c52316935d99)
+PASSED                                                                   [ 52%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_update_template_name_tags 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_62cd6d997ccd)
+2026-11-05 06:35:57 [    INFO] Updated template: Renamed
+PASSED                                                                   [ 52%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_update_template_missing_raises 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+PASSED                                                                   [ 53%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_update_with_dict_steps_then_generate 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_cdf1b3c3c6f8)
+2026-11-05 06:35:57 [    INFO] Updated template: Test ETL
+2026-11-05 06:35:57 [    INFO] Created workflow from template: My Flow from Test ETL
+PASSED                                                                   [ 53%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_update_with_template_step_objects 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_947256da2997)
+2026-11-05 06:35:57 [    INFO] Updated template: Test ETL
+PASSED                                                                   [ 53%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_list_filters 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_ba3eaa592886)
+PASSED                                                                   [ 53%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_search_templates_ordering 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_6d2897a81c58)
+PASSED                                                                   [ 53%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_from_template_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_d4f0499bdd0b)
+2026-11-05 06:35:57 [    INFO] Created workflow from template: Flow from Test ETL
+PASSED                                                                   [ 54%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_from_template_missing 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+PASSED                                                                   [ 54%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_missing_required_param 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_c35a053f179d)
+2026-11-05 06:35:57 [   ERROR] Failed to create workflow from template template_c35a053f179d: Required parameter 'source' is missing
+PASSED                                                                   [ 54%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_bad_json_param 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_40936c42a53a)
+2026-11-05 06:35:57 [   ERROR] Failed to create workflow from template template_40936c42a53a: Invalid value for parameter 'items': Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 54%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_required_param_with_default 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_16ca922b6590)
+2026-11-05 06:35:57 [    INFO] Created workflow from template: Flow from Test ETL
+2026-11-05 06:35:57 [    INFO] Created workflow from template: Flow from Test ETL
+PASSED                                                                   [ 55%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_load_templates_dir_removed_early_return 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+PASSED                                                                   [ 55%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_default_filled 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_7b69bdd483b2)
+2026-11-05 06:35:57 [    INFO] Created workflow from template: Flow from Test ETL
+PASSED                                                                   [ 55%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_create_workflow_with_customizations 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_d83274b175ce)
+2026-11-05 06:35:57 [    INFO] Created workflow from template: Flow from Test ETL
+PASSED                                                                   [ 55%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_delete_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_e36cb313a0cd)
+2026-11-05 06:35:57 [    INFO] Deleted template: Test ETL
+PASSED                                                                   [ 55%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_delete_template_index_cleanup 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_3abce291d53a)
+2026-11-05 06:35:57 [    INFO] Deleted template: Test ETL
+PASSED                                                                   [ 56%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_rate_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_58adf82b5be2)
+2026-11-05 06:35:57 [    INFO] Rated template Test ETL: 4.5
+PASSED                                                                   [ 56%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_export_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_443a3396187c)
+PASSED                                                                   [ 56%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_import_template_new 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (imported_tpl)
+PASSED                                                                   [ 56%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_import_template_no_overwrite 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (imported_tpl)
+PASSED                                                                   [ 57%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_import_template_overwrite_new_id 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (imported_tpl)
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_d5eceaa94373)
+PASSED                                                                   [ 57%]
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_template_statistics 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_405e50f996aa)
+PASSED                                                                   [ 57%]
+tests/test_covpush_w109_workflow_templates.py::TestPersistenceAndErrors::test_load_templates_from_dir 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_2250ea136967)
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 15 templates
+PASSED                                                                   [ 57%]
+tests/test_covpush_w109_workflow_templates.py::TestPersistenceAndErrors::test_load_templates_missing_dir 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+PASSED                                                                   [ 58%]
+tests/test_covpush_w109_workflow_templates.py::TestPersistenceAndErrors::test_load_templates_corrupt_json_logs_and_skips 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+2026-11-05 06:35:57 [    INFO] Created template: Test ETL (template_c29acf3b5ca7)
+2026-11-05 06:35:57 [   ERROR] Failed to load template /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4121/test_load_templates_corrupt_js0/templates/corrupt.json: Expecting property name enclosed in double quotes: line 1 column 3 (char 2)
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 15 templates
+PASSED                                                                   [ 58%]
+tests/test_covpush_w109_workflow_templates.py::TestPersistenceAndErrors::test_load_templates_invalid_schema_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to load template /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4121/test_load_templates_invalid_sc0/templates/bad.json: 3 validation errors for WorkflowTemplate
+description
+  Field required [type=missing, input_value={'template_id': 'bad1', 'name': 'x'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+category
+  Field required [type=missing, input_value={'template_id': 'bad1', 'name': 'x'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+complexity
+  Field required [type=missing, input_value={'template_id': 'bad1', 'name': 'x'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 14 templates
+PASSED                                                                   [ 58%]
+tests/test_covpush_w109_workflow_templates.py::TestPersistenceAndErrors::test_load_built_in_error_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Failed to load built-in template: template source broke
+2026-11-05 06:35:57 [    INFO] Template manager initialized with 13 templates
+PASSED                                                                   [ 58%]
+tests/test_covpush_w21_workflow_engine.py::TestCheckDependencies::test_all_dependencies_met PASSED [ 58%]
+tests/test_covpush_w21_workflow_engine.py::TestCheckDependencies::test_missing_dependency PASSED [ 59%]
+tests/test_covpush_w21_workflow_engine.py::TestCheckDependencies::test_no_dependencies PASSED [ 59%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_empty_condition_always_true PASSED [ 59%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_variable_not_found_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] Variable missing.key not found in condition: ${missing.key} == 1
+PASSED                                                                   [ 59%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_string_variable_comparison PASSED [ 60%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_numeric_variable_comparison PASSED [ 60%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_bool_and_float_values PASSED [ 60%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_complex_object_uses_repr 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] SafeEval blocked: Function calls are not allowed
+2026-11-05 06:35:57 [   ERROR] Code injection blocked in condition 'len(${s.data}) == 1': Unsafe expression: Function calls are not allowed
+PASSED                                                                   [ 60%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_non_boolean_result_truthiness PASSED [ 60%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_safe_eval_blocks_code_injection 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] SafeEval blocked: Attribute access (obj.attr) is not allowed
+2026-11-05 06:35:57 [   ERROR] Code injection blocked in condition '${input.payload}.__class__': Unsafe expression: Attribute access (obj.attr) is not allowed
+PASSED                                                                   [ 61%]
+tests/test_covpush_w21_workflow_engine.py::TestEvaluateCondition::test_exception_falls_back_to_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [   ERROR] Code injection blocked in condition 'not valid python !!!': Syntax error in expression: invalid syntax (<unknown>, line 1)
+PASSED                                                                   [ 61%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_plain_value_passthrough PASSED [ 61%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_dict_and_list_recursion PASSED [ 61%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_pure_single_reference_preserves_type PASSED [ 62%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_pure_reference_missing_raises PASSED [ 62%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_interpolation_multiple_variables PASSED [ 62%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_interpolation_missing_raises PASSED [ 62%]
+tests/test_covpush_w21_workflow_engine.py::TestResolveParameterValue::test_resolve_parameters_maps_keys PASSED [ 62%]
+tests/test_covpush_w21_workflow_engine.py::TestPathHelpers::test_path_exists_input PASSED [ 63%]
+tests/test_covpush_w21_workflow_engine.py::TestPathHelpers::test_path_exists_output PASSED [ 63%]
+tests/test_covpush_w21_workflow_engine.py::TestPathHelpers::test_get_value_input PASSED [ 63%]
+tests/test_covpush_w21_workflow_engine.py::TestPathHelpers::test_get_value_output PASSED [ 63%]
+tests/test_covpush_w21_workflow_engine.py::TestPathHelpers::test_get_value_missing_returns_none PASSED [ 64%]
+tests/test_covpush_w21_workflow_engine.py::TestSchemaValidation::test_no_schema_noop PASSED [ 64%]
+tests/test_covpush_w21_workflow_engine.py::TestSchemaValidation::test_valid_schema_passes PASSED [ 64%]
+tests/test_covpush_w21_workflow_engine.py::TestSchemaValidation::test_invalid_input_schema_raises PASSED [ 64%]
+tests/test_covpush_w21_workflow_engine.py::TestSchemaValidation::test_invalid_output_schema_raises PASSED [ 65%]
+tests/test_covpush_w21_workflow_engine.py::TestGetToken::test_no_connection_id PASSED [ 65%]
+tests/test_covpush_w21_workflow_engine.py::TestGetToken::test_connection_hit PASSED [ 65%]
+tests/test_covpush_w21_workflow_engine.py::TestGetToken::test_connection_miss_falls_back_to_service_name PASSED [ 65%]
+tests/test_covpush_w21_workflow_engine.py::TestGetToken::test_no_token_data PASSED [ 65%]
+tests/test_covpush_w21_workflow_engine.py::TestGraphBuilders::test_build_execution_graph PASSED [ 66%]
+tests/test_covpush_w21_workflow_engine.py::TestGraphBuilders::test_has_conditional_connections PASSED [ 66%]
+tests/test_covpush_w21_workflow_engine.py::TestGraphBuilders::test_convert_nodes_skips_malformed_connection 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [ WARNING] Ignoring malformed connection: {'source': None, 'target': 'b'}
+2026-11-05 06:35:57 [ WARNING] Ignoring malformed connection: {'source': 'a'}
+2026-11-05 06:35:57 [ WARNING] Ignoring malformed connection: {}
+PASSED                                                                   [ 66%]
+tests/test_covpush_w21_workflow_engine.py::TestGraphBuilders::test_convert_nodes_steps_shape PASSED [ 66%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_registry_executor_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+PASSED                                                                   [ 67%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_non_success_envelope_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:35:57 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:57 [ WARNING] Primary service email.send failed: Step s1 failed: slow
+2026-11-05 06:35:57 [   ERROR] Failed to execute email.send: Step s1 failed: slow
+2026-11-05 06:35:57 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Step s1 failed: slow
+2026-11-05 06:35:58 [    INFO] Executing email.send with params: {}
+2026-11-05 06:35:58 [ WARNING] Primary service email.send failed: Step s1 failed: slow
+2026-11-05 06:35:58 [   ERROR] Failed to execute email.send: Step s1 failed: slow
+2026-11-05 06:35:58 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Step s1 failed: slow
+2026-11-05 06:36:00 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:00 [ WARNING] Primary service email.send failed: Step s1 failed: slow
+2026-11-05 06:36:00 [   ERROR] Failed to execute email.send: Step s1 failed: slow
+2026-11-05 06:36:00 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Step s1 failed: slow
+2026-11-05 06:36:04 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:04 [ WARNING] Primary service email.send failed: Step s1 failed: slow
+2026-11-05 06:36:04 [   ERROR] Failed to execute email.send: Step s1 failed: slow
+2026-11-05 06:36:04 [   ERROR] _execute_step failed after 4 attempts. Final error: Step s1 failed: slow
+PASSED                                                                   [ 67%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_timeout_raises_step_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:04 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:04 [ WARNING] Primary service email.send failed: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:04 [   ERROR] Failed to execute email.send: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:04 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:05 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:05 [ WARNING] Primary service email.send failed: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:05 [   ERROR] Failed to execute email.send: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:05 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:07 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:07 [ WARNING] Primary service email.send failed: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:07 [   ERROR] Failed to execute email.send: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:07 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:11 [    INFO] Executing email.send with params: {}
+2026-11-05 06:36:11 [ WARNING] Primary service email.send failed: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:11 [   ERROR] Failed to execute email.send: Step s1 timed out after 0.05 seconds
+2026-11-05 06:36:11 [   ERROR] _execute_step failed after 4 attempts. Final error: Step s1 timed out after 0.05 seconds
+PASSED                                                                   [ 67%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_unknown_service_generic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:11 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:11 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+PASSED                                                                   [ 67%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_unknown_service_generic_fails_fallback_used 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:11 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:11 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+2026-11-05 06:36:11 [ WARNING] Generic execution failed or service not found in catalog: not in catalog
+2026-11-05 06:36:11 [    INFO] Attempting fallback service email.send
+PASSED                                                                   [ 67%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_unknown_service_generic_fails_no_fallback_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:11 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:11 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+2026-11-05 06:36:11 [ WARNING] Generic execution failed or service not found in catalog: not in catalog
+2026-11-05 06:36:11 [   ERROR] Failed to execute custom_svc.send: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:11 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:12 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:12 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+2026-11-05 06:36:12 [ WARNING] Generic execution failed or service not found in catalog: not in catalog
+2026-11-05 06:36:12 [   ERROR] Failed to execute custom_svc.send: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:12 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:14 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:14 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+2026-11-05 06:36:14 [ WARNING] Generic execution failed or service not found in catalog: not in catalog
+2026-11-05 06:36:14 [   ERROR] Failed to execute custom_svc.send: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:14 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:18 [    INFO] Executing custom_svc.send with params: {}
+2026-11-05 06:36:18 [    INFO] Service custom_svc not in registry, attempting generic execution via catalog
+2026-11-05 06:36:18 [ WARNING] Generic execution failed or service not found in catalog: not in catalog
+2026-11-05 06:36:18 [   ERROR] Failed to execute custom_svc.send: Unknown service: custom_svc (and generic execution failed: not in catalog)
+2026-11-05 06:36:18 [   ERROR] _execute_step failed after 4 attempts. Final error: Unknown service: custom_svc (and generic execution failed: not in catalog)
+PASSED                                                                   [ 68%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_executor_raises_fallback_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:18 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:18 [ WARNING] Primary service slack.send failed: boom
+2026-11-05 06:36:18 [    INFO] Attempting fallback service email.send
+PASSED                                                                   [ 68%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_both_fail_raises_combined_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:18 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:18 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:18 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:18 [   ERROR] Fallback service email.send also failed: fallback fail
+2026-11-05 06:36:18 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Primary service failed: primary fail; fallback email also failed: fallback fail
+2026-11-05 06:36:19 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:19 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:19 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:19 [   ERROR] Fallback service email.send also failed: fallback fail
+2026-11-05 06:36:19 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Primary service failed: primary fail; fallback email also failed: fallback fail
+2026-11-05 06:36:21 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:21 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:21 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:21 [   ERROR] Fallback service email.send also failed: fallback fail
+2026-11-05 06:36:21 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Primary service failed: primary fail; fallback email also failed: fallback fail
+2026-11-05 06:36:25 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:25 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:25 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:25 [   ERROR] Fallback service email.send also failed: fallback fail
+2026-11-05 06:36:25 [   ERROR] _execute_step failed after 4 attempts. Final error: Primary service failed: primary fail; fallback email also failed: fallback fail
+PASSED                                                                   [ 68%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_fallback_non_success_envelope_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:25 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:25 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:25 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:25 [   ERROR] Fallback service email.send also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:25 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: Primary service failed: primary fail; fallback email also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:26 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:26 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:26 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:26 [   ERROR] Fallback service email.send also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:26 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: Primary service failed: primary fail; fallback email also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:28 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:28 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:28 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:28 [   ERROR] Fallback service email.send also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:28 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: Primary service failed: primary fail; fallback email also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:32 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:32 [ WARNING] Primary service slack.send failed: primary fail
+2026-11-05 06:36:32 [    INFO] Attempting fallback service email.send
+2026-11-05 06:36:32 [   ERROR] Fallback service email.send also failed: Fallback service email.send returned error: nope
+2026-11-05 06:36:32 [   ERROR] _execute_step failed after 4 attempts. Final error: Primary service failed: primary fail; fallback email also failed: Fallback service email.send returned error: nope
+PASSED                                                                   [ 68%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_no_fallback_raises_primary 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:32 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:32 [ WARNING] Primary service slack.send failed: only primary
+2026-11-05 06:36:32 [   ERROR] Failed to execute slack.send: only primary
+2026-11-05 06:36:32 [ WARNING] _execute_step failed (attempt 1/4). Retrying in 1.00s. Error: only primary
+2026-11-05 06:36:33 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:33 [ WARNING] Primary service slack.send failed: only primary
+2026-11-05 06:36:33 [   ERROR] Failed to execute slack.send: only primary
+2026-11-05 06:36:33 [ WARNING] _execute_step failed (attempt 2/4). Retrying in 2.00s. Error: only primary
+2026-11-05 06:36:35 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:35 [ WARNING] Primary service slack.send failed: only primary
+2026-11-05 06:36:35 [   ERROR] Failed to execute slack.send: only primary
+2026-11-05 06:36:35 [ WARNING] _execute_step failed (attempt 3/4). Retrying in 4.00s. Error: only primary
+2026-11-05 06:36:39 [    INFO] Executing slack.send with params: {}
+2026-11-05 06:36:39 [ WARNING] Primary service slack.send failed: only primary
+2026-11-05 06:36:39 [   ERROR] Failed to execute slack.send: only primary
+2026-11-05 06:36:39 [   ERROR] _execute_step failed after 4 attempts. Final error: only primary
+PASSED                                                                   [ 69%]
+tests/test_covpush_w21_workflow_engine.py::TestExecuteStep::test_mcp_step_kwarg_passed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:39 [    INFO] Executing mcp.send with params: {}
+PASSED                                                                   [ 69%]
+tests/test_covpush_w21_workflow_engine.py::TestSimpleExecutors::test_simple_executors[email] PASSED [ 69%]
+tests/test_covpush_w21_workflow_engine.py::TestSimpleExecutors::test_simple_executors[calendar] PASSED [ 69%]
+tests/test_covpush_w21_workflow_engine.py::TestSimpleExecutors::test_simple_executors[database] PASSED [ 69%]
+tests/test_covpush_w21_workflow_engine.py::TestSimpleExecutors::test_simple_executors[webhook] PASSED [ 70%]
+tests/test_covpush_w21_workflow_engine.py::TestSimpleExecutors::test_simple_executors[ai] PASSED [ 70%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_no_token_raises_auth_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action chat_postMessage with connection None (Token found: False)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: [AUTH_1001] Slack authentication required (no token found)
+PASSED                                                                   [ 70%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_chat_post_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action chat_postMessage with connection c1 (Token found: True)
+PASSED                                                                   [ 70%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_list_channels_and_users 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action list_channels with connection c1 (Token found: True)
+2026-11-05 06:36:40 [    INFO] Executing Slack action chat_getUsers with connection c1 (Token found: True)
+PASSED                                                                   [ 71%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_get_channel_info_missing_param 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action get_channel_info with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: channel_id is required for get_channel_info
+PASSED                                                                   [ 71%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_get_channel_info_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action get_channel_info with connection c1 (Token found: True)
+PASSED                                                                   [ 71%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_get_channel_history_missing_param 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action get_channel_history with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: channel_id is required for get_channel_history
+PASSED                                                                   [ 71%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_update_message_missing_param 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action update_message with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: channel_id, message_ts, and text are required for update_message
+PASSED                                                                   [ 72%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_update_message_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action update_message with connection c1 (Token found: True)
+PASSED                                                                   [ 72%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_delete_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action delete_message with connection c1 (Token found: True)
+2026-11-05 06:36:40 [    INFO] Executing Slack action delete_message with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: channel_id and message_ts are required for delete_message
+PASSED                                                                   [ 72%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_search_messages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action search_messages with connection c1 (Token found: True)
+2026-11-05 06:36:40 [    INFO] Executing Slack action search_messages with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: query is required for search_messages
+PASSED                                                                   [ 72%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_files_list 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action files_list with connection c1 (Token found: True)
+PASSED                                                                   [ 72%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_upload_external_and_reactions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action files_get_upload_url_external with connection c1 (Token found: True)
+2026-11-05 06:36:40 [    INFO] Executing Slack action reactions_add with connection c1 (Token found: True)
+PASSED                                                                   [ 73%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action nope with connection c1 (Token found: True)
+2026-11-05 06:36:40 [   ERROR] Slack execution failed: Unsupported Slack action: nope. Supported actions: chat_postMessage, chat_getChannels, chat_getUsers, get_channel_info, get_channel_history, update_message, delete_message, search_messages, files_list, files_get_upload_url_external, reactions_add
+PASSED                                                                   [ 73%]
+tests/test_covpush_w21_workflow_engine.py::TestSlackExecutor::test_fallback_token_lookup_by_service_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Slack action chat_postMessage with connection c1 (Token found: True)
+PASSED                                                                   [ 73%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_no_token_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-05 06:36:40 [    INFO] Executing Asana action create_task with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: [AUTH_1001] Asana authentication required
+PASSED                                                                   [ 73%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_create_task 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action create_task with connection None
+PASSED                                                                   [ 74%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_get_tasks_and_projects 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_tasks with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_projects with connection None
+PASSED                                                                   [ 74%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_update_task 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action update_task with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action update_task with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: task_gid is required for update_task
+PASSED                                                                   [ 74%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_add_comment 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action add_comment with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action add_comment with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: task_gid and text are required for add_comment
+PASSED                                                                   [ 74%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_get_workspaces_and_users 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_workspaces with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_users with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_users with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: workspace is required for get_users
+PASSED                                                                   [ 74%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_get_teams 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_teams with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_teams with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: workspace is required for get_teams
+PASSED                                                                   [ 75%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_search_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action search_tasks with connection None
+2026-11-05 06:36:40 [    INFO] Executing Asana action search_tasks with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: workspace and query are required for search_tasks
+PASSED                                                                   [ 75%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_create_project_not_implemented 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action create_project with connection None
+PASSED                                                                   [ 75%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action nope with connection None
+2026-11-05 06:36:40 [   ERROR] Asana execution failed: Unsupported Asana action: nope. Supported actions: create_task, get_tasks, get_projects, update_task, add_comment, get_workspaces, get_users, get_teams, search_tasks, create_project
+PASSED                                                                   [ 75%]
+tests/test_covpush_w21_workflow_engine.py::TestAsanaExecutor::test_env_token_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Asana action get_workspaces with connection None
+PASSED                                                                   [ 76%]
+tests/test_covpush_w21_workflow_engine.py::TestDiscordExecutor::test_no_auth_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Discord action send_message with connection None
+2026-11-05 06:36:40 [   ERROR] Discord execution failed: [AUTH_1001] Discord authentication required
+PASSED                                                                   [ 76%]
+tests/test_covpush_w21_workflow_engine.py::TestDiscordExecutor::test_send_message_with_bot 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Discord action send_message with connection None
+PASSED                                                                   [ 76%]
+tests/test_covpush_w21_workflow_engine.py::TestDiscordExecutor::test_send_message_with_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Discord action send_message with connection c1
+PASSED                                                                   [ 76%]
+tests/test_covpush_w21_workflow_engine.py::TestDiscordExecutor::test_other_action_simulated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Discord action get_guilds with connection c1
+PASSED                                                                   [ 76%]
+tests/test_covpush_w21_workflow_engine.py::TestHubspotExecutor::test_no_auth_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing HubSpot action create_contact with connection None
+2026-11-05 06:36:40 [   ERROR] HubSpot execution failed: [AUTH_1001] HubSpot authentication required
+PASSED                                                                   [ 77%]
+tests/test_covpush_w21_workflow_engine.py::TestHubspotExecutor::test_create_contact_and_deal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing HubSpot action create_contact with connection None
+2026-11-05 06:36:40 [    INFO] Executing HubSpot action create_deal with connection None
+PASSED                                                                   [ 77%]
+tests/test_covpush_w21_workflow_engine.py::TestHubspotExecutor::test_other_action_simulated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing HubSpot action list_deals with connection None
+PASSED                                                                   [ 77%]
+tests/test_covpush_w21_workflow_engine.py::TestSalesforceExecutor::test_no_auth_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Salesforce action create_lead with connection c1
+2026-11-05 06:36:40 [   ERROR] Salesforce execution failed: [AUTH_1001] Salesforce authentication required (token + instance_url)
+PASSED                                                                   [ 77%]
+tests/test_covpush_w21_workflow_engine.py::TestSalesforceExecutor::test_create_lead_and_contact 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Salesforce action create_lead with connection c1
+2026-11-05 06:36:40 [    INFO] Executing Salesforce action create_contact with connection c1
+PASSED                                                                   [ 78%]
+tests/test_covpush_w21_workflow_engine.py::TestSalesforceExecutor::test_create_opportunity_and_other 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing Salesforce action create_opportunity with connection c1
+2026-11-05 06:36:40 [    INFO] Executing Salesforce action list_accounts with connection c1
+PASSED                                                                   [ 78%]
+tests/test_covpush_w21_workflow_engine.py::TestGithubExecutor::test_create_issue 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing GitHub action create_issue with connection None
+PASSED                                                                   [ 78%]
+tests/test_covpush_w21_workflow_engine.py::TestGithubExecutor::test_other_action_simulated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:40 [    INFO] Executing GitHub action list_repos with connection None
+PASSED                                                                   [ 78%]
+tests/test_covpush_w21_workflow_engine.py::TestZoomNotionExecutors::test_zoom_create_meeting PASSED [ 79%]
+tests/test_covpush_w21_workflow_engine.py::TestZoomNotionExecutors::test_zoom_other PASSED [ 79%]
+tests/test_covpush_w21_workflow_engine.py::TestZoomNotionExecutors::test_notion_create_page PASSED [ 79%]
+tests/test_covpush_w21_workflow_engine.py::TestZoomNotionExecutors::test_notion_other PASSED [ 79%]
+tests/test_covpush_w21_workflow_engine.py::TestGmailExecutor::test_send_email_no_token_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Executing Gmail action send_email with connection None (Token found: False)
+2026-11-05 06:36:41 [   ERROR] Gmail execution failed: [AUTH_1001] Gmail authentication required (no token found)
+PASSED                                                                   [ 79%]
+tests/test_covpush_w21_workflow_engine.py::TestGmailExecutor::test_send_email_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Executing Gmail action send_email with connection c1 (Token found: True)
+PASSED                                                                   [ 80%]
+tests/test_covpush_w21_workflow_engine.py::TestGmailExecutor::test_send_email_falsy_result_raises_external_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Executing Gmail action send_email with connection c1 (Token found: True)
+2026-11-05 06:36:41 [   ERROR] Gmail execution failed: [EXT_8003] External service error (Gmail): Failed to send email
+PASSED                                                                   [ 80%]
+tests/test_covpush_w21_workflow_engine.py::TestGmailExecutor::test_create_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Executing Gmail action create_draft with connection c1 (Token found: True)
+PASSED                                                                   [ 80%]
+tests/test_covpush_w21_workflow_engine.py::TestGmailExecutor::test_other_action_simulated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Executing Gmail action list_threads with connection c1 (Token found: True)
+PASSED                                                                   [ 80%]
+tests/test_covpush_w21_workflow_engine.py::TestMcpExecutor::test_missing_server_id_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Workflow MCP action 'run' failed: server_id is required for MCP actions
+PASSED                                                                   [ 81%]
+tests/test_covpush_w21_workflow_engine.py::TestMcpExecutor::test_success_with_step_context PASSED [ 81%]
+tests/test_covpush_w21_workflow_engine.py::TestMcpExecutor::test_exception_returns_error_envelope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Workflow MCP action 'run' failed: gate blocked
+PASSED                                                                   [ 81%]
+tests/test_covpush_w21_workflow_engine.py::TestMainAgentExecutor::test_with_mcp_servers PASSED [ 81%]
+tests/test_covpush_w21_workflow_engine.py::TestMainAgentExecutor::test_without_mcp_servers PASSED [ 81%]
+tests/test_covpush_w21_workflow_engine.py::TestMainAgentExecutor::test_exception_returns_error_envelope PASSED [ 82%]
+tests/test_covpush_w21_workflow_engine.py::TestAgentWithMcp::test_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Agent missing not found for MCP execution
+PASSED                                                                   [ 82%]
+tests/test_covpush_w21_workflow_engine.py::TestAgentWithMcp::test_success_with_llm PASSED [ 82%]
+tests/test_covpush_w21_workflow_engine.py::TestAgentWithMcp::test_llm_failure_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] LLM execution failed for agent ag-1: no api
+PASSED                                                                   [ 82%]
+tests/test_covpush_w21_workflow_engine.py::TestAgentWithMcp::test_outer_exception_raises_agent_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] MCP agent execution failed: db down
+PASSED                                                                   [ 83%]
+tests/test_covpush_w21_workflow_engine.py::TestEmailAutomation::test_detect_followups PASSED [ 83%]
+tests/test_covpush_w21_workflow_engine.py::TestEmailAutomation::test_draft_nudge PASSED [ 83%]
+tests/test_covpush_w21_workflow_engine.py::TestEmailAutomation::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Email automation failed: Unknown email_automation action: nope
+PASSED                                                                   [ 83%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_missing_workflow_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Error executing sub-workflow: workflow_id is required for workflow actions
+PASSED                                                                   [ 83%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_workflow_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Error executing sub-workflow: Workflow w1 not found
+PASSED                                                                   [ 84%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [    INFO] Sub-workflow w1 execution ex-1 completed successfully
+PASSED                                                                   [ 84%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Sub-workflow w1 execution ex-1 failed: boom
+PASSED                                                                   [ 84%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_cancelled_and_paused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [ WARNING] Sub-workflow w1 execution ex-1 was cancelled
+2026-11-05 06:36:41 [ WARNING] Sub-workflow w1 execution ex-1 is paused, waiting for input
+PASSED                                                                   [ 84%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [ WARNING] Sub-workflow w1 execution ex-1 timed out after 0.001s
+PASSED                                                                   [ 85%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_state_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:41 [   ERROR] Sub-workflow execution ex-1 not found in state manager
+PASSED                                                                   [ 85%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_running_then_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Sub-workflow w1 execution ex-1 completed successfully
+PASSED                                                                   [ 85%]
+tests/test_covpush_w21_workflow_engine.py::TestWorkflowSubAction::test_unknown_status_loops_to_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] Sub-workflow w1 execution ex-1 has unknown status: WEIRD
+2026-11-05 06:36:42 [    INFO] Sub-workflow w1 execution ex-1 completed successfully
+PASSED                                                                   [ 85%]
+tests/test_covpush_w21_workflow_engine.py::TestLoadWorkflowById::test_file_missing PASSED [ 86%]
+tests/test_covpush_w21_workflow_engine.py::TestLoadWorkflowById::test_found PASSED [ 86%]
+tests/test_covpush_w21_workflow_engine.py::TestLoadWorkflowById::test_invalid_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Error loading workflow w1: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 86%]
+tests/test_covpush_w21_workflow_engine.py::TestOutlookExecutor::test_send_email PASSED [ 86%]
+tests/test_covpush_w21_workflow_engine.py::TestOutlookExecutor::test_create_event PASSED [ 86%]
+tests/test_covpush_w21_workflow_engine.py::TestOutlookExecutor::test_get_emails PASSED [ 87%]
+tests/test_covpush_w21_workflow_engine.py::TestOutlookExecutor::test_generic_method_match PASSED [ 87%]
+tests/test_covpush_w21_workflow_engine.py::TestOutlookExecutor::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Outlook execution failed: Unknown Outlook action: nope
+PASSED                                                                   [ 87%]
+tests/test_covpush_w21_workflow_engine.py::TestJiraTrelloExecutors::test_known_action[jira] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] JiraService initialized for tenant default... without credentials
+PASSED                                                                   [ 87%]
+tests/test_covpush_w21_workflow_engine.py::TestJiraTrelloExecutors::test_known_action[trello] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+PASSED                                                                   [ 88%]
+tests/test_covpush_w21_workflow_engine.py::TestJiraTrelloExecutors::test_unknown_action[jira] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] JiraService initialized for tenant default... without credentials
+2026-11-05 06:36:42 [   ERROR] Jira execution failed: Unknown Jira action: nope
+PASSED                                                                   [ 88%]
+tests/test_covpush_w21_workflow_engine.py::TestJiraTrelloExecutors::test_unknown_action[trello] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-05 06:36:42 [   ERROR] Trello execution failed: Unknown Trello action: nope
+PASSED                                                                   [ 88%]
+tests/test_covpush_w21_workflow_engine.py::TestStripeExecutor::test_not_available PASSED [ 88%]
+tests/test_covpush_w21_workflow_engine.py::TestStripeExecutor::test_no_token_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] Stripe action 'list_products' requires access_token but none found for connection_id: c1. Skipping execution.
+PASSED                                                                   [ 88%]
+tests/test_covpush_w21_workflow_engine.py::TestStripeExecutor::test_success PASSED [ 89%]
+tests/test_covpush_w21_workflow_engine.py::TestStripeExecutor::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Stripe execution failed: Unknown Stripe action: nope
+PASSED                                                                   [ 89%]
+tests/test_covpush_w21_workflow_engine.py::TestShopifyExecutor::test_sync_method PASSED [ 89%]
+tests/test_covpush_w21_workflow_engine.py::TestShopifyExecutor::test_async_method PASSED [ 89%]
+tests/test_covpush_w21_workflow_engine.py::TestShopifyExecutor::test_unknown_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Shopify execution failed: Unknown Shopify action: nope
+PASSED                                                                   [ 90%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_crm_sync_and_async PASSED [ 90%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_crm_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Zoho CRM execution failed: Unknown Zoho CRM action: nope
+PASSED                                                                   [ 90%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_books PASSED [ 90%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_books_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Zoho Books execution failed: Unknown Zoho Books action: nope
+PASSED                                                                   [ 90%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_inventory PASSED [ 91%]
+tests/test_covpush_w21_workflow_engine.py::TestZohoExecutors::test_zoho_inventory_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Zoho Inventory execution failed: Unknown Zoho Inventory action: nope
+PASSED                                                                   [ 91%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_create_goal_missing_fields PASSED [ 91%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_create_goal_success PASSED [ 91%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_check_escalations PASSED [ 92%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_update_subtask_goal_not_found PASSED [ 92%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_update_subtask_success PASSED [ 92%]
+tests/test_covpush_w21_workflow_engine.py::TestGoalManagement::test_unknown_action PASSED [ 92%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_catalog_fetch_and_get 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for custom_api.get_items
+PASSED                                                                   [ 93%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_cached_catalog 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.ping
+PASSED                                                                   [ 93%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_catalog_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for ghost.x
+2026-11-05 06:36:42 [   ERROR] Failed to fetch catalog item: Service 'ghost' not found in Integration Catalog
+PASSED                                                                   [ 93%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_action_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.missing_action
+PASSED                                                                   [ 93%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_no_url 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.x
+PASSED                                                                   [ 93%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_missing_path_param 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.x
+PASSED                                                                   [ 94%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_bearer_auth_header 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.x
+PASSED                                                                   [ 94%]
+tests/test_covpush_w21_workflow_engine.py::TestGenericExecutor::test_db_fetch_error_reraises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Attempting generic execution for svc.x
+PASSED                                                                   [ 94%]
+tests/test_covpush_w21_workflow_engine.py::TestResumeCancel::test_resume_execution_not_found PASSED [ 94%]
+tests/test_covpush_w21_workflow_engine.py::TestResumeCancel::test_resume_not_paused_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] Cannot resume execution ex-1 in state COMPLETED
+PASSED                                                                   [ 95%]
+tests/test_covpush_w21_workflow_engine.py::TestResumeCancel::test_resume_paused PASSED [ 95%]
+tests/test_covpush_w21_workflow_engine.py::TestResumeCancel::test_cancel_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Cancellation requested for execution ex-1
+PASSED                                                                   [ 95%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_success_linear_path PASSED [ 95%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_condition_skip 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Step s1 condition not met: ${input.flag} == true
+PASSED                                                                   [ 95%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_missing_input_pauses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Pausing execution ex-1 at step s1: Variable input.missing_var not found
+2026-11-05 06:36:42 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 96%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_cancellation_aborts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Execution ex-1 cancelled
+PASSED                                                                   [ 96%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_step_failure_continue_on_error_partial 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Step s1 failed: step blew up
+2026-11-05 06:36:42 [ WARNING] Step s1 failed but continue_on_error is True, continuing workflow
+PASSED                                                                   [ 96%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_step_failure_aborts_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Step s1 failed: fatal
+PASSED                                                                   [ 96%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_error_envelope_output_fails_step 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [   ERROR] Step s1 failed: Step s1 failed: nope
+PASSED                                                                   [ 97%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_governance_block_pauses_execution_for_hitl 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] 🚫 Governance pause for execution ex-1 at step s1: maturity too low
+2026-11-05 06:36:42 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 97%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_completed_step_skipped PASSED [ 97%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_dependency_not_met_marks_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] Step s1 skipped — dependencies not met
+PASSED                                                                   [ 97%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_marketplace_usage_tracked PASSED [ 97%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_graph_execution_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [ WARNING] Variable input.go not found in condition: ${input.go} == true
+2026-11-05 06:36:42 [   ERROR] Workflow graph execution ex-g failed: 'status'
+PASSED                                                                   [ 98%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_graph_cancellation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Workflow ex-gc cancelled by user request
+PASSED                                                                   [ 98%]
+tests/test_covpush_w21_workflow_engine.py::TestRunExecution::test_graph_missing_input_pauses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:36:42 [    INFO] Pausing execution ex-gm at step a: Variable input.ghost not found
+2026-11-05 06:36:42 [ WARNING] Slack token not configured, skipping notification
+2026-11-05 06:36:42 [   ERROR] Unexpected exception in step execution: Variable input.ghost not found
+2026-11-05 06:36:42 [    INFO] Workflow ex-gm paused due to missing input
+PASSED                                                                   [ 98%]
+tests/test_covpush_w21_workflow_engine.py::TestStartWorkflow::test_start_workflow_converts_nodes PASSED [ 98%]
+tests/test_covpush_w21_workflow_engine.py::TestStartWorkflow::test_start_workflow_steps_already_present PASSED [ 99%]
+tests/test_covpush_w21_workflow_engine.py::TestExceptionsAndFactory::test_missing_input_error_attrs PASSED [ 99%]
+tests/test_covpush_w21_workflow_engine.py::TestExceptionsAndFactory::test_schema_validation_error_attrs PASSED [ 99%]
+tests/test_covpush_w21_workflow_engine.py::TestExceptionsAndFactory::test_step_timeout_error_attrs PASSED [ 99%]
+tests/test_covpush_w21_workflow_engine.py::TestExceptionsAndFactory::test_get_workflow_engine_singleton PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-orch01-agent1/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 886 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_workflow_success
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:362: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "steps": [step().dict()]})
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_workflow_success
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:514: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_create_workflow_invalid
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:371: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "steps": [step(depends_on=["ghost"]).dict()]})
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_already_running
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:423: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    sm.state_store["wf-1"] = workflow_def().dict()
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_missing_inputs
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:432: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    sm.state_store["wf-1"] = wf.dict()
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_missing_inputs
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:584: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_validation_errors
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:442: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    sm.state_store["wf-1"] = wf.dict()
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_validation_errors
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:603: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_success
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:451: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    sm.state_store["wf-1"] = wf.dict()
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_start_workflow_success
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:620: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_error_step_fails
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_exception
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:756: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_error_step_fails
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:766: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_completed
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_paused_breaks
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_skips_completed
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:778: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_error_step_fails
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:772: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_execute_workflow_exception
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:784: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestExecutionEngine::test_resume_workflow_paused
+  /private/tmp/atom-orch01-agent1/backend/tests/test_covpush_w28_advanced_workflow.py:615: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "user_inputs": {}, "steps": [step().dict()],
+
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_parallel
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_parallel
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_parallel
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:988: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "steps": [s.dict() for s in steps],
+
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_parallel
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:995: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_conditional
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_conditional
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:1035: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    "steps": [s.dict() for s in steps],
+
+tests/test_covpush_w28_advanced_workflow.py::TestAdvancedWorkflowSystem::test_create_conditional
+  /private/tmp/atom-orch01-agent1/backend/core/advanced_workflow_system.py:1042: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    self.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_dict_contexts_and_errors
+tests/test_covpush_w63_workflow_ui_endpoints.py::TestExecutionsDictContexts::test_dict_contexts_and_errors
+  /private/tmp/atom-orch01-agent1/backend/core/workflow_ui_endpoints.py:880: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    return {"success": True, "executions": [e.dict() for e in executions]}
+
+tests/test_covpush_w109_workflow_templates.py: 34 warnings
+  /private/tmp/atom-orch01-agent1/backend/core/workflow_template_system.py:577: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    json.dump(template.dict(), f, indent=2, default=str)
+
+tests/test_covpush_w109_workflow_templates.py::TestCRUD::test_export_template
+  /private/tmp/atom-orch01-agent1/backend/core/workflow_template_system.py:391: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    return strip_credentials(template.dict())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 443 passed, 960 warnings in 59.68s ======================
