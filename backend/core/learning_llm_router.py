@@ -32,6 +32,7 @@ from typing import Any, Optional, List, Dict, Set, Tuple, Union
 from uuid import UUID
 from collections import defaultdict
 
+from sqlalchemy import Integer, func, update
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
@@ -1772,6 +1773,189 @@ class LearningBasedRouter:
             return "profile_version"
         return ""
 
+    @staticmethod
+    def _evaluation_revision(features: Dict[str, Any]) -> int:
+        try:
+            return max(0, int(features.get("evaluation_revision") or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _business_cas_predicates(
+        dialect: str, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback,
+    ):
+        """Database-enforced predicates for one business annotation.
+
+        The revision plus the quality fields plus the immutable binding are
+        compared IN THE DATABASE. A stale reader's update matches zero rows
+        instead of overwriting a committed evaluation. SQLite and PostgreSQL
+        are the only dialects with an implemented JSON comparison; others fail
+        closed (never fall back to an unconditional ORM flush).
+        """
+        predicates = [
+            LLMRoutingFeedback.id == row.id,
+            LLMRoutingFeedback.routing_result_id
+            == feedback.routing_result_id,
+            LLMRoutingFeedback.tenant_id == feedback.tenant_id,
+            LLMRoutingFeedback.model_id == feedback.model_id,
+            LLMRoutingFeedback.success == bool(row.success),
+            LLMRoutingFeedback.quality_satisfied
+            == bool(row.quality_satisfied),
+        ]
+        if row.user_satisfaction is None:
+            predicates.append(
+                LLMRoutingFeedback.user_satisfaction.is_(None))
+        else:
+            predicates.append(
+                LLMRoutingFeedback.user_satisfaction == row.user_satisfaction)
+        binding = (
+            ("route_provider", feedback.provider_id),
+            ("workspace_id", feedback.workspace_id),
+            ("capability_profile", feedback.capability_profile),
+            ("profile_version", feedback.capability_profile_version),
+        )
+        if dialect == "sqlite":
+            for key, expected in binding:
+                predicates.append(func.json_extract(
+                    LLMRoutingFeedback.prompt_features,
+                    f"$.{key}") == str(expected or ""))
+            predicates.append(func.coalesce(
+                func.json_extract(
+                    LLMRoutingFeedback.prompt_features,
+                    "$.evaluation_revision"), 0)
+                == LearningBasedRouter._evaluation_revision(stored))
+            return predicates
+        if dialect == "postgresql":
+            for key, expected in binding:
+                predicates.append(
+                    LLMRoutingFeedback.prompt_features[key].astext
+                    == str(expected or ""))
+            predicates.append(func.coalesce(
+                LLMRoutingFeedback.prompt_features[
+                    "evaluation_revision"].astext.cast(Integer), 0)
+                == LearningBasedRouter._evaluation_revision(stored))
+            return predicates
+        return None
+
+    def _commit_business_annotation_cas(
+        self, db, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback, *,
+        verdict: Optional[str], failure_kind: Optional[str],
+        evidence_features: Dict[str, Any], verdict_rule: Optional[str],
+        pending: bool,
+    ) -> str:
+        """One conditional UPDATE; zero rows means a concurrent writer won."""
+        dialect = db.get_bind().dialect.name
+        predicates = self._business_cas_predicates(
+            dialect, row, stored, feedback)
+        if predicates is None:
+            return "unsupported_dialect"
+        updated = dict(stored)
+        if not pending:
+            updated["verdict"] = verdict
+            if verdict_rule:
+                updated["verdict_rule"] = str(verdict_rule)
+        if failure_kind is not None:
+            updated["failure_kind"] = str(failure_kind)
+        for key, value in evidence_features.items():
+            updated[str(key)] = value
+        updated["evaluation_revision"] = (
+            self._evaluation_revision(stored) + 1)
+        values: Dict[str, Any] = {"prompt_features": updated}
+        if not pending:
+            from core.llm.fabrication_accounting import JUDGEMENT_VERDICTS
+
+            if verdict in JUDGEMENT_VERDICTS:
+                values.update({
+                    "success": feedback.success,
+                    "quality_satisfied": feedback.quality_satisfied,
+                    "user_satisfaction": feedback.user_satisfaction,
+                })
+        statement = (
+            update(LLMRoutingFeedback)
+            .where(*predicates)
+            .values(**values)
+        )
+        with db.no_autoflush:
+            result = db.execute(statement)
+            if result.rowcount != 1:
+                # End the stale transaction before the caller reloads.
+                db.rollback()
+                return "conflict"
+            # The CAS is the only business-state write. Never let a dirty ORM
+            # object flush an unconditional primary-key UPDATE afterwards.
+            if row in db:
+                db.expire(row)
+            db.commit()
+        return "annotated"
+
+    @staticmethod
+    def _reload_feedback_row(db, row_id: str):
+        db.expire_all()
+        return db.query(LLMRoutingFeedback).filter(
+            LLMRoutingFeedback.id == row_id).first()
+
+    def _annotate_business_with_retry(
+        self, db, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback, *,
+        verdict: Optional[str], failure_kind: Optional[str],
+        evidence_features: Dict[str, Any], verdict_rule: Optional[str],
+    ) -> str:
+        """Recheck precedence and CAS with a bounded authoritative reload."""
+        from core.llm.fabrication_accounting import (
+            coerce_features,
+            verdict_rank,
+        )
+
+        pending = not verdict
+        for _attempt in range(3):
+            if pending:
+                stored_outcome = str(
+                    stored.get("business_outcome") or "").lower()
+                if stored_outcome in ("failed", "satisfied"):
+                    return "skipped_verdict"
+                # A pending marker has no verdict rank. It must not annotate
+                # a row that already carries ANY judgement (fabrication,
+                # grounding, evidence or business): doing so could hide that
+                # judgement from the capability selector.
+                if stored.get("verdict"):
+                    return "skipped_verdict"
+            elif (verdict_rank(verdict) <= verdict_rank(
+                    stored.get("verdict"))
+                    or (
+                        str(stored.get("business_outcome") or "").lower()
+                        == "failed"
+                        and verdict == "business_satisfied"
+                    )):
+                # A positive may never erase a resolved failure, even on a
+                # legacy row that carries the failure without its verdict.
+                return "skipped_verdict"
+            status = self._commit_business_annotation_cas(
+                db, row, stored, feedback,
+                verdict=verdict, failure_kind=failure_kind,
+                evidence_features=evidence_features,
+                verdict_rule=verdict_rule, pending=pending)
+            if status == "annotated":
+                return status
+            if status != "conflict":
+                return status
+            # The stale transaction is rolled back. Reload the authoritative
+            # row and recheck binding/precedence before the bounded retry.
+            row = self._reload_feedback_row(db, row.id)
+            if row is None:
+                return "skipped_missing_generation"
+            stored, _ = coerce_features(row.prompt_features)
+            binding_error = self._business_binding_error(
+                row, stored, feedback)
+            if binding_error:
+                logger.warning(
+                    "business feedback refused after reload: %s binding "
+                    "mismatch for generation %s",
+                    binding_error, feedback.routing_result_id)
+                return f"refused_{binding_error}"
+        return "conflict"
+
     def _persist_feedback(
         self, feedback: RoutingFeedback, prompt_features: Optional[Dict[str, float]]
     ) -> str:
@@ -1858,14 +2042,10 @@ class LearningBasedRouter:
                         # generation+model identity.
                         query = query.filter(
                             LLMRoutingFeedback.model_id == feedback.model_id)
-                    if business_evaluation:
-                        # The row lock makes the binding/rank re-check and the
-                        # write one serialized transaction (Postgres locks;
-                        # SQLite serializes writers). The provider/workspace/
-                        # profile are JSON features, so the exact binding is
-                        # selected from the candidate rows rather than inferred
-                        # from a SQL default.
-                        query = query.with_for_update()
+                    # Do NOT rely on SELECT FOR UPDATE: it has no locking
+                    # effect on SQLite, and writer serialization does not
+                    # protect a stale SELECT + ORM assignment. The business
+                    # path below uses a database-enforced CAS instead.
                     candidates = query.order_by(
                         LLMRoutingFeedback.created_at.asc()).limit(50).all()
                     existing = None
@@ -1899,29 +2079,29 @@ class LearningBasedRouter:
                         existing = candidates[0]
                         stored, _ = coerce_features(existing.prompt_features)
                     if existing is not None:
-                        if business_evaluation and not verdict:
-                            # Pending/parsed decision: record provenance only.
-                            # Never overwrite a resolved business verdict and
-                            # never change the transport quality fields.
-                            stored_outcome = str(
-                                stored.get("business_outcome") or "").lower()
-                            if stored_outcome in ("failed", "satisfied"):
-                                return "skipped_verdict"
-                            updated = dict(stored)
-                            if failure_kind is not None:
-                                updated["failure_kind"] = str(failure_kind)
-                            for key, value in evidence_features.items():
-                                updated[str(key)] = value
-                            existing.prompt_features = updated
-                            try:
-                                from core.llm.capability_profiles import (
-                                    reset_capability_evidence_cache,
-                                )
+                        if business_evaluation:
+                            # Business annotations use a database-enforced
+                            # compare-and-swap. A stale reader (positive or
+                            # pending) must never erase a committed failure.
+                            verdict_rule = (
+                                getattr(feedback, "verdict_rule", None)
+                                or (features or {}).get("verdict_rule"))
+                            status = self._annotate_business_with_retry(
+                                db, existing, stored, feedback,
+                                verdict=verdict,
+                                failure_kind=failure_kind,
+                                evidence_features=evidence_features,
+                                verdict_rule=verdict_rule)
+                            if status == "annotated":
+                                try:
+                                    from core.llm.capability_profiles import (
+                                        reset_capability_evidence_cache,
+                                    )
 
-                                reset_capability_evidence_cache()
-                            except Exception:  # noqa: BLE001
-                                pass
-                            return "annotated"
+                                    reset_capability_evidence_cache()
+                                except Exception:  # noqa: BLE001
+                                    pass
+                            return status
                         # ONE VERDICT SLOT, ORDERED BY SEVERITY. A weaker
                         # judgement never replaces a stronger one, and a repeat
                         # is a no-op: an invention outranks "ignored the
