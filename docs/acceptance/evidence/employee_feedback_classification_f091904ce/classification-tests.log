@@ -1,0 +1,83 @@
+
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:41 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 23:20:41 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 23:20:41 [    INFO] EscalationManager initialized
+2026-11-04 23:20:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 23:20:41 [    INFO] EscalationManager initialized
+2026-11-04 23:20:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 23:20:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 23:20:41 [    INFO] AgentTaskRegistry initialized
+2026-11-04 23:20:42 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 14%]
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_passed] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:43 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 28%]
+tests/test_capability_evidence_classification.py::test_pending_plus_fabrication_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:43 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 42%]
+tests/test_capability_evidence_classification.py::test_pending_plus_business_failure_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:44 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 57%]
+tests/test_capability_evidence_classification.py::test_validated_wait_decision_is_a_scoped_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:45 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 71%]
+tests/test_capability_evidence_classification.py::test_satisfied_business_result_is_a_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:46 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 85%]
+tests/test_capability_evidence_classification.py::test_legacy_row_without_business_marker_keeps_compatibility 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:20:46 [    INFO] Initialized router with 30 models
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 14 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_ok]
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_passed]
+tests/test_capability_evidence_classification.py::test_pending_plus_fabrication_remains_observable
+tests/test_capability_evidence_classification.py::test_pending_plus_business_failure_remains_observable
+tests/test_capability_evidence_classification.py::test_validated_wait_decision_is_a_scoped_success
+tests/test_capability_evidence_classification.py::test_satisfied_business_result_is_a_success
+tests/test_capability_evidence_classification.py::test_legacy_row_without_business_marker_keeps_compatibility
+  /private/tmp/atom-full-app/backend/core/llm/capability_profiles.py:790: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 7 passed, 27 warnings in 18.08s ========================

@@ -1,0 +1,117 @@
+{
+ "schema": "atom-employee-evidence-1",
+ "status": "grounding-only pending work is excluded from capability success; negative judgements and explicit validated/satisfied outcomes remain distinct",
+ "executed_source": "f091904cee0ba84bfe4bd0d97813b3cb9b65c445",
+ "predecessor_shared_cas_source": "4e98ec5ab07040ceae215aaf42fe469c428005ce",
+ "predecessor_shared_cas_evidence": "employee_feedback_shared_cas_c1cd3bea5",
+ "original_proof": "employee_business_feedback_2ab959fc0",
+ "proof": {
+  "profile": "employee_wait_choice",
+  "route": "local_ctrl1234/llama3.1:8b",
+  "cases": {
+   "pending:grounding_ok": {
+    "samples": 0,
+    "successes": 0,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 1,
+    "accounting_fabricated": 0,
+    "business_outcome": "unresolved",
+    "verdict": "grounding_ok"
+   },
+   "pending:grounding_passed": {
+    "samples": 0,
+    "successes": 0,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 1,
+    "accounting_fabricated": 0,
+    "business_outcome": "unresolved",
+    "verdict": "grounding_passed"
+   },
+   "pending:unsupported_figures": {
+    "samples": 1,
+    "successes": 0,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 0,
+    "accounting_fabricated": 1,
+    "business_outcome": "unresolved",
+    "verdict": "unsupported_figures"
+   },
+   "business_failure:": {
+    "samples": 1,
+    "successes": 0,
+    "semantic_failures": 1,
+    "accounting_grounded_ok": 0,
+    "accounting_fabricated": 0,
+    "business_outcome": "failed",
+    "verdict": "wrong_evidence_selection"
+   },
+   "validated_decision:": {
+    "samples": 1,
+    "successes": 1,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 0,
+    "accounting_fabricated": 0,
+    "business_outcome": "satisfied",
+    "verdict": "business_satisfied"
+   },
+   "satisfied_result:": {
+    "samples": 1,
+    "successes": 1,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 0,
+    "accounting_fabricated": 0,
+    "business_outcome": "satisfied",
+    "verdict": "business_satisfied"
+   },
+   "legacy:grounding_ok": {
+    "samples": 1,
+    "successes": 1,
+    "semantic_failures": 0,
+    "accounting_grounded_ok": 1,
+    "accounting_fabricated": 0,
+    "business_outcome": null,
+    "verdict": "grounding_ok"
+   }
+  }
+ },
+ "checks": {
+  "classification_controls": "7 passed",
+  "focused_controls": "47 passed on 3.11.16 and 3.14",
+  "broad_affected_python311": "483 passed",
+  "broad_affected_python314": "483 passed",
+  "independent_pending_quality_probe": "1/1 passed"
+ },
+ "source_files": {
+  "backend/core/llm/capability_profiles.py": "78955fc1b38bccf28fae4cbe6ff92a57b6e117ec56b510816a01c9ed97c9b0ae",
+  "backend/core/learning_llm_router.py": "26f3fa08621889b3d3e2962b7a0e3375ad3ea89eecb91f7ecf4ccc9cc8bdda31",
+  "backend/core/employee_routing_feedback.py": "d3fb8d92d996cb9750290cb93c8b7fce6c0a15c325a1b2b17148029139759d77",
+  "backend/tests/test_capability_evidence_classification.py": "c9569c983bbab09f4e55aa4db2d79a2683a94bfc0892b26e8a35f3ab5cd3322a"
+ },
+ "artifacts": {
+  "README.md": "6695fcda2a42567c6eadb59af41ee62e96afe83de61fb0431c066d949191c997",
+  "broad-311.log": "328a897f9bf72d0b7475c35483c0604045c6e14d494e45d37058be5d30d977e8",
+  "broad-314.log": "303a78b6e1c3813818f5ffd718c107450c13ee0a49db9e4e858d8c256253c81c",
+  "classification-proof.json": "363f20ed175b4c28de3eca9c51d90e0e615d7534a5d4d0bc3cf389899228f85a",
+  "classification-tests.log": "d77894eee8fcbef774a60e2c89cc037b6c3e2bf91efd96287ec0ee4ce42f1f4f",
+  "focused-311.log": "a88f9bdf7d41dbd9131b539371509c517f064daec68a105154386b53130d33b6",
+  "focused-314.log": "e578453018e7f90633c9257ddff23bc671635aa0b351259098d101a6832bc65b",
+  "proof.log": "01d752a7b79535347a980f421d738375d9fb83388ea34b406ec85f4b216270b4",
+  "proof.py": "ef2ff43f42befd6f7abf8396b92437e9628e267fe5d491622ab9ef21ef2413d8",
+  "test_verifier_pending_grounding_quality_4e98.py": "a06ce5ed5525d0aff67ab4b219be819b6745d27d49d485ced4dcc55d845dad8c",
+  "verifier-probe.log": "a72493ec218bb34fc7900643bbb6ca26d111aba7b11c9ab744b33e8f40f153ca"
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "doubled transport; no live model inference",
+  "grounding-only pending work is excluded from capability success",
+  "fabrication/business failure stay observable",
+  "validated decision and satisfied result still contribute",
+  "legacy no-business-marker rows keep compatibility",
+  "durable row, capability evidence and accounting checked separately",
+  "no live model inference, provider, credential, spend, download or deployment",
+  "PostgreSQL runtime qualification not claimed",
+  "shared-CAS acceptance, predecessor proofs and accepted wait-policy lane preserved",
+  "capable Flash remains first-class; no model-size preference follows",
+  "historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 unchanged"
+ ]
+}
