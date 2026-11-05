@@ -1,0 +1,105 @@
+{
+  "schema": "atom-oracle-auth-2fa-1",
+  "status": "five-route auth/2FA slice submitted for independent verification; whole-app ORACLE-01 remains open",
+  "candidate": {
+    "branch": "codex/oracle01-auth-2fa-20261105",
+    "accepted_canvas_base": "fe401e1112fdb544ce07650f7733519c14b25790",
+    "accepted_canvas_runtime": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+    "executed_source": "892dad66025c35febc5b6cdebe3bad0e292cfdfb",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled time/rate limiter; no model/provider/browser"
+  },
+  "checks": {
+    "setup_retry_preserves_pending_secret": true,
+    "setup_after_enable_does_not_expose_secret": true,
+    "enable_persists_factor_and_recovery_state": true,
+    "disable_clears_factor_and_recovery_state": true,
+    "enable_same_operation_retry_is_already_applied_without_codes": true,
+    "same_operation_different_material_is_refused": true,
+    "totp_time_step_is_single_use": true,
+    "concurrent_totp_same_code_approves_one_action": true,
+    "backup_code_conditionally_consumed_once": true,
+    "concurrent_backup_code_consumption_has_one_winner": true,
+    "legacy_plaintext_backup_codes_are_backfilled": true,
+    "stale_enable_writer_refused": true,
+    "stale_disable_writer_refused": true,
+    "moved_action_scope_after_read_refused": true,
+    "durable_hitl_reviewed_by_and_reviewed_at": true,
+    "foreign_tenant_workspace_target_role_refused": true,
+    "rejected_or_missing_action_refused": true,
+    "audit_unavailable_after_commit_reported": true,
+    "audit_refuted_after_commit_reported": true,
+    "lost_commit_confirmation_is_effect_unknown": true,
+    "no_secret_or_code_in_audit_or_receipt": true,
+    "existing_verified_response_shapes_preserved": true,
+    "unverified_auth_grants_return_503": true,
+    "no_new_authentication_or_review_engine": true,
+    "no_model_or_provider_calls": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 47,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 47,
+      "log": "focused-311.log"
+    },
+    "w80b_2fa_python314": {
+      "passed": 33,
+      "deselected": 308,
+      "log": "w80b-2fa-314.log"
+    },
+    "w80b_2fa_python311": {
+      "passed": 33,
+      "deselected": 308,
+      "log": "w80b-2fa-311.log"
+    },
+    "affected_python314": {
+      "passed": 199,
+      "failed": 1,
+      "failed_pre_existing_on_accepted_base": true,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 199,
+      "failed": 1,
+      "failed_pre_existing_on_accepted_base": true,
+      "log": "affected-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "existing_route_controls": 29,
+    "real_scratch_controls": 18,
+    "w80b_2fa_classes": 33,
+    "affected_selection": 199,
+    "unique_passing_total": 279
+  },
+  "exclusions": {
+    "intervention_default_workspace": {
+      "test": "tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter",
+      "reason": "fails on accepted canvas base fe401e111 without this repair",
+      "log": "base-pre-existing.log"
+    },
+    "w75_auth_environment": {
+      "tests": [
+        "tests/test_covpush_w75_auth_helpers.py::TestVerifyJwtToken::test_valid_token",
+        "tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_forgot_password_rate_limited_429"
+      ],
+      "reason": "JWT-secret/rate-limit test-seam failures reproduce on the accepted base; unrelated to the 2FA slice and excluded from the final selection",
+      "log": "base-pre-existing.log"
+    },
+    "w80b_workflow_debug": {
+      "reason": "unrelated workflow-debug classes in the same module; excluded via -k 2FA",
+      "deselected": 308
+    }
+  },
+  "limits": [
+    "Five routes only; login, password reset/change, SSO, passkeys, mobile biometric, provider disconnect and full auth-family coverage remain outside this slice",
+    "No live account/factor change, credential/provider setup, message, spend or deployment authority",
+    "No second authentication/OTP/review/approval/operation engine",
+    "PostgreSQL concurrency/soak and live identity-provider operation are not qualified",
+    "Registration counts do not establish runtime qualification",
+    "Whole-app ORACLE-01 remains open; accepted canvas/feedback/wait/employee lanes and historical 111/123/tags/model scores are unchanged"
+  ]
+}

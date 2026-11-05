@@ -1,0 +1,67 @@
+{
+  "schema": "atom-oracle-auth-2fa-routes-1",
+  "executed_source": "892dad66025c35febc5b6cdebe3bad0e292cfdfb",
+  "prefix": "/api/auth/2fa",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/setup",
+      "handler": "api.auth_2fa_routes.setup_2fa",
+      "service": "core.auth_2fa_write_service.setup_2fa_verified",
+      "state": ["User.two_factor_secret", "User.two_factor_revision", "auth_2fa_operations"],
+      "contract": "pending secret is preserved on retry; enabled users refuse; a new pending secret is conditional on no existing pending secret; no secret is stored in audit/receipt"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/enable",
+      "handler": "api.auth_2fa_routes.enable_2fa",
+      "service": "core.auth_2fa_write_service.enable_2fa_verified",
+      "state": ["User.two_factor_enabled", "User.two_factor_secret", "User.two_factor_backup_codes", "User.two_factor_revision", "User.two_factor_last_totp_step", "auth_2fa_backup_codes", "auth_2fa_operations"],
+      "contract": "TOTP + factor revision/step conditional update; recovery codes delivered once; same-operation retry returns already_applied without codes; same id different material conflicts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/disable",
+      "handler": "api.auth_2fa_routes.disable_2fa",
+      "service": "core.auth_2fa_write_service.disable_2fa_verified",
+      "state": ["User.two_factor_enabled", "User.two_factor_secret", "User.two_factor_backup_codes", "User.two_factor_revision", "auth_2fa_backup_codes", "auth_2fa_operations"],
+      "contract": "TOTP + revision/step conditional update clears factor and code rows; stale/replayed writer refuses; same-operation retry is already_applied"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/backup/verify",
+      "handler": "api.auth_2fa_routes.verify_backup_code",
+      "service": "core.auth_2fa_write_service.verify_backup_code_verified",
+      "state": ["auth_2fa_backup_codes.consumed_at", "User.two_factor_backup_codes", "auth_2fa_operations"],
+      "contract": "one conditional consumption per code; concurrent/replayed use matches zero rows; same-operation retry is already_applied; legacy plaintext codes are backfilled once; unverified auth grant returns 503"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/2fa/verify-action/{action_id}",
+      "handler": "api.auth_2fa_routes.verify_action_2fa",
+      "service": "core.auth_2fa_write_service.verify_action_2fa_verified",
+      "state": ["User.two_factor_last_totp_step", "HITLAction.status", "HITLAction.reviewed_by", "HITLAction.reviewed_at", "auth_2fa_operations"],
+      "contract": "actor tenant/workspace/target/required-role authorization; exact-scope conditional HITL claim; pending/rejected/foreign/stale/missing never release; durable resolver readback; unverified approval returns 503 with action/operation identity"
+    }
+  ],
+  "durable_models": {
+    "User": ["two_factor_last_totp_step", "two_factor_revision"],
+    "auth_2fa_backup_codes": "one keyed-fingerprint row per recovery code; consumed_at is the single-use arbiter",
+    "auth_2fa_operations": "safe operation receipt bound to user/scope/action/target/revision/material fingerprint; no raw secrets/codes",
+    "HITLAction": "existing reviewed_by/reviewed_at columns now persisted by the conditional claim"
+  },
+  "response_contract": {
+    "verified_paths": "existing success/error shapes preserved; additive verification/operation_id/audit_id metadata",
+    "state_change_audit_unavailable": "HTTP 200 with verification.status=unavailable and replay=do_not_repeat for setup/enable/disable",
+    "auth_grant_unverified": "HTTP 503 with identity and replay=do_not_repeat for backup verify/action approval",
+    "refuted_state": "HTTP 503; no success grant",
+    "lost_confirmation": "effect_unknown with operation/action identity; never a clean refusal"
+  },
+  "not_covered": [
+    "login, password reset/change, SSO, passkeys, mobile biometric, provider disconnect",
+    "full auth-family coverage",
+    "PostgreSQL concurrency/soak",
+    "live identity-provider operation",
+    "whole-app ORACLE-01 inventory"
+  ]
+}
