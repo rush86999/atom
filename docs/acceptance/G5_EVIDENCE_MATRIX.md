@@ -24,7 +24,7 @@ row's evidence.
 | Held-out event order (e.g. independent work after restart, reply order) | **Demonstrated and accepted at controlled local scope** | Fresh `3ccad7a5a`: order 1 source authorized before restart; order 2 restart while waiting, source authorized after restart. Both preserved run/wait/quote identity and produced the dependent result + artifact. The earlier frozen-job recoveries remain order-1-only |
 | Held-out two-domain evidence selection without user-picked sources | **Demonstrated and accepted at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: 7-document authorized pool with current invoice `ap-inbox-0412.json`/PO `po-archive-88.json`/receiving `dock-receipt-19.json` plus wrong-PO, superseded, wrong-receiving and prompt-injected distractors. The served model's bounded correction selected the current chain; reconciliation 121.00, 12/12 positive checks. Missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished, and recovered on the same job after authorized addition: 121.00, 14/14 checks. 26/26 total; 323 affected tests; 33/33 Git. Accepted at this scope. Earlier negative `80e3bd702` / `20f3ffc19` remains historical |
 | Automatic BYOK selection | **Available one-route scope accepted; controlled two-route matrix accepted; served multi-model quality not qualified** | `employee_byok_auto_selection_0e04286b2` (source `0e04286b2`, evidence `896925d22`): five unpinned employee evidence-selection calls auto-selected/served `ollama/llama3.1:8b` with raw route, usage and latency (28,034/1,058 tokens, 98.78 s). Controlled real LLMService/BYOKHandler two-route matrix covers cheaper capable choice, measured semantic-failure exclusion, costlier failure, scope/deadline refusal and honest no-suitable receipts: 9 consumer tests + 114 successor tests; 14/14 Git. Not a served multi-model comparison |
-| Evaluated business outcome → scoped routing feedback | **Repaired and requalified at controlled scratch-DB scope; concurrency race closed** | `employee_feedback_cas_6cdc50cc7` (repaired source `6cdc50cc7`; predecessor boundary `employee_feedback_boundary_e4f3733c1` and original `employee_business_feedback_2ab959fc0` preserved unchanged). Business annotations are database-enforced CAS writes on the exact generation receipt plus a persisted `evaluation_revision`. A stale positive or pending evaluator cannot erase a committed failure; a stronger failure can replace a committed positive; duplicate verdicts are idempotent with stable incident identity; a changed binding during evaluation refuses. The generation receipt and served route survive an awaited child task, and `model_wait_choice` remains non-successful until an explicit verdict. **33 feedback/interleaving/probe controls on Python 3.11.16 and 3.14; 473 broad affected tests on both; 2/2 forced race probes and 3/3 original boundary probes on both**. Scratch SQLite and doubled transport; PostgreSQL concurrency implemented but not runtime-qualified. Not live inference or served multi-model comparison |
+| Evaluated business outcome → scoped routing feedback | **Shared business/legacy writer CAS repaired and requalified at controlled scratch-DB scope** | `employee_feedback_shared_cas_c1cd3bea5` (shared-CAS source `c1cd3bea5`; final executed source `4e98ec5ab`, with test isolation `8b0fb2f0b` and insert-before-cache `4e98ec5ab`; predecessors `employee_feedback_cas_6cdc50cc7`, `employee_feedback_boundary_e4f3733c1` and original `employee_business_feedback_2ab959fc0` preserved). Business and legacy grounding/fabrication annotations use one database-enforced CAS and one monotonic `evaluation_revision`. A pending business marker skips when any verdict committed; a stale legacy grounding reader skips when a business failure committed; stronger judgement wins; duplicate verdicts are idempotent; changed binding refuses. Legacy keeps its generation+model binding without employee fields; business keeps its exact receipt binding; no dirty ORM flush; cache invalidates only after commit; an unresolved business marker no longer hides a legacy verdict. **39 feedback/interleaving/cross-writer/probe controls on Python 3.11.16 and 3.14; 476 broad affected tests on both; 3/3 legacy cross-writer probes, 2/2 race probes and 3/3 boundary probes on both; explicit order repro 65/65; the verifier's order-sensitive empty-pool failure is isolated by a test-local health monitor and BYOK memo/cooldown cleanup, so the 476-test broad run passes on both versions**. Scratch SQLite and doubled transport; PostgreSQL CAS implemented but not runtime-qualified. Not live inference or served multi-model comparison |
 | Employee wait-choice bounded consumer | **Schema/no-result recovery accepted; semantic wait acceptance withheld** | `employee_wait_choice_5cc897dbb`: the captured 27,513-char / 104.9 s wait-choice no-result was a validation failure (empty `blocks`, untyped `new_steps`), not transport. A focused typed wait context/schema now returns a model-selected `await_evidence` in **13.15 s** on the existing local route (`342` merged affected tests; 17/17 replay checks). This is schema-recovery evidence only: the replay waited for an invoice already present under an ambiguous prerequisite, so it is not a satisfactory business wait choice. Original negative remains at `employee_byok_auto_selection_0e04286b2` |
 | Employee wait-choice semantic policy guard | **Demonstrated at controlled consumer/route scope; no inference** | `employee_wait_choice_policy_0a9df5377` (guard `0a9df5377`, integrated feedback `e4f3733c1`, genuine-missing follow-up `fea7948af`): waits are validated against trusted readiness and `allowed_proposal_kinds` before adoption. Rejects all-read ambiguity under clarify/retain-only policy, ambiguous/already-ready records, unnamed missing roles, unread authorized evidence, explicit contradictory `blocks_operation`, and multiple missing prerequisites without a named blocked operation. A genuine missing external fact still waits, including under the clarify/retain default; ready independent work remains available. Rejection retains applied results/requirements and returns deterministic clarify/retain; the public route persists the targeted question without creating a wait step. **368 affected tests; 20 guard-focused; independent probe passed; no model/provider call** |
 | Broad adaptive judgment / general model competence | **Not qualified** | Local 8B decisions are bounded to the recorded contexts; no general claim |
@@ -78,30 +78,37 @@ consumer matrix are accepted at `employee_byok_auto_selection_0e04286b2`
 until another route is configured and authorized.
 
 The evaluated-outcome feedback loop is repaired and requalified at the
-controlled scratch-DB scope in `employee_feedback_cas_6cdc50cc7` (repaired
-source `6cdc50cc7`; predecessor boundary `employee_feedback_boundary_e4f3733c1`
-and original `employee_business_feedback_2ab959fc0` preserved unchanged). The
-employee consumer annotates the exact served generation with its profile/version,
+controlled scratch-DB scope in `employee_feedback_shared_cas_c1cd3bea5`
+(shared-CAS source `c1cd3bea5`; final executed source `4e98ec5ab`, with test
+isolation `8b0fb2f0b` and insert-before-cache `4e98ec5ab`; predecessors
+`employee_feedback_cas_6cdc50cc7`,
+`employee_feedback_boundary_e4f3733c1` and original
+`employee_business_feedback_2ab959fc0` preserved unchanged). The employee
+consumer annotates the exact served generation with its profile/version,
 workspace/tenant, provider/model and deterministic `failure_kind`; three
 evaluated `wrong_evidence_selection` outcomes persisted as 3 samples / 0
 successes / 3 semantic failures, and the next unpinned decision excluded that
 route and served the one eligible alternative.
 
-The successor closes the withheld write-scope, child-task and concurrent-write
-boundaries. Business annotations are database-enforced CAS writes bound to the
-exact generation receipt and a persisted evaluation revision: a stale positive
-or pending evaluator cannot erase a committed failure, a stronger failure can
-replace a committed positive, duplicate verdicts are idempotent with stable
-incident identity, and a changed binding during evaluation refuses. The
-generation receipt and served route survive an awaited child task. The
-`model_wait_choice` origin remains non-successful until an explicit verdict:
-parsed wait = unresolved and excluded, validated wait = scoped decision,
-rejected wait = semantic failure. **33 feedback/interleaving/probe controls on
-Python 3.11.16 and 3.14; 473 broad affected tests on both; 2/2 forced race
-probes and 3/3 original boundary probes on both**. Scratch SQLite and doubled
-transport; PostgreSQL concurrency is implemented but not runtime-qualified.
-This is not live inference or served multi-model comparison. No model/UI replay
-was used for the mechanical corrections above.
+The successor closes the shared-writer gap. Business and legacy grounding/
+fabrication annotations now use one database-enforced CAS and one monotonic
+`evaluation_revision`: a pending business marker cannot erase a committed
+legacy verdict, a stale legacy grounding reader cannot erase a committed
+business failure, a stronger judgement wins, duplicate verdicts are idempotent,
+and a changed binding refuses. Legacy keeps its generation+model binding
+without employee fields; business keeps its exact receipt binding. No dirty ORM
+flush follows the CAS, the cache invalidates only after commit, and an
+unresolved business marker no longer hides a legacy verdict. The generation
+receipt and served route survive an awaited child task, and `model_wait_choice`
+remains non-successful until an explicit verdict. **39 feedback/interleaving/
+cross-writer/probe controls on Python 3.11.16 and 3.14; 476 broad affected
+tests on both; 3/3 legacy cross-writer probes, 2/2 race probes and 3/3 boundary
+probes on both; explicit order repro 65/65; the verifier's order-sensitive
+empty-pool failure is isolated by a test-local health monitor and BYOK memo/
+cooldown cleanup, so the 476-test broad run passes on both versions**. Scratch
+SQLite and doubled transport; PostgreSQL CAS is implemented but not runtime-qualified. This is not
+live inference or served multi-model comparison. No model/UI replay was used
+for the mechanical corrections above.
 
 The bounded wait-choice consumer is demonstrated at
 `employee_wait_choice_5cc897dbb` as schema/no-result recovery only: the

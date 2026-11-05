@@ -1,0 +1,53 @@
+{
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "doubled transport; no live model inference",
+  "one shared annotation CAS and evaluation revision",
+  "legacy grounding/fabrication keeps its generation+model binding",
+  "pending business skips when a legacy verdict committed",
+  "stale legacy grounding skips when a business failure committed",
+  "fabrication/grounding accounting still consumes the row",
+  "business selector still sees the committed failure"
+ ],
+ "executed_source": "4e98ec5ab07040ceae215aaf42fe469c428005ce",
+ "insert_order_source": "4e98ec5ab07040ceae215aaf42fe469c428005ce",
+ "pending_business_vs_grounding_ok": {
+  "accounting": {
+   "fabricated": 0,
+   "generations": 1,
+   "grounded_ok": 1
+  },
+  "final_evaluation_revision": 1,
+  "final_verdict": "grounding_ok",
+  "legacy_verdict": "grounding_ok",
+  "strong_status": "annotated",
+  "weak_recorded": false,
+  "weak_status": "skipped_verdict"
+ },
+ "pending_business_vs_unsupported_figures": {
+  "accounting": {
+   "fabricated": 1,
+   "generations": 1,
+   "grounded_ok": 0
+  },
+  "final_evaluation_revision": 1,
+  "final_verdict": "unsupported_figures",
+  "legacy_verdict": "unsupported_figures",
+  "strong_status": "annotated",
+  "weak_recorded": false,
+  "weak_status": "skipped_verdict"
+ },
+ "schema": "atom-feedback-shared-cas-proof-1",
+ "shared_cas_source": "c1cd3bea5240aec56c3628694955d1cc61c80b05",
+ "stale_legacy_grounding_vs_business_failure": {
+  "final_evaluation_revision": 1,
+  "final_verdict": "wrong_evidence_selection",
+  "selector": {
+   "last_failure_kind": "semantic_failure",
+   "semantic_failures": 1
+  },
+  "strong_status": "annotated",
+  "weak_status": "skipped_verdict"
+ },
+ "test_isolation_source": "8b0fb2f0beba0664d076aa2b25ddf2528e788310"
+}

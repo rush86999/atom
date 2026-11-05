@@ -1,0 +1,55 @@
+🧪 pytest detected: forcing isolated test DB (/private/tmp/atom-feedback-shared-c1c/backend/test_integration.db)
+⚠️ Generated temporary SECRET_KEY for development: FusNLB6e...
+⚠️ Generated temporary SECRET_KEY for development: JKiqKQiL...
+business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=shared-cas-grounding
+business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=shared-cas-fabrication
+{
+ "schema": "atom-feedback-shared-cas-proof-1",
+ "executed_source": "c1cd3bea5240aec56c3628694955d1cc61c80b05",
+ "pending_business_vs_grounding_ok": {
+  "legacy_verdict": "grounding_ok",
+  "weak_status": "skipped_verdict",
+  "weak_recorded": false,
+  "strong_status": "annotated",
+  "final_verdict": "grounding_ok",
+  "final_evaluation_revision": 1,
+  "accounting": {
+   "generations": 1,
+   "fabricated": 0,
+   "grounded_ok": 1
+  }
+ },
+ "pending_business_vs_unsupported_figures": {
+  "legacy_verdict": "unsupported_figures",
+  "weak_status": "skipped_verdict",
+  "weak_recorded": false,
+  "strong_status": "annotated",
+  "final_verdict": "unsupported_figures",
+  "final_evaluation_revision": 1,
+  "accounting": {
+   "generations": 1,
+   "fabricated": 1,
+   "grounded_ok": 0
+  }
+ },
+ "stale_legacy_grounding_vs_business_failure": {
+  "weak_status": "skipped_verdict",
+  "strong_status": "annotated",
+  "final_verdict": "wrong_evidence_selection",
+  "final_evaluation_revision": 1,
+  "selector": {
+   "semantic_failures": 1,
+   "last_failure_kind": "semantic_failure"
+  }
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "doubled transport; no live model inference",
+  "one shared annotation CAS and evaluation revision",
+  "legacy grounding/fabrication keeps its generation+model binding",
+  "pending business skips when a legacy verdict committed",
+  "stale legacy grounding skips when a business failure committed",
+  "fabrication/grounding accounting still consumes the row",
+  "business selector still sees the committed failure"
+ ]
+}
