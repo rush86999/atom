@@ -273,7 +273,12 @@ def parse_evidence_rows(
         # established transport-quality semantics.
         business_outcome = str(
             features.get("business_outcome") or "").strip().lower()
-        if business_outcome in ("unresolved", "unknown", "pending"):
+        if business_outcome in ("unresolved", "unknown", "pending") and not (
+                features.get("verdict")):
+            # A parsed-but-not-business-evaluated row is not a sample. If a
+            # legacy grounding/fabrication judgement already landed on it, the
+            # row carries real evidence and must remain visible to that
+            # consumer; the unresolved business marker must not hide it.
             continue
         model = str(row.get("model_id") or "").strip()
         provider = str(features.get("route_provider")

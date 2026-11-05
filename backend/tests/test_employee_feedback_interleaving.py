@@ -184,6 +184,125 @@ def test_stale_failure_read_retries_after_positive_commit(
     assert features.get("verdict") == "wrong_evidence_selection"
 
 
+@pytest.mark.parametrize(
+    "legacy_verdict", ["grounding_ok", "unsupported_figures"])
+def test_pending_business_cannot_erase_committed_legacy_verdict(
+        feedback_db, fresh_router, monkeypatch, legacy_verdict):
+    from core.employee_routing_feedback import (
+        record_pending_business_evaluation,
+    )
+    from core.learning_llm_router import (
+        LearningBasedRouter,
+        RoutingFeedback,
+    )
+
+    generation = f"legacy-grounding-{legacy_verdict}"
+    row_id = _insert_outcome_row(feedback_db, generation)
+    if legacy_verdict == "unsupported_figures":
+        from core.models import LLMRoutingFeedback
+
+        with feedback_db["Session"]() as session:
+            row = session.query(LLMRoutingFeedback).filter_by(
+                id=row_id).one()
+            row.quality_satisfied = False
+            row.user_satisfaction = 0.1
+            session.commit()
+
+    read = threading.Event()
+    release = threading.Event()
+    _pause_weak_read(monkeypatch, generation, read, release)
+
+    def _weak_pending():
+        return asyncio.run(record_pending_business_evaluation(
+            _synthetic_result(generation),
+            stage="employee_evidence_selection",
+            workspace_id="ws-ctrl", tenant_id="tenant-ctrl"))
+
+    with ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="weak") as pool:
+        pending = pool.submit(_weak_pending)
+        assert read.wait(20)
+        try:
+            writer = LearningBasedRouter.__new__(LearningBasedRouter)
+            strong = writer._persist_feedback(
+                RoutingFeedback(
+                    routing_result_id=generation,
+                    tenant_id="tenant-ctrl",
+                    model_id="llama3.1:8b",
+                    task_type="general",
+                    success=True,
+                    quality_satisfied=(
+                        legacy_verdict != "unsupported_figures"),
+                    cost_within_budget=True,
+                    user_satisfaction=(
+                        0.1 if legacy_verdict == "unsupported_figures"
+                        else 0.9),
+                ),
+                {"verdict": legacy_verdict})
+            assert strong == "annotated", strong
+        finally:
+            release.set()
+        weak = pending.result(timeout=20)
+
+    assert weak["recorded"] is False, weak
+    assert weak["status"] == "skipped_verdict", weak
+    row = _row_by_id(feedback_db, row_id)
+    assert row.prompt_features.get("verdict") == legacy_verdict, (
+        weak, row.prompt_features)
+
+
+def test_stale_legacy_grounding_cannot_overwrite_committed_business_failure(
+        feedback_db, fresh_router, monkeypatch):
+    from core.employee_routing_feedback import record_attempt_evaluation
+    from core.learning_llm_router import (
+        LearningBasedRouter,
+        RoutingFeedback,
+    )
+
+    generation = "stale-legacy-grounding"
+    row_id = _insert_outcome_row(feedback_db, generation)
+    read = threading.Event()
+    release = threading.Event()
+    _pause_weak_read(monkeypatch, generation, read, release)
+
+    def _weak_legacy():
+        writer = LearningBasedRouter.__new__(LearningBasedRouter)
+        return writer._persist_feedback(
+            RoutingFeedback(
+                routing_result_id=generation,
+                tenant_id="tenant-ctrl",
+                model_id="llama3.1:8b",
+                task_type="general",
+                success=True,
+                quality_satisfied=True,
+                cost_within_budget=True,
+                user_satisfaction=0.9,
+            ),
+            {"verdict": "grounding_ok"})
+
+    with ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="weak") as pool:
+        pending = pool.submit(_weak_legacy)
+        assert read.wait(20)
+        try:
+            strong = asyncio.run(record_attempt_evaluation(
+                _synthetic_result(generation),
+                stage="employee_evidence_selection",
+                evaluation="failed",
+                failure_kind="wrong_evidence_selection",
+                workspace_id="ws-ctrl", tenant_id="tenant-ctrl"))
+            assert strong["status"] == "annotated", strong
+        finally:
+            release.set()
+        weak = pending.result(timeout=20)
+
+    assert weak == "skipped_verdict", weak
+    row = _row_by_id(feedback_db, row_id)
+    assert row.prompt_features.get("verdict") == (
+        "wrong_evidence_selection"), (weak, row.prompt_features)
+    assert row.prompt_features.get("evaluation_revision", 0) >= 1
+
+
 def test_changed_binding_during_evaluation_refuses(
         feedback_db, fresh_router, monkeypatch):
     from core.models import LLMRoutingFeedback
