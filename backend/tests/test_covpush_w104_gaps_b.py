@@ -2460,11 +2460,13 @@ class TestSkillRoutes:
         app = FastAPI()
         app.include_router(skill_routes.router)
         self._service = MagicMock()
-        app.dependency_overrides[get_current_user] = lambda: NS(id="u1")
+        app.dependency_overrides[get_current_user] = lambda: NS(
+            id="u1", role="team_lead", tenant_id="t1", status="active",
+            is_active=True)
         app.dependency_overrides[get_db] = lambda: MagicMock()
         app.dependency_overrides[skill_routes.get_skill_service] = lambda: self._service
         self._sr = skill_routes
-        yield TestClient(app)
+        yield TestClient(app, raise_server_exceptions=False)
         app.dependency_overrides.clear()
 
     def test_import_success_and_errors(self, client):
@@ -2519,26 +2521,74 @@ class TestSkillRoutes:
         assert client.post("/api/skills/execute",
                            json={"skill_id": "s1", "inputs": {}}).status_code == 500
 
-    def test_promote_skill(self, client):
-        self._service.promote_skill = Mock(return_value={
-            "status": "Active", "previous_status": "Untrusted"})
+    def test_promote_skill(self, client, monkeypatch):
+        def verified(*args, **kwargs):
+            return {
+                "status": "verified",
+                "data": {
+                    "status": "Active", "previous_status": "Untrusted",
+                    "verification": {
+                        "status": "verified", "effect": "committed"},
+                },
+                "message": "Skill promoted to Active",
+            }
+
+        monkeypatch.setattr(self._sr, "_promote_community_skill", verified)
         r = client.post("/api/skills/promote", json={"skill_id": "s1"})
         assert r.status_code == 200
-        self._service.promote_skill = Mock(side_effect=ValueError("v"))
+        assert r.json()["data"]["status"] == "Active"
+
+        monkeypatch.setattr(self._sr, "_promote_community_skill", lambda *a, **k: {
+            "status": "refused", "http_status": 404,
+            "error_code": "NOT_FOUND", "error": "not found",
+            "verification": {"status": "not_attempted", "effect": "none"}})
         assert client.post("/api/skills/promote",
-                           json={"skill_id": "s1"}).status_code == 400
-        self._service.promote_skill = Mock(side_effect=RuntimeError("e"))
+                           json={"skill_id": "s1"}).status_code == 404
+
+        monkeypatch.setattr(self._sr, "_promote_community_skill", lambda *a, **k: {
+            "status": "effect_unknown",
+            "verification": {"status": "unavailable", "effect": "unknown"},
+            "message": "uncertain"})
+        assert client.post("/api/skills/promote",
+                           json={"skill_id": "s1"}).status_code == 503
+
+        monkeypatch.setattr(self._sr, "_promote_community_skill", lambda *a, **k: (
+            _ for _ in ()).throw(RuntimeError("e")))
         assert client.post("/api/skills/promote",
                            json={"skill_id": "s1"}).status_code == 500
 
-    def test_delete_skill(self, client):
-        self._service.delete_skill = Mock(return_value={
-            "message": "deleted", "success": True})
+    def test_delete_skill(self, client, monkeypatch):
+        def verified(*args, **kwargs):
+            return {
+                "status": "verified",
+                "data": {
+                    "skill_id": "s1", "deleted": True,
+                    "skill_name": "S",
+                    "verification": {
+                        "status": "verified", "effect": "committed"},
+                },
+                "message": "Skill 'S' deleted successfully",
+            }
+
+        monkeypatch.setattr(self._sr, "_delete_community_skill", verified)
         r = client.delete("/api/skills/s1")
         assert r.status_code == 200
-        self._service.delete_skill = Mock(side_effect=ValueError("v"))
+        assert r.json()["data"]["deleted"] is True
+
+        monkeypatch.setattr(self._sr, "_delete_community_skill", lambda *a, **k: {
+            "status": "refused", "http_status": 404,
+            "error_code": "NOT_FOUND", "error": "not found",
+            "verification": {"status": "not_attempted", "effect": "none"}})
         assert client.delete("/api/skills/s1").status_code == 404
-        self._service.delete_skill = Mock(side_effect=RuntimeError("e"))
+
+        monkeypatch.setattr(self._sr, "_delete_community_skill", lambda *a, **k: {
+            "status": "effect_unknown",
+            "verification": {"status": "unavailable", "effect": "unknown"},
+            "message": "uncertain"})
+        assert client.delete("/api/skills/s1").status_code == 503
+
+        monkeypatch.setattr(self._sr, "_delete_community_skill", lambda *a, **k: (
+            _ for _ in ()).throw(RuntimeError("e")))
         assert client.delete("/api/skills/s1").status_code == 500
 
     def test_episodes(self, client):
