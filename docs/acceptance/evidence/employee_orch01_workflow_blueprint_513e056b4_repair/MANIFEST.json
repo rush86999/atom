@@ -1,17 +1,19 @@
 {
   "artifacts": {
-    "README.md": "9c4dd9c5b52639f362e9315d566230da07f0aea1527ccf292dfae737bde44a82",
-    "TEST_RESULTS.md": "e1247ffc2aabd9047dd3358689c5d1c51f9be0d1fa4af68ae400cc3506940ee0",
-    "affected-311.log": "131448bd51b934cefbaf75d8f06c3cf77992b5db0cebea441f80383c7be7c604",
-    "affected-314.log": "9ea17e04d9f62dbb90129e5972b3b2a233f23d807d78b79f7883a2d93d292a21",
+    "README.md": "ecd8560e1620fec10c60c785696241996af7b88965b17562a94baa9fc0f29e85",
+    "TEST_RESULTS.md": "9c895425fa51b89d82c4ded725b69c5a76220a03b1fb4adae49de4611b8d8d4d",
+    "affected-311.log": "3c14e839df2200310f631808bad5bf40cc81967256a8b57e6aa0eb5ec1480d44",
+    "affected-314.log": "480f101aef90aa1e7e6f92e614eb12eb7b76153a096cb6e145af6496af9d31a3",
     "base-round67-round19-pre-existing.log": "cffb0f0f6f47156548ac0e12c808e569ef26f7407db55a4149e02716ab4a1d8c",
     "base-scheduler-pre-existing.log": "7463342146e2374c5f2d82ab8a33de2ba38dddc8629dea9768d315dd5ee6da82",
-    "contracts.json": "e94f87ce0a59934095461d9c39c06f78886cc9b74ff77b6bf617a872281983ce",
-    "focused-311.log": "0387f6ab252576d9c0084badbab7178db9999fd0765e5c0d3ab9f9fd3caa791c",
-    "focused-314.log": "22d3f1da2e1b439522f4c9985c3103ab917cced5902a084b3406c3e4acb4dcdc",
-    "verification.json": "ce56e6617295befc224050d1f179bfa82a718064d8c12a2d8562436964a14a47",
+    "contracts.json": "e3372d36c8c8ea05a4c3a80608730efdecf71f92b9bddaf389dfe5fe3a4edcc4",
+    "focused-311.log": "b54809de97a768394f56d560164cd1badfe9e2691cfaf6a08e1dd6ece2451543",
+    "focused-314.log": "2010a2a3b497089c3e9798f1c2784272190a1099e62a7ed317e80fa8f9efa475",
+    "verification.json": "f024387de5c2f0eec92b4bd22961ccac9cf0dccdf8b5e13b33b0cd060b9a0471",
     "verifier-binding-resume-before.log": "da8ae7fc7913400d84a355b37209540a62cb2e86e21d51545dddf2b850f7667e",
-    "verifier-contract-before.log": "b812f98795a5e6b880d0d2ed1326d79d331031b4d7aeefff85bd6d2e70da66f8"
+    "verifier-contract-before.log": "b812f98795a5e6b880d0d2ed1326d79d331031b4d7aeefff85bd6d2e70da66f8",
+    "verifier-probes-final-311.log": "23499dfe171d1c8f4e55ad3433ea6b89e37f0dfb1aaa3df5f0584e112eb7102c",
+    "verifier-probes-final-314.log": "954adf95e7e309419af90567d30f1dc76d6577500df98771663fc490a6333ef2"
   },
   "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
   "boundaries": [
@@ -33,21 +35,23 @@
     "model_calls": 0,
     "prior_contract_controls": "28 passed",
     "provider_calls": 0,
-    "verifier_negative_before": "4 failed on withheld source"
+    "verifier_negative_before": "4 failed on withheld source",
+    "verifier_probes_final_python311": "7 passed (-p no:randomly)",
+    "verifier_probes_final_python314": "7 passed"
   },
-  "code_source": "253f377396ffb688c25686483411246713b3b7ca",
+  "code_source": "620476fb41c58dc95e6936bc875379a01d64a3f3",
   "exclusions": {
     "round67_round19": "2 pre-existing failures on withheld source 4d3fb66c5",
     "scheduler_timing": "2 disclosed baseline timing failures; not in repair selection"
   },
-  "executed_source": "253f377396ffb688c25686483411246713b3b7ca",
+  "executed_source": "620476fb41c58dc95e6936bc875379a01d64a3f3",
   "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
   "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
   "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
-  "repair_source": "253f377396ffb688c25686483411246713b3b7ca",
+  "repair_source": "620476fb41c58dc95e6936bc875379a01d64a3f3",
   "schema": "atom-employee-evidence-1",
   "source_files": {
-    "backend/advanced_workflow_orchestrator.py": "ec692ca4d6c66d543787694497809f797ab068b45174b15f817492e26b76414e",
+    "backend/advanced_workflow_orchestrator.py": "673d9fcaf7cd4ba710a72916fe22cdd113b080e6f5cd52e74ba0b4048f99d55f",
     "backend/core/agents/workflow_blueprint.py": "4510d9cf96c8dca1f4b5e9644699f535b33a5b910f298bca400985cdb885f9f0",
     "backend/core/hitl_resume.py": "243e03e050f93dbce3db70e2ba31fe2d6c580bdc6d33f3117da303bf77bb303c",
     "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",

@@ -15,7 +15,7 @@ preparation; no accepted lane is reopened.
 | Previous withheld source | `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8` |
 | Previous evidence commit | `0a850d14d8c85a62a72d95c93355f5b23766a0ab` |
 | Parent repair source | `f6e50b58c4d5aacf5752c9a1ab39c629e23315e6` |
-| Executed source | `253f377396ffb688c25686483411246713b3b7ca` |
+| Executed source | `620476fb41c58dc95e6936bc875379a01d64a3f3` |
 | Tree at execution | clean (`0 modified, 0 untracked`) |
 | Runtime | real scratch SQLite with fresh sessions; controlled governance/effect seams |
 | Model/provider/browser calls | none |
@@ -138,7 +138,9 @@ withheld source `4d3fb66c5` and are not caused by this repair.
 
 The verifier's four negative cases failed on the withheld source
 (`verifier-binding-resume-before.log`, 4 failed) and pass on the repair source.
-The prior 28 controls remain green (`verifier-contract-before.log`).
+The prior 28 controls remain green (`verifier-contract-before.log`); the final
+combined probes are 7 passed on Python 3.14 and 3.11
+(`verifier-probes-final-314.log`, `verifier-probes-final-311.log`).
 
 ## Pre-existing exclusions
 
@@ -166,7 +168,8 @@ The prior 28 controls remain green (`verifier-contract-before.log`).
 ## Artifacts
 
 `focused-*.log`, `affected-*.log`, `verifier-binding-resume-before.log`,
-`verifier-contract-before.log`, `base-scheduler-pre-existing.log`,
+`verifier-contract-before.log`, `verifier-probes-final-314.log`,
+`verifier-probes-final-311.log`, `base-scheduler-pre-existing.log`,
 `base-round67-round19-pre-existing.log`, `README.md`, `TEST_RESULTS.md`,
 `verification.json`, `contracts.json`. `MANIFEST.json` records the SHA-256 of
 every artifact and changed source file.

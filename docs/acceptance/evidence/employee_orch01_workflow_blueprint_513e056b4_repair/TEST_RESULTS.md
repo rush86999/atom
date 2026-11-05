@@ -1,6 +1,6 @@
 # ORCH-01 consumer repair — test results
 
-Executed source: `253f377396ffb688c25686483411246713b3b7ca`
+Executed source: `620476fb41c58dc95e6936bc875379a01d64a3f3`
 Base: `81c5962bd17b3ffa90cd5107d5b3134821c0ffa1`
 Previous withheld source: `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8`
 
@@ -101,6 +101,18 @@ verifier-contract-before.log: 28 passed
 ```
 
 The repair preserves those controls.
+
+Final combined verifier probes (the prior contract probe plus the four new
+negative cases) on the executed source:
+
+```text
+verifier-probes-final-314.log: 7 passed
+verifier-probes-final-311.log: 7 passed (-p no:randomly)
+```
+
+Python 3.11 used `-p no:randomly` because the external probe paths trigger a
+pytest-randomly/thinc seed error before test setup; the tracked controls run
+under the normal configuration in `focused-311.log`.
 
 ## Known baseline scheduler timing failures
 
