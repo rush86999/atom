@@ -1,6 +1,6 @@
 # ORCH-01 consumer repair — test results
 
-Executed source: `5deb4055d8530e6b75103ebc34a080025feafd74`
+Executed source: `0fae2d46cebf1860033c08db2d724a17068c2d46`
 Base: `81c5962bd17b3ffa90cd5107d5b3134821c0ffa1`
 Previous withheld source: `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8`
 
@@ -127,6 +127,12 @@ verifier-probes-final-311.log: 27 passed (-p no:randomly)
 Python 3.11 used `-p no:randomly` because the external probe paths trigger a
 pytest-randomly/thinc seed error before test setup; the tracked controls run
 under the normal configuration in `focused-311.log`.
+
+## HITL queue bridge
+
+`tests/test_hitl_resume.py` passes **10** (`hitl-resume.log`). A partial or
+contradictory advanced binding returns `resumed=false` with a fresh matching
+review reason; a still-waiting workflow is reported separately.
 
 ## Known baseline scheduler timing failures
 

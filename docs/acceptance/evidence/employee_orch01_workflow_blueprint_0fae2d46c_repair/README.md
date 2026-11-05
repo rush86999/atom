@@ -15,7 +15,7 @@ preparation; no accepted lane is reopened.
 | Previous withheld source | `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8` |
 | Previous evidence commit | `0a850d14d8c85a62a72d95c93355f5b23766a0ab` |
 | Parent repair source | `e7f551bc8449dfccf4120e9b7ba298fe49fca258` |
-| Executed source | `5deb4055d8530e6b75103ebc34a080025feafd74` |
+| Executed source | `0fae2d46cebf1860033c08db2d724a17068c2d46` |
 | Tree at execution | clean (`0 modified, 0 untracked`) |
 | Runtime | real scratch SQLite with fresh sessions; controlled governance/effect seams |
 | Model/provider/browser calls | none |
@@ -177,7 +177,7 @@ combined probes are 27 passed on Python 3.14 and 3.11
 `focused-*.log`, `affected-*.log`, `verifier-binding-resume-before.log`,
 `verifier-contract-before.log`, `verifier-review-binding-before.log`,
 `verifier-probes-final-314.log`, `verifier-probes-final-311.log`,
-`base-scheduler-pre-existing.log`,
+`hitl-resume.log`, `base-scheduler-pre-existing.log`,
 `base-round67-round19-pre-existing.log`, `README.md`, `TEST_RESULTS.md`,
 `verification.json`, `contracts.json`. `MANIFEST.json` records the SHA-256 of
 every artifact and changed source file.

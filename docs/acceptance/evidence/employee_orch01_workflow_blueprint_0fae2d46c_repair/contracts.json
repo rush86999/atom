@@ -25,7 +25,7 @@
       "duplicate_resume": "no second effect",
       "durable_authority": "HITLAction",
       "entry": "AdvancedWorkflowOrchestrator.resume_workflow",
-      "hitl_queue_bridge": "advanced WorkflowExecution actions use the same checkpoint consumer instead of the legacy workflow-engine state store",
+      "hitl_queue_bridge": "advanced WorkflowExecution actions use the same checkpoint consumer; a failed binding returns resumed=false with a fresh matching review reason",
       "id": "durable-checkpoint-resume",
       "legacy_non_server_required_without_row": "documented pre-repair compatibility path; never waives a server-required checkpoint",
       "legacy_rows": "readable/listable but not executable authority for a new server-required checkpoint; a fresh matching review is required",
@@ -92,6 +92,6 @@
   ],
   "parent_repair_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
   "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
-  "repair_source": "5deb4055d8530e6b75103ebc34a080025feafd74",
+  "repair_source": "0fae2d46cebf1860033c08db2d724a17068c2d46",
   "schema": "atom-orch01-consumer-contracts-2"
 }
