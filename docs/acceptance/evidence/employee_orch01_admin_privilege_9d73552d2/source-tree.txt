@@ -1,0 +1,12 @@
+executed_source: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+product_source: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+accepted_auth_2fa_base: 95f7bcac1a0375b4f0465a77e15130f68fc9665d
+branch: codex/oracle01-admin-privilege-20261105
+git_status_short:
+?? docs/acceptance/evidence/employee_orch01_admin_privilege_9d73552d2/
+git_log:
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence
+5fbb377a4 fix(admin): bind private credential proof and report atomic rollback
+cd4f57035 docs(admin): retain the seven-route test logs in the evidence bundle
+e6e7b5072 docs(admin): submit the expanded seven-route privilege/budget evidence

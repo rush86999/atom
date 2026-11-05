@@ -1,0 +1,151 @@
+{
+  "schema": "atom-oracle-admin-privilege-1",
+  "status": "seven-route admin privilege/budget credential-material and confirmed-rollback repair submitted for independent verification; remaining admin routes and whole-app ORACLE-01 remain open",
+  "candidate": {
+    "branch": "codex/oracle01-admin-privilege-20261105",
+    "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "product_source": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "executed_source": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled interleaving/fault seams; no model/provider/browser"
+  },
+  "checks": {
+    "stored_credential_verified_against_authorized_password": true,
+    "wrong_syntactically_valid_hash_cannot_certify": true,
+    "credential_commitment_in_private_result_digest": true,
+    "fresh_session_valid_credential_twin_verifies": true,
+    "changed_credential_replay_refutes_without_overwrite": true,
+    "malformed_or_deleted_credential_replay_refutes": true,
+    "unchanged_replay_idempotent_one_user_one_audit": true,
+    "public_response_audit_receipt_and_logs_omit_credential_material": true,
+    "confirmed_atomic_rollback_reports_effect_none": true,
+    "role_user_budget_rollback_twins_remove_target_and_audit": true,
+    "existing_duplicate_operation_reconciles_original_receipt": true,
+    "post_commit_readback_failure_remains_committed_unverified": true,
+    "lost_confirmation_remains_effect_unknown_with_identity": true,
+    "unique_target_conflict_is_truthful_without_receipt": true,
+    "actor_demotion_disablement_before_claim_refused": true,
+    "role_create_unique_name_db_arbiter": true,
+    "user_create_unique_email_db_arbiter": true,
+    "user_create_role_existence_in_insert": true,
+    "role_update_material_cas": true,
+    "user_update_material_cas_including_credential_hash": true,
+    "last_login_is_not_bound_in_user_material": true,
+    "user_delete_material_cas_including_credential_hash": true,
+    "role_delete_in_use_refused": true,
+    "role_delete_vs_assignment_no_dangling_user": true,
+    "budget_exact_setting_cas": true,
+    "budget_partial_merge_preserves_unseen_fields": true,
+    "budget_non_finite_and_mode_validation": true,
+    "audit_missing_type_actor_target_material_scope_refused": true,
+    "same_operation_same_material_already_applied": true,
+    "same_operation_changed_material_conflict": true,
+    "later_target_revision_unverified": true,
+    "tombstone_delete_replay": true,
+    "fresh_session_permission_consumer_observes_commit": true,
+    "fresh_session_budget_consumer_observes_commit": true,
+    "ordinary_response_shapes_preserved": true,
+    "no_schema_change_or_migration_required": true,
+    "no_second_authorization_approval_credential_or_operation_engine": true,
+    "no_password_hash_token_secret_or_sql_parameter_in_receipts": true,
+    "no_model_or_provider_calls": true
+  },
+  "results": {
+    "external_probes_python314": {
+      "passed": 4,
+      "log": "probes-314.log"
+    },
+    "external_probes_python311": {
+      "passed": 4,
+      "log": "probes-311.log",
+      "note": "external-path run uses -p no:randomly for the pytest-randomly/thinc seed issue"
+    },
+    "credential_result_state_python314": {
+      "passed": 11,
+      "log": "credential-matrix-314.log"
+    },
+    "credential_result_state_python311": {
+      "passed": 11,
+      "log": "credential-matrix-311.log"
+    },
+    "focused_python314": {
+      "passed": 204,
+      "skipped": 2,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 204,
+      "skipped": 2,
+      "log": "focused-311.log"
+    },
+    "w79c_admin_python314": {
+      "passed": 23,
+      "deselected": 199,
+      "log": "w79c-admin-314.log"
+    },
+    "w79c_admin_python311": {
+      "passed": 23,
+      "deselected": 199,
+      "log": "w79c-admin-311.log"
+    },
+    "affected_python314": {
+      "passed": 1176,
+      "skipped": 3,
+      "failed": 0,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 1175,
+      "skipped": 3,
+      "failed": 1,
+      "failed_known_timing_flake": true,
+      "isolated_log": "integration-audit-311-isolated.log",
+      "log": "affected-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "original_seven_route_gate_retained": true,
+    "base_contract_controls": 10,
+    "failure_first_matrix_controls": 36,
+    "existing_admin_crud_coverage_controls": 147,
+    "credential_result_state_controls": 11,
+    "focused_total": 204,
+    "w79c_admin_crud_controls": 23,
+    "affected_selection_total_python314": 1176,
+    "overlap_note": "matrix and credential controls are subsets of focused; W79C and affected selections overlap only where noted; totals are not added across selections"
+  },
+  "baseline_exclusions": {
+    "unrelated_model_physics_52": {
+      "base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+      "log": "baseline-exclusions-52.log",
+      "counts": {
+        "test_covpush_w75b_admin": 31,
+        "test_workspace_permissions": 9,
+        "test_directory_permissions": 9,
+        "test_phase21_rbac": 3
+      },
+      "reason": "unrelated cache/health/skill and permission-model controls reproduce on the accepted base without this slice"
+    },
+    "w79c_workflow_template_38": {
+      "log": "w79c-pre-existing-314.log",
+      "reason": "full W79C workflow-template section retains pre-existing failures on both baseline and repaired source; admin CRUD classes are selected separately and pass 23/23"
+    },
+    "integration_audit_timing_flake": {
+      "test": "tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error",
+      "log": "integration-audit-311-isolated.log",
+      "reason": "millisecond-clock timing flake; passes in isolation on 3.11; 3.14 affected selection is fully green"
+    },
+    "two_factor_lane_w104": {
+      "log": "base-pre-existing.log",
+      "reason": "known 2FA-lane baseline failure on the accepted auth/2FA base; 2FA lane is closed and was not replayed"
+    }
+  },
+  "limits": [
+    "Exactly seven routes; remaining admin routes, login/password/SSO/passkeys and whole-app ORACLE-01 remain outside this slice",
+    "No live administrator/account/budget change, provider, credential, spend, send, download or deployment authority",
+    "No second authorization/approval/audit/credential/operation engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and live identity/provider operation are not qualified",
+    "The existing AuditLog table is the durable ledger; no new schema/migration was added",
+    "Accepted canvas/auth-2FA/ORCH-01/feedback/wait/employee lanes and historical model scores are unchanged"
+  ]
+}

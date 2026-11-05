@@ -1,0 +1,118 @@
+{
+  "schema": "atom-oracle-admin-privilege-routes-1",
+  "executed_source": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "product_source": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "prefix": "/api/admin",
+  "scope_policy": {
+    "admin_roles": "global platform rows; require_super_admin",
+    "admin_users": "global platform rows; require_super_admin",
+    "tenant_budget": "tenant-scoped TenantSetting('billing'); get_platform_admin (workspace_admin+)"
+  },
+  "authority_claim": {
+    "actor_fields": "id, role, status, is_active",
+    "mechanism": "read-only current-authority gate, then a conditional no-op User UPDATE in the same transaction as the target claim",
+    "change_behavior": "concurrent demotion, disablement, suspension or deletion matches zero rows and refuses with zero target effect"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/admin/roles",
+      "handler": "api.admin_routes.create_admin_role",
+      "service": "core.admin_write_service.create_admin_role",
+      "state": ["admin_roles", "saas_audit_logs"],
+      "contract": "unique name is the DB arbiter; deterministic target id; actor authority and audit receipt commit with the row; exact replay acknowledges, changed material conflicts; confirmed audit rollback is effect=none"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/roles/{role_id}",
+      "handler": "api.admin_routes.update_admin_role",
+      "service": "core.admin_write_service.update_admin_role",
+      "state": ["admin_roles", "saas_audit_logs"],
+      "contract": "material CAS on current name/permissions/description; unique-name conflict 409; stale target 409; later target revision 503; audit readback and replay reconciliation"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/roles/{role_id}",
+      "handler": "api.admin_routes.delete_admin_role",
+      "service": "core.admin_write_service.delete_admin_role",
+      "state": ["admin_roles", "admin_users", "saas_audit_logs"],
+      "contract": "conditional delete with NOT EXISTS assigned users and material predicates; in-use/stale conflict; tombstone receipt and exact replay acknowledgement; readback rejects any dangling assignment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users",
+      "handler": "api.admin_routes.create_admin_user",
+      "service": "core.admin_write_service.create_admin_user",
+      "state": ["admin_users", "admin_roles", "saas_audit_logs"],
+      "contract": "unique email DB arbiter; role-existence EXISTS in the insert; generated password hash verified against the authorized password before write; private result digest binds the exact stored hash commitment; unchanged replay already_applied; changed/malformed/deleted credential replay 503 without overwrite"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/users/{admin_id}",
+      "handler": "api.admin_routes.update_admin_user",
+      "service": "core.admin_write_service.update_admin_user",
+      "state": ["admin_users", "admin_roles", "saas_audit_logs"],
+      "contract": "material CAS on email/name/role/status and the exact credential hash; last_login is intentionally excluded so a concurrent login writer is preserved; role-existence EXISTS on role change; stale target 409; later credential/target revision 503; audit readback"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/users/{admin_id}",
+      "handler": "api.admin_routes.delete_admin_user",
+      "service": "core.admin_write_service.delete_admin_user",
+      "state": ["admin_users", "saas_audit_logs"],
+      "contract": "material conditional delete including the exact credential hash and excluding last_login; stale target 409; tombstone receipt and exact replay acknowledgement"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tenants/{tenant_id}/budget",
+      "handler": "api.admin.budget_routes.update_tenant_budget",
+      "service": "core.admin_write_service.update_tenant_budget",
+      "state": ["tenant_settings", "saas_audit_logs"],
+      "contract": "exact TenantSetting('billing').setting_value CAS; partial merge of supplied fields preserving unseen keys; finite/non-negative/mode validation; concurrent loser 409; confirmed audit rollback effect=none; fresh-session budget consumers observe committed truth"
+    }
+  ],
+  "credential_contract": {
+    "initial_proof": "core.auth.verify_password(authorized_password, generated_password_hash) before write; wrong hash is a pre-effect CREDENTIAL_MISMATCH refusal",
+    "private_material": "id/email/name/role_id/status plus a keyed non-reversible credential_commitment over the exact stored hash",
+    "public_projection": "id/email/name/role_id/status plus timestamps only; no credential commitment or hash",
+    "result_binding": "the credential commitment is included in the audit result digest; replay compares the fresh private state to the original result digest",
+    "replay_change": "changed, malformed or deleted credential after original commit -> committed_unverified 503; no overwrite, no fresh salted hash, no second user",
+    "update_delete": "user update/delete CAS binds the exact current credential hash and excludes unrelated last_login"
+  },
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id; supplied ids are prefixed deterministically",
+    "material_binding": "operation kind, actor id/role, platform/tenant scope, target type/id, request material digest and result digest",
+    "readback": "fresh session on the same engine; target state must still match the result digest or be absent for delete",
+    "replay": "same id/same material already_applied; changed material 409; later target/credential revision or audit mismatch 503; lost confirmation effect_unknown 503",
+    "sensitive_material": "no password hash, token, secret, OTP or SQL parameter stored or returned; credential commitment is keyed and non-reversible"
+  },
+  "result_states": {
+    "not_applied": "confirmed local commit rollback with no original operation: HTTP 409, verification.effect=none, ADMIN_TRANSACTION_ROLLED_BACK; target and audit absent",
+    "committed_unverified": "mutation committed but post-commit audit/target readback failed: HTTP 503, effect=committed, original identity, do_not_repeat",
+    "effect_unknown": "lost commit confirmation: HTTP 503, effect=unknown, original operation identity, do_not_repeat, no exception SQL/parameters",
+    "conflict": "unique constraint, stale target or changed operation material: typed 409; refresh the record",
+    "already_applied": "same operation id/same material: verified original acknowledgement, no second effect"
+  },
+  "consumers": {
+    "role_permissions": "AdminRole.permissions is consumed by the admin role responses; there is no in-process AdminRole permission cache. A fresh-session role GET observes committed permissions.",
+    "budget": "BudgetEnforcementService._get_enforcement_mode, SpendAggregationService._budget_limit_from_setting, and the budget GET/PUT routes consume TenantSetting('billing'). The override writer uses the same document; exact-value CAS preserves unseen keys.",
+    "parallel_writers": "update_admin_last_login, role/user CRUD, budget override, and other TenantSetting keys; last_login is excluded from user material so the login writer wins without loss; role delete uses NOT EXISTS plus the real FK; budget CAS binds the exact setting document."
+  },
+  "response_contract": {
+    "verified": "existing success shape plus additive verification/operation_id/audit_id",
+    "conflict": "409 typed conflict; refresh the changed record",
+    "rollback": "confirmed local rollback is typed not_applied 409 with verification.effect=none",
+    "uncertain": "503 with original operation/audit/target identities and do_not_repeat",
+    "refused": "existing 403/404/422 refusal shape with zero mutation",
+    "credential": "safe public projection only; private verifier commitment never returned"
+  },
+  "not_covered": [
+    "remaining admin routes",
+    "login/password/SSO/passkeys",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "live administrator/account/budget changes",
+    "whole-app ORACLE-01 inventory"
+  ]
+}
