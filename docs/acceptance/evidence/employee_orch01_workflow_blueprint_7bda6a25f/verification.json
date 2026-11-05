@@ -1,99 +1,117 @@
 {
- "schema": "atom-orch01-verification-1",
- "original_source": "7bda6a25f",
- "executed_source": "b7e67f49a",
  "base_source": "81c5962bd",
  "checks": {
-  "typed_structured_blueprint": true,
-  "dag_validation": true,
-  "duplicate_ids_refused": true,
-  "dangling_dependency_refused": true,
-  "cycle_refused": true,
-  "multiple_starts_refused": true,
-  "recurring_trigger_rules_enforced": true,
-  "unknown_action_reference_refused": true,
-  "metadata_cannot_inject_execution_action": true,
-  "read_label_cannot_compile_ungated_mutation": true,
-  "unbound_capability_is_non_executable": true,
-  "unbound_design_not_registered": true,
-  "hitl_inserted_before_governed_mutation": true,
-  "trigger_is_not_a_mutation": true,
-  "server_required_checkpoint_forces_durable_approval": true,
-  "mature_agent_cannot_waive_server_checkpoint": true,
-  "pending_governance_returns_waiting": true,
   "blocked_governance_stops_descendants": true,
-  "rejected_or_expired_approval_stops_descendants": true,
-  "no_descendant_before_valid_approval": true,
-  "valid_approval_dispatches_exactly_one_effect": true,
+  "cycle_refused": true,
+  "dag_validation": true,
+  "dangling_dependency_refused": true,
   "duplicate_continuation_does_not_repeat_effect": true,
+  "duplicate_ids_refused": true,
   "durable_workflow_and_step_rows": true,
-  "fresh_session_exact_readback": true,
-  "tenant_and_workspace_scope_enforced": true,
-  "foreign_scope_read_404": true,
-  "forged_body_identity_ignored": true,
-  "generation_does_not_execute_workflow": true,
-  "generation_does_not_activate_trigger": true,
-  "model_failure_has_no_persisted_workflow": true,
-  "model_calls_bounded_one_per_request": true,
-  "served_candidates_recompiled_as_reviewable_designs": true,
   "focused_suite_python311": true,
   "focused_suite_python314": true,
-  "independent_contract_probe": true
+  "foreign_scope_read_404": true,
+  "forged_body_identity_ignored": true,
+  "fresh_session_exact_readback": true,
+  "generation_does_not_activate_trigger": true,
+  "generation_does_not_execute_workflow": true,
+  "hitl_inserted_before_governed_mutation": true,
+  "independent_contract_probe": true,
+  "mature_agent_cannot_waive_server_checkpoint": true,
+  "metadata_cannot_inject_execution_action": true,
+  "model_calls_bounded_one_per_request": true,
+  "model_failure_has_no_persisted_workflow": true,
+  "multiple_starts_refused": true,
+  "no_descendant_before_valid_approval": true,
+  "pending_governance_returns_waiting": true,
+  "pending_server_checkpoint_creates_durable_approval": true,
+  "read_label_cannot_compile_ungated_mutation": true,
+  "recurring_trigger_rules_enforced": true,
+  "rejected_or_expired_approval_stops_descendants": true,
+  "served_candidates_recompiled_as_reviewable_designs": true,
+  "server_required_checkpoint_forces_durable_approval": true,
+  "tenant_and_workspace_scope_enforced": true,
+  "trigger_is_not_a_mutation": true,
+  "typed_structured_blueprint": true,
+  "unbound_capability_is_non_executable": true,
+  "unbound_design_not_registered": true,
+  "unknown_action_reference_refused": true,
+  "valid_approval_dispatches_exactly_one_effect": true
  },
- "results": {
-  "orch01_checkpoint_controls": {
-   "passed": 25,
-   "files": [
-    "tests/test_orch01_workflow_blueprint.py",
-    "tests/test_orch01_checkpoint_contract.py"
-   ]
-  },
-  "independent_contract_probe": {"passed": 3, "log": "verifier-contract.log"},
-  "focused_affected_python314": {"passed": 647, "seconds": 95.60,
-                                 "log": "focused-314.log"},
-  "focused_affected_python311": {"passed": 647, "seconds": 110.94,
-                                 "log": "focused-311.log"},
-  "workflow_neighborhood": {"passed": 443, "log": "workflow-neighborhood.log"},
-  "served_candidates": {
-   "model_calls": 2,
-   "artifact": "served-qualification.json",
-   "recompiled": "served-candidates-recompiled.json",
-   "cases": [
-    {
-     "case": "service_intake_review",
-     "status": "candidate_compiled",
-     "execution_ready": false,
-     "hitl_gates": ["approval_notify_reviewer",
-                     "approval_record_review_decision"]
-    },
-    {
-     "case": "inventory_operations_review",
-     "status": "candidate_compiled",
-     "execution_ready": false,
-     "hitl_gates": ["approval_update_stock_review_record"]
-    }
-   ],
-   "note": "No inference; captured raw candidates recompiled with the repaired compiler. They are reviewable non-executable designs because skill capabilities are unbound; not registered as runnable workflows."
-  }
- },
- "measurements": {
-  "orch01_checkpoint_controls_passed": 25,
-  "independent_contract_probe_passed": 3,
-  "focused_affected_passed": 647,
-  "workflow_neighborhood_passed": 443,
-  "served_model_calls": 2
- },
- "preserved_negative": {
-  "protocol_attempt": "served-protocol-negative.log",
-  "reason": "TOOLS mode returned a function-call envelope without a parsed blueprint; explicit JSON structured mode produced the captured candidates",
-  "read_label_metadata_create": "served by the compiler authority control",
-  "no_provider_added_or_substituted": true
- },
+ "compiler_checkpoint_source": "b7e67f49a",
+ "executed_source": "4d3fb66c5",
  "limits": [
   "Controlled SQLite store and one local served route; PostgreSQL runtime qualification remains separate.",
   "The recorded served cases are candidate-generation plus service-persistence evidence, not served HTTP or exact production-method qualification.",
   "Workflow design/readback only; execution quality, scheduling reliability, fleet recruitment and general model competence are not claimed.",
   "Unbound skill/agent capabilities produce reviewable non-executable designs and are not registered.",
   "No cloud provider, credential, spend, download or deployment was used."
- ]
+ ],
+ "measurements": {
+  "focused_affected_passed": 647,
+  "independent_contract_probe_passed": 3,
+  "orch01_checkpoint_controls_passed": 25,
+  "served_model_calls": 2,
+  "workflow_neighborhood_passed": 443
+ },
+ "original_source": "7bda6a25f",
+ "preserved_negative": {
+  "no_provider_added_or_substituted": true,
+  "protocol_attempt": "served-protocol-negative.log",
+  "read_label_metadata_create": "served by the compiler authority control",
+  "reason": "TOOLS mode returned a function-call envelope without a parsed blueprint; explicit JSON structured mode produced the captured candidates"
+ },
+ "results": {
+  "focused_affected_python311": {
+   "log": "focused-311.log",
+   "passed": 647,
+   "seconds": 110.94
+  },
+  "focused_affected_python314": {
+   "log": "focused-314.log",
+   "passed": 647,
+   "seconds": 95.6
+  },
+  "independent_contract_probe": {
+   "log": "verifier-contract.log",
+   "passed": 3
+  },
+  "orch01_checkpoint_controls": {
+   "files": [
+    "tests/test_orch01_workflow_blueprint.py",
+    "tests/test_orch01_checkpoint_contract.py"
+   ],
+   "passed": 25
+  },
+  "served_candidates": {
+   "artifact": "served-qualification.json",
+   "cases": [
+    {
+     "case": "service_intake_review",
+     "execution_ready": false,
+     "hitl_gates": [
+      "approval_notify_reviewer",
+      "approval_record_review_decision"
+     ],
+     "status": "candidate_compiled"
+    },
+    {
+     "case": "inventory_operations_review",
+     "execution_ready": false,
+     "hitl_gates": [
+      "approval_update_stock_review_record"
+     ],
+     "status": "candidate_compiled"
+    }
+   ],
+   "model_calls": 2,
+   "note": "No inference; captured raw candidates recompiled with the repaired compiler. They are reviewable non-executable designs because skill capabilities are unbound; not registered as runnable workflows.",
+   "recompiled": "served-candidates-recompiled.json"
+  },
+  "workflow_neighborhood": {
+   "log": "workflow-neighborhood.log",
+   "passed": 443
+  }
+ },
+ "schema": "atom-orch01-verification-1"
 }

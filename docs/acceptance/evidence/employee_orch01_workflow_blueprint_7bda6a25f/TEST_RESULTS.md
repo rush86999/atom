@@ -25,6 +25,8 @@ Result: **25 passed**. The table covers:
   APPROVED states; no descendant dispatch before valid approval;
 - exactly one downstream effect after a valid approval and duplicate
   continuation;
+- PENDING_APPROVAL creates/reuses the durable HITLAction for a server-required
+  checkpoint;
 - unbound capabilities are non-executable and unregistered.
 
 ## Focused affected selection
@@ -52,8 +54,8 @@ pytest \
   tests/test_workload_incident_identity.py -q
 ```
 
-Result: **647 passed** in 95.60 s (`focused-314.log`) and **647 passed** in
-110.94 s (`focused-311.log`, `-p no:randomly`).
+Result: **647 passed** in 97.03 s (`focused-314.log`) and **647 passed** in
+109.07 s (`focused-311.log`, `-p no:randomly`).
 
 `workflow-neighborhood.log`: **443 passed** (the workflow files in the same
 selection; included in the 647).
@@ -129,7 +131,8 @@ the accepted two-case result; no provider/route was added or substituted.
 ## Exact commands and source
 
 - Base: `81c5962bd`
-- Code: `7bda6a25f`
+- Original code: `7bda6a25f`; compiler/checkpoint repair: `b7e67f49a`;
+  final executed source: `4d3fb66c5`
 - `PYTHONPATH=backend`, `TESTING=1`; Python 3.14.7 and 3.11.16.
 - Served route is the already-configured local Ollama on `127.0.0.1:11436`;
   the two calls were serialized (one at a time). No cloud provider, credential,

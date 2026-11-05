@@ -1,17 +1,17 @@
 {
  "artifacts": {
   "ORCH02_07_CALLER_MAP.md": "9813489e735bcdf8b1b2ca4c44eca2b3c685806f6adb823e4fd37eb124ccc4d2",
-  "README.md": "fd660a07a765f99df5730e41233a659dee6daa280e4fc3002e2aea067ef9ac97",
-  "TEST_RESULTS.md": "16de0b3b435f97ec6e60cf39df9b3693602734ded2aa9e7961ea2a4045080ef2",
-  "focused-311.log": "ddf835d1b1e33422460db6786604230b834fb645cbe3c96d52a6dec1f91dc8f9",
-  "focused-314.log": "35e0e1ae5dc019a1cf8e1b1c3670fcde72caf3cbfaa479e892dcf7a31b8e723a",
+  "README.md": "4e967ea0be82268592b1b32aa26a0b1387ddb64ab16d997fb21125a0c1e6ae37",
+  "TEST_RESULTS.md": "3d4021781a1f9d295e8444bc5c3733a32237f2d5ce271999c88ded855a691627",
+  "focused-311.log": "f1d03356639c1853504877ec834c55f9f29c816ed6f935c41a2cd827e7cea643",
+  "focused-314.log": "b63e0ff176990b5224cc29794324d57e6a61fbc7b25e608f2d06082b3a9c45bc",
   "served-candidates-recompiled.json": "eaf64ba4215d350f27d47b7e60758afe23f971defec859a37dc0f47c0e5e7d7d",
   "served-protocol-negative.log": "d3aee11efa7bbf8815d565d49c2c38b18853d90c4524fff5723a5545b5fe2004",
   "served-qualification.json": "d1d4363cfdd37e5074621c9ae868680a00efabc04d43f5be74210759e1216218",
   "served-qualification.log": "317864be66fe64f3ec77bf9f4f2d0dc562f0a94678d7eec2a3e55b55a06e0a4e",
   "served-qualification.py": "568c37eebefc0805177932fbf8b65b3a6e452edb8d15df4f5b548c99cd5451f7",
-  "verification.json": "fbf4a2d60d64bcbb78dd2811902a032bb48a2ff54b9af4fd3e826a83e4e02e32",
-  "verifier-contract.log": "ab5ed860054fb7462de20912628298e30da201c54f31c5ec69ce645c2a85a807",
+  "verification.json": "89b88e05abb1c5476b65e920a5488f851d1311999f033d9b14dcfd7fdca9fbd6",
+  "verifier-contract.log": "084ac87e7c39cb73491f203a7f32aa079dfb4bd2f7261555b0c1bd08baa1b759",
   "workflow-neighborhood.log": "7fc56aa6b186024d02ac6bb0e3756c0b2aea1f7598afc52c565fab694fff464f"
  },
  "base_source": "81c5962bd",
@@ -35,9 +35,10 @@
   "served_candidates": "2/2 compiled/persisted; exact readback; execution_ready=false after repair",
   "workflow_neighborhood": "443 passed"
  },
- "executed_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
+ "compiler_checkpoint_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
+ "executed_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
  "original_source": "7bda6a25f",
- "repair_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
+ "repair_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
  "schema": "atom-employee-evidence-1",
  "served_qualification": {
   "cases": [
@@ -53,7 +54,7 @@
  },
  "source_files": {
   "backend/advanced_workflow_api.py": "cefb11b2a01d5e4cb2d79d76a02d163748e0eaf1386dac89e6b4cbf052a969ea",
-  "backend/advanced_workflow_orchestrator.py": "77f0dd5d6f90f1cc3687e8ec0e1949bdf0ae3083cfd234270a955bd77da936bf",
+  "backend/advanced_workflow_orchestrator.py": "b830b48092769b264007574e59411e99be8a0d701e921500bfd024128d33745a",
   "backend/core/agents/queen_agent.py": "3fc12233ce597563b51d6dff2a0716157ce2582694708ecefde8edc75362ecb9",
   "backend/core/agents/workflow_blueprint.py": "1483d0eee7693ca87857ab44fc8cc5981d1110bae809219bcdd792b682a15377",
   "backend/core/llm/capability_profiles.py": "1aff00d9366ae053d071a76bc5cbce512b1fcf1d906b4590404b4e117a91de56",

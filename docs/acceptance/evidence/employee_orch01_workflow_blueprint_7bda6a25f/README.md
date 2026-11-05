@@ -12,7 +12,8 @@ execute the workflow or activate a recurring trigger.
 | Item | Value |
 |---|---|
 | Original source | `7bda6a25f` |
-| Repaired source | `b7e67f49a` |
+| Compiler/checkpoint repair | `b7e67f49a` |
+| Final executed source | `4d3fb66c5` (durable pending checkpoint) |
 | Branch | `codex/orch01-blueprint-20261105` |
 | Base | `81c5962bd` |
 | Served route | `ollama/llama3.1:8b` via `127.0.0.1:11436` |
@@ -80,8 +81,10 @@ The actual checkpoint consumer now calls the synchronous governance contract
 correctly, treats `PENDING_APPROVAL` / `WAIT_FOR_APPROVAL` as waiting, stops
 on `BLOCKED` / rejected / expired / failed without dispatching descendants,
 and forces a durable server-required approval even when agent maturity would
-otherwise return `APPROVED`. A context completion guard prevents duplicate
-continuation from re-dispatching the downstream governed effect.
+otherwise return `APPROVED`. PENDING_APPROVAL also creates/reuses the durable
+HITLAction, with a stable input/guarded-step digest. A context completion guard
+prevents duplicate continuation from re-dispatching the downstream governed
+effect.
 
 ### Failure contract
 
@@ -157,7 +160,8 @@ transport's explicit JSON mode was used; the failure is preserved as
 
 ## Verification
 
-- `focused-314.log` / `focused-311.log`: **647 passed** on each version.
+- `focused-314.log` / `focused-311.log`: **647 passed** on each version
+  (97.03 s / 109.07 s).
 - `workflow-neighborhood.log`: **443 passed** (included in the 647).
 - `tests/test_orch01_workflow_blueprint.py` plus
   `tests/test_orch01_checkpoint_contract.py`: **25 passed**.
