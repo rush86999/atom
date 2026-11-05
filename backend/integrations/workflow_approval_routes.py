@@ -159,8 +159,30 @@ async def respond_to_approval(
             # without a durable HITL row keeps the pre-repair resume path.
             orchestrator = AdvancedWorkflowOrchestrator()
         try:
-            await orchestrator.resume_workflow(execution_id, response.step_id)
+            context = await orchestrator.resume_workflow(
+                execution_id, response.step_id)
+            if context is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Workflow execution could not be resumed")
+            status = getattr(context, "status", None)
+            status_value = getattr(status, "value", str(status or ""))
+            if status_value in ("failed", "cancelled"):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Approval does not match the authoritative "
+                        "execution/definition/step/scope binding; a fresh "
+                        "matching review is required"))
+            if status_value == "waiting_approval":
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Approval is still pending; the workflow was not "
+                        "released"))
             return {"status": "success", "message": f"Workflow {execution_id} resumed"}
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to resume workflow: {e}")
             raise HTTPException(status_code=500, detail="Internal error")

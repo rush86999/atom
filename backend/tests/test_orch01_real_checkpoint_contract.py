@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -55,7 +56,27 @@ def real_db(tmp_path, monkeypatch):
     seed.close()
 
     import core.database as database
+    import core.intervention_service as intervention_module
+
     monkeypatch.setattr(database, "SessionLocal", session_factory)
+
+    @contextmanager
+    def fresh_session():
+        session = session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    # Some legacy probes patch ``core.database.get_db_session`` while
+    # ``core.intervention_service`` is first imported, which can leave the
+    # service holding a test stub. Pin the service seam to the scratch DB too.
+    monkeypatch.setattr(
+        intervention_module, "get_db_session", fresh_session)
     return {"engine": engine, "Session": session_factory}
 
 
@@ -525,3 +546,49 @@ def test_public_approval_route_requires_scope_and_exact_binding(
         assert effects == ["record"]
     finally:
         route_db.close()
+
+
+def test_public_route_reports_fresh_review_for_partial_binding(
+        real_db, governance_pending, monkeypatch):
+    from fastapi import HTTPException
+
+    from core.intervention_service import intervention_service
+    from integrations import workflow_approval_routes as routes
+
+    compiled = _compiled()
+    approval_step = _approval_step(compiled)
+    execution_id = "exec-partial-route"
+    effects = []
+    _persist(real_db, compiled)
+    orch, definition = _orchestrator(compiled, effects)
+    _execute(orch, definition, execution_id, {"amount": 4})
+    row = _row_for_execution(real_db, execution_id)
+
+    params = dict(row.params)
+    params.pop("definition_digest")
+    approved = asyncio.run(intervention_service.approve_intervention(
+        row.id, APPROVER_ID, modified_params=params))
+    assert approved["success"] is True
+
+    fresh, _ = _orchestrator(compiled, effects)
+    fresh.workflows = {}
+    monkeypatch.setattr(
+        "advanced_workflow_orchestrator.get_orchestrator", lambda: fresh)
+    user = SimpleNamespace(
+        id=APPROVER_ID, workspace_id=SCOPE["workspace_id"],
+        tenant_id=SCOPE["tenant_id"])
+    db = real_db["Session"]()
+    try:
+        with pytest.raises(HTTPException) as refused:
+            asyncio.run(routes.respond_to_approval(
+                execution_id,
+                routes.ApprovalResponse(
+                    decision="approve", step_id=approval_step["step_id"]),
+                db=db,
+                user=user,
+            ))
+        assert refused.value.status_code == 409
+        assert "fresh" in str(refused.value.detail).lower()
+        assert effects == []
+    finally:
+        db.close()

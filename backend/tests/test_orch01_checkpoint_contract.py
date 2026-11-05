@@ -325,12 +325,14 @@ def test_skill_action_must_exist_in_the_real_action_registry():
     assert supported["execution_blockers"] == []
 
 
-def test_legacy_checkpoint_input_digest_remains_readable():
+def test_strict_checkpoint_binding_requires_the_complete_versioned_tuple():
     context = SimpleNamespace(
-        workflow_id="exec-legacy",
+        workflow_id="exec-strict",
         variables={
-            "_workflow_definition_id": "wf-legacy",
-            "_workflow_definition_digest": "digest-legacy",
+            "_workflow_definition_id": "wf-strict",
+            "_workflow_definition_digest": "digest-strict",
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
         },
         input_data={"amount": 1},
     )
@@ -345,31 +347,56 @@ def test_legacy_checkpoint_input_digest_remains_readable():
         },
     )
     material = AdvancedWorkflowOrchestrator._approval_material(step, context)
-    legacy_params = {
-        key: material[key]
-        for key in (
-            "workflow_id", "definition_id", "definition_digest",
-            "step_id", "guarded_step", "guarded_digest",
-        )
-    }
-    legacy_params["input_digest"] = material["legacy_input_digest"]
+    exact = dict(material)
+    row = SimpleNamespace(
+        params=exact, workspace_id="ws-1", tenant_id="tenant-1")
     assert AdvancedWorkflowOrchestrator._approval_row_matches(
-        SimpleNamespace(params=legacy_params), material) is True
+        row, material) is True
 
-    current_params = dict(legacy_params)
-    current_params["input_digest"] = material["input_digest"]
+    # A legacy row without the exact version tag stays readable but is never
+    # executable authority for a new server-required checkpoint.
+    legacy = dict(exact)
+    legacy.pop("binding_version")
     assert AdvancedWorkflowOrchestrator._approval_row_matches(
-        SimpleNamespace(params=current_params), material) is True
+        SimpleNamespace(
+            params=legacy, workspace_id="ws-1", tenant_id="tenant-1"),
+        material) is False
+    wrong_version = dict(exact)
+    wrong_version["binding_version"] = "legacy-v1"
+    assert AdvancedWorkflowOrchestrator._approval_row_matches(
+        SimpleNamespace(
+            params=wrong_version, workspace_id="ws-1", tenant_id="tenant-1"),
+        material) is False
 
-    changed_context = SimpleNamespace(
-        workflow_id="exec-legacy",
-        variables=dict(context.variables),
-        input_data={"amount": 2},
-    )
-    changed = AdvancedWorkflowOrchestrator._approval_material(
-        step, changed_context)
+    for field in (
+            "execution_id", "workflow_id", "definition_id",
+            "definition_digest", "step_id", "guarded_step",
+            "guarded_digest", "input_digest", "workspace_id", "tenant_id"):
+        for variant in ("missing", "wrong", "null", "empty", "wrong_type"):
+            tampered = dict(exact)
+            if variant == "missing":
+                tampered.pop(field, None)
+            elif variant == "wrong":
+                tampered[field] = "wrong-reviewed-identity"
+            elif variant == "null":
+                tampered[field] = None
+            elif variant == "empty":
+                tampered[field] = ""
+            else:
+                tampered[field] = 123
+            assert AdvancedWorkflowOrchestrator._approval_row_matches(
+                SimpleNamespace(
+                    params=tampered, workspace_id="ws-1",
+                    tenant_id="tenant-1"),
+                material) is False, (field, variant)
+
+    # The reviewed params must also agree with the durable row columns.
     assert AdvancedWorkflowOrchestrator._approval_row_matches(
-        SimpleNamespace(params=legacy_params), changed) is False
+        SimpleNamespace(params=exact, workspace_id=None, tenant_id="tenant-1"),
+        material) is False
+    assert AdvancedWorkflowOrchestrator._approval_row_matches(
+        SimpleNamespace(params=exact, workspace_id="ws-1", tenant_id="other"),
+        material) is False
 
 
 def test_full_execution_completes_after_successful_required_work():

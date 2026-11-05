@@ -111,6 +111,11 @@ ENTITY_EXECUTABLE_ACTIONS = frozenset({
     "create", "update", "query", "lookup",
 })
 
+#: Version tag for the complete server-required checkpoint binding. Rows
+#: without this exact tag remain readable/listable but are not executable
+#: authority for a new checkpoint; they require a fresh review.
+CHECKPOINT_BINDING_VERSION = "server-required-v2"
+
 @dataclass
 class RetryPolicy:
     """Configuration for retry behavior on step failures (Phase 32)"""
@@ -2181,25 +2186,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             context.variables.get("_workflow_definition_digest") or "")
         guarded_step = str(step.parameters.get("guarded_step") or "")
         guarded_digest = str(step.parameters.get("guarded_digest") or "")
-        legacy_input_digest = hashlib.sha256(json.dumps(
-            {
-                "input": context.input_data,
-                "guarded_step": guarded_step,
-            },
-            sort_keys=True, default=str).encode()).hexdigest()[:24]
-        material = {
+        return {
+            "binding_version": CHECKPOINT_BINDING_VERSION,
             # Execution identity, not the definition id: two runs of the same
             # definition must never share an approval receipt.
             "execution_id": str(context.workflow_id or ""),
             "workflow_id": str(context.workflow_id or ""),
             "definition_id": definition_id,
+            "definition_digest": definition_digest,
             "step_id": str(step.step_id or ""),
             "guarded_step": guarded_step,
             "guarded_digest": guarded_digest,
-            # Compatibility: rows from before guarded_digest was folded into
-            # the input digest still match when the guarded digest and the
-            # rest of the execution/definition binding agree.
-            "legacy_input_digest": legacy_input_digest,
             "input_digest": hashlib.sha256(json.dumps(
                 {
                     "input": context.input_data,
@@ -2207,51 +2204,67 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     "guarded_digest": guarded_digest,
                 },
                 sort_keys=True, default=str).encode()).hexdigest()[:24],
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
         }
-        if definition_digest:
-            material["definition_digest"] = definition_digest
-        if workspace_id:
-            material["workspace_id"] = workspace_id
-        if tenant_id:
-            material["tenant_id"] = tenant_id
-        return material
 
     @staticmethod
     def _approval_row_matches(
         row: Any, material: Dict[str, Any],
     ) -> bool:
-        params = getattr(row, "params", None) or {}
+        """Strict executable authority for a server-required checkpoint.
+
+        This is deliberately one validator for initial dispatch, resume,
+        workflow approvals and the HITL queue. Legacy rows without the exact
+        version tag remain readable/listable but never authorize a new
+        server-required checkpoint.
+        """
+        params = getattr(row, "params", None)
         if not isinstance(params, dict):
             return False
-        if not all(
-                str(params.get(key) or "") == str(material.get(key) or "")
-                for key in (
-                    "workflow_id", "step_id",
-                    "guarded_digest")):
+        if params.get("binding_version") != CHECKPOINT_BINDING_VERSION:
             return False
-        row_digest = str(params.get("input_digest") or "")
-        current_digest = str(material.get("input_digest") or "")
-        legacy_digest = str(material.get("legacy_input_digest") or "")
-        if row_digest != current_digest and (
-                not legacy_digest or row_digest != legacy_digest):
-            return False
-        # ``execution_id`` is the explicit binding in new rows; older rows used
-        # ``workflow_id`` for the same execution identity. Both remain readable,
-        # but a mismatched execution/definition still refuses.
-        expected_execution = str(
-            material.get("execution_id") or material.get("workflow_id") or "")
-        observed_execution = str(
-            params.get("execution_id") or params.get("workflow_id") or "")
-        if expected_execution != observed_execution:
-            return False
-        # New checkpoints bind the immutable definition identity. Legacy rows
-        # that predate these keys remain readable, but a present binding must
-        # match exactly.
-        for key in ("definition_id", "definition_digest"):
-            expected = str(material.get(key) or "")
-            observed = str(params.get(key) or "")
-            if expected and observed and observed != expected:
+
+        # Every immutable identity/digest must be present, a non-empty string,
+        # and exactly equal to the authoritative execution material. No value
+        # is inferred from an alias, copied digest or nearby field.
+        required_nonempty = (
+            "execution_id", "workflow_id", "definition_id",
+            "definition_digest", "step_id", "guarded_step",
+            "guarded_digest", "input_digest",
+        )
+        for key in required_nonempty:
+            expected = material.get(key)
+            observed = params.get(key)
+            if not isinstance(expected, str) or not expected:
                 return False
+            if not isinstance(observed, str) or not observed:
+                return False
+            if observed != expected:
+                return False
+
+        # Scope is required when the authoritative execution has it. A NULL
+        # and an empty string are equivalent only for an unscoped execution;
+        # a contradictory non-empty scope is always refused.
+        expected_scope = {
+            "workspace_id": str(material.get("workspace_id") or ""),
+            "tenant_id": str(material.get("tenant_id") or ""),
+        }
+        for key, expected in expected_scope.items():
+            observed = params.get(key)
+            if expected:
+                if not isinstance(observed, str) or observed != expected:
+                    return False
+            elif observed not in (None, ""):
+                return False
+
+        # The reviewed params must also agree with the durable row columns.
+        if str(getattr(row, "workspace_id", "") or "") != (
+                expected_scope["workspace_id"]):
+            return False
+        if str(getattr(row, "tenant_id", "") or "") != (
+                expected_scope["tenant_id"]):
+            return False
         return True
 
     async def _find_durable_approval(
