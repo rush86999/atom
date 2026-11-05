@@ -28,9 +28,11 @@ bridges the HITL queue to the advanced checkpoint consumer, persists
 `completed_at`, and includes waiting-approval executions in the workflow
 approval pending list. `5deb4055d` then closes the complete-binding matrix: one
 strict validator requires the full versioned execution/definition/guarded/
-input/scope tuple and refuses partial or contradictory reviews. Legacy rows
-without the exact binding version remain readable/listable but are not
-executable authority for a new server-required checkpoint.
+input/scope tuple and refuses partial or contradictory reviews. `0fae2d46c`
+adds the explicit fresh-matching-review reason when the HITL queue bridge cannot
+release an advanced workflow. Legacy rows without the exact binding version
+remain readable/listable but are not executable authority for a new
+server-required checkpoint.
 
 ## The three withheld contracts, repaired
 
