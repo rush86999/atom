@@ -1,0 +1,436 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 13:37:13 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 13:37:14 [    INFO] MCP Service initialized
+
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[get-/api/auth/2fa/status-None] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 13:37:14 [    INFO] EscalationManager initialized
+2026-11-05 13:37:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:37:14 [    INFO] EscalationManager initialized
+2026-11-05 13:37:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 13:37:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 13:37:14 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:15 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  1%]
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[post-/api/auth/2fa/setup-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:16 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  2%]
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[post-/api/auth/2fa/enable-body2] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:17 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  3%]
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[post-/api/auth/2fa/disable-body3] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:18 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  4%]
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[post-/api/auth/2fa/backup/verify-body4] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:19 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  6%]
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[post-/api/auth/2fa/verify-action/action-1-body5] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:20 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  7%]
+tests/test_covpush_w89_auth_2fa.py::TestStatusAndSetup::test_status_disabled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:21 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_covpush_w89_auth_2fa.py::TestStatusAndSetup::test_status_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:22 [    INFO] HTTP Request: GET http://testserver/api/auth/2fa/status "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_covpush_w89_auth_2fa.py::TestStatusAndSetup::test_setup_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:23 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_covpush_w89_auth_2fa.py::TestStatusAndSetup::test_setup_when_already_enabled_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:24 [ WARNING] API Error: CONFLICT - 2FA is already enabled
+2026-11-05 13:37:24 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_success_generates_backup_codes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:25 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_already_enabled_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:26 [ WARNING] API Error: CONFLICT - 2FA is already enabled
+2026-11-05 13:37:26 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_without_setup_secret_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:27 [ WARNING] API Error: VALIDATION_ERROR - 2FA setup not initiated
+2026-11-05 13:37:27 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 16%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_invalid_code_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:28 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:37:28 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:29 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:31 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_not_enabled_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:32 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
+2026-11-05 13:37:32 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 20%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_invalid_code_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:33 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:37:33 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 22%]
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:34 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_and_consume_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:35 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_invalid_code_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:36 [ WARNING] API Error: VALIDATION_ERROR - Invalid backup code
+2026-11-05 13:37:36 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_2fa_not_enabled_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:37 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled
+2026-11-05 13:37:37 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_missing_code_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:38 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 28%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:39 [    INFO] Resuming workflow for action action-1
+2026-11-05 13:37:39 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_2fa_not_enabled_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:40 [ WARNING] API Error: VALIDATION_ERROR - 2FA is not enabled for your account
+2026-11-05 13:37:40 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 30%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_invalid_code_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:41 [ WARNING] API Error: VALIDATION_ERROR - Invalid verification code
+2026-11-05 13:37:41 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 32%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_missing_action_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:42 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/missing-action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_callback_failure_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:44 [ WARNING] HITL action-1 approved but resume callback failed: error_class=Exception
+2026-11-05 13:37:44 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:45 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 35%]
+tests/test_oracle_auth_2fa_writes.py::test_setup_retry_preserves_pending_secret_then_refuses_after_enable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:46 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
+2026-11-05 13:37:46 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 200 OK"
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+2026-11-05 13:37:49 [ WARNING] API Error: CONFLICT - 2FA is already enabled
+2026-11-05 13:37:49 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_oracle_auth_2fa_writes.py::test_enable_verified_persists_factor_and_replay_receipt 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable?operation_id=op-enable-1 "HTTP/1.1 200 OK"
+2026-11-05 13:37:50 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable?operation_id=op-enable-1 "HTTP/1.1 200 OK"
+2026-11-05 13:37:50 [ WARNING] API Error: CONFLICT - operation_id already used with different material
+2026-11-05 13:37:50 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable?operation_id=op-enable-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_oracle_auth_2fa_writes.py::test_disable_verified_clears_factor_and_replay_receipt 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable?operation_id=op-disable-1 "HTTP/1.1 200 OK"
+2026-11-05 13:37:51 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable?operation_id=op-disable-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_oracle_auth_2fa_writes.py::test_backup_code_single_use_and_replay 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+2026-11-05 13:37:52 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-backup-1 "HTTP/1.1 200 OK"
+2026-11-05 13:37:52 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-backup-1 "HTTP/1.1 200 OK"
+2026-11-05 13:37:52 [ WARNING] API Error: CONFLICT - Backup code was already consumed
+2026-11-05 13:37:52 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-backup-2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_oracle_auth_2fa_writes.py::test_legacy_plaintext_backup_codes_are_backfilled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:37:59 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_oracle_auth_2fa_writes.py::test_backup_code_concurrent_single_use PASSED [ 43%]
+tests/test_oracle_auth_2fa_writes.py::test_totp_replay_across_operations_is_refused 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] Resuming workflow for action action-1
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-action-1 "HTTP/1.1 200 OK"
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - This code/time-step was already used or the factor changed
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-2?operation_id=op-action-2 "HTTP/1.1 409 Conflict"
+2025-12-31 19:00:30 [    INFO] Resuming workflow for action action-2
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-2?operation_id=op-action-3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_oracle_auth_2fa_writes.py::test_verify_action_persists_durable_resolver_and_receipt 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] Resuming workflow for action action-1
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-action-1 "HTTP/1.1 200 OK"
+2026-11-05 13:38:04 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-action-1 "HTTP/1.1 200 OK"
+2026-11-05 13:38:04 [ WARNING] API Error: CONFLICT - operation_id already used with different material
+2026-11-05 13:38:04 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-2?operation_id=op-action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/test_oracle_auth_2fa_writes.py::test_verify_action_scope_and_role_refusals 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: 2FA request
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/foreign-action "HTTP/1.1 403 Forbidden"
+2025-12-31 19:00:00 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: 2FA request
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/role-action "HTTP/1.1 403 Forbidden"
+2025-12-31 19:00:00 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: 2FA request
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/column-role-action "HTTP/1.1 403 Forbidden"
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - HITL action is already rejected
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/rejected-action "HTTP/1.1 409 Conflict"
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/missing-action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 46%]
+tests/test_oracle_auth_2fa_writes.py::test_moved_action_scope_after_read_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - HITL action was already resolved or its scope moved
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/test_oracle_auth_2fa_writes.py::test_stale_enable_writer_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - Factor state changed or this code was already used
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 49%]
+tests/test_oracle_auth_2fa_writes.py::test_stale_disable_writer_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - Factor state changed or this code was already used
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_oracle_auth_2fa_writes.py::test_totp_concurrent_same_code_approves_one_action 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] Resuming workflow for action action-2
+PASSED                                                                   [ 51%]
+tests/test_oracle_auth_2fa_writes.py::test_audit_unavailable_after_commit_is_honest 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+2026-11-05 13:38:19 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 53%]
+tests/test_oracle_auth_2fa_writes.py::test_audit_refuted_after_commit_is_honest 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 54%]
+tests/test_oracle_auth_2fa_writes.py::test_commit_confirmation_loss_is_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [   ERROR] 2FA enable write outcome unknown: operation_id=op-lost stage=enable_commit error_class=RuntimeError
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable?operation_id=op-lost "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/test_oracle_auth_2fa_writes.py::test_foreign_operation_id_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - operation_id already used with different material
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable?operation_id=op-foreign "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_oracle_auth_2fa_writes.py::test_secrets_and_codes_not_in_audit_or_operation_receipts 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_auth_2fa_boundary_repair.py::test_unverified_authentication_retry_remains_unverified[backup] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=unverified-retry "HTTP/1.1 503 Service Unavailable"
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=unverified-retry "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 59%]
+tests/test_auth_2fa_boundary_repair.py::test_unverified_authentication_retry_remains_unverified[action] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=unverified-retry "HTTP/1.1 503 Service Unavailable"
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=unverified-retry "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_auth_2fa_boundary_repair.py::test_verified_backup_retry_acknowledges_without_new_event 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:34 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-verified-backup "HTTP/1.1 200 OK"
+2026-11-05 13:38:34 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-verified-backup "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_auth_2fa_boundary_repair.py::test_verified_action_retry_acknowledges_without_duplicate_callback 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-verified-action "HTTP/1.1 200 OK"
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-verified-action "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_auth_2fa_boundary_repair.py::test_action_replay_after_material_change_is_unverified 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-replay-material "HTTP/1.1 200 OK"
+2026-11-05 13:38:36 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1?operation_id=op-replay-material "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 64%]
+tests/test_auth_2fa_boundary_repair.py::test_backup_replay_after_actor_deactivation_is_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:37 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-deactivated "HTTP/1.1 200 OK"
+2026-11-05 13:38:37 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify?operation_id=op-deactivated "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 65%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:38 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[tenant_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:40 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 67%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[tenant_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:41 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 69%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:42 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 70%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[factor_revision] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:43 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 71%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[factor_revision_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:44 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 72%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:46 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 74%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[target_id_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:47 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 75%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[operation_id_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:48 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 76%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[operation_id_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:49 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 77%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[event_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:50 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 79%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:52 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/test_auth_2fa_boundary_repair.py::test_audit_must_match_complete_authorized_operation[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:53 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 81%]
+tests/test_auth_2fa_boundary_repair.py::test_complete_audit_twin_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:38:54 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[user_workspace] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - This code/time-step was already used or the factor changed
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[user_status] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - This code/time-step was already used or the factor changed
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[user_role] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - This code/time-step was already used or the factor changed
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 86%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[required_role] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - HITL action was already resolved or its scope moved
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 87%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[action_material] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - HITL action was already resolved or its scope moved
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_change_before_action_claim_refuses_without_effect[action_priority] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [ WARNING] API Error: CONFLICT - HITL action was already resolved or its scope moved
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 90%]
+tests/test_auth_2fa_boundary_repair.py::test_authority_valid_twin_approves_once 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:30 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/verify-action/action-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_auth_2fa_boundary_repair.py::test_factor_authority_change_before_claim_refuses_without_effect[setup] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:39:02 [ WARNING] API Error: CONFLICT - 2FA setup changed concurrently; retry to recover the pending enrollment
+2026-11-05 13:39:02 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 92%]
+tests/test_auth_2fa_boundary_repair.py::test_factor_authority_change_before_claim_refuses_without_effect[enable] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - Factor state changed or this code was already used
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/enable "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 93%]
+tests/test_auth_2fa_boundary_repair.py::test_factor_authority_change_before_claim_refuses_without_effect[disable] 
+-------------------------------- live log call ---------------------------------
+2025-12-31 19:00:00 [ WARNING] API Error: CONFLICT - Factor state changed or this code was already used
+2025-12-31 19:00:00 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/disable "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/test_auth_2fa_boundary_repair.py::test_factor_authority_change_before_claim_refuses_without_effect[backup] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:39:05 [ WARNING] API Error: CONFLICT - Factor state changed during backup-code consumption
+2026-11-05 13:39:05 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/backup/verify "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 96%]
+tests/test_auth_2fa_boundary_repair.py::test_database_error_never_exposes_factor_secret 
+-------------------------------- live log call ---------------------------------
+2026-11-05 13:39:05 [   ERROR] 2FA setup write outcome unknown: operation_id=auth2fa:f0ff0d5be5864dc496794487eb3c1b0d stage=setup_commit error_class=OperationalError
+2026-11-05 13:39:05 [    INFO] HTTP Request: POST http://testserver/api/auth/2fa/setup "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 97%]
+tests/test_auth_2fa_boundary_repair.py::test_concurrent_different_backup_codes_stay_consistent PASSED [ 98%]
+tests/test_auth_2fa_migration_upgrade.py::test_migration_upgrades_pre_migration_scratch_account_db PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_covpush_w89_auth_2fa.py::TestAuthEnforcement::test_anonymous_requests_rejected[get-/api/auth/2fa/status-None]
+  /private/tmp/atom-auth2fa/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_without_setup_secret_422
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_enable_invalid_code_422
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_not_enabled_422
+tests/test_covpush_w89_auth_2fa.py::TestEnableDisable::test_disable_invalid_code_422
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_invalid_code_422
+tests/test_covpush_w89_auth_2fa.py::TestBackupCodeVerify::test_verify_2fa_not_enabled_422
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_2fa_not_enabled_422
+tests/test_covpush_w89_auth_2fa.py::TestVerifyAction::test_verify_action_invalid_code_422
+  /private/tmp/atom-auth2fa/backend/api/auth_2fa_routes.py:79: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(field or "code", error)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 81 passed, 14 warnings in 131.32s (0:02:11) ==================

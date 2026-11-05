@@ -1,0 +1,513 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 10:21:00 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 10:21:00 [    INFO] No token storage file found, starting empty
+2026-11-05 10:21:00 [    INFO] OutlookEnhancedService initialized
+2026-11-05 10:21:00 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter 
+-------------------------------- live log setup --------------------------------
+2026-11-05 10:21:00 [    INFO] EscalationManager initialized
+2026-11-05 10:21:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:00 [    INFO] EscalationManager initialized
+2026-11-05 10:21:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 10:21:00 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 10:21:00 [    INFO] Created HITL action 726a4f29-582f-4957-89d6-73c64b50b169 for agent None
+2026-11-05 10:21:00 [    INFO] Created HITL action 90860441-5811-481a-a452-d781cdbc9a7e for agent None
+FAILED                                                                   [ 20%]
+tests/test_active_intervention_service.py::TestIntegrationAvailability::test_outlook_requires_user_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 10:21:00 [   ERROR] Outlook draft failed: Missing user_id for authentication
+PASSED                                                                   [ 40%]
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all 
+-------------------------------- live log call ---------------------------------
+2026-11-05 10:21:00 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+2026-11-05 10:21:00 [    INFO] ================================================================================
+2026-11-05 10:21:00 [    INFO] ATOM PLATFORM API STARTUP
+2026-11-05 10:21:00 [    INFO] ================================================================================
+2026-11-05 10:21:00 [    INFO] Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+2026-11-05 10:21:00 [    INFO] Working directory: /private/tmp/atom-auth2fa-base/backend
+2026-11-05 10:21:00 [    INFO] Python path: ['/private/tmp/atom-auth2fa-base', '/private/tmp/atom-auth2fa-base/backend', '/private/tmp/atom-auth2fa-base/backend']...
+2026-11-05 10:21:00 [    INFO] ✓ uvicorn imported
+2026-11-05 10:21:00 [    INFO] ✓ Standard library imports successful
+2026-11-05 10:21:00 [    INFO] ✓ dotenv imported
+2026-11-05 10:21:00 [    INFO] ✓ sqlalchemy.orm and exceptions imported
+2026-11-05 10:21:00 [    INFO] ✓ core.models imported
+2026-11-05 10:21:00 [    INFO] ✓ core.models_registration imported
+2026-11-05 10:21:00 [    INFO] ✓ core.cache.RedisCacheService imported
+2026-11-05 10:21:00 [    INFO] ✓ core.database imported
+2026-11-05 10:21:00 [ WARNING] Failed to import quota_manager: No module named 'core.quota_manager'
+2026-11-05 10:21:00 [    INFO] ✓ FastAPI imports successful
+2026-11-05 10:21:01 [    INFO] MCP Service initialized
+2026-11-05 10:21:01 [    INFO] EscalationManager initialized
+2026-11-05 10:21:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:01 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 10:21:01 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 10:21:01 [    INFO] EscalationManager initialized
+2026-11-05 10:21:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:01 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 10:21:01 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-05 10:21:01 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 10:21:01 [    INFO] ATOM Discord Integration initialized
+2026-11-05 10:21:01 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-05 10:21:01 [    INFO] EscalationManager initialized
+2026-11-05 10:21:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 10:21:01 [    INFO] LanceDBHandler initialized. ID: 4971841808. LANCEDB_AVAILABLE: True
+2026-11-05 10:21:01 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-05 10:21:01 [    INFO] Telegram Integration initialized
+2026-11-05 10:21:01 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-05 10:21:01 [    INFO] ATOM AI Integration initialized
+2026-11-05 10:21:01 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-05 10:21:01 [    INFO] Enterprise Security Service initialized
+2026-11-05 10:21:01 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-05 10:21:01 [    INFO] Enterprise Unified Service initialized
+2026-11-05 10:21:01 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 10:21:01 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 10:21:01 [    INFO] ATOM Google Chat Integration initialized
+2026-11-05 10:21:01 [    INFO] Teams Enhanced Service initialized
+2026-11-05 10:21:01 [    INFO] ATOM Teams Integration initialized
+2026-11-05 10:21:01 [    INFO] Workflow Automation Service initialized
+2026-11-05 10:21:01 [    INFO] WhatsApp Integration initialized
+2026-11-05 10:21:01 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-05 10:21:01 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-05 10:21:01 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 10:21:01 [ WARNING] Marketing service not available
+2026-11-05 10:21:01 [ WARNING] Meta Business service not available
+2026-11-05 10:21:01 [ WARNING] OpenClaw service not available
+2026-11-05 10:21:01 [    INFO] Slack Enhanced Service initialized
+2026-11-05 10:21:01 [    INFO] Teams Enhanced Service initialized
+2026-11-05 10:21:01 [ WARNING] Redis unavailable - webhook ingestion will process synchronously
+2026-11-05 10:21:01 [ WARNING] No .env file found in any expected location. Realizing on system env vars.
+2026-11-05 10:21:01 [    INFO] Startup API key check
+2026-11-05 10:21:01 [    INFO] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-11-05 10:21:01 [    INFO] Creating FastAPI application...
+2026-11-05 10:21:01 [    INFO] ✓ FastAPI app instance created
+2026-11-05 10:21:01 [ WARNING] Connection leak detector not available: No module named 'core.connection_leak_detector'
+2026-11-05 10:21:01 [    INFO] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+2026-11-05 10:21:01 [    INFO] ⊘ Test mode detected: Loading only critical integrations for security tests
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: auth
+2026-11-05 10:21:01 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded auth
+2026-11-05 10:21:01 [    INFO]   ✓ auth (critical for tests, prefix: root)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: oauth
+2026-11-05 10:21:01 [    INFO] Loading integration: oauth (api.oauth_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded oauth
+2026-11-05 10:21:01 [    INFO]   ✓ oauth (critical for tests, prefix: root)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: whatsapp
+2026-11-05 10:21:01 [    INFO] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded whatsapp
+2026-11-05 10:21:01 [    INFO]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: microsoft365
+2026-11-05 10:21:01 [    INFO] Loading integration: microsoft365 (integrations.microsoft365_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded microsoft365
+2026-11-05 10:21:01 [    INFO]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: outlook
+2026-11-05 10:21:01 [    INFO] Loading integration: outlook (integrations.outlook_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded outlook
+2026-11-05 10:21:01 [    INFO]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: twilio
+2026-11-05 10:21:01 [    INFO] Loading integration: twilio (integrations.twilio_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded twilio
+2026-11-05 10:21:01 [    INFO]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: notion
+2026-11-05 10:21:01 [    INFO] Loading integration: notion (integrations.notion_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded notion
+2026-11-05 10:21:01 [    INFO]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: mailchimp
+2026-11-05 10:21:01 [    INFO] Loading integration: mailchimp (integrations.mailchimp_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded mailchimp
+2026-11-05 10:21:01 [    INFO]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: zoho_crm
+2026-11-05 10:21:01 [ WARNING] Unknown integration: zoho_crm
+2026-11-05 10:21:01 [ WARNING]   ✗ zoho_crm could not be loaded
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: zoho_projects
+2026-11-05 10:21:01 [ WARNING] Unknown integration: zoho_projects
+2026-11-05 10:21:01 [ WARNING]   ✗ zoho_projects could not be loaded
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: zoho_workdrive
+2026-11-05 10:21:01 [    INFO] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+2026-11-05 10:21:01 [    INFO] ✓ Loaded zoho_workdrive
+2026-11-05 10:21:01 [    INFO]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+2026-11-05 10:21:01 [    INFO] DEBUG: Processing critical integration: salesforce
+2026-11-05 10:21:01 [    INFO] Loading integration: salesforce (integrations.salesforce_routes)
+2026-11-05 10:21:02 [    INFO] ✓ Loaded salesforce
+2026-11-05 10:21:02 [    INFO]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+2026-11-05 10:21:02 [    INFO] DEBUG: Processing critical integration: pipedrive
+2026-11-05 10:21:02 [ WARNING] Unknown integration: pipedrive
+2026-11-05 10:21:02 [ WARNING]   ✗ pipedrive could not be loaded
+2026-11-05 10:21:02 [    INFO] DEBUG: Processing critical integration: freshsales
+2026-11-05 10:21:02 [ WARNING] Unknown integration: freshsales
+2026-11-05 10:21:02 [ WARNING]   ✗ freshsales could not be loaded
+2026-11-05 10:21:02 [    INFO] DEBUG: Processing critical integration: asana
+2026-11-05 10:21:02 [    INFO] Loading integration: asana (integrations.asana_routes)
+2026-11-05 10:21:02 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-05 10:21:02 [    INFO] ✓ Loaded asana
+2026-11-05 10:21:02 [    INFO]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+2026-11-05 10:21:02 [    INFO] DEBUG: Processing critical integration: monday
+2026-11-05 10:21:02 [    INFO] Loading integration: monday (integrations.monday_routes)
+2026-11-05 10:21:02 [    INFO] ✓ Loaded monday
+2026-11-05 10:21:02 [    INFO]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+2026-11-05 10:21:02 [    INFO] DEBUG: Processing critical integration: bigcommerce
+2026-11-05 10:21:02 [ WARNING] Unknown integration: bigcommerce
+2026-11-05 10:21:02 [ WARNING]   ✗ bigcommerce could not be loaded
+2026-11-05 10:21:02 [    INFO]   Other integrations will load on-demand.
+2026-11-05 10:21:02 [    INFO] ✓ Agent audit trail mounted at /api/audit
+2026-11-05 10:21:02 [    INFO] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+2026-11-05 10:21:02 [    INFO] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+2026-11-05 10:21:02 [    INFO] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+2026-11-05 10:21:02 [    INFO] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+2026-11-05 10:21:02 [    INFO] ✓ Mini-apps router mounted at /api/mini-apps
+2026-11-05 10:21:02 [    INFO] ✓ Automation Settings mounted at /api/v1/settings/automations
+2026-11-05 10:21:02 [    INFO] ✓ Finance Live API mounted at /api/atom/finance/live
+2026-11-05 10:21:02 [    INFO] ✓ Projects Live API mounted at /api/atom/projects/live
+2026-11-05 10:21:02 [    INFO] ✓ Sales Live API mounted at /api/atom/sales/live
+2026-11-05 10:21:02 [    INFO] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+2026-11-05 10:21:02 [    INFO] Loading Core API Routes...
+2026-11-05 10:21:02 [    INFO] ✓ OAuth Status and Authorization Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Telegram Chat Routes Loaded
+2026-11-05 10:21:02 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-05 10:21:02 [    INFO] ✓ Slack Chat Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+2026-11-05 10:21:02 [    INFO] ✓ Operations Routes Loaded at /api/operations
+2026-11-05 10:21:02 [    INFO] ✓ Tools Routes Loaded at /api/tools
+2026-11-05 10:21:02 [ WARNING] LINE adapter not configured or httpx not available
+2026-11-05 10:21:02 [    INFO] ✓ LINE Routes Loaded at /api/line (auth-gated)
+2026-11-05 10:21:02 [    INFO] ✅ Desktop authentication routes enabled (secure API keys)
+2026-11-05 10:21:02 [    INFO] ✅ Deep linking system enabled
+2026-11-05 10:21:02 [    INFO] ✅ Debug tenant check system enabled
+2026-11-05 10:21:02 [    INFO] ✓ Analytics Engine Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Workflow Import/Export Routes Loaded
+2026-11-05 10:21:02 [ WARNING] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+2026-11-05 10:21:02 [    INFO] ✓ JIT Verification & Admin Governance Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Workspace Context Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Governance Manual Fact Entry Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Queue Monitoring Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Auto-Dev Review Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Canvas Skill Integration Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Business Facts Routes Loaded
+2026-11-05 10:21:02 [ WARNING] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+2026-11-05 10:21:02 [    INFO] ✓ Migration Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Embedding Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Tenant Management Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Federation Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Local Model Routes Loaded (/api/local-models)
+2026-11-05 10:21:02 [ WARNING] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+2026-11-05 10:21:02 [    INFO] ✓ Skill Management & Execution Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Learn Routes Loaded (workflow→skill distillation)
+2026-11-05 10:21:02 [    INFO] ✓ Admin Skill & Evolution Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Workflow UI Endpoints Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Time-Travel Endpoints Loaded
+2026-11-05 10:21:02 [ WARNING] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+2026-11-05 10:21:02 [    INFO] ✓ Messaging OAuth (BYOK) Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+2026-11-05 10:21:02 [    INFO] ✓ Shopify REST routes loaded
+2026-11-05 10:21:02 [    INFO] Configured ingestion for whatsapp
+2026-11-05 10:21:02 [    INFO] Configured ingestion for slack
+2026-11-05 10:21:02 [    INFO] Configured ingestion for email
+2026-11-05 10:21:02 [    INFO] Configured ingestion for telegram
+2026-11-05 10:21:02 [    INFO] Configured ingestion for discord
+2026-11-05 10:21:02 [    INFO] Configured ingestion for sms
+2026-11-05 10:21:02 [    INFO] Configured ingestion for calls
+2026-11-05 10:21:02 [    INFO] Configured ingestion for microsoft_teams
+2026-11-05 10:21:02 [    INFO] Configured ingestion for zoom
+2026-11-05 10:21:02 [    INFO] Configured ingestion for notion
+2026-11-05 10:21:02 [    INFO] Configured ingestion for linear
+2026-11-05 10:21:02 [    INFO] Configured ingestion for outlook
+2026-11-05 10:21:02 [    INFO] Configured ingestion for gmail
+2026-11-05 10:21:02 [    INFO] Configured ingestion for salesforce
+2026-11-05 10:21:02 [    INFO] Configured ingestion for asana
+2026-11-05 10:21:02 [    INFO] Configured ingestion for dropbox
+2026-11-05 10:21:02 [    INFO] Configured ingestion for box
+2026-11-05 10:21:02 [    INFO] Configured ingestion for tableau
+2026-11-05 10:21:02 [    INFO] Configured ingestion for zoho
+2026-11-05 10:21:02 [    INFO] Configured ingestion for xero
+2026-11-05 10:21:02 [    INFO] Configured ingestion for quickbooks
+2026-11-05 10:21:02 [ WARNING] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 10:21:02 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-05 10:21:02 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'
+2026-11-05 10:21:02 [    INFO] HubSpot Integration Service initialized
+2026-11-05 10:21:02 [ WARNING] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 10:21:02 [    INFO] Loading Slack webhooks...
+2026-11-05 10:21:02 [    INFO] ✓ Slack webhooks loaded
+2026-11-05 10:21:02 [    INFO] Loading Shopify webhooks...
+2026-11-05 10:21:02 [    INFO] ✓ Shopify webhooks loaded
+2026-11-05 10:21:02 [    INFO] Loading Twilio webhooks...
+2026-11-05 10:21:02 [    INFO] ✓ Twilio webhooks loaded
+2026-11-05 10:21:02 [    INFO] ✓ Standardized Webhook Endpoints Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Admin Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ 2FA Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+2026-11-05 10:21:02 [    INFO] ✓ ACP bridge mounted at /acp/ws
+2026-11-05 10:21:02 [    INFO] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+2026-11-05 10:21:02 [    INFO] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+2026-11-05 10:21:02 [    INFO] ✓ SCIM v2 mounted at /api/scim/v2
+2026-11-05 10:21:02 [    INFO] ✓ Observability mounted at /api/observability
+2026-11-05 10:21:02 [    INFO] ✓ BambooHR integration mounted at /api/bamboohr
+2026-11-05 10:21:02 [    INFO] ✓ Twitter/X integration mounted at /api/twitter
+2026-11-05 10:21:02 [    INFO] ✓ MCP Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Availability Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Proposal Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Supervision-Learning Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Integrations Catalog Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Dynamic Options Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Webhook Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Universal Auth Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Meta Compliance Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Consolidated Hardened WhatsApp Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ External Integration Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Connection Management Routes Loaded
+2026-11-05 10:21:02 [    INFO] ✓ Integration Status Routes Loaded
+2026-11-05 10:21:02 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 10:21:02 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 10:21:03 [    INFO] EscalationManager initialized
+2026-11-05 10:21:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:03 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 10:21:03 [    INFO] EscalationManager initialized
+2026-11-05 10:21:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 10:21:03 [    INFO] Slack Enhanced Service initialized
+2026-11-05 10:21:03 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 10:21:03 [    INFO] EscalationManager initialized
+2026-11-05 10:21:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:03 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 10:21:03 [    INFO] EscalationManager initialized
+2026-11-05 10:21:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 10:21:03 [    INFO] Slack Enhanced Service initialized
+2026-11-05 10:21:03 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 10:21:03 [    INFO] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+2026-11-05 10:21:03 [    INFO] ✓ Agent Governance Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+2026-11-05 10:21:03 [    INFO] ✓ Durable Assignment Routes Loaded (/api/assignments)
+2026-11-05 10:21:03 [    INFO] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+2026-11-05 10:21:03 [    INFO] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+2026-11-05 10:21:03 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 10:21:03 [    INFO] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+2026-11-05 10:21:03 [    INFO] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+2026-11-05 10:21:03 [    INFO] ✓ Protection API Routes Loaded (Skill Scanner)
+2026-11-05 10:21:03 [    INFO] ✓ User Preference Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Canvas Terminal Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Browser Automation Routes Loaded
+2026-11-05 10:21:03 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-05 10:21:03 [    INFO] ✓ Device Capabilities Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Canvas Recording Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Autonomy Routes Loaded (action HITL policy)
+2026-11-05 10:21:03 [    INFO] ✓ Meeting Routes Loaded (attendance tracking)
+2026-11-05 10:21:03 [    INFO] ✓ Custom Components Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+2026-11-05 10:21:03 [    INFO] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+2026-11-05 10:21:03 [    INFO] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+2026-11-05 10:21:03 [    INFO] ✓ Installation Profile Routes Loaded (/api/installation)
+2026-11-05 10:21:03 [    INFO] ✓ Playbook Routes Loaded (/api/playbooks)
+2026-11-05 10:21:03 [    INFO] ✓ Goal Run Routes Loaded (/api/goal-runs)
+2026-11-05 10:21:03 [    INFO] ✓ Goal Routes Loaded (/api/goals)
+2026-11-05 10:21:03 [    INFO] ✓ Usage Analytics Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Health Monitoring Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ System Status aggregate mounted at /api/status
+2026-11-05 10:21:03 [    INFO] ✓ Product profile mounted at /api/product/profile
+2026-11-05 10:21:03 [    INFO] ✓ Service registry mounted at /api/services/registry
+2026-11-05 10:21:03 [    INFO] ✓ Ported Features (Canvas/Agent) Processing Complete
+2026-11-05 10:21:03 [    INFO] ✓ Governance Analytics & Remediation Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Memory Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+2026-11-05 10:21:03 [    INFO] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+2026-11-05 10:21:03 [    INFO] ✓ Document & Data Ingestion Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Experience Marketplace Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Test Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ AI Workflows Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Background Agent Routes Loaded
+2026-11-05 10:21:03 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-05 10:21:03 [    INFO] EscalationManager initialized
+2026-11-05 10:21:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 10:21:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 10:21:03 [    INFO] LanceDBHandler initialized. ID: 5271596944. LANCEDB_AVAILABLE: True
+2026-11-05 10:21:03 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-05 10:21:03 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 10:21:03 [ WARNING] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 10:21:03 [    INFO] ✓ Integration Data Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Integration & Service Health Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Historical Sync Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Worker Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Component Marketplace Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Agent Coordination Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ OpenClaw Skill Integration Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ OpenClaw Scan Integration Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ OpenClaw Governance Integration Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Skill Composition Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+2026-11-05 10:21:03 [    INFO] ✓ Scheduler Routes Loaded (QStash Ready)
+2026-11-05 10:21:03 [    INFO] ✓ Desktop Bridge Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Satellite Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Mobile Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Invitation Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Support Ticketing Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Bug Triage Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Communication Hub Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Universal Communication Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Admin Retention Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Billing Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Public Pricing Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Social Media Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Audit Log Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Shell Security Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+2026-11-05 10:21:03 [    INFO] ✓ BYOK API Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ LLM Gateway Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ MCP Server Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ SSO API Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Feature Flag Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Sandbox Execution Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ External API Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Entity Type Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Entity Query Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Entity Linking Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Ingestion CRUD Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Entity Skill Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Agent Integration Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Meta Agent Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Admin Integration Catalog Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Domain Marketplace Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Agent-Domain Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Domain-Aware Graduation Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Capability Matrix Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Learning & Adaptation Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Stage Router Management Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Learning Router Management Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Admin Runtime Settings Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ BPE Workspace Admin Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Fleet Router Management Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Decision Plane Management Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Decision Automation Loop Scheduled (mode=off)
+2026-11-05 10:21:03 [    INFO] ✓ Org-Politics Management Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+2026-11-05 10:21:03 [    INFO] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+2026-11-05 10:21:03 [    INFO] ✓ Ontology Draft Automation Routes Loaded
+2026-11-05 10:21:03 [    INFO] ✓ Core Routes Loaded Successfully
+2026-11-05 10:21:03 [    INFO] ✓ Microsoft 365 Routes Loaded (isolated)
+2026-11-05 10:21:03 [    INFO] ✅ Debug endpoints enabled
+PASSED                                                                   [ 60%]
+tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_forgot_password_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-05 10:21:03 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+FAILED                                                                   [ 80%]
+tests/test_covpush_w75_auth_helpers.py::TestVerifyJwtToken::test_valid_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 10:21:03 [   ERROR] JWT verification failed: No secret key configured
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: assert 0 == 2
+     +  where 0 = len([])
+     +    where [] = get_pending_interventions(workspace_id='default')
+     +      where get_pending_interventions = <core.intervention_service.InterventionService object at 0x12747d6d0>.get_pending_interventions
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 726a4f29-582f-4957-89d6-73c64b50b169 for agent None
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 90860441-5811-481a-a452-d781cdbc9a7e for agent None
+/private/tmp/atom-auth2fa-base/backend/tests/test_covpush_w104_intervention.py:149: AssertionError: assert 0 == 2
+E   assert 200 == 429
+     +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+/private/tmp/atom-auth2fa-base/backend/tests/test_covpush_w75_auth_endpoints.py:318: assert 200 == 429
+E   fastapi.exceptions.HTTPException: 500: JWT secret not configured
+------------------------------ Captured log call -------------------------------
+ERROR    core.auth_helpers:auth_helpers.py:39 JWT verification failed: No secret key configured
+/private/tmp/atom-auth2fa-base/backend/core/auth_helpers.py:40: fastapi.exceptions.HTTPException: 500: JWT secret not configured
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter
+  /private/tmp/atom-auth2fa-base/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-auth2fa-base/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter
+FAILED tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_forgot_password_rate_limited_429
+FAILED tests/test_covpush_w75_auth_helpers.py::TestVerifyJwtToken::test_valid_token
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 2 passed, 25 warnings in 12.98s ===================
