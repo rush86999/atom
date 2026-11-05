@@ -395,12 +395,19 @@ async def _resume_advanced_workflow(
         }
     status = getattr(context, "status", None)
     status_value = getattr(status, "value", str(status or ""))
-    return {
+    result = {
         "handled": True,
         "resumed": status_value == "completed",
         "kind": "workflow",
         "status": status_value.upper(),
     }
+    if status_value == "waiting_approval":
+        result["reason"] = "workflow is still waiting for approval"
+    elif status_value in ("failed", "cancelled"):
+        result["reason"] = (
+            "approval binding did not match the authoritative execution; "
+            "a fresh matching review is required")
+    return result
 
 
 async def _resume_workflow(action: Dict[str, Any], approved: bool,
