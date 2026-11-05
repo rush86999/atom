@@ -325,6 +325,53 @@ def test_skill_action_must_exist_in_the_real_action_registry():
     assert supported["execution_blockers"] == []
 
 
+def test_legacy_checkpoint_input_digest_remains_readable():
+    context = SimpleNamespace(
+        workflow_id="exec-legacy",
+        variables={
+            "_workflow_definition_id": "wf-legacy",
+            "_workflow_definition_digest": "digest-legacy",
+        },
+        input_data={"amount": 1},
+    )
+    step = WorkflowStep(
+        step_id="approval_record",
+        step_type=WorkflowStepType.APPROVAL_REQUIRED,
+        description="Approve",
+        parameters={
+            "guarded_step": "record",
+            "guarded_digest": "guarded-digest",
+            "server_required": True,
+        },
+    )
+    material = AdvancedWorkflowOrchestrator._approval_material(step, context)
+    legacy_params = {
+        key: material[key]
+        for key in (
+            "workflow_id", "definition_id", "definition_digest",
+            "step_id", "guarded_step", "guarded_digest",
+        )
+    }
+    legacy_params["input_digest"] = material["legacy_input_digest"]
+    assert AdvancedWorkflowOrchestrator._approval_row_matches(
+        SimpleNamespace(params=legacy_params), material) is True
+
+    current_params = dict(legacy_params)
+    current_params["input_digest"] = material["input_digest"]
+    assert AdvancedWorkflowOrchestrator._approval_row_matches(
+        SimpleNamespace(params=current_params), material) is True
+
+    changed_context = SimpleNamespace(
+        workflow_id="exec-legacy",
+        variables=dict(context.variables),
+        input_data={"amount": 2},
+    )
+    changed = AdvancedWorkflowOrchestrator._approval_material(
+        step, changed_context)
+    assert AdvancedWorkflowOrchestrator._approval_row_matches(
+        SimpleNamespace(params=legacy_params), changed) is False
+
+
 def test_full_execution_completes_after_successful_required_work():
     compiled = _compile([{
         "id": "read", "type": "entity", "name": "Read record",

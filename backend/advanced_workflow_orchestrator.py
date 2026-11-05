@@ -2181,6 +2181,12 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             context.variables.get("_workflow_definition_digest") or "")
         guarded_step = str(step.parameters.get("guarded_step") or "")
         guarded_digest = str(step.parameters.get("guarded_digest") or "")
+        legacy_input_digest = hashlib.sha256(json.dumps(
+            {
+                "input": context.input_data,
+                "guarded_step": guarded_step,
+            },
+            sort_keys=True, default=str).encode()).hexdigest()[:24]
         material = {
             # Execution identity, not the definition id: two runs of the same
             # definition must never share an approval receipt.
@@ -2190,6 +2196,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             "step_id": str(step.step_id or ""),
             "guarded_step": guarded_step,
             "guarded_digest": guarded_digest,
+            # Compatibility: rows from before guarded_digest was folded into
+            # the input digest still match when the guarded digest and the
+            # rest of the execution/definition binding agree.
+            "legacy_input_digest": legacy_input_digest,
             "input_digest": hashlib.sha256(json.dumps(
                 {
                     "input": context.input_data,
@@ -2217,7 +2227,13 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 str(params.get(key) or "") == str(material.get(key) or "")
                 for key in (
                     "workflow_id", "step_id",
-                    "guarded_digest", "input_digest")):
+                    "guarded_digest")):
+            return False
+        row_digest = str(params.get("input_digest") or "")
+        current_digest = str(material.get("input_digest") or "")
+        legacy_digest = str(material.get("legacy_input_digest") or "")
+        if row_digest != current_digest and (
+                not legacy_digest or row_digest != legacy_digest):
             return False
         # ``execution_id`` is the explicit binding in new rows; older rows used
         # ``workflow_id`` for the same execution identity. Both remain readable,
