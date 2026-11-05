@@ -70,7 +70,11 @@ TESTING=1 PYTHONPATH=$PWD/backend \
   python /private/tmp/orch01_served_qualification.py
 ```
 
-Two cases, one structured call each, no expected blueprint supplied:
+Two cases, one structured call each, no expected blueprint supplied. The
+served run used the same structured consumer and persistence service directly;
+the HTTP route/persistence boundary is covered by the 15 controlled tests with
+a doubled transport. This avoided a second server process and competing
+inference.
 
 | Case | Status | Latency | Prompt/completion tokens | Workflow | Readback |
 |---|---|---:|---:|---|---|

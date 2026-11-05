@@ -86,9 +86,13 @@ tenant read returns 404.
 
 ## Served qualification
 
-The controlled contract was frozen first. The qualification then used the
-already-configured local Ollama route, one single-flight structured call per
-case, with no competing inference and no expected blueprint supplied.
+The controlled contract was frozen first. The HTTP route and persistence
+boundary were exercised by the 15 controlled tests with a doubled transport.
+The served qualification used the same Queen prompt/schema/profile, the
+existing structured transport and the same `persist_blueprint` /
+`load_blueprint` service, one single-flight call per case, with no competing
+inference and no expected blueprint supplied. It did not add a second HTTP
+server or provider.
 
 1. Service intake/review (one-off): intake → triage → notify reviewer →
    record review decision. The server inserted two approval gates (notify and
