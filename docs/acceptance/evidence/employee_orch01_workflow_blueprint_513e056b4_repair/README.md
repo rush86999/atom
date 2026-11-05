@@ -15,7 +15,7 @@ preparation; no accepted lane is reopened.
 | Previous withheld source | `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8` |
 | Previous evidence commit | `0a850d14d8c85a62a72d95c93355f5b23766a0ab` |
 | Parent repair source | `f6e50b58c4d5aacf5752c9a1ab39c629e23315e6` |
-| Executed source | `513e056b45e108d1feb5ce253dc9e971256d2a3f` |
+| Executed source | `253f377396ffb688c25686483411246713b3b7ca` |
 | Tree at execution | clean (`0 modified, 0 untracked`) |
 | Runtime | real scratch SQLite with fresh sessions; controlled governance/effect seams |
 | Model/provider/browser calls | none |
@@ -26,7 +26,9 @@ the persisted blueprint by execution/definition identity when no in-memory
 registration exists, explicitly binds `execution_id` in the approval material,
 bridges the HITL queue to the advanced checkpoint consumer, persists
 `completed_at`, and includes waiting-approval executions in the workflow
-approval pending list.
+approval pending list. `253f3773` then keeps legacy rows readable by matching
+either the explicit `execution_id` or the legacy `workflow_id` alias, without
+weakening the execution/definition/step/material checks.
 
 ## The three withheld contracts, repaired
 
