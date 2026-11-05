@@ -1945,13 +1945,14 @@ class TestAdminUsers:
         assert resp.status_code == 404
 
     def test_create_user_success(self, admin_crud_env):
+        from core.auth import verify_password
+
         db, _actor, _engine = admin_crud_env
         _seed_role(db)
-        with patch("core.auth.get_password_hash", return_value="hashed!"):
-            resp = _real_admin_client(admin_crud_env).post(
-                "/api/admin/users", json={
-                    "email": "new@example.com", "name": "New",
-                    "password": "password1", "role_id": "role-1"})
+        resp = _real_admin_client(admin_crud_env).post(
+            "/api/admin/users", json={
+                "email": "new@example.com", "name": "New",
+                "password": "password1", "role_id": "role-1"})
         assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["email"] == "new@example.com"
@@ -1959,7 +1960,8 @@ class TestAdminUsers:
         db.expire_all()
         created = db.query(AdminUser).filter(
             AdminUser.email == "new@example.com").one()
-        assert created.password_hash == "hashed!"
+        assert created.password_hash != "password1"
+        assert verify_password("password1", created.password_hash)
 
     def test_create_user_role_not_found_404(self, admin_crud_env):
         resp = _real_admin_client(admin_crud_env).post(
