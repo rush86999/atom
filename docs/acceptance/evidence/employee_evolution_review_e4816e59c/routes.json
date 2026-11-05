@@ -1,0 +1,112 @@
+{
+  "schema": "atom-oracle-evolution-review-routes-1",
+  "executed_source": "e4816e59c84041333c7571988ebf5da90f1dc1ce",
+  "product_source": "eaba0cb8f551796677a8c516155a4be7399207ff",
+  "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "prefix": "/api/autodev",
+  "scope_policy": {
+    "tool_mutations": "tenant-scoped ToolMutation rows; no workspace/agent column",
+    "authority": "require_role(UserRole.TEAM_LEAD) on both decision routes; service re-reads and conditionally claims the actor",
+    "tenant": "get_current_tenant; target lookup is (mutation_id, tenant_id); foreign or missing target is 404"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/autodev/mutations/{mutation_id}/approve",
+      "handler": "api.autodev_review_routes.approve_tool_mutation",
+      "service": "core.evolution_review_write_service.review_tool_mutation",
+      "decision": "approved",
+      "allowed_prior_statuses": ["pending", "passed"],
+      "refused_prior_statuses": {
+        "failed": "409 CONFLICT; a sandbox-failed mutation cannot be approved",
+        "approved": "409 ALREADY_REVIEWED unless exact same-operation replay",
+        "rejected": "409 ALREADY_REVIEWED unless exact same-operation replay",
+        "other": "409 CONFLICT"
+      },
+      "effect": "conditional UPDATE of ToolMutation.sandbox_status to approved, plus one AuditLog receipt in the same transaction",
+      "material_binding": [
+        "id",
+        "tenant_id",
+        "prior sandbox_status",
+        "tool_name",
+        "parent_tool_id (nullable-exact)",
+        "execution_error (nullable-exact)",
+        "mutated_code (exact plus keyed digest)"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/autodev/mutations/{mutation_id}/reject",
+      "handler": "api.autodev_review_routes.reject_tool_mutation",
+      "service": "core.evolution_review_write_service.review_tool_mutation",
+      "decision": "rejected",
+      "allowed_prior_statuses": ["pending", "passed", "failed"],
+      "refused_prior_statuses": {
+        "approved": "409 ALREADY_REVIEWED unless exact same-operation replay",
+        "rejected": "409 ALREADY_REVIEWED unless exact same-operation replay",
+        "other": "409 CONFLICT"
+      },
+      "effect": "conditional UPDATE of ToolMutation.sandbox_status to rejected, plus one AuditLog receipt in the same transaction",
+      "material_binding": [
+        "id",
+        "tenant_id",
+        "prior sandbox_status",
+        "tool_name",
+        "parent_tool_id (nullable-exact)",
+        "execution_error (nullable-exact)",
+        "mutated_code (exact plus keyed digest)"
+      ]
+    }
+  ],
+  "parallel_writer": {
+    "component": "core.auto_dev.alpha_evolver_engine.AlphaEvolverEngine.sandbox_execute_mutation",
+    "effect": "pending/failed -> passed/failed",
+    "guard": "conditional UPDATE binds id, tenant, prior status, tool_name, mutated_code and execution_error; approved/rejected and all other non-pending/non-failed states are pre-checked and skipped without invoking the sandbox",
+    "race_behavior": "a reviewer or peer edit between the pre-check and the guarded UPDATE matches zero rows; the review decision is preserved and no passed/failed write is recorded"
+  },
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id autodev:tool-mutation:<supplied-or-generated>",
+    "metadata": [
+      "schema",
+      "operation_id",
+      "decision",
+      "prior_status",
+      "result_status",
+      "target_id",
+      "tenant_id",
+      "actor_id",
+      "actor_role",
+      "tool_name",
+      "parent_tool_id",
+      "code_digest",
+      "error_digest",
+      "material_digest",
+      "result_digest"
+    ],
+    "sensitive_material": "no raw mutated code, execution-error text, SQL parameter, exception text, token or secret is stored or returned",
+    "readback": "fresh session on the same engine; audit fields and target status/material must match the original operation"
+  },
+  "result_states": {
+    "verified": "HTTP 200; target status and audit readback matched; effect=committed",
+    "already_applied": "HTTP 200; same operation id and same material; one receipt/status write; replay=do_not_repeat",
+    "conflict": "HTTP 409 typed ALREADY_REVIEWED / STALE_TARGET / OPERATION_CONFLICT; effect=none; refresh the record",
+    "not_applied": "HTTP 409 confirmed local rollback; verification.effect=none; TOOL_MUTATION_TRANSACTION_ROLLED_BACK; target and audit absent",
+    "committed_unverified": "HTTP 503; mutation committed but audit/target readback failed or was refuted; effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "HTTP 503; commit confirmation lost; effect=unknown; original identity; replay=do_not_repeat; no exception SQL/parameters"
+  },
+  "consumers": {
+    "list_candidates": "TEAM_LEAD+/tenant list; decided items leave the selected status",
+    "check_auto_synthesis_readiness": "counts passed only; approved/rejected are not counted",
+    "advisor_service": "reports passed/failed counts; unchanged",
+    "capability_gate": "counts daily mutations, not review status; unchanged",
+    "guidance": "broadcasts pending proposals; unchanged",
+    "skill_review_apply": "accepted reviewed-improvement contract; untouched and included in regression"
+  },
+  "not_covered": [
+    "remaining Auto-Dev surfaces",
+    "live model/provider/sandbox execution",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01 inventory"
+  ]
+}
