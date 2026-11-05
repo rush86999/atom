@@ -17,8 +17,13 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import EpisodeSegment, SkillExecution
+from core.models import EpisodeSegment, SkillExecution, UserRole
+from core.security.rbac import require_role
 from core.skill_registry_service import SkillRegistryService
+from core.skill_review_write_service import (
+    delete_community_skill as _delete_community_skill,
+    promote_community_skill as _promote_community_skill,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +98,68 @@ def get_skill_service(db: Session = Depends(get_db)) -> SkillRegistryService:
         SkillRegistryService instance
     """
     return SkillRegistryService(db)
+
+
+def _raise_skill_decision(result: Dict[str, Any]) -> None:
+    """Map the verified community-skill decision to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "CONFLICT",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "SKILL_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The community-skill decision did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "SKILL_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "SKILL_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The community-skill decision outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
 
 
 # ============================================================================
@@ -337,90 +404,70 @@ async def execute_skill(
 async def promote_skill(
     request: PromoteSkillRequest,
     current_user: User = Depends(get_current_user),
-    service: SkillRegistryService = Depends(get_skill_service)
+    _authorized: User = Depends(require_role(UserRole.TEAM_LEAD)),
+    db: Session = Depends(get_db),
+    operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Promote a skill from Untrusted to Active status.
+    Promote a community skill from Untrusted to Active status.
 
-    Args:
-        request: Promote request with skill_id
-        service: Skill registry service
-
-    Returns:
-        Dict with:
-            - status: New status ("Active")
-            - previous_status: Previous status
-            - message: Confirmation message
+    TEAM_LEAD+ review authority. The exact community `SkillExecution` material
+    is bound, the decision is audited, and replay/stale/competing outcomes are
+    explicit. An already-Active skill with a new operation id is a no-change
+    success (`effect=none`), preserving the old API.
 
     Example:
-        POST /api/skills/promote
+        POST /api/skills/promote?operation_id=promote-1
         {
             "skill_id": "abc-123-def"
         }
     """
-    try:
-        result = service.promote_skill(request.skill_id)
-
-        return router.success_response(
-            data=result,
-            message=f"Skill promoted to {result['status']}"
-        )
-
-    except ValueError as e:
-        logger.error(f"Promote validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Internal error"
-        )
-    except Exception as e:
-        logger.error(f"Promote failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal error"
-        )
+    result = _promote_community_skill(
+        db,
+        actor=current_user,
+        skill_id=request.skill_id,
+        operation_id=operation_id,
+    )
+    _raise_skill_decision(result)
+    data = result.get("data") or {}
+    if result.get("status") == "no_change":
+        message = result.get("message") or "Skill is already Active"
+    else:
+        message = f"Skill promoted to {data.get('status', 'Active')}"
+    return router.success_response(data=data, message=message)
 
 
 @router.delete("/{skill_id}")
 async def delete_skill(
     skill_id: str,
     current_user: User = Depends(get_current_user),
-    service: SkillRegistryService = Depends(get_skill_service)
+    _authorized: User = Depends(require_role(UserRole.TEAM_LEAD)),
+    db: Session = Depends(get_db),
+    operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Delete a skill from the registry.
+    Delete a community skill from the registry.
 
-    Args:
-        skill_id: Skill ID to delete
-        service: Skill registry service
-
-    Returns:
-        Dict with deletion confirmation
+    TEAM_LEAD+ review authority. The exact community `SkillExecution` material
+    is bound, the deletion is audited, and tombstone replay/stale outcomes are
+    explicit.
 
     Example:
-        DELETE /api/skills/abc-123-def
+        DELETE /api/skills/abc-123-def?operation_id=delete-1
     """
-    try:
-        result = service.delete_skill(skill_id)
-
-        return router.success_response(
-            data=result,
-            message=result["message"]
-        )
-
-    except ValueError as e:
-        logger.error(f"Delete validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Internal error"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Delete failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal error"
-        )
+    result = _delete_community_skill(
+        db,
+        actor=current_user,
+        skill_id=skill_id,
+        operation_id=operation_id,
+    )
+    _raise_skill_decision(result)
+    data = result.get("data") or {}
+    skill_name = data.get("skill_name") or "community skill"
+    return router.success_response(
+        data=data,
+        message=f"Skill '{skill_name}' deleted successfully",
+    )
 
 
 # ============================================================================
