@@ -541,3 +541,40 @@ def test_verifier_refuses_restore_target_mismatch(db_session):
             _oracle_expected_restore_audit_id="target-expected")))
     assert result is not None and result.verified is False
     assert "restored_from" in result.evidence
+
+
+def test_direct_put_duplicate_operation_after_later_edit_is_not_verified(
+        client, db_session, users):
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id)
+    payload_a = {"blocks": [{"t": "operation-a"}]}
+    payload_b = {"blocks": [{"t": "later-edit"}]}
+
+    first = client.put(
+        f"/api/canvas/{canvas.id}?operation_id=op-late-1", json=payload_a)
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "verified", first.json()
+
+    later = client.put(f"/api/canvas/{canvas.id}", json=payload_b)
+    assert later.status_code == 200, later.text
+    assert later.json()["status"] == "verified", later.json()
+
+    before = _audit_count(db_session, canvas.id)
+    retry = client.put(
+        f"/api/canvas/{canvas.id}?operation_id=op-late-1", json=payload_a)
+    assert retry.status_code == 200, retry.text
+    body = retry.json()
+    assert body["already_applied"] is True, body
+    assert body["audit_id"] == first.json()["audit_id"]
+    assert body["status"] == "committed_unverified", body
+    assert body["verification"]["status"] == "refuted", body
+    assert body["verification"]["replay"] == "do_not_repeat"
+    assert _audit_count(db_session, canvas.id) == before
+
+    db_session.expire_all()
+    latest = _latest_audit(db_session, canvas.id)
+    assert latest.details_json["content"] == payload_b
+    mirror = db_session.query(Canvas).filter(Canvas.id == canvas.id).one()
+    assert mirror.content == payload_b, (
+        "a duplicate retry must not revert a later edit")

@@ -129,6 +129,7 @@ async def _envelope(
         "audit_id": result.get("audit_id"),
         "write_outcome": result.get("write_outcome"),
         "no_change": no_change,
+        "already_applied": bool(result.get("already_applied")),
         "content": content,
         "restored_from": result.get("restored_from"),
         "_oracle_action": action,

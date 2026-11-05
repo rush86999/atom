@@ -615,6 +615,14 @@ def _canvas_write_postcondition(restore: bool):
                 _, restored_content = canonical_restore_content(row, target)
                 expected_digest = _content_digest(restored_content)
             else:
+                if bool(ctx.get("already_applied")):
+                    latest = _read_with_db(ctx, _latest)
+                    if latest is None or str(latest.id) != new_audit_id:
+                        return OracleResult(
+                            action, False,
+                            "operation was already applied but a later audit "
+                            "is current; the current canvas content is not "
+                            "this operation")
                 expected_digest = str(
                     ctx.get("_oracle_expected_canvas_content_sha256") or "")
                 if not expected_digest:

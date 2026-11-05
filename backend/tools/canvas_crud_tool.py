@@ -520,7 +520,13 @@ async def update_canvas_content(
                     if existing_status == "accepted":
                         existing_content = existing_details.get(
                             "content", existing_details.get("data"))
-                        if existing_content is not None:
+                        # Only refresh the mirror when this operation's audit
+                        # row is STILL the current version. A retry after a
+                        # later edit must not clobber that newer content; the
+                        # direct verified route reports the stale operation as
+                        # unverified instead of claiming the current save.
+                        if (existing_content is not None
+                                and existing.id == latest.id):
                             _mirror_accepted_canvas(
                                 db, canvas_id, existing_content,
                                 existing.canvas_type,
