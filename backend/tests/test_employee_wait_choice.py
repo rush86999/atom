@@ -181,6 +181,35 @@ def test_compact_wait_subject_is_bound_to_a_known_identity_when_model_labels_it(
     assert proposal.work_request.blocks == "invoice reconciliation"
 
 
+def test_genuine_missing_fact_can_wait_when_default_policy_is_clarify(
+        monkeypatch):
+    context = _context()
+    context["missing_prerequisites"][0].update(
+        status="missing", missing=["invoice"])
+    for source in context["sources"]:
+        source["read"] = True
+    # The full context builder's no-ready-work default; the typed wait
+    # contract is still valid for a genuinely absent external fact.
+    context["rules"]["allowed_proposal_kinds"] = ["clarify", "retain"]
+    context["rules"]["allowed_work_requests"] = []
+
+    result = asyncio.run(propose_adaptation(
+        context, _observations(), assignment=_assignment(),
+        llm_service=_fail_wait_policy(monkeypatch, {
+            "decision": "replan",
+            "reason": "the invoice is a future external record",
+            "fact": "the current supplier invoice for PO-WAIT-520",
+            "subject": "purchase order PO-WAIT-520",
+            "expected_from": "authorized procurement source",
+            "expected_answer_type": "text",
+            "blocks_operation": "invoice_reconciliation",
+        })))
+    assert result["source"] == "model_wait_choice", result
+    assert result["proposal"]["decision"] == "replan"
+    assert result["proposal"]["work_request"]["operation"] == "await_evidence"
+    assert result["errors"] == []
+
+
 def test_wait_is_refused_when_authorized_unread_evidence_remains(
         monkeypatch):
     context = _context()
@@ -337,7 +366,8 @@ def test_genuine_missing_external_record_can_wait_after_all_sources_are_read(
     assert result["errors"] == []
 
 
-def test_wait_is_refused_while_ready_independent_work_exists(monkeypatch):
+def test_genuine_wait_remains_valid_while_ready_independent_work_exists(
+        monkeypatch):
     context = _context(ready_quote=True)
     context["missing_prerequisites"][0].update(
         status="missing", missing=["invoice"])
@@ -352,7 +382,7 @@ def test_wait_is_refused_while_ready_independent_work_exists(monkeypatch):
         assert response_model.__name__ == "AdaptationProposal"
         return response_model.model_validate({
             "decision": "replan",
-            "reason": "wait for the invoice",
+            "reason": "wait for the invoice while the quote remains available",
             "observation_ids": ["evidence-po-wait"],
             "work_request": {
                 "operation": "await_evidence",
@@ -373,9 +403,13 @@ def test_wait_is_refused_while_ready_independent_work_exists(monkeypatch):
     result = asyncio.run(propose_adaptation(
         context, _observations(), assignment=_assignment(),
         llm_service=FakeLLM()))
-    assert result["source"] == "deterministic", result
-    assert result["proposal"].get("work_request") is None
-    assert any("ready_independent_work" in item for item in result["errors"])
+    assert result["source"] in ("model", "model_wait_choice"), result
+    assert result["proposal"]["decision"] == "replan"
+    assert result["proposal"]["work_request"]["operation"] == "await_evidence"
+    assert result["proposal"]["work_request"]["blocks_operation"] == (
+        "invoice_reconciliation")
+    assert not any(
+        "ready_independent_work" in item for item in result["errors"])
 
 
 def test_model_clarification_is_accepted_without_a_wait(monkeypatch):

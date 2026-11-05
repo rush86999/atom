@@ -293,12 +293,6 @@ def _wait_policy_errors(
         errors.append(
             "await_policy:ambiguous_blocked_operation: the wait does not "
             "name which trusted missing prerequisite it blocks")
-    allowed = (context.get("rules") or {}).get("allowed_proposal_kinds")
-    if isinstance(allowed, (list, tuple)) and allowed and (
-            "replan" not in allowed):
-        errors.append(
-            "await_policy:replan_not_allowed: the trusted allowed choices "
-            "do not include a replan/wait; choose clarify or retain")
     capabilities = []
     if assignment:
         try:
@@ -333,6 +327,16 @@ def _wait_policy_errors(
             str(role) for role in (capability or {}).get("missing") or []
             if str(role).strip()
         ]
+    genuine_missing = status == "missing" and bool(missing_roles)
+    allowed = (context.get("rules") or {}).get("allowed_proposal_kinds")
+    if (isinstance(allowed, (list, tuple)) and allowed
+            and "replan" not in allowed and not genuine_missing):
+        # A clarify/retain default is not a prohibition of the typed wait
+        # contract for a genuinely absent external fact. An ambiguity, a
+        # ready record or an unnamed role can never use that exception.
+        errors.append(
+            "await_policy:replan_not_allowed: the trusted allowed choices "
+            "do not include a replan/wait; choose clarify or retain")
     if status == "ambiguous":
         errors.append(
             "await_policy:ambiguous_record: accepted records are ambiguous; "
@@ -356,14 +360,6 @@ def _wait_policy_errors(
         errors.append(
             "await_policy:unread_authorized_evidence: authorized unread "
             "evidence remains; read it before waiting for the same record")
-    # A ready independent operation must not be hidden by a wait.
-    if any(
-            str(item.get("status") or "") == "ready"
-            for item in context.get("available_business_operations") or []
-            if isinstance(item, Mapping)):
-        errors.append(
-            "await_policy:ready_independent_work: a ready independent "
-            "operation is available; wait is not the only useful action")
     return list(dict.fromkeys(errors))
 
 

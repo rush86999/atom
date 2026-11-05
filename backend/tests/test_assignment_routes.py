@@ -3564,7 +3564,13 @@ def test_advance_route_does_not_adopt_a_policy_forbidden_wait(
         payload.write_text(json.dumps(data))
         step.update(
             status="applied", operation_id=f"op-{step_id}",
-            inputs={"path": str(payload)},
+            inputs={
+                "path": str(payload),
+                "resource_binding": {
+                    "resource_id": f"resource-{step_id}",
+                    "source_version": "v1",
+                },
+            },
             result={
                 "data": data, "resource_id": step_id,
                 "source_version": "v1",
@@ -3585,6 +3591,15 @@ def test_advance_route_does_not_adopt_a_policy_forbidden_wait(
                 "po_id": "PO-ROUTE-77", "vendor_id": "V-9"}),
             applied("receiving", {
                 "po_id": "PO-ROUTE-77", "received_quantity": "2"}),
+            # Two accepted invoices make the role ambiguous, matching the
+            # captured replay's trusted state: no missing role, no ready
+            # operation, and only clarify/retain allowed.
+            applied("invoice-a", {
+                "invoice_id": "INV-ROUTE-A", "po_id": "PO-ROUTE-77",
+                "quantity": "2", "unit_price": "10.00"}),
+            applied("invoice-b", {
+                "invoice_id": "INV-ROUTE-B", "po_id": "PO-ROUTE-77",
+                "quantity": "2", "unit_price": "11.00"}),
         ],
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[
