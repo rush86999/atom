@@ -2,8 +2,8 @@
   "accepted_canvas_base": "fe401e1112fdb544ce07650f7733519c14b25790",
   "accepted_canvas_runtime": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
   "artifacts": {
-    "README.md": "6241cdd2bdabe3254a30d267745afefc20a5e2502b296bbcb5f48539f60cab00",
-    "TEST_RESULTS.md": "d09d4cec2436f41d3169a23902b4a2ec743808a20b2698fc7fd6af1679110902",
+    "README.md": "abdeb9853abd25d7177596af0a1941de3f60e50c73e97c9020f75a46c1899f9e",
+    "TEST_RESULTS.md": "6ca7ad602a3bc31429564e940cfc2a732ecf8488d96a8dae6572b41a25e0eb58",
     "affected-311.log": "9c2bd4c7befd6a6f7ad1f37d281e0cdec09e7faa5f20be173765c21dbdc7c25d",
     "affected-314.log": "7730098c5b5c4dcf44f5990e48abb38cde02dea350c231a7db9b660f56dfacad",
     "base-pre-existing.log": "1139d22c23867417a8e74bb1b72c5e6a203312bc608616bea6ba2f48bdebaa3e",

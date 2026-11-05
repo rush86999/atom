@@ -105,6 +105,11 @@ tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_defau
 `base-pre-existing.log` records it, plus the unrelated W75 JWT/rate-limit
 failures, on that base without this repair.
 
+One intermediate Python 3.14 run of this selection also hit the timing-sensitive
+`tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error`
+(`duration == 0.0`). It passes in isolation and in the retained rerun; it is an
+unrelated millisecond-clock assertion, not a 2FA route regression.
+
 ## Counts
 
 - Focused: 82 passed on both versions.

@@ -165,6 +165,9 @@ session, and no secret/code in audit or receipt artifacts.
   failures, not 2FA route regressions.
 - The W80B workflow-debug classes are unrelated to this slice and are excluded
   via `-k 2FA`.
+- One intermediate 3.14 affected run hit the unrelated millisecond-clock
+  assertion in `test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error`;
+  it passes in isolation and in the retained rerun.
 
 ## Boundaries
 
