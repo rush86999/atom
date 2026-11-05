@@ -2463,10 +2463,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 action_id = await self._create_durable_approval(
                     material, step, context)
                 if not action_id:
-                    context.status = WorkflowStatus.FAILED
+                    # Durable persistence is unavailable. The branch still
+                    # blocks descendants; it exposes a waiting state without
+                    # fabricating an approval id rather than claiming success.
+                    context.status = WorkflowStatus.WAITING_APPROVAL
                     return {
-                        "status": "failed",
-                        "error": "could not persist the required approval",
+                        "status": "waiting_approval",
+                        "requires_confirmation": True,
+                        "hitl_action_id": result.get("hitl_action_id"),
+                        "message": (
+                            "Step requires human approval; the durable "
+                            "checkpoint could not be persisted."),
                     }
                 context.status = WorkflowStatus.WAITING_APPROVAL
                 return {
@@ -2522,10 +2529,13 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             action_id = await self._create_durable_approval(
                 material, step, context)
             if not action_id:
-                context.status = WorkflowStatus.FAILED
+                context.status = WorkflowStatus.WAITING_APPROVAL
                 return {
-                    "status": "failed",
-                    "error": "could not persist the required approval",
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "message": (
+                        "Step requires human approval; the durable "
+                        "checkpoint could not be persisted."),
                 }
             context.status = WorkflowStatus.WAITING_APPROVAL
             return {
