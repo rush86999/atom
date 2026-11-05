@@ -1,0 +1,115 @@
+{
+  "durable_ledger": {
+    "material_binding": "operation kind, actor id/role, platform/tenant scope, target type/id, request material digest and result digest",
+    "operation_identity": "AuditLog.id is the server-owned operation id; supplied ids are prefixed deterministically",
+    "readback": "fresh session on the same engine; target state must still match the result digest or be absent for delete",
+    "replay": "same id/same material already_applied; changed material 409; later target revision/audit mismatch 503; lost confirmation effect_unknown 503",
+    "sensitive_material": "no password hash, token, secret, OTP or SQL parameter stored or returned",
+    "table": "saas_audit_logs"
+  },
+  "executed_source": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "not_covered": [
+    "remaining admin routes",
+    "login/password/SSO/passkeys",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "live administrator/account/budget changes",
+    "whole-app ORACLE-01 inventory"
+  ],
+  "prefix": "/api/admin",
+  "response_contract": {
+    "conflict": "409 typed conflict; refresh the changed record",
+    "credential": "safe public projection only; private verifier commitment never returned",
+    "refused": "existing 403/404/422 refusal shape with zero mutation",
+    "rollback": "confirmed local rollback is typed not_applied 409 with verification.effect=none; post-commit readback failure is committed_unverified 503; lost confirmation is effect_unknown 503",
+    "uncertain": "503 with original operation/audit/target identities and do_not_repeat",
+    "verified": "existing success shape plus additive verification/operation_id/audit_id"
+  },
+  "routes": [
+    {
+      "contract": "unique name is the DB arbiter; deterministic target id; actor authority and audit receipt commit with the row; exact replay acknowledges, changed material conflicts",
+      "handler": "api.admin_routes.create_admin_role",
+      "method": "POST",
+      "path": "/api/admin/roles",
+      "service": "core.admin_write_service.create_admin_role",
+      "state": [
+        "admin_roles",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "material CAS on current name/permissions/description; unique-name conflict 409; stale target 409; audit readback and replay reconciliation",
+      "handler": "api.admin_routes.update_admin_role",
+      "method": "PATCH",
+      "path": "/api/admin/roles/{role_id}",
+      "service": "core.admin_write_service.update_admin_role",
+      "state": [
+        "admin_roles",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "conditional delete with NOT EXISTS assigned users and material predicates; in-use/stale conflict; tombstone receipt",
+      "handler": "api.admin_routes.delete_admin_role",
+      "method": "DELETE",
+      "path": "/api/admin/roles/{role_id}",
+      "service": "core.admin_write_service.delete_admin_role",
+      "state": [
+        "admin_roles",
+        "admin_users",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "unique email DB arbiter; role-existence EXISTS in the insert; actual stored credential verified against the authorized password before write; private result commitment includes a keyed fingerprint of the stored hash; changed/malformed/deleted credential replay is committed_unverified without overwrite; no credential material in public receipt",
+      "handler": "api.admin_routes.create_admin_user",
+      "method": "POST",
+      "path": "/api/admin/users",
+      "service": "core.admin_write_service.create_admin_user",
+      "state": [
+        "admin_users",
+        "admin_roles",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "material CAS including last_login; role-existence EXISTS on role change; stale/concurrent login change 409; audit readback",
+      "handler": "api.admin_routes.update_admin_user",
+      "method": "PATCH",
+      "path": "/api/admin/users/{admin_id}",
+      "service": "core.admin_write_service.update_admin_user",
+      "state": [
+        "admin_users",
+        "admin_roles",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "material conditional delete; stale target 409; tombstone receipt and exact replay acknowledgement",
+      "handler": "api.admin_routes.delete_admin_user",
+      "method": "DELETE",
+      "path": "/api/admin/users/{admin_id}",
+      "service": "core.admin_write_service.delete_admin_user",
+      "state": [
+        "admin_users",
+        "saas_audit_logs"
+      ]
+    },
+    {
+      "contract": "exact TenantSetting('billing').setting_value CAS; partial merge of supplied fields; finite/non-negative/mode validation; concurrent loser 409; fresh-session budget consumers observe committed truth",
+      "handler": "api.admin.budget_routes.update_tenant_budget",
+      "method": "PUT",
+      "path": "/api/admin/tenants/{tenant_id}/budget",
+      "service": "core.admin_write_service.update_tenant_budget",
+      "state": [
+        "tenant_settings",
+        "saas_audit_logs"
+      ]
+    }
+  ],
+  "schema": "atom-oracle-admin-privilege-routes-1",
+  "scope_policy": {
+    "admin_roles": "global platform rows; require_super_admin",
+    "admin_users": "global platform rows; require_super_admin",
+    "tenant_budget": "tenant-scoped TenantSetting('billing'); get_platform_admin (workspace_admin+)"
+  }
+}
