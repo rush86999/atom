@@ -1,0 +1,100 @@
+{
+  "schema": "atom-oracle-community-skill-verification-1",
+  "status": "community-skill promote/delete verified decision family submitted for independent verification; import/execute and remaining skill surfaces remain open",
+  "candidate": {
+    "branch": "codex/oracle01-skill-review-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "f8477493c80b198ec236bafa600b9bee230840fd",
+    "executed_source": "5eb3cf62644e0350e0f487a58dfddc4b00dabbc0",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite; no live code sandbox, model or provider"
+  },
+  "checks": {
+    "team_lead_and_admin_twins": true,
+    "member_viewer_guest_anonymous_refused": true,
+    "missing_and_cloud_targets_not_found": true,
+    "promote_untrusted_to_active": true,
+    "already_active_new_operation_no_change_effect_none": true,
+    "already_active_same_operation_replay": true,
+    "unsupported_status_refused": true,
+    "delete_untrusted_and_active": true,
+    "delete_tombstone_replay": true,
+    "delete_missing_404": true,
+    "same_operation_changed_material_conflict": true,
+    "later_status_or_material_revision_not_certified": true,
+    "competing_and_stale_peer_edit_refused_peer_preserved": true,
+    "exact_input_scan_sandbox_material_binding": true,
+    "audit_receipt_same_transaction": true,
+    "confirmed_rollback_reports_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_skill_body_code_packages_scan_absent_from_receipts_logs": true,
+    "existing_static_auth_pin_retained": true,
+    "ordinary_route_shapes_preserved": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "repaired_memory_and_tool_mutation_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 42,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 42,
+      "log": "focused-311.log"
+    },
+    "affected_python314": {
+      "passed": 268,
+      "failed": 4,
+      "baseline_failures": 4,
+      "baseline_failure_list_identical": true,
+      "log": "affected-314.log",
+      "baseline_log": "baseline-affected-95f7-314.log"
+    },
+    "affected_python311": {
+      "passed": 268,
+      "failed": 4,
+      "baseline_failures": 4,
+      "baseline_failure_list_identical": true,
+      "log": "affected-311.log",
+      "baseline_log": "baseline-affected-95f7-311.log"
+    },
+    "baseline_python314": {
+      "passed": 234,
+      "failed": 4,
+      "log": "baseline-affected-95f7-314.log"
+    },
+    "baseline_python311": {
+      "passed": 234,
+      "failed": 4,
+      "log": "baseline-affected-95f7-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 34,
+    "route_coverage_controls": 8,
+    "focused_total": 42
+  },
+  "baseline_exclusions": {
+    "missing_package_marketplace_modules": {
+      "file": "tests/test_round22_marketplace_security.py",
+      "tests": [
+        "TestPackageRoutesRequireAuth::test_approve_package_requires_auth",
+        "TestPackageRoutesRequireAuth::test_install_packages_requires_auth",
+        "TestMarketplaceInstallRequiresAuth::test_install_marketplace_skill_requires_auth",
+        "TestPackageRoutesNoStrELeak::test_no_str_e_in_http_exceptions"
+      ],
+      "reason": "pre-existing absent api.package_routes/api.marketplace_routes import errors; identical on the accepted admin base and unrelated to the two skill decision routes"
+    }
+  },
+  "limits": [
+    "Exactly two community-skill decision routes; import/execute/list/get/episodes remain out of scope",
+    "No live skill/code sandbox, Docker, model, provider, credential, spend, send, download or deployment operation",
+    "No new table, migration or second review/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Repaired scoped-memory and tool-mutation branches are independent and not merged"
+  ]
+}

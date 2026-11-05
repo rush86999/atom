@@ -1,0 +1,12 @@
+executed_source: 5eb3cf62644e0350e0f487a58dfddc4b00dabbc0
+product_source: f8477493c80b198ec236bafa600b9bee230840fd
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-skill-review-20261105
+git_status_short:
+git_log:
+5eb3cf626 test(skills): cover the community-skill decision matrix
+f8477493c feat(skills): verify TEAM_LEAD+ community-skill decisions
+e198ab703 docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence

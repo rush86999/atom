@@ -1,0 +1,64 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "community-skill promote/delete verified decision family submitted for independent verification; import/execute and remaining skill surfaces remain open",
+  "branch": "codex/oracle01-skill-review-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "f8477493c80b198ec236bafa600b9bee230840fd",
+  "executed_source": "5eb3cf62644e0350e0f487a58dfddc4b00dabbc0",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/skill_routes.py": "77bba584257fc8b02605b0b05444b3f2d782d6855ed490ee355440dd002ef164",
+    "backend/core/skill_review_write_service.py": "b9f092798c126615b49a78730b110f465f8cb735d1cfbab7ab8d9b7b76b40035",
+    "backend/core/skill_registry_service.py": "397985f4dc85f70cdf5edcc575876aff5c8052f16336a969fdfc6e4f17661ebc",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_skill_review_write_contract.py": "77a8999661852fd5364099cb362dca975f2f9d9ed04d84a27b0db901b91608c2",
+    "backend/tests/test_covpush_w104_gaps_b.py": "53f36bceea8bce5c1cbed72e6f718d04d96c890a643612d391e810025f92f569",
+    "backend/tests/unit/api/test_skill_routes.py": "b45bb44176ee447b4312616de9967760b105277606110617e38adce999beb914",
+    "backend/tests/test_round22_marketplace_security.py": "ba3e87796a30c80da2a0e8ddcd149f2ee040787fa46828d1cda3fb6d3add97d9"
+  },
+  "artifacts": {
+    "README.md": "d6b155aad91484ea740b16e4b3ab2f371749f06c3e62510a6bb83423bb5e7a89",
+    "TEST_RESULTS.md": "09ef18ba572fd52b45205ff98ee87b4321f3e2af8905679e364254277f6f816d",
+    "affected-311.log": "9a89070b321c2bd247cd003fcb932aec398a618de663415d4c91a0fdd2bd347d",
+    "affected-314.log": "f35473342245a1eaa56ab19462444220e28fcda2002154eca355fc7bfe94d62b",
+    "baseline-affected-95f7-311.log": "d9d4c413d0992560d261d24e246ca346368eb3ece5cfbbae5840dd31d515795a",
+    "baseline-affected-95f7-314.log": "56c6830d7f4e9ea58b680f1ba5a5ff2126f6d97516724a225f8b9cd13c221a97",
+    "focused-311.log": "26f1b96c21e7080eaaaa82296423705c04c5d55c3726afe89a50dbbf680f594a",
+    "focused-314.log": "6dbdb96c85141bebeddd7cda4897a32fa0ac11020d565e29f5037a3cfd0b159e",
+    "routes.json": "3146fc92daef3ec2484e515e1b13cb76e5dc5f9459a8dabcfc325881f539c804",
+    "source-tree.txt": "ab66fb2cc58b93dfa9c5d75531a7bcbbcb70bbebd238874a1a982a917e3587fc",
+    "verification.json": "a36d03988fd674fbf024aa426adcab21470d7515dc0c9d866194aa33778d1849"
+  },
+  "checks": {
+    "focused_python314": "42 passed",
+    "focused_python311": "42 passed",
+    "affected_python314": "268 passed, 4 baseline failures",
+    "affected_python311": "268 passed, 4 baseline failures",
+    "baseline_python314": "234 passed, 4 failures",
+    "baseline_python311": "234 passed, 4 failures",
+    "baseline_failure_lists_identical": true,
+    "new_passing_controls": 34,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "missing_package_marketplace_modules": "4 pre-existing absent api.package_routes/api.marketplace_routes import errors in test_round22; identical on 9d73552d2"
+  },
+  "boundaries": [
+    "two community-skill decision routes only",
+    "no import/execute/list/get/episodes changes",
+    "no live skill/code sandbox, model, provider, credential, spend, send, download or deployment",
+    "no new table, migration or second review/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "repaired memory and tool-mutation branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}
