@@ -341,7 +341,7 @@ def test_budget_partial_merge_and_stale_update_refuses(env, monkeypatch):
     assert stale.status_code == 409, stale.text
 
 
-def test_audit_refuted_and_lost_confirmation_are_honest(env, monkeypatch):
+def test_audit_refuted_and_lost_confirmation_are_honest(env, monkeypatch, caplog):
     client = _client(env)
     original_audit_row = service._audit_row
 
@@ -387,6 +387,9 @@ def test_audit_refuted_and_lost_confirmation_are_honest(env, monkeypatch):
         assert lost.status_code == 503, lost.text
         assert lost.json()["detail"]["error"]["code"] == "ADMIN_EFFECT_UNKNOWN"
         assert "SYNTHETIC-ADMIN-SECRET" not in lost.text
+        assert "SYNTHETIC-ADMIN-SECRET" not in caplog.text
+        assert "password_hash" not in caplog.text
+        assert "INSERT INTO" not in caplog.text
     finally:
         env.app.dependency_overrides[get_db] = original_db
 

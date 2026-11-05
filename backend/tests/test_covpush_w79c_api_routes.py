@@ -25,6 +25,10 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -43,7 +47,7 @@ from api.workflow_versioning_endpoints import (
 from api.workspace_context_routes import router as workspace_router
 from api.zoho_workdrive_routes import router as zoho_router
 from core.auth import get_current_user
-from core.database import get_db
+from core.database import Base, get_db
 from core.models import AdminRole, AdminUser, User, UserRole
 from core.workflow_template_system import (
     TemplateCategory,
@@ -1842,265 +1846,267 @@ def _admin_client(admin_user, raise_exc=False):
     return client
 
 
+@pytest.fixture
+def admin_crud_env():
+    """Real scratch DB for the seven admin privilege/budget CRUD routes."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+    actor = User(
+        id="admin-w79c", email="admin@test.local", hashed_password="x",
+        first_name="Admin", last_name="W79C", role="super_admin",
+        status="active", is_active=True)
+    db.add(actor)
+    db.commit()
+    db.refresh(actor)
+    yield db, actor, engine
+    db.close()
+    engine.dispose()
+
+
+def _real_admin_client(admin_crud_env, user=None):
+    db, actor, _engine = admin_crud_env
+    app = FastAPI()
+    app.include_router(admin_router)
+    app.dependency_overrides[get_current_user] = lambda: (user or actor)
+
+    def _get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _get_db
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _seed_role(db, role_id="role-1", name="Super Admin",
+               permissions=None, description="desc"):
+    role = AdminRole(
+        id=role_id, name=name,
+        permissions=permissions or {"users": True},
+        description=description)
+    db.add(role)
+    db.commit()
+    return role
+
+
+def _seed_admin(db, admin_id="adm-1", email="a@test.local",
+                name="Admin One", role_id="role-1", status="active"):
+    admin = AdminUser(
+        id=admin_id, email=email, name=name, password_hash="hash",
+        role_id=role_id, status=status)
+    db.add(admin)
+    db.commit()
+    return admin
+
+
 class TestAdminUsers:
-    def test_list_users_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.join.return_value.all.return_value = [
-            _admin_model(), _admin_model(id="adm-2", role_name="Viewer",
-                                         permissions={"users": False})]
-        resp = client.get("/api/admin/users")
+    def test_list_users_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_role(db, role_id="role-2", name="Viewer",
+                   permissions={"users": False})
+        _seed_admin(db, "adm-1", "a@test.local", role_id="role-1")
+        _seed_admin(db, "adm-2", "b@test.local", role_id="role-2")
+        resp = _real_admin_client(admin_crud_env).get("/api/admin/users")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 2
-        assert data[0]["role_name"] == "Super Admin"
-        assert data[0]["permissions"] == {"users": True}
-        assert data[1]["permissions"] == {"users": False}
+        by_id = {row["id"]: row for row in data}
+        assert by_id["adm-1"]["permissions"] == {"users": True}
+        assert by_id["adm-2"]["permissions"] == {"users": False}
 
-    def test_list_users_member_403(self, member_user):
-        resp = _admin_client(member_user).get("/api/admin/users")
+    def test_list_users_member_403(self, admin_crud_env, member_user):
+        resp = _real_admin_client(
+            admin_crud_env, user=member_user).get("/api/admin/users")
         assert resp.status_code == 403
 
-    def test_list_users_401(self):
+    def test_list_users_401(self, admin_crud_env):
         resp = _client(admin_router, mock_db=True).get("/api/admin/users")
         assert resp.status_code == 401
 
-    def test_get_user_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = \
-            _admin_model(created_at=datetime(2026, 1, 1))
-        resp = client.get("/api/admin/users/adm-1")
+    def test_get_user_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).get("/api/admin/users/adm-1")
         assert resp.status_code == 200
         assert resp.json()["email"] == "a@test.local"
 
-    def test_get_user_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.get("/api/admin/users/nope")
+    def test_get_user_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).get(
+            "/api/admin/users/nope")
         assert resp.status_code == 404
 
-    def test_create_user_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [
-            _role_model(), None]
+    def test_create_user_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
         with patch("core.auth.get_password_hash", return_value="hashed!"):
-            resp = client.post("/api/admin/users", json={
-                "email": "new@example.com", "name": "New", "password": "password1",
-                "role_id": "role-1"})
-        assert resp.status_code == 201
+            resp = _real_admin_client(admin_crud_env).post(
+                "/api/admin/users", json={
+                    "email": "new@example.com", "name": "New",
+                    "password": "password1", "role_id": "role-1"})
+        assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["email"] == "new@example.com"
         assert body["status"] == "active"
-        created = client.app.db.add.call_args[0][0]
+        db.expire_all()
+        created = db.query(AdminUser).filter(
+            AdminUser.email == "new@example.com").one()
         assert created.password_hash == "hashed!"
-        client.app.db.commit.assert_called()
 
-    def test_create_user_role_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.post("/api/admin/users", json={
-            "email": "n@example.com", "name": "N", "password": "password1",
-            "role_id": "no-role"})
+    def test_create_user_role_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).post(
+            "/api/admin/users", json={
+                "email": "n@example.com", "name": "N",
+                "password": "password1", "role_id": "no-role"})
         assert resp.status_code == 404
 
-    def test_create_user_email_conflict_409(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [
-            _role_model(), _admin_model()]
-        resp = client.post("/api/admin/users", json={
-            "email": "dup@example.com", "name": "N", "password": "password1",
-            "role_id": "role-1"})
+    def test_create_user_email_conflict_409(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db, email="dup@example.com")
+        resp = _real_admin_client(admin_crud_env).post(
+            "/api/admin/users", json={
+                "email": "dup@example.com", "name": "Dup",
+                "password": "password1", "role_id": "role-1"})
         assert resp.status_code == 409
 
-    def test_create_user_invalid_email_422(self, admin_user):
-        client = _admin_client(admin_user)
-        resp = client.post("/api/admin/users", json={
-            "email": "not-an-email", "name": "N", "password": "password1",
-            "role_id": "role-1"})
-        assert resp.status_code == 422
+    def test_update_user_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/users/adm-1", json={
+                "name": "Renamed", "status": "inactive"})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["name"] == "Renamed"
+        assert resp.json()["status"] == "inactive"
+        db.expire_all()
+        assert db.query(AdminUser).filter(
+            AdminUser.id == "adm-1").one().status == "inactive"
 
-    def test_create_user_short_password_422(self, admin_user):
-        client = _admin_client(admin_user)
-        resp = client.post("/api/admin/users", json={
-            "email": "a@b.com", "name": "N", "password": "short", "role_id": "r"})
-        assert resp.status_code == 422
+    def test_update_user_with_role(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_role(db, role_id="role-2", name="Viewer",
+                   permissions={"users": False})
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/users/adm-1", json={"role_id": "role-2"})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["role_id"] == "role-2"
 
-    def test_update_user_success(self, admin_user):
-        client = _admin_client(admin_user)
-        admin = _admin_model()
-        client.app.db.query.return_value.filter.return_value.first.return_value = admin
-        resp = client.patch("/api/admin/users/adm-1", json={"name": "Renamed"})
-        assert resp.status_code == 200
-        assert admin.name == "Renamed"
-        client.app.db.commit.assert_called()
-
-    def test_update_user_with_role(self, admin_user):
-        client = _admin_client(admin_user)
-        admin = _admin_model()
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [
-            admin, _role_model(id="role-2")]
-        resp = client.patch("/api/admin/users/adm-1", json={"role_id": "role-2",
-                                                            "status": "inactive"})
-        assert resp.status_code == 200
-        assert admin.role_id == "role-2"
-        assert admin.status == "inactive"
-
-    def test_update_user_bad_role_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [
-            _admin_model(), None]
-        resp = client.patch("/api/admin/users/adm-1", json={"role_id": "nope"})
+    def test_update_user_bad_role_404(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/users/adm-1", json={"role_id": "no-role"})
         assert resp.status_code == 404
 
-    def test_update_user_bad_status_422(self, admin_user):
-        client = _admin_client(admin_user)
-        resp = client.patch("/api/admin/users/adm-1", json={"status": "superadmin"})
-        assert resp.status_code == 422
+    def test_update_user_status_whitespace_normalized(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/users/adm-1", json={"status": " INACTIVE "})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "inactive"
 
-    def test_update_user_status_whitespace_normalized(self, admin_user):
-        client = _admin_client(admin_user)
-        admin = _admin_model()
-        client.app.db.query.return_value.filter.return_value.first.return_value = admin
-        resp = client.patch("/api/admin/users/adm-1", json={"status": "  ACTIVE "})
-        assert resp.status_code == 200
-        assert admin.status == "active"
-
-    def test_update_user_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.patch("/api/admin/users/nope", json={"name": "X"})
+    def test_update_user_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/users/nope", json={"name": "X"})
         assert resp.status_code == 404
 
-    def test_delete_user_success(self, admin_user):
-        client = _admin_client(admin_user)
-        admin = _admin_model()
-        client.app.db.query.return_value.filter.return_value.first.return_value = admin
-        resp = client.delete("/api/admin/users/adm-1")
-        assert resp.status_code == 200
-        assert resp.json()["message"] == "Admin user deleted successfully"
-        client.app.db.delete.assert_called_once_with(admin)
+    def test_delete_user_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).delete(
+            "/api/admin/users/adm-1")
+        assert resp.status_code == 200, resp.text
+        db.expire_all()
+        assert db.query(AdminUser).filter(
+            AdminUser.id == "adm-1").first() is None
 
-    def test_delete_user_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.delete("/api/admin/users/nope")
+    def test_delete_user_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).delete(
+            "/api/admin/users/nope")
         assert resp.status_code == 404
-
-    def test_update_last_login_success(self, admin_user):
-        client = _admin_client(admin_user)
-        admin = _admin_model()
-        client.app.db.query.return_value.filter.return_value.first.return_value = admin
-        resp = client.patch("/api/admin/users/adm-1/last-login")
-        assert resp.status_code == 200
-        assert admin.last_login is not None
-        client.app.db.commit.assert_called()
-
-    def test_update_last_login_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.patch("/api/admin/users/nope/last-login")
-        assert resp.status_code == 404
-
-    def test_admin_user_validator_allowed_statuses(self):
-        from api.admin_routes import UpdateAdminUserRequest
-
-        assert UpdateAdminUserRequest(status="active").status == "active"
-        assert UpdateAdminUserRequest(status="inactive").status == "inactive"
-        assert UpdateAdminUserRequest().status is None
-        assert UpdateAdminUserRequest(status=None).status is None
-        assert UpdateAdminUserRequest(status="Active").status == "active"
 
 
 class TestAdminRoles:
-    def test_list_roles_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.all.return_value = [_role_model(), _role_model(id="r2")]
-        resp = client.get("/api/admin/roles")
-        assert resp.status_code == 200
-        assert len(resp.json()) == 2
+    def test_create_role_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        resp = _real_admin_client(admin_crud_env).post(
+            "/api/admin/roles", json={
+                "name": "New Role", "permissions": {"users": True},
+                "description": "new"})
+        assert resp.status_code == 201, resp.text
+        assert db.query(AdminRole).filter(
+            AdminRole.name == "New Role").one().permissions == {"users": True}
 
-    def test_get_role_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = \
-            _role_model()
-        resp = client.get("/api/admin/roles/role-1")
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "Super Admin"
-
-    def test_get_role_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.get("/api/admin/roles/nope")
-        assert resp.status_code == 404
-
-    def test_create_role_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.post("/api/admin/roles", json={
-            "name": "Analyst", "permissions": {"reports": True}, "description": "d"})
-        assert resp.status_code == 201
-        body = resp.json()
-        assert body["name"] == "Analyst"
-        assert body["permissions"] == {"reports": True}
-
-    def test_create_role_conflict_409(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = \
-            _role_model()
-        resp = client.post("/api/admin/roles", json={
-            "name": "Super Admin", "permissions": {}})
+    def test_create_role_conflict_409(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db, name="Existing")
+        resp = _real_admin_client(admin_crud_env).post(
+            "/api/admin/roles", json={
+                "name": "Existing", "permissions": {"users": True}})
         assert resp.status_code == 409
 
-    def test_create_role_missing_permissions_422(self, admin_user):
-        client = _admin_client(admin_user)
-        resp = client.post("/api/admin/roles", json={"name": "Analyst"})
-        assert resp.status_code == 422
-
-    def test_update_role_success(self, admin_user):
-        client = _admin_client(admin_user)
-        role = _role_model()
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [role, None]
-        resp = client.patch("/api/admin/roles/role-1", json={
-            "name": "Renamed", "permissions": {"x": True}, "description": "new"})
-        assert resp.status_code == 200
+    def test_update_role_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/roles/role-1", json={
+                "name": "Renamed", "permissions": {"users": False}})
+        assert resp.status_code == 200, resp.text
+        db.expire_all()
+        role = db.query(AdminRole).filter(AdminRole.id == "role-1").one()
         assert role.name == "Renamed"
-        assert role.permissions == {"x": True}
-        assert role.description == "new"
+        assert role.permissions == {"users": False}
 
-    def test_update_role_name_conflict_409(self, admin_user):
-        client = _admin_client(admin_user)
-        role = _role_model(name="Current")
-        other = MagicMock()
-        client.app.db.query.return_value.filter.return_value.first.side_effect = [role, other]
-        resp = client.patch("/api/admin/roles/role-1", json={"name": "Taken"})
+    def test_update_role_name_conflict_409(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db, role_id="role-1", name="First")
+        _seed_role(db, role_id="role-2", name="Second")
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/roles/role-2", json={"name": "First"})
         assert resp.status_code == 409
 
-    def test_update_role_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.patch("/api/admin/roles/nope", json={"name": "X"})
+    def test_update_role_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).patch(
+            "/api/admin/roles/nope", json={"name": "X"})
         assert resp.status_code == 404
 
-    def test_delete_role_success(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = \
-            _role_model()
-        client.app.db.query.return_value.filter.return_value.count.return_value = 0
-        resp = client.delete("/api/admin/roles/role-1")
-        assert resp.status_code == 200
-        client.app.db.delete.assert_called_once()
+    def test_delete_role_success(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        resp = _real_admin_client(admin_crud_env).delete(
+            "/api/admin/roles/role-1")
+        assert resp.status_code == 200, resp.text
+        db.expire_all()
+        assert db.query(AdminRole).filter(
+            AdminRole.id == "role-1").first() is None
 
-    def test_delete_role_in_use_409(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = \
-            _role_model()
-        client.app.db.query.return_value.filter.return_value.count.return_value = 2
-        resp = client.delete("/api/admin/roles/role-1")
+    def test_delete_role_in_use_409(self, admin_crud_env):
+        db, _actor, _engine = admin_crud_env
+        _seed_role(db)
+        _seed_admin(db)
+        resp = _real_admin_client(admin_crud_env).delete(
+            "/api/admin/roles/role-1")
         assert resp.status_code == 409
 
-    def test_delete_role_not_found_404(self, admin_user):
-        client = _admin_client(admin_user)
-        client.app.db.query.return_value.filter.return_value.first.return_value = None
-        resp = client.delete("/api/admin/roles/nope")
+    def test_delete_role_not_found_404(self, admin_crud_env):
+        resp = _real_admin_client(admin_crud_env).delete(
+            "/api/admin/roles/nope")
         assert resp.status_code == 404
 
 

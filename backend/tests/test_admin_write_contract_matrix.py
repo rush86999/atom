@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -185,6 +186,90 @@ def test_concurrent_budget_partial_updates_do_not_lose_fields(env):
         assert final.get("enforcement", {}).get("mode") == "hard_stop"
     else:
         assert final.get("enforcement", {}).get("mode") != "hard_stop"
+
+
+def test_budget_partial_update_preserves_unseen_enforcement_fields(env):
+    _seed_budget(env, json.dumps({
+        "budget_limit_usd": 10.0,
+        "enforcement": {
+            "mode": "soft_stop",
+            "override": {"user_id": "override-user"},
+        },
+    }))
+    response = _client(env).put(
+        "/api/admin/tenants/tenant-1/budget",
+        json={"budget_limit_usd": 25.0})
+    assert response.status_code == 200, response.text
+    final = _billing(env)
+    assert final["budget_limit_usd"] == 25.0
+    assert final["enforcement"]["mode"] == "soft_stop"
+    assert final["enforcement"]["override"] == {"user_id": "override-user"}
+
+
+def test_user_update_and_delete_preserve_concurrent_last_login(env):
+    client = _client(env)
+    peer = env.Session()
+    try:
+        peer.execute(update(AdminUser).where(
+            AdminUser.id == "admin-user-1").values(
+                last_login=datetime.now(timezone.utc)))
+        peer.commit()
+    finally:
+        peer.close()
+
+    updated = client.patch(
+        "/api/admin/users/admin-user-1", json={"name": "After Login"})
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["last_login"] is not None
+    fresh = env.Session()
+    try:
+        row = fresh.query(AdminUser).filter(
+            AdminUser.id == "admin-user-1").one()
+        assert row.name == "After Login"
+        assert row.last_login is not None
+    finally:
+        fresh.close()
+
+    peer = env.Session()
+    try:
+        peer.execute(update(AdminUser).where(
+            AdminUser.id == "admin-user-1").values(
+                last_login=datetime.now(timezone.utc)))
+        peer.commit()
+    finally:
+        peer.close()
+    deleted = client.delete("/api/admin/users/admin-user-1")
+    assert deleted.status_code == 200, deleted.text
+    fresh = env.Session()
+    try:
+        assert fresh.query(AdminUser).filter(
+            AdminUser.id == "admin-user-1").first() is None
+    finally:
+        fresh.close()
+
+
+def test_user_create_audit_and_response_omit_password_material(env):
+    password = "SYNTHETIC-ADMIN-PASSWORD-123"
+    response = _client(env).post(
+        "/api/admin/users",
+        json={"email": "password-check@example.com", "name": "Password Check",
+              "password": password, "role_id": "role-1"})
+    assert response.status_code == 201, response.text
+    operation_id = response.json()["operation_id"]
+    assert password not in response.text
+
+    db = env.Session()
+    try:
+        admin = db.query(AdminUser).filter(
+            AdminUser.email == "password-check@example.com").one()
+        password_hash = admin.password_hash
+        audit = db.query(AuditLog).filter(
+            AuditLog.id == operation_id).one()
+        assert password not in (audit.metadata_json or "")
+        assert password_hash not in (audit.metadata_json or "")
+        assert password_hash not in response.text
+    finally:
+        db.close()
 
 
 def test_fresh_session_consumers_observe_committed_role_permissions(env):
