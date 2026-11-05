@@ -1,27 +1,4 @@
 {
-  "schema": "atom-employee-evidence-1",
-  "status": "repair submitted for independent verification; ORCH-02/07 remain read-only preparation",
-  "branch": "codex/orch01-blueprint-20261105",
-  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
-  "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
-  "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
-  "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
-  "repair_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
-  "tree_clean_at_execution": true,
-  "source_files": {
-    "backend/advanced_workflow_orchestrator.py": "502b73884fc4e90ee5029f5c0982103c2cc2ed8ad581636a9e6e2638ed7042c1",
-    "backend/core/agents/workflow_blueprint.py": "4510d9cf96c8dca1f4b5e9644699f535b33a5b910f298bca400985cdb885f9f0",
-    "backend/core/workflow_blueprint_service.py": "718c0ceb489823334e6cee0f59894ebc8db45dde3e67f2ab9128d3bcaee1454c",
-    "backend/core/hitl_resume.py": "243e03e050f93dbce3db70e2ba31fe2d6c580bdc6d33f3117da303bf77bb303c",
-    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
-    "backend/integrations/workflow_approval_routes.py": "7edd4beb8c6a4657bd44ff4724787bf0699d00701ac965d4f6217ae979cd5de4",
-    "backend/tests/test_orch01_workflow_blueprint.py": "1b0848eadf9aed1a60291ddbefbedd1e25238708205956aaa7af32b8553c5a79",
-    "backend/tests/test_orch01_checkpoint_contract.py": "9c562b3f6eeaec906372da656bdc6f639b110ace23c1fe7b1ec413586ec3f57f",
-    "backend/tests/test_orch01_resume_durable.py": "f65c95da59e0dc40ca197fc8c43bd93950dd423349ede3af75d0659c78c902df",
-    "backend/tests/test_orch01_real_checkpoint_contract.py": "03694d6909adad6259c94e50c1396bcae452ba0223bb813ef3d4f567bd37a60d",
-    "backend/tests/test_verifier_orch01_binding_resume_4d3f.py": "5f6a7177009dc5332eea06c0b4f9883c4020a0fae127c5af4c823f5df0838a57",
-    "backend/tests/test_covpush_w105_workflow_approval_routes.py": "f1a6529c8787085fad2483e860e726a6c15b3b986062c02978190b5b4529770c"
-  },
   "artifacts": {
     "README.md": "0785cecbd2de42a767549d76b2364cd3a969e1ad1f54c0983558d16495060213",
     "TEST_RESULTS.md": "b83f3c74dca68d6cd4b7106b5e66524e043247cb52a7d89cbb4a7336c7a88ca5",
@@ -36,20 +13,7 @@
     "verifier-binding-resume-before.log": "da8ae7fc7913400d84a355b37209540a62cb2e86e21d51545dddf2b850f7667e",
     "verifier-contract-before.log": "b812f98795a5e6b880d0d2ed1326d79d331031b4d7aeefff85bd6d2e70da66f8"
   },
-  "checks": {
-    "focused_python314": "67 passed",
-    "focused_python311": "67 passed",
-    "affected_python314": "632 passed, 2 pre-existing failures",
-    "affected_python311": "632 passed, 2 pre-existing failures",
-    "verifier_negative_before": "4 failed on withheld source",
-    "prior_contract_controls": "28 passed",
-    "model_calls": 0,
-    "provider_calls": 0
-  },
-  "exclusions": {
-    "round67_round19": "2 pre-existing failures on withheld source 4d3fb66c5",
-    "scheduler_timing": "2 disclosed baseline timing failures; not in repair selection"
-  },
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
   "boundaries": [
     "controlled scratch SQLite and fresh sessions; no model/browser/provider",
     "no new review store or engine",
@@ -59,5 +23,43 @@
     "ORCH-02/07 remain read-only preparation",
     "accepted feedback/wait and employee episode lanes remain closed",
     "historical 111/123 and served-candidate scores/tags unchanged"
-  ]
+  ],
+  "branch": "codex/orch01-blueprint-20261105",
+  "checks": {
+    "affected_python311": "632 passed, 2 pre-existing failures",
+    "affected_python314": "632 passed, 2 pre-existing failures",
+    "focused_python311": "67 passed",
+    "focused_python314": "67 passed",
+    "model_calls": 0,
+    "prior_contract_controls": "28 passed",
+    "provider_calls": 0,
+    "verifier_negative_before": "4 failed on withheld source"
+  },
+  "code_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
+  "exclusions": {
+    "round67_round19": "2 pre-existing failures on withheld source 4d3fb66c5",
+    "scheduler_timing": "2 disclosed baseline timing failures; not in repair selection"
+  },
+  "executed_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
+  "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
+  "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
+  "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+  "repair_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/advanced_workflow_orchestrator.py": "502b73884fc4e90ee5029f5c0982103c2cc2ed8ad581636a9e6e2638ed7042c1",
+    "backend/core/agents/workflow_blueprint.py": "4510d9cf96c8dca1f4b5e9644699f535b33a5b910f298bca400985cdb885f9f0",
+    "backend/core/hitl_resume.py": "243e03e050f93dbce3db70e2ba31fe2d6c580bdc6d33f3117da303bf77bb303c",
+    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
+    "backend/core/workflow_blueprint_service.py": "718c0ceb489823334e6cee0f59894ebc8db45dde3e67f2ab9128d3bcaee1454c",
+    "backend/integrations/workflow_approval_routes.py": "7edd4beb8c6a4657bd44ff4724787bf0699d00701ac965d4f6217ae979cd5de4",
+    "backend/tests/test_covpush_w105_workflow_approval_routes.py": "f1a6529c8787085fad2483e860e726a6c15b3b986062c02978190b5b4529770c",
+    "backend/tests/test_orch01_checkpoint_contract.py": "9c562b3f6eeaec906372da656bdc6f639b110ace23c1fe7b1ec413586ec3f57f",
+    "backend/tests/test_orch01_real_checkpoint_contract.py": "03694d6909adad6259c94e50c1396bcae452ba0223bb813ef3d4f567bd37a60d",
+    "backend/tests/test_orch01_resume_durable.py": "f65c95da59e0dc40ca197fc8c43bd93950dd423349ede3af75d0659c78c902df",
+    "backend/tests/test_orch01_workflow_blueprint.py": "1b0848eadf9aed1a60291ddbefbedd1e25238708205956aaa7af32b8553c5a79",
+    "backend/tests/test_verifier_orch01_binding_resume_4d3f.py": "5f6a7177009dc5332eea06c0b4f9883c4020a0fae127c5af4c823f5df0838a57"
+  },
+  "status": "repair submitted for independent verification; ORCH-02/07 remain read-only preparation",
+  "tree_clean_at_execution": true
 }

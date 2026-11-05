@@ -2216,8 +2216,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         if not all(
                 str(params.get(key) or "") == str(material.get(key) or "")
                 for key in (
-                    "execution_id", "workflow_id", "step_id",
+                    "workflow_id", "step_id",
                     "guarded_digest", "input_digest")):
+            return False
+        # ``execution_id`` is the explicit binding in new rows; older rows used
+        # ``workflow_id`` for the same execution identity. Both remain readable,
+        # but a mismatched execution/definition still refuses.
+        expected_execution = str(
+            material.get("execution_id") or material.get("workflow_id") or "")
+        observed_execution = str(
+            params.get("execution_id") or params.get("workflow_id") or "")
+        if expected_execution != observed_execution:
             return False
         # New checkpoints bind the immutable definition identity. Legacy rows
         # that predate these keys remain readable, but a present binding must
