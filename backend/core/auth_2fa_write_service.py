@@ -166,13 +166,18 @@ def _actor_snapshot(user: User) -> Dict[str, Any]:
     }
 
 
+def _digest_value(value: Any) -> str:
+    """Distinguish NULL from empty string in replay digests."""
+    return "N" if value is None else f"V:{value}"
+
+
 def _actor_digest(actor: Dict[str, Any]) -> str:
     """Digest the authority fields that make the original actor valid."""
     return _fingerprint(
         "actor",
         actor["user_id"],
-        actor["tenant_id"],
-        actor["workspace_id"],
+        _digest_value(actor["tenant_id"]),
+        _digest_value(actor["workspace_id"]),
         actor["role"],
         actor["status"],
         "1" if actor["is_active"] else "0",
@@ -236,18 +241,18 @@ def _action_digest(action: Dict[str, Any]) -> str:
     return _fingerprint(
         "action",
         action["action_id"],
-        action["tenant_id"],
-        action["workspace_id"],
+        _digest_value(action["tenant_id"]),
+        _digest_value(action["workspace_id"]),
         action["action_type"],
         action["platform"],
         _canonical_json(action["params"]),
         _canonical_json(action["context_snapshot"]),
         action["priority"],
-        action["user_id"],
-        action["required_role"],
+        _digest_value(action["user_id"]),
+        _digest_value(action["required_role"]),
         action["required_confidence"],
-        action["chain_id"],
-        action["agent_id"],
+        _digest_value(action["chain_id"]),
+        _digest_value(action["agent_id"]),
     )
 
 
@@ -1499,7 +1504,23 @@ def verify_backup_code_verified(
             return _refused("Invalid backup code", field="code")
         original_codes = [
             str(c) for c in (user.two_factor_backup_codes or [])]
-        remaining = [c for c in original_codes if c != str(code)]
+        # Clean any stale legacy mirror entries whose durable row is already
+        # consumed. This prevents a stale count/list from resurrecting a code
+        # after a concurrent different-code consumption.
+        revision_rows = db.query(AuthTwoFactorBackupCode).filter(
+            AuthTwoFactorBackupCode.user_id == user.id,
+            AuthTwoFactorBackupCode.factor_revision == revision,
+        ).all()
+        consumed_fingerprints = {
+            str(candidate.code_fingerprint)
+            for candidate in revision_rows
+            if candidate.consumed_at is not None
+        }
+        remaining = [
+            c for c in original_codes
+            if c != str(code)
+            and _code_fingerprint(user.id, c) not in consumed_fingerprints
+        ]
         insert_material = _operation_material(
             "backup_verify", user, revision, code)
         actor_digest = _actor_digest(actor)

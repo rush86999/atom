@@ -15,6 +15,7 @@ import json
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 import pyotp
 import pytest
@@ -529,6 +530,43 @@ def test_database_error_never_exposes_factor_secret(
 # ---------------------------------------------------------------------------
 # Concurrent different-code consumption must not resurrect consumed codes
 # ---------------------------------------------------------------------------
+
+def test_stale_legacy_mirror_does_not_retain_consumed_codes(env):
+    user = _make_user(
+        env, enabled=True, secret=TEST_SECRET,
+        codes=[BACKUP_CODE_A, BACKUP_CODE_B])
+    env.db.add(AuthTwoFactorBackupCode(
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        workspace_id=user.workspace_id,
+        code_fingerprint=service._code_fingerprint(user.id, BACKUP_CODE_A),
+        factor_revision=0,
+        consumed_at=datetime.now(timezone.utc),
+        operation_id="older-consumed-operation",
+    ))
+    env.db.add(AuthTwoFactorBackupCode(
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        workspace_id=user.workspace_id,
+        code_fingerprint=service._code_fingerprint(user.id, BACKUP_CODE_B),
+        factor_revision=0,
+    ))
+    env.db.commit()
+
+    response = _client(env, user).post(
+        "/api/auth/2fa/backup/verify",
+        json={"code": BACKUP_CODE_B}, headers=AUTH_HEADERS)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["remaining_codes"] == 0
+    assert response.json()["verification"]["status"] == "verified"
+
+    env.db.expire_all()
+    refreshed = env.db.query(User).filter(User.id == user.id).one()
+    assert refreshed.two_factor_backup_codes == []
+    rows = _codes(env, user.id)
+    assert len(rows) == 2
+    assert all(row.consumed_at is not None for row in rows)
+
 
 def test_concurrent_different_backup_codes_stay_consistent(env):
     user = _make_user(

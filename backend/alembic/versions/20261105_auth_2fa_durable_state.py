@@ -65,6 +65,8 @@ def _fingerprint_code(user_id: str, code: str) -> str:
 def _backfill_backup_codes() -> None:
     if not _table_exists("auth_2fa_backup_codes"):
         return
+    if not _column_exists("users", "two_factor_backup_codes"):
+        return
     bind = op.get_bind()
     existing = {
         (str(row["user_id"]), str(row["code_fingerprint"]))
