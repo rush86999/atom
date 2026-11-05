@@ -1,0 +1,62 @@
+{
+  "schema": "atom-oracle-direct-canvas-manifest-1",
+  "status": "submitted for independent verification; whole-app ORACLE-01 remains open",
+  "branch": "codex/oracle01-http-canvas-20261105",
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+  "initial_slice_source": "326534847041be79f4cf078861bd6dc223be8cc4",
+  "duplicate_after_later_edit_fix": "852aaf0398e38c8b1897b4a5f1fed745d7c8ac66",
+  "executed_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/canvas_routes.py": "5697b1dde25908750c653d7f65b01e19166d5683be0b2b69a4d2c58a343663ae",
+    "backend/core/canvas_write_service.py": "c8c5050ae91edc7ed4519a86e6284ee1a96898fcc545faf5f80fd0a014e6a125",
+    "backend/core/oracle/postcondition_verifiers.py": "3276ef1ff579eaa6e34c14c30741d35bbf222ca6134ff1cdbe958cbca41e1117",
+    "backend/tools/canvas_crud_tool.py": "f936c402be7a4c9fa52928b8b0f7df0babfe5b608baf9ed26ad05d58a36f5042",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "d440fd1a6dc7baa2be281105e8c4ea058b95951a32abaad1649ec14a9db345d9",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0"
+  },
+  "artifacts": {
+    "README.md": "f3960b896c6867c57cdfbf1543f66826cd99a0da0baee3a6b8e830e3a98b8583",
+    "TEST_RESULTS.md": "489e96919a4a14d58bd3efae0116acb9080fbca3b7ebe8086f1be60e36ee035d",
+    "base-editor-pre-existing.log": "747fc028899afe25ef8ec126b172f328fdda479c512bc687ab2b745a71ca7d49",
+    "base-ws-pre-existing.log": "b60ad3b148b904d90588a1d4c030ff0a00e8596d90d7485f17d437f2aef96b93",
+    "canvas-actions-311.log": "dc9a8ed3f8b8d505f50fc3611ebd0cf53d409a300ed41a8b0bf00fd65e0c8648",
+    "canvas-actions-314.log": "6c8c6b19d0caa6e00443c241b76e16bbea2029b12191080710064d6c105571b3",
+    "canvas-neighborhood-311.log": "b5a356ec4972d6e3b74de6e85c9199e8a969b45eba640b2fc5b3c01cbde7e3bb",
+    "canvas-neighborhood-314.log": "f7a87861dfc0202f34216214482baaa2b97c00d4fd1e7da17c416c1b7613d19b",
+    "direct-311.log": "cc704e0999a73cd17c617aa52e18cc43bf02050b1ed3d9249962635e557fa242",
+    "direct-314.log": "333e4abdba89ea632778f10043d4007d69423c5d68fa0aecab11496602c8457b",
+    "feedback-regression-311.log": "5c766a0a8067d90cbe69880725837b90e3b58f09c857d1e0e8cdf9d7676cd0dd",
+    "feedback-regression-314.log": "ccbed3bc7ea9dd29fbae780a1ddf47e6360783303b0d71b1557caded9d563c00",
+    "routes.json": "e782f25147eadd738310c75aaafde49225a18dceb507acc34d165208e2082afe",
+    "verification.json": "dcc34648066a0e72ffd37e5351d235c386cf25f7a3157349b8f86a1895394185"
+  },
+  "checks": {
+    "direct_python314": "24 passed",
+    "direct_python311": "24 passed",
+    "canvas_neighborhood_python314": "207 passed, 8 deselected",
+    "canvas_neighborhood_python311": "181 passed, 8 deselected",
+    "canvas_actions_python314": "11 passed, 131 deselected",
+    "canvas_actions_python311": "11 passed, 131 deselected",
+    "feedback_regression_python314": "263 passed",
+    "feedback_regression_python311": "263 passed",
+    "control_count": 24,
+    "model_calls": 0,
+    "provider_calls": 0
+  },
+  "exclusions": {
+    "websocket_fixture_gap": "tests/test_covpush_canvasroutes.py::TestCanvasWebSocket; 4 failed/4 passed on base 81c5962bd",
+    "unrelated_editor_action_async": "18 failed/319 passed on base 81c5962bd",
+    "python311_contract": "tests/contract/test_canvas_api_contract.py excluded (no schemathesis); 26 tests ran on 3.14"
+  },
+  "boundaries": [
+    "bounded two-route family, not whole-app ORACLE-01 coverage",
+    "821 mounted mutation-shaped routes / 693 bypass candidates are historical discovery counts, not current verified coverage",
+    "other canvas routes, goals routes, provider writes, multi-worker/soak and PostgreSQL remain outside this slice",
+    "no new approval flow for ordinary saves",
+    "no cross-workspace restore",
+    "no tenant inferred from model content",
+    "no live model, provider, credential, spend, send, download or deployment authority",
+    "accepted CAS/feedback/wait/episode evidence and closed lanes are unchanged"
+  ]
+}

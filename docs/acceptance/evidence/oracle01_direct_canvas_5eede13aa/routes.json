@@ -1,0 +1,144 @@
+{
+  "schema": "atom-oracle-direct-canvas-routes-1",
+  "executed_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+  "prefix": "/api/canvas",
+  "mount": {
+    "file": "backend/main_api_app.py",
+    "http_router": "api.canvas_routes.router",
+    "websocket_router": "api.canvas_routes.ws_router",
+    "http_dependency": "require_pilot_user",
+    "user_dependency": "get_current_user"
+  },
+  "routes": [
+    {
+      "method": "PUT",
+      "path": "/api/canvas/{canvas_id}",
+      "handler": "api.canvas_routes.update_canvas_content",
+      "service": "core.canvas_write_service.update_canvas_verified",
+      "writer": "tools.canvas_crud_tool.update_canvas_content",
+      "verifier": "canvas.update",
+      "request": {
+        "body": "the canvas content JSON value, stored verbatim",
+        "query": {
+          "canvas_type": "optional, default generic",
+          "title": "optional",
+          "retype": "optional manual type pin",
+          "operation_id": "optional stable logical operation identity",
+          "expected_prior_audit_id": "optional optimistic-concurrency token"
+        }
+      },
+      "frozen_before_dispatch": [
+        "canonical content digest",
+        "actor_id",
+        "tenant_id",
+        "workspace_id",
+        "canvas_id",
+        "operation_id"
+      ],
+      "verified_readback": [
+        "exact CanvasAudit row by returned audit_id and canvas_id",
+        "audit action_type=update",
+        "audit content digest equals the frozen request content",
+        "audit operation_id equals the frozen operation when supplied",
+        "audit review_status=accepted",
+        "Canvas mirror content equals the audit content",
+        "audit and canvas tenant match the frozen actor tenant",
+        "audit actor matches the frozen actor",
+        "canvas workspace matches the frozen workspace",
+        "duplicate already_applied result is the latest audit row"
+      ],
+      "outcomes": [
+        "verified",
+        "no_change",
+        "committed_unverified",
+        "no_change_unverified",
+        "effect_unknown",
+        "refused"
+      ],
+      "http_refusal_mapping": {
+        "409": "stale expected_prior_audit_id",
+        "404": "canvas not found or not owned by the actor",
+        "400": "other before-write refusal"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/canvas/{canvas_id}/restore",
+      "handler": "api.canvas_routes.restore_canvas_version",
+      "service": "core.canvas_write_service.restore_canvas_verified",
+      "writer": "tools.canvas_crud_tool.restore_canvas_version",
+      "verifier": "canvas.restore_version",
+      "request": {
+        "body": {
+          "audit_id": "the CanvasAudit row to restore"
+        }
+      },
+      "frozen_before_dispatch": [
+        "actor_id",
+        "tenant_id",
+        "workspace_id",
+        "canvas_id",
+        "restore_audit_id"
+      ],
+      "verified_readback": [
+        "exact new CanvasAudit row by returned audit_id and canvas_id",
+        "audit action_type=update",
+        "restored_from.audit_id equals the frozen target",
+        "restored content equals the canonical target content",
+        "Canvas mirror content equals the restored content",
+        "audit and canvas tenant match the frozen actor tenant",
+        "audit actor matches the frozen actor",
+        "canvas workspace matches the frozen workspace",
+        "no-change restore target content equals the current latest content"
+      ],
+      "outcomes": [
+        "verified",
+        "no_change",
+        "committed_unverified",
+        "no_change_unverified",
+        "effect_unknown",
+        "refused"
+      ],
+      "http_refusal_mapping": {
+        "404": "canvas or target audit not found or not owned by the actor",
+        "400": "other before-write refusal (for example a deletion marker)"
+      }
+    }
+  ],
+  "covered_controls": [
+    "direct PUT positive twin with fresh-session audit/mirror readback",
+    "direct restore positive twin with append-only provenance",
+    "exact content despite equal title and length",
+    "duplicate operation idempotency without a second audit",
+    "byte-identical deliberate edit without an operation id",
+    "duplicate operation after a later edit is unverified and does not revert the later content",
+    "no-change restore with no audit appended",
+    "stale expected_prior_audit_id refusal",
+    "foreign user/canvas and foreign audit refusal",
+    "workspace and tenant mismatch after commit",
+    "oracle None, exception, refuted and kill-switch outcomes",
+    "effect_unknown identity retention",
+    "no-change under the kill switch is unverified with no audit",
+    "verifier-level operation, absent-audit, stale-mirror and restore-target mismatches",
+    "no request DB session passed to the verifier"
+  ],
+  "not_covered": [
+    "other canvas routes (context/state, logic, WebSocket state updates, submit, fork, delete)",
+    "goals routes",
+    "provider writes",
+    "multi-worker/soak and PostgreSQL",
+    "the whole-app ORACLE-01 mutation inventory"
+  ],
+  "authority": {
+    "approval_flow_added": false,
+    "cross_workspace_restore": false,
+    "tenant_inferred_from_model_content": false,
+    "live_model": false,
+    "live_provider": false,
+    "credential_change": false,
+    "spend": false,
+    "send": false,
+    "download": false,
+    "deployment": false
+  }
+}
