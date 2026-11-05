@@ -1,0 +1,102 @@
+{
+  "schema": "atom-oracle-direct-canvas-atomic-scope-1",
+  "status": "atomic-scope repair submitted for independent verification; whole-app ORACLE-01 remains open",
+  "candidate": {
+    "branch": "codex/oracle01-http-canvas-20261105",
+    "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+    "previous_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+    "previous_evidence_commit": "48ee4cee9778c1ddb27255eadf7561ecf4278de9",
+    "repair_source": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled fault seams; no model/provider/browser"
+  },
+  "checks": {
+    "put_workspace_move_after_check_refuses_before_effect": true,
+    "put_tenant_move_after_check_refuses_before_effect": true,
+    "restore_workspace_move_after_check_refuses_before_effect": true,
+    "restore_tenant_move_after_check_refuses_before_effect": true,
+    "null_to_default_move_refuses_before_effect": true,
+    "duplicate_operation_mirror_refresh_guarded": true,
+    "audit_and_mirror_rollback_together_on_zero_match": true,
+    "winning_scope_move_survives": true,
+    "zero_broadcast_on_conflict": true,
+    "zero_learning_capture_on_conflict": true,
+    "unchanged_scope_put_still_verifies": true,
+    "unchanged_scope_restore_still_verifies": true,
+    "fresh_session_state_checked": true,
+    "post_commit_scope_change_still_committed_unverified": true,
+    "post_commit_stale_mirror_still_committed_unverified": true,
+    "independent_verifier_four_interleavings_pass": true,
+    "original_45_controls_preserved": true,
+    "affected_adjacent_selection_green": true,
+    "no_model_or_provider_calls": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 55,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 55,
+      "log": "focused-311.log"
+    },
+    "affected_python314": {
+      "passed": 187,
+      "deselected": 8,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 187,
+      "deselected": 8,
+      "log": "affected-311.log"
+    },
+    "adjacent_python314": {
+      "passed": 34,
+      "log": "adjacent-314.log"
+    },
+    "adjacent_python311": {
+      "passed": 34,
+      "log": "adjacent-311.log"
+    },
+    "external_probe_python314": {
+      "passed": 4,
+      "log": "external-probe-314.log"
+    },
+    "verifier_atomic_before": {
+      "failed": 4,
+      "log": "verifier-atomic-before.log"
+    },
+    "verifier_focused_before": {
+      "passed": 45,
+      "log": "verifier-focused-before.log"
+    },
+    "verifier_affected_before": {
+      "passed": 211,
+      "log": "verifier-affected-before.log"
+    }
+  },
+  "focused_breakdown": {
+    "original_direct_controls": 39,
+    "original_scope_probe_cases": 6,
+    "new_direct_atomic_controls": 6,
+    "new_verifier_atomic_interleavings": 4,
+    "total": 55
+  },
+  "ordering": {
+    "scope_move_before_old_effect": "guarded DML matches zero rows; rollback; 409; zero effect",
+    "scope_move_after_authorized_commit": "post-effect readback refutes; committed_unverified; identity retained; no replay",
+    "distinction_recorded_in": [
+      "test_direct_put_scope_move_after_writer_check_refuses_before_commit",
+      "test_direct_restore_scope_move_after_writer_check_refuses_before_commit",
+      "test_direct_put_post_commit_scope_change_is_committed_unverified"
+    ]
+  },
+  "limits": [
+    "No second store, router, process-local lock or new oracle",
+    "PostgreSQL concurrency/soak is not claimed; SQLite guarded DML is the tested boundary",
+    "Other canvas routes, goals routes, provider writes and whole-app ORACLE-01 remain outside this slice",
+    "Auth/2FA remains read-only next-family preparation",
+    "Feedback/shared CAS/wait/employee acceptance remains closed",
+    "No new provider, credential, consent, spend, send, download or deployment authority"
+  ]
+}
