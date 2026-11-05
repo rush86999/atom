@@ -5,11 +5,19 @@ Handles administrative users and role-based access control
 from datetime import datetime, timezone
 import logging
 from typing import Dict, List, Optional
-from fastapi import Depends, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.admin_write_service import (
+    create_admin_role as _create_admin_role,
+    create_admin_user as _create_admin_user,
+    delete_admin_role as _delete_admin_role,
+    delete_admin_user as _delete_admin_user,
+    update_admin_role as _update_admin_role,
+    update_admin_user as _update_admin_user,
+)
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
@@ -43,6 +51,75 @@ async def require_super_admin(current_user: User = Depends(get_current_user)) ->
             details={"required_role": "super_admin", "actual_role": current_user.role}
         )
     return current_user
+
+
+def _raise_admin_write(result: dict) -> None:
+    """Map the shared verified-write envelope to the existing HTTP contract."""
+    status = str(result.get("status") or "")
+    if status == "refused":
+        http_status = int(result.get("http_status") or 422)
+        message = str(result.get("error") or "Admin request refused")
+        field = result.get("field")
+        if http_status == 404:
+            raise HTTPException(status_code=404, detail=message)
+        if http_status == 403:
+            raise router.permission_denied_error(
+                "Admin request", details={"reason": message})
+        raise router.validation_error(field or "request", message)
+    if status == "conflict":
+        raise router.conflict_error(
+            message=str(result.get("error") or "Admin record changed"),
+            details={
+                "code": result.get("error_code"),
+                "operation_id": result.get("operation_id"),
+            },
+        )
+    if status == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "ADMIN_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The admin transaction did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_type": result.get("target_type"),
+                "target_id": result.get("target_id"),
+            },
+        )
+    if status in ("committed_unverified", "effect_unknown"):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": (
+                        "ADMIN_EFFECT_UNKNOWN"
+                        if status == "effect_unknown"
+                        else "ADMIN_COMMITTED_UNVERIFIED"),
+                    "message": result.get("message") or (
+                        "Admin mutation outcome is not confirmed."),
+                },
+                "status": status,
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_type": result.get("target_type"),
+                "target_id": result.get("target_id"),
+                "replay": "do_not_repeat",
+            },
+        )
+
+
+def _verification_fields(result: dict) -> dict:
+    return {
+        "verification": result.get("verification"),
+        "operation_id": result.get("operation_id"),
+        "audit_id": result.get("audit_id"),
+    }
 
 
 # Request/Response Models
@@ -103,8 +180,11 @@ class AdminUserResponse(BaseModel):
     name: str
     role_id: str
     status: str
-    last_login: Optional[datetime]
-    created_at: Optional[datetime]
+    last_login: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    verification: Optional[dict] = None
+    operation_id: Optional[str] = None
+    audit_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,6 +192,9 @@ class AdminUserResponse(BaseModel):
 class DeleteAdminUserResponse(BaseModel):
     """Response after deleting admin user"""
     message: str
+    verification: Optional[dict] = None
+    operation_id: Optional[str] = None
+    audit_id: Optional[str] = None
 
 
 class CreateAdminRoleRequest(BaseModel):
@@ -134,6 +217,9 @@ class AdminRoleResponse(BaseModel):
     name: str
     permissions: Dict[str, bool]
     description: Optional[str]
+    verification: Optional[dict] = None
+    operation_id: Optional[str] = None
+    audit_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -141,6 +227,9 @@ class AdminRoleResponse(BaseModel):
 class DeleteAdminRoleResponse(BaseModel):
     """Response after deleting admin role"""
     message: str
+    verification: Optional[dict] = None
+    operation_id: Optional[str] = None
+    audit_id: Optional[str] = None
 
 
 # Endpoints
@@ -211,62 +300,17 @@ async def create_admin_user(
     http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
 ):
-    """
-    Create a new admin user
-
-    Creates a new admin user with the specified role.
-    Requires super_admin role.
-
-    **Governance**: Agent-based creation requires AUTONOMOUS maturity (CRITICAL).
-    - Admin user creation is a critical action
-    - Requires AUTONOMOUS maturity for agents
-    """
-    # Check if role exists
-    role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
-    if not role:
-        raise router.not_found_error(
-            "AdminRole",
-            request.role_id,
-            details={"field": "role_id"}
-        )
-
-    # Check if email already exists
-    existing = db.query(AdminUser).filter(AdminUser.email == request.email).first()
-    if existing:
-        raise router.conflict_error(
-            message="Admin user with this email already exists",
-            conflicting_resource=request.email,
-            details={"field": "email", "email": request.email}
-        )
-
-    # Hash password (import from auth)
-    from core.auth import get_password_hash
-    password_hash = get_password_hash(request.password)
-
-    admin = AdminUser(
-        email=request.email,
-        name=request.name,
-        password_hash=password_hash,
-        role_id=request.role_id,
-        status="active"
-    )
-
-    db.add(admin)
-    db.commit()
-    db.refresh(admin)
-
-    logger.info(f"Admin user created: {admin.id} by {current_admin.id}")
+    """Create a platform admin user through the durable verified write."""
+    result = _create_admin_user(
+        db, actor=current_admin, email=str(request.email),
+        name=request.name, password=request.password,
+        role_id=request.role_id, operation_id=operation_id)
+    _raise_admin_write(result)
     return AdminUserResponse(
-        id=admin.id,
-        email=admin.email,
-        name=admin.name,
-        role_id=admin.role_id,
-        status=admin.status,
-        last_login=admin.last_login,
-        created_at=admin.created_at
-    )
+        **result["data"], **_verification_fields(result))
 
 
 @router.patch("/users/{admin_id}", response_model=AdminUserResponse)
@@ -274,47 +318,17 @@ async def update_admin_user(
     admin_id: str,
     request: UpdateAdminUserRequest,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    operation_id: Optional[str] = None,
 ):
-    """
-    Update admin user
-
-    Updates admin user information. Only provided fields are updated.
-    Requires super_admin role.
-    """
-    admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
-
-    if not admin:
-        raise router.not_found_error("AdminUser", admin_id)
-
-    # Update only provided fields
-    if request.name is not None:
-        admin.name = request.name
-    if request.role_id is not None:
-        # Verify role exists
-        role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
-        if not role:
-            raise router.not_found_error(
-                "AdminRole",
-                request.role_id,
-                details={"field": "role_id"}
-            )
-        admin.role_id = request.role_id
-    if request.status is not None:
-        admin.status = request.status
-
-    db.commit()
-    db.refresh(admin)
-
+    """Update a platform admin user with a material CAS claim."""
+    changes = request.model_dump(exclude_unset=True)
+    result = _update_admin_user(
+        db, actor=current_admin, admin_id=admin_id,
+        changes=changes, operation_id=operation_id)
+    _raise_admin_write(result)
     return AdminUserResponse(
-        id=admin.id,
-        email=admin.email,
-        name=admin.name,
-        role_id=admin.role_id,
-        status=admin.status,
-        last_login=admin.last_login,
-        created_at=admin.created_at
-    )
+        **result["data"], **_verification_fields(result))
 
 
 @router.delete("/users/{admin_id}", response_model=DeleteAdminUserResponse)
@@ -328,29 +342,17 @@ async def delete_admin_user(
     http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
 ):
-    """
-    Delete admin user
-
-    Permanently deletes an admin user.
-    Requires super_admin role.
-
-    **Governance**: Agent-based deletion requires AUTONOMOUS maturity (CRITICAL).
-    - Admin user deletion is a critical action
-    - Requires AUTONOMOUS maturity for agents
-    """
-    admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
-
-    if not admin:
-        raise router.not_found_error("AdminUser", admin_id)
-
-    deleted_email = admin.email
-    db.delete(admin)
-    db.commit()
-
-    logger.info(f"Admin user deleted: {admin_id} ({deleted_email}) by {current_admin.id}")
-    return DeleteAdminUserResponse(message="Admin user deleted successfully")
+    """Delete a platform admin user with a material CAS claim."""
+    result = _delete_admin_user(
+        db, actor=current_admin, admin_id=admin_id,
+        operation_id=operation_id)
+    _raise_admin_write(result)
+    return DeleteAdminUserResponse(
+        message=result["data"]["message"],
+        **_verification_fields(result))
 
 
 @router.patch("/users/{admin_id}/last-login", response_model=UpdateLastLoginResponse)
@@ -435,43 +437,17 @@ async def create_admin_role(
     http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
 ):
-    """
-    Create a new admin role
-
-    Creates a new admin role with specified permissions.
-    Role names must be unique.
-
-    **Governance**: Agent-based creation requires AUTONOMOUS maturity (CRITICAL).
-    - Admin role creation is a critical action
-    - Requires AUTONOMOUS maturity for agents
-    """
-    # Check if role name already exists
-    existing = db.query(AdminRole).filter(AdminRole.name == request.name).first()
-    if existing:
-        raise router.conflict_error(
-            message="Role with this name already exists",
-            conflicting_resource=request.name,
-            details={"field": "name", "name": request.name}
-        )
-
-    role = AdminRole(
-        name=request.name,
-        permissions=request.permissions,
-        description=request.description
-    )
-
-    db.add(role)
-    db.commit()
-    db.refresh(role)
-
+    """Create a platform admin role through the durable verified write."""
+    result = _create_admin_role(
+        db, actor=current_admin, name=request.name,
+        permissions=request.permissions, description=request.description,
+        operation_id=operation_id)
+    _raise_admin_write(result)
     return AdminRoleResponse(
-        id=role.id,
-        name=role.name,
-        permissions=role.permissions,
-        description=role.description
-    )
+        **result["data"], **_verification_fields(result))
 
 
 @router.patch("/roles/{role_id}", response_model=AdminRoleResponse)
@@ -479,47 +455,17 @@ async def update_admin_role(
     role_id: str,
     request: UpdateAdminRoleRequest,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    operation_id: Optional[str] = None,
 ):
-    """
-    Update admin role
-
-    Updates role information. Only provided fields are updated.
-    """
-    role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
-
-    if not role:
-        raise router.not_found_error("AdminRole", role_id)
-
-    # Check if new name conflicts with existing role
-    if request.name is not None and request.name != role.name:
-        existing = db.query(AdminRole).filter(
-            AdminRole.name == request.name,
-            AdminRole.id != role_id
-        ).first()
-        if existing:
-            raise router.conflict_error(
-                message="Role with this name already exists",
-                conflicting_resource=request.name,
-                details={"field": "name", "name": request.name}
-            )
-        role.name = request.name
-
-    # Update other fields
-    if request.permissions is not None:
-        role.permissions = request.permissions
-    if request.description is not None:
-        role.description = request.description
-
-    db.commit()
-    db.refresh(role)
-
+    """Update a platform admin role with a material CAS claim."""
+    changes = request.model_dump(exclude_unset=True)
+    result = _update_admin_role(
+        db, actor=current_admin, role_id=role_id,
+        changes=changes, operation_id=operation_id)
+    _raise_admin_write(result)
     return AdminRoleResponse(
-        id=role.id,
-        name=role.name,
-        permissions=role.permissions,
-        description=role.description
-    )
+        **result["data"], **_verification_fields(result))
 
 
 @router.delete("/roles/{role_id}", response_model=DeleteAdminRoleResponse)
@@ -533,35 +479,17 @@ async def delete_admin_role(
     http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
 ):
-    """
-    Delete admin role
-
-    Permanently deletes an admin role.
-    Fails if the role is currently assigned to any admin users.
-
-    **Governance**: Agent-based deletion requires AUTONOMOUS maturity (CRITICAL).
-    - Admin role deletion is a critical action
-    - Requires AUTONOMOUS maturity for agents
-    """
-    role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
-
-    if not role:
-        raise router.not_found_error("AdminRole", role_id)
-
-    # Check if role is in use
-    users_with_role = db.query(AdminUser).filter(AdminUser.role_id == role_id).count()
-    if users_with_role > 0:
-        raise router.conflict_error(
-            message=f"Cannot delete role: {users_with_role} admin user(s) still assigned to this role",
-            details={"users_count": users_with_role, "role_id": role_id}
-        )
-
-    db.delete(role)
-    db.commit()
-
-    return DeleteAdminRoleResponse(message="Admin role deleted successfully")
+    """Delete a platform admin role with a material/in-use CAS claim."""
+    result = _delete_admin_role(
+        db, actor=current_admin, role_id=role_id,
+        operation_id=operation_id)
+    _raise_admin_write(result)
+    return DeleteAdminRoleResponse(
+        message=result["data"]["message"],
+        **_verification_fields(result))
 
 
 # ============================================================================

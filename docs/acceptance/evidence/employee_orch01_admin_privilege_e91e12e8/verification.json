@@ -1,0 +1,64 @@
+{
+  "schema": "atom-oracle-admin-privilege-1",
+  "status": "seven-route admin privilege/budget verified-write slice submitted for independent verification; remaining admin routes and whole-app ORACLE-01 remain open",
+  "candidate": {
+    "branch": "codex/oracle01-admin-privilege-20261105",
+    "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "executed_source": "e91e12e82cfd13d2d748b0c29e5a51454fa2e5dc",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled interleaving/fault seams; no model/provider/browser"
+  },
+  "checks": {
+    "role_create_unique_name_db_arbiter": true,
+    "role_update_material_cas": true,
+    "role_delete_in_use_refused": true,
+    "role_delete_vs_assignment_no_dangling_user": true,
+    "user_create_unique_email_db_arbiter": true,
+    "user_create_role_existence_in_insert": true,
+    "user_update_material_cas_including_last_login": true,
+    "user_delete_material_cas": true,
+    "budget_partial_merge": true,
+    "budget_exact_setting_cas": true,
+    "budget_non_finite_and_mode_validation": true,
+    "actor_demotion_disablement_before_claim_refused": true,
+    "same_operation_same_material_already_applied": true,
+    "same_operation_changed_material_conflict": true,
+    "later_target_revision_unverified": true,
+    "tombstone_delete_replay": true,
+    "audit_missing_type_actor_target_material_scope_refused": true,
+    "lost_confirmation_effect_unknown": true,
+    "no_password_hash_token_secret_or_sql_parameter_in_receipts": true,
+    "fresh_session_permission_consumer_observes_commit": true,
+    "fresh_session_budget_consumer_observes_commit": true,
+    "ordinary_response_shapes_preserved": true,
+    "no_second_authorization_approval_or_operation_engine": true,
+    "no_schema_change_or_migration_required": true,
+    "no_model_or_provider_calls": true
+  },
+  "results": {
+    "focused_python314": {"passed": 190, "skipped": 2, "log": "focused-314.log"},
+    "focused_python311": {"passed": 190, "skipped": 2, "log": "focused-311.log"},
+    "matrix_python314": {"passed": 33, "log": "matrix-314.log"},
+    "matrix_python311": {"passed": 33, "log": "matrix-311.log"},
+    "affected_python314": {"passed": 400, "skipped": 3, "failed": 1, "failed_pre_existing_on_accepted_base": true, "log": "affected-314.log"},
+    "affected_python311": {"passed": 400, "skipped": 3, "failed": 1, "failed_pre_existing_on_accepted_base": true, "log": "affected-311.log"}
+  },
+  "exclusions": {
+    "intervention_default_workspace": {
+      "test": "tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter",
+      "reason": "fails on the accepted auth/2FA base without this repair",
+      "log": "base-pre-existing.log"
+    },
+    "unrelated_w75b_admin": {
+      "reason": "skill/cache/health admin modules have pre-existing 401 fixture failures and are outside this seven-route slice",
+      "included": false
+    }
+  },
+  "limits": [
+    "Exactly seven routes; remaining admin routes, login/password/SSO/passkeys and whole-app ORACLE-01 remain outside this slice",
+    "PostgreSQL runtime/soak, multi-worker serialization and live administrator/account/budget changes are not qualified",
+    "No live provider, credential, spend, send, download or deployment authority",
+    "No new approval prompt; existing super-admin/platform-admin policy is retained",
+    "Accepted canvas/auth-2FA/ORCH-01/feedback/wait/employee lanes and historical model scores remain unchanged"
+  ]
+}

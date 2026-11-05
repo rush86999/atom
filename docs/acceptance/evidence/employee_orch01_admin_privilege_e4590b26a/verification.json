@@ -1,0 +1,135 @@
+{
+  "schema": "atom-oracle-admin-privilege-1",
+  "status": "seven-route admin privilege/budget verified-write slice submitted for independent verification; remaining admin routes and whole-app ORACLE-01 remain open",
+  "candidate": {
+    "branch": "codex/oracle01-admin-privilege-20261105",
+    "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "product_source": "e91e12e82cfd13d2d748b0c29e5a51454fa2e5dc",
+    "executed_source": "e4590b26a0e0cbdacbccd032f7b77104296309df",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled interleaving/fault seams; no model/provider/browser"
+  },
+  "checks": {
+    "seven_routes_use_shared_verified_write_service": true,
+    "actor_authority_and_active_state_frozen_before_claim": true,
+    "concurrent_actor_demotion_or_disable_refuses_zero_effect": true,
+    "role_user_create_uses_database_unique_arbiter": true,
+    "role_user_update_delete_use_material_cas": true,
+    "role_delete_uses_not_exists_and_fk_no_dangling_assignment": true,
+    "budget_update_uses_exact_setting_value_cas": true,
+    "budget_partial_update_preserves_unseen_fields": true,
+    "non_finite_budget_values_rejected_without_500": true,
+    "operation_identity_and_material_digest_are_bound": true,
+    "same_operation_same_material_is_already_applied": true,
+    "same_operation_changed_material_conflicts": true,
+    "later_target_revision_is_not_acknowledged_as_success": true,
+    "tombstone_replay_after_delete_is_verified": true,
+    "audit_missing_or_wrong_is_not_success": true,
+    "lost_confirmation_is_effect_unknown_with_identity": true,
+    "fresh_session_role_permission_consumer_observes_commit": true,
+    "fresh_session_budget_consumers_observe_commit": true,
+    "concurrent_last_login_writer_is_preserved": true,
+    "password_hash_token_secret_sql_absent_from_receipts_errors_logs": true,
+    "existing_admin_response_status_shapes_preserved": true,
+    "no_new_admin_table_or_migration": true,
+    "no_model_or_provider_calls": true,
+    "no_live_admin_account_budget_or_provider_change": true
+  },
+  "results": {
+    "focused_core_python314": {
+      "passed": 193,
+      "skipped": 1,
+      "log": "focused-314.log"
+    },
+    "focused_core_python311": {
+      "passed": 193,
+      "skipped": 1,
+      "log": "focused-311.log"
+    },
+    "w79c_admin_crud_python314": {
+      "passed": 23,
+      "deselected": 199,
+      "log": "w79c-admin-314.log"
+    },
+    "w79c_admin_crud_python311": {
+      "passed": 23,
+      "deselected": 199,
+      "log": "w79c-admin-311.log"
+    },
+    "matrix_python314": {
+      "passed": 36,
+      "log": "matrix-314.log"
+    },
+    "matrix_python311": {
+      "passed": 36,
+      "log": "matrix-311.log"
+    },
+    "base_contract_python314": {
+      "passed": 10,
+      "log": "base-contract-314.log"
+    },
+    "base_contract_python311": {
+      "passed": 10,
+      "log": "base-contract-311.log"
+    },
+    "affected_python314": {
+      "passed": 1165,
+      "skipped": 3,
+      "failed": 0,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 1165,
+      "skipped": 3,
+      "failed": 0,
+      "log": "affected-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "base_contract_controls": 10,
+    "failure_first_matrix_controls": 36,
+    "existing_admin_crud_coverage_controls": 147,
+    "focused_core_total": 193,
+    "w79c_admin_crud_controls": 23,
+    "combined_focused_total": 216,
+    "affected_selection_total": 1165,
+    "overlap_note": "matrix is a subset of focused core; focused core and W79C selections overlap only where noted; totals are not added across selections"
+  },
+  "baseline_exclusions": {
+    "unrelated_model_physics_52": {
+      "base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+      "log": "baseline-exclusions-52.log",
+      "counts": {
+        "test_covpush_w75b_admin": 31,
+        "test_workspace_permissions": 9,
+        "test_directory_permissions": 9,
+        "test_phase21_rbac": 3
+      },
+      "reason": "unrelated cache/health/skill and permission-model controls reproduce on the accepted base without this slice"
+    },
+    "w79c_workflow_template_38": {
+      "log": "w79c-pre-existing-314.log",
+      "reason": "full W79C workflow-template section retains pre-existing failures on both baseline and repaired source; admin CRUD classes are selected separately and pass 23/23"
+    },
+    "integration_audit_timing_flake": {
+      "test": "tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error",
+      "logs": [
+        "integration-audit-314.log",
+        "integration-audit-311.log"
+      ],
+      "reason": "millisecond-clock timing flake; passes in isolation on both versions; final affected selection is green"
+    },
+    "two_factor_lane_w104": {
+      "log": "base-pre-existing.log",
+      "reason": "known 2FA-lane baseline failure on the accepted auth/2FA base; 2FA lane is closed and was not replayed"
+    }
+  },
+  "limits": [
+    "Seven routes only; remaining admin routes, login/password/SSO/passkeys and full auth-family coverage remain outside this slice",
+    "No live administrator/account/budget change, provider, credential, spend, send, download or deployment authority",
+    "No second authorization/approval/audit/operation engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and live identity/provider operation are not qualified",
+    "The existing AuditLog table is the durable ledger; no new schema/migration was added",
+    "Whole-app ORACLE-01 remains open; accepted canvas/auth-2FA/ORCH-01/feedback/wait/employee lanes and historical model scores are unchanged"
+  ]
+}
