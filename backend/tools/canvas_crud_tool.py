@@ -465,6 +465,126 @@ def canonical_update_content(
     return coerce_email_canvas(canvas_type, content)
 
 
+def _scope_cas_predicates(
+    canvas_id: str,
+    expected_tenant: Any,
+    expected_workspace: Any,
+):
+    """Database predicates matching the authorized canvas scope snapshot.
+
+    Mirrors ``_scope_allows`` exactly, including the legacy null/default
+    policy. A scope move after the authorization read makes the guarded DML
+    match zero rows instead of writing into the new scope.
+    """
+    from sqlalchemy import or_
+
+    from core.models import Canvas
+
+    tenant = str(expected_tenant or "").strip()
+    workspace = str(expected_workspace or "").strip()
+    predicates = [Canvas.id == canvas_id]
+    # Bind the EXACT snapshot value. Authorization treats a null/empty scope
+    # as legacy/default, but a concurrent move between null, empty and
+    # "default" is still a scope move and must match zero rows.
+    if tenant:
+        predicates.append(Canvas.tenant_id == tenant)
+    else:
+        predicates.append(or_(
+            Canvas.tenant_id.is_(None),
+            Canvas.tenant_id == "",
+        ))
+    if workspace:
+        predicates.append(Canvas.workspace_id == workspace)
+    else:
+        predicates.append(or_(
+            Canvas.workspace_id.is_(None),
+            Canvas.workspace_id == "",
+        ))
+    return predicates
+
+
+def _scope_claim_cas(
+    db: Any,
+    canvas_row: Any,
+    canvas_id: str,
+    expected_tenant: Any,
+    expected_workspace: Any,
+) -> bool:
+    """Acquire the write reservation under the authorized scope.
+
+    Used when the review is not mirrored (pending review): the no-op guarded
+    UPDATE still binds the transaction to the scope snapshot and gives SQLite
+    its write reservation. Zero matches means the scope moved after the final
+    check; the caller rolls back and refuses before effect.
+    """
+    from sqlalchemy import update
+
+    from core.models import Canvas
+
+    statement = (
+        update(Canvas)
+        .where(*_scope_cas_predicates(
+            canvas_id, expected_tenant, expected_workspace))
+        .values(last_edited_at=Canvas.last_edited_at)
+    )
+    with db.no_autoflush:
+        result = db.execute(statement)
+        if result.rowcount != 1:
+            db.rollback()
+            return False
+        if canvas_row is not None and canvas_row in db:
+            db.expire(canvas_row)
+    return True
+
+
+def _mirror_accepted_canvas_cas(
+    db: Any,
+    canvas_row: Any,
+    canvas_id: str,
+    content: Any,
+    canvas_type: str,
+    title: Optional[str],
+    user_id: str,
+    expected_tenant: Any,
+    expected_workspace: Any,
+) -> bool:
+    """Conditional accepted-mirror write bound to the authorized scope.
+
+    The guarded UPDATE is the transaction's linearization point: a scope move
+    committed after the final check makes it match zero rows, so the pending
+    audit/mirror work is rolled back and the caller refuses before effect.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update
+
+    from core.models import Canvas
+
+    values: Dict[str, Any] = {
+        "content": content,
+        "last_edited_by": user_id,
+        "last_edited_at": datetime.now(timezone.utc),
+    }
+    if canvas_type:
+        values["canvas_type"] = canvas_type
+    if title:
+        values["name"] = title
+    statement = (
+        update(Canvas)
+        .where(*_scope_cas_predicates(
+            canvas_id, expected_tenant, expected_workspace))
+        .values(**values)
+    )
+    with db.no_autoflush:
+        result = db.execute(statement)
+        if result.rowcount != 1:
+            db.rollback()
+            return False
+        if canvas_row is not None and canvas_row in db:
+            db.expire(canvas_row)
+    return True
+
+
 def canonical_restore_content(latest: Any, target: Any):
     """Resolve the content a restore will persist.
 
@@ -592,10 +712,22 @@ async def update_canvas_content(
         from sqlalchemy import desc
 
         with get_db_session() as db:
+            # Snapshot the authorized scope BEFORE the final check. The
+            # guarded UPDATE below binds the effect to this snapshot; a move
+            # committed after the check must match zero rows.
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
+            expected_tenant = (
+                str(canvas_row.tenant_id or "")
+                if canvas_row is not None else "")
+            expected_workspace = (
+                str(canvas_row.workspace_id or "")
+                if canvas_row is not None else "")
             if scope_required:
                 # Authoritative scope gate in the SAME transaction as the
-                # append. A separate HTTP preflight alone would leave a
-                # TOCTOU window if the canvas moved between check and write.
+                # append. The conditional write below is the linearization
+                # point; this check rejects a move already visible here.
                 scope_error = canvas_write_scope_error(
                     db, canvas_id, user_id, tenant_id, workspace_id,
                     lock=True)
@@ -609,10 +741,6 @@ async def update_canvas_content(
                 # IDOR guard: only the owner may update this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
-
-            canvas_row = (
-                db.query(Canvas).filter(Canvas.id == canvas_id).first()
-            )
 
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
@@ -664,6 +792,7 @@ async def update_canvas_content(
                                     "operation_id already used with different "
                                     "material or is not an accepted save"),
                             }
+                    duplicate_outcome = WRITE_COMMITTED
                     if existing_status == "accepted":
                         existing_content = existing_details.get(
                             "content", existing_details.get("data"))
@@ -674,11 +803,33 @@ async def update_canvas_content(
                         # unverified instead of claiming the current save.
                         if (existing_content is not None
                                 and existing.id == latest.id):
-                            _mirror_accepted_canvas(
-                                db, canvas_id, existing_content,
-                                existing.canvas_type,
-                                existing_details.get("title"), user_id,
-                            )
+                            if scope_required:
+                                if not _mirror_accepted_canvas_cas(
+                                        db, canvas_row, canvas_id,
+                                        existing_content,
+                                        existing.canvas_type,
+                                        existing_details.get("title"),
+                                        user_id, expected_tenant,
+                                        expected_workspace):
+                                    return {
+                                        "success": False,
+                                        "conflict": True,
+                                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                                        "http_status": 409,
+                                        "error": (
+                                            "canvas scope changed after "
+                                            "authorization; write refused"),
+                                    }
+                                write_outcome = WRITE_UNKNOWN
+                                db.commit()
+                                write_outcome = WRITE_COMMITTED
+                                duplicate_outcome = write_outcome
+                            else:
+                                _mirror_accepted_canvas(
+                                    db, canvas_id, existing_content,
+                                    existing.canvas_type,
+                                    existing_details.get("title"), user_id,
+                                )
                     return {
                         "success": True,
                         "already_applied": True,
@@ -686,7 +837,7 @@ async def update_canvas_content(
                         # on an earlier call. Not a new write, but not zero
                         # effect either, and a caller must not report it as
                         # "nothing changed".
-                        "write_outcome": WRITE_COMMITTED,
+                        "write_outcome": duplicate_outcome,
                         "canvas_id": canvas_id,
                         "canvas_type": existing.canvas_type,
                         "audit_id": existing.id,
@@ -757,7 +908,27 @@ async def update_canvas_content(
                 details_json=details,
             )
             db.add(new_audit)
-            if review_status == "accepted":
+            if scope_required:
+                if review_status == "accepted":
+                    guarded = _mirror_accepted_canvas_cas(
+                        db, canvas_row, canvas_id, content, canvas_type,
+                        details.get("title"), user_id,
+                        expected_tenant, expected_workspace)
+                else:
+                    guarded = _scope_claim_cas(
+                        db, canvas_row, canvas_id,
+                        expected_tenant, expected_workspace)
+                if not guarded:
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "error": (
+                            "canvas scope changed after authorization; "
+                            "write refused"),
+                    }
+            elif review_status == "accepted":
                 _mirror_accepted_canvas(
                     db, canvas_id, content, canvas_type,
                     details.get("title"), user_id,
@@ -961,6 +1132,16 @@ async def restore_canvas_version(
         from sqlalchemy import desc
 
         with get_db_session() as db:
+            # Authorized scope snapshot, captured before the final check.
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
+            expected_tenant = (
+                str(canvas_row.tenant_id or "")
+                if canvas_row is not None else "")
+            expected_workspace = (
+                str(canvas_row.workspace_id or "")
+                if canvas_row is not None else "")
             if scope_required:
                 # Same-transaction scope gate as the update path. The target
                 # audit is checked against the authoritative canvas tenant.
@@ -977,10 +1158,6 @@ async def restore_canvas_version(
                 # IDOR guard: only the owner may restore this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
-
-            canvas_row = (
-                db.query(Canvas).filter(Canvas.id == canvas_id).first()
-            )
 
             target = (
                 db.query(CanvasAudit)
@@ -1074,10 +1251,26 @@ async def restore_canvas_version(
                 details_json=new_details,
             )
             db.add(new_audit)
-            _mirror_accepted_canvas(
-                db, canvas_id, content, canvas_type,
-                new_details.get("title"), user_id,
-            )
+            if scope_required:
+                guarded = _mirror_accepted_canvas_cas(
+                    db, canvas_row, canvas_id, content, canvas_type,
+                    new_details.get("title"), user_id,
+                    expected_tenant, expected_workspace)
+                if not guarded:
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "error": (
+                            "canvas scope changed after authorization; "
+                            "restore refused"),
+                    }
+            else:
+                _mirror_accepted_canvas(
+                    db, canvas_id, content, canvas_type,
+                    new_details.get("title"), user_id,
+                )
             # The append is going to the database: past this point a failure is
             # not proof that nothing changed.
             write_outcome = WRITE_UNKNOWN

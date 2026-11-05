@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from sqlalchemy.orm import sessionmaker
 
 from core.models import Canvas, CanvasAudit
 from core.oracle import OracleResult, validate
@@ -1164,3 +1165,258 @@ def test_direct_put_post_commit_scope_change_is_committed_unverified(
     latest = _latest_audit(db_session, canvas.id)
     assert latest.id == body["audit_id"]
     assert (latest.details_json or {}).get("content") == payload
+
+
+def _scope_move_after_check(monkeypatch, db_session, canvas_id, field, value):
+    """Move the canvas scope in a separate committed session after the final check."""
+    from sqlalchemy.orm import sessionmaker
+
+    from tools import canvas_crud_tool as crud
+
+    original = crud.canvas_write_scope_error
+    moved = []
+
+    def check_then_move(db, *args, **kwargs):
+        error = original(db, *args, **kwargs)
+        if error is None and kwargs.get("lock") and not moved:
+            with sessionmaker(bind=db.get_bind())() as other:
+                other.query(Canvas).filter_by(id=canvas_id).update(
+                    {field: value})
+                other.commit()
+            moved.append(True)
+        return error
+
+    monkeypatch.setattr(crud, "canvas_write_scope_error", check_then_move)
+    return moved
+
+
+def test_direct_put_scope_move_after_writer_check_refuses_before_commit(
+        client, db_session, users, monkeypatch):
+    user = _make_user(db_session)
+    user.workspace_id = "ws-original"
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    canvas.workspace_id = "ws-original"
+    db_session.commit()
+    before = _audit_count(db_session, canvas.id)
+    mirror_before = canvas.content
+    broadcasts = []
+    corrections = []
+
+    async def _record_broadcast(*args, **kwargs):
+        broadcasts.append(args)
+
+    monkeypatch.setattr(
+        "tools.canvas_crud_tool._broadcast_canvas_update",
+        _record_broadcast)
+    monkeypatch.setattr(
+        "api.canvas_routes._maybe_record_canvas_correction",
+        lambda *args, **kwargs: corrections.append(args))
+    moved = _scope_move_after_check(
+        monkeypatch, db_session, canvas.id, "workspace_id", "ws-revoked")
+
+    response = client.put(
+        f"/api/canvas/{canvas.id}", json={"text": "out-of-scope effect"})
+    assert moved
+    assert response.status_code == 409, response.text
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        count = read.query(CanvasAudit).filter_by(
+            canvas_id=canvas.id).count()
+    assert row.workspace_id == "ws-revoked"
+    assert row.content == mirror_before
+    assert count == before
+    assert broadcasts == []
+    assert corrections == []
+
+
+def test_direct_restore_scope_move_after_writer_check_refuses_before_commit(
+        client, db_session, users, monkeypatch):
+    from datetime import datetime, timezone, timedelta
+
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    target = CanvasAudit(
+        canvas_id=canvas.id,
+        tenant_id=user.tenant_id,
+        action_type="update",
+        user_id=user.id,
+        canvas_type="generic",
+        details_json={
+            "content": {"text": "historical"},
+            "review_status": "accepted",
+        },
+        created_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    db_session.add(target)
+    db_session.commit()
+    before = _audit_count(db_session, canvas.id)
+    mirror_before = canvas.content
+    broadcasts = []
+
+    async def _record_broadcast(*args, **kwargs):
+        broadcasts.append(args)
+
+    monkeypatch.setattr(
+        "tools.canvas_crud_tool._broadcast_canvas_update",
+        _record_broadcast)
+    moved = _scope_move_after_check(
+        monkeypatch, db_session, canvas.id, "tenant_id", "t-revoked")
+
+    response = client.post(
+        f"/api/canvas/{canvas.id}/restore",
+        json={"audit_id": target.id})
+    assert moved
+    assert response.status_code == 409, response.text
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        count = read.query(CanvasAudit).filter_by(
+            canvas_id=canvas.id).count()
+    assert row.tenant_id == "t-revoked"
+    assert row.content == mirror_before
+    assert count == before
+    assert broadcasts == []
+
+
+def test_direct_put_duplicate_operation_scope_move_refuses_mirror_refresh(
+        client, db_session, users, monkeypatch):
+    user = _make_user(db_session)
+    user.workspace_id = "ws-original"
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    canvas.workspace_id = "ws-original"
+    db_session.commit()
+    payload = {"text": "first save"}
+    first = client.put(
+        f"/api/canvas/{canvas.id}?operation_id=op-scope-dup", json=payload)
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "verified"
+    before = _audit_count(db_session, canvas.id)
+    broadcasts = []
+
+    async def _record_broadcast(*args, **kwargs):
+        broadcasts.append(args)
+
+    monkeypatch.setattr(
+        "tools.canvas_crud_tool._broadcast_canvas_update",
+        _record_broadcast)
+    moved = _scope_move_after_check(
+        monkeypatch, db_session, canvas.id, "workspace_id", "ws-revoked")
+
+    retry = client.put(
+        f"/api/canvas/{canvas.id}?operation_id=op-scope-dup", json=payload)
+    assert moved
+    assert retry.status_code == 409, retry.text
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        count = read.query(CanvasAudit).filter_by(
+            canvas_id=canvas.id).count()
+    assert row.workspace_id == "ws-revoked"
+    assert row.content == payload
+    assert count == before
+    assert broadcasts == []
+
+
+def test_direct_put_workspace_scoped_unchanged_still_verifies(
+        client, db_session, users):
+    user = _make_user(db_session)
+    user.workspace_id = "ws-original"
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    canvas.workspace_id = "ws-original"
+    db_session.commit()
+    payload = {"text": "same-scope save"}
+
+    response = client.put(f"/api/canvas/{canvas.id}", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "verified", body
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        latest = (
+            read.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == canvas.id)
+            .order_by(CanvasAudit.created_at.desc(),
+                      CanvasAudit.id.desc())
+            .first()
+        )
+    assert row.workspace_id == "ws-original"
+    assert row.content == payload
+    assert latest.id == body["audit_id"]
+    assert (latest.details_json or {}).get("content") == payload
+
+
+def test_direct_restore_workspace_scoped_unchanged_still_verifies(
+        client, db_session, users):
+    from datetime import datetime, timezone, timedelta
+
+    user = _make_user(db_session)
+    user.workspace_id = "ws-original"
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    canvas.workspace_id = "ws-original"
+    target = CanvasAudit(
+        canvas_id=canvas.id,
+        tenant_id=user.tenant_id,
+        action_type="update",
+        user_id=user.id,
+        canvas_type="generic",
+        details_json={
+            "content": {"text": "historical"},
+            "review_status": "accepted",
+        },
+        created_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    db_session.add(target)
+    db_session.commit()
+
+    response = client.post(
+        f"/api/canvas/{canvas.id}/restore",
+        json={"audit_id": target.id})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "verified", body
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        latest = (
+            read.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == canvas.id)
+            .order_by(CanvasAudit.created_at.desc(),
+                      CanvasAudit.id.desc())
+            .first()
+        )
+    assert row.workspace_id == "ws-original"
+    assert row.content == {"text": "historical"}
+    assert latest.id == body["audit_id"]
+
+
+def test_direct_put_null_to_default_scope_move_refuses_before_commit(
+        client, db_session, users, monkeypatch):
+    user = _make_user(db_session)
+    user.workspace_id = "ws-original"
+    users["current"] = user
+    canvas = _make_canvas(
+        db_session, user.id, content={"text": "current"})
+    assert canvas.workspace_id is None
+    before = _audit_count(db_session, canvas.id)
+    mirror_before = canvas.content
+    moved = _scope_move_after_check(
+        monkeypatch, db_session, canvas.id, "workspace_id", "default")
+
+    response = client.put(
+        f"/api/canvas/{canvas.id}", json={"text": "out-of-scope effect"})
+    assert moved
+    assert response.status_code == 409, response.text
+    with sessionmaker(bind=db_session.get_bind())() as read:
+        row = read.query(Canvas).filter_by(id=canvas.id).one()
+        count = read.query(CanvasAudit).filter_by(
+            canvas_id=canvas.id).count()
+    assert row.workspace_id == "default"
+    assert row.content == mirror_before
+    assert count == before
