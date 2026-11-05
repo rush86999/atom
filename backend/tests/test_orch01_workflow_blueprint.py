@@ -178,10 +178,15 @@ def test_two_domains_validate_persist_and_read_back_exactly(
     assert created["status"] == "designed"
     assert created["definition_digest"]
     assert created["hitl_gates"]
-    assert created["registration"]["registered"] is True
+    # The captured design has skill/agent steps whose capabilities are not
+    # bound to a registered business agent: it is a reviewable design, not a
+    # runnable workflow.
+    assert created["execution_ready"] is False
+    assert created["execution_blockers"]
+    assert created["registration"]["registered"] is False
     assert len(state["calls"]) == 1
     assert state["calls"][0]["capability_profile"] == "workflow_blueprint"
-    assert len(orch_env["fake"].registered) == 1
+    assert orch_env["fake"].registered == []
     assert orch_env["fake"].executed == []
 
     # A fresh session/app process reads the committed definition, not the
@@ -208,10 +213,10 @@ def test_two_domains_validate_persist_and_read_back_exactly(
     inventory = second.json()
     assert inventory["execution_mode"] == "recurring_automation"
     assert inventory["triggers"]
-    assert inventory["registration"]["registered"] is True
-    # Design never activates the recurring trigger.
-    registered = orch_env["fake"].registered[-1]
-    assert registered.triggers == []
+    assert inventory["execution_ready"] is False
+    assert inventory["execution_blockers"]
+    assert inventory["registration"]["registered"] is False
+    assert orch_env["fake"].registered == []
     assert orch_env["fake"].executed == []
     assert len(state["calls"]) == 2
 
@@ -225,6 +230,115 @@ def test_two_domains_validate_persist_and_read_back_exactly(
     assert db.query(WorkflowStep).filter(
         WorkflowStep.workflow_id == row.id).count() == len(
             inventory["steps"])
+
+
+def test_execution_ready_entity_design_registers_for_manual_execution(
+        orch_env, monkeypatch):
+    draft = _draft(name="Controlled record review", nodes=[
+        {"id": "record", "type": "entity", "name": "Review record",
+         "action": {"kind": "write"},
+         "metadata": {"entity_name": "review", "entity_type": "record"}},
+    ])
+    state = {"calls": [], "draft": draft}
+    _configure_model(monkeypatch, state)
+    client = _client(orch_env["db"], orch_env["user"])
+    response = client.post(
+        "/api/v1/workflows/generate-from-agent",
+        json={"prompt": "Review one controlled record"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["execution_ready"] is True
+    assert body["execution_blockers"] == []
+    assert body["registration"]["registered"] is True
+    assert len(orch_env["fake"].registered) == 1
+    registered = orch_env["fake"].registered[0]
+    assert registered.triggers == []
+    assert registered.start_step == body["start_step"]
+    types = [step.step_type.value for step in registered.steps]
+    assert "approval_required" in types
+    assert "entity" in types
+    assert "universal_integration" not in types
+    assert orch_env["fake"].executed == []
+
+
+def test_route_persisted_definition_stops_at_real_checkpoint_consumer(
+        orch_env, monkeypatch):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from advanced_workflow_orchestrator import (
+        AdvancedWorkflowOrchestrator, WorkflowContext, WorkflowDefinition,
+        WorkflowStep, WorkflowStepType,
+    )
+
+    draft = _draft(name="Controlled record review", nodes=[
+        {"id": "record", "type": "entity", "name": "Review record",
+         "action": {"kind": "write"},
+         "metadata": {"entity_name": "review", "entity_type": "record"}},
+    ])
+    state = {"calls": [], "draft": draft}
+    _configure_model(monkeypatch, state)
+    client = _client(orch_env["db"], orch_env["user"])
+    response = client.post(
+        "/api/v1/workflows/generate-from-agent",
+        json={"prompt": "Review one controlled record"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["execution_ready"] is True
+    assert body["registration"]["registered"] is True
+
+    import core.database as database
+    import core.agent_governance_service as governance
+
+    @contextmanager
+    def scratch_session():
+        yield SimpleNamespace()
+
+    monkeypatch.setattr(database, "get_db_session", scratch_session)
+    monkeypatch.setattr(
+        governance.AgentGovernanceService, "__init__",
+        lambda self, db: None)
+    monkeypatch.setattr(
+        governance.AgentGovernanceService, "enforce_action",
+        lambda *args, **kwargs: {
+            "proceed": True, "status": "PENDING_APPROVAL",
+            "action_required": "WAIT_FOR_APPROVAL"})
+
+    effects = []
+    orch = AdvancedWorkflowOrchestrator.__new__(AdvancedWorkflowOrchestrator)
+    async def conditions(*args, **kwargs):
+        return True
+    async def dispatch(workflow, current_step, ctx):
+        if current_step.step_type == WorkflowStepType.APPROVAL_REQUIRED:
+            return await orch._execute_approval_required_step(
+                current_step, ctx)
+        effects.append(current_step.step_id)
+        return {"status": "completed"}
+    orch._check_conditions = conditions
+    orch._execute_step_by_type = dispatch
+    orch._create_snapshot = lambda *args, **kwargs: None
+    steps = [
+        WorkflowStep(
+            step_id=raw["step_id"],
+            step_type=WorkflowStepType(raw["step_type"]),
+            description=raw["description"],
+            parameters=raw["parameters"],
+            next_steps=raw["next_steps"])
+        for raw in body["steps"]
+    ]
+    definition = WorkflowDefinition(
+        workflow_id=body["workflow_id"], name=body["name"],
+        description=body["description"], steps=steps,
+        start_step=body["start_step"])
+    context = WorkflowContext(workflow_id=definition.workflow_id)
+    asyncio.run(orch._execute_workflow_step(
+        definition, definition.start_step, context))
+
+    assert effects == []
+    approval = next(
+        step for step in steps
+        if step.step_type == WorkflowStepType.APPROVAL_REQUIRED)
+    assert context.results[approval.step_id]["status"] == "waiting_approval"
 
 
 def test_hitl_gate_is_inserted_before_mutating_steps(orch_env, monkeypatch):

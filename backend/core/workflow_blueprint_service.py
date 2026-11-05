@@ -48,6 +48,10 @@ def _public_view(
         "missing_capabilities": list(
             configuration.get("missing_capabilities") or []),
         "hitl_gates": list(configuration.get("hitl_gates") or []),
+        "execution_ready": bool(
+            configuration.get("execution_ready", True)),
+        "execution_blockers": list(
+            configuration.get("execution_blockers") or []),
         "step_count": len(configuration.get("steps") or []),
         "definition_digest": configuration.get("definition_digest"),
         "blueprint": {
@@ -102,6 +106,9 @@ def persist_blueprint(
         "missing_capabilities": list(
             compiled.get("missing_capabilities") or []),
         "hitl_gates": list(compiled.get("hitl_gates") or []),
+        "execution_ready": bool(compiled.get("execution_ready", True)),
+        "execution_blockers": list(
+            compiled.get("execution_blockers") or []),
         "definition_digest": compiled.get("definition_digest"),
         "definition": dict(compiled.get("definition") or {}),
         "route_reasoning": str(route_reasoning or ""),
@@ -184,6 +191,12 @@ def register_compiled_workflow(compiled: Dict[str, Any]) -> bool:
     orchestrator entry intentionally carries no triggers, so generating a
     recurring blueprint cannot activate it.
     """
+    if not compiled.get("execution_ready", True):
+        logger.info(
+            "workflow blueprint %s is a reviewable design but is not "
+            "registered: %s", compiled.get("workflow_id"),
+            "; ".join(compiled.get("execution_blockers") or []))
+        return False
     try:
         from advanced_workflow_orchestrator import (
             WorkflowDefinition,

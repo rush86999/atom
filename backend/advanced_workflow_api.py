@@ -416,7 +416,8 @@ async def generate_workflow_from_agent(
                 "ATOM_WORKFLOW_BLUEPRINT_DEADLINE_SECONDS", "120")),
         )
         compiled = compile_blueprint(
-            draft, execution_mode=execution_mode)
+            draft, execution_mode=execution_mode,
+            workspace_id=workspace_id, tenant_id=tenant_id)
         stored = persist_blueprint(
             db,
             compiled=compiled,

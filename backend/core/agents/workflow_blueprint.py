@@ -20,6 +20,31 @@ NodeType = Literal["trigger", "skill", "agent", "entity"]
 ActionKind = Literal["read", "compute", "notify", "write", "approval"]
 ExecutionMode = Literal["one_off", "recurring_automation"]
 
+#: Server-owned design references. A model may name only these existing
+#: connector/action families; an unknown reference is a typed refusal, never
+#: a supported runnable registration.
+KNOWN_ACTION_SERVICES = frozenset({
+    "email", "gmail", "outlook", "slack", "teams", "notion", "asana",
+    "hubspot", "salesforce", "zoho-crm", "zoom", "mcp", "http", "https",
+    "api", "internal", "knowledge", "documents", "tasks", "browser",
+    "terminal", "crm", "inventory", "finance", "procurement", "erp",
+})
+KNOWN_ACTION_NAMES = frozenset({
+    "read", "compute", "notify", "write", "send", "create", "update",
+    "delete", "lookup", "query", "search", "list", "get", "fetch", "draft",
+    "approve", "sync", "post", "upload", "publish", "execute", "run",
+})
+MUTATING_ACTION_NAMES = frozenset({
+    "notify", "write", "send", "create", "update", "delete", "post",
+    "upload", "publish", "execute", "run",
+})
+#: Only these business-readable fields may reach execution parameters. Any
+#: other model metadata is design prose, not executable authority.
+ALLOWED_METADATA_KEYS = frozenset({
+    "trigger_event", "schedule", "condition", "entity_name", "entity_type",
+    "description", "properties", "role", "label", "notes", "reason",
+})
+
 
 class WorkflowNodeAction(BaseModel):
     """The design intent of one node, never executable plumbing."""
@@ -162,7 +187,9 @@ def _step_type(node_type: str) -> str:
     return "business_agent_execution"
 
 
-def _approval_node(node: Dict[str, Any]) -> Dict[str, Any]:
+def _approval_node(
+    node: Dict[str, Any], *, workflow_id: str = "",
+) -> Dict[str, Any]:
     approval_id = f"approval_{node['id']}"
     return {
         "id": approval_id,
@@ -176,6 +203,7 @@ def _approval_node(node: Dict[str, Any]) -> Dict[str, Any]:
             "reason": (
                 f"Human approval is required before {node['name']} "
                 "mutates governed state or sends an external effect."),
+            "workflow_id": workflow_id,
         },
         "action": {"kind": "approval"},
     }
@@ -185,6 +213,8 @@ def compile_blueprint(
     draft: WorkflowBlueprintDraft | Dict[str, Any],
     *,
     execution_mode: Optional[ExecutionMode] = None,
+    workspace_id: str = "",
+    tenant_id: str = "",
 ) -> Dict[str, Any]:
     """Validate one model draft and compile the server-owned plan.
 
@@ -217,6 +247,32 @@ def compile_blueprint(
             details=[item.model_dump() for item in draft.missing_capabilities])
 
     nodes = [node.model_dump() for node in draft.nodes]
+    # Reference and authority validation happens before any registration.
+    for node in nodes:
+        action = node.get("action") or {}
+        kind = str(action.get("kind") or "").strip().lower()
+        service = str(action.get("service") or "").strip().lower()
+        action_name = str(action.get("action") or "").strip().lower()
+        if service and service not in KNOWN_ACTION_SERVICES:
+            raise BlueprintValidationError(
+                "workflow_action_reference_unknown",
+                f"node {node['id']!r} names an unknown action service "
+                f"{service!r}")
+        if action_name and action_name not in KNOWN_ACTION_NAMES:
+            raise BlueprintValidationError(
+                "workflow_action_reference_unknown",
+                f"node {node['id']!r} names an unknown action "
+                f"{action_name!r}")
+        if bool(service) != bool(action_name):
+            raise BlueprintValidationError(
+                "workflow_action_reference_incomplete",
+                f"node {node['id']!r} must name both service and action, or "
+                "neither")
+        if kind == "approval":
+            raise BlueprintValidationError(
+                "workflow_action_approval_model_authored",
+                "approval checkpoints are server-owned; a model node cannot "
+                "author one")
     ordered, adjacency = _cycle_or_missing(nodes)
     roots = [node["id"] for node in nodes if not node.get("dependencies")]
     if len(roots) != 1:
@@ -257,12 +313,21 @@ def compile_blueprint(
         if node.get("type") == "trigger":
             node["action"] = {"kind": "read"}
 
+    workflow_id = f"ai_wf_{uuid.uuid4().hex[:12]}"
+
     # A generated workflow must never contain an ungated governed mutation.
     compiled_nodes: List[Dict[str, Any]] = []
     approval_ids: List[str] = []
+    execution_blockers: List[str] = []
     for node in nodes:
-        if _is_mutating(node):
-            approval = _approval_node(node)
+        action = node.get("action") or {}
+        kind = str(action.get("kind") or "").strip().lower()
+        action_name = str(action.get("action") or "").strip().lower()
+        mutating = _is_mutating(node) or action_name in MUTATING_ACTION_NAMES
+        if node.get("type") == "trigger":
+            mutating = False
+        if mutating:
+            approval = _approval_node(node, workflow_id=workflow_id)
             if any(existing.get("id") == approval["id"]
                    for existing in compiled_nodes):
                 raise BlueprintValidationError(
@@ -287,14 +352,60 @@ def compile_blueprint(
 
     steps: List[Dict[str, Any]] = []
     for node in compiled_nodes:
-        parameters = dict(node.get("metadata") or {})
+        safe_metadata = {
+            key: value for key, value in (node.get("metadata") or {}).items()
+            if str(key) in ALLOWED_METADATA_KEYS
+        }
+        parameters: Dict[str, Any] = dict(safe_metadata)
         parameters.update({
             "capability_required": node.get("capability_required"),
             "design_action": node.get("action") or {},
             "hitl": node.get("type") == "approval",
         })
-        if node.get("type") == "approval":
-            parameters["action"] = "workflow_step"
+        action = node.get("action") or {}
+        kind = str(action.get("kind") or "").strip().lower()
+        action_name = str(action.get("action") or "").strip().lower()
+        mutating = _is_mutating(node) or action_name in MUTATING_ACTION_NAMES
+        if node.get("type") == "trigger":
+            mutating = False
+            parameters.pop("action", None)
+        elif node.get("type") == "entity":
+            # The model's label is not the effect authority. The trusted
+            # mutation classification (label + action name) selects the
+            # executable action; metadata cannot inject a different one.
+            parameters["action"] = "create" if mutating else "lookup"
+            parameters["entity_name"] = str(
+                safe_metadata.get("entity_name") or node["name"])
+            parameters["entity_type"] = str(
+                safe_metadata.get("entity_type") or "business_record")
+        elif node.get("type") == "approval":
+            parameters = {
+                "action": "workflow_step",
+                "checkpoint": "approval_required",
+                "guarded_step": (node.get("metadata") or {}).get(
+                    "guarded_step"),
+                "server_required": True,
+                "workflow_id": workflow_id,
+                "workspace_id": str(workspace_id or ""),
+                "tenant_id": str(tenant_id or ""),
+            }
+        elif node.get("type") in ("skill", "agent"):
+            capability = str(
+                node.get("capability_required") or "").strip().lower()
+            # A model-design step is executable only when its capability is
+            # bound to an existing business-agent registry entry. Otherwise
+            # the blueprint is reviewable but explicitly non-executable.
+            try:
+                from core.business_agents import AGENT_SUITE
+            except Exception:  # noqa: BLE001 — fail closed
+                AGENT_SUITE = {}
+            if capability and capability in AGENT_SUITE:
+                parameters["agent_type"] = capability
+            else:
+                execution_blockers.append(
+                    f"{node['id']}: capability "
+                    f"{capability or '<none>'} is not bound to a registered "
+                    "business agent")
         steps.append({
             "step_id": node["id"],
             "step_type": _step_type(node["type"]),
@@ -303,7 +414,7 @@ def compile_blueprint(
             "next_steps": list(adjacency.get(node["id"]) or []),
         })
 
-    workflow_id = f"ai_wf_{uuid.uuid4().hex[:12]}"
+    execution_ready = not execution_blockers
     trigger_descriptors = [
         {
             "node_id": node["id"],
@@ -323,6 +434,8 @@ def compile_blueprint(
         "steps": steps,
         "triggers": trigger_descriptors,
         "required_integrations": list(draft.required_integrations),
+        "execution_ready": execution_ready,
+        "execution_blockers": list(execution_blockers),
     }
     digest = hashlib.sha256(json.dumps(
         definition_material, sort_keys=True, default=str).encode()).hexdigest()
@@ -345,5 +458,7 @@ def compile_blueprint(
         "hitl_gates": approval_ids,
         "step_count": len(steps),
         "definition_digest": digest,
+        "execution_ready": execution_ready,
+        "execution_blockers": list(execution_blockers),
         "definition": definition_material,
     }
