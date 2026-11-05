@@ -1,0 +1,83 @@
+{
+  "schema": "atom-orch01-consumer-contracts-2",
+  "repair_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
+  "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
+  "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+  "contracts": [
+    {
+      "id": "executable-action-binding",
+      "entry": "core.agents.workflow_blueprint.compile_blueprint",
+      "executor_contract": "advanced_workflow_orchestrator.ENTITY_EXECUTABLE_ACTIONS",
+      "executor_operations": ["create", "update", "query", "lookup"],
+      "declared_entity_operation": "preserved exactly when supported",
+      "unsupported_entity_operation": "execution_ready=false with an honest blocker; the declared operation is not rewritten",
+      "generic_entity_write_without_operation": "conservative create default",
+      "generic_entity_read_without_operation": "lookup default",
+      "skill_agent_action_binding": "service.action must exist in core.action_registry, including connector namespaces; otherwise non-executable",
+      "guarded_digest": "each approval step binds the guarded step parameters and next steps",
+      "allowlists_are_design_only": true
+    },
+    {
+      "id": "durable-checkpoint-resume",
+      "entry": "AdvancedWorkflowOrchestrator.resume_workflow",
+      "public_routes": [
+        "integrations.workflow_approval_routes.respond_to_approval",
+        "core.hitl_resume.resume_after_hitl_decision"
+      ],
+      "durable_authority": "HITLAction",
+      "resume_consumer": "_execute_approval_required_step(require_durable=True)",
+      "definition_resolution": "execution/definition identity (_workflow_definition_id); persisted blueprint loaded by definition id when no memory registration exists; never scan for the first workflow containing the step id",
+      "material_fields": [
+        "execution_id",
+        "workflow_id (legacy alias)",
+        "definition_id",
+        "definition_digest",
+        "step_id",
+        "guarded_step",
+        "guarded_digest",
+        "input_digest",
+        "workspace_id",
+        "tenant_id"
+      ],
+      "release_condition": "an actual approved HITLAction matching execution, definition, step, guarded material and scope",
+      "pending": "zero descendants; stays waiting",
+      "rejected_or_expired": "zero descendants; failed",
+      "missing_unreadable_mismatched": "zero descendants; unavailable/failed",
+      "duplicate_resume": "no second effect",
+      "legacy_non_server_required_without_row": "documented pre-repair compatibility path; never waives a server-required checkpoint",
+      "route_scope": "HITLAction is loaded within the authenticated workspace/tenant and bound to execution/step/definition before a decision",
+      "route_role_policy": "existing InterventionService required-role/status policy",
+      "hitl_queue_bridge": "advanced WorkflowExecution actions use the same checkpoint consumer instead of the legacy workflow-engine state store",
+      "pending_list": "includes waiting_approval executions",
+      "completed_at": "persisted with execution state"
+    },
+    {
+      "id": "honest-finalization",
+      "entry": ["AdvancedWorkflowOrchestrator.execute_workflow", "AdvancedWorkflowOrchestrator._continue_workflow"],
+      "completed_only_when": "context is still RUNNING and required work succeeded",
+      "preserved_outcomes": [
+        "failed",
+        "error",
+        "blocked",
+        "rejected",
+        "expired",
+        "cancelled",
+        "unavailable",
+        "unresolved",
+        "waiting_approval",
+        "paused"
+      ],
+      "caught_checkpoint_error": "not completed",
+      "stopped_branch": "not completed"
+    }
+  ],
+  "not_claimed": [
+    "workflow execution quality",
+    "scheduling reliability",
+    "fleet recruitment",
+    "general adaptive judgment",
+    "PostgreSQL concurrency/soak",
+    "whole-app workflow coverage",
+    "ORCH-02/07 implementation"
+  ]
+}

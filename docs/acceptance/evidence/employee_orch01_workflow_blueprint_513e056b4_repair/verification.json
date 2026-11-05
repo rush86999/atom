@@ -1,0 +1,97 @@
+{
+  "schema": "atom-orch01-verification-repair-2",
+  "status": "repair submitted for independent verification; ORCH-02/07 remain read-only preparation",
+  "candidate": {
+    "branch": "codex/orch01-blueprint-20261105",
+    "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+    "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+    "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
+    "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
+    "repair_source": "513e056b45e108d1feb5ce253dc9e971256d2a3f",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; controlled governance/effect seams; no model/provider/browser"
+  },
+  "checks": {
+    "unsupported_entity_operation_is_not_rewritten": true,
+    "declared_supported_entity_operations_preserved": true,
+    "declared_entity_read_label_not_silently_aliased": true,
+    "skill_action_must_exist_in_real_action_registry": true,
+    "guarded_step_digest_bound_to_approval": true,
+    "pending_resume_releases_no_descendants": true,
+    "rejected_resume_releases_no_descendants": true,
+    "exact_approved_resume_dispatches_once": true,
+    "duplicate_resume_adds_no_effect": true,
+    "changed_reviewed_material_refused": true,
+    "same_step_id_decoy_workflow_refused": true,
+    "persisted_definition_resume_without_memory": true,
+    "hitl_queue_uses_same_advanced_consumer": true,
+    "workflow_route_enforces_scope_and_binding": true,
+    "blocked_top_level_execution_not_completed": true,
+    "blocked_successor_not_completed": true,
+    "full_successful_execution_completes": true,
+    "fresh_orchestrator_resume_uses_durable_state": true,
+    "real_controls_do_not_mock_durable_lookup_or_creation": true,
+    "original_28_controls_preserved": true,
+    "affected_workflow_callers_green": true,
+    "no_model_or_provider_calls": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 67,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 67,
+      "log": "focused-311.log"
+    },
+    "affected_python314": {
+      "passed": 632,
+      "failed": 2,
+      "failed_pre_existing_on_withheld_source": true,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 632,
+      "failed": 2,
+      "failed_pre_existing_on_withheld_source": true,
+      "log": "affected-311.log"
+    },
+    "verifier_negative_before": {
+      "failed": 4,
+      "log": "verifier-binding-resume-before.log"
+    },
+    "prior_contract_controls": {
+      "passed": 28,
+      "log": "verifier-contract-before.log"
+    }
+  },
+  "focused_breakdown": {
+    "orch01_compiler_checkpoint_controls": 33,
+    "verifier_negative_cases": 4,
+    "real_durable_resume_finalization_controls": 11,
+    "workflow_approval_route_controls": 19,
+    "total": 67
+  },
+  "exclusions": {
+    "round67_round19": {
+      "tests": [
+        "tests/test_round67_workflow_governance.py::TestWorkflowMCPGovernance::test_mcp_action_passes_attribution_and_does_not_leak",
+        "tests/test_round19_workflow_security.py::TestAdvancedWorkflowEndpointsNoStrELeak::test_no_str_e_in_exceptions"
+      ],
+      "reason": "both fail on the withheld source 4d3fb66c5 without the repair",
+      "log": "base-round67-round19-pre-existing.log"
+    },
+    "scheduler_timing": {
+      "reason": "two disclosed TestWorkflowSchedulerCriticalNodes timing failures fail on the unchanged accepted baseline; not in the repair selection",
+      "log": "base-scheduler-pre-existing.log"
+    }
+  },
+  "limits": [
+    "No new model, provider, credential, spend, send, download or deployment authority",
+    "No new review store or engine; the repair uses the existing HITLAction/InterventionService/governance mechanism",
+    "Reviewable design and executable workflow remain separate states; unsupported or unbound designs are non-executable and unregistered",
+    "PostgreSQL concurrency/soak, execution quality, scheduling reliability, fleet recruitment and whole-app workflow coverage are not claimed",
+    "ORCH-02/07 remain read-only preparation; no accepted lane is reopened",
+    "Historical 111/123 and served-candidate scores/tags are unchanged"
+  ]
+}
