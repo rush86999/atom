@@ -384,9 +384,24 @@ def test_audit_matrix_never_certifies_a_wrong_receipt(
     response = client.post(
         "/api/admin/roles",
         json={"name": f"Audit {bad_field}", "permissions": {"users": True}})
-    assert response.status_code == 503, response.text
-    assert response.json()["detail"]["verification"]["status"] in (
-        "refuted", "unavailable")
+    if bad_field in ("workspace_id", "user_id"):
+        # These values violate AuditLog FKs. The target and audit roll back
+        # together, so the confirmed local rollback must report effect=none,
+        # not committed_unverified.
+        assert response.status_code == 409, response.text
+        detail = response.json()["detail"]
+        assert detail["verification"]["effect"] == "none", detail
+        assert detail["error"]["code"] == "ADMIN_TRANSACTION_ROLLED_BACK"
+        db = env.Session()
+        try:
+            assert db.query(AdminRole).filter(
+                AdminRole.name == f"Audit {bad_field}").count() == 0
+        finally:
+            db.close()
+    else:
+        assert response.status_code == 503, response.text
+        assert response.json()["detail"]["verification"]["status"] in (
+            "refuted", "unavailable")
 
 
 def test_noop_updates_do_not_create_operations(env):

@@ -116,6 +116,24 @@ def _conflict(message: str, *, code: str = "STALE_TARGET") -> Dict[str, Any]:
     }
 
 
+def _not_applied(
+    message: str, *, code: str = "ADMIN_TRANSACTION_ROLLED_BACK",
+    http_status: int = 409,
+) -> Dict[str, Any]:
+    """A confirmed local transaction refusal with no committed effect."""
+    return {
+        "status": "not_applied",
+        "error": message,
+        "error_code": code,
+        "http_status": int(http_status),
+        "verification": {
+            "status": "refused",
+            "effect": "none",
+            "replay": "safe_after_refresh",
+        },
+    }
+
+
 def _effect_unknown(
     operation_id: str, *, target_type: str, target_id: str, stage: str,
 ) -> Dict[str, Any]:
@@ -478,10 +496,13 @@ def _commit_and_verify(
                 db, expected["operation_id"], expected,
                 target_type=target_type, target_id=target_id,
                 target_verified=target_verified)
-        return _committed_unverified(
-            expected["operation_id"],
-            audit_state={"status": "unavailable"},
-            target_type=target_type, target_id=target_id)
+        # The target was flushed before the audit row. A commit-time
+        # IntegrityError with no original operation is a confirmed local
+        # rollback (for example the audit NOT NULL constraint), not a
+        # post-commit uncertainty. Report effect=none, never committed.
+        return _not_applied(
+            "The admin transaction was rolled back; no effect was applied",
+            code="ADMIN_TRANSACTION_ROLLED_BACK", http_status=409)
     except Exception as exc:  # noqa: BLE001 — commit outcome unknown
         db.rollback()
         logger.error(
@@ -550,6 +571,48 @@ def _admin_user_response(row: AdminUser) -> Dict[str, Any]:
     state["created_at"] = (
         row.created_at.isoformat() if row.created_at else None)
     return state
+
+
+def _credential_commitment(password_hash: Optional[str]) -> str:
+    """Keyed, non-reversible commitment to the exact stored credential."""
+    return _fingerprint("admin-credential", password_hash or "")
+
+
+def _admin_user_private_state(row: AdminUser) -> Dict[str, Any]:
+    """Complete private verifier material; never returned in a public view."""
+    return {
+        "id": str(row.id),
+        "email": str(row.email or ""),
+        "name": str(row.name or ""),
+        "role_id": str(row.role_id or ""),
+        "status": str(row.status or ""),
+        "credential_commitment": _credential_commitment(row.password_hash),
+    }
+
+
+def _read_admin_user_private(
+    db: Session, admin_id: str,
+) -> Optional[Dict[str, Any]]:
+    with _fresh_session(db) as fresh:
+        row = fresh.query(AdminUser).filter(
+            AdminUser.id == str(admin_id)).first()
+        return _admin_user_private_state(row) if row else None
+
+
+def _verify_admin_credential(
+    db: Session, admin_id: str, password: str,
+) -> bool:
+    try:
+        from core.auth import verify_password
+
+        with _fresh_session(db) as fresh:
+            row = fresh.query(AdminUser).filter(
+                AdminUser.id == str(admin_id)).first()
+            if row is None or not row.password_hash:
+                return False
+            return bool(verify_password(password, row.password_hash))
+    except Exception:
+        return False
 
 
 def _budget_setting_state(row: Optional[TenantSetting]) -> Optional[str]:
@@ -951,38 +1014,62 @@ def create_admin_user(
         "id": result_id, "email": request["email"], "name": request["name"],
         "role_id": request["role_id"], "status": "active",
     }
-    result_digest = _digest(result_state)
-    expected = _audit_expected(
+    expected_base = _audit_expected(
         operation_id=operation_id, kind="user_create",
         actor=actor_snapshot, scope=_PLATFORM_SCOPE,
         target_type="admin_user", target_id=result_id,
-        material_digest=material_digest, result_digest=result_digest,
+        material_digest=material_digest, result_digest="",
         tenant_id=None, event_type=AuditEventType.CREATE.value,
         audit_action=_USER_AUDIT_ACTIONS["create"],
         resource=f"admin_user:{result_id}")
+
+    # A replay must never generate a fresh salted hash or compare a new hash
+    # against the old receipt. Reconcile the ORIGINAL stored credential
+    # commitment and audit result digest instead.
     existing = _existing_operation(db, operation_id)
     if existing is not None:
-        now = _read_admin_user(db, result_id)
+        expected_replay = _with_existing_result_digest(
+            expected_base, existing)
+        private_now = _read_admin_user_private(db, result_id)
+        target_verified = bool(
+            private_now is not None
+            and _digest(private_now) == expected_replay["result_digest"])
         replay = _replay(
-            db, operation_id, expected, target_type="admin_user",
-            target_id=result_id,
-            target_verified=(
-                now is not None and _digest(now) == result_digest))
+            db, operation_id, expected_replay, target_type="admin_user",
+            target_id=result_id, target_verified=target_verified)
         if replay["status"] == "already_applied":
             replay["data"] = (
                 _read_admin_user_response(db, result_id) or result_state)
         return replay
+
     if _read_role(db, role_id) is None:
         return _refused(
             f"AdminRole not found: {role_id}", http_status=404,
             error_code="NOT_FOUND", field="role_id")
+
+    from core.auth import get_password_hash, verify_password
+    password_hash = get_password_hash(password)
+    if not verify_password(password, password_hash):
+        # The hasher returned a syntactically valid hash for different
+        # credential material. Refuse before any row or receipt is written.
+        return _refused(
+            "The stored credential does not match the authorized password",
+            http_status=422, error_code="CREDENTIAL_MISMATCH",
+            field="password")
+
+    private_result_state = dict(result_state)
+    private_result_state["credential_commitment"] = _credential_commitment(
+        password_hash)
+    result_digest = _digest(private_result_state)
+    expected = dict(expected_base)
+    expected["result_digest"] = result_digest
+
     if not _claim_actor(db, actor):
         db.rollback()
         return _conflict(
             "administrator authority changed; refresh and retry",
             code="AUTHORITY_CHANGED")
-    from core.auth import get_password_hash
-    password_hash = get_password_hash(password)
+
     # The role existence check is part of the INSERT itself, so a concurrent
     # role deletion cannot leave a dangling assignment in SQLite where FK
     # enforcement may be off. The unique email constraint is the duplicate
@@ -1012,25 +1099,26 @@ def create_admin_user(
         db.rollback()
         existing_now = _existing_operation(db, operation_id)
         if existing_now is not None:
-            current = _read_admin_user(db, result_id)
+            expected_replay = _with_existing_result_digest(
+                expected_base, existing_now)
+            private_now = _read_admin_user_private(db, result_id)
+            target_verified = bool(
+                private_now is not None
+                and _digest(private_now)
+                == expected_replay["result_digest"])
             replay = _replay(
-                db, operation_id, expected, target_type="admin_user",
-                target_id=result_id,
-                target_verified=(
-                    current is not None
-                    and _digest(current) == result_digest))
+                db, operation_id, expected_replay,
+                target_type="admin_user", target_id=result_id,
+                target_verified=target_verified)
             if replay["status"] == "already_applied":
                 replay["data"] = (
                     _read_admin_user_response(db, result_id)
                     or result_state)
             return replay
-        if _read_admin_user(db, result_id) is not None:
-            return _committed_unverified(
-                operation_id, audit_state={"status": "unavailable"},
-                target_type="admin_user", target_id=result_id)
         return _conflict(
             "Admin user with this email already exists",
             code="DUPLICATE_EMAIL")
+
     audit_row = _audit_row(
         operation_id=operation_id, expected=expected, actor=actor,
         tenant_id=None,
@@ -1038,8 +1126,10 @@ def create_admin_user(
     result = _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
-            _read_admin_user(db, result_id) is not None
-            and _digest(_read_admin_user(db, result_id)) == result_digest),
+            _read_admin_user_private(db, result_id) is not None
+            and _digest(_read_admin_user_private(db, result_id))
+            == result_digest
+            and _verify_admin_credential(db, result_id, password)),
         target_type="admin_user", target_id=result_id)
     if result["status"] in ("verified", "already_applied"):
         result["data"] = (
@@ -1079,10 +1169,10 @@ def update_admin_user(
     if existing is not None:
         expected_replay = _with_existing_result_digest(
             expected_base, existing)
-        now = _read_admin_user(db, admin_id)
+        private_now = _read_admin_user_private(db, admin_id)
         target_verified = (
-            now is not None
-            and _digest(now) == expected_replay["result_digest"])
+            private_now is not None
+            and _digest(private_now) == expected_replay["result_digest"])
         replay = _replay(
             db, operation_id, expected_replay,
             target_type="admin_user", target_id=str(admin_id),
@@ -1103,6 +1193,7 @@ def update_admin_user(
             f"AdminRole not found: {changes['role_id']}",
             http_status=404, error_code="NOT_FOUND", field="role_id")
     current = _admin_user_state(target)
+    current_private = _admin_user_private_state(target)
     if not effective_changes:
         return {
             "status": "no_change",
@@ -1113,10 +1204,12 @@ def update_admin_user(
             "verification": {"status": "no_change", "effect": "none"},
         }
     new_state = dict(current)
+    new_private = dict(current_private)
     for key in ("name", "role_id", "status"):
         if changes.get(key) is not None:
             new_state[key] = changes[key]
-    result_digest = _digest(new_state)
+            new_private[key] = changes[key]
+    result_digest = _digest(new_private)
     expected = dict(expected_base)
     expected["result_digest"] = result_digest
     if not _claim_actor(db, actor):
@@ -1130,6 +1223,7 @@ def update_admin_user(
         AdminUser.name == current["name"],
         AdminUser.role_id == current["role_id"],
         AdminUser.status == current["status"],
+        AdminUser.password_hash == target.password_hash,
     ]
     if new_state["role_id"] != current["role_id"]:
         predicates.append(
@@ -1176,8 +1270,9 @@ def update_admin_user(
     result = _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
-            _read_admin_user(db, admin_id) is not None
-            and _digest(_read_admin_user(db, admin_id)) == result_digest),
+            _read_admin_user_private(db, admin_id) is not None
+            and _digest(_read_admin_user_private(db, admin_id))
+            == result_digest),
         target_type="admin_user", target_id=str(admin_id))
     if result["status"] in ("verified", "already_applied"):
         result["data"] = (
@@ -1238,6 +1333,7 @@ def delete_admin_user(
         AdminUser.name == current["name"],
         AdminUser.role_id == current["role_id"],
         AdminUser.status == current["status"],
+        AdminUser.password_hash == target.password_hash,
     ]
     try:
         result = db.execute(delete(AdminUser).where(*predicates))

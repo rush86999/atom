@@ -181,6 +181,21 @@ def _raise_admin_budget(result: Dict[str, Any]) -> None:
                 "operation_id": result.get("operation_id"),
             },
         )
+    if status == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "ADMIN_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The admin transaction did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
     if status in ("committed_unverified", "effect_unknown"):
         raise HTTPException(
             status_code=503,
