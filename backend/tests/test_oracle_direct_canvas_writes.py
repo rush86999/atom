@@ -578,3 +578,64 @@ def test_direct_put_duplicate_operation_after_later_edit_is_not_verified(
     mirror = db_session.query(Canvas).filter(Canvas.id == canvas.id).one()
     assert mirror.content == payload_b, (
         "a duplicate retry must not revert a later edit")
+
+
+def test_direct_put_effect_unknown_keeps_identity(
+        client, db_session, users, monkeypatch):
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id)
+    payload = {"blocks": [{"t": "unknown-effect"}]}
+
+    async def _unknown(**_kwargs):
+        return {
+            "success": False,
+            "write_outcome": "unknown",
+            "audit_id": "audit-maybe-committed",
+            "operation_id": "op-unknown-1",
+            "error": "commit status unknown",
+        }
+
+    monkeypatch.setattr(
+        "core.canvas_write_service.update_canvas_content", _unknown)
+    response = client.put(
+        f"/api/canvas/{canvas.id}?operation_id=op-unknown-1", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "effect_unknown", body
+    assert body["verification"]["status"] == "unavailable"
+    assert body["verification"]["effect"] == "unknown"
+    assert body["verification"]["replay"] == "do_not_repeat"
+    assert body["audit_id"] == "audit-maybe-committed"
+    assert body["operation_id"] == "op-unknown-1"
+
+
+def test_direct_restore_no_change_kill_switch_is_unverified_no_effect(
+        client, db_session, users, monkeypatch):
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id)
+    target = (
+        db_session.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas.id,
+                CanvasAudit.action_type == "create")
+        .first()
+    )
+    before = _audit_count(db_session, canvas.id)
+    monkeypatch.setattr(
+        "core.canvas_write_service.oracle_verifier_enabled",
+        lambda: False)
+
+    response = client.post(
+        f"/api/canvas/{canvas.id}/restore", json={"audit_id": target.id})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["no_change"] is True
+    assert body["status"] == "no_change_unverified", body
+    assert body["verification"]["status"] == "disabled"
+    assert body["verification"]["effect"] == "none"
+    assert body["verification"]["replay"] == "do_not_repeat"
+    assert body["restored_from"] == target.id
+    assert _audit_count(db_session, canvas.id) == before
