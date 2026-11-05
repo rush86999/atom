@@ -294,6 +294,46 @@ def test_promote_replay_changed_material_and_later_revision(env, monkeypatch):
     assert changed.json()["detail"]["error"]["code"] == "OPERATION_CONFLICT"
 
 
+@pytest.mark.parametrize("kind", ["promote", "delete"])
+@pytest.mark.parametrize("change", ["deactivate", "tenant_move"])
+def test_authority_change_before_claim_refuses(env, monkeypatch, kind, change):
+    original = service._load_skill
+    changed = {"done": False}
+
+    def load_then_change(db, skill_id):
+        row = original(db, skill_id)
+        if not changed["done"]:
+            changed["done"] = True
+            peer = env.Session()
+            try:
+                values = (
+                    {"status": "inactive", "is_active": False}
+                    if change == "deactivate"
+                    else {"tenant_id": "tenant-2"})
+                peer.execute(update(User).where(
+                    User.id == "lead-1").values(**values))
+                peer.commit()
+            finally:
+                peer.close()
+        return row
+
+    monkeypatch.setattr(service, "_load_skill", load_then_change)
+    client = env.client(env.actors["lead-1"])
+    if kind == "promote":
+        response = client.post(
+            "/api/skills/promote?operation_id=authority-change",
+            json={"skill_id": "s-untrusted"})
+    else:
+        response = client.delete(
+            "/api/skills/s-untrusted?operation_id=authority-change")
+    assert response.status_code in (401, 403, 409), response.text
+    detail = response.json()["detail"]
+    assert detail["verification"]["effect"] == "none"
+    row = _row(env, "s-untrusted")
+    assert row is not None and row.status == "Untrusted"
+    assert _audits(env) == []
+
+
 def test_stale_material_before_promote_claim_refuses(env, monkeypatch):
     original = service._claim_actor
 
