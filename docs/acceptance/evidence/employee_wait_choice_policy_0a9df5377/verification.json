@@ -1,7 +1,9 @@
 {
  "schema": "atom-employee-wait-policy-verification-1",
  "guard_source": "0a9df5377",
- "executed_source": "e4f3733c1",
+ "feedback_source": "e4f3733c1",
+ "guard_followup": "fea7948af",
+ "executed_source": "fea7948af",
  "prior_schema_recovery": {
   "source": "5cc897dbb",
   "evidence": "docs/acceptance/evidence/employee_wait_choice_5cc897dbb/",
@@ -21,10 +23,12 @@
   "ambiguous_record_requires_clarification": true,
   "unnamed_missing_role_requires_clarification": true,
   "unread_authorized_evidence_is_read_first": true,
-  "ready_independent_work_refuses_wait": true,
+  "ready_independent_work_does_not_forbid_genuine_wait": true,
+  "ready_independent_compact_path_still_yields": true,
   "explicit_contradictory_blocked_operation_refused": true,
   "multiple_missing_requires_named_blocked_operation": true,
   "genuine_missing_external_fact_can_wait": true,
+  "genuine_missing_fact_can_wait_under_clarify_retain_default": true,
   "true_no_result_retains_receipts_and_requirements": true,
   "public_route_does_not_persist_forbidden_wait": true,
   "model_wait_choice_is_a_feedback_origin": true,
@@ -38,12 +42,13 @@
  },
  "results": {
   "guard_focused": {
-   "passed": 19,
-   "breakdown": "17 wait-choice + 1 public-route twin + 1 independent probe",
+   "passed": 20,
+   "breakdown": "18 wait-choice + 1 public-route twin + 1 independent probe",
    "log": "guard-tests.log"
   },
   "guard_commit_isolated": {
    "passed": 19,
+   "note": "isolated 0a9df5377 tree; predates the genuine-missing-fact follow-up",
    "log": "guard-commit-tests.log"
   },
   "independent_probe": {
@@ -52,7 +57,7 @@
    "log": "probe.log"
   },
   "affected_suite": {
-   "passed": 367,
+   "passed": 368,
    "log": "focused-tests.log"
   }
  },
@@ -68,6 +73,10 @@
   "on_genuine_missing_fact": {
    "wait_allowed_when_policy_permits_replan": true,
    "wait_allowed_after_all_sources_read": true,
+   "wait_allowed_under_clarify_retain_default": true,
+   "requires_status_missing_with_named_role": true,
+   "ambiguous_or_ready_or_unnamed_never_qualifies": true,
+   "ready_independent_work_remains_available": true,
    "compiler_owned_mechanics": true
   },
   "on_feedback": {
@@ -79,12 +88,12 @@
   }
  },
  "measurements": {
-  "new_wait_choice_tests": 17,
-  "guard_focused_passed": 19,
+  "new_wait_choice_tests": 18,
+  "guard_focused_passed": 20,
   "guard_commit_isolated_passed": 19,
   "independent_probe_passed": 1,
-  "affected_suite_passed": 367,
-  "affected_suite_seconds": 129.73,
+  "affected_suite_passed": 368,
+  "affected_suite_seconds": 128.88,
   "model_calls": 0,
   "provider_calls": 0
  },

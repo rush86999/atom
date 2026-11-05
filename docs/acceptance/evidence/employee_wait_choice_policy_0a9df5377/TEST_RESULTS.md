@@ -9,6 +9,7 @@ bundle.
 |---|---|
 | Semantic guard | `0a9df5377` |
 | Integrated feedback attribution | `e4f3733c1` |
+| Genuine-missing-fact follow-up (executed source) | `fea7948af` |
 | Prior schema recovery (preserved) | `5cc897dbb` / evidence `8cbed19fc` |
 | Original negative (preserved) | `employee_byok_auto_selection_0e04286b2` |
 
@@ -22,9 +23,9 @@ pytest tests/test_employee_wait_choice.py \
   /private/tmp/test_verifier_wait_policy_5cc.py -q
 ```
 
-Result: **19 passed** at `e4f3733c1` (`guard-tests.log`). The same trio was run
+Result: **20 passed** at `fea7948af` (`guard-tests.log`). The same trio was run
 against the isolated `0a9df5377` tree before the feedback merge: **19 passed**
-(`guard-commit-tests.log`).
+(`guard-commit-tests.log`; it predates the genuine-missing-fact follow-up).
 
 The independent verifier probe is included as `probe.py`; it asserts that an
 all-read ambiguity with only `clarify`/`retain` allowed cannot expand into a
@@ -56,22 +57,26 @@ pytest tests/test_employee_wait_choice.py \
   /private/tmp/test_verifier_wait_policy_5cc.py -q
 ```
 
-Result: **367 passed** in 129.73 s (`focused-tests.log`).
+Result: **368 passed** in 128.88 s (`focused-tests.log`).
 
 ## Policy cases pinned
 
-`tests/test_employee_wait_choice.py` has 17 tests. The new policy controls
+`tests/test_employee_wait_choice.py` has 18 tests. The new policy controls
 cover:
 
 - all-read ambiguity with `allowed_proposal_kinds=['clarify','retain']` →
   deterministic clarify/retain, no `work_request`;
 - `status=missing` with no named missing role → clarify;
 - unread authorized evidence for the missing role → read-first refusal;
-- ready independent operation → wait refused;
+- ready independent operation → compact wait path yields, and a genuine wait
+  remains valid;
 - explicit contradictory `blocks_operation` → refusal, no replacement;
 - omitted blocked operation with multiple missing prerequisites → refusal;
 - genuine missing external record after all sources are read and `replan`
   allowed → model wait accepted;
+- genuine missing external record under the no-ready-work clarify/retain
+  default → model wait accepted (the ambiguity/unnamed/ready cases still do
+  not qualify);
 - model clarification accepted without a wait;
 - the captured empty-`blocks`/untyped-`new_steps` instance is still rejected
   by the existing proposal contract;
@@ -83,6 +88,8 @@ The public route twin
 
 - the forbidden wait is not adopted or persisted as an `assignment.wait` step;
 - the assignment does not enter `waiting`;
+- the route twin uses an ambiguous two-invoice accepted pool, matching the
+  captured replay's trusted state;
 - the applied purchase-order and receiving results remain applied;
 - the targeted invoice question is persisted as an open obligation.
 

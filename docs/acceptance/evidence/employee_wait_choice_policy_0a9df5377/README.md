@@ -22,10 +22,12 @@ The guard now enforces the trusted contract before adoption.
 |---|---|
 | Semantic-guard source | `0a9df5377` (`fix(employee): guard wait choices against trusted readiness`) |
 | Integrated feedback source | `e4f3733c1` (`fix(employee): attribute wait-choice feedback to the exact generation`) |
+| Genuine-missing-fact follow-up | `fea7948af` (`fix(employee): allow genuine missing-fact waits without weakening the guard`) |
+| Executed source | `fea7948af` |
 | Original schema-recovery source | `5cc897dbb`; evidence `8cbed19fc` |
 | Original negative | `employee_byok_auto_selection_0e04286b2` |
-| Affected suite | **367 passed** at `e4f3733c1` |
-| Guard-focused suite | **19 passed** (17 wait-choice, 1 route twin, 1 independent probe) |
+| Affected suite | **368 passed** at `fea7948af` |
+| Guard-focused suite | **20 passed** (18 wait-choice, 1 route twin, 1 independent probe) |
 | Inference / replay used for this guard | **None** |
 
 ## What is rejected
@@ -38,15 +40,18 @@ trusted context and assignment:
 - the blocked capability is already `ready`;
 - a `missing` capability names no missing external role;
 - authorized unread evidence remains for the missing role;
-- a ready independent operation exists;
 - an explicitly named `blocks_operation` contradicts the trusted missing
   prerequisite;
 - no `blocks_operation` is named and more than one trusted missing
   prerequisite exists.
 
-A genuine absent external fact is still a valid wait when the trusted policy
-allows `replan`, even after every authorized source has been read and no
-independent operation is ready.
+A genuine absent external fact is still a valid wait, even after every
+authorized source has been read and even when the no-ready-work context
+defaults to `clarify`/`retain`. The exception applies only to `status=missing`
+with a named missing role; ambiguity, an already-ready record, an unnamed role
+or unread evidence never qualifies. A ready independent operation does not
+forbid a genuine wait; it remains available, and the compact wait path still
+yields to the single-ready continuation.
 
 An explicit contradictory `blocks_operation` is not silently replaced with the
 first candidate. The compiler derives the blocked label and known subject only
@@ -99,13 +104,14 @@ is used.
 | All-read ambiguity, policy `clarify`/`retain` only | deterministic clarify/retain, no work request |
 | Missing prerequisite with no named role | deterministic clarify, no work request |
 | Unread authorized evidence can answer | read-first refusal, no wait |
-| Ready independent operation exists | wait refused, no wait step |
+| Ready independent operation exists | compact wait path yields; genuine wait remains valid |
 | Explicit wrong `blocks_operation` | contradiction refusal, no silent replacement |
 | No blocked operation with multiple missing prerequisites | ambiguity refusal |
 | Genuine missing external record, all sources read, replan allowed | model wait accepted |
+| Genuine missing external record under the clarify/retain default | model wait accepted |
 | Model clarification | accepted without a wait |
 | True no-result | deterministic, applied receipts and unresolved requirement retained |
-| Public advance route with forbidden wait | not adopted/persisted; applied results and targeted question retained |
+| Public advance route with ambiguous two-invoice wait | not adopted/persisted; applied results and targeted question retained |
 | Parsed wait feedback | unresolved, not a success sample |
 | Rejected wait feedback | semantic failure, not fallback credit |
 
