@@ -2206,8 +2206,10 @@ class LearningBasedRouter:
                     prompt_features=prompt_features,
                 )
                 db.add(row)
-                # Fresh outcome evidence invalidates the live capability
-                # selector cache; restart reads the same persisted rows.
+                # Commit before invalidating the live selector cache: a
+                # concurrent reader must never reload a DB that lacks the
+                # row whose freshness we just announced.
+                db.commit()
                 try:
                     from core.llm.capability_profiles import (
                         reset_capability_evidence_cache,
