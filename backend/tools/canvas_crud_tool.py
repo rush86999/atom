@@ -338,6 +338,59 @@ def _operation_audit_row(db: Any, canvas_id: str, operation_id: str):
     return None
 
 
+def canonical_update_content(
+    latest: Any,
+    requested_type: Optional[str],
+    content: Any,
+    manual_retype: bool = False,
+):
+    """Resolve the content the update tool will persist.
+
+    ONE representation shared by the writer and the direct-HTTP verifier.
+    The type rules are the tool's established rules: manual retype wins and
+    pins; an existing pin survives; a generic request preserves the canvas's
+    own type; otherwise the same email coercion runs. Returns
+    ``(canvas_type, content)``.
+    """
+    latest_details = dict(getattr(latest, "details_json", None) or {})
+    latest_type = getattr(latest, "canvas_type", None)
+    requested = (requested_type or "").strip().lower()
+    if manual_retype:
+        return requested or "generic", content
+    if latest_details.get("type_pinned"):
+        return latest_type, content
+    if requested in ("", "generic") and latest_type:
+        canvas_type = latest_type
+    else:
+        canvas_type = requested
+    from core.chat_draft_classifier import coerce_email_canvas
+
+    return coerce_email_canvas(canvas_type, content)
+
+
+def canonical_restore_content(latest: Any, target: Any):
+    """Resolve the content a restore will persist.
+
+    ONE representation shared by the restore writer and the postcondition
+    verifier: a pinned current canvas keeps its type and raw target content;
+    otherwise the target's own type (falling back to the current type) goes
+    through the same email coercion as a read/update. Returns
+    ``(canvas_type, content)``.
+    """
+    target_details = dict(getattr(target, "details_json", None) or {})
+    latest_details = dict(getattr(latest, "details_json", None) or {})
+    content = target_details.get("content", target_details.get("data"))
+    if latest_details.get("type_pinned"):
+        return getattr(latest, "canvas_type", None), content
+    canvas_type = (
+        getattr(target, "canvas_type", None)
+        or getattr(latest, "canvas_type", None)
+        or "generic")
+    from core.chat_draft_classifier import coerce_email_canvas
+
+    return coerce_email_canvas(canvas_type, content)
+
+
 def _mirror_accepted_canvas(
     db: Any,
     canvas_id: str,
@@ -467,7 +520,13 @@ async def update_canvas_content(
                     if existing_status == "accepted":
                         existing_content = existing_details.get(
                             "content", existing_details.get("data"))
-                        if existing_content is not None:
+                        # Only refresh the mirror when this operation's audit
+                        # row is STILL the current version. A retry after a
+                        # later edit must not clobber that newer content; the
+                        # direct verified route reports the stale operation as
+                        # unverified instead of claiming the current save.
+                        if (existing_content is not None
+                                and existing.id == latest.id):
                             _mirror_accepted_canvas(
                                 db, canvas_id, existing_content,
                                 existing.canvas_type,
@@ -536,41 +595,16 @@ async def update_canvas_content(
             if title:
                 details["title"] = title
 
-            # Type resolution — three tiers:
-            # 1. manual_retype: the human switched the type in the UI. Their
-            #    choice wins permanently: pin it and skip the email coercion
-            #    (an email-shaped body must not flip a manually-typed
-            #    document back into the composer on the next read).
-            # 2. already pinned: the pin survives agent/default passes —
-            #    only another explicit human retype can change the type.
-            # 3. otherwise: a content update never retypes the canvas to the
-            #    endpoint's "generic" default — preserve the canvas's own
-            #    type when the caller didn't name one — then run the same
-            #    email-draft normalization as read_canvas (a co-editor
-            #    rewrite that turns a doc into a pure email draft retypes
-            #    the canvas so the composer renders).
+            # Type resolution is shared with the direct-HTTP verifier:
+            # manual retype wins and pins; an existing pin survives; a generic
+            # request preserves the canvas's own type; otherwise the same
+            # email coercion runs. ONE canonical persisted representation.
             requested_type = (canvas_type or "").strip().lower()
+            canvas_type, content = canonical_update_content(
+                latest, requested_type, content, manual_retype)
             if manual_retype:
-                canvas_type = requested_type or "generic"
                 details["type_pinned"] = True
-                details["content"] = content
-            elif details.get("type_pinned"):
-                # Pinned: the canvas type is settled (no coercion/retype),
-                # but the caller's CONTENT must still land — skipping the
-                # merge silently turned every co-editor PUT on a pinned
-                # canvas (chat-created email drafts pin) into a no-op row
-                # that even shadowed newer content on recency (observed
-                # Sept 6: styled-table fix never reached the composer).
-                canvas_type = latest.canvas_type
-                details["content"] = content
-            else:
-                if requested_type in ("", "generic") and latest.canvas_type:
-                    canvas_type = latest.canvas_type
-
-                from core.chat_draft_classifier import coerce_email_canvas
-
-                canvas_type, content = coerce_email_canvas(canvas_type, content)
-                details["content"] = content
+            details["content"] = content
 
             # Append a new audit row (append-only trail). Carry the tenant_id
             # from the latest audit row (CanvasAudit.tenant_id is NOT NULL).
@@ -848,12 +882,7 @@ async def restore_canvas_version(
                     "message": "Canvas is already at that version — nothing restored",
                 }
 
-            if latest_details.get("type_pinned"):
-                canvas_type = latest.canvas_type
-            else:
-                canvas_type = target.canvas_type or latest.canvas_type or "generic"
-                from core.chat_draft_classifier import coerce_email_canvas
-                canvas_type, content = coerce_email_canvas(canvas_type, content)
+            canvas_type, content = canonical_restore_content(latest, target)
 
             # Base the new row on the LATEST details (preserves send metadata,
             # pins, learning-loop state), then override content/title and mark

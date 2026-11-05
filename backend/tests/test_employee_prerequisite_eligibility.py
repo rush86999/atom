@@ -99,6 +99,11 @@ class _RetainingLLM:
 
     async def generate_structured_response(self, **kwargs):
         self.calls += 1
+        model = kwargs.get("response_model")
+        if getattr(model, "__name__", "") == "CompactWaitChoiceProposal":
+            return model(
+                decision="retain", reason="wait for the user",
+                observation_ids=["evidence-po"])
         return WorkAdaptationProposal(
             decision="retain", reason="wait for the user",
             observation_ids=["evidence-po"])
@@ -119,9 +124,10 @@ def test_retain_with_missing_prerequisite_is_repaired_and_obligated():
           "step_id": "purchase-order"}],
         assignment=record["assignment"], llm_service=llm,
         deadline=__import__("time").monotonic() + 5))
-    # The first retain is a declared no-progress outcome; one bounded repair
-    # asks the model to name the missing prerequisite instead.
-    assert llm.calls == 2
+    # The bounded wait-choice compact attempt runs first, then the full
+    # proposal and one repair. The retain is a declared no-progress outcome;
+    # the repair must name the missing prerequisite instead.
+    assert llm.calls == 3
     assert result["source"] == "deterministic"
     assert any("missing prerequisite" in item for item in result["errors"])
     question = missing_prerequisite_question(context)

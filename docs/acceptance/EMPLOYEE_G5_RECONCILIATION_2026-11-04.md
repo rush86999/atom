@@ -18,10 +18,13 @@ episode as execution on a different source.
 | G5 employee-decided requested artifact from quote | Demonstrated at original source | `c7a265c37` and `62fa207647`; model-selected quote, verified receipt, artifact rendering and real revised-price reassessment. |
 | G5 real changed-source selective reassessment | Demonstrated at original source | `62fa207647` / `b4c29e2b6`; 370.00 → 425.00, prior and unrelated operation ids retained. |
 | G5 cancellation, late response, uncertain effect | Demonstrated at separate regression scope | `b4c29e2b6d9e`; not part of the single served browser episode. |
-| G5 held-out content / identifiers | **Demonstrated at controlled local scope; bundle acceptance withheld** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, **22/22** named finish checks (11/11 per run; the earlier 10/10 summary omitted `same_wait`). Tracked state/traces/documents support the episodes, but overall successor bundle acceptance is withheld for combined review; the runtime successor `5abbeaa48` records both worker repairs (15/15 matrix, 198 affected regression), and packaging/source-attribution corrections are included in this submission. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
-| G5 held-out event ordering | **Demonstrated at controlled local scope; bundle acceptance withheld** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. The earlier frozen-job recoveries remain order-1-only. The same combined-review acceptance caveat applies. |
-| G5 independent procurement evidence selection | **Demonstrated at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: from a seven-document authorized pool, the served model selected the current invoice `ap-inbox-0412.json`, matching PO `po-archive-88.json` and current receiving `dock-receipt-19.json` after a bounded model correction; reconciliation **121.00 USD**, 12/12 positive checks. The missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished with no reconciliation or artifact, then recovered on the same job after the authorized invoice addition to **121.00 USD** (14/14 checks). 26/26 total; 323 affected tests. The user authorized the pool but did not name the answer subset or role mapping. One pinned local route; automatic multi-model BYOK selection remains separate. Earlier negative probes `80e3bd702` / `20f3ffc19` remain historical at their sources. |
-| G5 automatic BYOK selection | **Single-route served auto demonstrated; served multi-model comparison not yet qualified** | `employee_byok_auto_selection_0e04286b2`: 5/5 unpinned employee evidence-selection calls auto-selected and served `ollama/llama3.1:8b` (28,034 prompt / 1,058 completion tokens; 98.78 s; raw route/usage journal). Controlled real LLMService/BYOKHandler two-route matrix: economy picks the cheaper capable route; measured semantic failure excludes it and serves one eligible alternative; a failed costlier route cannot displace the cheaper one; both failed -> deterministic/no-suitable with receipts retained; scope and deadline refusal; dedicated wait-choice and compact profiles. **9 consumer tests + 114 successor tests**. Only one route was configured/authorized, so served multi-model comparison is not claimed. |
+| G5 held-out content / identifiers | **Demonstrated and accepted at controlled local scope** | Fresh unseen `QH-21`/`QH-22`/`PO-QH-8100`/`INV-QH-99` batch at `3ccad7a5a`: two runs, quote 145.00, reconciliation 113.00, published review documents, **22/22** named finish checks (11/11 per run; the earlier 10/10 summary omitted `same_wait`). The runtime successor `5abbeaa48` and packaging/source-attribution corrections are accepted at their tested scopes. Evidence: `employee_g5_heldout_two_order_fresh_3ccad7a5a`. Earlier same-job recoveries (`367efddf…` at `8995f433d`, `d40c94ee…` at `b16172c8d`) remain separate known-value recovery evidence. |
+| G5 held-out event ordering | **Demonstrated and accepted at controlled local scope** | Both required orders on the fresh batch: (1) source authorized before restart; (2) restart while waiting, source authorized after restart. Both preserved the same run/wait/quote identity, replied on the same wait and produced the dependent reconciliation + artifact. Accepted at this scope; earlier frozen-job recoveries remain order-1-only. |
+| G5 independent procurement evidence selection | **Demonstrated and accepted at controlled local scope** | `employee_g5_procurement_selection_7d4358ea6`: from a seven-document authorized pool, the served model selected the current invoice `ap-inbox-0412.json`, matching PO `po-archive-88.json` and current receiving `dock-receipt-19.json` after a bounded model correction; reconciliation **121.00 USD**, 12/12 positive checks. The missing-source twin asked for `INV-SEL-77`/`PO-SEL-520`, stayed unfinished with no reconciliation or artifact, then recovered on the same job after the authorized invoice addition to **121.00 USD** (14/14 checks). 26/26 total; 323 affected tests; 33/33 Git. The user authorized the pool but did not name the answer subset or role mapping. One pinned local route; automatic multi-model BYOK selection remains separate. Earlier negative probes `80e3bd702` / `20f3ffc19` remain historical at their sources. |
+| G5 automatic BYOK selection | **Available one-route scope accepted; controlled two-route matrix accepted; served multi-model quality not qualified** | `employee_byok_auto_selection_0e04286b2`: 5/5 unpinned employee evidence-selection calls auto-selected and served `ollama/llama3.1:8b` (28,034 prompt / 1,058 completion tokens; 98.78 s; raw route/usage journal). Controlled real LLMService/BYOKHandler two-route matrix: economy picks the cheaper capable route; measured semantic failure excludes it and serves one eligible alternative; a failed costlier route cannot displace the cheaper one; both failed -> deterministic/no-suitable with receipts retained; scope and deadline refusal; dedicated wait-choice and compact profiles. **9 consumer tests + 114 successor tests; 14/14 Git**. Only one route was configured/authorized, so served multi-model comparison is not claimed. |
+| G5 evaluated business outcome → scoped routing feedback | **Classification repaired and requalified; shared business/legacy CAS preserved** | `employee_feedback_classification_f091904ce` (classification source `f091904ce`; shared-CAS `employee_feedback_shared_cas_c1cd3bea5`, predecessor CAS/boundary proofs and original `employee_business_feedback_2ab959fc0` preserved). An unresolved/pending/unknown business result plus only `grounding_ok`/`grounding_passed` is now unknown to the capability selector, not a success; grounding is evidence support, not a useful business decision. Fabrication, ignored-evidence, business-failure and unsafe judgements remain observable; explicit validated decision and satisfied result still contribute; legacy rows without a business-outcome marker keep compatibility. The durable row and fabrication/grounding accounting are preserved. **7 classification controls; 47 feedback/classification/probe controls on Python 3.11.16 and 3.14; 483 broad affected tests on both; independent pending-quality probe 1/1**. Scratch SQLite and doubled transport; PostgreSQL runtime qualification not claimed. Not live inference or served multi-model comparison |
+| G5 bounded employee wait-choice consumer | **Schema/no-result recovery accepted; semantic wait acceptance withheld** | `employee_wait_choice_5cc897dbb`: the captured 27,513-char / 104.9 s no-result was a validation failure (empty `blocks`, untyped `new_steps`), not transport. The focused typed wait context/schema returns a model-selected `await_evidence` in **13.15 s** on the existing local route; 342 merged affected tests and 17/17 replay checks. The replay waited for an invoice already present under an ambiguous prerequisite, so this is schema evidence, not a satisfactory business wait choice. Original negative remains at `employee_byok_auto_selection_0e04286b2`. |
+| G5 employee wait-choice semantic policy guard | **Demonstrated at controlled consumer/route scope; no inference** | `employee_wait_choice_policy_0a9df5377` (guard `0a9df5377`, integrated feedback `e4f3733c1`, genuine-missing follow-up `fea7948af`): waits are validated against trusted readiness and `allowed_proposal_kinds` before adoption. Rejects all-read ambiguity under clarify/retain-only policy, ambiguous/already-ready records, unnamed missing roles, unread authorized evidence, contradictory `blocks_operation`, and multiple missing prerequisites without a named block. A genuine missing external fact still waits, including under the clarify/retain default; ready independent work remains available. Rejection retains applied results/requirements, returns deterministic clarify/retain, and the public route persists the targeted question without a wait step. **368 affected tests; 20 guard-focused; independent probe passed; no model/provider call**. |
 | G5 breadth of adaptive judgment / general model competence | **Not qualified** | A finite campaign cannot establish general employee judgment. History and prior model verdicts are unchanged. |
 | Full G5 / whole-app ORACLE / live-provider breadth | **Not claimed** | Requires separate qualifications and authorities. |
 
@@ -182,14 +185,61 @@ controlled local scope in `employee_g5_procurement_selection_7d4358ea6`. The
 earlier negative probes `80e3bd702` / `20f3ffc19` remain historical at their
 sources; the new fixture set and source close the row only at this scope.
 
-The single-route **automatic BYOK** path is now demonstrated at
-`employee_byok_auto_selection_0e04286b2`: five unpinned evidence-selection calls
-auto-selected and served the configured local route with raw route/usage/latency
-attribution. The controlled two-route consumer matrix covers economy choice,
-measured-failure exclusion, costlier-route failure, scope/deadline refusal and
-honest no-suitable receipts. Because only one route was configured/authorized,
-**served multi-model comparison remains the finite unqualified row**; controlled
-selection is not counted as served multi-model proof.
+The available one-route **automatic BYOK** scope and the controlled two-route
+consumer matrix are accepted at `employee_byok_auto_selection_0e04286b2`:
+five unpinned evidence-selection calls auto-selected/served the configured
+local route with raw route/usage/latency attribution; the controlled matrix
+covers economy choice, measured-failure exclusion, costlier-route failure,
+scope/deadline refusal and honest no-suitable receipts (114 affected tests;
+14/14 Git). Because only one route was configured/authorized, **served
+multi-model comparison remains open**; controlled selection is not counted as
+served multi-model proof.
+
+The evaluated-outcome feedback loop is repaired and requalified at the
+controlled scratch-DB scope in `employee_feedback_shared_cas_c1cd3bea5`
+(shared-CAS source `c1cd3bea5`; final executed source `4e98ec5ab`, with test
+isolation `8b0fb2f0b` and insert-before-cache `4e98ec5ab`; predecessors
+`employee_feedback_cas_6cdc50cc7`,
+`employee_feedback_boundary_e4f3733c1` and original
+`employee_business_feedback_2ab959fc0` preserved unchanged). The employee
+consumer annotates the exact served generation with its profile/version,
+workspace/tenant, provider/model and a deterministic `failure_kind`; three
+evaluated `wrong_evidence_selection` outcomes persisted as 3 samples / 0
+successes / 3 semantic failures, and the next unpinned decision excluded that
+route and served the one eligible alternative.
+
+The successor closes the shared-writer gap. Business and legacy grounding/
+fabrication annotations now use one database-enforced CAS and one monotonic
+`evaluation_revision`: a pending business marker cannot erase a committed
+legacy verdict, a stale legacy grounding reader cannot erase a committed
+business failure, a stronger judgement wins, duplicate verdicts are idempotent,
+and a changed binding refuses. Legacy keeps its generation+model binding
+without employee fields; business keeps its exact receipt binding. No dirty ORM
+flush follows the CAS, the cache invalidates only after commit, and an
+unresolved business marker no longer hides a legacy verdict. The generation
+receipt and served route survive an awaited child task, and `model_wait_choice`
+remains non-successful until an explicit verdict. **39 feedback/interleaving/
+cross-writer/probe controls on Python 3.11.16 and 3.14; 476 broad affected
+tests on both; 3/3 legacy cross-writer probes, 2/2 race probes and 3/3 boundary
+probes on both; explicit order repro 65/65; the verifier's order-sensitive
+empty-pool failure is isolated by a test-local health monitor and BYOK memo/
+cooldown cleanup, so the 476-test broad run passes on both versions**. Scratch
+SQLite and doubled transport; PostgreSQL CAS is implemented but not runtime-qualified. This is not
+live model inference or served multi-model comparison. The label correction
+remains at `d6a561b2b`; original state files and traces are unchanged.
+
+The pending/grounding classification is repaired at
+`employee_feedback_classification_f091904ce` (source `f091904ce`). An
+unresolved/pending business result plus only a positive grounding marker is
+excluded from capability quality samples rather than credited through
+transport success; real fabrication, ignored-evidence, business-failure and
+unsafe judgements stay observable as non-success samples. Explicit validated
+decision success and genuinely satisfied results still contribute, and legacy
+rows without a business-outcome marker keep their established compatibility
+behavior. Durable rows and fabrication/grounding accounting are unchanged.
+**7 classification controls; 47 focused controls; 483 broad affected tests on
+Python 3.11.16 and 3.14; independent pending-quality probe 1/1.** No model
+inference or browser replay; PostgreSQL remains unqualified.
 
 The two worker/context runtime defects are repaired at `5abbeaa48` by the
 finite successor matrix and affected consumer regression (15/15 worker/context

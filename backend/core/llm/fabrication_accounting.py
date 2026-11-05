@@ -114,6 +114,28 @@ GROUNDING_EVALUATED_VERDICTS = frozenset({"grounding_ok", "grounding_passed"})
 #: own class so neither rate can mask the other.
 EVIDENCE_VERDICTS = frozenset({"evidence_ignored"})
 
+#: Verdicts written by the BUSINESS consumer after it deterministically
+#: evaluates the model's proposal/result (not its HTTP or schema success).
+#: A wrong source selection, an invalid plan reference, a wrong field mapping
+#: and an unsatisfied business result are different failure kinds; a satisfied
+#: business result is the positive counterpart. They share one verdict slot
+#: with fabrication/grounding judgements, so the precedence below decides
+#: which claim wins when several land on the same generation.
+BUSINESS_FAILURE_VERDICTS = frozenset({
+    "wrong_evidence_selection",
+    "invalid_plan_reference",
+    "wrong_field_mapping",
+    "unsatisfactory_business_result",
+})
+BUSINESS_SATISFIED_VERDICT = "business_satisfied"
+BUSINESS_VERDICTS = BUSINESS_FAILURE_VERDICTS | {BUSINESS_SATISFIED_VERDICT}
+
+#: Rule stamp for business verdicts. The fabrication bench only treats
+#: ``FABRICATION_VERDICTS`` as honesty evidence, so this rule never enlarges
+#: the fabrication numerator; it exists so the verdict's provenance is
+#: inspectable beside the row.
+BUSINESS_VERDICT_RULE = "business_outcome_v1"
+
 #: WHICH RULE produced a verdict — the version stamp that makes a verdict
 #: usable as EXCLUSION evidence.
 #:
@@ -157,16 +179,28 @@ CURRENT_VERDICT_RULES = frozenset({FIGURE_VERDICT_RULE, PANEL_VERDICT_RULE})
 #: check merely ran. Availability verdicts are absent on purpose — they judge
 #: an attempt that produced no output and never annotate another attempt's row.
 VERDICT_PRECEDENCE = {
+    # A deterministic business contract violation is the strongest claim
+    # about THIS workload: the proposal/result cannot carry the profile even
+    # though the transport succeeded.
+    "wrong_evidence_selection": 5,
+    "invalid_plan_reference": 5,
+    "wrong_field_mapping": 5,
+    "unsatisfactory_business_result": 5,
     "unsupported_figures": 4,
     "ungrounded_claims": 4,
     "evidence_ignored": 3,
     "grounding_ok": 2,
     "grounding_passed": 2,
+    # A satisfied business result is positive workload evidence, but it must
+    # not erase a stronger honesty/grounding judgement that already landed on
+    # the same generation.
+    "business_satisfied": 1,
 }
 
 #: Verdicts that are a JUDGEMENT ON THE OUTPUT (as opposed to a statement
 #: about the check that ran). Only these may rewrite a row's quality fields.
-JUDGEMENT_VERDICTS = FABRICATION_VERDICTS | EVIDENCE_VERDICTS
+JUDGEMENT_VERDICTS = (
+    FABRICATION_VERDICTS | EVIDENCE_VERDICTS | BUSINESS_VERDICTS)
 
 
 def verdict_rank(verdict: Any) -> int:

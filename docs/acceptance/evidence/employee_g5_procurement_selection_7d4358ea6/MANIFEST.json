@@ -1,7 +1,7 @@
 {
  "artifacts": {
-  "README.md": "1762d073f0af8086c95da5da95e253a31bd4c6e6e88cfc94164aba796cf9f61c",
-  "TEST_RESULTS.md": "7d1b17117b0bc460c8b93c2fa4d579e6be80daa7c8db21214b78dee55a03c164",
+  "README.md": "fdff2646eec1cc97ac0fb48d00442546a102a4ca991843e9ba2c6efb74a06b73",
+  "TEST_RESULTS.md": "3ea2b1dc19b74acf5d55bfb9661a9cbdd4688910dfbd6de307d092d53bad5da6",
   "attempts.jsonl": "e6b5bdd5bd9672d399a2cc7a287e6a0ba1da10cefa5b097e25c5590c35b88492",
   "attribution.json": "74b6b413e57aecf62fe19524c3f18014539790b56c563801a65661c7d1f5552a",
   "fixtures/EXPECTED.json": "0103f4a07ce1d53db2c1515649e835992e4d82b9b9db9d68b391a4861c2bf681",
@@ -16,11 +16,11 @@
   "launch.log": "79172534668bd24d3fde6c22beaf7c21974a44b094312dd0242f0f4ee2606c62",
   "missing-state.json": "8396f2513af212186034b0c841e2cef602e732025e03978b18a506d02efcca86",
   "positive-state.json": "05290a3f0fa2d0e680952db0f20cf3e23a44e0adee21c7223544e310ac635c78",
-  "routing-feedback.json": "cab7df8c7535a36265b08245433554d505d5aa4c0ecf625ae5ba120f1f181665",
+  "routing-feedback.json": "29764f71c17e716e79a2523294629c32abdcf1c3d8f2beff0555cc95e8b3275a",
   "runner.py": "87928ae8b82dad107b05ab6d0617f0a87d04787ae0ee7b36ae7c43a731de651a",
   "server.log": "82f0a08009f32a5e63b257bcf0fc127d84be91f07156fc875f806038ffc5b597",
-  "verification.json": "98cd62e377f3e5b65f041180dd54baee77b74ca6e99f5120fcd3007f49a83a57",
-  "verifier.py": "5b99c750e70da232878a299539771fa9fcd092b2a186515424fb4e63d73c1a7e"
+  "verification.json": "4a4e9ecbada6f5b170762f777ee3cbada982dbda76b692236a8d12984be5b5c9",
+  "verifier.py": "813beffea36c381c10c0d1b017d7184312a9b92977254fb259c028b9bf299a1a"
  },
  "boundaries": [
   "controlled local inference only; no live/cloud provider, credential, spend, send, download or deployment authority",
@@ -60,6 +60,7 @@
    "po_id": "PO-SEL-520"
   }
  },
+ "routing_label_correction": "Derived export labels corrected: compact reconciliation is adaptation/replan, not evidence_selection/clarification; wait-choice retain separate; state/traces unchanged.",
  "runs": {
   "missing": {
    "before_add": "blocked with targeted invoice question",

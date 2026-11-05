@@ -26,7 +26,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from core.llm.fabrication_accounting import (
+    BUSINESS_FAILURE_VERDICTS,
+    EVIDENCE_VERDICTS,
+    FABRICATION_VERDICTS,
+)
+
 logger = logging.getLogger(__name__)
+
+#: Verdicts that are a real negative judgement about the output. They remain
+#: observable even when the business outcome is still unresolved/pending.
+#: Positive grounding/check markers are deliberately NOT here: grounding is
+#: evidence support, not a useful business decision.
+NEGATIVE_EVALUATION_VERDICTS = (
+    FABRICATION_VERDICTS | EVIDENCE_VERDICTS | BUSINESS_FAILURE_VERDICTS)
 
 PROFILE_SCHEMA_VERSION = "capability-profile-1"
 
@@ -58,6 +71,7 @@ class CapabilityProfile:
     disqualifying_failure_kinds: Tuple[str, ...] = (
         "unsafe_action", "invented_fact", "semantic_failure",
         "invalid_plan_reference", "wrong_field_mapping",
+        "wrong_evidence_selection", "unsatisfactory_business_result",
     )
     allow_cost_relaxation: bool = False
 
@@ -242,6 +256,10 @@ def parse_evidence_rows(
     semantic_failure_kinds = {
         "semantic_failure", "invented_fact",
         "invalid_plan_reference", "wrong_field_mapping",
+        # Deterministic business-consumer evaluations. These are distinct
+        # from transport/schema failures: the model answered and parsed, but
+        # its proposal/result could not carry the workload contract.
+        "wrong_evidence_selection", "unsatisfactory_business_result",
     }
     for index, row in enumerate(rows):
         features = row.get("prompt_features")
@@ -260,6 +278,29 @@ def parse_evidence_rows(
             continue
         created_text, created_ts = _created_at(row)
         if created_ts is not None and created_ts < cutoff:
+            continue
+        # A parsed proposal that has NOT been business-evaluated is neither a
+        # success nor a failure. In particular a parsed wait/clarify choice is
+        # not a satisfactory business outcome merely because its JSON
+        # validated OR because a grounding check ran. Grounding is evidence
+        # support, not a useful business decision. Legacy rows have no
+        # business_outcome and keep their established transport-quality
+        # semantics.
+        business_outcome = str(
+            features.get("business_outcome") or "").strip().lower()
+        verdict = str(features.get("verdict") or "").strip()
+        failure_kind = str(features.get("failure_kind") or "").strip()
+        negative_judgement = (
+            verdict in NEGATIVE_EVALUATION_VERDICTS
+            or failure_kind in semantic_failure_kinds
+            or failure_kind == "unsafe_action"
+            or business_outcome == "failed")
+        if business_outcome in ("unresolved", "unknown", "pending") and not (
+                negative_judgement):
+            # Pending work is UNKNOWN, not a negative result. A positive
+            # grounding marker alone must not certify capability quality.
+            # A real negative judgement (fabrication, ignored evidence,
+            # semantic business failure, unsafe action) remains observable.
             continue
         model = str(row.get("model_id") or "").strip()
         provider = str(features.get("route_provider")
@@ -282,7 +323,7 @@ def parse_evidence_rows(
         satisfactory = (
             bool(row.get("success"))
             and bool(row.get("quality_satisfied"))
-            and not semantic and not unsafe)
+            and not negative_judgement)
         if satisfactory:
             bucket["successes"] += 1
             bucket["quality_successes"] += 1

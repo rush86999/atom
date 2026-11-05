@@ -263,6 +263,160 @@ def _adaptation_patch_proposal(
     }
 
 
+def _wait_policy_errors(
+    request: Any,
+    context: Mapping[str, Any],
+    assignment: Optional[Mapping[str, Any]] = None,
+) -> List[str]:
+    """Reject a wait that contradicts trusted readiness/allowed decisions.
+
+    The model owns the wait/clarify choice, but a wait is not a valid way to
+    expand a policy that permits only clarify/retain, to resolve an ambiguity
+    among accepted records, or to target a record an authorized unread source
+    can supply. A genuine absent external fact remains a valid wait.
+    """
+    errors: List[str] = []
+    operation = str(getattr(request, "blocks_operation", "") or "")
+    missing = [
+        dict(item) for item in context.get("missing_prerequisites") or []
+        if isinstance(item, Mapping)
+    ]
+    chosen = next((
+        item for item in missing
+        if str(item.get("operation") or "") == operation), None)
+    if chosen is None and not operation and len(missing) == 1:
+        # Only a model-omitted blocked operation may be derived from the sole
+        # trusted missing prerequisite. An explicitly named different
+        # operation is a contradiction and must not be silently replaced.
+        chosen = missing[0]
+    if not operation and len(missing) > 1:
+        errors.append(
+            "await_policy:ambiguous_blocked_operation: the wait does not "
+            "name which trusted missing prerequisite it blocks")
+    capabilities = []
+    if assignment:
+        try:
+            from core.employee_proposal import operation_capabilities
+
+            capabilities = operation_capabilities(dict(assignment))
+        except Exception:  # noqa: BLE001 — policy remains conservative
+            capabilities = []
+    capability = next((
+        item for item in capabilities
+        if str(item.get("operation") or "") == operation), None)
+    if operation and missing and chosen is None:
+        errors.append(
+            "await_policy:blocked_operation_contradiction: the wait names a "
+            "blocked operation that is not the trusted missing prerequisite")
+    elif operation and chosen is None and capability is None:
+        errors.append(
+            "await_policy:blocked_operation_unsupported: the wait names a "
+            "blocked operation that is not part of the trusted readiness "
+            "contract")
+    status = str(
+        (chosen or {}).get("status")
+        or (capability or {}).get("status")
+        or "")
+    if chosen is not None:
+        missing_roles = [
+            str(role) for role in chosen.get("missing") or []
+            if str(role).strip()
+        ]
+    else:
+        missing_roles = [
+            str(role) for role in (capability or {}).get("missing") or []
+            if str(role).strip()
+        ]
+    genuine_missing = status == "missing" and bool(missing_roles)
+    allowed = (context.get("rules") or {}).get("allowed_proposal_kinds")
+    if (isinstance(allowed, (list, tuple)) and allowed
+            and "replan" not in allowed and not genuine_missing):
+        # A clarify/retain default is not a prohibition of the typed wait
+        # contract for a genuinely absent external fact. An ambiguity, a
+        # ready record or an unnamed role can never use that exception.
+        errors.append(
+            "await_policy:replan_not_allowed: the trusted allowed choices "
+            "do not include a replan/wait; choose clarify or retain")
+    if status == "ambiguous":
+        errors.append(
+            "await_policy:ambiguous_record: accepted records are ambiguous; "
+            "choose a targeted clarification, not a wait for an existing "
+            "record")
+    if status == "ready":
+        errors.append(
+            "await_policy:already_ready: the blocked operation is already "
+            "ready; no wait is justified")
+    if status == "missing" and not missing_roles:
+        errors.append(
+            "await_policy:unnamed_missing_role: the trusted prerequisite names "
+            "no missing external role; clarify the ambiguity instead")
+    unread = context.get("unread_sources")
+    if unread is None:
+        unread = [
+            item for item in context.get("sources") or []
+            if isinstance(item, Mapping) and not item.get("read")
+        ]
+    if missing_roles and unread:
+        errors.append(
+            "await_policy:unread_authorized_evidence: authorized unread "
+            "evidence remains; read it before waiting for the same record")
+    return list(dict.fromkeys(errors))
+
+
+def _wait_policy_fallback(
+    context: Mapping[str, Any], errors: List[str],
+) -> Dict[str, Any]:
+    """A deterministic clarify/retain response after a semantic wait rejection."""
+    missing = [
+        dict(item) for item in context.get("missing_prerequisites") or []
+        if isinstance(item, Mapping)
+    ]
+    chosen = missing[0] if missing else {}
+    label = str(chosen.get("label") or chosen.get("operation") or "the work")
+    known = chosen.get("known_identities") or {}
+    subject = (
+        known.get("purchase_order.po_id")
+        or known.get("invoice.po_id")
+        or known.get("receiving.po_id")
+        or "")
+    question = str(chosen.get("question_hint") or "").strip()
+    if not question:
+        question = (
+            f"Which authorized record is the current {label}"
+            + (f" for purchase order {subject}" if subject else "")
+            + "? The accepted evidence contains an ambiguity, not a missing "
+              "external fact.")
+    allowed = (context.get("rules") or {}).get("allowed_proposal_kinds") or []
+    if isinstance(allowed, (list, tuple)) and allowed and (
+            "clarify" not in allowed and "retain" in allowed):
+        return {
+            "decision": "retain",
+            "reason": "A wait is not permitted by the trusted decision policy.",
+            "observation_ids": [],
+            "step_ids": [],
+            "facts": [],
+            "new_steps": [],
+            "update_steps": [],
+            "work_request": None,
+            "clarification": None,
+        }
+    return {
+        "decision": "clarify",
+        "reason": "The wait was rejected by the trusted readiness policy.",
+        "observation_ids": [],
+        "step_ids": [],
+        "facts": [],
+        "new_steps": [],
+        "update_steps": [],
+        "work_request": None,
+        "clarification": {
+            "question": question[:400],
+            "concept": label[:120],
+            "unblocks": f"Resolve {label}."[:300],
+        },
+    }
+
+
 def _adaptation_errors(
     normalized: AdaptationProposal,
     assignment: Mapping[str, Any],
@@ -324,6 +478,11 @@ def _adaptation_errors(
             return [
                 "work_request cannot be combined with model-authored steps "
                 "or facts; the compiler supplies execution mechanics"]
+        if operation == "await_evidence":
+            wait_errors = _wait_policy_errors(
+                normalized.work_request, context, assignment)
+            if wait_errors:
+                return wait_errors
         try:
             compile_work_request_patch(
                 normalized.work_request, assignment, context=context)
@@ -577,6 +736,259 @@ def _compact_single_request_context(
     }
 
 
+def _wait_choice_missing(context: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    supported = {"quote_calculation", "invoice_reconciliation"}
+    return [
+        {
+            "operation": str(item.get("operation") or ""),
+            "label": str(item.get("label") or item.get("operation") or ""),
+            "status": str(item.get("status") or ""),
+            "missing": [
+                str(role) for role in item.get("missing") or []
+                if str(role).strip()
+            ],
+            "question_hint": str(item.get("question_hint") or ""),
+            "known_identities": dict(item.get("known_identities") or {}),
+        }
+        for item in context.get("missing_prerequisites") or []
+        if isinstance(item, Mapping)
+        and str(item.get("operation") or "") in supported
+    ]
+
+
+def _compact_wait_choice_context(
+    context: Mapping[str, Any],
+    observations: List[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """One narrow wait/clarify choice for an unresolved prerequisite.
+
+    This is the bounded fallback for the wait-choice stage, not a new planner.
+    It is used only when the context has a supported missing prerequisite and
+    no ready operation: a ready independent operation keeps the existing
+    single-ready compact path. The model still chooses wait, clarify or retain;
+    the compiler owns the durable wait ids, blocked operation and arithmetic.
+    """
+    missing = _wait_choice_missing(context)
+    if not missing:
+        return None
+    ready = [
+        item for item in context.get("available_business_operations") or []
+        if isinstance(item, Mapping)
+        and str(item.get("status") or "") == "ready"
+    ]
+    if ready:
+        # The existing single-ready compact path owns independent work.
+        return None
+    response_model = create_model(
+        "CompactWaitChoiceProposal",
+        __config__=ConfigDict(extra="forbid"),
+        decision=(Literal["replan", "retain", "clarify"], ...),
+        reason=(str, ""),
+        observation_ids=(List[str], Field(default_factory=list)),
+        fact=(Optional[str], None),
+        subject=(Optional[str], None),
+        expected_from=(Optional[str], None),
+        expected_answer_type=(Literal[
+            "quantity", "amount", "price", "date", "text", "confirmation",
+            "eligibility",
+        ], "text"),
+        blocks_operation=(Optional[Literal[
+            "quote_calculation", "invoice_reconciliation",
+        ]], None),
+        clarification_question=(Optional[str], None),
+        clarification_unblocks=(Optional[str], None),
+        clarification_concept=(Optional[str], None),
+    )
+    candidate_evidence = []
+    operation_entries = {
+        str(item.get("operation") or ""): item
+        for item in context.get("available_business_operations") or []
+        if isinstance(item, Mapping)
+    }
+    for item in missing:
+        entry = operation_entries.get(str(item.get("operation") or ""))
+        if not isinstance(entry, Mapping):
+            continue
+        for evidence in (entry.get("evidence") or [])[:5]:
+            if not isinstance(evidence, Mapping):
+                continue
+            preview = evidence.get("data_preview")
+            if not isinstance(preview, Mapping):
+                preview = evidence.get("data")
+            candidate_evidence.append({
+                "operation": item.get("operation"),
+                "step_id": evidence.get("step_id"),
+                "title": evidence.get("title"),
+                "shape": evidence.get("shape"),
+                "data_preview": dict(preview or {}),
+            })
+    sources = []
+    for source in context.get("sources") or []:
+        if not isinstance(source, Mapping):
+            continue
+        sources.append({
+            "source_id": source.get("source_id"),
+            "file_name": source.get("file_name"),
+            "kind": source.get("kind"),
+            "read": bool(source.get("read")),
+            "source_version": source.get("source_version"),
+        })
+    compact_observations = [
+        {
+            "observation_id": item.get("observation_id"),
+            "kind": item.get("kind"),
+            "step_id": item.get("step_id"),
+            "shape": item.get("shape"),
+            "data_keys": list(item.get("data_keys") or [])[:20],
+            "summary": str(item.get("summary") or "")[:300],
+        }
+        for item in observations[:8]
+        if isinstance(item, Mapping) and item.get("observation_id")
+    ]
+    unread_sources = [
+        source for source in sources if not source.get("read")]
+    payload = {
+        "objective": str(context.get("objective") or "")[:1000],
+        "missing_prerequisites": missing,
+        "ready_operations": [],
+        "sources": sources[:10],
+        "candidate_evidence": candidate_evidence[:8],
+        "unread_sources": unread_sources[:10],
+        "unread_source_count": len(unread_sources),
+        "all_authorized_sources_read": not unread_sources,
+        "teaching_terms": (
+            (context.get("teaching") or {}).get("terms") or {}),
+        "decisions": ["replan", "retain", "clarify"],
+    }
+    prompt = (
+        "You choose one bounded next response for an employee whose objective "
+        "has a missing prerequisite. A supported business operation is not "
+        "ready; you may wait for a material external fact, ask one targeted "
+        "question, or retain only when no material work is justified.\n"
+        "If the missing item is an external business record or fact that an "
+        "authorized source can supply, choose replan and fill fact, subject, "
+        "expected_from and expected_answer_type. The compiler binds the "
+        "blocked operation and the durable wait; never invent ids, authority "
+        "or a supported business operation.\n"
+        "If the missing item is a user choice, an ambiguity, or cannot be "
+        "supplied by an authorized source, choose clarify with one specific "
+        "question. If all authorized sources are already read, do not wait "
+        "for a source that is already in scope. Do not choose await_evidence "
+        "merely because this is a wait-choice stage.\n"
+        "Choose retain only when no material work is justified.\n"
+        "Return JSON only with this shape: {decision, reason, observation_ids, "
+        "fact, subject, expected_from, expected_answer_type, blocks_operation, "
+        "clarification_question, clarification_unblocks, "
+        "clarification_concept}.\n"
+        "Return concrete VALUES, not the JSON schema. Never output $defs, "
+        "properties, required, title or type.\n"
+        "Field rules: decision='replan' only for a material external fact "
+        "that an authorized source can supply; decision='clarify' for an "
+        "ambiguity, a user choice, or a record no authorized source can "
+        "supply; decision='retain' only when no material work remains.\n"
+        "For replan, fact is the exact missing business fact, subject is the "
+        "business record or subject it belongs to, expected_from is the "
+        "authorized source or channel expected to answer, expected_answer_type "
+        "is one of quantity, amount, price, date, text, confirmation or "
+        "eligibility, and blocks_operation is the exact supported operation "
+        "from missing_prerequisites. Do not invent ids, rows, totals or "
+        "authority. If candidate_evidence already contains the current record "
+        "for the blocked operation, do not wait for that record again; choose "
+        "clarify if the correct record or choice is ambiguous, or retain only "
+        "when no material work remains.\n"
+        "For clarify, clarification_question must name the exact record or "
+        "choice the user must resolve and clarification_unblocks should name "
+        "the blocked business result. observation_ids may repeat the opaque "
+        "observation handles above; they are lifecycle plumbing, not a "
+        "business choice.\n"
+        "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
+        + "\n\nOBSERVATIONS:\n"
+        + json.dumps(compact_observations, sort_keys=True, default=str)
+    )
+    return {
+        "prompt": prompt,
+        "response_model": response_model,
+        "observation_ids": [
+            str(item.get("observation_id")) for item in compact_observations
+            if item.get("observation_id")
+        ],
+    }
+
+
+def _expand_compact_wait_payload(
+    payload: Mapping[str, Any], context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Expand a flat wait-choice instance into the existing proposal contract."""
+    decision = str(payload.get("decision") or "retain")
+    expanded: Dict[str, Any] = {
+        "decision": decision,
+        "reason": str(payload.get("reason") or ""),
+        "observation_ids": list(payload.get("observation_ids") or []),
+        "step_ids": [],
+        "facts": [],
+        "new_steps": [],
+        "update_steps": [],
+        "work_request": None,
+        "clarification": None,
+    }
+    if decision == "clarify":
+        question = str(payload.get("clarification_question") or "").strip()
+        if question:
+            expanded["clarification"] = {
+                "question": question[:400],
+                "concept": str(
+                    payload.get("clarification_concept") or "")[:120],
+                "unblocks": str(
+                    payload.get("clarification_unblocks") or "")[:300],
+                "expected_answer_type": str(
+                    payload.get("expected_answer_type") or "text")[:80],
+            }
+        return expanded
+    if decision != "replan":
+        return expanded
+    missing = _wait_choice_missing(context)
+    requested = str(payload.get("blocks_operation") or "")
+    chosen = next((
+        item for item in missing
+        if str(item.get("operation") or "") == requested), None)
+    if chosen is None and not requested and len(missing) == 1:
+        chosen = missing[0]
+    chosen = chosen or {}
+    blocks = str(
+        chosen.get("label") or chosen.get("operation") or "").strip()
+    if not blocks:
+        blocks = str(requested or "the dependent business work")
+    blocked_operation = str(chosen.get("operation") or requested)
+    subject = str(payload.get("subject") or "").strip()
+    if not subject or subject.lower() in {
+            str(chosen.get("operation") or "").lower(),
+            str(chosen.get("label") or "").lower(),
+    }:
+        known = chosen.get("known_identities") or {}
+        po_id = (
+            known.get("purchase_order.po_id")
+            or known.get("invoice.po_id")
+            or known.get("receiving.po_id"))
+        if po_id:
+            subject = f"purchase order {po_id}"
+    expanded["work_request"] = {
+        "operation": "await_evidence",
+        "fact": str(payload.get("fact") or "").strip(),
+        "subject": subject,
+        "expected_from": str(payload.get("expected_from") or "").strip(),
+        "expected_answer_type": str(
+            payload.get("expected_answer_type") or "text"),
+        "blocks": blocks,
+        "blocks_operation": (
+            blocked_operation
+            if blocked_operation in (
+                "quote_calculation", "invoice_reconciliation")
+            else None),
+        "reason": str(payload.get("reason") or "")[:800],
+    }
+    return expanded
+
+
 def _compact_single_request_prompt(
     context: Mapping[str, Any],
     observations: Optional[List[Mapping[str, Any]]] = None,
@@ -703,14 +1115,14 @@ def _adaptation_prompt(
     )
 
 
-def _routing_snapshot() -> Dict[str, Any]:
+def _routing_snapshot(
+    capture: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Routing view for a result, including an explicit child-task capture."""
     try:
-        from core.llm.model_provenance import get_route_attribution
+        from core.llm.pinned_planning import routing_snapshot
 
-        attribution = get_route_attribution()
-        if not attribution.get("mode"):
-            attribution["mode"] = "deterministic"
-        return attribution
+        return routing_snapshot(capture)
     except Exception:  # noqa: BLE001 — diagnostics are optional
         return {"mode": "deterministic"}
 
@@ -759,6 +1171,13 @@ async def propose_adaptation(
             journal = None
     stage_failures: Dict[str, List[Dict[str, Any]]] = {}
     stage_no_results: Dict[str, List[Dict[str, Any]]] = {}
+    #: Feedback-row identity of the LAST model call in this attempt. Read from
+    #: the request-owned provenance capture, never from a child task's
+    #: ContextVars (those do not propagate back across wait_for).
+    last_routing_result_id: Optional[str] = None
+    #: Shared mutable receipt for the awaited call. Created here, written by
+    #: ``pinned_structured_call`` in whatever task actually ran, read here.
+    provenance: Dict[str, Any] = {}
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -823,11 +1242,77 @@ async def propose_adaptation(
                 "skipped_due_to_budget", call_stage=stage_name, label=label,
                 attempt=0, route="deadline", seconds=0.0)
 
+    async def _record_adaptation_rejection(
+        errors: Any, failure_stage: Optional[str],
+        routing_result_id: Optional[str], stage: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Persist a deterministic rejection of a served model proposal.
+
+        The fallback that follows is deterministic work, not model success;
+        only the rejected generation is annotated. Transport/deadline errors
+        have no served route and are skipped by the recorder.
+        """
+        if not errors or not routing_result_id:
+            return None
+        try:
+            from core.employee_routing_feedback import (
+                classify_adaptation_errors,
+                record_attempt_evaluation,
+            )
+
+            return await record_attempt_evaluation(
+                {
+                    "source": "model",
+                    "routing_result_id": routing_result_id,
+                    "routing": _routing_snapshot(provenance),
+                },
+                stage=stage,
+                evaluation="failed",
+                failure_kind=classify_adaptation_errors(errors),
+                detail="; ".join(str(item) for item in errors),
+                workspace_id=context.get("identity", {}).get("workspace_id"),
+                tenant_id=context.get("identity", {}).get("tenant_id"),
+                extra_features={
+                    "failure_stage": failure_stage,
+                    "proposal_errors": [
+                        str(item) for item in errors][:8],
+                    "attempt_id": getattr(journal, "attempt_id", None),
+                },
+            )
+        except Exception:  # noqa: BLE001 — evidence must not break work
+            return None
+
     async def _call(
         prompt: str, label: str, stage_name: str, *,
         model: Any = None, max_tokens: int = 1800,
         capability_profile: Optional[str] = None,
     ) -> Any:
+        nonlocal last_routing_result_id
+        # A budget-skipped or never-dispatched call must not inherit the
+        # previous stage's generation identity or served route. Seed only the
+        # SERVER-OWNED request facts here; served/parsed facts come from the
+        # capture after the call.
+        provenance.clear()
+        last_routing_result_id = None
+        provenance["mode"] = "pinned" if provider_model else "unpinned"
+        if provider_model and len(provider_model) >= 2:
+            provenance["requested_route"] = {
+                "provider": provider_model[0], "model": provider_model[1]}
+        if capability_profile:
+            try:
+                from core.llm.capability_profiles import (
+                    resolve_capability_profile,
+                )
+
+                _profile = resolve_capability_profile(
+                    capability_profile, "planning")
+                if _profile is not None:
+                    provenance["profile"] = {
+                        "name": _profile.name,
+                        "version": _profile.version,
+                    }
+            except Exception:  # noqa: BLE001 — attribution is optional
+                pass
         remaining = _remaining()
         if remaining is not None and remaining <= 0:
             _record_skipped(stage_name, label)
@@ -855,19 +1340,35 @@ async def propose_adaptation(
             workspace_id=context.get("identity", {}).get("workspace_id"),
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
+            provenance=provenance,
         )
-        if remaining is None:
-            return await call
         try:
-            return await asyncio.wait_for(call, timeout=remaining)
+            if remaining is None:
+                result = await call
+            else:
+                result = await asyncio.wait_for(call, timeout=remaining)
         except asyncio.TimeoutError as exc:
             _record_routing_failure("deadline_cancelled")
+            # A timed-out boundary produced no accepted generation. Do not
+            # lend its id or a partial served route to the fallback.
+            provenance["served_route"] = None
+            provenance["routing_result_id"] = None
+            provenance["error"] = {
+                "code": "deadline_cancelled",
+                "detail": (
+                    "the employee reasoning step exhausted its caller "
+                    "deadline"),
+            }
+            last_routing_result_id = None
             if journal is not None:
                 journal.failure(
                     exc, call_stage=stage_name, label=label, attempt=0,
                     route="deadline", seconds=time.monotonic() - deadline
                     if deadline is not None else 0.0)
             raise
+        finally:
+            last_routing_result_id = provenance.get("routing_result_id")
+        return result
 
     def _normalize(
         result: Any, model: Any = None, expand: Any = None,
@@ -1011,7 +1512,8 @@ async def propose_adaptation(
                                 "errors": [],
                                 "attempt_id": getattr(
                                     journal, "attempt_id", None),
-                                "routing": _routing_snapshot(),
+                                "routing_result_id": last_routing_result_id,
+                                "routing": _routing_snapshot(provenance),
                                 "prompt_mode": "compact",
                             }
                         remaining = _remaining()
@@ -1075,7 +1577,9 @@ async def propose_adaptation(
                                             "errors": [],
                                             "attempt_id": getattr(
                                                 journal, "attempt_id", None),
-                                            "routing": _routing_snapshot(),
+                                            "routing_result_id": (
+                                                last_routing_result_id),
+                                            "routing": _routing_snapshot(provenance),
                                             "prompt_mode": "compact",
                                             "repair": {
                                                 "first_errors": errors,
@@ -1099,6 +1603,9 @@ async def propose_adaptation(
                         failure_stage=failure_stage,
                         errors=checked_errors,
                         prompt_mode="compact")
+                evaluation = await _record_adaptation_rejection(
+                    checked_errors, failure_stage, last_routing_result_id,
+                    stage="employee_adaptation_compact")
                 return {
                     "proposal": fallback,
                     "source": "deterministic",
@@ -1106,7 +1613,9 @@ async def propose_adaptation(
                     "errors": checked_errors,
                     "failure_stage": failure_stage,
                     "attempt_id": getattr(journal, "attempt_id", None),
-                    "routing": _routing_snapshot(),
+                    "routing_result_id": last_routing_result_id,
+                    "evaluation": evaluation,
+                    "routing": _routing_snapshot(provenance),
                     "prompt_mode": "compact",
                 }
             checked_errors: List[str] = []
@@ -1120,6 +1629,98 @@ async def propose_adaptation(
                 "employee_wait_choice"
                 if context.get("missing_prerequisites")
                 and not context.get("waiting") else None)
+            wait_choice_attempted = False
+            wait_compact = None
+            if initial_profile == "employee_wait_choice":
+                wait_choice_attempted = True
+                wait_compact = _compact_wait_choice_context(
+                    context, observations)
+                if wait_compact:
+                    wait_result = None
+                    try:
+                        wait_result = await _call(
+                            wait_compact["prompt"],
+                            "employee adaptation wait choice", "wait_choice",
+                            model=wait_compact["response_model"],
+                            max_tokens=1200,
+                            capability_profile="employee_wait_choice")
+                    except _BudgetExhausted:
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            "skipped_due_to_budget: wait_choice"]
+                    except asyncio.TimeoutError:
+                        _record_routing_failure("deadline_cancelled")
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            "deadline_exceeded: wait_choice"]
+                    except Exception as exc:  # noqa: BLE001
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            f"wait choice call: {exc}"]
+                    if wait_result is not None:
+                        try:
+                            wait_norm = _bind_compact_observations(
+                                _normalize(
+                                    wait_result,
+                                    wait_compact["response_model"],
+                                    expand=lambda payload: (
+                                        _expand_compact_wait_payload(
+                                            payload, context))),
+                                wait_compact)
+                            wait_proposal = AdaptationProposal.model_validate(
+                                wait_norm)
+                            wait_errors = _adaptation_errors(
+                                wait_proposal, assignment, context)
+                            if not wait_errors:
+                                return {
+                                    "proposal": wait_proposal.model_dump(),
+                                    "source": "model_wait_choice",
+                                    "technical_fallback": False,
+                                    "errors": [],
+                                    "attempt_id": getattr(
+                                        journal, "attempt_id", None),
+                                    "routing_result_id": (
+                                        last_routing_result_id),
+                                    "routing": _routing_snapshot(provenance),
+                                    "prompt_mode": "wait_choice",
+                                }
+                            if any(
+                                    str(item).startswith("await_policy:")
+                                    for item in wait_errors):
+                                fallback = _wait_policy_fallback(
+                                    context, wait_errors)
+                                if journal is not None:
+                                    journal.record(
+                                        "attempt-summary",
+                                        source="deterministic",
+                                        failure_stage="wait_choice_policy",
+                                        errors=wait_errors,
+                                        prompt_mode="wait_choice")
+                                evaluation = await _record_adaptation_rejection(
+                                    wait_errors, "wait_choice_policy",
+                                    last_routing_result_id,
+                                    stage="employee_wait_choice")
+                                return {
+                                    "proposal": fallback,
+                                    "source": "deterministic",
+                                    "technical_fallback": False,
+                                    "errors": wait_errors,
+                                    "failure_stage": "wait_choice_policy",
+                                    "attempt_id": getattr(
+                                        journal, "attempt_id", None),
+                                    "routing_result_id": (
+                                        last_routing_result_id),
+                                    "evaluation": evaluation,
+                                    "routing": _routing_snapshot(provenance),
+                                    "prompt_mode": "wait_choice",
+                                }
+                            checked_errors = wait_errors
+                            failure_stage = "wait_choice"
+                        except Exception as exc:  # noqa: BLE001
+                            checked_errors = [
+                                f"wait choice proposal validation: {exc}"]
+                            failure_stage = "wait_choice"
+                    wait_compact = None
             try:
                 result = await _call(
                     _adaptation_prompt(
@@ -1140,6 +1741,7 @@ async def propose_adaptation(
                 failure_stage = "initial"
                 checked_errors = [f"initial call: {exc}"]
             fallback_compact = None
+            wait_compact = None
             if result is None:
                 fallback_compact = _compact_single_request_context(
                     context, observations)
@@ -1165,18 +1767,51 @@ async def propose_adaptation(
                         failure_stage = "compact"
                         checked_errors = checked_errors + [
                             f"compact call: {exc}"]
+            if (result is None and not wait_choice_attempted
+                    and initial_profile == "employee_wait_choice"):
+                wait_compact = _compact_wait_choice_context(
+                    context, observations)
+                if wait_compact:
+                    try:
+                        result = await _call(
+                            wait_compact["prompt"],
+                            "employee adaptation wait choice", "wait_choice",
+                            model=wait_compact["response_model"],
+                            max_tokens=1200,
+                            capability_profile="employee_wait_choice")
+                    except _BudgetExhausted:
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            "skipped_due_to_budget: wait_choice"]
+                    except asyncio.TimeoutError:
+                        _record_routing_failure("deadline_cancelled")
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            "deadline_exceeded: wait_choice"]
+                    except Exception as exc:  # noqa: BLE001
+                        failure_stage = "wait_choice"
+                        checked_errors = checked_errors + [
+                            f"wait choice call: {exc}"]
             if result is not None:
                 try:
+                    selected_compact = wait_compact or fallback_compact
                     selected_model = (
-                        fallback_compact["response_model"]
-                        if fallback_compact else response_model)
+                        selected_compact["response_model"]
+                        if selected_compact else response_model)
+                    if wait_compact:
+                        def _expand_wait(payload):
+                            return _expand_compact_wait_payload(
+                                payload, context)
+                        expand = _expand_wait
+                    elif fallback_compact:
+                        expand = _expand_compact_payload
+                    else:
+                        expand = None
                     normalized = _normalize(
-                        result, selected_model,
-                        expand=(_expand_compact_payload
-                                if fallback_compact else None))
-                    if fallback_compact:
+                        result, selected_model, expand=expand)
+                    if selected_compact:
                         normalized = _bind_compact_observations(
-                            normalized, fallback_compact)
+                            normalized, selected_compact)
                     proposal = AdaptationProposal.model_validate(normalized)
                     errors = _adaptation_errors(proposal, assignment, context)
                     first_errors = list(errors)
@@ -1184,23 +1819,61 @@ async def propose_adaptation(
                         return {
                             "proposal": proposal.model_dump(),
                             "source": (
-                                "model_compact" if fallback_compact
+                                "model_wait_choice" if wait_compact
+                                else "model_compact" if fallback_compact
                                 else "model"),
                             "technical_fallback": False,
                             "errors": [],
                             "attempt_id": getattr(journal, "attempt_id", None),
-                            "routing": _routing_snapshot(),
+                            "routing_result_id": last_routing_result_id,
+                            "routing": _routing_snapshot(provenance),
                             "prompt_mode": (
-                                "compact" if fallback_compact else None),
+                                "wait_choice" if wait_compact
+                                else "compact" if fallback_compact
+                                else None),
                         }
-                    remaining = _remaining()
-                    if remaining is not None and remaining <= 0:
+                    if any(
+                            str(item).startswith("await_policy:")
+                            for item in errors):
+                        fallback = _wait_policy_fallback(context, errors)
+                        if journal is not None:
+                            journal.record(
+                                "attempt-summary", source="deterministic",
+                                failure_stage="wait_choice_policy",
+                                errors=errors,
+                                prompt_mode=(
+                                    "wait_choice" if wait_compact else None))
+                        evaluation = await _record_adaptation_rejection(
+                            errors, "wait_choice_policy",
+                            last_routing_result_id,
+                            stage="employee_wait_choice")
+                        return {
+                            "proposal": fallback,
+                            "source": "deterministic",
+                            "technical_fallback": False,
+                            "errors": errors,
+                            "failure_stage": "wait_choice_policy",
+                            "attempt_id": getattr(journal, "attempt_id", None),
+                            "routing_result_id": last_routing_result_id,
+                            "evaluation": evaluation,
+                            "routing": _routing_snapshot(provenance),
+                            "prompt_mode": (
+                                "wait_choice" if wait_compact else None),
+                        }
+                    if wait_compact:
+                        checked_errors = errors
+                        failure_stage = "wait_choice"
+                        remaining = None
+                    else:
+                        remaining = _remaining()
+                    if not wait_compact and (
+                            remaining is not None and remaining <= 0):
                         _record_skipped(
                             "repair", "employee adaptation repair")
                         checked_errors = errors + [
                             "skipped_due_to_budget: repair"]
                         failure_stage = "repair"
-                    else:
+                    elif not wait_compact:
                         try:
                             repaired = await _call(
                                 _adaptation_retry_prompt(
@@ -1236,7 +1909,9 @@ async def propose_adaptation(
                                         "errors": [],
                                         "attempt_id": getattr(
                                             journal, "attempt_id", None),
-                                        "routing": _routing_snapshot(),
+                                        "routing_result_id": (
+                                            last_routing_result_id),
+                                        "routing": _routing_snapshot(provenance),
                                         "repair": {
                                             "first_errors": first_errors,
                                             "recovered": True,
@@ -1266,6 +1941,9 @@ async def propose_adaptation(
         checked_errors = []
         failure_stage = None
     fallback = deterministic_adaptation(observations[0], assignment)
+    evaluation = await _record_adaptation_rejection(
+        checked_errors, failure_stage, last_routing_result_id,
+        stage="employee_adaptation")
     return {
         "proposal": fallback,
         "source": "deterministic",
@@ -1273,7 +1951,9 @@ async def propose_adaptation(
         "errors": checked_errors,
         "failure_stage": failure_stage,
         "attempt_id": getattr(journal, "attempt_id", None),
-        "routing": _routing_snapshot(),
+        "routing_result_id": last_routing_result_id,
+        "evaluation": evaluation,
+        "routing": _routing_snapshot(provenance),
     }
 
 

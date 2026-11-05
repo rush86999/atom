@@ -1,0 +1,192 @@
+{
+ "schema": "atom-feedback-classification-proof-1",
+ "executed_source": "f091904cee0ba84bfe4bd0d97813b3cb9b65c445",
+ "profile": "employee_wait_choice",
+ "route": "local_ctrl1234/llama3.1:8b",
+ "cases": [
+  {
+   "kind": "pending",
+   "verdict": "grounding_ok",
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": true,
+    "business_outcome": "unresolved",
+    "business_outcome_scope": "decision",
+    "verdict": "grounding_ok",
+    "failure_kind": null,
+    "evaluation_revision": 2
+   },
+   "capability_evidence": {
+    "samples": 0,
+    "successes": 0,
+    "quality_successes": 0,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 1,
+    "fabricated": 0,
+    "grounded_ok": 1,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "pending",
+   "verdict": "grounding_passed",
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": true,
+    "business_outcome": "unresolved",
+    "business_outcome_scope": "decision",
+    "verdict": "grounding_passed",
+    "failure_kind": null,
+    "evaluation_revision": 2
+   },
+   "capability_evidence": {
+    "samples": 0,
+    "successes": 0,
+    "quality_successes": 0,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 1,
+    "fabricated": 0,
+    "grounded_ok": 1,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "pending",
+   "verdict": "unsupported_figures",
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": false,
+    "business_outcome": "unresolved",
+    "business_outcome_scope": "decision",
+    "verdict": "unsupported_figures",
+    "failure_kind": null,
+    "evaluation_revision": 2
+   },
+   "capability_evidence": {
+    "samples": 1,
+    "successes": 0,
+    "quality_successes": 0,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 1,
+    "fabricated": 1,
+    "grounded_ok": 0,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "business_failure",
+   "verdict": null,
+   "durable_row": {
+    "success": false,
+    "quality_satisfied": false,
+    "business_outcome": "failed",
+    "business_outcome_scope": "result",
+    "verdict": "wrong_evidence_selection",
+    "failure_kind": "wrong_evidence_selection",
+    "evaluation_revision": 1
+   },
+   "capability_evidence": {
+    "samples": 1,
+    "successes": 0,
+    "quality_successes": 0,
+    "semantic_failures": 1
+   },
+   "accounting": {
+    "generations": 0,
+    "fabricated": 0,
+    "grounded_ok": 0,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "validated_decision",
+   "verdict": null,
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": true,
+    "business_outcome": "satisfied",
+    "business_outcome_scope": "decision",
+    "verdict": "business_satisfied",
+    "failure_kind": "",
+    "evaluation_revision": 1
+   },
+   "capability_evidence": {
+    "samples": 1,
+    "successes": 1,
+    "quality_successes": 1,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 0,
+    "fabricated": 0,
+    "grounded_ok": 0,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "satisfied_result",
+   "verdict": null,
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": true,
+    "business_outcome": "satisfied",
+    "business_outcome_scope": "result",
+    "verdict": "business_satisfied",
+    "failure_kind": "",
+    "evaluation_revision": 1
+   },
+   "capability_evidence": {
+    "samples": 1,
+    "successes": 1,
+    "quality_successes": 1,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 0,
+    "fabricated": 0,
+    "grounded_ok": 0,
+    "evidence_ignored": 0
+   }
+  },
+  {
+   "kind": "legacy",
+   "verdict": "grounding_ok",
+   "durable_row": {
+    "success": true,
+    "quality_satisfied": true,
+    "business_outcome": null,
+    "business_outcome_scope": null,
+    "verdict": "grounding_ok",
+    "failure_kind": null,
+    "evaluation_revision": 1
+   },
+   "capability_evidence": {
+    "samples": 1,
+    "successes": 1,
+    "quality_successes": 1,
+    "semantic_failures": 0
+   },
+   "accounting": {
+    "generations": 1,
+    "fabricated": 0,
+    "grounded_ok": 1,
+    "evidence_ignored": 0
+   }
+  }
+ ],
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "doubled transport; no live model inference",
+  "grounding-only pending work is excluded from capability success",
+  "fabrication/business failure stay observable",
+  "validated decision and satisfied result still contribute",
+  "legacy no-business-marker rows keep compatibility",
+  "durable row, capability evidence and accounting checked separately"
+ ]
+}

@@ -46,7 +46,7 @@ from __future__ import annotations
 import asyncio
 import time as _time
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +264,54 @@ def _route_snapshot() -> Any:
         return None
 
 
+def _capture_provenance(capture: Optional[Dict[str, Any]]) -> None:
+    """Write the current call's provenance into a request-owned capture.
+
+    ContextVars are task-local: a caller that awaits this wrapper through
+    ``asyncio.wait_for`` (which schedules a child task) cannot read values the
+    child set. The capture object is created by the caller and shared across
+    the task boundary, so the generation receipt and served route survive
+    without a singleton or a handler "last id" fallback.
+    """
+    if capture is None:
+        return
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+    except Exception:  # noqa: BLE001 — attribution is optional
+        attribution = {}
+    capture.clear()
+    capture.update(dict(attribution or {}))
+
+
+def routing_snapshot(
+    capture: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Business-safe routing view for a consumer's result.
+
+    Ambient ContextVars describe the CURRENT task. When the call ran in a child
+    task, ``capture`` (written by :func:`_capture_provenance` in that child)
+    is the authoritative attempt provenance. Missing keys stay missing; this
+    never substitutes a handler-wide "last id" or another scope.
+    """
+    try:
+        from core.llm.model_provenance import get_route_attribution
+
+        attribution = get_route_attribution()
+    except Exception:  # noqa: BLE001 — diagnostics are optional
+        attribution = {}
+    if not attribution.get("mode"):
+        attribution["mode"] = "deterministic"
+    if capture:
+        for key in (
+                "mode", "requested_route", "served_route", "resolved_model",
+                "profile", "error", "routing_result_id"):
+            if key in capture:
+                attribution[key] = capture[key]
+    return attribution
+
+
 def _usage_payload(result: Any) -> Any:
     """Token usage when the provider exposed it; never inferred."""
     raw = getattr(result, "_raw_response", None)
@@ -311,6 +359,7 @@ async def pinned_structured_call(
     stage: Optional[str] = None,
     attempt_observer: Optional[Any] = None,
     capability_profile: Optional[str] = None,
+    provenance: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
 
@@ -340,7 +389,23 @@ async def pinned_structured_call(
         The parsed ``response_model`` instance, or ``None`` when every attempt
         failed. Never raises — provider errors are logged and converted to
         ``None`` so the caller's own failure contract stays in charge.
+
+        ``provenance`` is a caller-owned mutable mapping. On every return it
+        receives the LAST attempt's mode/requested/served route, resolved
+        model, profile, error and generation id. The caller reads it after
+        awaiting this wrapper, even when the await crossed a child-task
+        boundary. It is cleared at entry so a failed call can never reuse an
+        older receipt.
     """
+    if provenance is not None:
+        # Preserve caller-seeded REQUEST facts (mode/requested route/profile):
+        # a cancelled child may never reach _capture_provenance, and those
+        # facts remain truthful. Clear only RESULT facts so a failed attempt
+        # cannot lend an older receipt.
+        for _result_key in (
+                "served_route", "resolved_model", "routing_result_id",
+                "error"):
+            provenance.pop(_result_key, None)
     base: Dict[str, Any] = dict(
         prompt=prompt,
         response_model=response_model,
@@ -457,6 +522,7 @@ async def pinned_structured_call(
                     "no unpinned fallback",
                     log_label, pin_kwargs.get("provider_model"),
                     type(pinned_err).__name__, pinned_err)
+                _capture_provenance(provenance)
                 return None
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
@@ -475,6 +541,7 @@ async def pinned_structured_call(
                 usage=_usage_payload(result),
                 routing=_route_snapshot(),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
+            _capture_provenance(provenance)
             return result
         _observer_notify(
             attempt_observer, "no_result", label=log_label, attempt=1,
@@ -489,6 +556,7 @@ async def pinned_structured_call(
                 "%s strict qualification pin (%s) returned no result — "
                 "failed qualification attempt, no unpinned fallback",
                 log_label, pin_kwargs.get("provider_model"))
+            _capture_provenance(provenance)
             return None
         logger.info(
             "%s pinned call (%s) returned no result — retrying unpinned "
@@ -542,6 +610,7 @@ async def pinned_structured_call(
                     attempt=2, route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
                     failure=dict(LAST_FAILURE))
+            _capture_provenance(provenance)
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -557,6 +626,7 @@ async def pinned_structured_call(
                 ) else "provider_failure"
                 set_routing_error(_kind, str(unpinned_err))
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
+            _capture_provenance(provenance)
             return None
 
     _observer_notify(
@@ -586,6 +656,7 @@ async def pinned_structured_call(
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
                 failure=dict(LAST_FAILURE))
+        _capture_provenance(provenance)
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(
@@ -606,4 +677,5 @@ async def pinned_structured_call(
                 code = "provider_failure"
             set_routing_error(code, str(err))
         logger.warning("%s call raised: %s", log_label, err)
+        _capture_provenance(provenance)
         return None

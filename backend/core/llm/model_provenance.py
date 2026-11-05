@@ -281,6 +281,25 @@ _routing_profile_cv: _ContextVar[_Any] = _ContextVar(
     "atom_routing_profile", default=None)
 _routing_error_cv: _ContextVar[_Any] = _ContextVar(
     "atom_routing_error", default=None)
+#: Identity of the feedback row THIS generation wrote. The business consumer
+#: evaluates the proposal AFTER the model call, so it needs the exact
+#: generation id to annotate the real outcome row instead of inserting an
+#: unattributed judgement. Context-local so concurrent assignments never
+#: annotate each other's rows.
+_feedback_id_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_feedback_id", default=None)
+
+
+def set_feedback_id(feedback_id: Optional[str]) -> None:
+    _feedback_id_cv.set(str(feedback_id or "") or None)
+
+
+def get_feedback_id() -> Optional[str]:
+    return _feedback_id_cv.get()
+
+
+def clear_feedback_id() -> None:
+    _feedback_id_cv.set(None)
 
 
 def set_requested_route(provider_id: Optional[str], model: Optional[str]) -> None:
@@ -324,6 +343,7 @@ def clear_route_attribution() -> None:
     _route_mode_cv.set(None)
     _routing_profile_cv.set(None)
     _routing_error_cv.set(None)
+    clear_feedback_id()
     # A previous call's echoed checkpoint must not be attributed to this one.
     clear_resolved_model()
 
@@ -346,4 +366,5 @@ def get_route_attribution() -> Dict[str, _Any]:
             {"name": profile[0], "version": profile[1]}
             if profile else None),
         "error": _routing_error_cv.get(),
+        "routing_result_id": get_feedback_id(),
     }

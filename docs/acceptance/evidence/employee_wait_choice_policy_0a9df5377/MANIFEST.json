@@ -1,0 +1,70 @@
+{
+ "artifacts": {
+  "README.md": "d9689f97c8da07622aaf80deaf1d3a1b843e7873a08c702e0b0dc2b54de258c7",
+  "TEST_RESULTS.md": "032311dad4967e08bd3360b8ca101ff90b575c0c4c0fe407bdf6a17114dbc1f0",
+  "focused-tests.log": "b4f1b4967bab8a5555f12dac4db94a346c80863fd7c1985da39a056d1b8738b2",
+  "guard-commit-tests.log": "44488b8784533f0ae295f55342aa4c38093a8ed7d94dc653084d6d7fff6223e2",
+  "guard-tests.log": "e41401b6f3a926417ad2613cace873e4bb6994cfd097dc467ac0909219d93c5b",
+  "probe.log": "5f00ad5de06144888b7b0704d15242537cc6f56a085534d6375c9100f23877a2",
+  "probe.py": "df15efe70831813b20edd7bbe3d8c9660327609538977801048bf0c951f0c093",
+  "verification.json": "40f08d7727e20359d741796741b5f360a96fba7299c81929a323a721445df760"
+ },
+ "base_source": "8cbed19fc",
+ "boundaries": [
+  "bounded consumer/route policy result, not general adaptive judgment",
+  "the original replay's semantic wait choice remains withheld",
+  "no served multi-model, live connector, Linux/KVM or soak claim",
+  "no new provider, credential, spend, send, download or deployment",
+  "no inference replay was used for this guard"
+ ],
+ "checks": {
+  "affected_suite": "368 passed",
+  "guard_commit_isolated": "19 passed (predates genuine-missing follow-up)",
+  "guard_focused": "20 passed (18 wait-choice + route twin + probe)",
+  "independent_probe": "1 passed",
+  "model_calls": 0,
+  "provider_calls": 0,
+  "verification": "25/25"
+ },
+ "evidence_tip": "fea7948af",
+ "executed_source": "fea7948af",
+ "feedback_integration": "e4f3733c1",
+ "guard_followup": "fea7948af",
+ "guard_source": "0a9df5377",
+ "original_negative": "docs/acceptance/evidence/employee_byok_auto_selection_0e04286b2/",
+ "policy_cases": [
+  "clarify/retain-only policy rejects ambiguity",
+  "ambiguous accepted record rejects wait",
+  "unnamed missing role requires clarification",
+  "unread authorized evidence is read-first",
+  "explicit contradictory blocks_operation is refused",
+  "multiple missing prerequisites require a named blocked operation",
+  "genuine missing external fact can wait after all sources read",
+  "genuine missing fact can wait under clarify/retain default",
+  "ready independent work remains available; genuine wait remains valid",
+  "true no-result retains receipts and unresolved requirements",
+  "public route does not persist a forbidden ambiguous wait"
+ ],
+ "prior_schema_recovery": "docs/acceptance/evidence/employee_wait_choice_5cc897dbb/",
+ "schema": "atom-employee-evidence-1",
+ "source_files": {
+  "backend/api/assignment_routes.py": "a5131a1d0a8719ed748014d247010cacdd2745ba9c7c94b6c4c8065081d96699",
+  "backend/core/employee_adaptation.py": "caefd9e57291c37d3ed24231976de078325df34a429d259a967fe8185b7a7f7e",
+  "backend/core/employee_job_runner.py": "8b7346ca40745728d64558e6869635465b786b526fc97d7ae22d239f7b82e3b1",
+  "backend/core/employee_proposal.py": "cdba3222a450e2b050c5f94efdd6c99889dcc417d9be6554c2894705c349b660",
+  "backend/core/employee_routing_feedback.py": "d3fb8d92d996cb9750290cb93c8b7fce6c0a15c325a1b2b17148029139759d77",
+  "backend/core/employee_work_compiler.py": "3dcd28bc5a444d95df348226c42a431a31724f77b37e7ed6f7c6bd6e55e614a6",
+  "backend/core/learning_llm_router.py": "a93a5fffcddaffb08a48353c3eee211ed59379928878e97229eee1c460a920a2",
+  "backend/core/llm/byok_handler.py": "7158729b6961feaebf654e381db81c1ef6db9e360685e2e0c1da8fa472a9a42b",
+  "backend/core/llm/capability_profiles.py": "0bf20b5ad3bb893b35df85e9129491bddc273a4c66441f5dad7d37dfb934497c",
+  "backend/core/llm/fabrication_accounting.py": "411056e2ff666ebd3d64d86364899d10dca2b601facbe94de34af79b12f1a3b7",
+  "backend/core/llm/model_provenance.py": "2a914cd61ede131e877f0b681765b9a462b9668e2ffe6203a3a4ca7afb806ccb",
+  "backend/core/llm/pinned_planning.py": "af1694053dd8fd447523ab04620d599fe84ec987612b7f34746a901b96f2da48",
+  "backend/tests/test_assignment_routes.py": "8e7779861c64cda3581e1bb095b9c83b813a56ca123370f1ac9593a7625c6d2b",
+  "backend/tests/test_employee_adaptation_contract.py": "038c3f42dfded82e9756afc6720c6215c586db07700d01a99b9cc2b9d0a36c5d",
+  "backend/tests/test_employee_business_feedback.py": "51e094a5797ff319fbd9daf8d0bcd97c12692e1660fd35c3ab6661c415925714",
+  "backend/tests/test_employee_prerequisite_eligibility.py": "72835a7b3e1d71f51e02cc16ec6f2a60751eb528aa9690ba2c9bf7df5ec27edc",
+  "backend/tests/test_employee_wait_choice.py": "6542850232c552298b8475add0d08880dd62033738cd36c7f3633e30f32bc6d7"
+ },
+ "status": "wait-choice semantic policy guard demonstrated at controlled consumer/route scope; genuine missing-fact waits preserved; original schema replay and negative preserved"
+}

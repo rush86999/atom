@@ -27,6 +27,38 @@ from core.llm.capability_profiles import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_byok_shared_state():
+    """Keep ranking controls independent of earlier files' handler memos.
+
+    The BYOK handler keeps process-wide pair memos/cooldowns. A broad run can
+    reach this file after another suite benched the seeded local pair, which
+    made the context-capacity control see an empty pool. Clearing the shared
+    TEST state before and after each test restores the fixture contract without
+    weakening any production eligibility gate.
+    """
+    from core.llm import byok_handler as bh
+
+    def _clear() -> None:
+        bh._AUTH_FAILED.clear()
+        bh._REASONING_MANDATORY.clear()
+        bh._STRUCTURED_PROTOCOL_UNSUPPORTED.clear()
+        bh._LOGPROBS_UNSUPPORTED.clear()
+        bh._MODEL_TEMPERATURE.clear()
+        bh._TOOLCHOICE_UNSUPPORTED.clear()
+        bh._MODEL_STRUCTURED_LATENCY.clear()
+        bh._MODEL_STRUCTURED_LATENCY_AT.clear()
+        with bh._MODEL_OUTPUT_COOLDOWN_LOCK:
+            bh._MODEL_OUTPUT_COOLDOWN_UNTIL.clear()
+        with bh._PROVIDER_COOLDOWN_LOCK:
+            bh._PROVIDER_COOLDOWN_UNTIL.clear()
+            bh._PROVIDER_COOLDOWN_REASON.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
 def _candidate(provider, model, quality, cost, *, context=32768,
                structured=True, tools=True):
     return {

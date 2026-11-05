@@ -1261,14 +1261,14 @@ def _proposal_prompt(context: Mapping[str, Any]) -> str:
     )
 
 
-def _routing_snapshot() -> Dict[str, Any]:
+def _routing_snapshot(
+    capture: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Routing view for a result, including an explicit child-task capture."""
     try:
-        from core.llm.model_provenance import get_route_attribution
+        from core.llm.pinned_planning import routing_snapshot
 
-        attribution = get_route_attribution()
-        if not attribution.get("mode"):
-            attribution["mode"] = "deterministic"
-        return attribution
+        return routing_snapshot(capture)
     except Exception:  # noqa: BLE001 — diagnostics are optional
         return {"mode": "deterministic"}
 
@@ -1347,7 +1347,19 @@ async def propose_employee_work(
                 return
         journal.record(event, **fields)
 
+    #: Request-owned provenance. The awaited call may run in a child task
+    #: (asyncio.wait_for), whose ContextVar writes are not visible here. The
+    #: wrapper writes the final attempt's receipt into this shared mapping.
+    provenance: Dict[str, Any] = {}
     if llm_service is not None:
+        # Seed only server-owned REQUEST facts for a call that will actually
+        # be attempted. No LLM service means a genuinely deterministic result,
+        # not an "unpinned" route.
+        provenance["mode"] = "pinned" if provider_model else "unpinned"
+        if provider_model and len(provider_model) >= 2:
+            provenance["requested_route"] = {
+                "provider": provider_model[0], "model": provider_model[1]}
+        deadline_error: Optional[Dict[str, Any]] = None
         try:
             from core.llm.pinned_planning import pinned_structured_call
             call = pinned_structured_call(
@@ -1371,24 +1383,42 @@ async def propose_employee_work(
                 workspace_id=context.get("identity", {}).get("workspace_id"),
                 tenant_id=context.get("identity", {}).get("tenant_id"),
                 attempt_observer=_observe,
+                provenance=provenance,
             )
             budget = max(0.0, float(deadline_seconds or 0.0))
             result = (
                 await asyncio.wait_for(call, timeout=budget)
                 if budget > 0 else await call)
         except asyncio.TimeoutError:
+            deadline_error = {
+                "code": "deadline_cancelled",
+                "detail": (
+                    "the employee evidence-selection stage exhausted its "
+                    "caller deadline"),
+            }
             try:
                 from core.llm.model_provenance import set_routing_error
 
                 set_routing_error(
-                    "deadline_cancelled",
-                    "the employee evidence-selection stage exhausted its "
-                    "caller deadline")
+                    deadline_error["code"], deadline_error["detail"])
             except Exception:  # noqa: BLE001 — diagnostics are optional
                 pass
             result = None
         except Exception:  # noqa: BLE001 — the fallback remains explicit
             result = None
+        routing = _routing_snapshot(provenance)
+        if result is None:
+            # A failed boundary must not lend a stale generation id or a
+            # served route to the deterministic fallback.
+            routing["served_route"] = None
+            routing["routing_result_id"] = None
+            if deadline_error is not None:
+                routing["error"] = deadline_error
+            elif not routing.get("error"):
+                routing["error"] = {
+                    "code": "provider_failure",
+                    "detail": "the configured routes produced no usable result",
+                }
         if result is not None:
             checked = validate_employee_proposal(result, context)
             if checked["valid"]:
@@ -1398,8 +1428,41 @@ async def propose_employee_work(
                     "technical_fallback": False,
                     "errors": [],
                     "attempt_id": getattr(journal, "attempt_id", None),
-                    "routing": _routing_snapshot(),
+                    "routing_result_id": routing.get("routing_result_id"),
+                    "routing": routing,
                 }
+            # The model produced an object that parsed but failed the
+            # consumer's deterministic contract. Record THAT model attempt as
+            # a semantic failure; the deterministic fallback below is not
+            # credited as model success.
+            evaluation = None
+            try:
+                from core.employee_routing_feedback import (
+                    classify_evidence_errors,
+                    record_attempt_evaluation,
+                )
+
+                evaluation = await record_attempt_evaluation(
+                    {"source": "model", "routing": routing},
+                    stage="employee_evidence_selection",
+                    evaluation="failed",
+                    failure_kind=classify_evidence_errors(
+                        checked["errors"]),
+                    detail="; ".join(checked["errors"]),
+                    workspace_id=context.get("identity", {}).get(
+                        "workspace_id"),
+                    tenant_id=context.get("identity", {}).get("tenant_id"),
+                    extra_features={
+                        "proposal_errors": list(checked["errors"])[:8],
+                        "attempt_id": getattr(journal, "attempt_id", None),
+                    },
+                )
+            except Exception:  # noqa: BLE001 — evidence must not break work
+                evaluation = None
+            if journal is not None:
+                journal.record(
+                    "evaluation", stage="employee_evidence_selection",
+                    evaluation=evaluation)
             fallback = _deterministic_proposal(context)
             return {
                 "proposal": fallback,
@@ -1407,10 +1470,12 @@ async def propose_employee_work(
                 "technical_fallback": True,
                 "errors": checked["errors"],
                 "attempt_id": getattr(journal, "attempt_id", None),
-                "routing": _routing_snapshot(),
+                "routing_result_id": routing.get("routing_result_id"),
+                "evaluation": evaluation,
+                "routing": routing,
             }
     fallback = _deterministic_proposal(context)
-    routing = _routing_snapshot()
+    routing = _routing_snapshot(provenance)
     errors = []
     routing_error = routing.get("error")
     if isinstance(routing_error, Mapping):
@@ -1426,6 +1491,7 @@ async def propose_employee_work(
         "technical_fallback": llm_service is not None,
         "errors": errors,
         "attempt_id": getattr(journal, "attempt_id", None),
+        "routing_result_id": routing.get("routing_result_id"),
         "routing": routing,
     }
 

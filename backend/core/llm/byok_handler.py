@@ -7495,6 +7495,12 @@ class BYOKHandler:
             # SAME generation instead of recording a second one. Surfaced
             # through LLMService's result payload; see record_fabrication_signal.
             self._last_feedback_decision_id = decision_id
+            try:
+                from core.llm.model_provenance import set_feedback_id
+
+                set_feedback_id(decision_id)
+            except Exception:  # noqa: BLE001 — attribution is best-effort
+                pass
             fb = LearningBasedRouter.build_feedback(
                 routing_result_id=decision_id,
                 tenant_id=self.tenant_id or "default",
@@ -7520,6 +7526,12 @@ class BYOKHandler:
             # the payload has to carry the id that was actually stored.
             effective_id = getattr(fb, "routing_result_id", None) or decision_id
             self._last_feedback_decision_id = effective_id
+            try:
+                from core.llm.model_provenance import set_feedback_id
+
+                set_feedback_id(effective_id)
+            except Exception:  # noqa: BLE001 — attribution is best-effort
+                pass
         except Exception as e:
             logger.debug(f"Learning-router outcome observation skipped: {e}")
 
@@ -8248,6 +8260,12 @@ class BYOKHandler:
                 capability_profile=(
                     _capability.name if _capability is not None else None),
                 capability_preference=capability_preference,
+                # SCOPE (owner priority 2026-11-04): the capability layer
+                # reads profile-scoped feedback evidence. The handler's own
+                # workspace is the scope that wrote those rows; the router's
+                # cache default ("default") silently hid workspace-scoped
+                # business outcomes from the next decision.
+                workspace_id=self.workspace_id or "default",
             )
             # SWEEP CANDIDATE INJECTION (2026-10-04, the planner-pool
             # starvation): the ranked pool for a task class can contain

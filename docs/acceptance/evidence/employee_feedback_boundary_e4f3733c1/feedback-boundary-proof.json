@@ -1,0 +1,161 @@
+{
+ "schema": "atom-feedback-boundary-proof-1",
+ "executed_source": "e4f3733c1399ac1ca5ecef44adc02eec2fbe4da2",
+ "write_binding": {
+  "wrong_or_missing_scope": [
+   {
+    "case": "wrong_workspace",
+    "status": "refused_workspace",
+    "recorded": false,
+    "expected": "refused_workspace",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "wrong_tenant",
+    "status": "refused_tenant",
+    "recorded": false,
+    "expected": "refused_tenant",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "wrong_provider",
+    "status": "refused_provider",
+    "recorded": false,
+    "expected": "refused_provider",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "wrong_model",
+    "status": "refused_model",
+    "recorded": false,
+    "expected": "refused_model",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "wrong_profile",
+    "status": "refused_profile",
+    "recorded": false,
+    "expected": "refused_profile",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "wrong_version",
+    "status": "refused_profile_version",
+    "recorded": false,
+    "expected": "refused_profile_version",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "missing_workspace",
+    "status": "refused_missing_scope",
+    "recorded": false,
+    "expected": "refused_missing_scope",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   },
+   {
+    "case": "missing_tenant",
+    "status": "refused_missing_scope",
+    "recorded": false,
+    "expected": "refused_missing_scope",
+    "original_row_success": true,
+    "original_row_quality": true,
+    "original_row_business_outcome": null
+   }
+  ],
+  "correct_binding": {
+   "status": "annotated",
+   "recorded": true,
+   "row_count_before": 13,
+   "row_count_after": 13,
+   "inserted_rows": 0,
+   "success": false,
+   "quality_satisfied": false,
+   "cost_preserved": true,
+   "latency_preserved": true,
+   "failure_kind": "unsatisfactory_business_result"
+  },
+  "unknown_generation": {
+   "status": "skipped_missing_generation",
+   "recorded": false,
+   "orphan_rows": 0
+  },
+  "same_model_two_providers": {
+   "status": "annotated",
+   "selected_provider_row_updated": true,
+   "other_provider_row_unchanged": true
+  },
+  "duplicate_evaluation": {
+   "first": "annotated",
+   "second": "skipped_verdict",
+   "final_success": false
+  },
+  "concurrent_precedence": {
+   "final_success": false,
+   "final_failure_kind": "wrong_evidence_selection"
+  }
+ },
+ "child_task_receipt": {
+  "source": "model",
+  "routing_result_id": "generation-a",
+  "served_route": {
+   "provider": "controlled",
+   "model": "model-a"
+  },
+  "profile": {
+   "name": "employee_evidence_selection",
+   "version": "2026-11-04.1"
+  },
+  "mode": "unpinned"
+ },
+ "wait_choice": {
+  "parsed_pending": {
+   "status": "annotated",
+   "business_outcome": "unresolved",
+   "transport_success": true,
+   "counted_as_capability_sample": false
+  },
+  "validated_decision": {
+   "status": "annotated",
+   "business_outcome": "satisfied",
+   "scope": "decision",
+   "verdict": "business_satisfied"
+  },
+  "rejected_wait": {
+   "status": "annotated",
+   "failure_kind": "invalid_plan_reference",
+   "business_outcome": "failed",
+   "success": false
+  }
+ },
+ "controlled_decision_change": {
+  "served_route": {
+   "provider": "local_pricey",
+   "model": "pricey-model"
+  },
+  "source": "model"
+ },
+ "boundaries": [
+  "scratch SQLite feedback table; fresh sessions read the rows",
+  "provider transport doubled; no live model inference",
+  "wrong/missing scope/provider/model/profile/version refuse",
+  "no orphan business row for an unknown generation",
+  "same model on two providers binds to the exact provider",
+  "duplicate evaluation is idempotent; stronger verdict wins",
+  "child-task wait_for receipt is returned explicitly",
+  "parsed wait is unresolved; only a validated decision or explicit result is satisfactory"
+ ]
+}

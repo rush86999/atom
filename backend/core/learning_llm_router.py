@@ -32,6 +32,7 @@ from typing import Any, Optional, List, Dict, Set, Tuple, Union
 from uuid import UUID
 from collections import defaultdict
 
+from sqlalchemy import Integer, func, update
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
@@ -172,6 +173,20 @@ class RoutingFeedback:
     #: ``prompt_features["verdict_rule"]`` beside the verdict.
     verdict_rule: Optional[str] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    #: Evaluated business failure kind (``wrong_evidence_selection``,
+    #: ``invalid_plan_reference``, ``wrong_field_mapping``,
+    #: ``unsatisfactory_business_result``) or ``""`` for a satisfied outcome.
+    #: Persisted in ``prompt_features["failure_kind"]`` so the capability
+    #: evidence loader can distinguish a deterministic business defect from a
+    #: transport/schema failure. ``None`` means "not evaluated here".
+    #:
+    #: Appended AFTER the historical fields so existing positional
+    #: constructions keep their established field order.
+    failure_kind: Optional[str] = None
+    #: Additional bounded provenance for the business evaluation
+    #: (stage, business_outcome, repair attribution, detail). Merged into the
+    #: row's prompt_features; never used for routing authority.
+    evidence_features: Optional[Dict[str, Any]] = None
 
 
 def _check_cost_within_budget(tenant_id: str, actual_cost: Optional[float]) -> bool:
@@ -1546,7 +1561,7 @@ class LearningBasedRouter:
 
         return "Selected " + model.model_name + " because " + ", ".join(reasons)
 
-    async def record_feedback(self, feedback: RoutingFeedback) -> None:
+    async def record_feedback(self, feedback: RoutingFeedback) -> str:
         """
         Record routing feedback for learning.
 
@@ -1572,6 +1587,24 @@ class LearningBasedRouter:
             )
 
         feedback_key = f"{feedback.tenant_id}:{feedback.task_type}"
+        # A business evaluation is a WRITE BOUND to one exact generation. It
+        # must succeed at the DB boundary before it can affect in-memory
+        # learning; a refused/missing binding is not a recorded observation.
+        business_evaluation = (
+            getattr(feedback, "failure_kind", None) is not None
+            or bool(getattr(feedback, "evidence_features", None)))
+        recovered_features = getattr(feedback, "_prompt_features", None)
+        persist_status = "annotated"
+        if business_evaluation:
+            persist_status = self._persist_feedback(
+                feedback, recovered_features)
+            if persist_status != "annotated":
+                logger.warning(
+                    "business routing feedback not recorded (%s): "
+                    "tenant=%s model=%s generation=%s",
+                    persist_status, feedback.tenant_id, feedback.model_id,
+                    feedback.routing_result_id)
+                return persist_status
 
         # Acquire the state lock to prevent concurrent feedback/retrain races.
         # Without this, two record_feedback calls can interleave during the
@@ -1600,6 +1633,9 @@ class LearningBasedRouter:
                 superseded.quality_satisfied = feedback.quality_satisfied
                 superseded.user_satisfaction = feedback.user_satisfaction
                 superseded.verdict = feedback.verdict
+                superseded.failure_kind = feedback.failure_kind
+                superseded.evidence_features = dict(
+                    feedback.evidence_features or {})
                 superseded.actual_cost = (
                     feedback.actual_cost
                     if feedback.actual_cost is not None
@@ -1620,9 +1656,11 @@ class LearningBasedRouter:
 
             # Write through to DB so learned data survives restarts. Best-effort:
             # a DB failure must not break the hot routing path (in-memory state
-            # remains authoritative for reads).
-            recovered_features = getattr(feedback, "_prompt_features", None)
-            self._persist_feedback(feedback, recovered_features)
+            # remains authoritative for reads). Business evaluations already
+            # persisted above and must not be written twice.
+            if not business_evaluation:
+                persist_status = self._persist_feedback(
+                    feedback, recovered_features)
 
             # Update EMA scores in memory
             self._update_ema_scores(superseded or feedback)
@@ -1637,6 +1675,7 @@ class LearningBasedRouter:
             f"Recorded routing feedback: tenant={feedback.tenant_id}, "
             f"model={feedback.model_id}, success={feedback.success}"
         )
+        return persist_status
 
     async def _retrain_router(self, tenant_id: str, task_type: str) -> None:
         """
@@ -1702,9 +1741,241 @@ class LearningBasedRouter:
             f"predictors=[{', '.join(trained_predictors)}]"
         )
 
+    @staticmethod
+    def _business_binding_error(
+        row: Any, stored: Dict[str, Any], feedback: RoutingFeedback,
+    ) -> str:
+        """Why a business annotation may not touch this outcome row.
+
+        The handler's accepted generation is an immutable receipt: generation
+        id + tenant/workspace + provider/model + profile/version. A business
+        evaluation must match ALL of them. Missing provenance is a refusal,
+        never an inferred default. Empty string means the binding is exact.
+        """
+        if not feedback.tenant_id or str(row.tenant_id or "") != str(
+                feedback.tenant_id):
+            return "tenant"
+        workspace = str(stored.get("workspace_id") or "").strip()
+        if not feedback.workspace_id or workspace != str(
+                feedback.workspace_id):
+            return "workspace"
+        provider = str(stored.get("route_provider") or "").strip()
+        if not feedback.provider_id or provider != str(feedback.provider_id):
+            return "provider"
+        if str(row.model_id or "") != str(feedback.model_id or ""):
+            return "model"
+        profile = str(stored.get("capability_profile") or "").strip()
+        if not feedback.capability_profile or profile != str(
+                feedback.capability_profile):
+            return "profile"
+        version = str(stored.get("profile_version") or "").strip()
+        if str(feedback.capability_profile_version or "") != version:
+            return "profile_version"
+        return ""
+
+    @staticmethod
+    def _evaluation_revision(features: Dict[str, Any]) -> int:
+        try:
+            return max(0, int(features.get("evaluation_revision") or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _annotation_cas_predicates(
+        dialect: str, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback, *, business_binding: bool,
+    ):
+        """Database-enforced predicates for one annotation.
+
+        EVERY writer of the shared evaluation material participates in the
+        same revision. Business writes additionally compare the exact employee
+        binding; legacy grounding/fabrication writes keep their established
+        generation+model binding and only compare the observed snapshot
+        (tenant/model/quality/revision). SQLite and PostgreSQL have the JSON
+        comparison; other dialects fail closed.
+        """
+        predicates = [
+            LLMRoutingFeedback.id == row.id,
+            LLMRoutingFeedback.routing_result_id
+            == feedback.routing_result_id,
+            LLMRoutingFeedback.model_id == feedback.model_id,
+            LLMRoutingFeedback.success == bool(row.success),
+            LLMRoutingFeedback.quality_satisfied
+            == bool(row.quality_satisfied),
+        ]
+        if business_binding:
+            predicates.append(
+                LLMRoutingFeedback.tenant_id == feedback.tenant_id)
+        else:
+            # Legacy authorization stays generation+model; this only checks
+            # that the row did not change tenant between read and write.
+            predicates.append(
+                LLMRoutingFeedback.tenant_id == row.tenant_id)
+        if row.user_satisfaction is None:
+            predicates.append(
+                LLMRoutingFeedback.user_satisfaction.is_(None))
+        else:
+            predicates.append(
+                LLMRoutingFeedback.user_satisfaction == row.user_satisfaction)
+        binding = (
+            ("route_provider", feedback.provider_id),
+            ("workspace_id", feedback.workspace_id),
+            ("capability_profile", feedback.capability_profile),
+            ("profile_version", feedback.capability_profile_version),
+        )
+        if dialect == "sqlite":
+            if business_binding:
+                for key, expected in binding:
+                    predicates.append(func.json_extract(
+                        LLMRoutingFeedback.prompt_features,
+                        f"$.{key}") == str(expected or ""))
+            predicates.append(func.coalesce(
+                func.json_extract(
+                    LLMRoutingFeedback.prompt_features,
+                    "$.evaluation_revision"), 0)
+                == LearningBasedRouter._evaluation_revision(stored))
+            return predicates
+        if dialect == "postgresql":
+            if business_binding:
+                for key, expected in binding:
+                    predicates.append(
+                        LLMRoutingFeedback.prompt_features[key].astext
+                        == str(expected or ""))
+            predicates.append(func.coalesce(
+                LLMRoutingFeedback.prompt_features[
+                    "evaluation_revision"].astext.cast(Integer), 0)
+                == LearningBasedRouter._evaluation_revision(stored))
+            return predicates
+        return None
+
+    def _commit_annotation_cas(
+        self, db, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback, *,
+        verdict: Optional[str], failure_kind: Optional[str],
+        evidence_features: Dict[str, Any], verdict_rule: Optional[str],
+        pending: bool, business_binding: bool,
+        route_provider: Optional[str] = None,
+    ) -> str:
+        """One conditional UPDATE; zero rows means a concurrent writer won."""
+        dialect = db.get_bind().dialect.name
+        predicates = self._annotation_cas_predicates(
+            dialect, row, stored, feedback,
+            business_binding=business_binding)
+        if predicates is None:
+            return "unsupported_dialect"
+        updated = dict(stored)
+        if not pending:
+            updated["verdict"] = verdict
+            if verdict_rule:
+                updated["verdict_rule"] = str(verdict_rule)
+            if route_provider and not business_binding:
+                updated["route_provider"] = str(route_provider)
+        if failure_kind is not None:
+            updated["failure_kind"] = str(failure_kind)
+        for key, value in evidence_features.items():
+            updated[str(key)] = value
+        updated["evaluation_revision"] = (
+            self._evaluation_revision(stored) + 1)
+        values: Dict[str, Any] = {"prompt_features": updated}
+        if not pending:
+            from core.llm.fabrication_accounting import JUDGEMENT_VERDICTS
+
+            if verdict in JUDGEMENT_VERDICTS:
+                values.update({
+                    "success": feedback.success,
+                    "quality_satisfied": feedback.quality_satisfied,
+                    "user_satisfaction": feedback.user_satisfaction,
+                })
+        statement = (
+            update(LLMRoutingFeedback)
+            .where(*predicates)
+            .values(**values)
+        )
+        with db.no_autoflush:
+            result = db.execute(statement)
+            if result.rowcount != 1:
+                # End the stale transaction before the caller reloads.
+                db.rollback()
+                return "conflict"
+            # The CAS is the only evaluation-state write. Never let a dirty
+            # ORM object flush an unconditional primary-key UPDATE afterwards.
+            if row in db:
+                db.expire(row)
+            db.commit()
+        return "annotated"
+
+    @staticmethod
+    def _reload_feedback_row(db, row_id: str):
+        db.expire_all()
+        return db.query(LLMRoutingFeedback).filter(
+            LLMRoutingFeedback.id == row_id).first()
+
+    def _annotate_with_retry(
+        self, db, row: Any, stored: Dict[str, Any],
+        feedback: RoutingFeedback, *,
+        verdict: Optional[str], failure_kind: Optional[str],
+        evidence_features: Dict[str, Any], verdict_rule: Optional[str],
+        business_binding: bool,
+        route_provider: Optional[str] = None,
+    ) -> str:
+        """Recheck precedence and CAS with a bounded authoritative reload."""
+        from core.llm.fabrication_accounting import (
+            coerce_features,
+            verdict_rank,
+        )
+
+        pending = business_binding and not verdict
+        for _attempt in range(3):
+            if pending:
+                stored_outcome = str(
+                    stored.get("business_outcome") or "").lower()
+                if stored_outcome in ("failed", "satisfied"):
+                    return "skipped_verdict"
+                # A pending marker has no verdict rank. It must not annotate
+                # a row that already carries ANY judgement (fabrication,
+                # grounding, evidence or business): doing so could hide that
+                # judgement from the capability selector.
+                if stored.get("verdict"):
+                    return "skipped_verdict"
+            elif verdict_rank(verdict) <= verdict_rank(
+                    stored.get("verdict")):
+                return "skipped_verdict"
+            status = self._commit_annotation_cas(
+                db, row, stored, feedback,
+                verdict=verdict, failure_kind=failure_kind,
+                evidence_features=evidence_features,
+                verdict_rule=verdict_rule, pending=pending,
+                business_binding=business_binding,
+                route_provider=route_provider)
+            if status == "annotated":
+                return status
+            if status != "conflict":
+                return status
+            # The stale transaction is rolled back. Reload the authoritative
+            # row and recheck binding/precedence before the bounded retry.
+            row = self._reload_feedback_row(db, row.id)
+            if row is None:
+                return "skipped_missing_generation"
+            stored, _ = coerce_features(row.prompt_features)
+            if business_binding:
+                binding_error = self._business_binding_error(
+                    row, stored, feedback)
+                if binding_error:
+                    logger.warning(
+                        "business feedback refused after reload: %s binding "
+                        "mismatch for generation %s",
+                        binding_error, feedback.routing_result_id)
+                    return f"refused_{binding_error}"
+            elif (str(row.routing_result_id or "")
+                  != str(feedback.routing_result_id or "")
+                  or str(row.model_id or "")
+                  != str(feedback.model_id or "")):
+                return "skipped_missing_generation"
+        return "conflict"
+
     def _persist_feedback(
         self, feedback: RoutingFeedback, prompt_features: Optional[Dict[str, float]]
-    ) -> None:
+    ) -> str:
         """Best-effort write-through of one feedback row to the DB.
 
         Uses a short-lived session (not the long-lived ``self.db``) per the
@@ -1744,67 +2015,122 @@ class LearningBasedRouter:
             features, _malformed = coerce_features(prompt_features)
             verdict = getattr(feedback, "verdict", None) or (
                 features.get("verdict") if features else None)
-            # Verdicts about THIS OUTPUT annotate its row; availability
-            # verdicts (a timed-out planning call) describe an attempt that
-            # produced nothing, and must not annotate some other attempt that
-            # happens to share the turn.
-            annotates = (
-                verdict in JUDGEMENT_VERDICTS
-                or verdict in GROUNDING_EVALUATED_VERDICTS
-            ) and bool(feedback.routing_result_id)
             # Provider half of the route, when the caller knows it. Stored
             # beside the verdict so a later per-route consumer can tell WHICH
             # gateway produced the judged generation (the row itself has no
             # provider column).
             route_provider = getattr(feedback, "provider_id", None)
+            # BUSINESS EVALUATION PROVENANCE (owner priority 2026-11-04):
+            # the transport outcome row is written before the employee
+            # consumer knows whether the proposal/result was business-correct.
+            # ``failure_kind`` and ``evidence_features`` annotate THAT row so
+            # the capability selector can distinguish a deterministic business
+            # defect from a busy/timeout/schema event. None means "not
+            # evaluated here"; "" means a satisfied business outcome.
+            failure_kind = getattr(feedback, "failure_kind", None)
+            evidence_features = getattr(
+                feedback, "evidence_features", None) or {}
+            if not isinstance(evidence_features, dict):
+                evidence_features = {}
+            # BUSINESS WRITES ARE STRICTER THAN LEGACY CORRECTIONS. A business
+            # evaluation must bind to the exact transport outcome row; the
+            # fabrication/correction path keeps its established behavior.
+            business_evaluation = (
+                failure_kind is not None or bool(evidence_features))
+            # Verdicts about THIS OUTPUT annotate its row; availability
+            # verdicts (a timed-out planning call) describe an attempt that
+            # produced nothing, and must not annotate some other attempt that
+            # happens to share the turn. A business evaluation with no verdict
+            # (a pending/parsed decision) still annotates provenance, but does
+            # not rewrite quality.
+            annotates = bool(feedback.routing_result_id) and (
+                verdict in JUDGEMENT_VERDICTS
+                or verdict in GROUNDING_EVALUATED_VERDICTS
+                or business_evaluation)
 
             with get_db_session() as db:
                 if annotates:
-                    existing = (
-                        db.query(LLMRoutingFeedback)
-                        .filter(
-                            LLMRoutingFeedback.routing_result_id
-                            == feedback.routing_result_id,
-                            LLMRoutingFeedback.model_id == feedback.model_id,
-                        )
-                        .order_by(LLMRoutingFeedback.created_at.asc())
-                        .first()
+                    query = db.query(LLMRoutingFeedback).filter(
+                        LLMRoutingFeedback.routing_result_id
+                        == feedback.routing_result_id,
                     )
-                    if existing is not None:
+                    if not business_evaluation:
+                        # Legacy corrections keep their established
+                        # generation+model identity.
+                        query = query.filter(
+                            LLMRoutingFeedback.model_id == feedback.model_id)
+                    # Do NOT rely on SELECT FOR UPDATE: it has no locking
+                    # effect on SQLite, and writer serialization does not
+                    # protect a stale SELECT + ORM assignment. The business
+                    # path below uses a database-enforced CAS instead.
+                    candidates = query.order_by(
+                        LLMRoutingFeedback.created_at.asc()).limit(50).all()
+                    existing = None
+                    stored: Dict[str, Any] = {}
+                    if business_evaluation:
+                        first_error = ""
+                        for candidate in candidates:
+                            candidate_features, _ = coerce_features(
+                                candidate.prompt_features)
+                            binding_error = self._business_binding_error(
+                                candidate, candidate_features, feedback)
+                            if not binding_error:
+                                existing = candidate
+                                stored = candidate_features
+                                break
+                            first_error = first_error or binding_error
+                        if existing is None:
+                            if not candidates:
+                                logger.warning(
+                                    "business feedback skipped: no exact "
+                                    "generation row for %s",
+                                    feedback.routing_result_id)
+                                return "skipped_missing_generation"
+                            logger.warning(
+                                "business feedback refused: %s binding "
+                                "mismatch for generation %s",
+                                first_error or "scope",
+                                feedback.routing_result_id)
+                            return f"refused_{first_error or 'scope'}"
+                    elif candidates:
+                        existing = candidates[0]
                         stored, _ = coerce_features(existing.prompt_features)
-                        # ONE VERDICT SLOT, ORDERED BY SEVERITY. A weaker
-                        # judgement never replaces a stronger one, and a repeat
-                        # is a no-op: an invention outranks "ignored the
-                        # evidence", which outranks the positive marker that the
-                        # grounding check ran. The previous pairwise checks
-                        # (fabrication > grounding) left the new middle class
-                        # unguarded, so a grounding pass arriving after an
-                        # ignored-evidence judgement would have erased it.
-                        if verdict_rank(verdict) <= verdict_rank(stored.get("verdict")):
-                            return
-                        # Reassign a NEW mapping: mutating the dict in place
-                        # leaves SQLAlchemy's JSON column clean and the verdict
-                        # would silently never reach the database.
-                        updated = dict(stored)
-                        updated["verdict"] = verdict
-                        if route_provider:
-                            updated["route_provider"] = str(route_provider)
-                        verdict_rule = getattr(feedback, "verdict_rule", None) or (
-                            (features or {}).get("verdict_rule"))
-                        if verdict_rule:
-                            updated["verdict_rule"] = str(verdict_rule)
-                        existing.prompt_features = updated
-                        # QUALITY FIELDS follow the verdict only when the
-                        # verdict is a JUDGEMENT ON THE OUTPUT. A grounding
-                        # pass is a statement about the CHECK, not a new score
-                        # for the reply — overwriting the outcome's real
-                        # measurement with the marker's placeholder score would
-                        # corrupt the training signal.
-                        if verdict in JUDGEMENT_VERDICTS:
-                            existing.quality_satisfied = feedback.quality_satisfied
-                            existing.user_satisfaction = feedback.user_satisfaction
-                            existing.success = feedback.success
-                        return
+                    if existing is not None:
+                        # EVERY writer of the shared evaluation material uses
+                        # the same CAS: business and legacy grounding/
+                        # fabrication. The helper rechecks verdict precedence
+                        # and reloads on conflict before a bounded retry.
+                        verdict_rule = (
+                            getattr(feedback, "verdict_rule", None)
+                            or (features or {}).get("verdict_rule"))
+                        status = self._annotate_with_retry(
+                            db, existing, stored, feedback,
+                            verdict=verdict,
+                            failure_kind=failure_kind,
+                            evidence_features=evidence_features,
+                            verdict_rule=verdict_rule,
+                            business_binding=business_evaluation,
+                            route_provider=route_provider)
+                        if status == "annotated":
+                            # Commit happened inside the CAS; only now may the
+                            # capability selector cache be invalidated.
+                            try:
+                                from core.llm.capability_profiles import (
+                                    reset_capability_evidence_cache,
+                                )
+
+                                reset_capability_evidence_cache()
+                            except Exception:  # noqa: BLE001
+                                pass
+                        return status
+
+                if business_evaluation:
+                    # No exact transport row exists. Never insert an orphan
+                    # business judgement under another scope/generation.
+                    logger.warning(
+                        "business feedback skipped: no exact generation row "
+                        "for %s", feedback.routing_result_id)
+                    return "skipped_missing_generation"
 
                 if not annotates:
                     # A SECOND outcome row for the same (turn, model) is a
@@ -1835,7 +2161,9 @@ class LearningBasedRouter:
                     (features or {}).get("verdict_rule"))
                 capability_profile = getattr(
                     feedback, "capability_profile", None)
-                if route_provider or verdict_rule or capability_profile:
+                if (verdict or route_provider or verdict_rule
+                        or capability_profile
+                        or failure_kind is not None or evidence_features):
                     # Same rule for a standalone row: its provenance travels
                     # with it, so a route-scoped consumer can attribute it and
                     # tell which rule judged it.
@@ -1846,6 +2174,10 @@ class LearningBasedRouter:
                         row_features["verdict_rule"] = str(verdict_rule)
                     if verdict:
                         row_features["verdict"] = verdict
+                        # A standalone legacy verdict starts the common
+                        # revision so a later business/legacy CAS participates
+                        # in the same monotonic protocol.
+                        row_features["evaluation_revision"] = 1
                     if capability_profile:
                         row_features["capability_profile"] = str(
                             capability_profile)
@@ -1854,6 +2186,10 @@ class LearningBasedRouter:
                                     "capability_profile_version", "") or "")
                         row_features["workspace_id"] = str(
                             getattr(feedback, "workspace_id", "") or "")
+                    if failure_kind is not None:
+                        row_features["failure_kind"] = str(failure_kind)
+                    for key, value in evidence_features.items():
+                        row_features[str(key)] = value
                     prompt_features = row_features
 
                 row = LLMRoutingFeedback(
@@ -1870,8 +2206,10 @@ class LearningBasedRouter:
                     prompt_features=prompt_features,
                 )
                 db.add(row)
-                # Fresh outcome evidence invalidates the live capability
-                # selector cache; restart reads the same persisted rows.
+                # Commit before invalidating the live selector cache: a
+                # concurrent reader must never reload a DB that lacks the
+                # row whose freshness we just announced.
+                db.commit()
                 try:
                     from core.llm.capability_profiles import (
                         reset_capability_evidence_cache,
@@ -1880,11 +2218,13 @@ class LearningBasedRouter:
                     reset_capability_evidence_cache()
                 except Exception:  # noqa: BLE001 — cache reset is best-effort
                     pass
+                return "inserted"
         except Exception as e:
             logger.warning(
                 f"Could not persist routing feedback to DB (non-fatal, "
                 f"in-memory state remains): {e}"
             )
+            return "error"
 
     @staticmethod
     def build_feedback(

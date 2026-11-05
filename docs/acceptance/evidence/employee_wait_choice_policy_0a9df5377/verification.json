@@ -1,0 +1,106 @@
+{
+ "schema": "atom-employee-wait-policy-verification-1",
+ "guard_source": "0a9df5377",
+ "feedback_source": "e4f3733c1",
+ "guard_followup": "fea7948af",
+ "executed_source": "fea7948af",
+ "prior_schema_recovery": {
+  "source": "5cc897dbb",
+  "evidence": "docs/acceptance/evidence/employee_wait_choice_5cc897dbb/",
+  "preserved": true
+ },
+ "original_negative": {
+  "evidence": "docs/acceptance/evidence/employee_byok_auto_selection_0e04286b2/",
+  "preserved": true
+ },
+ "checks": {
+  "original_negative_preserved": true,
+  "original_schema_replay_preserved": true,
+  "no_inference_replay_for_this_guard": true,
+  "independent_probe_passes": true,
+  "all_read_ambiguity_cannot_wait": true,
+  "clarify_retain_only_policy_cannot_wait": true,
+  "ambiguous_record_requires_clarification": true,
+  "unnamed_missing_role_requires_clarification": true,
+  "unread_authorized_evidence_is_read_first": true,
+  "ready_independent_work_does_not_forbid_genuine_wait": true,
+  "ready_independent_compact_path_still_yields": true,
+  "explicit_contradictory_blocked_operation_refused": true,
+  "multiple_missing_requires_named_blocked_operation": true,
+  "genuine_missing_external_fact_can_wait": true,
+  "genuine_missing_fact_can_wait_under_clarify_retain_default": true,
+  "true_no_result_retains_receipts_and_requirements": true,
+  "public_route_does_not_persist_forbidden_wait": true,
+  "model_wait_choice_is_a_feedback_origin": true,
+  "parsed_wait_is_not_automatic_success": true,
+  "rejected_wait_is_semantic_failure_not_fallback_credit": true,
+  "business_annotation_binds_exact_generation": true,
+  "request_owned_provenance_survives_child_call": true,
+  "guard_focused_suite_passed": true,
+  "guard_commit_isolated_suite_passed": true,
+  "affected_suite_passed": true
+ },
+ "results": {
+  "guard_focused": {
+   "passed": 20,
+   "breakdown": "18 wait-choice + 1 public-route twin + 1 independent probe",
+   "log": "guard-tests.log"
+  },
+  "guard_commit_isolated": {
+   "passed": 19,
+   "note": "isolated 0a9df5377 tree; predates the genuine-missing-fact follow-up",
+   "log": "guard-commit-tests.log"
+  },
+  "independent_probe": {
+   "passed": 1,
+   "source": "probe.py",
+   "log": "probe.log"
+  },
+  "affected_suite": {
+   "passed": 368,
+   "log": "focused-tests.log"
+  }
+ },
+ "behavior": {
+  "on_rejected_wait": {
+   "decision": ["clarify", "retain"],
+   "work_request": null,
+   "existing_results_retained": true,
+   "unresolved_requirements_retained": true,
+   "semantic_rejection_recorded_separately": true,
+   "fallback_credited_as_model_success": false
+  },
+  "on_genuine_missing_fact": {
+   "wait_allowed_when_policy_permits_replan": true,
+   "wait_allowed_after_all_sources_read": true,
+   "wait_allowed_under_clarify_retain_default": true,
+   "requires_status_missing_with_named_role": true,
+   "ambiguous_or_ready_or_unnamed_never_qualifies": true,
+   "ready_independent_work_remains_available": true,
+   "compiler_owned_mechanics": true
+  },
+  "on_feedback": {
+   "model_wait_choice_origin_recognized": true,
+   "parsed_wait_pending": true,
+   "pending_excluded_from_capability_evidence": true,
+   "validated_decision_requires_explicit_flag": true,
+   "parsing_alone_sets_validated_flag": false
+  }
+ },
+ "measurements": {
+  "new_wait_choice_tests": 18,
+  "guard_focused_passed": 20,
+  "guard_commit_isolated_passed": 19,
+  "independent_probe_passed": 1,
+  "affected_suite_passed": 368,
+  "affected_suite_seconds": 128.88,
+  "model_calls": 0,
+  "provider_calls": 0
+ },
+ "limits": [
+  "Bounded consumer/route policy result, not general adaptive judgment.",
+  "The original captured replay's semantic choice remains withheld; it is not re-labeled as satisfactory.",
+  "No served multi-model comparison, live connector breadth, Linux/KVM or multi-worker/soak claim.",
+  "No new provider, credential, spend, send, download, deployment or broad inference campaign."
+ ]
+}

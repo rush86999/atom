@@ -1,0 +1,78 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-04 19:06:32 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_employee_wait_choice.py::test_compact_wait_context_accepts_a_wait_and_fills_compiler_mechanics 
+-------------------------------- live log setup --------------------------------
+2026-11-04 19:06:32 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 19:06:32 [    INFO] EscalationManager initialized
+2026-11-04 19:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 19:06:32 [    INFO] EscalationManager initialized
+2026-11-04 19:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 19:06:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 19:06:32 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  5%]
+tests/test_employee_wait_choice.py::test_compact_wait_subject_is_bound_to_a_known_identity_when_model_labels_it PASSED [ 10%]
+tests/test_employee_wait_choice.py::test_genuine_missing_fact_can_wait_when_default_policy_is_clarify PASSED [ 15%]
+tests/test_employee_wait_choice.py::test_wait_is_refused_when_authorized_unread_evidence_remains PASSED [ 20%]
+tests/test_employee_wait_choice.py::test_explicit_wrong_blocked_operation_is_refused PASSED [ 25%]
+tests/test_employee_wait_choice.py::test_all_read_ambiguity_with_clarify_only_policy_cannot_become_a_wait PASSED [ 30%]
+tests/test_employee_wait_choice.py::test_missing_prerequisite_without_a_named_role_requires_clarification PASSED [ 35%]
+tests/test_employee_wait_choice.py::test_genuine_missing_external_record_can_wait_after_all_sources_are_read PASSED [ 40%]
+tests/test_employee_wait_choice.py::test_genuine_wait_remains_valid_while_ready_independent_work_exists PASSED [ 45%]
+tests/test_employee_wait_choice.py::test_model_clarification_is_accepted_without_a_wait PASSED [ 50%]
+tests/test_employee_wait_choice.py::test_wait_without_a_named_blocked_operation_is_refused_when_multiple_exist PASSED [ 55%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_preserves_a_ready_independent_operation PASSED [ 60%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_allows_clarify_and_retain PASSED [ 65%]
+tests/test_employee_wait_choice.py::test_captured_empty_blocks_instance_is_rejected_by_the_existing_contract PASSED [ 70%]
+tests/test_employee_wait_choice.py::test_no_result_retains_applied_receipt_and_unresolved_requirement PASSED [ 75%]
+tests/test_employee_wait_choice.py::test_wait_choice_uses_compact_model_before_the_full_prompt PASSED [ 80%]
+tests/test_employee_wait_choice.py::test_wait_choice_no_result_is_deterministic_and_does_not_invent_work PASSED [ 85%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_marks_an_all_read_ambiguity_for_clarification PASSED [ 90%]
+tests/test_assignment_routes.py::test_advance_route_does_not_adopt_a_policy_forbidden_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-04 19:06:33 [    INFO] EscalationManager initialized
+2026-11-04 19:06:33 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-04 19:06:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/ce063916-b56f-4ecf-b3a7-0c9bffe2a5a9/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+::test_all_read_ambiguity_cannot_expand_clarify_only_policy_into_wait PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 40 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 20 passed, 47 warnings in 11.78s =======================

@@ -1,0 +1,82 @@
+⚠️  Using SQLite file database (/private/tmp/atom-wait-choice-agent1/backend/dev.db)
+⚠️ Generated temporary SECRET_KEY for development: 3SnYWJ6Z...
+⚠️ Generated temporary SECRET_KEY for development: 9LZPr7mi...
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to get tenant plan: (sqlite3.OperationalError) no such table: workspaces
+[SQL: SELECT workspaces.id AS workspaces_id, workspaces.name AS workspaces_name, workspaces.description AS workspaces_description, workspaces.status AS workspaces_status, workspaces.plan_tier AS workspaces_plan_tier, workspaces.tenant_id AS workspaces_tenant_id, workspaces.is_startup AS workspaces_is_startup, workspaces.learning_phase_completed AS workspaces_learning_phase_completed, workspaces.metadata_json AS workspaces_metadata_json, workspaces.internal_domains AS workspaces_internal_domains, workspaces.satellite_api_key AS workspaces_satellite_api_key, workspaces.created_at AS workspaces_created_at, workspaces.updated_at AS workspaces_updated_at 
+FROM workspaces 
+WHERE workspaces.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('default', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-04T23:09:50.979596+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+Could not load routing feedback from DB (non-fatal, starting with empty state): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT llm_routing_feedback.id AS llm_routing_feedback_id, llm_routing_feedback.routing_result_id AS llm_routing_feedback_routing_result_id, llm_routing_feedback.tenant_id AS llm_routing_feedback_tenant_id, llm_routing_feedback.task_type AS llm_routing_feedback_task_type, llm_routing_feedback.model_id AS llm_routing_feedback_model_id, llm_routing_feedback.success AS llm_routing_feedback_success, llm_routing_feedback.quality_satisfied AS llm_routing_feedback_quality_satisfied, llm_routing_feedback.cost_within_budget AS llm_routing_feedback_cost_within_budget, llm_routing_feedback.user_satisfaction AS llm_routing_feedback_user_satisfaction, llm_routing_feedback.actual_cost AS llm_routing_feedback_actual_cost, llm_routing_feedback.actual_latency_ms AS llm_routing_feedback_actual_latency_ms, llm_routing_feedback.prompt_features AS llm_routing_feedback_prompt_features, llm_routing_feedback.created_at AS llm_routing_feedback_created_at 
+FROM llm_routing_feedback ORDER BY llm_routing_feedback.created_at DESC]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Could not persist routing feedback to DB (non-fatal, in-memory state remains): (sqlite3.OperationalError) no such table: llm_routing_feedback
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT llm_routing_feedback.id AS llm_routing_feedback_id 
+FROM llm_routing_feedback 
+WHERE llm_routing_feedback.routing_result_id = ? AND llm_routing_feedback.model_id = ?) AS anon_1]
+[parameters: ('b91e500f-d44b-41ef-b453-e58de0e0180f', 'llama3.1:8b')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+{
+ "source": "model_wait_choice",
+ "prompt_mode": "wait_choice",
+ "failure_stage": null,
+ "errors": [],
+ "decision": "replan",
+ "work_request": {
+  "operation": "await_evidence",
+  "fact": "current supplier invoice for purchase order PO-SEL-520",
+  "subject": "purchase order PO-SEL-520",
+  "expected_from": "authorized procurement pool",
+  "expected_answer_type": "text",
+  "blocks": "invoice reconciliation",
+  "blocks_operation": "invoice_reconciliation",
+  "deadline": null,
+  "validity": null,
+  "reason": "missing external business record or fact that an authorized source can supply"
+ },
+ "routing": {
+  "mode": "unpinned",
+  "requested_route": {
+   "provider": "ollama",
+   "model": "llama3.1:8b"
+  },
+  "served_route": {
+   "provider": "ollama",
+   "model": "llama3.1:8b"
+  },
+  "resolved_model": "llama3.1:8b",
+  "profile": {
+   "name": "employee_wait_choice",
+   "version": "2026-11-04.1"
+  },
+  "error": null,
+  "routing_result_id": "b91e500f-d44b-41ef-b453-e58de0e0180f"
+ },
+ "elapsed_seconds": 13.153134500142187,
+ "attempt_events": [
+  {
+   "event": "dispatch",
+   "call_stage": "wait_choice",
+   "attempt": 1,
+   "route": "unpinned",
+   "prompt_chars": 6361,
+   "response_model": "CompactWaitChoiceProposal"
+  },
+  {
+   "event": "parsed",
+   "call_stage": "wait_choice",
+   "attempt": 1,
+   "route": "unpinned",
+   "seconds": 13.150002624839544
+  }
+ ]
+}

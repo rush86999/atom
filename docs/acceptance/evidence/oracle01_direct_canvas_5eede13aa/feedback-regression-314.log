@@ -1,0 +1,1172 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 06:56:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:21 [    INFO] EscalationManager initialized
+2026-11-05 06:56:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:21 [    INFO] EscalationManager initialized
+2026-11-05 06:56:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 06:56:21 [    INFO] AgentTaskRegistry initialized
+2026-11-05 06:56:22 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  0%]
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_passed] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:23 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  0%]
+tests/test_capability_evidence_classification.py::test_pending_plus_fabrication_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:23 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  1%]
+tests/test_capability_evidence_classification.py::test_pending_plus_business_failure_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:24 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  1%]
+tests/test_capability_evidence_classification.py::test_validated_wait_decision_is_a_scoped_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:25 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  1%]
+tests/test_capability_evidence_classification.py::test_satisfied_business_result_is_a_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:26 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  2%]
+tests/test_capability_evidence_classification.py::test_legacy_row_without_business_marker_keeps_compatibility 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:26 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  2%]
+tests/test_employee_business_feedback.py::test_context_floor_before_feedback_tests 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:26 [    INFO] EscalationManager initialized
+2026-11-05 06:56:26 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:26 [    INFO] LocalOnlyGuard initialized
+2026-11-05 06:56:26 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-05 06:56:26 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:26 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-05 06:56:26 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_evaluated_bad_work_persists_and_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:27 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:27 [    INFO] EscalationManager initialized
+2026-11-05 06:56:27 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:27 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:27 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:27 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f088c57f8f9e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:27 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f088c57f8f9e attempt=1
+2026-11-05 06:56:27 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:27 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:27 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-711dee4e876d attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:27 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-711dee4e876d attempt=1
+2026-11-05 06:56:27 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:27 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:27 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-0f7782631a1c attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:27 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-0f7782631a1c attempt=1
+2026-11-05 06:56:27 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-05 06:56:27 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-05 06:56:27 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-959dff37bea0 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:27 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-959dff37bea0 attempt=1
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_evaluated_business_failure_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:28 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:28 [    INFO] EscalationManager initialized
+2026-11-05 06:56:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:28 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-41b9e2767989 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:28 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-41b9e2767989 attempt=1
+2026-11-05 06:56:28 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-8c4d45cb1fb9 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:28 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-8c4d45cb1fb9 attempt=1
+2026-11-05 06:56:28 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-36d86ae86d07 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:28 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-36d86ae86d07 attempt=1
+2026-11-05 06:56:28 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-05 06:56:28 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-05 06:56:28 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-cced7c6ce1a6 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:28 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-cced7c6ce1a6 attempt=1
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_strict_qualification_pin_fails_instead_of_escaping 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:29 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:29 [    INFO] EscalationManager initialized
+2026-11-05 06:56:29 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c28d01e86c4a attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-c28d01e86c4a attempt=1
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-5ef19238b4c5 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-5ef19238b4c5 attempt=1
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-e43d940a8e49 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-e43d940a8e49 attempt=1
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for simple: Top model pricey-model (Value: 8100000.00)
+2026-11-05 06:56:29 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': the qualification pin does not meet the workload capability contract
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:29 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:29 [    INFO] EscalationManager initialized
+2026-11-05 06:56:29 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-2358306447f3 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-2358306447f3 attempt=1
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1b00502a9c3e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1b00502a9c3e attempt=1
+2026-11-05 06:56:29 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:29 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:29 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-6b3a99382f6f attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:29 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-6b3a99382f6f attempt=1
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_satisfied_business_outcome_annotates_the_same_generation 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:30 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:30 [    INFO] EscalationManager initialized
+2026-11-05 06:56:30 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:30 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:30 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:30 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-89395847e38f attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:30 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-89395847e38f attempt=1
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_compact_evaluation_stays_in_the_compact_profile 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:31 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  5%]
+tests/test_employee_business_feedback.py::test_wait_choice_origin_needs_an_explicit_verdict_and_is_never_auto_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:32 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  5%]
+tests/test_employee_business_feedback.py::test_deterministic_fallback_is_never_credited_as_model_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:32 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:32 [    INFO] EscalationManager initialized
+2026-11-05 06:56:32 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:32 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:32 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-6690b8e7dd44 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:56:32 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-6690b8e7dd44 attempt=1
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_wrong_or_missing_receipt_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:33 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:33 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-wrong_workspace
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_workspace
+2026-11-05 06:56:33 [ WARNING] business feedback refused: tenant binding mismatch for generation binding-wrong_tenant
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_tenant): tenant=tenant-other model=llama3.1:8b generation=binding-wrong_tenant
+2026-11-05 06:56:33 [ WARNING] business feedback refused: provider binding mismatch for generation binding-wrong_provider
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_provider
+2026-11-05 06:56:33 [ WARNING] business feedback refused: model binding mismatch for generation binding-wrong_model
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_model): tenant=tenant-ctrl model=other-model generation=binding-wrong_model
+2026-11-05 06:56:33 [ WARNING] business feedback refused: profile binding mismatch for generation binding-wrong_profile
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_profile
+2026-11-05 06:56:33 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-wrong_version
+2026-11-05 06:56:33 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_version
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_write_binding_annotates_exactly_the_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:34 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_unknown_generation 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:35 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:35 [ WARNING] business feedback skipped: no exact generation row for generation-does-not-exist
+2026-11-05 06:56:35 [ WARNING] business routing feedback not recorded (skipped_missing_generation): tenant=tenant-ctrl model=llama3.1:8b generation=generation-does-not-exist
+PASSED                                                                   [  7%]
+tests/test_employee_business_feedback.py::test_business_write_binding_selects_the_exact_provider_for_same_model 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:35 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  7%]
+tests/test_employee_business_feedback.py::test_business_write_binding_duplicate_is_idempotent 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:36 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:36 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=binding-duplicate
+PASSED                                                                   [  7%]
+tests/test_employee_business_feedback.py::test_business_write_binding_stronger_concurrent_evaluation_wins 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:36 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  8%]
+tests/test_employee_business_feedback.py::test_parsed_wait_choice_is_pending_not_business_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:37 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  8%]
+tests/test_employee_business_feedback.py::test_validated_wait_choice_is_a_scoped_positive_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:38 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  9%]
+tests/test_employee_business_feedback.py::test_rejected_wait_choice_is_semantic_failure_not_fallback_credit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:39 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  9%]
+tests/test_employee_business_feedback.py::test_business_verdicts_do_not_enter_the_fabrication_numerator PASSED [  9%]
+tests/test_employee_business_feedback.py::test_real_model_wait_choice_is_pending_not_business_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:40 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:40 [    INFO] EscalationManager initialized
+2026-11-05 06:56:40 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-05 06:56:40 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:40 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:40 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-de230b2abbcc attempt=1 prompt_chars=3678 cap=1200 instructor_retries=0
+2026-11-05 06:56:40 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-de230b2abbcc attempt=1
+PASSED                                                                   [ 10%]
+tests/test_employee_business_feedback.py::test_real_rejected_wait_choice_is_semantic_failure_not_fallback_credit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:40 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:40 [    INFO] EscalationManager initialized
+2026-11-05 06:56:40 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-05 06:56:40 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:40 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:56:40 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-681256c8ec31 attempt=1 prompt_chars=3671 cap=1200 instructor_retries=0
+2026-11-05 06:56:40 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-681256c8ec31 attempt=1
+PASSED                                                                   [ 10%]
+tests/test_employee_business_feedback.py::test_context_floor_after_feedback_tests 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:40 [    INFO] EscalationManager initialized
+2026-11-05 06:56:40 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:56:40 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:56:40 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-05 06:56:40 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 11%]
+tests/test_employee_feedback_interleaving.py::test_stale_weak_annotation_cannot_erase_committed_failure[positive] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:41 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:41 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-positive
+PASSED                                                                   [ 11%]
+tests/test_employee_feedback_interleaving.py::test_stale_weak_annotation_cannot_erase_committed_failure[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:42 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:42 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-pending
+PASSED                                                                   [ 11%]
+tests/test_employee_feedback_interleaving.py::test_stronger_failure_overwrites_committed_positive 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:42 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 12%]
+tests/test_employee_feedback_interleaving.py::test_duplicate_verdict_is_idempotent_and_incident_identity_stable 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:43 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:43 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-duplicate
+PASSED                                                                   [ 12%]
+tests/test_employee_feedback_interleaving.py::test_stale_failure_read_retries_after_positive_commit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:44 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 12%]
+tests/test_employee_feedback_interleaving.py::test_pending_business_cannot_erase_committed_legacy_verdict[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:44 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:44 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-grounding_ok
+PASSED                                                                   [ 13%]
+tests/test_employee_feedback_interleaving.py::test_pending_business_cannot_erase_committed_legacy_verdict[unsupported_figures] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:45 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:45 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-unsupported_figures
+PASSED                                                                   [ 13%]
+tests/test_employee_feedback_interleaving.py::test_stale_legacy_grounding_cannot_overwrite_committed_business_failure 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:46 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 14%]
+tests/test_employee_feedback_interleaving.py::test_changed_binding_during_evaluation_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:46 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:46 [ WARNING] business feedback refused after reload: workspace binding mismatch for generation interleave-binding-change
+2026-11-05 06:56:46 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-binding-change
+PASSED                                                                   [ 14%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_accepts_a_wait_and_fills_compiler_mechanics PASSED [ 14%]
+tests/test_employee_wait_choice.py::test_compact_wait_subject_is_bound_to_a_known_identity_when_model_labels_it PASSED [ 15%]
+tests/test_employee_wait_choice.py::test_genuine_missing_fact_can_wait_when_default_policy_is_clarify PASSED [ 15%]
+tests/test_employee_wait_choice.py::test_wait_is_refused_when_authorized_unread_evidence_remains PASSED [ 15%]
+tests/test_employee_wait_choice.py::test_explicit_wrong_blocked_operation_is_refused PASSED [ 16%]
+tests/test_employee_wait_choice.py::test_all_read_ambiguity_with_clarify_only_policy_cannot_become_a_wait PASSED [ 16%]
+tests/test_employee_wait_choice.py::test_missing_prerequisite_without_a_named_role_requires_clarification PASSED [ 17%]
+tests/test_employee_wait_choice.py::test_genuine_missing_external_record_can_wait_after_all_sources_are_read PASSED [ 17%]
+tests/test_employee_wait_choice.py::test_genuine_wait_remains_valid_while_ready_independent_work_exists PASSED [ 17%]
+tests/test_employee_wait_choice.py::test_model_clarification_is_accepted_without_a_wait PASSED [ 18%]
+tests/test_employee_wait_choice.py::test_wait_without_a_named_blocked_operation_is_refused_when_multiple_exist PASSED [ 18%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_preserves_a_ready_independent_operation PASSED [ 19%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_allows_clarify_and_retain PASSED [ 19%]
+tests/test_employee_wait_choice.py::test_captured_empty_blocks_instance_is_rejected_by_the_existing_contract PASSED [ 19%]
+tests/test_employee_wait_choice.py::test_no_result_retains_applied_receipt_and_unresolved_requirement PASSED [ 20%]
+tests/test_employee_wait_choice.py::test_wait_choice_uses_compact_model_before_the_full_prompt PASSED [ 20%]
+tests/test_employee_wait_choice.py::test_wait_choice_no_result_is_deterministic_and_does_not_invent_work PASSED [ 20%]
+tests/test_employee_wait_choice.py::test_compact_wait_context_marks_an_all_read_ambiguity_for_clarification PASSED [ 21%]
+tests/test_assignment_routes.py::test_authorized_team_lead_approves_once 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:47 [    INFO] runtime identity: source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked)
+2026-11-05 06:56:47 [    INFO] HTTP Request: POST http://testserver/api/assignments/945c3130-c27d-4c7f-99ea-7323cbb456e5/approve/send "HTTP/1.1 200 OK"
+2026-11-05 06:56:47 [    INFO] HTTP Request: POST http://testserver/api/assignments/945c3130-c27d-4c7f-99ea-7323cbb456e5/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 21%]
+tests/test_assignment_routes.py::test_same_workspace_member_cannot_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/f5398e20-9d84-481b-af6d-8971e14348c4/approve/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_wrong_workspace_approver_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:49 [    INFO] HTTP Request: POST http://testserver/api/assignments/2f94dd9b-ccf2-427d-8cbe-ea823a53f1eb/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_changed_payload_is_not_approved_under_old_request 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/d295d536-2a31-4000-8a6b-fd10c28d4c63/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/403ecc42-bd99-42b9-9f1f-5da6d31f0712/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_start_from_chat_objective_uses_registered_plan_and_teaching 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:51 [    INFO] Learning skipped for agent-3d5ea50a: status intern (not STUDENT)
+2026-11-05 06:56:51 [    INFO] Learning skipped for agent-3d5ea50a: status intern (not STUDENT)
+2026-11-05 06:56:52 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:56:52 [    INFO] EscalationManager initialized
+2026-11-05 06:56:52 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 06:56:52 [ WARNING] No LLM clients available
+2026-11-05 06:56:52 [ WARNING] No LLM clients available
+2026-11-05 06:56:52 [    INFO] HTTP Request: POST http://testserver/api/assignments/3f80e05e-d4e5-4ed0-ab42-8e60b12e6be7/responses/corr-A "HTTP/1.1 200 OK"
+2026-11-05 06:56:52 [    INFO] HTTP Request: POST http://testserver/api/assignments/3f80e05e-d4e5-4ed0-ab42-8e60b12e6be7/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_start_rejects_unregistered_proposed_adapter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:52 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 23%]
+tests/test_assignment_routes.py::test_guided_discovery_mode_needs_no_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:53 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 24%]
+tests/test_assignment_routes.py::test_public_proposed_steps_are_gated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:54 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 24%]
+tests/test_assignment_routes.py::test_guided_connected_aggregate_is_grounded_and_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:55 [    INFO] Learning skipped for agent-f78d6a54: status intern (not STUDENT)
+2026-11-05 06:56:55 [    INFO] Learning skipped for agent-f78d6a54: status intern (not STUDENT)
+2026-11-05 06:56:55 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:56:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/59738a54-c3f4-40f9-b13f-49e057e2f298/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_assignment_routes.py::test_guided_connected_count_presentation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:56 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:57 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_assignment_routes.py::test_bounded_taught_method_job_with_wait_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:58 [    INFO] Learning skipped for agent-cbf73dec: status intern (not STUDENT)
+2026-11-05 06:56:58 [    INFO] Learning skipped for agent-cbf73dec: status intern (not STUDENT)
+2026-11-05 06:56:58 [    INFO] Learning skipped for agent-cbf73dec: status intern (not STUDENT)
+2026-11-05 06:56:58 [    INFO] Learning skipped for agent-cbf73dec: status intern (not STUDENT)
+2026-11-05 06:56:58 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:56:58 [    INFO] EscalationManager initialized
+2026-11-05 06:56:58 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 06:56:58 [ WARNING] No LLM clients available
+2026-11-05 06:56:58 [ WARNING] No LLM clients available
+2026-11-05 06:56:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/8f289fc6-edd6-487e-aa8c-55e61f939fd3/responses/bounded-correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_assignment_routes.py::test_taught_method_missing_wait_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:59 [    INFO] Learning skipped for agent-1679ff12: status intern (not STUDENT)
+2026-11-05 06:56:59 [    INFO] Learning skipped for agent-1679ff12: status intern (not STUDENT)
+2026-11-05 06:56:59 [    INFO] Learning skipped for agent-1679ff12: status intern (not STUDENT)
+2026-11-05 06:56:59 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_assignment_routes.py::test_unsupported_taught_method_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:00 [    INFO] Learning skipped for agent-53a542e1: status intern (not STUDENT)
+2026-11-05 06:57:00 [    INFO] Learning skipped for agent-53a542e1: status intern (not STUDENT)
+2026-11-05 06:57:00 [    INFO] Learning skipped for agent-53a542e1: status intern (not STUDENT)
+2026-11-05 06:57:00 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_assignment_routes.py::test_guided_no_match_is_explicit_pending_work 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:00 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 27%]
+tests/test_assignment_routes.py::test_guided_wrong_workspace_scope_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:01 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 27%]
+tests/test_assignment_routes.py::test_real_catalog_resource_from_another_workspace_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:02 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 28%]
+tests/test_assignment_routes.py::test_client_cannot_choose_an_output_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:03 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_assignment_routes.py::test_start_second_domain_presentation_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:04 [    INFO] Learning skipped for agent-44723a2e: status intern (not STUDENT)
+2026-11-05 06:57:04 [    INFO] Learning skipped for agent-44723a2e: status intern (not STUDENT)
+2026-11-05 06:57:04 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_assignment_routes.py::test_mapping_correction_route_applies_and_resumes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/22ff2078-d99e-4528-b535-b137d0fbec11/mappings/correct "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_assignment_routes.py::test_stale_mapping_correction_is_refused_before_source_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/3793e681-117f-453c-887c-7f85cf6b9e92/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_assignment_routes.py::test_wrong_workspace_mapping_correction_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/f3e5c03c-71a3-4119-8418-9e60f686037a/mappings/correct "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/83e4389b-a5da-429a-af97-118332415c3f/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 404 Not Found"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/1040e0d3-f7fe-40f3-9e9e-9c7dbfb0de67/gaps/62f91268-84e9-4ac2-8d46-a41da30864fc/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_assignment_routes.py::test_incomplete_inline_evidence_cannot_resume_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/5c8715c7-d69b-44fb-a248-e9efe914ddba/responses/inline-corr "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_assignment_routes.py::test_assignment_consumes_contextual_conversation_method 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:15 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:15 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:15 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:15 [    INFO] HTTP Request: GET http://testserver/api/assignments/1071beee-bc58-47ff-ad48-5d7e824238bb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_assignment_routes.py::test_route_reconcile_applied_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/7484f153-5e16-48a6-a46a-b691d00879a7/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_assignment_routes.py::test_route_reconcile_insufficient_keeps_uncertain_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/f2996fe3-740a-4edd-87e9-899e32fc65c6/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_assignment_routes.py::test_route_reconcile_not_applied_allows_one_new_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/9ad5521d-9a95-47e0-bc2b-63e2fcd6942e/reconcile/send "HTTP/1.1 200 OK"
+2026-11-05 06:57:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/9ad5521d-9a95-47e0-bc2b-63e2fcd6942e/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_assignment_routes.py::test_route_reconcile_requires_evidence_and_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/6e937849-257e-4120-8e97-d95bfd1ab5b5/reconcile/send "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/6e937849-257e-4120-8e97-d95bfd1ab5b5/reconcile/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 33%]
+tests/test_assignment_routes.py::test_standing_authority_requires_a_real_bound PASSED [ 33%]
+tests/test_assignment_routes.py::test_over_limit_outbound_body_is_rejected_before_run_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:24 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 33%]
+tests/test_assignment_routes.py::test_budget_extension_raises_limits_without_restarting_the_job 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/424f5808-e861-4656-b78e-447df95e26c1/budget "HTTP/1.1 200 OK"
+2026-11-05 06:57:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/424f5808-e861-4656-b78e-447df95e26c1/budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_assignment_routes.py::test_cancel_clears_correlated_wait_and_refuses_late_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/6d00877a-e1fc-47ba-bf08-859a2df56112/cancel "HTTP/1.1 200 OK"
+2026-11-05 06:57:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/6d00877a-e1fc-47ba-bf08-859a2df56112/responses/corr-cancel-route "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/6d00877a-e1fc-47ba-bf08-859a2df56112/cancel "HTTP/1.1 200 OK"
+2026-11-05 06:57:27 [    INFO] HTTP Request: GET http://testserver/api/assignments/6d00877a-e1fc-47ba-bf08-859a2df56112 "HTTP/1.1 200 OK"
+2026-11-05 06:57:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/6d00877a-e1fc-47ba-bf08-859a2df56112/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_assignment_routes.py::test_cancel_clears_mapping_wait_and_refuses_gap_and_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/74ad7401-82a7-4d0a-8e70-688e8ef9dcb0/cancel "HTTP/1.1 200 OK"
+2026-11-05 06:57:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/74ad7401-82a7-4d0a-8e70-688e8ef9dcb0/gaps/65b35d56-c183-4e72-bbde-0fd13117b7b6/resolve "HTTP/1.1 409 Conflict"
+2026-11-05 06:57:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/74ad7401-82a7-4d0a-8e70-688e8ef9dcb0/responses/corr-map-cancel "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_assignment_routes.py::test_quote_journey_uses_sources_and_taught_line_discount 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:31 [    INFO] Learning skipped for agent-ab0cdc00: status intern (not STUDENT)
+2026-11-05 06:57:31 [    INFO] Learning skipped for agent-ab0cdc00: status intern (not STUDENT)
+2026-11-05 06:57:31 [    INFO] Learning skipped for agent-ab0cdc00: status intern (not STUDENT)
+2026-11-05 06:57:31 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_assignment_routes.py::test_service_proposal_route_uses_the_same_assignment_api 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:33 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_assignment_routes.py::test_teaching_correction_preserves_snapshot_and_reassessment_invalidates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:35 [    INFO] Learning skipped for agent-3ac0c06a: status intern (not STUDENT)
+2026-11-05 06:57:35 [    INFO] Learning skipped for agent-3ac0c06a: status intern (not STUDENT)
+2026-11-05 06:57:35 [    INFO] Learning skipped for agent-3ac0c06a: status intern (not STUDENT)
+2026-11-05 06:57:35 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:35 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:35 [    INFO] HTTP Request: POST http://testserver/api/assignments/e440e47e-a216-4e34-b37a-676174749019/reassess "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_assignment_routes.py::test_quote_controlled_commercial_update_duplicate_and_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:37 [    INFO] Learning skipped for agent-e606b91a: status intern (not STUDENT)
+2026-11-05 06:57:37 [    INFO] Learning skipped for agent-e606b91a: status intern (not STUDENT)
+2026-11-05 06:57:37 [    INFO] Learning skipped for agent-e606b91a: status intern (not STUDENT)
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/395a03fa-febd-4ef0-b542-77499b7722c3/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/395a03fa-febd-4ef0-b542-77499b7722c3/resume "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/e2ba72e0-a47b-4073-b44b-0503a2a9c783/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: GET http://testserver/api/assignments/e2ba72e0-a47b-4073-b44b-0503a2a9c783 "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/e2ba72e0-a47b-4073-b44b-0503a2a9c783/reconcile/commercial-update "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/aeb57414-da86-4aca-88b4-ac86b815b14c/cancel "HTTP/1.1 200 OK"
+2026-11-05 06:57:38 [    INFO] HTTP Request: POST http://testserver/api/assignments/aeb57414-da86-4aca-88b4-ac86b815b14c/approve/commercial-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_assignment_routes.py::test_quote_missing_tax_is_a_typed_clarification_not_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-be114267: status intern (not STUDENT)
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-be114267: status intern (not STUDENT)
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-be114267: status intern (not STUDENT)
+2026-11-05 06:57:41 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_assignment_routes.py::test_source_revision_change_invalidates_dependent_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-563a77f6: status intern (not STUDENT)
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-563a77f6: status intern (not STUDENT)
+2026-11-05 06:57:41 [    INFO] Learning skipped for agent-563a77f6: status intern (not STUDENT)
+2026-11-05 06:57:42 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/c0f22f71-709a-4e6d-8180-1985192d2180/invalidate/source-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_assignment_routes.py::test_quote_same_sku_different_pack_asks_before_arithmetic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:44 [    INFO] Learning skipped for agent-7cdd2d6e: status intern (not STUDENT)
+2026-11-05 06:57:44 [    INFO] Learning skipped for agent-7cdd2d6e: status intern (not STUDENT)
+2026-11-05 06:57:44 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_assignment_routes.py::test_unsupported_pricing_rule_refuses_public_plan_and_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:45 [    INFO] Learning skipped for agent-34936727: status intern (not STUDENT)
+2026-11-05 06:57:45 [    INFO] Learning skipped for agent-34936727: status intern (not STUDENT)
+2026-11-05 06:57:45 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 38%]
+tests/test_assignment_routes.py::test_onedrive_xlsx_public_route_uses_production_parser 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:47 [    INFO] Learning skipped for agent-9f2c2a48: status intern (not STUDENT)
+2026-11-05 06:57:47 [    INFO] Learning skipped for agent-9f2c2a48: status intern (not STUDENT)
+2026-11-05 06:57:47 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_assignment_routes.py::test_quote_missing_qualification_waits_and_resolves_through_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:50 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/381f4caf-578b-466a-966f-9f338e71efe3/gaps/ab24b910-8971-492c-b182-c7156d761e3e/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/381f4caf-578b-466a-966f-9f338e71efe3/gaps/ab24b910-8971-492c-b182-c7156d761e3e/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/381f4caf-578b-466a-966f-9f338e71efe3/gaps/ab24b910-8971-492c-b182-c7156d761e3e/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_assignment_routes.py::test_quote_ambiguous_discount_refuses_unrecognized_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:51 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-05 06:57:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/125297b1-c1ec-485f-bdea-061add54d766/gaps/4ee74987-aa33-4db5-83b6-f6762c60cb7b/resolve "HTTP/1.1 200 OK"
+2026-11-05 06:57:51 [    INFO] HTTP Request: GET http://testserver/api/assignments/125297b1-c1ec-485f-bdea-061add54d766 "HTTP/1.1 200 OK"
+2026-11-05 06:57:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/125297b1-c1ec-485f-bdea-061add54d766/gaps/5525f030-4550-4b6c-8249-5b0c96088377/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_assignment_routes.py::test_expense_reconciliation_uses_the_same_assignment_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:53 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_assignment_routes.py::test_objective_only_reads_authorized_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:54 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_assignment_routes.py::test_objective_uploaded_document_is_selectable_and_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:56 [    INFO] HTTP Request: GET http://testserver/api/assignments/sources "HTTP/1.1 200 OK"
+2026-11-05 06:57:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_assignment_routes.py::test_objective_only_returns_one_targeted_business_question 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_assignment_routes.py::test_objective_only_unknown_qualification_blocks_dependent_read 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:57:59 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_assignment_routes.py::test_plan_patch_route_adopts_fact_and_refuses_stale_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/1ed1f0b9-466b-4abf-bb7e-eeeda68560fb/patch "HTTP/1.1 200 OK"
+2026-11-05 06:58:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/1ed1f0b9-466b-4abf-bb7e-eeeda68560fb/patch "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 41%]
+tests/test_assignment_routes.py::test_objective_only_runs_typed_adaptive_follow_up 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_assignment_routes.py::test_advance_route_adopts_typed_work_from_applied_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:04 [    INFO] HTTP Request: POST http://testserver/api/assignments/e9ce28cc-95a4-4ca0-980b-c6fba8d972dc/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_assignment_routes.py::test_advance_route_accepts_model_wait_choice_source 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/4de674cd-e05e-4af0-8475-cfcab7a94d70/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_assignment_routes.py::test_advance_route_does_not_adopt_a_policy_forbidden_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:07 [    INFO] EscalationManager initialized
+2026-11-05 06:58:07 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 06:58:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/3760fda7-31de-4d97-9a01-87c5d4346c71/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_assignment_routes.py::test_source_addition_settles_missing_prerequisite_without_duplicates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/d71a6314-7038-4f03-a8d0-d58fb73f82af/sources "HTTP/1.1 200 OK"
+2026-11-05 06:58:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/d71a6314-7038-4f03-a8d0-d58fb73f82af/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_assignment_routes.py::test_retained_authorized_scope_supports_later_evidence_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_assignment_routes.py::test_discovery_outside_scope_asks_one_actionable_question 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_assignment_routes.py::test_discovery_repeated_read_falls_back_to_unread_authorized_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_evidence_quote 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_invoice_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_assignment_routes.py::test_no_suitable_reasoning_route_is_durable_and_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-05 06:58:19 [    INFO] HTTP Request: GET http://testserver/api/assignments/5260bfcf-4b86-4404-b27b-fece287957f7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-7f7a02fa7432 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-7f7a02fa7432 attempt=1
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-05 06:58:19 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 46%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_enforces_the_caller_deadline PASSED [ 46%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_measured_failure_excludes_cheap_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-629d406df07e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-629d406df07e attempt=1
+PASSED                                                                   [ 46%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_failed_costlier_route_does_not_displace_cheap 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c965dc40de1b attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-c965dc40de1b attempt=1
+PASSED                                                                   [ 47%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_scope_failure_never_borrows_another_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [ WARNING] employee work proposal call raised: workspace resolution for tenant 'tenant-gone' is unresolved (unknown_tenant); dispatch refused rather than substituting another scope
+PASSED                                                                   [ 47%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-05 06:58:19 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_adaptive_planning': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [ 47%]
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_no_eligible_route_keeps_deterministic_receipts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'local_ctrl1234/llama3.1:8b', 'reasons': ['measured_failure_rate']}, {'route': 'local_pricey/pricey-model', 'reasons': ['measured_failure_rate']}])
+2026-11-05 06:58:19 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': no configured route meets the workload capability floor after all eligibility gates
+PASSED                                                                   [ 48%]
+tests/test_employee_byok_consumer_routing.py::test_employee_wait_choice_uses_the_dedicated_profile 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-ceb2097a38dd attempt=1 prompt_chars=3176 cap=1200 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-ceb2097a38dd attempt=1
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c3c2c25cd7f4 attempt=1 prompt_chars=12424 cap=1800 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-c3c2c25cd7f4 attempt=1
+PASSED                                                                   [ 48%]
+tests/test_employee_byok_consumer_routing.py::test_employee_adaptation_auto_route_records_served_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for complex: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-05 06:58:19 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4c411267bb9a attempt=1 prompt_chars=1776 cap=1200 instructor_retries=0
+2026-11-05 06:58:19 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=WorkAdaptationProposal route=structured-4c411267bb9a attempt=1
+PASSED                                                                   [ 49%]
+tests/test_workload_capability_routing.py::test_flash_like_cheap_candidate_beats_equivalent_expensive_candidate PASSED [ 49%]
+tests/test_workload_capability_routing.py::test_complex_profile_keeps_qualified_flash_eligible PASSED [ 49%]
+tests/test_workload_capability_routing.py::test_measured_failure_excludes_flash_and_escalates_once PASSED [ 50%]
+tests/test_workload_capability_routing.py::test_expensive_model_with_measured_failure_is_excluded_too PASSED [ 50%]
+tests/test_workload_capability_routing.py::test_no_eligible_candidate_is_explicit_not_relaxed PASSED [ 50%]
+tests/test_workload_capability_routing.py::test_context_window_mismatch_is_ineligible PASSED [ 51%]
+tests/test_workload_capability_routing.py::test_evidence_scope_and_version_do_not_poison_other_workspace PASSED [ 51%]
+tests/test_workload_capability_routing.py::test_measured_success_does_not_exclude_efficient_route PASSED [ 52%]
+tests/test_workload_capability_routing.py::test_alignment_failure_does_not_ban_extraction_profile PASSED [ 52%]
+tests/test_workload_capability_routing.py::test_strict_pin_is_exact_or_failed_no_escape PASSED [ 52%]
+tests/test_workload_capability_routing.py::test_actual_request_size_beats_the_coarse_complexity_context_floor 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-05 06:58:19 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-05 06:58:19 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 53%]
+tests/test_workload_capability_routing.py::test_selected_local_only_policy_admits_the_runtime_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: llama3.1:8b)
+PASSED                                                                   [ 53%]
+tests/test_workload_capability_routing.py::test_profile_resolution_uses_server_label_not_model_name PASSED [ 53%]
+tests/test_workload_capability_routing.py::test_decision_journal_persists_across_memory_reset PASSED [ 54%]
+tests/test_workload_capability_routing.py::test_llm_service_forwards_capability_profile_to_handler PASSED [ 54%]
+tests/test_workload_capability_routing.py::test_pinned_call_adds_profile_from_server_label PASSED [ 55%]
+tests/test_workload_capability_routing.py::test_production_bpc_ranks_economical_flash_over_expensive_equal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:58:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for moderate: Top model flash (Value: 2.70)
+2026-11-05 06:58:19 [ WARNING] no ranked route is verified against a provider catalogue (2 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown; frontier/expensive: provider_catalog_unknown
+PASSED                                                                   [ 55%]
+tests/test_workload_capability_routing.py::test_production_bpc_no_suitable_returns_empty_and_journals 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:58:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [ WARNING] capability route: no suitable configured model for profile employee_adaptive_planning v2026-11-04.1 — no configured route meets the workload capability floor (excluded=[{'route': 'fast/weak', 'reasons': ['below_quality_prior']}])
+PASSED                                                                   [ 55%]
+tests/test_workload_capability_routing.py::test_bounded_escalation_selects_a_better_eligible_candidate_once PASSED [ 56%]
+tests/test_workload_capability_routing.py::test_no_escalation_when_profile_does_not_allow_it PASSED [ 56%]
+tests/test_workload_capability_routing.py::test_profile_floor_keeps_capable_flash_eligible_on_complex_call 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [ WARNING] Could not create database session for tier service: _handler_cm.<locals>.<lambda>() missing 1 required positional argument: 's'
+2026-11-05 06:58:19 [    INFO] EscalationManager initialized
+2026-11-05 06:58:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:58:19 [ WARNING] Failed to refresh excluded models cache: 'types.SimpleNamespace' object does not support the context manager protocol (missed __exit__ method)
+2026-11-05 06:58:19 [    INFO] BPC Ranking Successful for complex: Top model flash (Value: 72.25)
+2026-11-05 06:58:19 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: fast/flash: provider_catalog_unknown
+PASSED                                                                   [ 57%]
+tests/test_workload_capability_routing.py::test_explicit_quality_preference_can_choose_stronger_eligible_route PASSED [ 57%]
+tests/test_workload_capability_routing.py::test_semantic_transport_success_is_not_satisfactory PASSED [ 57%]
+tests/test_workload_capability_routing.py::test_missing_workspace_evidence_is_not_assigned_to_reader PASSED [ 58%]
+tests/test_workload_capability_routing.py::test_provider_missing_evidence_is_not_transferred_across_providers PASSED [ 58%]
+tests/test_workload_capability_routing.py::test_single_unsafe_outcome_quarantines_until_reviewed_recovery PASSED [ 58%]
+tests/test_workload_capability_routing.py::test_strict_profile_pin_does_not_escape_through_wrapper 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [ WARNING] employee adaptation strict qualification pin (('local', 'failed')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_adaptive_planning': controlled rejected pin — no unpinned fallback
+PASSED                                                                   [ 59%]
+tests/test_workload_capability_routing.py::test_decision_history_requires_exact_workspace_and_tenant PASSED [ 59%]
+tests/test_workload_capability_routing.py::test_journal_path_is_world_owned_when_configured PASSED [ 60%]
+tests/test_workload_capability_routing.py::test_provider_policy_route_hides_other_scope_decisions PASSED [ 60%]
+tests/test_workload_capability_routing.py::test_feedback_carries_profile_metadata_for_persistence PASSED [ 60%]
+tests/test_workload_capability_routing.py::test_semantic_failure_overrides_transport_and_quality_flags PASSED [ 61%]
+tests/test_workload_capability_routing.py::test_old_recovery_does_not_release_a_new_unsafe_incident PASSED [ 61%]
+tests/test_workload_capability_routing.py::test_employee_proposal_and_pin_attribution_are_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [ WARNING] employee work proposal strict qualification pin (('local', 'weak')) raised (NoSuitableConfiguredModelError): no_suitable_configured_model for profile 'employee_evidence_selection': controlled no suitable route — no unpinned fallback
+PASSED                                                                   [ 61%]
+tests/test_workload_capability_routing.py::test_route_attribution_is_call_local_and_clears_stale_served_state PASSED [ 62%]
+tests/test_workload_capability_routing.py::test_strict_pin_no_result_is_explicit_and_not_served 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [ WARNING] employee work proposal strict qualification pin (('fast', 'flash')) returned no result — failed qualification attempt, no unpinned fallback
+PASSED                                                                   [ 62%]
+tests/test_workload_capability_routing.py::test_successful_unpinned_fallback_clears_prior_pin_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [ WARNING] employee work proposal pinned call raised (('pin', 'unavailable')): no_suitable_configured_model for profile 'employee_evidence_selection': pinned candidate unavailable — retrying unpinned
+2026-11-05 06:58:19 [    INFO] employee work proposal pinned call (('pin', 'unavailable')) returned no result — retrying unpinned across the workspace's configured providers
+PASSED                                                                   [ 63%]
+tests/test_workload_incident_identity.py::test_production_loader_preserves_reviewed_identity_when_feedback_added PASSED [ 63%]
+tests/test_workload_incident_identity.py::test_unrelated_rows_and_reordering_do_not_change_identity PASSED [ 63%]
+tests/test_workload_incident_identity.py::test_new_unsafe_observation_after_review_requarantines PASSED [ 64%]
+tests/test_workload_incident_identity.py::test_changed_observation_material_cannot_inherit_old_review PASSED [ 64%]
+tests/test_workload_incident_identity.py::test_legacy_row_without_identity_or_ordering_fails_closed PASSED [ 65%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_verdict_is_not_clobbered_by_the_decision_stash 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 65%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_annotation_lands_when_no_decision_was_stashed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 65%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectionSurvivesFeatureRecovery::test_repeated_corrections_stay_one_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 66%]
+tests/test_correction_lifecycle_end_to_end.py::TestCorrectedRowIsInternallyConsistent::test_quality_fields_agree_with_the_verdict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 66%]
+tests/test_correction_lifecycle_end_to_end.py::TestRestartConsistency::test_learning_matches_persistence_before_and_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 66%]
+tests/test_correction_lifecycle_end_to_end.py::TestFallbackGenerations::test_fallback_and_primary_are_separate_generations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:19 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:19 [    INFO] [LearningRouter] fabrication observed for openrouter/qwen/qwen3.8-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 67%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_annotates_the_generation_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 67%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_keeps_the_real_quality_measurement 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 68%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_marker_does_not_downgrade_a_fabrication_verdict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:20 [    INFO] [LearningRouter] fabrication observed for openrouter/deepseek/deepseek-v4-flash-0731 (question_answering): unsupported_figures
+PASSED                                                                   [ 68%]
+tests/test_grounding_pass_marker.py::TestGroundingPassMarker::test_accounting_counts_the_marker_as_evaluated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 68%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_one_fabrication_among_four_generations_is_one_quarter PASSED [ 69%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_repeated_corrections_are_idempotent PASSED [ 69%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_primary_and_fallback_attempts_are_distinct_generations PASSED [ 69%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_fabricated_fallback_does_not_condemn_the_primary PASSED [ 70%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_rows_without_a_turn_id_do_not_merge PASSED [ 70%]
+tests/test_fabrication_accounting.py::TestGenerationIdentity::test_orm_style_rows_and_dicts_are_accepted PASSED [ 71%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_low_score_without_provenance_is_unknown PASSED [ 71%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_missing_score_is_unknown PASSED [ 71%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_score_without_a_grounding_verdict_is_unevaluated PASSED [ 72%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounding_verdict_puts_a_generation_in_the_denominator PASSED [ 72%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_score_above_the_band_without_grounding_is_unevaluated PASSED [ 73%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounding_marker_qualifies_a_generation PASSED [ 73%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_unrecognised_verdict_is_unknown_not_clean PASSED [ 73%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_availability_verdicts_are_excluded_from_both_terms PASSED [ 74%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_fabrication_outranks_a_companion_availability_verdict PASSED [ 74%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_grounded_row_wins_over_a_companion_availability_row PASSED [ 74%]
+tests/test_fabrication_accounting.py::TestUnknownIsNotClean::test_rate_is_none_when_nothing_was_evaluated PASSED [ 75%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[[1, 2, 3]] PASSED [ 75%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[{"verdict": ] PASSED [ 76%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[not json at all] PASSED [ 76%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property["a string"] PASSED [ 76%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[payload4] PASSED [ 77%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[42] PASSED [ 77%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_payload_is_a_row_property[True] PASSED [ 77%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[None] PASSED [ 78%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[] PASSED [ 78%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[   ] PASSED [ 79%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[payload3] PASSED [ 79%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_absent_payload_is_not_malformed[null] PASSED [ 79%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_non_string_verdict_is_not_coerced PASSED [ 80%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_one_malformed_row_does_not_hide_the_others PASSED [ 80%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_unreadable_row_object_is_counted_not_raised PASSED [ 80%]
+tests/test_fabrication_accounting.py::TestMalformedMetadataIsolation::test_malformed_rows_are_reported_in_the_dict PASSED [ 81%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_correction_annotates_the_generation_row PASSED [ 81%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_repeated_correction_does_not_duplicate PASSED [ 82%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_bench_fires_on_one_fabrication_in_four_generations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 82%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_bench_is_durable_across_a_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+2026-11-05 06:58:20 [ WARNING] FABRICATION BENCH: openai/m1 benched — 1/4 evaluated generations verdict-flagged as fabricated in the last 48h (>=1 events and >=25% rate). rows=4 clean=3 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 82%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_one_malformed_row_does_not_fail_the_bench_open 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [ WARNING] FABRICATION BENCH: openai/m1 benched — 3/3 evaluated generations verdict-flagged as fabricated in the last 48h (>=3 events and >=25% rate). rows=3 clean=0 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 83%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_an_unstamped_verdict_cannot_bench PASSED [ 83%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_a_stamped_verdict_from_the_same_rows_still_benches 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [ WARNING] FABRICATION BENCH: openai/m1 benched — 3/3 evaluated generations verdict-flagged as fabricated in the last 48h (>=3 events and >=25% rate). rows=3 clean=0 unknown=0 availability=0 evidence_ignored=0 other_route_rows=0 unknown_rule_rows=0 duplicates=0 malformed=0. The pair is excluded from ranked candidates until the rate falls; ATOM_FABRICATION_BENCH=0 disables.
+PASSED                                                                   [ 84%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_health_rows_do_not_bench_a_model PASSED [ 84%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_unprovenanced_history_cannot_bench_or_exonerate PASSED [ 84%]
+tests/test_fabrication_accounting.py::TestBenchUsesGenerationsNotRows::test_primary_and_fallback_rows_both_count PASSED [ 85%]
+tests/test_learning_llm_router.py::TestModelSpec::test_model_spec_creation PASSED [ 85%]
+tests/test_learning_llm_router.py::TestRoutingRequest::test_routing_request_defaults PASSED [ 85%]
+tests/test_learning_llm_router.py::TestRoutingRequest::test_routing_request_full PASSED [ 86%]
+tests/test_learning_llm_router.py::TestRoutingResult::test_routing_result_creation PASSED [ 86%]
+tests/test_learning_llm_router.py::TestRoutingFeedback::test_feedback_creation PASSED [ 87%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_router_creation 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 87%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_model_registry_contents 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 87%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_model_specs_have_required_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 88%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_cheapest_model 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 88%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_capabilities_quality 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 88%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_capabilities_vision 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 89%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_cost 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 89%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_filter_by_latency 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 90%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_default 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 90%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_reasoning 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 90%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_learned_weights_extraction 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 91%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_no_filter 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 91%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_capability 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 92%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_tier 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 92%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_available_models_by_cost 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 92%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_simple_request 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 93%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_with_budget_constraint 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Routed question_answering to minimax-text-01 (confidence=0.61, cost=$0.0004)
+PASSED                                                                   [ 93%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_route_with_latency_constraint 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Routed question_answering to minimax-m3 (confidence=1.00, cost=$0.0006)
+PASSED                                                                   [ 93%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_record_feedback 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 94%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_feedback_triggers_retraining 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 94%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_get_routing_statistics 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 95%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_export_routing_data 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Exported 1 routing records for tenant tenant-1
+PASSED                                                                   [ 95%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_update_model_registry 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Updated model registry: added 1 models
+PASSED                                                                   [ 95%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_clear_learning_cache 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Cleared learning cache for tenant=tenant-1
+PASSED                                                                   [ 96%]
+tests/test_learning_llm_router.py::TestLearningBasedRouter::test_clear_learning_cache_all 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Cleared learning cache for tenant=all
+PASSED                                                                   [ 96%]
+tests/test_routing_db_persistence.py::TestCrashBugFixes::test_neural_network_model_type_trains 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Model saved to /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4142/test_neural_network_model_type0/models/model_20261105_065820_219f36ca.pkl
+2026-11-05 06:58:20 [    INFO] Training completed: model=model_20261105_065820_219f36ca, accuracy=0.500, samples=30
+PASSED                                                                   [ 96%]
+tests/test_routing_db_persistence.py::TestCrashBugFixes::test_ensemble_model_type_trains 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Model saved to /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4142/test_ensemble_model_type_train0/models/model_20261105_065820_219f36ca.pkl
+2026-11-05 06:58:20 [    INFO] Training completed: model=model_20261105_065820_219f36ca, accuracy=0.500, samples=30
+PASSED                                                                   [ 97%]
+tests/test_routing_db_persistence.py::TestRoutingFeedbackDBPersistence::test_feedback_persists_to_db 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 97%]
+tests/test_routing_db_persistence.py::TestRoutingFeedbackDBPersistence::test_feedback_survives_restart 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:20 [    INFO] Loaded 5 routing feedback rows from DB
+PASSED                                                                   [ 98%]
+tests/test_routing_db_persistence.py::TestRoutingFeedbackDBPersistence::test_db_failure_does_not_break_routing 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [ WARNING] Could not persist routing feedback to DB (non-fatal, in-memory state remains): DB is down
+PASSED                                                                   [ 98%]
+tests/test_generation_retry_identity.py::TestSameModelRetriesAreDistinctGenerations::test_second_outcome_for_same_turn_is_a_new_generation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 98%]
+tests/test_generation_retry_identity.py::TestSameModelRetriesAreDistinctGenerations::test_accounting_counts_both_retry_generations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:21 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 99%]
+tests/test_generation_retry_identity.py::TestSameModelRetriesAreDistinctGenerations::test_a_fabrication_on_the_retry_is_counted_separately 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:21 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:21 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [ 99%]
+tests/test_generation_retry_identity.py::TestSameModelRetriesAreDistinctGenerations::test_repeated_correction_for_one_output_stays_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:58:21 [    INFO] Initialized router with 30 models
+2026-11-05 06:58:21 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-05 06:58:21 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+2026-11-05 06:58:21 [    INFO] [LearningRouter] fabrication observed for openrouter/z-ai/glm-5.3-flash (question_answering): unsupported_figures
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 526 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_ok]
+  /private/tmp/atom-oracle01-5ee-314/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_capability_evidence_classification.py: 7 warnings
+tests/test_employee_business_feedback.py: 26 warnings
+tests/test_employee_feedback_interleaving.py: 9 warnings
+tests/test_workload_capability_routing.py: 1 warning
+tests/test_workload_incident_identity.py: 14 warnings
+  /private/tmp/atom-oracle01-5ee-314/backend/core/llm/capability_profiles.py:791: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_employee_business_feedback.py: 18 warnings
+tests/test_employee_byok_consumer_routing.py: 14 warnings
+tests/test_workload_capability_routing.py: 5 warnings
+tests/test_fabrication_accounting.py: 8 warnings
+  /private/tmp/atom-oracle01-5ee-314/backend/core/llm/byok_handler.py:2385: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_employee_byok_consumer_routing.py::test_employee_proposal_auto_selects_cheaper_capable_route
+  /private/tmp/atom-oracle01-5ee-314/backend/core/llm/learning_router_registry.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=_LR_AUTO_WINDOW_DAYS)
+
+tests/test_routing_db_persistence.py::TestCrashBugFixes::test_neural_network_model_type_trains
+tests/test_routing_db_persistence.py::TestCrashBugFixes::test_ensemble_model_type_trains
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sklearn/metrics/_classification.py:1879: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+    _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 263 passed, 639 warnings in 140.78s (0:02:20) =================

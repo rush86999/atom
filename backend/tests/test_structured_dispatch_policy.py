@@ -294,6 +294,13 @@ def test_malformed_native_payload_settles_nothing(monkeypatch):
 
     handler = _handler()
     _seed_pool(handler, monkeypatch, with_local=True)
+    # This control intentionally forces a connection failure. Keep that
+    # failure inside a test-local health monitor: the process-global monitor
+    # would otherwise open the circuit breaker for the local route and leak
+    # an empty candidate pool into every later ranking test in the same run.
+    from core.provider_health_monitor import ProviderHealthMonitor
+
+    handler.health_monitor = ProviderHealthMonitor()
 
     def _malformed_response(request: httpx.Request) -> httpx.Response:
         body = {

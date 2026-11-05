@@ -974,6 +974,7 @@ def _routing_history_entry(
         "served_route": routing.get("served_route"),
         "resolved_model": routing.get("resolved_model"),
         "profile": routing.get("profile"),
+        "routing_result_id": routing.get("routing_result_id"),
         "error_code": error_code or None,
     }
 
@@ -990,6 +991,44 @@ def _record_employee_routing(
         executor.lifecycle.runs.append_decision(run_id, entry)
     except Exception:  # noqa: BLE001 — attribution cannot break the job
         pass
+
+
+async def _record_round_business_outcome(
+    executor: Any,
+    run_id: str,
+    result: Any,
+    *,
+    stage: str,
+    assignment: Optional[Mapping[str, Any]] = None,
+    extra_features: Optional[Mapping[str, Any]] = None,
+    outcome_override: Optional[Mapping[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Annotate the round's model attempt with the task's explicit outcome.
+
+    The outcome is read from durable task state, not from a model label. The
+    recorder skips deterministic fallbacks and unknown verdicts; a model-owned
+    attempt is credited/debited only when ``objective_met`` is True/False.
+    """
+    try:
+        record = executor.lifecycle.get_task(run_id) or {}
+        current = record.get("assignment") or {}
+        outcome = (
+            dict(outcome_override)
+            if outcome_override is not None
+            else (current.get("outcome") or {}))
+        scope = assignment or current
+        from core.employee_routing_feedback import record_business_outcome
+
+        return await record_business_outcome(
+            result,
+            stage=stage,
+            outcome=outcome,
+            workspace_id=scope.get("workspace_id"),
+            tenant_id=scope.get("tenant_id"),
+            extra_features=extra_features,
+        )
+    except Exception:  # noqa: BLE001 — evidence must not break the job
+        return None
 
 
 def _latest_employee_routing(executor: Any, run_id: str) -> Optional[Dict[str, Any]]:
@@ -1212,6 +1251,21 @@ async def _advance_employee_work(
                 execution = await executor.execute(run_id, max_steps=12)
                 round_record["execution_status"] = (
                     (execution.get("assignment") or {}).get("status"))
+                round_record["evaluation"] = (
+                    await _record_round_business_outcome(
+                        executor, run_id, discovery,
+                        stage="employee_evidence_selection",
+                        assignment=assignment,
+                        extra_features={
+                            "adoption_status": adopted.get("status"),
+                            "selected_sources": list(
+                                round_record.get("selected_sources") or []),
+                            "attempt_id": round_record.get("attempt_id"),
+                            "repair_source": round_record.get(
+                                "repair_source"),
+                            "repair_sources": list(
+                                round_record.get("repair_sources") or []),
+                        }))
                 if round_record["execution_status"] in (
                         "completed", "failed", "cancelled"):
                     break
@@ -1256,6 +1310,20 @@ async def _advance_employee_work(
             executor, run_id, proposal_result.get("routing"),
             stage="employee_adaptation",
             attempt_id=proposal_result.get("attempt_id"))
+        if proposal_result.get("source") == "model_wait_choice":
+            # A parsed wait/clarify/retain is not a business success. Record
+            # the decision's policy state before any adoption branch; a later
+            # explicit task outcome may annotate the same generation.
+            round_record["evaluation"] = await _record_round_business_outcome(
+                executor, run_id, proposal_result,
+                stage="employee_wait_choice", assignment=assignment,
+                outcome_override={"objective_met": None},
+                extra_features={
+                    "attempt_id": round_record.get("attempt_id"),
+                    "business_decision": (
+                        proposal_result.get("business_decision")
+                        or proposal.get("decision") or "wait"),
+                })
         if not proposal or proposal.get("decision") in ("retain",):
             question = missing_prerequisite_question(assignment)
             if question and not open_unresolved_questions(
@@ -1270,8 +1338,18 @@ async def _advance_employee_work(
                 round_record["progress"] = "no_progress"
             break
         if proposal_result.get("source") not in (
-                "model", "model_repaired", "model_compact"):
-            break
+                "model", "model_repaired", "model_compact",
+                "model_wait_choice"):
+            # A semantic wait rejection returns a deterministic, targeted
+            # clarification. It is not model work, but the question must
+            # still be persisted so the rejected wait cannot silently
+            # abandon the missing prerequisite. Other deterministic
+            # fallbacks remain inert here.
+            if not (
+                    proposal.get("decision") == "clarify"
+                    and proposal_result.get("failure_stage")
+                    == "wait_choice_policy"):
+                break
         if proposal.get("decision") == "clarify":
             clarification = proposal.get("clarification") or {}
             question = str(clarification.get("question") or "").strip()
@@ -1357,6 +1435,16 @@ async def _advance_employee_work(
         execution = await executor.execute(run_id, max_steps=12)
         round_record["execution_status"] = (
             (execution.get("assignment") or {}).get("status"))
+        round_record["evaluation"] = await _record_round_business_outcome(
+            executor, run_id, proposal_result,
+            stage="employee_adaptation", assignment=assignment,
+            extra_features={
+                "adoption_status": adopted.get("status"),
+                "work_request_operation": (
+                    (proposal.get("work_request") or {}).get("operation")),
+                "repair": proposal_result.get("repair"),
+                "attempt_id": round_record.get("attempt_id"),
+            })
         if round_record["execution_status"] in (
                 "completed", "failed", "cancelled"):
             break
@@ -1595,6 +1683,20 @@ async def start_employee_objective(
         # The follow-up calls the executor again; the response must reflect
         # the resulting steps/status, not the pre-adaptation snapshot.
         status = executor.status(run_id)
+        # If no round already evaluated an explicit business outcome, the
+        # initial model proposal owns this job's result. A deterministic
+        # fallback is skipped by the recorder, never credited as model work.
+        if not any(
+                isinstance(item, Mapping)
+                and isinstance(item.get("evaluation"), Mapping)
+                and item["evaluation"].get("recorded")
+                for item in adaptive_rounds):
+            await _record_round_business_outcome(
+                executor, run_id, proposal_result,
+                stage="employee_proposal", assignment=plan,
+                extra_features={
+                    "attempt_id": proposal_result.get("attempt_id"),
+                })
     current = executor.lifecycle.get_task(run_id) or {}
     from core.task_lifecycle import open_unresolved_questions
     employee_routing = _latest_employee_routing(executor, run_id)

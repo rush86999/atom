@@ -1,0 +1,134 @@
+🧪 pytest detected: forcing isolated test DB (/private/tmp/atom-full-app/backend/test_integration.db)
+⚠️ Generated temporary SECRET_KEY for development: mt3fTQ3n...
+⚠️ Generated temporary SECRET_KEY for development: PLsWx1Da...
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-04T22:57:14.709759+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+{
+ "schema": "atom-business-feedback-proof-1",
+ "executed_source": "2ab959fc0be8c18724e1e143172d9e51ef630369",
+ "sequence": [
+  "consumer evaluated 3 served model proposals as wrong_evidence_selection",
+  "each evaluation annotated its own transport outcome row",
+  "fresh capability evidence read excluded the route",
+  "next unpinned decision served the one eligible alternative"
+ ],
+ "evaluations": [
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "69689b90-dfcf-43bc-bfa7-50faea575b74"
+   }
+  },
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "7e0e7d91-7cf0-4c35-84de-59df949012b5"
+   }
+  },
+  {
+   "source": "deterministic",
+   "served_route": {
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b"
+   },
+   "evaluation": {
+    "recorded": true,
+    "evaluation": "failed",
+    "failure_kind": "wrong_evidence_selection",
+    "profile": "employee_evidence_selection",
+    "profile_version": "2026-11-04.1",
+    "provider": "local_ctrl1234",
+    "model": "llama3.1:8b",
+    "routing_result_id": "d79549be-b58c-41c0-b4ae-8caaf31d7aa6"
+   }
+  }
+ ],
+ "persisted_rows": [
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "effa40d2f02943fab1f3f461d621f2df"
+  },
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "fabada0203bc44ce85da47b3c6ebcb69"
+  },
+  {
+   "model_id": "llama3.1:8b",
+   "success": false,
+   "quality_satisfied": false,
+   "profile": "employee_evidence_selection",
+   "profile_version": "2026-11-04.1",
+   "workspace_id": "ws-ctrl",
+   "route_provider": "local_ctrl1234",
+   "failure_kind": "wrong_evidence_selection",
+   "business_outcome": "failed",
+   "business_stage": "employee_evidence_selection",
+   "attempt_id": "c92456da0a8e44e1a36ed416414829e5"
+  }
+ ],
+ "evidence": {
+  "local_ctrl1234/llama3.1:8b": {
+   "samples": 3,
+   "successes": 0,
+   "quality_successes": 0,
+   "semantic_failures": 3,
+   "unsafe_failures": 0,
+   "retries": 0,
+   "latency_ms": 0.1201629638671875,
+   "last_failure_kind": "semantic_failure",
+   "failure_kinds": "{'semantic_failure'}",
+   "incidents": [
+    {
+     "incident_id": "feedback-2e902e1f-05fc-4f3d-b0a2-950a32c56383-5ec16768def6f409",
+     "identity_source": "row_id",
+     "identity_reliable": true,
+     "material_digest": "5ec16768def6f4094087a0323a8f4c6e4079879204dedd0b1d94cb08d2c0cd7f",
+     "routing_result_id": "69689b90-dfcf-43bc-bfa7-50faea575b74",
+     "kind": "semantic_failure",
+     "timestamp": 1793851034.0,
+     "created_at": "2026-11-04T22:57:14",
+     "route": "local_ctrl1234/llama3.1:8b",
+     "reviewed_by": null,
+     "reviewed_at": null
+    },
+    {
+     "incident_id": "feedback-4fa2daf0-06ef-42be-8e3c

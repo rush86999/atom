@@ -1,0 +1,384 @@
+
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:12 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-04 23:21:12 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-04 23:21:12 [    INFO] EscalationManager initialized
+2026-11-04 23:21:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 23:21:12 [    INFO] EscalationManager initialized
+2026-11-04 23:21:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-04 23:21:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-04 23:21:12 [    INFO] AgentTaskRegistry initialized
+2026-11-04 23:21:14 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  2%]
+tests/test_capability_evidence_classification.py::test_pending_plus_grounding_is_unknown_not_success[grounding_passed] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:15 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  4%]
+tests/test_capability_evidence_classification.py::test_pending_plus_fabrication_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:16 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  6%]
+tests/test_capability_evidence_classification.py::test_pending_plus_business_failure_remains_observable 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:17 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  8%]
+tests/test_capability_evidence_classification.py::test_validated_wait_decision_is_a_scoped_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:18 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 10%]
+tests/test_capability_evidence_classification.py::test_satisfied_business_result_is_a_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:19 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 12%]
+tests/test_capability_evidence_classification.py::test_legacy_row_without_business_marker_keeps_compatibility 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:20 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 14%]
+tests/test_employee_business_feedback.py::test_context_floor_before_feedback_tests 
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:20 [    INFO] EscalationManager initialized
+2026-11-04 23:21:20 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:20 [    INFO] LocalOnlyGuard initialized
+2026-11-04 23:21:20 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-04 23:21:20 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:20 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-04 23:21:20 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 17%]
+tests/test_employee_business_feedback.py::test_evaluated_bad_work_persists_and_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:21 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:21 [    INFO] EscalationManager initialized
+2026-11-04 23:21:21 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:21 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:21 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:21 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d97c58b07376 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:21 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d97c58b07376 attempt=1
+2026-11-04 23:21:21 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:21 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:21 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f3f1047151b0 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:21 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f3f1047151b0 attempt=1
+2026-11-04 23:21:21 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:21 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:21 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-2641e40b66c2 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:21 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-2641e40b66c2 attempt=1
+2026-11-04 23:21:21 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 23:21:21 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 23:21:21 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-a4938c20bf6d attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:21 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-a4938c20bf6d attempt=1
+PASSED                                                                   [ 19%]
+tests/test_employee_business_feedback.py::test_evaluated_business_failure_changes_next_routing_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:22 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:22 [    INFO] EscalationManager initialized
+2026-11-04 23:21:22 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:22 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:22 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:22 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-0cd5c21f10bb attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:22 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-0cd5c21f10bb attempt=1
+2026-11-04 23:21:22 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:22 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:22 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-74dc3e81a01e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:22 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-74dc3e81a01e attempt=1
+2026-11-04 23:21:22 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:22 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:22 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-5fd3429b2b8e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:22 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-5fd3429b2b8e attempt=1
+2026-11-04 23:21:22 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-04 23:21:22 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-04 23:21:22 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-1602c0f1b793 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:22 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1602c0f1b793 attempt=1
+PASSED                                                                   [ 21%]
+tests/test_employee_business_feedback.py::test_strict_qualification_pin_fails_instead_of_escaping 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:23 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:23 [    INFO] EscalationManager initialized
+2026-11-04 23:21:23 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:23 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:23 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:23 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-dfe24b1953ab attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:23 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-dfe24b1953ab attempt=1
+2026-11-04 23:21:23 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:23 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:23 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-83e55e34578e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:23 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-83e55e34578e attempt=1
+2026-11-04 23:21:23 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:23 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:23 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-ff04432d765a attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:23 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-ff04432d765a attempt=1
+2026-11-04 23:21:23 [    INFO] BPC Ranking Successful for simple: Top model pricey-model (Value: 8100000.00)
+2026-11-04 23:21:23 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': the qualification pin does not meet the workload capability contract
+PASSED                                                                   [ 23%]
+tests/test_employee_business_feedback.py::test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:24 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:24 [    INFO] EscalationManager initialized
+2026-11-04 23:21:24 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:24 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:24 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:24 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d5fe065a79a9 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:24 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d5fe065a79a9 attempt=1
+2026-11-04 23:21:24 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:24 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:24 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-8006f37c3daa attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:24 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-8006f37c3daa attempt=1
+2026-11-04 23:21:24 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:24 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:24 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-a162451dd070 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:24 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-a162451dd070 attempt=1
+PASSED                                                                   [ 25%]
+tests/test_employee_business_feedback.py::test_satisfied_business_outcome_annotates_the_same_generation 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:25 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:25 [    INFO] EscalationManager initialized
+2026-11-04 23:21:25 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:25 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:25 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:25 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-24f0aad95402 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:25 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-24f0aad95402 attempt=1
+PASSED                                                                   [ 27%]
+tests/test_employee_business_feedback.py::test_compact_evaluation_stays_in_the_compact_profile 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:26 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 29%]
+tests/test_employee_business_feedback.py::test_wait_choice_origin_needs_an_explicit_verdict_and_is_never_auto_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 31%]
+tests/test_employee_business_feedback.py::test_deterministic_fallback_is_never_credited_as_model_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:28 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:28 [    INFO] EscalationManager initialized
+2026-11-04 23:21:28 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:28 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:28 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:28 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c8777cdadabb attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:28 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-c8777cdadabb attempt=1
+PASSED                                                                   [ 34%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_wrong_or_missing_receipt_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:29 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:29 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-wrong_workspace
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_workspace
+2026-11-04 23:21:29 [ WARNING] business feedback refused: tenant binding mismatch for generation binding-wrong_tenant
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_tenant): tenant=tenant-other model=llama3.1:8b generation=binding-wrong_tenant
+2026-11-04 23:21:29 [ WARNING] business feedback refused: provider binding mismatch for generation binding-wrong_provider
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_provider
+2026-11-04 23:21:29 [ WARNING] business feedback refused: model binding mismatch for generation binding-wrong_model
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_model): tenant=tenant-ctrl model=other-model generation=binding-wrong_model
+2026-11-04 23:21:29 [ WARNING] business feedback refused: profile binding mismatch for generation binding-wrong_profile
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_profile
+2026-11-04 23:21:29 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-wrong_version
+2026-11-04 23:21:29 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_version
+PASSED                                                                   [ 36%]
+tests/test_employee_business_feedback.py::test_business_write_binding_annotates_exactly_the_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:30 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 38%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_unknown_generation 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:31 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:31 [ WARNING] business feedback skipped: no exact generation row for generation-does-not-exist
+2026-11-04 23:21:31 [ WARNING] business routing feedback not recorded (skipped_missing_generation): tenant=tenant-ctrl model=llama3.1:8b generation=generation-does-not-exist
+PASSED                                                                   [ 40%]
+tests/test_employee_business_feedback.py::test_business_write_binding_selects_the_exact_provider_for_same_model 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:32 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 42%]
+tests/test_employee_business_feedback.py::test_business_write_binding_duplicate_is_idempotent 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:33 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:33 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=binding-duplicate
+PASSED                                                                   [ 44%]
+tests/test_employee_business_feedback.py::test_business_write_binding_stronger_concurrent_evaluation_wins 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:34 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 46%]
+tests/test_employee_business_feedback.py::test_parsed_wait_choice_is_pending_not_business_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:35 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 48%]
+tests/test_employee_business_feedback.py::test_validated_wait_choice_is_a_scoped_positive_decision 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:37 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 51%]
+tests/test_employee_business_feedback.py::test_rejected_wait_choice_is_semantic_failure_not_fallback_credit 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:38 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 53%]
+tests/test_employee_business_feedback.py::test_business_verdicts_do_not_enter_the_fabrication_numerator PASSED [ 55%]
+tests/test_employee_business_feedback.py::test_real_model_wait_choice_is_pending_not_business_success 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:39 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:39 [    INFO] EscalationManager initialized
+2026-11-04 23:21:39 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-04 23:21:39 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:39 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:39 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-272655201de6 attempt=1 prompt_chars=3678 cap=1200 instructor_retries=0
+2026-11-04 23:21:39 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-272655201de6 attempt=1
+PASSED                                                                   [ 57%]
+tests/test_employee_business_feedback.py::test_real_rejected_wait_choice_is_semantic_failure_not_fallback_credit 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:40 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:40 [    INFO] EscalationManager initialized
+2026-11-04 23:21:40 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-04 23:21:40 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:40 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:40 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-65b63b85581d attempt=1 prompt_chars=3671 cap=1200 instructor_retries=0
+2026-11-04 23:21:40 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-65b63b85581d attempt=1
+PASSED                                                                   [ 59%]
+tests/test_employee_business_feedback.py::test_context_floor_after_feedback_tests 
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:40 [    INFO] EscalationManager initialized
+2026-11-04 23:21:40 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:40 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:40 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-04 23:21:40 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 61%]
+tests/test_employee_feedback_interleaving.py::test_stale_weak_annotation_cannot_erase_committed_failure[positive] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:41 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:41 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-positive
+PASSED                                                                   [ 63%]
+tests/test_employee_feedback_interleaving.py::test_stale_weak_annotation_cannot_erase_committed_failure[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:42 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:42 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-pending
+PASSED                                                                   [ 65%]
+tests/test_employee_feedback_interleaving.py::test_stronger_failure_overwrites_committed_positive 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:44 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 68%]
+tests/test_employee_feedback_interleaving.py::test_duplicate_verdict_is_idempotent_and_incident_identity_stable 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:45 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:45 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-duplicate
+PASSED                                                                   [ 70%]
+tests/test_employee_feedback_interleaving.py::test_stale_failure_read_retries_after_positive_commit 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:46 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 72%]
+tests/test_employee_feedback_interleaving.py::test_pending_business_cannot_erase_committed_legacy_verdict[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:47 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:47 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-grounding_ok
+PASSED                                                                   [ 74%]
+tests/test_employee_feedback_interleaving.py::test_pending_business_cannot_erase_committed_legacy_verdict[unsupported_figures] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:48 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:48 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-unsupported_figures
+PASSED                                                                   [ 76%]
+tests/test_employee_feedback_interleaving.py::test_stale_legacy_grounding_cannot_overwrite_committed_business_failure 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:50 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 78%]
+tests/test_employee_feedback_interleaving.py::test_changed_binding_during_evaluation_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:51 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:51 [ WARNING] business feedback refused after reload: workspace binding mismatch for generation interleave-binding-change
+2026-11-04 23:21:51 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-binding-change
+PASSED                                                                   [ 80%]
+::test_grounding_check_cannot_certify_unresolved_employee_business_quality 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:52 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 82%]
+::test_stale_positive_cannot_overwrite_committed_semantic_failure[positive] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:53 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:53 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=verifier-interleaving
+PASSED                                                                   [ 85%]
+::test_stale_positive_cannot_overwrite_committed_semantic_failure[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:54 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:54 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=verifier-interleaving
+PASSED                                                                   [ 87%]
+::test_pending_business_annotation_cannot_erase_legacy_grounding_verdict[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-interleave
+PASSED                                                                   [ 89%]
+::test_pending_business_annotation_cannot_erase_legacy_grounding_verdict[unsupported_figures] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:56 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:56 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-interleave
+PASSED                                                                   [ 91%]
+::test_stale_legacy_grounding_cannot_overwrite_committed_business_failure 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 93%]
+::test_wrong_scope_evaluation_cannot_modify_generation[ws-other-tenant-ctrl] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:58 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:58 [    INFO] EscalationManager initialized
+2026-11-04 23:21:58 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:58 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:58 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:58 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-e71104c32fb9 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:58 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-e71104c32fb9 attempt=1
+2026-11-04 23:21:58 [ WARNING] business feedback refused: workspace binding mismatch for generation 5827b1a4-77a1-44da-8ca3-a9df3a1b62cc
+2026-11-04 23:21:58 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=5827b1a4-77a1-44da-8ca3-a9df3a1b62cc
+PASSED                                                                   [ 95%]
+::test_wrong_scope_evaluation_cannot_modify_generation[ws-ctrl-tenant-other] 
+-------------------------------- live log setup --------------------------------
+2026-11-04 23:21:59 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-04 23:21:59 [    INFO] EscalationManager initialized
+2026-11-04 23:21:59 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-04 23:21:59 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-04 23:21:59 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-04 23:21:59 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1fab8c7371c7 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-04 23:21:59 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1fab8c7371c7 attempt=1
+2026-11-04 23:21:59 [ WARNING] business feedback refused: tenant binding mismatch for generation 18f250fd-f1a2-425e-93be-5380ef4a073b
+2026-11-04 23:21:59 [ WARNING] business routing feedback not recorded (refused_tenant): tenant=tenant-other model=llama3.1:8b generation=18f250fd-f1a2-425e-93be-5380ef4a073b
+PASSED                                                                   [ 97%]
+::test_generation_receipt_survives_child_task_deadline_boundary PASSED   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 47 passed, 5 warnings in 64.30s (0:01:04) ===================
