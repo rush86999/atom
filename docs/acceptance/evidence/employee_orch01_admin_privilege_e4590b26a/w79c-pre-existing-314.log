@@ -1,0 +1,1315 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 15:12:35 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_create_valid 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:12:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:12:35 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_create_defaults_parent_none PASSED [  0%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_create_empty_content_rejected PASSED [  1%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_patch_valid_and_defaults PASSED [  1%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_author_info_all_optional PASSED [  2%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_read_from_attributes PASSED [  2%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_read_with_replies PASSED [  3%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_artifact_comment_read_from_attributes PASSED [  3%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_artifact_comment_read_with_updated_at PASSED [  3%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_slash_reply_defaults PASSED [  4%]
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_slash_reply_full PASSED [  4%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_request_defaults PASSED [  5%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_request_explicit PASSED [  5%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_commit_request_valid PASSED [  6%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_commit_request_default_spawn PASSED [  6%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_commit_request_rejects_invalid_proposal PASSED [  6%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_preview PASSED [  7%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_decompose_commit_result PASSED [  7%]
+tests/test_covpush_w79c_api_routes.py::TestBoardDecomposeSchemas::test_subtask_proposal_and_result_models PASSED [  8%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_column_create_valid_and_bounds PASSED [  8%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_column_read_from_attributes PASSED [  9%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_column_read_with_wip_and_count PASSED [  9%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_board_create_defaults_and_bounds PASSED [  9%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_board_read_from_attributes PASSED [ 10%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_board_detail_defaults_columns PASSED [ 10%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_task_create_defaults PASSED [ 11%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_task_create_full_and_bounds PASSED [ 11%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_task_patch_expected_version_required PASSED [ 12%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_canvas_summary_defaults PASSED [ 12%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_task_read_from_attributes PASSED [ 12%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_task_read_with_canvas PASSED [ 13%]
+tests/test_covpush_w79c_api_routes.py::TestBoardSchemas::test_rebalance_request_default_and_result PASSED [ 13%]
+tests/test_covpush_w79c_api_routes.py::TestZohoTeams::test_teams_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/teams "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_covpush_w79c_api_routes.py::TestZohoTeams::test_teams_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [   ERROR] Error fetching Zoho teams: boom
+2026-11-05 15:12:35 [ WARNING] API Error: INTERNAL_ERROR - Error fetching Zoho teams
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/teams "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 14%]
+tests/test_covpush_w79c_api_routes.py::TestZohoTeams::test_teams_unauthenticated_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/teams "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 15%]
+tests/test_covpush_w79c_api_routes.py::TestZohoListFiles::test_list_files_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/files/list "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_covpush_w79c_api_routes.py::TestZohoListFiles::test_list_files_default_parent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/files/list "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_covpush_w79c_api_routes.py::TestZohoListFiles::test_list_files_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [   ERROR] Error listing Zoho files: boom
+2026-11-05 15:12:35 [ WARNING] API Error: INTERNAL_ERROR - Error listing Zoho files
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/files/list "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 16%]
+tests/test_covpush_w79c_api_routes.py::TestZohoListFiles::test_list_files_empty_body_is_valid 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/files/list "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_covpush_w79c_api_routes.py::TestZohoIngest::test_ingest_starts_background_job_and_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HybridDataIngestionService initialized for <MagicMock name='mock.workspace_id' id='4984667648'> / default
+2026-11-05 15:12:35 [    INFO] Creating isolated LanceDBHandler for workspace: <MagicMock name='mock.workspace_id' id='4984667648'> at ./data/atom_memory/<MagicMock name='mock.workspace_id' id='4984667648'>
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:12:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:12:35 [    INFO] LanceDBHandler initialized. ID: 4982637584. LANCEDB_AVAILABLE: True
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:12:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:12:35 [    INFO] EscalationManager initialized
+2026-11-05 15:12:35 [    INFO] CognitiveTierService initialized for workspace: <MagicMock name='mock.workspace_id' id='4984667648'>
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/ingest "HTTP/1.1 200 OK"
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/ingest/jobs/879edac0dd76 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w79c_api_routes.py::TestZohoIngest::test_ingest_service_error_becomes_failed_job 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [   ERROR] Ingest job 45de39cb304a (zoho-workdrive) failed: boom
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/ingest "HTTP/1.1 200 OK"
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/ingest/jobs/45de39cb304a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w79c_api_routes.py::TestZohoIngest::test_ingest_validation_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: POST http://testserver/api/zoho-workdrive/ingest "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w79c_api_routes.py::TestZohoHealth::test_health_configured 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w79c_api_routes.py::TestZohoHealth::test_health_unconfigured 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/zoho-workdrive/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/workspaces/ws-g1/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_string_coercion 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/workspaces/ws-g2/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_none_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/workspaces/ws-g3/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_missing_workspace_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/workspaces/nope/context "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_non_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:35 [    INFO] HTTP Request: GET http://testserver/api/workspaces/ws-g4/context "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextGet::test_get_context_skill_names_sorted_unique 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workspaces/ws-g5/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextPut::test_put_context_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workspaces/ws-p1/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextPut::test_put_context_empty_list 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workspaces/ws-p2/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextPut::test_put_context_preserves_other_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workspaces/ws-p3/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextPut::test_put_context_missing_workspace_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workspaces/nope/context "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_assign_skill_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workspaces/ws-s1/skills/sk-s1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_assign_skill_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workspaces/ws-s2/skills/sk-s2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_assign_skill_missing_skill_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workspaces/ws-s3/skills/no-such-skill "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_assign_skill_missing_workspace_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workspaces/nope/skills/sk-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_unassign_skill_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: DELETE http://testserver/api/workspaces/ws-s4/skills/sk-s4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_unassign_skill_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: DELETE http://testserver/api/workspaces/ws-s5/skills/sk-s5 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_unassign_skill_missing_workspace_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: DELETE http://testserver/api/workspaces/nope/skills/sk-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w79c_api_routes.py::TestWorkspaceContextSkills::test_skills_non_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workspaces/ws-s6/skills/sk-1 "HTTP/1.1 403 Forbidden"
+2026-11-05 15:12:36 [    INFO] HTTP Request: DELETE http://testserver/api/workspaces/ws-s6/skills/sk-1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateGetTemplateManager::test_get_template_manager_returns_manager PASSED [ 27%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateGetTemplateManager::test_template_client_runs_real_manager_ctor 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 27%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 28%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_default_step_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 28%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_invalid_category_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 28%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_invalid_complexity_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 29%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_empty_name_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 29%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_missing_name_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 30%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_manager_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 30%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_unauthenticated_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 31%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 31%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_with_category 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/?category=data_processing "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 31%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_invalid_category_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/?category=bogus "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 32%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_steps_dict_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 32%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_manager_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 33%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_unauthenticated_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 33%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/search?query=email "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 34%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_with_limit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/search?query=q&limit=5 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 34%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/search?query=q "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 34%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateGet::test_get_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 35%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateGet::test_get_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: GET http://testserver/api/workflow-templates/nope "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 35%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 36%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_with_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 36%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_no_updates_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 37%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_blocked_fields_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 37%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_value_error_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/nope "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 37%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_generic_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 38%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_http_exception_re_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 38%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 39%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_value_error_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 39%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_generic_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 40%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_missing_name_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 40%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 40%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_template_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:36 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/nope/import "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 41%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_value_error_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 41%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_generic_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 42%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 42%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_with_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute?parameters={%22a%22:1} "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 43%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_value_error_template_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/nope/execute "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 43%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_value_error_other_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 43%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_http_exception_re_raised_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 44%]
+tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_generic_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 44%]
+tests/test_covpush_w79c_api_routes.py::TestGetWorkflowData::test_missing_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] Workflows file not found: /private/tmp/atom-auth2fa/backend/workflows.json
+PASSED                                                                   [ 45%]
+tests/test_covpush_w79c_api_routes.py::TestGetWorkflowData::test_workflow_not_found_in_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] Workflow wf-1 not found in workflows.json
+PASSED                                                                   [ 45%]
+tests/test_covpush_w79c_api_routes.py::TestGetWorkflowData::test_steps_passthrough PASSED [ 46%]
+tests/test_covpush_w79c_api_routes.py::TestGetWorkflowData::test_nodes_to_steps_conversion PASSED [ 46%]
+tests/test_covpush_w79c_api_routes.py::TestGetWorkflowData::test_exception_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error loading workflow data for wf-1: boom
+PASSED                                                                   [ 46%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] Workflow wf-1 not found in workflows.json
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_version_not_found_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] Workflow wf-1 not found in workflows.json
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Failed to retrieve created version
+2026-11-05 15:12:37 [   ERROR] Error creating version for workflow wf-1: 500: {'success': False, 'error': {'code': 'INTERNAL_ERROR', 'message': 'Failed to retrieve created version', 'timestamp': '2026-11-05T20:12:37.217310+00:00', 'details': {'workflow_id': 'wf-1'}}}
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 47%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] Workflow wf-1 not found in workflows.json
+2026-11-05 15:12:37 [   ERROR] Error creating version for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 48%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_invalid_version_type_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 48%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_missing_fields_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 49%]
+tests/test_covpush_w79c_api_routes.py::TestVersionCreate::test_create_unauthenticated_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 49%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersions::test_get_versions_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersions::test_get_versions_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting versions for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersions::test_get_versions_branch_and_limit_query 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions?branch_name=dev&limit=10 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersions::test_get_versions_limit_bounds_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions?limit=0 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 51%]
+tests/test_covpush_w79c_api_routes.py::TestCompareVersions::test_compare_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/compare?from_version=1.0.0&to_version=1.1.0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_covpush_w79c_api_routes.py::TestCompareVersions::test_compare_from_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Source version not found: 0.9.0
+2026-11-05 15:12:37 [   ERROR] Error comparing versions for workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Source version not found: 0.9.0', 'timestamp': '2026-11-05T20:12:37.290634+00:00', 'details': {'resource': 'Source version', 'resource_id': '0.9.0'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/compare?from_version=0.9.0&to_version=1.1.0 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w79c_api_routes.py::TestCompareVersions::test_compare_to_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Target version not found: 9.9.9
+2026-11-05 15:12:37 [   ERROR] Error comparing versions for workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Target version not found: 9.9.9', 'timestamp': '2026-11-05T20:12:37.297230+00:00', 'details': {'resource': 'Target version', 'resource_id': '9.9.9'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/compare?from_version=1.0.0&to_version=9.9.9 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w79c_api_routes.py::TestCompareVersions::test_compare_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error comparing versions for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/compare?from_version=1.0.0&to_version=1.1.0 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 53%]
+tests/test_covpush_w79c_api_routes.py::TestCompareVersions::test_compare_missing_query_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/compare "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 53%]
+tests/test_covpush_w79c_api_routes.py::TestLatestVersion::test_latest_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/latest "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_covpush_w79c_api_routes.py::TestLatestVersion::test_latest_empty_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Version not found: latest
+2026-11-05 15:12:37 [   ERROR] Error getting latest version for workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Version not found: latest', 'timestamp': '2026-11-05T20:12:37.325027+00:00', 'details': {'resource': 'Version', 'resource_id': 'latest'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/latest "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/test_covpush_w79c_api_routes.py::TestLatestVersion::test_latest_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting latest version for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/latest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 54%]
+tests/test_covpush_w79c_api_routes.py::TestVersionSummary::test_summary_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_covpush_w79c_api_routes.py::TestVersionSummary::test_summary_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_covpush_w79c_api_routes.py::TestVersionSummary::test_summary_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting version summary for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/summary "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersion::test_get_version_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersion::test_get_version_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Version not found: 9.9.9
+2026-11-05 15:12:37 [   ERROR] Error getting version 9.9.9 for workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Version not found: 9.9.9', 'timestamp': '2026-11-05T20:12:37.373648+00:00', 'details': {'resource': 'Version', 'resource_id': '9.9.9'}}}
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Version not found: 9.9.9
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/9.9.9 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w79c_api_routes.py::TestGetVersion::test_get_version_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting version 1.0.0 for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 57%]
+tests/test_covpush_w79c_api_routes.py::TestVersionData::test_version_data_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0/data "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_covpush_w79c_api_routes.py::TestVersionData::test_version_data_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Version not found: 9.9.9
+2026-11-05 15:12:37 [   ERROR] Error getting version data 9.9.9 for workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Version not found: 9.9.9', 'timestamp': '2026-11-05T20:12:37.395959+00:00', 'details': {'resource': 'Version', 'resource_id': '9.9.9'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/9.9.9/data "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 58%]
+tests/test_covpush_w79c_api_routes.py::TestVersionData::test_version_data_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting version data 1.0.0 for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0/data "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 58%]
+tests/test_covpush_w79c_api_routes.py::TestRollback::test_rollback_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/rollback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_covpush_w79c_api_routes.py::TestRollback::test_rollback_target_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - Target version not found: 9.9.9
+2026-11-05 15:12:37 [   ERROR] Error rolling back workflow wf-1: 404: {'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Target version not found: 9.9.9', 'timestamp': '2026-11-05T20:12:37.418707+00:00', 'details': {'resource': 'Target version', 'resource_id': '9.9.9'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/rollback "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 59%]
+tests/test_covpush_w79c_api_routes.py::TestRollback::test_rollback_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error rolling back workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/rollback "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 59%]
+tests/test_covpush_w79c_api_routes.py::TestRollback::test_rollback_missing_fields_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/rollback "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 60%]
+tests/test_covpush_w79c_api_routes.py::TestDeleteVersion::test_delete_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/v1/workflows/wf-1/versions/1.0.0?delete_reason=cleanup "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_covpush_w79c_api_routes.py::TestDeleteVersion::test_delete_failed_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: VALIDATION_ERROR - Failed to delete version
+2026-11-05 15:12:37 [   ERROR] Error deleting version 1.0.0 for workflow wf-1: 422: {'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Failed to delete version', 'timestamp': '2026-11-05T20:12:37.451367+00:00', 'details': {'field': 'version'}}}
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/v1/workflows/wf-1/versions/1.0.0?delete_reason=cleanup "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 61%]
+tests/test_covpush_w79c_api_routes.py::TestDeleteVersion::test_delete_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error deleting version 1.0.0 for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/v1/workflows/wf-1/versions/1.0.0?delete_reason=cleanup "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 61%]
+tests/test_covpush_w79c_api_routes.py::TestDeleteVersion::test_delete_missing_reason_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/v1/workflows/wf-1/versions/1.0.0 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 62%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_create_branch_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_create_branch_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error creating branch for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 62%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_create_branch_missing_fields_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 63%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_list_branches_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/branches "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_list_branches_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting branches for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/branches "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 64%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_merge_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches/merge "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_merge_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error merging branches for workflow wf-1: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches/merge "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 65%]
+tests/test_covpush_w79c_api_routes.py::TestBranches::test_merge_missing_fields_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/branches/merge "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 65%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_get_metrics_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_get_metrics_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_get_metrics_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error getting metrics for version 1.0.0: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 66%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_update_metrics_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_update_metrics_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_covpush_w79c_api_routes.py::TestVersionMetrics::test_update_metrics_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Error updating metrics for version 1.0.0: boom
+2026-11-05 15:12:37 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/wf-1/versions/1.0.0/metrics "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 68%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningHealth::test_health_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/versioning/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningHealth::test_health_exception_503 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [   ERROR] Health check failed: boom
+2026-11-05 15:12:37 [ WARNING] API Error: VERSIONING_UNAVAILABLE - Versioning system unavailable
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/versioning/health "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 68%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_version_create_request_valid PASSED [ 69%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_version_create_request_invalid_type PASSED [ 69%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_rollback_request PASSED [ 70%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_branch_create_request PASSED [ 70%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_merge_request PASSED [ 71%]
+tests/test_covpush_w79c_api_routes.py::TestVersioningModels::test_version_diff_response PASSED [ 71%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 72%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 72%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_get_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_get_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminUser not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 73%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] Admin user created: gen-id by admin-w79c
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 74%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminRole not found: no-role
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_email_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 75%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_invalid_email_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 75%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_short_password_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 75%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_with_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_bad_role_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminRole not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 77%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_bad_status_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 77%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_status_whitespace_normalized 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminUser not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_delete_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] Admin user deleted: adm-1 (a@test.local) by admin-w79c
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_delete_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminUser not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 79%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_last_login_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1/last-login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_last_login_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminUser not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/nope/last-login "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 80%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_admin_user_validator_allowed_statuses PASSED [ 80%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_list_roles_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_get_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_get_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminRole not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_create_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+PASSED                                                                   [ 82%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_create_role_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 82%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_create_role_missing_permissions_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 83%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_name_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 84%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: NOT_FOUND - AdminRole not found: nope
+2026-11-05 15:12:37 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 84%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_in_use_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:37 [ WARNING] API Error: CONFLICT - Cannot delete role: 2 admin user(s) still assigned to this role
+2026-11-05 15:12:37 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: NOT_FOUND - AdminRole not found: nope
+2026-11-05 15:12:38 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 85%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_status_no_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_status_with_state_full_dates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_status_with_null_dates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_reconnect_creates_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket reconnect triggered by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/reconnect "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_reconnect_existing_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket reconnect triggered by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/reconnect "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_disable_creates_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket disabled by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_disable_existing_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket disabled by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_enable_creates_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket enabled by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_enable_existing_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] WebSocket enabled by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w79c_api_routes.py::TestAdminWebSocket::test_websocket_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_sync_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Rating sync triggered by admin-w79c (agent: None, upload_all: True)
+2026-11-05 15:12:38 [    INFO] Rating sync completed for admin-w79c: 2 uploaded, 0 failed
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_sync_default_upload_all 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Rating sync triggered by admin-w79c (agent: None, upload_all: False)
+2026-11-05 15:12:38 [    INFO] Rating sync completed for admin-w79c: 0 uploaded, None failed
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_sync_in_progress_503 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Rating sync triggered by admin-w79c (agent: None, upload_all: False)
+2026-11-05 15:12:38 [ WARNING] API Error: RATING_SYNC_IN_PROGRESS - Rating sync is already in progress
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_failed_uploads_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/ratings/failed-uploads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_failed_uploads_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/ratings/failed-uploads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_retry_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Retry failed rating upload f1 by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] Retry successful for failed upload f1
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/f1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_retry_upload_fails_again 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Retry failed rating upload f1 by admin-w79c (agent: None)
+2026-11-05 15:12:38 [   ERROR] Retry failed for f1: boom
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/f1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_retry_rating_missing_removes_record 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Retry failed rating upload f1 by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/f1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_retry_failed_record_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Retry failed rating upload nope by admin-w79c (agent: None)
+2026-11-05 15:12:38 [ WARNING] API Error: NOT_FOUND - FailedRatingUpload not found: nope
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/nope/retry "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRatingSync::test_retry_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/f1/retry "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_list_conflicts_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] List conflicts by admin-w79c (agent: None) filters: severity=high, type=field_mismatch
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts?severity=high&conflict_type=field_mismatch "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_list_conflicts_page_bounds 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] List conflicts by admin-w79c (agent: None) filters: severity=None, type=None
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts?page=0&page_size=999 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_get_conflict_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Get conflict 1 by admin-w79c (agent: None)
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts/1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_get_conflict_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Get conflict 99 by admin-w79c (agent: None)
+2026-11-05 15:12:38 [ WARNING] API Error: NOT_FOUND - ConflictLog not found: 99
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts/99 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_resolve_conflict_success_with_cache 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Resolve conflict 1 by admin-w79c (agent: None) using merge
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_resolve_conflict_success_no_cache_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Resolve conflict 1 by admin-w79c (agent: None) using local_wins
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_resolve_conflict_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Resolve conflict 1 by admin-w79c (agent: None) using merge
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_resolve_conflict_invalid_strategy_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: VALIDATION_ERROR - Invalid strategy
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_bulk_resolve_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Bulk resolve 3 conflicts by admin-w79c (agent: None) using remote_wins
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_bulk_resolve_partial_failures 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] Bulk resolve 3 conflicts by admin-w79c (agent: None) using merge
+2026-11-05 15:12:38 [   ERROR] Failed to resolve conflict 2: boom
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_bulk_resolve_invalid_strategy_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: VALIDATION_ERROR - Invalid strategy
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_bulk_resolve_empty_ids_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_conflicts_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:12:38 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 15:12:38 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+__ TestTemplateGetTemplateManager.test_template_client_runs_real_manager_ctor __
+tests/test_covpush_w79c_api_routes.py:929: in test_template_client_runs_real_manager_ctor
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+____________________ TestTemplateCreate.test_create_success ____________________
+tests/test_covpush_w79c_api_routes.py:943: in test_create_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+______________ TestTemplateCreate.test_create_default_step_fields ______________
+tests/test_covpush_w79c_api_routes.py:958: in test_create_default_step_fields
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+_____________ TestTemplateCreate.test_create_invalid_category_422 ______________
+tests/test_covpush_w79c_api_routes.py:968: in test_create_invalid_category_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+____________ TestTemplateCreate.test_create_invalid_complexity_422 _____________
+tests/test_covpush_w79c_api_routes.py:977: in test_create_invalid_complexity_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+________________ TestTemplateCreate.test_create_empty_name_422 _________________
+tests/test_covpush_w79c_api_routes.py:984: in test_create_empty_name_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+_______________ TestTemplateCreate.test_create_missing_name_422 ________________
+tests/test_covpush_w79c_api_routes.py:989: in test_create_missing_name_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+_____________ TestTemplateCreate.test_create_manager_exception_500 _____________
+tests/test_covpush_w79c_api_routes.py:996: in test_create_manager_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+______________________ TestTemplateList.test_list_success ______________________
+tests/test_covpush_w79c_api_routes.py:1009: in test_list_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+___________________ TestTemplateList.test_list_with_category ___________________
+tests/test_covpush_w79c_api_routes.py:1020: in test_list_with_category
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/?category=data_processing "HTTP/1.1 403 Forbidden"
+_______________ TestTemplateList.test_list_invalid_category_422 ________________
+tests/test_covpush_w79c_api_routes.py:1028: in test_list_invalid_category_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/?category=bogus "HTTP/1.1 403 Forbidden"
+_________________ TestTemplateList.test_list_steps_dict_branch _________________
+tests/test_covpush_w79c_api_routes.py:1037: in test_list_steps_dict_branch
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+_______________ TestTemplateList.test_list_manager_exception_500 _______________
+tests/test_covpush_w79c_api_routes.py:1043: in test_list_manager_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+____________________ TestTemplateSearch.test_search_success ____________________
+tests/test_covpush_w79c_api_routes.py:1054: in test_search_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/search?query=email "HTTP/1.1 403 Forbidden"
+__________________ TestTemplateSearch.test_search_with_limit ___________________
+tests/test_covpush_w79c_api_routes.py:1063: in test_search_with_limit
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/search?query=q&limit=5 "HTTP/1.1 403 Forbidden"
+_________________ TestTemplateSearch.test_search_exception_500 _________________
+tests/test_covpush_w79c_api_routes.py:1070: in test_search_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/search?query=q "HTTP/1.1 403 Forbidden"
+_______________________ TestTemplateGet.test_get_success _______________________
+tests/test_covpush_w79c_api_routes.py:1080: in test_get_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+____________________ TestTemplateGet.test_get_not_found_404 ____________________
+tests/test_covpush_w79c_api_routes.py:1087: in test_get_not_found_404
+    assert resp.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/workflow-templates/nope "HTTP/1.1 403 Forbidden"
+____________________ TestTemplateUpdate.test_update_success ____________________
+tests/test_covpush_w79c_api_routes.py:1097: in test_update_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+__________________ TestTemplateUpdate.test_update_with_steps ___________________
+tests/test_covpush_w79c_api_routes.py:1111: in test_update_with_steps
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+________________ TestTemplateUpdate.test_update_no_updates_422 _________________
+tests/test_covpush_w79c_api_routes.py:1119: in test_update_no_updates_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+______________ TestTemplateUpdate.test_update_blocked_fields_422 _______________
+tests/test_covpush_w79c_api_routes.py:1125: in test_update_blocked_fields_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+________________ TestTemplateUpdate.test_update_value_error_404 ________________
+tests/test_covpush_w79c_api_routes.py:1131: in test_update_value_error_404
+    assert resp.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/nope "HTTP/1.1 403 Forbidden"
+_____________ TestTemplateUpdate.test_update_generic_exception_500 _____________
+tests/test_covpush_w79c_api_routes.py:1137: in test_update_generic_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+___________ TestTemplateUpdate.test_update_http_exception_re_raised ____________
+tests/test_covpush_w79c_api_routes.py:1143: in test_update_http_exception_re_raised
+    assert resp.status_code == 418
+E   assert 403 == 418
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/api/workflow-templates/tpl-1 "HTTP/1.1 403 Forbidden"
+_______________ TestTemplateInstantiate.test_instantiate_success _______________
+tests/test_covpush_w79c_api_routes.py:1153: in test_instantiate_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+___________ TestTemplateInstantiate.test_instantiate_value_error_422 ___________
+tests/test_covpush_w79c_api_routes.py:1164: in test_instantiate_value_error_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+________ TestTemplateInstantiate.test_instantiate_generic_exception_500 ________
+tests/test_covpush_w79c_api_routes.py:1172: in test_instantiate_generic_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+__________ TestTemplateInstantiate.test_instantiate_missing_name_422 ___________
+tests/test_covpush_w79c_api_routes.py:1177: in test_instantiate_missing_name_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/instantiate "HTTP/1.1 403 Forbidden"
+____________________ TestTemplateImport.test_import_success ____________________
+tests/test_covpush_w79c_api_routes.py:1187: in test_import_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+____________ TestTemplateImport.test_import_template_not_found_404 _____________
+tests/test_covpush_w79c_api_routes.py:1195: in test_import_template_not_found_404
+    assert resp.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/nope/import "HTTP/1.1 403 Forbidden"
+________________ TestTemplateImport.test_import_value_error_422 ________________
+tests/test_covpush_w79c_api_routes.py:1202: in test_import_value_error_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+_____________ TestTemplateImport.test_import_generic_exception_500 _____________
+tests/test_covpush_w79c_api_routes.py:1209: in test_import_generic_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/import "HTTP/1.1 403 Forbidden"
+___________________ TestTemplateExecute.test_execute_success ___________________
+tests/test_covpush_w79c_api_routes.py:1225: in test_execute_success
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+_______________ TestTemplateExecute.test_execute_with_parameters _______________
+tests/test_covpush_w79c_api_routes.py:1245: in test_execute_with_parameters
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute?parameters={%22a%22:1} "HTTP/1.1 403 Forbidden"
+_____ TestTemplateExecute.test_execute_value_error_template_not_found_404 ______
+tests/test_covpush_w79c_api_routes.py:1253: in test_execute_value_error_template_not_found_404
+    assert resp.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/nope/execute "HTTP/1.1 403 Forbidden"
+____________ TestTemplateExecute.test_execute_value_error_other_422 ____________
+tests/test_covpush_w79c_api_routes.py:1260: in test_execute_value_error_other_422
+    assert resp.status_code == 422
+E   assert 403 == 422
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+____________ TestTemplateExecute.test_execute_generic_exception_500 ____________
+tests/test_covpush_w79c_api_routes.py:1276: in test_execute_generic_exception_500
+    assert resp.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/workflow-templates/tpl-1/execute "HTTP/1.1 403 Forbidden"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+api/admin_routes.py:119
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 464 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w79c_api_routes.py::TestCommentSchemas::test_comment_create_valid
+  /private/tmp/atom-auth2fa/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_covpush_w79c_api_routes.py: 18 warnings
+  /private/tmp/atom-auth2fa/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_covpush_w79c_api_routes.py::TestDeleteVersion::test_delete_failed_422
+  /private/tmp/atom-auth2fa/backend/api/workflow_versioning_endpoints.py:586: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error("version", "Failed to delete version")
+
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_resolve_conflict_invalid_strategy_422
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1264: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_covpush_w79c_api_routes.py::TestAdminConflicts::test_bulk_resolve_invalid_strategy_422
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1349: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateGetTemplateManager::test_template_client_runs_real_manager_ctor
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_default_step_fields
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_invalid_category_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_invalid_complexity_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_empty_name_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_missing_name_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateCreate::test_create_manager_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_with_category
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_invalid_category_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_steps_dict_branch
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateList::test_list_manager_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_with_limit
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateSearch::test_search_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateGet::test_get_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateGet::test_get_not_found_404
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_with_steps
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_no_updates_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_blocked_fields_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_value_error_404
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_generic_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateUpdate::test_update_http_exception_re_raised
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_value_error_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_generic_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateInstantiate::test_instantiate_missing_name_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_template_not_found_404
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_value_error_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateImport::test_import_generic_exception_500
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_success
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_with_parameters
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_value_error_template_not_found_404
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_value_error_other_422
+FAILED tests/test_covpush_w79c_api_routes.py::TestTemplateExecute::test_execute_generic_exception_500
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 38 failed, 194 passed, 496 warnings in 12.05s =================

@@ -1,0 +1,153 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 15:24:53 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:24:53 [    INFO] EscalationManager initialized
+2026-11-05 15:24:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:24:53 [    INFO] EscalationManager initialized
+2026-11-05 15:24:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:24:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:24:53 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:53 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:54 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 15:24:54 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:54 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 13%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_get_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:54 [    INFO] HTTP Request: GET http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_get_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:54 [ WARNING] API Error: NOT_FOUND - AdminUser not found: nope
+2026-11-05 15:24:54 [    INFO] HTTP Request: GET http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 21%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:54 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:55 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_create_user_email_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:55 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 15:24:55 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:55 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_with_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:56 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_bad_role_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:56 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 47%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_status_whitespace_normalized 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:56 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_update_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:56 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_delete_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:56 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/adm-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_delete_user_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:57 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 65%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_create_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:57 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+PASSED                                                                   [ 69%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_create_role_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:57 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 15:24:57 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 73%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:57 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_name_conflict_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:57 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 15:24:57 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 82%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_update_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:58 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 86%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:58 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_in_use_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:58 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 15:24:58 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w79c_api_routes.py::TestAdminRoles::test_delete_role_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:24:59 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/admin_routes.py:185
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:185: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_covpush_w79c_api_routes.py::TestAdminUsers::test_list_users_success
+  /private/tmp/atom-admin-privilege/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 23 passed, 199 deselected, 9 warnings in 20.15s ================

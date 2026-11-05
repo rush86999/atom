@@ -1,0 +1,1403 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 15:01:36 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 15:01:36 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+2026-11-05 15:01:36 [    INFO] ================================================================================
+2026-11-05 15:01:36 [    INFO] ATOM PLATFORM API STARTUP
+2026-11-05 15:01:36 [    INFO] ================================================================================
+2026-11-05 15:01:36 [    INFO] Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+2026-11-05 15:01:36 [    INFO] Working directory: /private/tmp/atom-auth2fa/backend
+2026-11-05 15:01:36 [    INFO] Python path: ['/private/tmp/atom-auth2fa', '/private/tmp/atom-auth2fa/backend', '/private/tmp/atom-auth2fa/backend']...
+2026-11-05 15:01:36 [    INFO] ✓ uvicorn imported
+2026-11-05 15:01:36 [    INFO] ✓ Standard library imports successful
+2026-11-05 15:01:36 [    INFO] ✓ dotenv imported
+2026-11-05 15:01:36 [    INFO] ✓ sqlalchemy.orm and exceptions imported
+2026-11-05 15:01:36 [    INFO] ✓ core.models imported
+2026-11-05 15:01:36 [    INFO] ✓ core.models_registration imported
+2026-11-05 15:01:36 [    INFO] ✓ core.cache.RedisCacheService imported
+2026-11-05 15:01:36 [    INFO] ✓ core.database imported
+2026-11-05 15:01:36 [ WARNING] Failed to import quota_manager: No module named 'core.quota_manager'
+2026-11-05 15:01:36 [    INFO] ✓ FastAPI imports successful
+2026-11-05 15:01:36 [    INFO] EscalationManager initialized
+2026-11-05 15:01:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:36 [    INFO] EscalationManager initialized
+2026-11-05 15:01:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:01:36 [    INFO] MCP Service initialized
+2026-11-05 15:01:36 [    INFO] EscalationManager initialized
+2026-11-05 15:01:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:36 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 15:01:36 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 15:01:36 [    INFO] EscalationManager initialized
+2026-11-05 15:01:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:36 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 15:01:36 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 15:01:36 [    INFO] No token storage file found, starting empty
+2026-11-05 15:01:36 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-05 15:01:36 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 15:01:36 [    INFO] ATOM Discord Integration initialized
+2026-11-05 15:01:36 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-05 15:01:36 [    INFO] EscalationManager initialized
+2026-11-05 15:01:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:01:36 [    INFO] LanceDBHandler initialized. ID: 4929092688. LANCEDB_AVAILABLE: True
+2026-11-05 15:01:36 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-05 15:01:36 [    INFO] Telegram Integration initialized
+2026-11-05 15:01:36 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-05 15:01:36 [    INFO] ATOM AI Integration initialized
+2026-11-05 15:01:36 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-05 15:01:36 [    INFO] Enterprise Security Service initialized
+2026-11-05 15:01:36 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-05 15:01:36 [    INFO] Enterprise Unified Service initialized
+2026-11-05 15:01:36 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 15:01:37 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 15:01:37 [    INFO] ATOM Google Chat Integration initialized
+2026-11-05 15:01:37 [    INFO] Teams Enhanced Service initialized
+2026-11-05 15:01:37 [    INFO] ATOM Teams Integration initialized
+2026-11-05 15:01:37 [    INFO] Workflow Automation Service initialized
+2026-11-05 15:01:37 [    INFO] WhatsApp Integration initialized
+2026-11-05 15:01:37 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-05 15:01:37 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-05 15:01:37 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 15:01:37 [ WARNING] Marketing service not available
+2026-11-05 15:01:37 [ WARNING] Meta Business service not available
+2026-11-05 15:01:37 [ WARNING] OpenClaw service not available
+2026-11-05 15:01:37 [    INFO] Slack Enhanced Service initialized
+2026-11-05 15:01:37 [    INFO] Teams Enhanced Service initialized
+2026-11-05 15:01:37 [ WARNING] Redis unavailable - webhook ingestion will process synchronously
+2026-11-05 15:01:37 [    INFO] OutlookEnhancedService initialized
+2026-11-05 15:01:37 [ WARNING] No .env file found in any expected location. Realizing on system env vars.
+2026-11-05 15:01:37 [    INFO] Startup API key check
+2026-11-05 15:01:37 [    INFO] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-11-05 15:01:37 [    INFO] Creating FastAPI application...
+2026-11-05 15:01:37 [    INFO] ✓ FastAPI app instance created
+2026-11-05 15:01:37 [ WARNING] Connection leak detector not available: No module named 'core.connection_leak_detector'
+2026-11-05 15:01:37 [    INFO] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+2026-11-05 15:01:37 [    INFO] ⊘ Test mode detected: Loading only critical integrations for security tests
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: auth
+2026-11-05 15:01:37 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded auth
+2026-11-05 15:01:37 [    INFO]   ✓ auth (critical for tests, prefix: root)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: oauth
+2026-11-05 15:01:37 [    INFO] Loading integration: oauth (api.oauth_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded oauth
+2026-11-05 15:01:37 [    INFO]   ✓ oauth (critical for tests, prefix: root)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: whatsapp
+2026-11-05 15:01:37 [    INFO] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded whatsapp
+2026-11-05 15:01:37 [    INFO]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: microsoft365
+2026-11-05 15:01:37 [    INFO] Loading integration: microsoft365 (integrations.microsoft365_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded microsoft365
+2026-11-05 15:01:37 [    INFO]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: outlook
+2026-11-05 15:01:37 [    INFO] Loading integration: outlook (integrations.outlook_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded outlook
+2026-11-05 15:01:37 [    INFO]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: twilio
+2026-11-05 15:01:37 [    INFO] Loading integration: twilio (integrations.twilio_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded twilio
+2026-11-05 15:01:37 [    INFO]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: notion
+2026-11-05 15:01:37 [    INFO] Loading integration: notion (integrations.notion_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded notion
+2026-11-05 15:01:37 [    INFO]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: mailchimp
+2026-11-05 15:01:37 [    INFO] Loading integration: mailchimp (integrations.mailchimp_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded mailchimp
+2026-11-05 15:01:37 [    INFO]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: zoho_crm
+2026-11-05 15:01:37 [ WARNING] Unknown integration: zoho_crm
+2026-11-05 15:01:37 [ WARNING]   ✗ zoho_crm could not be loaded
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: zoho_projects
+2026-11-05 15:01:37 [ WARNING] Unknown integration: zoho_projects
+2026-11-05 15:01:37 [ WARNING]   ✗ zoho_projects could not be loaded
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: zoho_workdrive
+2026-11-05 15:01:37 [    INFO] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded zoho_workdrive
+2026-11-05 15:01:37 [    INFO]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: salesforce
+2026-11-05 15:01:37 [    INFO] Loading integration: salesforce (integrations.salesforce_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded salesforce
+2026-11-05 15:01:37 [    INFO]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: pipedrive
+2026-11-05 15:01:37 [ WARNING] Unknown integration: pipedrive
+2026-11-05 15:01:37 [ WARNING]   ✗ pipedrive could not be loaded
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: freshsales
+2026-11-05 15:01:37 [ WARNING] Unknown integration: freshsales
+2026-11-05 15:01:37 [ WARNING]   ✗ freshsales could not be loaded
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: asana
+2026-11-05 15:01:37 [    INFO] Loading integration: asana (integrations.asana_routes)
+2026-11-05 15:01:37 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-05 15:01:37 [    INFO] ✓ Loaded asana
+2026-11-05 15:01:37 [    INFO]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: monday
+2026-11-05 15:01:37 [    INFO] Loading integration: monday (integrations.monday_routes)
+2026-11-05 15:01:37 [    INFO] ✓ Loaded monday
+2026-11-05 15:01:37 [    INFO]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+2026-11-05 15:01:37 [    INFO] DEBUG: Processing critical integration: bigcommerce
+2026-11-05 15:01:37 [ WARNING] Unknown integration: bigcommerce
+2026-11-05 15:01:37 [ WARNING]   ✗ bigcommerce could not be loaded
+2026-11-05 15:01:37 [    INFO]   Other integrations will load on-demand.
+2026-11-05 15:01:37 [    INFO] ✓ Agent audit trail mounted at /api/audit
+2026-11-05 15:01:37 [    INFO] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+2026-11-05 15:01:37 [    INFO] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+2026-11-05 15:01:37 [    INFO] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+2026-11-05 15:01:37 [    INFO] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+2026-11-05 15:01:37 [    INFO] ✓ Mini-apps router mounted at /api/mini-apps
+2026-11-05 15:01:37 [    INFO] ✓ Automation Settings mounted at /api/v1/settings/automations
+2026-11-05 15:01:38 [    INFO] ✓ Finance Live API mounted at /api/atom/finance/live
+2026-11-05 15:01:38 [    INFO] ✓ Projects Live API mounted at /api/atom/projects/live
+2026-11-05 15:01:38 [    INFO] ✓ Sales Live API mounted at /api/atom/sales/live
+2026-11-05 15:01:38 [    INFO] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+2026-11-05 15:01:38 [    INFO] Loading Core API Routes...
+2026-11-05 15:01:38 [    INFO] ✓ OAuth Status and Authorization Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Telegram Chat Routes Loaded
+2026-11-05 15:01:38 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-05 15:01:38 [    INFO] ✓ Slack Chat Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+2026-11-05 15:01:38 [    INFO] ✓ Operations Routes Loaded at /api/operations
+2026-11-05 15:01:38 [    INFO] ✓ Tools Routes Loaded at /api/tools
+2026-11-05 15:01:38 [ WARNING] LINE adapter not configured or httpx not available
+2026-11-05 15:01:38 [    INFO] ✓ LINE Routes Loaded at /api/line (auth-gated)
+2026-11-05 15:01:38 [    INFO] ✅ Desktop authentication routes enabled (secure API keys)
+2026-11-05 15:01:38 [    INFO] ✅ Deep linking system enabled
+2026-11-05 15:01:38 [    INFO] ✅ Debug tenant check system enabled
+2026-11-05 15:01:38 [    INFO] ✓ Analytics Engine Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Workflow Import/Export Routes Loaded
+2026-11-05 15:01:38 [ WARNING] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+2026-11-05 15:01:38 [    INFO] ✓ JIT Verification & Admin Governance Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Workspace Context Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Governance Manual Fact Entry Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Queue Monitoring Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Auto-Dev Review Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Canvas Skill Integration Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Business Facts Routes Loaded
+2026-11-05 15:01:38 [ WARNING] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+2026-11-05 15:01:38 [    INFO] ✓ Migration Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Embedding Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Tenant Management Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Federation Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Local Model Routes Loaded (/api/local-models)
+2026-11-05 15:01:38 [ WARNING] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+2026-11-05 15:01:38 [    INFO] ✓ Skill Management & Execution Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Learn Routes Loaded (workflow→skill distillation)
+2026-11-05 15:01:38 [    INFO] ✓ Admin Skill & Evolution Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Workflow UI Endpoints Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Time-Travel Endpoints Loaded
+2026-11-05 15:01:38 [ WARNING] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+2026-11-05 15:01:38 [    INFO] ✓ Messaging OAuth (BYOK) Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+2026-11-05 15:01:38 [    INFO] ✓ Shopify REST routes loaded
+2026-11-05 15:01:38 [    INFO] Configured ingestion for whatsapp
+2026-11-05 15:01:38 [    INFO] Configured ingestion for slack
+2026-11-05 15:01:38 [    INFO] Configured ingestion for email
+2026-11-05 15:01:38 [    INFO] Configured ingestion for telegram
+2026-11-05 15:01:38 [    INFO] Configured ingestion for discord
+2026-11-05 15:01:38 [    INFO] Configured ingestion for sms
+2026-11-05 15:01:38 [    INFO] Configured ingestion for calls
+2026-11-05 15:01:38 [    INFO] Configured ingestion for microsoft_teams
+2026-11-05 15:01:38 [    INFO] Configured ingestion for zoom
+2026-11-05 15:01:38 [    INFO] Configured ingestion for notion
+2026-11-05 15:01:38 [    INFO] Configured ingestion for linear
+2026-11-05 15:01:38 [    INFO] Configured ingestion for outlook
+2026-11-05 15:01:38 [    INFO] Configured ingestion for gmail
+2026-11-05 15:01:38 [    INFO] Configured ingestion for salesforce
+2026-11-05 15:01:38 [    INFO] Configured ingestion for asana
+2026-11-05 15:01:38 [    INFO] Configured ingestion for dropbox
+2026-11-05 15:01:38 [    INFO] Configured ingestion for box
+2026-11-05 15:01:38 [    INFO] Configured ingestion for tableau
+2026-11-05 15:01:38 [    INFO] Configured ingestion for zoho
+2026-11-05 15:01:38 [    INFO] Configured ingestion for xero
+2026-11-05 15:01:38 [    INFO] Configured ingestion for quickbooks
+2026-11-05 15:01:38 [ WARNING] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 15:01:38 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-05 15:01:38 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'
+2026-11-05 15:01:38 [    INFO] HubSpot Integration Service initialized
+2026-11-05 15:01:38 [ WARNING] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 15:01:38 [    INFO] Loading Slack webhooks...
+2026-11-05 15:01:38 [    INFO] ✓ Slack webhooks loaded
+2026-11-05 15:01:38 [    INFO] Loading Shopify webhooks...
+2026-11-05 15:01:38 [    INFO] ✓ Shopify webhooks loaded
+2026-11-05 15:01:38 [    INFO] Loading Twilio webhooks...
+2026-11-05 15:01:38 [    INFO] ✓ Twilio webhooks loaded
+2026-11-05 15:01:38 [    INFO] ✓ Standardized Webhook Endpoints Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Admin Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ 2FA Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+2026-11-05 15:01:38 [    INFO] ✓ ACP bridge mounted at /acp/ws
+2026-11-05 15:01:38 [    INFO] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+2026-11-05 15:01:38 [    INFO] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+2026-11-05 15:01:38 [    INFO] ✓ SCIM v2 mounted at /api/scim/v2
+2026-11-05 15:01:38 [    INFO] ✓ Observability mounted at /api/observability
+2026-11-05 15:01:38 [    INFO] ✓ BambooHR integration mounted at /api/bamboohr
+2026-11-05 15:01:38 [    INFO] ✓ Twitter/X integration mounted at /api/twitter
+2026-11-05 15:01:38 [    INFO] ✓ MCP Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Availability Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Proposal Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Supervision-Learning Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Integrations Catalog Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Dynamic Options Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Webhook Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Universal Auth Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Meta Compliance Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Consolidated Hardened WhatsApp Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ External Integration Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Connection Management Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ Integration Status Routes Loaded
+2026-11-05 15:01:38 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 15:01:38 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 15:01:38 [    INFO] EscalationManager initialized
+2026-11-05 15:01:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:38 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 15:01:38 [    INFO] EscalationManager initialized
+2026-11-05 15:01:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:38 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 15:01:38 [    INFO] Slack Enhanced Service initialized
+2026-11-05 15:01:38 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 15:01:38 [    INFO] EscalationManager initialized
+2026-11-05 15:01:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:38 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 15:01:38 [    INFO] EscalationManager initialized
+2026-11-05 15:01:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:38 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 15:01:38 [    INFO] Slack Enhanced Service initialized
+2026-11-05 15:01:38 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 15:01:38 [    INFO] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+2026-11-05 15:01:38 [    INFO] ✓ Agent Governance Routes Loaded
+2026-11-05 15:01:38 [    INFO] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+2026-11-05 15:01:38 [    INFO] ✓ Durable Assignment Routes Loaded (/api/assignments)
+2026-11-05 15:01:39 [    INFO] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+2026-11-05 15:01:39 [    INFO] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+2026-11-05 15:01:39 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 15:01:39 [    INFO] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+2026-11-05 15:01:39 [    INFO] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+2026-11-05 15:01:39 [    INFO] ✓ Protection API Routes Loaded (Skill Scanner)
+2026-11-05 15:01:39 [    INFO] ✓ User Preference Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Canvas Terminal Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Browser Automation Routes Loaded
+2026-11-05 15:01:39 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-05 15:01:39 [    INFO] ✓ Device Capabilities Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Canvas Recording Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Autonomy Routes Loaded (action HITL policy)
+2026-11-05 15:01:39 [    INFO] ✓ Meeting Routes Loaded (attendance tracking)
+2026-11-05 15:01:39 [    INFO] ✓ Custom Components Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+2026-11-05 15:01:39 [    INFO] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+2026-11-05 15:01:39 [    INFO] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+2026-11-05 15:01:39 [    INFO] ✓ Installation Profile Routes Loaded (/api/installation)
+2026-11-05 15:01:39 [    INFO] ✓ Playbook Routes Loaded (/api/playbooks)
+2026-11-05 15:01:39 [    INFO] ✓ Goal Run Routes Loaded (/api/goal-runs)
+2026-11-05 15:01:39 [    INFO] ✓ Goal Routes Loaded (/api/goals)
+2026-11-05 15:01:39 [    INFO] ✓ Usage Analytics Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Health Monitoring Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ System Status aggregate mounted at /api/status
+2026-11-05 15:01:39 [    INFO] ✓ Product profile mounted at /api/product/profile
+2026-11-05 15:01:39 [    INFO] ✓ Service registry mounted at /api/services/registry
+2026-11-05 15:01:39 [    INFO] ✓ Ported Features (Canvas/Agent) Processing Complete
+2026-11-05 15:01:39 [    INFO] ✓ Governance Analytics & Remediation Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Memory Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+2026-11-05 15:01:39 [    INFO] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+2026-11-05 15:01:39 [    INFO] ✓ Document & Data Ingestion Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Experience Marketplace Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Test Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ AI Workflows Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Background Agent Routes Loaded
+2026-11-05 15:01:39 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-05 15:01:39 [    INFO] EscalationManager initialized
+2026-11-05 15:01:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:01:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:01:39 [    INFO] LanceDBHandler initialized. ID: 5241919136. LANCEDB_AVAILABLE: True
+2026-11-05 15:01:39 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-05 15:01:39 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 15:01:39 [ WARNING] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 15:01:39 [    INFO] ✓ Integration Data Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Integration & Service Health Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Historical Sync Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Worker Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Component Marketplace Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Agent Coordination Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ OpenClaw Skill Integration Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ OpenClaw Scan Integration Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ OpenClaw Governance Integration Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Skill Composition Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+2026-11-05 15:01:39 [    INFO] ✓ Scheduler Routes Loaded (QStash Ready)
+2026-11-05 15:01:39 [    INFO] ✓ Desktop Bridge Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Satellite Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Mobile Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Invitation Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Support Ticketing Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Bug Triage Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Communication Hub Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Universal Communication Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Admin Retention Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Billing Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Public Pricing Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Social Media Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Audit Log Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Shell Security Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+2026-11-05 15:01:39 [    INFO] ✓ BYOK API Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ LLM Gateway Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ MCP Server Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ SSO API Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Feature Flag Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Sandbox Execution Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ External API Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Entity Type Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Entity Query Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Entity Linking Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Ingestion CRUD Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Entity Skill Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Agent Integration Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Meta Agent Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Admin Integration Catalog Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Domain Marketplace Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Agent-Domain Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Domain-Aware Graduation Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Capability Matrix Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Learning & Adaptation Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Stage Router Management Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Learning Router Management Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Admin Runtime Settings Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ BPE Workspace Admin Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Fleet Router Management Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Decision Plane Management Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Decision Automation Loop Scheduled (mode=off)
+2026-11-05 15:01:39 [    INFO] ✓ Org-Politics Management Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+2026-11-05 15:01:39 [    INFO] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+2026-11-05 15:01:39 [    INFO] ✓ Ontology Draft Automation Routes Loaded
+2026-11-05 15:01:39 [    INFO] ✓ Core Routes Loaded Successfully
+2026-11-05 15:01:39 [    INFO] ✓ Microsoft 365 Routes Loaded (isolated)
+2026-11-05 15:01:39 [    INFO] ✅ Debug endpoints enabled
+
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_all 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:39 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:39 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  0%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_pricing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  1%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_cognitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  1%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  2%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_cache_aware 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  3%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_invalid_type_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  3%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_invalid_body_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  4%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_requires_auth_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  4%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_requires_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  5%]
+tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_unknown_route_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+tests/test_covpush_w75b_admin.py::TestCacheStats::test_stats_with_last_fetch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/stats "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  6%]
+tests/test_covpush_w75b_admin.py::TestCacheStats::test_stats_without_last_fetch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/stats "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  7%]
+tests/test_covpush_w75b_admin.py::TestCacheStats::test_stats_requires_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/stats "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  8%]
+tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_empty_cache_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  9%]
+tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_exception_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [  9%]
+tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_requires_auth_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 10%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_all_operational 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 11%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_db_error_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 11%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_db_slow_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 12%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_ping_false_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 12%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_no_client_config_enabled_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 13%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_no_client_config_disabled_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 14%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_exception_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 14%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_not_connected_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 15%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_exception_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 16%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_maintenance_when_lancedb_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 16%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_requires_auth_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_requires_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_unknown_route_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/health/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 18%]
+tests/test_covpush_w75b_admin.py::TestSystemHealth::test_lancedb_import_error_sets_has_lancedb_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [   ERROR] Failed to import LanceDBHandler: import of core.lancedb_handler halted; None in sys.modules
+PASSED                                                                   [ 19%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_none_filename_defaults_to_upload PASSED [ 19%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_path_traversal_stripped PASSED [ 20%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_dangerous_characters_replaced PASSED [ 20%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_length_capped_at_128 PASSED [ 21%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_all_invalid_chars_replaced PASSED [ 22%]
+tests/test_covpush_w75b_admin.py::TestSanitizeFilename::test_empty_string_defaults PASSED [ 22%]
+tests/test_covpush_w75b_admin.py::TestFactsList::test_list_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w75b_admin.py::TestFactsList::test_list_with_data_and_deleted_filtered 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w75b_admin.py::TestFactsList::test_list_with_filters_passed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts?status=verified&domain=ops&limit=25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w75b_admin.py::TestFactsList::test_list_requires_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Access denied: user member-w75b has role member (level 3), required workspace_admin (level 5)
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w75b_admin.py::TestFactsList::test_list_requires_auth_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w75b_admin.py::TestFactsGet::test_get_success_with_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts/f1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w75b_admin.py::TestFactsGet::test_get_success_without_metadata_defaults_general 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts/f2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w75b_admin.py::TestFactsGet::test_get_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: NOT_FOUND - Business fact not found: missing
+2026-11-05 15:01:40 [    INFO] HTTP Request: GET http://testserver/api/admin/governance/facts/missing "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w75b_admin.py::TestFactsCreate::test_create_success_201 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts "HTTP/1.1 201 Created"
+PASSED                                                                   [ 28%]
+tests/test_covpush_w75b_admin.py::TestFactsCreate::test_create_with_defaults 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts "HTTP/1.1 201 Created"
+PASSED                                                                   [ 29%]
+tests/test_covpush_w75b_admin.py::TestFactsCreate::test_create_record_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: INTERNAL_ERROR - Failed to create fact
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 29%]
+tests/test_covpush_w75b_admin.py::TestFactsCreate::test_create_missing_fact_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 30%]
+tests/test_covpush_w75b_admin.py::TestFactsUpdate::test_update_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: NOT_FOUND - Business fact not found: missing
+2026-11-05 15:01:40 [    INFO] HTTP Request: PUT http://testserver/api/admin/governance/facts/missing "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_covpush_w75b_admin.py::TestFactsUpdate::test_update_verification_status_only 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: PUT http://testserver/api/admin/governance/facts/f1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_covpush_w75b_admin.py::TestFactsUpdate::test_update_all_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: PUT http://testserver/api/admin/governance/facts/f1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_covpush_w75b_admin.py::TestFactsDelete::test_delete_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: DELETE http://testserver/api/admin/governance/facts/f1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_covpush_w75b_admin.py::TestFactsDelete::test_delete_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: NOT_FOUND - Business fact not found: missing
+2026-11-05 15:01:40 [    INFO] HTTP Request: DELETE http://testserver/api/admin/governance/facts/missing "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] Extracted and stored 1 facts from policy.pdf (Archived to s3://atom-business-facts/bucket/doc.pdf)
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_zero_facts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] Extracted and stored 0 facts from notes.txt (Archived to s3://atom-business-facts/b/doc.pdf)
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[evil.exe] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: VALIDATION_ERROR - Unsupported file type: .exe. Allowed: .pdf, .docx, .doc, .txt, .png, .tiff, .tif, .jpeg, .jpg
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 35%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[script.sh] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: VALIDATION_ERROR - Unsupported file type: .sh. Allowed: .pdf, .docx, .doc, .txt, .png, .tiff, .tif, .jpeg, .jpg
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 35%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[archive.zip] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: VALIDATION_ERROR - Unsupported file type: .zip. Allowed: .pdf, .docx, .doc, .txt, .png, .tiff, .tif, .jpeg, .jpg
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 36%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_file_size_cap_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: VALIDATION_ERROR - File exceeds maximum size of 0 MiB
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_content_too_large_after_read_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: VALIDATION_ERROR - File exceeds maximum size of 0 MiB
+PASSED                                                                   [ 37%]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_extraction_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [   ERROR] Failed to extract facts from policy.pdf: r2 down
+2026-11-05 15:01:40 [ WARNING] API Error: INTERNAL_ERROR - Failed to extract facts
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_fact_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] API Error: NOT_FOUND - Business fact not found: missing
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/missing/verify-citation "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_s3_citation_exists_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_s3_citation_missing_outdated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Verification failed for citation: s3://atom-business-facts/workspace-1/doc.pdf
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_s3_check_exception_outdated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Failed to check S3 citation s3://atom-business-facts/doc.pdf: s3 error
+2026-11-05 15:01:40 [ WARNING] Verification failed for citation: s3://atom-business-facts/doc.pdf
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_s3_cross_bucket_parse_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_s3_other_bucket_outdated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Verification failed for citation: s3://other-bucket/doc.pdf
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_local_citation_exists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_covpush_w75b_admin.py::TestFactsVerifyCitation::test_local_citation_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Verification failed for citation: policy.pdf:p4
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/governance/facts/f1/verify-citation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 43%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_critical_finding_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 44%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_llm_scan_low_finding_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 45%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_llm_scan_failure_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 45%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_security_scan_exception_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 46%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_builder_failure_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 46%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_unhandled_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 47%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_default_tenant_when_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 48%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_validation_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 48%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_requires_auth_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 49%]
+tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_requires_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 50%]
+tests/test_workspace_permissions.py::TestConsolidatedUserRole::test_all_role_values_exist FAILED [ 50%]
+tests/test_workspace_permissions.py::TestConsolidatedUserRole::test_role_hierarchy PASSED [ 51%]
+tests/test_workspace_permissions.py::TestConsolidatedUserRole::test_role_uniqueness FAILED [ 51%]
+tests/test_workspace_permissions.py::TestSuperAdminPermissions::test_super_admin_has_all_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 52%]
+tests/test_workspace_permissions.py::TestSuperAdminPermissions::test_super_admin_bypasses_workspace_check 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 53%]
+tests/test_workspace_permissions.py::TestSecurityAdminPermissions::test_security_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 53%]
+tests/test_workspace_permissions.py::TestSecurityAdminPermissions::test_security_admin_cannot_delete_without_super_admin 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 54%]
+tests/test_workspace_permissions.py::TestWorkspaceAdminPermissions::test_workspace_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 54%]
+tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_workflow_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 55%]
+tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_automation_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 56%]
+tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_integration_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 56%]
+tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_compliance_admin_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 57%]
+tests/test_workspace_permissions.py::TestStandardRolePermissions::test_team_lead_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 58%]
+tests/test_workspace_permissions.py::TestStandardRolePermissions::test_member_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 58%]
+tests/test_workspace_permissions.py::TestStandardRolePermissions::test_guest_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+FAILED                                                                   [ 59%]
+tests/test_workspace_permissions.py::TestPermissionEdgeCases::test_unknown_role_gets_minimal_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 59%]
+tests/test_workspace_permissions.py::TestPermissionEdgeCases::test_workspace_id_parameter_is_ignored 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 60%]
+tests/test_workspace_permissions.py::TestSAMLRoleMapping::test_map_admin_saml_role 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 61%]
+tests/test_workspace_permissions.py::TestSAMLRoleMapping::test_map_superadmin_saml_role 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 61%]
+tests/test_workspace_permissions.py::TestSAMLRoleMapping::test_map_member_saml_role 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 62%]
+tests/test_workspace_permissions.py::TestSAMLRoleMapping::test_map_unknown_saml_role_defaults_to_member 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 62%]
+tests/test_workspace_permissions.py::TestSAMLRoleMapping::test_case_insensitive_role_mapping 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 63%]
+tests/test_workspace_permissions.py::TestPermissionIntegration::test_super_admin_has_all_permissions 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:01:40 [    INFO] Enterprise Auth Service initialized
+PASSED                                                                   [ 64%]
+tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_double_dot_slash_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [    INFO] Initialized global governance cache
+2026-11-05 15:01:40 [    INFO] Initialized directory permission service
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /private/etc/passwd
+PASSED                                                                   [ 64%]
+tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_multiple_dot_dot_slash_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /private/etc/shadow
+PASSED                                                                   [ 65%]
+tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_dot_dot_slash_with_relative_path_blocked FAILED [ 66%]
+tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_legitimate_subdirectory_allowed PASSED [ 66%]
+tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_dot_dot_within_allowed_directory_allowed FAILED [ 67%]
+tests/test_directory_permissions.py::TestEncodedPathAttacks::test_encoded_dot_slash_blocked FAILED [ 67%]
+tests/test_directory_permissions.py::TestEncodedPathAttacks::test_double_encoded_dot_slash_blocked FAILED [ 68%]
+tests/test_directory_permissions.py::TestSymlinkEscapeAttacks::test_symlink_to_blocked_directory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /private/etc/passwd
+PASSED                                                                   [ 69%]
+tests/test_directory_permissions.py::TestSymlinkEscapeAttacks::test_symlink_to_allowed_directory_allowed FAILED [ 69%]
+tests/test_directory_permissions.py::TestAbsolutePathEscape::test_absolute_path_to_etc_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /private/etc/passwd
+PASSED                                                                   [ 70%]
+tests/test_directory_permissions.py::TestAbsolutePathEscape::test_absolute_path_to_root_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /root/.ssh
+PASSED                                                                   [ 70%]
+tests/test_directory_permissions.py::TestAbsolutePathEscape::test_absolute_path_to_sys_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /sys/kernel
+PASSED                                                                   [ 71%]
+tests/test_directory_permissions.py::TestTildeExpansion::test_tilde_expansion_allowed PASSED [ 72%]
+tests/test_directory_permissions.py::TestTildeExpansion::test_tilde_expansion_for_student PASSED [ 72%]
+tests/test_directory_permissions.py::TestTildeExpansion::test_tilde_with_dot_dot_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /private/etc/passwd
+PASSED                                                                   [ 73%]
+tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_unix_path_handling PASSED [ 74%]
+tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_windows_path_blocked FAILED [ 74%]
+tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_windows_program_files_blocked FAILED [ 75%]
+tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_path_separators_normalized PASSED [ 75%]
+tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_student_suggest_only_in_tmp PASSED [ 76%]
+tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_student_blocked_in_documents FAILED [ 77%]
+tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_intern_suggest_only_in_documents FAILED [ 77%]
+tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_supervised_suggest_only_in_desktop PASSED [ 78%]
+tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_autonomous_auto_execute_in_documents PASSED [ 79%]
+tests/test_directory_permissions.py::TestPathCanonicalization::test_path_resolve_called 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /tmp/file.txt
+PASSED                                                                   [ 79%]
+tests/test_directory_permissions.py::TestPathCanonicalization::test_expanduser_called_for_tilde 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:40 [ WARNING] Blocked directory access attempt: /home/user/file.txt
+PASSED                                                                   [ 80%]
+tests/test_directory_permissions.py::TestCachePerformance::test_cache_hit_for_repeated_checks PASSED [ 80%]
+tests/test_directory_permissions.py::TestCachePerformance::test_cache_key_includes_agent_and_directory PASSED [ 81%]
+tests/test_phase21_rbac.py::TestRBACService::test_check_permission PASSED [ 82%]
+tests/test_phase21_rbac.py::TestRBACService::test_get_user_permissions PASSED [ 82%]
+tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_denial 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] HTTP Request: GET http://testserver/api/v1/agents/ "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 83%]
+tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_enforcement 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] HTTP Request: GET http://testserver/api/v1/agents/ "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 83%]
+tests/test_phase21_rbac.py::TestRBACIntegration::test_workflow_routes_enforcement 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 84%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_initialization PASSED [ 85%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_to_dict PASSED [ 85%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_passwords PASSED [ 86%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_tokens PASSED [ 87%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_api_keys PASSED [ 87%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_secrets PASSED [ 88%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_dicts PASSED [ 88%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 89%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_without_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 90%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [   ERROR] Integration error: jira.create_issue: Test error
+NoneType: None
+PASSED                                                                   [ 90%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_without_params 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [   ERROR] Integration error: zoom.create_meeting: Invalid input
+NoneType: None
+PASSED                                                                   [ 91%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_returns_context PASSED [ 91%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_captures_time PASSED [ 92%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 93%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [   ERROR] Integration error: jira.create_issue: Creation failed
+NoneType: None
+PASSED                                                                   [ 93%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_returns_duration_ms 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: test.test_method
+PASSED                                                                   [ 94%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_without_result_or_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 95%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_custom_timestamp PASSED [ 95%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_default_timestamp_is_current PASSED [ 96%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_has_iso_timestamp PASSED [ 96%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_epoch PASSED [ 97%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_all_fields PASSED [ 98%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_exception_object 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [   ERROR] Integration error: test.test_method: Invalid value
+NoneType: None
+PASSED                                                                   [ 98%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_custom_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [   ERROR] Integration error: test.test_method: Custom error message
+NoneType: None
+PASSED                                                                   [ 99%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_none_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:01:41 [    INFO] Integration call: test.test_method
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+______________________ TestCachePreseed.test_preseed_all _______________________
+tests/test_covpush_w75b_admin.py:120: in test_preseed_all
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+____________________ TestCachePreseed.test_preseed_pricing _____________________
+tests/test_covpush_w75b_admin.py:127: in test_preseed_pricing
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+___________________ TestCachePreseed.test_preseed_cognitive ____________________
+tests/test_covpush_w75b_admin.py:134: in test_preseed_cognitive
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+___________________ TestCachePreseed.test_preseed_governance ___________________
+tests/test_covpush_w75b_admin.py:143: in test_preseed_governance
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+__________________ TestCachePreseed.test_preseed_cache_aware ___________________
+tests/test_covpush_w75b_admin.py:152: in test_preseed_cache_aware
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+________________ TestCachePreseed.test_preseed_invalid_type_400 ________________
+tests/test_covpush_w75b_admin.py:158: in test_preseed_invalid_type_400
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+________________ TestCachePreseed.test_preseed_invalid_body_422 ________________
+tests/test_covpush_w75b_admin.py:162: in test_preseed_invalid_body_422
+    assert resp.status_code == 422
+E   assert 401 == 422
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/admin/cache/preseed "HTTP/1.1 401 Unauthorized"
+__________________ TestCacheStats.test_stats_with_last_fetch ___________________
+tests/test_covpush_w75b_admin.py:200: in test_stats_with_last_fetch
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/cache/stats "HTTP/1.1 401 Unauthorized"
+_________________ TestCacheStats.test_stats_without_last_fetch _________________
+tests/test_covpush_w75b_admin.py:219: in test_stats_without_last_fetch
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/cache/stats "HTTP/1.1 401 Unauthorized"
+________________________ TestCacheHealth.test_health_ok ________________________
+tests/test_covpush_w75b_admin.py:242: in test_health_ok
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+_______________ TestCacheHealth.test_health_empty_cache_degraded _______________
+tests/test_covpush_w75b_admin.py:254: in test_health_empty_cache_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+________________ TestCacheHealth.test_health_exception_degraded ________________
+tests/test_covpush_w75b_admin.py:264: in test_health_exception_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/cache/health "HTTP/1.1 401 Unauthorized"
+____________________ TestSystemHealth.test_all_operational _____________________
+tests/test_covpush_w75b_admin.py:297: in test_all_operational
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+___________________ TestSystemHealth.test_db_error_degraded ____________________
+tests/test_covpush_w75b_admin.py:316: in test_db_error_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+____________________ TestSystemHealth.test_db_slow_degraded ____________________
+tests/test_covpush_w75b_admin.py:343: in test_db_slow_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+_______________ TestSystemHealth.test_redis_ping_false_degraded ________________
+tests/test_covpush_w75b_admin.py:354: in test_redis_ping_false_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+________ TestSystemHealth.test_redis_no_client_config_enabled_degraded _________
+tests/test_covpush_w75b_admin.py:368: in test_redis_no_client_config_enabled_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+________ TestSystemHealth.test_redis_no_client_config_disabled_unknown _________
+tests/test_covpush_w75b_admin.py:380: in test_redis_no_client_config_disabled_unknown
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+________________ TestSystemHealth.test_redis_exception_degraded ________________
+tests/test_covpush_w75b_admin.py:393: in test_redis_exception_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+_____________ TestSystemHealth.test_vector_not_connected_degraded ______________
+tests/test_covpush_w75b_admin.py:407: in test_vector_not_connected_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+_______________ TestSystemHealth.test_vector_exception_degraded ________________
+tests/test_covpush_w75b_admin.py:420: in test_vector_exception_degraded
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+________ TestSystemHealth.test_vector_maintenance_when_lancedb_missing _________
+tests/test_covpush_w75b_admin.py:432: in test_vector_maintenance_when_lancedb_missing
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/admin/health/api/admin/health "HTTP/1.1 401 Unauthorized"
+___________________ TestAdminSkillRoutes.test_create_success ___________________
+tests/test_covpush_w75b_admin.py:984: in test_create_success
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+____________ TestAdminSkillRoutes.test_create_critical_finding_403 _____________
+tests/test_covpush_w75b_admin.py:995: in test_create_critical_finding_403
+    assert resp.status_code == 403
+E   assert 401 == 403
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+___________ TestAdminSkillRoutes.test_create_llm_scan_low_finding_ok ___________
+tests/test_covpush_w75b_admin.py:1012: in test_create_llm_scan_low_finding_ok
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+_____________ TestAdminSkillRoutes.test_create_llm_scan_failure_ok _____________
+tests/test_covpush_w75b_admin.py:1024: in test_create_llm_scan_failure_ok
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+_________ TestAdminSkillRoutes.test_create_security_scan_exception_ok __________
+tests/test_covpush_w75b_admin.py:1031: in test_create_security_scan_exception_ok
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+_____________ TestAdminSkillRoutes.test_create_builder_failure_422 _____________
+tests/test_covpush_w75b_admin.py:1038: in test_create_builder_failure_422
+    assert resp.status_code == 422
+E   assert 401 == 422
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+___________ TestAdminSkillRoutes.test_create_unhandled_exception_500 ___________
+tests/test_covpush_w75b_admin.py:1047: in test_create_unhandled_exception_500
+    assert resp.status_code == 500
+E   assert 401 == 500
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+__________ TestAdminSkillRoutes.test_create_default_tenant_when_none ___________
+tests/test_covpush_w75b_admin.py:1066: in test_create_default_tenant_when_none
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+_______________ TestAdminSkillRoutes.test_create_validation_422 ________________
+tests/test_covpush_w75b_admin.py:1071: in test_create_validation_422
+    assert resp.status_code == 422
+E   assert 401 == 422
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/admin/skills/ "HTTP/1.1 401 Unauthorized"
+_____________ TestConsolidatedUserRole.test_all_role_values_exist ______________
+tests/test_workspace_permissions.py:38: in test_all_role_values_exist
+    assert UserRole.SECURITY_ADMIN.value == "security_admin"
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'SECURITY_ADMIN'
+________________ TestConsolidatedUserRole.test_role_uniqueness _________________
+tests/test_workspace_permissions.py:66: in test_role_uniqueness
+    assert len(unique_values) >= 10
+E   AssertionError: assert 8 >= 10
+E    +  where 8 = len({'admin', 'guest', 'member', 'owner', 'super_admin', 'team_lead', ...})
+_________ TestSecurityAdminPermissions.test_security_admin_permissions _________
+tests/test_workspace_permissions.py:99: in test_security_admin_permissions
+    user.role = UserRole.SECURITY_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'SECURITY_ADMIN'
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+_ TestSecurityAdminPermissions.test_security_admin_cannot_delete_without_super_admin _
+tests/test_workspace_permissions.py:119: in test_security_admin_cannot_delete_without_super_admin
+    user.role = UserRole.SECURITY_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'SECURITY_ADMIN'
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+__________ TestSpecializedAdminRoles.test_workflow_admin_permissions ___________
+tests/test_workspace_permissions.py:157: in test_workflow_admin_permissions
+    user.role = UserRole.WORKFLOW_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'WORKFLOW_ADMIN'. Did you mean: 'WORKSPACE_ADMIN'?
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+_________ TestSpecializedAdminRoles.test_automation_admin_permissions __________
+tests/test_workspace_permissions.py:170: in test_automation_admin_permissions
+    user.role = UserRole.AUTOMATION_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'AUTOMATION_ADMIN'
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+_________ TestSpecializedAdminRoles.test_integration_admin_permissions _________
+tests/test_workspace_permissions.py:182: in test_integration_admin_permissions
+    user.role = UserRole.INTEGRATION_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'INTEGRATION_ADMIN'
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+_________ TestSpecializedAdminRoles.test_compliance_admin_permissions __________
+tests/test_workspace_permissions.py:193: in test_compliance_admin_permissions
+    user.role = UserRole.COMPLIANCE_ADMIN.value
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'UserRole' has no attribute 'COMPLIANCE_ADMIN'
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+______________ TestStandardRolePermissions.test_guest_permissions ______________
+tests/test_workspace_permissions.py:239: in test_guest_permissions
+    assert "view_analytics" in permissions
+E   AssertionError: assert 'view_analytics' in ['read_workflows']
+------------------------------ Captured log setup ------------------------------
+INFO     core.enterprise_auth_service:enterprise_auth_service.py:95 Enterprise Auth Service initialized
+___ TestDoubleDotSlashAttacks.test_dot_dot_slash_with_relative_path_blocked ____
+tests/test_directory_permissions.py:66: in test_dot_dot_slash_with_relative_path_blocked
+    assert result["allowed"] == False
+E   assert True == False
+___ TestDoubleDotSlashAttacks.test_dot_dot_within_allowed_directory_allowed ____
+tests/test_directory_permissions.py:96: in test_dot_dot_within_allowed_directory_allowed
+    assert result["allowed"] == True
+E   assert False == True
+____________ TestEncodedPathAttacks.test_encoded_dot_slash_blocked _____________
+tests/test_directory_permissions.py:113: in test_encoded_dot_slash_blocked
+    assert result["allowed"] == False or "allowed" in result["reason"].lower()
+E   AssertionError: assert (True == False or 'allowed' in 'autonomous agents can auto-execute in this directory')
+E    +  where 'autonomous agents can auto-execute in this directory' = <built-in method lower of str object at 0x139f59890>()
+E    +    where <built-in method lower of str object at 0x139f59890> = 'autonomous agents can auto-execute in this directory'.lower
+_________ TestEncodedPathAttacks.test_double_encoded_dot_slash_blocked _________
+tests/test_directory_permissions.py:123: in test_double_encoded_dot_slash_blocked
+    assert result["allowed"] == False or "allowed" in result["reason"].lower()
+E   AssertionError: assert (True == False or 'allowed' in 'autonomous agents can auto-execute in this directory')
+E    +  where 'autonomous agents can auto-execute in this directory' = <built-in method lower of str object at 0x139f4e850>()
+E    +    where <built-in method lower of str object at 0x139f4e850> = 'autonomous agents can auto-execute in this directory'.lower
+______ TestSymlinkEscapeAttacks.test_symlink_to_allowed_directory_allowed ______
+tests/test_directory_permissions.py:168: in test_symlink_to_allowed_directory_allowed
+    assert result["allowed"] == True
+E   assert False == True
+___________ TestCrossPlatformPathHandling.test_windows_path_blocked ____________
+tests/test_directory_permissions.py:269: in test_windows_path_blocked
+    assert result["allowed"] == False
+E   assert True == False
+_______ TestCrossPlatformPathHandling.test_windows_program_files_blocked _______
+tests/test_directory_permissions.py:279: in test_windows_program_files_blocked
+    assert result["allowed"] == False
+E   assert True == False
+________ TestMaturityLevelPermissions.test_student_blocked_in_documents ________
+tests/test_directory_permissions.py:323: in test_student_blocked_in_documents
+    assert result["allowed"] == False
+E   assert True == False
+______ TestMaturityLevelPermissions.test_intern_suggest_only_in_documents ______
+tests/test_directory_permissions.py:337: in test_intern_suggest_only_in_documents
+    assert result["suggest_only"] == True
+E   assert False == True
+_________________ TestRBACIntegration.test_agent_routes_denial _________________
+tests/test_phase21_rbac.py:94: in test_agent_routes_denial
+    self.assertEqual(response.status_code, 200)
+E   AssertionError: 404 != 200
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/agents/ "HTTP/1.1 404 Not Found"
+______________ TestRBACIntegration.test_agent_routes_enforcement _______________
+tests/test_phase21_rbac.py:69: in test_agent_routes_enforcement
+    self.assertEqual(response.status_code, 200)
+E   AssertionError: 404 != 200
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/agents/ "HTTP/1.1 404 Not Found"
+_____________ TestRBACIntegration.test_workflow_routes_enforcement _____________
+tests/test_phase21_rbac.py:109: in test_workflow_routes_enforcement
+    self.assertEqual(response.status_code, 403)
+E   AssertionError: 404 != 403
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/workflows "HTTP/1.1 404 Not Found"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-auth2fa/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+core/token_storage.py:17
+  /private/tmp/atom-auth2fa/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-auth2fa/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-auth2fa/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-auth2fa/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-auth2fa/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-auth2fa/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 324 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[evil.exe]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[script.sh]
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_unsupported_extension_422[archive.zip]
+  /private/tmp/atom-auth2fa/backend/api/admin/business_facts_routes.py:281: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_file_size_cap_422
+  /private/tmp/atom-auth2fa/backend/api/admin/business_facts_routes.py:272: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_covpush_w75b_admin.py::TestFactsUpload::test_upload_content_too_large_after_read_422
+  /private/tmp/atom-auth2fa/backend/api/admin/business_facts_routes.py:293: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_all
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_pricing
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_cognitive
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_governance
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_cache_aware
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_invalid_type_400
+FAILED tests/test_covpush_w75b_admin.py::TestCachePreseed::test_preseed_invalid_body_422
+FAILED tests/test_covpush_w75b_admin.py::TestCacheStats::test_stats_with_last_fetch
+FAILED tests/test_covpush_w75b_admin.py::TestCacheStats::test_stats_without_last_fetch
+FAILED tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_ok - as...
+FAILED tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_empty_cache_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestCacheHealth::test_health_exception_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_all_operational
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_db_error_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_db_slow_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_ping_false_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_no_client_config_enabled_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_no_client_config_disabled_unknown
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_redis_exception_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_not_connected_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_exception_degraded
+FAILED tests/test_covpush_w75b_admin.py::TestSystemHealth::test_vector_maintenance_when_lancedb_missing
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_success
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_critical_finding_403
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_llm_scan_low_finding_ok
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_llm_scan_failure_ok
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_security_scan_exception_ok
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_builder_failure_422
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_unhandled_exception_500
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_default_tenant_when_none
+FAILED tests/test_covpush_w75b_admin.py::TestAdminSkillRoutes::test_create_validation_422
+FAILED tests/test_workspace_permissions.py::TestConsolidatedUserRole::test_all_role_values_exist
+FAILED tests/test_workspace_permissions.py::TestConsolidatedUserRole::test_role_uniqueness
+FAILED tests/test_workspace_permissions.py::TestSecurityAdminPermissions::test_security_admin_permissions
+FAILED tests/test_workspace_permissions.py::TestSecurityAdminPermissions::test_security_admin_cannot_delete_without_super_admin
+FAILED tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_workflow_admin_permissions
+FAILED tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_automation_admin_permissions
+FAILED tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_integration_admin_permissions
+FAILED tests/test_workspace_permissions.py::TestSpecializedAdminRoles::test_compliance_admin_permissions
+FAILED tests/test_workspace_permissions.py::TestStandardRolePermissions::test_guest_permissions
+FAILED tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_dot_dot_slash_with_relative_path_blocked
+FAILED tests/test_directory_permissions.py::TestDoubleDotSlashAttacks::test_dot_dot_within_allowed_directory_allowed
+FAILED tests/test_directory_permissions.py::TestEncodedPathAttacks::test_encoded_dot_slash_blocked
+FAILED tests/test_directory_permissions.py::TestEncodedPathAttacks::test_double_encoded_dot_slash_blocked
+FAILED tests/test_directory_permissions.py::TestSymlinkEscapeAttacks::test_symlink_to_allowed_directory_allowed
+FAILED tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_windows_path_blocked
+FAILED tests/test_directory_permissions.py::TestCrossPlatformPathHandling::test_windows_program_files_blocked
+FAILED tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_student_blocked_in_documents
+FAILED tests/test_directory_permissions.py::TestMaturityLevelPermissions::test_intern_suggest_only_in_documents
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_denial
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_enforcement
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_workflow_routes_enforcement
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 52 failed, 110 passed, 345 warnings in 16.63s =================
