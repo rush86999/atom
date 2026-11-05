@@ -1,457 +1,458 @@
 
 ----------------------------- live log collection ------------------------------
-2026-11-05 09:23:49 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 09:32:34 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
 
 tests/test_orch01_workflow_blueprint.py::test_two_domains_validate_persist_and_read_back_exactly 
 -------------------------------- live log setup --------------------------------
-2026-11-05 09:23:49 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-05 09:23:49 [    INFO] EscalationManager initialized
-2026-11-05 09:23:49 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:50 [    INFO] EscalationManager initialized
-2026-11-05 09:23:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-05 09:23:50 [    INFO] AgentTaskRegistry initialized
+2026-11-05 09:32:35 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-05 09:32:35 [    INFO] EscalationManager initialized
+2026-11-05 09:32:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:35 [    INFO] EscalationManager initialized
+2026-11-05 09:32:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 09:32:35 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:51 [    INFO] EscalationManager initialized
-2026-11-05 09:23:51 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:51 [    INFO] EscalationManager initialized
-2026-11-05 09:23:51 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:51 [    INFO] MCP Service initialized
-2026-11-05 09:23:51 [    INFO] workflow blueprint ai_wf_d2a203f8f26c is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
-2026-11-05 09:23:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:23:51 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_d2a203f8f26c "HTTP/1.1 200 OK"
-2026-11-05 09:23:51 [    INFO] EscalationManager initialized
-2026-11-05 09:23:51 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:51 [    INFO] EscalationManager initialized
-2026-11-05 09:23:51 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:51 [    INFO] workflow blueprint ai_wf_a5203d30bb2d is a reviewable design but is not registered: collect: capability <none> is not bound to a registered business agent; compare: capability <none> is not bound to a registered business agent
-2026-11-05 09:23:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:35 [    INFO] EscalationManager initialized
+2026-11-05 09:32:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:35 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:35 [    INFO] EscalationManager initialized
+2026-11-05 09:32:35 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:36 [    INFO] MCP Service initialized
+2026-11-05 09:32:36 [    INFO] workflow blueprint ai_wf_0f2d6c81c290 is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
+2026-11-05 09:32:36 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:36 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_0f2d6c81c290 "HTTP/1.1 200 OK"
+2026-11-05 09:32:36 [    INFO] EscalationManager initialized
+2026-11-05 09:32:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:36 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:36 [    INFO] EscalationManager initialized
+2026-11-05 09:32:36 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:36 [    INFO] workflow blueprint ai_wf_ebbaf8c0aa64 is a reviewable design but is not registered: collect: capability <none> is not bound to a registered business agent; compare: capability <none> is not bound to a registered business agent
+2026-11-05 09:32:36 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
 PASSED                                                                   [  1%]
 tests/test_orch01_workflow_blueprint.py::test_execution_ready_entity_design_registers_for_manual_execution 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:52 [    INFO] EscalationManager initialized
-2026-11-05 09:23:52 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:52 [    INFO] EscalationManager initialized
-2026-11-05 09:23:52 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:37 [    INFO] EscalationManager initialized
+2026-11-05 09:32:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:37 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:37 [    INFO] EscalationManager initialized
+2026-11-05 09:32:37 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
 PASSED                                                                   [  2%]
 tests/test_orch01_workflow_blueprint.py::test_route_persisted_definition_stops_at_checkpoint_consumer 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:53 [    INFO] EscalationManager initialized
-2026-11-05 09:23:53 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:53 [    INFO] EscalationManager initialized
-2026-11-05 09:23:53 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:53 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:23:53 [    INFO] Executing step: approval_record - Approve Review record
-2026-11-05 09:23:53 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:37 [    INFO] EscalationManager initialized
+2026-11-05 09:32:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:37 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:37 [    INFO] EscalationManager initialized
+2026-11-05 09:32:37 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:37 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:37 [    INFO] Executing step: approval_record - Approve Review record
+2026-11-05 09:32:37 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
 PASSED                                                                   [  4%]
 tests/test_orch01_workflow_blueprint.py::test_hitl_gate_is_inserted_before_mutating_steps 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:54 [    INFO] EscalationManager initialized
-2026-11-05 09:23:54 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:54 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:54 [    INFO] EscalationManager initialized
-2026-11-05 09:23:54 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:54 [    INFO] workflow blueprint ai_wf_4c98b770580d is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
-2026-11-05 09:23:54 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:38 [    INFO] EscalationManager initialized
+2026-11-05 09:32:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:38 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:38 [    INFO] EscalationManager initialized
+2026-11-05 09:32:38 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:38 [    INFO] workflow blueprint ai_wf_ec5ae15fc9ae is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
+2026-11-05 09:32:38 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
 PASSED                                                                   [  5%]
 tests/test_orch01_workflow_blueprint.py::test_forged_body_identity_is_ignored_and_read_scope_is_exact 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:55 [    INFO] EscalationManager initialized
-2026-11-05 09:23:55 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:55 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:55 [    INFO] EscalationManager initialized
-2026-11-05 09:23:55 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:55 [    INFO] workflow blueprint ai_wf_871da0643e3a is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
-2026-11-05 09:23:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:23:55 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_871da0643e3a "HTTP/1.1 404 Not Found"
-2026-11-05 09:23:55 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_871da0643e3a "HTTP/1.1 404 Not Found"
+2026-11-05 09:32:40 [    INFO] EscalationManager initialized
+2026-11-05 09:32:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:40 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:40 [    INFO] EscalationManager initialized
+2026-11-05 09:32:40 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:40 [    INFO] workflow blueprint ai_wf_aea55bbb84dd is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent; notify: action email.send is not a registered executable action
+2026-11-05 09:32:40 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:40 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_aea55bbb84dd "HTTP/1.1 404 Not Found"
+2026-11-05 09:32:40 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_aea55bbb84dd "HTTP/1.1 404 Not Found"
 PASSED                                                                   [  7%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft0-422-workflow_blueprint_invalid] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:56 [    INFO] EscalationManager initialized
-2026-11-05 09:23:56 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:56 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:56 [    INFO] EscalationManager initialized
-2026-11-05 09:23:56 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:41 [    INFO] EscalationManager initialized
+2026-11-05 09:32:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:41 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:41 [    INFO] EscalationManager initialized
+2026-11-05 09:32:41 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:41 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [  8%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft1-422-workflow_blueprint_invalid] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:23:58 [    INFO] EscalationManager initialized
-2026-11-05 09:23:58 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:23:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:23:58 [    INFO] EscalationManager initialized
-2026-11-05 09:23:58 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:23:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:42 [    INFO] EscalationManager initialized
+2026-11-05 09:32:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:42 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:42 [    INFO] EscalationManager initialized
+2026-11-05 09:32:42 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:42 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 10%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft2-422-workflow_blueprint_invalid] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:00 [    INFO] EscalationManager initialized
-2026-11-05 09:24:00 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:00 [    INFO] EscalationManager initialized
-2026-11-05 09:24:00 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:43 [    INFO] EscalationManager initialized
+2026-11-05 09:32:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:43 [    INFO] EscalationManager initialized
+2026-11-05 09:32:43 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:43 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 11%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft3-422-workflow_dependency_missing] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:01 [    INFO] EscalationManager initialized
-2026-11-05 09:24:01 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:01 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:01 [    INFO] EscalationManager initialized
-2026-11-05 09:24:01 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:44 [    INFO] EscalationManager initialized
+2026-11-05 09:32:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:44 [    INFO] EscalationManager initialized
+2026-11-05 09:32:44 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:44 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 13%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft4-422-workflow_cycle] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:02 [    INFO] EscalationManager initialized
-2026-11-05 09:24:02 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:02 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:02 [    INFO] EscalationManager initialized
-2026-11-05 09:24:02 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:02 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:45 [    INFO] EscalationManager initialized
+2026-11-05 09:32:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:45 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:45 [    INFO] EscalationManager initialized
+2026-11-05 09:32:45 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:45 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 14%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft5-422-workflow_start_ambiguous] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:03 [    INFO] EscalationManager initialized
-2026-11-05 09:24:03 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:03 [    INFO] EscalationManager initialized
-2026-11-05 09:24:03 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:46 [    INFO] EscalationManager initialized
+2026-11-05 09:32:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:46 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:46 [    INFO] EscalationManager initialized
+2026-11-05 09:32:46 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 16%]
 tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft6-422-workflow_trigger_required] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:04 [    INFO] EscalationManager initialized
-2026-11-05 09:24:04 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:04 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:04 [    INFO] EscalationManager initialized
-2026-11-05 09:24:04 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:46 [    INFO] EscalationManager initialized
+2026-11-05 09:32:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:46 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:46 [    INFO] EscalationManager initialized
+2026-11-05 09:32:46 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 17%]
 tests/test_orch01_workflow_blueprint.py::test_missing_capability_is_a_safe_refusal_not_an_integration 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:05 [    INFO] EscalationManager initialized
-2026-11-05 09:24:05 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:05 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:05 [    INFO] EscalationManager initialized
-2026-11-05 09:24:05 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:05 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:47 [    INFO] EscalationManager initialized
+2026-11-05 09:32:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:47 [    INFO] EscalationManager initialized
+2026-11-05 09:32:47 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:47 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 19%]
 tests/test_orch01_workflow_blueprint.py::test_model_failure_is_typed_and_creates_no_workflow[failure0-504-workflow_blueprint_timeout] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:06 [    INFO] EscalationManager initialized
-2026-11-05 09:24:06 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:06 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:06 [    INFO] EscalationManager initialized
-2026-11-05 09:24:06 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 504 Gateway Timeout"
+2026-11-05 09:32:48 [    INFO] EscalationManager initialized
+2026-11-05 09:32:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:48 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:48 [    INFO] EscalationManager initialized
+2026-11-05 09:32:48 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 504 Gateway Timeout"
 PASSED                                                                   [ 20%]
 tests/test_orch01_workflow_blueprint.py::test_model_failure_is_typed_and_creates_no_workflow[failure1-503-workflow_blueprint_unavailable] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:07 [    INFO] EscalationManager initialized
-2026-11-05 09:24:07 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:07 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:07 [    INFO] EscalationManager initialized
-2026-11-05 09:24:07 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:07 [ WARNING] Queen: structured workflow blueprint generation failed: provider down
-2026-11-05 09:24:07 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 503 Service Unavailable"
+2026-11-05 09:32:49 [    INFO] EscalationManager initialized
+2026-11-05 09:32:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:49 [    INFO] EscalationManager initialized
+2026-11-05 09:32:49 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:49 [ WARNING] Queen: structured workflow blueprint generation failed: provider down
+2026-11-05 09:32:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 22%]
 tests/test_orch01_workflow_blueprint.py::test_empty_request_does_not_call_the_model 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:32:50 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 23%]
 tests/test_orch01_workflow_blueprint.py::test_compile_rejects_duplicate_ids_and_unknown_action PASSED [ 25%]
 tests/test_orch01_checkpoint_contract.py::test_pending_governance_blocks_descendants 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-2026-11-05 09:24:08 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 09:32:50 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
 PASSED                                                                   [ 26%]
 tests/test_orch01_checkpoint_contract.py::test_blocked_governance_blocks_descendants 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-PASSED                                                                   [ 28%]
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 27%]
 tests/test_orch01_checkpoint_contract.py::test_mature_agent_cannot_waive_server_checkpoint 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-2026-11-05 09:24:08 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 09:32:50 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
 PASSED                                                                   [ 29%]
 tests/test_orch01_checkpoint_contract.py::test_rejected_durable_approval_blocks_descendants 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-PASSED                                                                   [ 31%]
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 30%]
 tests/test_orch01_checkpoint_contract.py::test_valid_approval_dispatches_exactly_one_effect 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-2026-11-05 09:24:08 [    INFO] Executing step: write - Write
-2026-11-05 09:24:08 [    INFO] Step approval_write already completed in this context; skipping duplicate dispatch
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 09:32:50 [    INFO] Executing step: write - Write
+2026-11-05 09:32:50 [    INFO] Step approval_write already completed in this context; skipping duplicate dispatch
 PASSED                                                                   [ 32%]
-tests/test_orch01_checkpoint_contract.py::test_entity_read_label_cannot_inject_metadata_create PASSED [ 34%]
+tests/test_orch01_checkpoint_contract.py::test_entity_read_label_cannot_inject_metadata_create PASSED [ 33%]
 tests/test_orch01_checkpoint_contract.py::test_unknown_action_reference_is_refused PASSED [ 35%]
 tests/test_orch01_checkpoint_contract.py::test_unbound_capability_is_non_executable_not_registered 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] workflow blueprint ai_wf_4d62f80c5589 is a reviewable design but is not registered: x: capability not_a_known_business_agent is not bound to a registered business agent
-PASSED                                                                   [ 37%]
+2026-11-05 09:32:50 [    INFO] workflow blueprint ai_wf_b1444e6184f9 is a reviewable design but is not registered: x: capability not_a_known_business_agent is not bound to a registered business agent
+PASSED                                                                   [ 36%]
 tests/test_orch01_checkpoint_contract.py::test_unsupported_entity_operation_is_non_executable_not_rewritten PASSED [ 38%]
-tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[create-write] PASSED [ 40%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[create-write] PASSED [ 39%]
 tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[update-write] PASSED [ 41%]
-tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[query-read] PASSED [ 43%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[query-read] PASSED [ 42%]
 tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[lookup-read] PASSED [ 44%]
-tests/test_orch01_checkpoint_contract.py::test_declared_entity_read_label_is_not_silently_aliased PASSED [ 46%]
+tests/test_orch01_checkpoint_contract.py::test_declared_entity_read_label_is_not_silently_aliased PASSED [ 45%]
 tests/test_orch01_checkpoint_contract.py::test_skill_action_must_exist_in_the_real_action_registry PASSED [ 47%]
+tests/test_orch01_checkpoint_contract.py::test_legacy_checkpoint_input_digest_remains_readable PASSED [ 48%]
 tests/test_orch01_checkpoint_contract.py::test_full_execution_completes_after_successful_required_work 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: read - Read record
-PASSED                                                                   [ 49%]
-tests/test_verifier_orch01_binding_resume_4d3f.py::test_unsupported_known_word_action_is_not_changed_to_create PASSED [ 50%]
+2026-11-05 09:32:50 [    INFO] Executing step: read - Read record
+PASSED                                                                   [ 50%]
+tests/test_verifier_orch01_binding_resume_4d3f.py::test_unsupported_known_word_action_is_not_changed_to_create PASSED [ 51%]
 tests/test_verifier_orch01_binding_resume_4d3f.py::test_resume_does_not_dispatch_without_authoritative_approval[pending] 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
-2026-11-05 09:24:08 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 09:32:50 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
 PASSED                                                                   [ 52%]
-tests/test_verifier_orch01_binding_resume_4d3f.py::test_resume_does_not_dispatch_without_authoritative_approval[rejected] PASSED [ 53%]
+tests/test_verifier_orch01_binding_resume_4d3f.py::test_resume_does_not_dispatch_without_authoritative_approval[rejected] PASSED [ 54%]
 tests/test_verifier_orch01_binding_resume_4d3f.py::test_top_level_execution_does_not_complete_after_blocked_checkpoint 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:08 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 09:32:50 [    INFO] Executing step: approval_write - Approve Write
 PASSED                                                                   [ 55%]
 tests/test_orch01_resume_durable.py::test_real_pending_then_approved_resume_dispatches_once 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:09 [    INFO] EscalationManager initialized
-2026-11-05 09:24:09 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:09 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:09 [    INFO] EscalationManager initialized
-2026-11-05 09:24:09 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:09 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:09 [    INFO] Created HITL action c1d7a3d4-0bd3-4419-8cc0-bcb91cae29aa for agent system_default_agent
-2026-11-05 09:24:09 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:09 [    INFO] Persisted state for workflow exec-real-approved (Status: waiting_approval)
-2026-11-05 09:24:09 [    INFO] Persisted state for workflow exec-real-approved (Status: waiting_approval)
-2026-11-05 09:24:09 [    INFO] Resuming workflow exec-real-approved from step approval_write after authoritative approval
-2026-11-05 09:24:09 [    INFO] Executing step: write - Write record
-2026-11-05 09:24:09 [    INFO] Persisted state for workflow exec-real-approved (Status: completed)
-2026-11-05 09:24:09 [ WARNING] Step approval_write is not waiting for approval
-PASSED                                                                   [ 56%]
+2026-11-05 09:32:51 [    INFO] EscalationManager initialized
+2026-11-05 09:32:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:51 [    INFO] EscalationManager initialized
+2026-11-05 09:32:51 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:51 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:51 [    INFO] Created HITL action 28b2e8de-4deb-4db6-9a78-d6a5796a10ef for agent system_default_agent
+2026-11-05 09:32:51 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:51 [    INFO] Persisted state for workflow exec-real-approved (Status: waiting_approval)
+2026-11-05 09:32:51 [    INFO] Persisted state for workflow exec-real-approved (Status: waiting_approval)
+2026-11-05 09:32:51 [    INFO] Resuming workflow exec-real-approved from step approval_write after authoritative approval
+2026-11-05 09:32:51 [    INFO] Executing step: write - Write record
+2026-11-05 09:32:51 [    INFO] Persisted state for workflow exec-real-approved (Status: completed)
+2026-11-05 09:32:51 [ WARNING] Step approval_write is not waiting for approval
+PASSED                                                                   [ 57%]
 tests/test_orch01_resume_durable.py::test_real_rejected_resume_does_not_dispatch 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:10 [    INFO] EscalationManager initialized
-2026-11-05 09:24:10 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:10 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:10 [    INFO] EscalationManager initialized
-2026-11-05 09:24:10 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:10 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:10 [    INFO] Created HITL action cd2af526-b3fd-4734-8bd5-21c5136a6471 for agent system_default_agent
-2026-11-05 09:24:10 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:10 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
-2026-11-05 09:24:10 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
+2026-11-05 09:32:52 [    INFO] EscalationManager initialized
+2026-11-05 09:32:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:52 [    INFO] EscalationManager initialized
+2026-11-05 09:32:52 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:52 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:52 [    INFO] Created HITL action 4001ff95-6102-4ae1-a007-ba1aaf14cac4 for agent system_default_agent
+2026-11-05 09:32:52 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:52 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
+2026-11-05 09:32:52 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
 PASSED                                                                   [ 58%]
 tests/test_orch01_resume_durable.py::test_changed_reviewed_material_cannot_use_old_approval 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:11 [    INFO] EscalationManager initialized
-2026-11-05 09:24:11 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:11 [    INFO] EscalationManager initialized
-2026-11-05 09:24:11 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:11 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:11 [    INFO] Created HITL action 27b1df49-b1a0-4896-b63f-6cc431d66f72 for agent system_default_agent
-2026-11-05 09:24:11 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:11 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
-2026-11-05 09:24:11 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
-PASSED                                                                   [ 59%]
+2026-11-05 09:32:53 [    INFO] EscalationManager initialized
+2026-11-05 09:32:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:53 [    INFO] EscalationManager initialized
+2026-11-05 09:32:53 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:53 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:53 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:53 [    INFO] Created HITL action 93be669b-9c4c-4d85-8418-d5d9f8f423ad for agent system_default_agent
+2026-11-05 09:32:53 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:53 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
+2026-11-05 09:32:53 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
+PASSED                                                                   [ 60%]
 tests/test_orch01_resume_durable.py::test_wrong_workflow_same_step_id_cannot_release_approval 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:12 [    INFO] EscalationManager initialized
-2026-11-05 09:24:12 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:12 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:12 [    INFO] EscalationManager initialized
-2026-11-05 09:24:12 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:12 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:12 [    INFO] Created HITL action 1cbef263-7adf-4776-98d6-a26d071aee3c for agent system_default_agent
-2026-11-05 09:24:12 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:12 [    INFO] Persisted state for workflow exec-real-a (Status: waiting_approval)
-2026-11-05 09:24:12 [    INFO] Persisted state for workflow exec-real-b (Status: failed)
+2026-11-05 09:32:54 [    INFO] EscalationManager initialized
+2026-11-05 09:32:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:54 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:54 [    INFO] EscalationManager initialized
+2026-11-05 09:32:54 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:54 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:54 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:54 [    INFO] Created HITL action 05b3f486-77ff-4c55-af7c-dab806406b75 for agent system_default_agent
+2026-11-05 09:32:54 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:54 [    INFO] Persisted state for workflow exec-real-a (Status: waiting_approval)
+2026-11-05 09:32:54 [    INFO] Persisted state for workflow exec-real-b (Status: failed)
 PASSED                                                                   [ 61%]
 tests/test_orch01_resume_durable.py::test_successor_block_preserves_failed_outcome 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:13 [    INFO] EscalationManager initialized
-2026-11-05 09:24:13 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:13 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:13 [    INFO] EscalationManager initialized
-2026-11-05 09:24:13 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:13 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:13 [    INFO] Created HITL action 3a7f67f5-2722-4bf8-9555-216163b9617f for agent system_default_agent
-2026-11-05 09:24:13 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:13 [    INFO] Persisted state for workflow exec-real-blocked (Status: waiting_approval)
-2026-11-05 09:24:13 [    INFO] Resuming workflow exec-real-blocked from step approval_write after authoritative approval
-2026-11-05 09:24:13 [    INFO] Executing step: write - Write record
-2026-11-05 09:24:13 [    INFO] Persisted state for workflow exec-real-blocked (Status: failed)
-PASSED                                                                   [ 62%]
+2026-11-05 09:32:55 [    INFO] EscalationManager initialized
+2026-11-05 09:32:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:55 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:55 [    INFO] EscalationManager initialized
+2026-11-05 09:32:55 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:55 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:55 [    INFO] Created HITL action b3806069-928a-4bcb-a3de-cb33b39dd221 for agent system_default_agent
+2026-11-05 09:32:55 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:55 [    INFO] Persisted state for workflow exec-real-blocked (Status: waiting_approval)
+2026-11-05 09:32:55 [    INFO] Resuming workflow exec-real-blocked from step approval_write after authoritative approval
+2026-11-05 09:32:55 [    INFO] Executing step: write - Write record
+2026-11-05 09:32:55 [    INFO] Persisted state for workflow exec-real-blocked (Status: failed)
+PASSED                                                                   [ 63%]
 tests/test_orch01_resume_durable.py::test_public_workflow_approval_route_uses_durable_checkpoint 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:15 [    INFO] EscalationManager initialized
-2026-11-05 09:24:15 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-05 09:24:15 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-05 09:24:15 [    INFO] EscalationManager initialized
-2026-11-05 09:24:15 [    INFO] CognitiveTierService initialized for workspace: ws-1
-2026-11-05 09:24:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
-2026-11-05 09:24:15 [    INFO] Executing step: approval_write - Approve Write record
-2026-11-05 09:24:15 [    INFO] Created HITL action 47306410-f32a-48c6-aabb-999d9e8c9d1a for agent system_default_agent
-2026-11-05 09:24:15 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:15 [    INFO] Persisted state for workflow exec-route-1 (Status: waiting_approval)
-2026-11-05 09:24:15 [    INFO] Resuming workflow exec-route-1 from step approval_write after authoritative approval
-2026-11-05 09:24:15 [    INFO] Executing step: write - Write record
-2026-11-05 09:24:15 [    INFO] Persisted state for workflow exec-route-1 (Status: completed)
-2026-11-05 09:24:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-route-1/respond "HTTP/1.1 200 OK"
-2026-11-05 09:24:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-route-1/respond "HTTP/1.1 400 Bad Request"
+2026-11-05 09:32:56 [    INFO] EscalationManager initialized
+2026-11-05 09:32:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 09:32:56 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 09:32:56 [    INFO] EscalationManager initialized
+2026-11-05 09:32:56 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 09:32:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 09:32:56 [    INFO] Executing step: approval_write - Approve Write record
+2026-11-05 09:32:56 [    INFO] Created HITL action 7fae0749-9142-4e28-a7bc-d436c17cef47 for agent system_default_agent
+2026-11-05 09:32:56 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:56 [    INFO] Persisted state for workflow exec-route-1 (Status: waiting_approval)
+2026-11-05 09:32:56 [    INFO] Resuming workflow exec-route-1 from step approval_write after authoritative approval
+2026-11-05 09:32:56 [    INFO] Executing step: write - Write record
+2026-11-05 09:32:56 [    INFO] Persisted state for workflow exec-route-1 (Status: completed)
+2026-11-05 09:32:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-route-1/respond "HTTP/1.1 200 OK"
+2026-11-05 09:32:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-route-1/respond "HTTP/1.1 400 Bad Request"
 PASSED                                                                   [ 64%]
 tests/test_orch01_real_checkpoint_contract.py::test_pending_resume_refuses_then_exact_approval_releases_once 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:16 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:16 [    INFO] Created HITL action 2d950801-0de6-4edc-b6b3-773fd85c0cf1 for agent system_default_agent
-2026-11-05 09:24:16 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:16 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
-2026-11-05 09:24:16 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
-2026-11-05 09:24:16 [    INFO] Resuming workflow exec-real-approve from step approval_record after authoritative approval
-2026-11-05 09:24:16 [    INFO] Executing step: record - Write record
-2026-11-05 09:24:16 [    INFO] Persisted state for workflow exec-real-approve (Status: completed)
-2026-11-05 09:24:16 [ WARNING] Step approval_record is not waiting for approval
-PASSED                                                                   [ 65%]
+2026-11-05 09:32:56 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:56 [    INFO] Created HITL action 8c918547-dc20-409b-a9ad-e144fc42bf3f for agent system_default_agent
+2026-11-05 09:32:56 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:56 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-05 09:32:56 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-05 09:32:56 [    INFO] Resuming workflow exec-real-approve from step approval_record after authoritative approval
+2026-11-05 09:32:56 [    INFO] Executing step: record - Write record
+2026-11-05 09:32:56 [    INFO] Persisted state for workflow exec-real-approve (Status: completed)
+2026-11-05 09:32:56 [ WARNING] Step approval_record is not waiting for approval
+PASSED                                                                   [ 66%]
 tests/test_orch01_real_checkpoint_contract.py::test_rejected_checkpoint_and_missing_checkpoint_dispatch_nothing 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:17 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:17 [    INFO] Created HITL action 33b72929-659a-4d23-acbb-d6cc0de4d508 for agent system_default_agent
-2026-11-05 09:24:17 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
-2026-11-05 09:24:17 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:17 [    INFO] Created HITL action dff8c118-e897-421f-983b-61a47f61b533 for agent system_default_agent
-2026-11-05 09:24:17 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-missing (Status: waiting_approval)
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-missing (Status: failed)
+2026-11-05 09:32:57 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:57 [    INFO] Created HITL action 39d12cf7-9f02-4d3f-bbe6-a2d73c8df679 for agent system_default_agent
+2026-11-05 09:32:57 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:57 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
+2026-11-05 09:32:57 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
+2026-11-05 09:32:57 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:57 [    INFO] Created HITL action 7a2cefe3-7e84-48dc-b4a4-116f240d2833 for agent system_default_agent
+2026-11-05 09:32:57 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:57 [    INFO] Persisted state for workflow exec-real-missing (Status: waiting_approval)
+2026-11-05 09:32:57 [    INFO] Persisted state for workflow exec-real-missing (Status: failed)
 PASSED                                                                   [ 67%]
 tests/test_orch01_real_checkpoint_contract.py::test_changed_reviewed_material_cannot_reuse_old_approval 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:17 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:17 [    INFO] Created HITL action af1b9434-4308-4f2e-8497-82527a8653b2 for agent system_default_agent
-2026-11-05 09:24:17 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
-2026-11-05 09:24:17 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
-PASSED                                                                   [ 68%]
+2026-11-05 09:32:58 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:58 [    INFO] Created HITL action 12bd36e6-d1c0-4178-b6ed-8b7bdb3e8033 for agent system_default_agent
+2026-11-05 09:32:58 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:58 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
+2026-11-05 09:32:58 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
+PASSED                                                                   [ 69%]
 tests/test_orch01_real_checkpoint_contract.py::test_hitl_queue_decision_uses_the_same_advanced_consumer 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:18 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:18 [    INFO] Created HITL action df3ac07b-3880-4989-b106-87db76cf4d4f for agent system_default_agent
-2026-11-05 09:24:18 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:18 [    INFO] Persisted state for workflow exec-hitl-queue (Status: waiting_approval)
-2026-11-05 09:24:18 [    INFO] Resuming workflow exec-hitl-queue from step approval_record after authoritative approval
-2026-11-05 09:24:18 [    INFO] Executing step: record - Write record
-2026-11-05 09:24:18 [    INFO] Persisted state for workflow exec-hitl-queue (Status: completed)
-2026-11-05 09:24:18 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:18 [    INFO] Created HITL action 36c2e4e7-84dd-454f-bdc8-c47aeb46eb85 for agent system_default_agent
-2026-11-05 09:24:18 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:18 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: waiting_approval)
-2026-11-05 09:24:18 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: failed)
-2026-11-05 09:24:18 [ WARNING] HITL 36c2e4e7-84dd-454f-bdc8-c47aeb46eb85 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+2026-11-05 09:32:59 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:59 [    INFO] Created HITL action 1dbde02d-2188-4f04-8b01-121e52180902 for agent system_default_agent
+2026-11-05 09:32:59 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:59 [    INFO] Persisted state for workflow exec-hitl-queue (Status: waiting_approval)
+2026-11-05 09:32:59 [    INFO] Resuming workflow exec-hitl-queue from step approval_record after authoritative approval
+2026-11-05 09:32:59 [    INFO] Executing step: record - Write record
+2026-11-05 09:32:59 [    INFO] Persisted state for workflow exec-hitl-queue (Status: completed)
+2026-11-05 09:32:59 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:32:59 [    INFO] Created HITL action e0deccb9-0aaf-4ad0-8e8d-21e711ad8c7e for agent system_default_agent
+2026-11-05 09:32:59 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:32:59 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: waiting_approval)
+2026-11-05 09:32:59 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: failed)
+2026-11-05 09:32:59 [ WARNING] HITL e0deccb9-0aaf-4ad0-8e8d-21e711ad8c7e decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
 PASSED                                                                   [ 70%]
 tests/test_orch01_real_checkpoint_contract.py::test_public_approval_route_requires_scope_and_exact_binding 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:19 [    INFO] Created HITL action 2085bdfc-5f6b-4b85-9538-ad269fe83099 for agent system_default_agent
-2026-11-05 09:24:19 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:19 [    INFO] Persisted state for workflow exec-route-first (Status: waiting_approval)
-2026-11-05 09:24:19 [    INFO] Executing step: approval_record - Approve Write record
-2026-11-05 09:24:19 [    INFO] Created HITL action 91de911d-02c6-42c9-9c0c-9c465ebdd618 for agent system_default_agent
-2026-11-05 09:24:19 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
-2026-11-05 09:24:19 [    INFO] Persisted state for workflow exec-route-second (Status: waiting_approval)
-2026-11-05 09:24:19 [    INFO] Resuming workflow exec-route-first from step approval_record after authoritative approval
-2026-11-05 09:24:19 [    INFO] Executing step: record - Write record
-2026-11-05 09:24:19 [    INFO] Persisted state for workflow exec-route-first (Status: completed)
-PASSED                                                                   [ 71%]
+2026-11-05 09:33:00 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:33:00 [    INFO] Created HITL action 0c31a767-6c3f-4dd1-82b5-707368d10f93 for agent system_default_agent
+2026-11-05 09:33:00 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:33:00 [    INFO] Persisted state for workflow exec-route-first (Status: waiting_approval)
+2026-11-05 09:33:00 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-05 09:33:00 [    INFO] Created HITL action 46783bb0-d867-4670-b8b8-b3e2e572b716 for agent system_default_agent
+2026-11-05 09:33:00 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-05 09:33:00 [    INFO] Persisted state for workflow exec-route-second (Status: waiting_approval)
+2026-11-05 09:33:00 [    INFO] Resuming workflow exec-route-first from step approval_record after authoritative approval
+2026-11-05 09:33:00 [    INFO] Executing step: record - Write record
+2026-11-05 09:33:00 [    INFO] Persisted state for workflow exec-route-first (Status: completed)
+PASSED                                                                   [ 72%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 73%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_empty_list 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
-PASSED                                                                   [ 74%]
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_no_waiting_steps 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 76%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_context_json 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 77%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_input_data_json 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 79%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_context_and_input 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 80%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_created_at 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
 PASSED                                                                   [ 82%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_anonymous_401 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 401 Unauthorized"
+2026-11-05 09:33:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 83%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
 PASSED                                                                   [ 85%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_legacy_waiting_marker 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
 PASSED                                                                   [ 86%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_service_failure_500 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [   ERROR] Failed to resume workflow: boom
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 500 Internal Server Error"
+2026-11-05 09:33:00 [   ERROR] Failed to resume workflow: boom
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 500 Internal Server Error"
 PASSED                                                                   [ 88%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_success 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
 PASSED                                                                   [ 89%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_no_comments 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
 PASSED                                                                   [ 91%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_unknown_execution_404 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-zz/respond "HTTP/1.1 404 Not Found"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-zz/respond "HTTP/1.1 404 Not Found"
 PASSED                                                                   [ 92%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_not_waiting_400 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 400 Bad Request"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 400 Bad Request"
 PASSED                                                                   [ 94%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_decision_422 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 95%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_step_id_422 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 97%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_bad_decision_422 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
 PASSED                                                                   [ 98%]
 tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_anonymous_401 
 -------------------------------- live log call ---------------------------------
-2026-11-05 09:24:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 401 Unauthorized"
+2026-11-05 09:33:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
@@ -480,4 +481,4 @@ PASSED                                                                   [100%]
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 67 passed, 5 warnings in 49.82s ========================
+======================= 68 passed, 5 warnings in 44.50s ========================

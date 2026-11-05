@@ -1,6 +1,6 @@
 # ORCH-01 consumer repair — test results
 
-Executed source: `620476fb41c58dc95e6936bc875379a01d64a3f3`
+Executed source: `e7f551bc8449dfccf4120e9b7ba298fe49fca258`
 Base: `81c5962bd17b3ffa90cd5107d5b3134821c0ffa1`
 Previous withheld source: `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8`
 
@@ -32,8 +32,8 @@ $PY314 -B -m pytest \
   -q --tb=short
 ```
 
-Result: **67 passed** (`focused-314.log`). The same command with `$PY311`
-gives **67 passed** (`focused-311.log`).
+Result: **68 passed** (`focused-314.log`). The same command with `$PY311`
+gives **68 passed** (`focused-311.log`).
 
 This gate contains the 33 compiler/checkpoint controls, the verifier's 4
 negative cases, 11 real durable HITL/fresh-session controls and 19 workflow
@@ -72,8 +72,8 @@ $PY314 -B -m pytest \
   -q --tb=short
 ```
 
-Result: **632 passed, 2 failed** (`affected-314.log`). The same selection on
-Python 3.11 gives **632 passed, 2 failed** (`affected-311.log`).
+Result: **633 passed, 2 failed** (`affected-314.log`). The same selection on
+Python 3.11 gives **633 passed, 2 failed** (`affected-311.log`).
 
 The two failures are pre-existing on the withheld source
 `4d3fb66c5`:

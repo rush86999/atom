@@ -15,7 +15,7 @@ preparation; no accepted lane is reopened.
 | Previous withheld source | `4d3fb66c54a20cc8a864bfbea45967a8429ebdf8` |
 | Previous evidence commit | `0a850d14d8c85a62a72d95c93355f5b23766a0ab` |
 | Parent repair source | `f6e50b58c4d5aacf5752c9a1ab39c629e23315e6` |
-| Executed source | `620476fb41c58dc95e6936bc875379a01d64a3f3` |
+| Executed source | `e7f551bc8449dfccf4120e9b7ba298fe49fca258` |
 | Tree at execution | clean (`0 modified, 0 untracked`) |
 | Runtime | real scratch SQLite with fresh sessions; controlled governance/effect seams |
 | Model/provider/browser calls | none |
@@ -80,7 +80,10 @@ scanning for the first workflow containing the step id.
 - Approval material binds execution id, definition id/digest, step id,
   guarded step/digest, input digest, workspace and tenant. New rows carry the
   execution/definition binding; legacy rows missing the new keys remain
-  readable only when the core execution/step/input binding matches.
+  readable only when the core execution/step/input binding matches. Rows from
+  before `guarded_digest` was folded into the input digest are accepted
+  through the legacy digest only when the guarded digest and the
+  execution/definition binding agree.
 - The workflow approval route loads the scoped durable row, rejects foreign
   execution/step/definition bindings, approves or rejects through the existing
   `InterventionService` role/status policy, and resumes the registered
@@ -110,7 +113,7 @@ had the same pattern.
 
 ## Controls
 
-The focused gate is **67 passed on Python 3.14 and 3.11**:
+The focused gate is **68 passed on Python 3.14 and 3.11**:
 
 - 33 ORCH-01 compiler/checkpoint controls (`test_orch01_workflow_blueprint.py`
   + `test_orch01_checkpoint_contract.py`, including unsupported/supported
@@ -128,7 +131,7 @@ The focused gate is **67 passed on Python 3.14 and 3.11**:
   finalization and full completion;
 - 19 workflow approval route controls.
 
-The affected workflow/approval caller selection is **632 passed, 2
+The affected workflow/approval caller selection is **633 passed, 2
 pre-existing failures** on both Python 3.14 and 3.11. The two failures
 (`test_round67_workflow_governance.py::...attribution...` and
 `test_round19_workflow_security.py::...no_str_e...`) reproduce on the

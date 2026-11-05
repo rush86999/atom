@@ -9,4 +9,4 @@
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-7 passed, 15 warnings in 1.58s
+7 passed, 15 warnings in 1.67s

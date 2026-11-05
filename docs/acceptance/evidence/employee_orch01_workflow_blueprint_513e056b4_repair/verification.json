@@ -5,7 +5,7 @@
     "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
     "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
     "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
-    "repair_source": "620476fb41c58dc95e6936bc875379a01d64a3f3",
+    "repair_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
     "runtime": "real scratch SQLite with fresh sessions; controlled governance/effect seams; no model/provider/browser",
     "tree_clean_at_execution": true
   },
@@ -23,6 +23,7 @@
     "full_successful_execution_completes": true,
     "guarded_step_digest_bound_to_approval": true,
     "hitl_queue_uses_same_advanced_consumer": true,
+    "legacy_checkpoint_digest_compatibility": true,
     "no_model_or_provider_calls": true,
     "original_28_controls_preserved": true,
     "pending_resume_releases_no_descendants": true,
@@ -49,9 +50,9 @@
     }
   },
   "focused_breakdown": {
-    "orch01_compiler_checkpoint_controls": 33,
+    "orch01_compiler_checkpoint_controls": 34,
     "real_durable_resume_finalization_controls": 11,
-    "total": 67,
+    "total": 68,
     "verifier_negative_cases": 4,
     "workflow_approval_route_controls": 19
   },
@@ -68,21 +69,21 @@
       "failed": 2,
       "failed_pre_existing_on_withheld_source": true,
       "log": "affected-311.log",
-      "passed": 632
+      "passed": 633
     },
     "affected_python314": {
       "failed": 2,
       "failed_pre_existing_on_withheld_source": true,
       "log": "affected-314.log",
-      "passed": 632
+      "passed": 633
     },
     "focused_python311": {
       "log": "focused-311.log",
-      "passed": 67
+      "passed": 68
     },
     "focused_python314": {
       "log": "focused-314.log",
-      "passed": 67
+      "passed": 68
     },
     "prior_contract_controls": {
       "log": "verifier-contract-before.log",
