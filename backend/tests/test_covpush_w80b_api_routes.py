@@ -45,7 +45,7 @@ from api.stage_router_routes import router as stage_router_router
 from api.workflow_debugging import router as wf_debug_router
 from core.auth import get_current_user
 from core.database import Base, get_db
-from core.models import DeepLinkAudit, HITLAction, User, UserRole
+from core.models import AuditLog, DeepLinkAudit, HITLAction, User, UserRole
 
 
 # ============================================================================
@@ -237,11 +237,12 @@ class Test2FAEnable:
     def test_enable_success_with_backup_codes(self, db, client_factory):
         u = _make_2fa_user(db, "u2fa", secret=TEST_SECRET)
         code = pyotp.TOTP(TEST_SECRET).now()
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post("/api/auth/2fa/enable", json={"code": code})
-        assert resp.status_code == 200
+        resp = client_factory().post(
+            "/api/auth/2fa/enable", json={"code": code})
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
+        assert body["verification"]["status"] == "verified"
         codes = body["data"]["backup_codes"]
         assert len(codes) == 5
         assert all("-" in c and len(c) == 19 for c in codes)
@@ -249,7 +250,8 @@ class Test2FAEnable:
         u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_enabled is True
         assert len(u.two_factor_backup_codes) == 5
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_enabled").count() == 1
 
     def test_enable_invalid_code(self, db, client_factory):
         _make_2fa_user(db, "u2fa", secret=TEST_SECRET)
@@ -288,16 +290,18 @@ class Test2FADisable:
         u = _make_2fa_user(db, "u2fa", enabled=True, secret=TEST_SECRET,
                            codes=["A1B2-C3D4-E5F6-G7H8"])
         code = pyotp.TOTP(TEST_SECRET).now()
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post("/api/auth/2fa/disable", json={"code": code})
-        assert resp.status_code == 200
+        resp = client_factory().post(
+            "/api/auth/2fa/disable", json={"code": code})
+        assert resp.status_code == 200, resp.text
         assert resp.json()["success"] is True
+        assert resp.json()["verification"]["status"] == "verified"
         db.expire_all()
         u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_enabled is False
         assert u.two_factor_secret is None
         assert u.two_factor_backup_codes is None
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_disabled").count() == 1
 
     def test_disable_not_enabled(self, client_factory):
         resp = client_factory().post("/api/auth/2fa/disable", json={"code": "000000"})

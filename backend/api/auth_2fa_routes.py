@@ -124,6 +124,11 @@ def _handle_factor_result(
     verification = result.get("verification") or {}
     if verification.get("status") == "refuted":
         _raise_unverified(result)
+    if auth_grant and verification.get("status") not in (
+            "verified", "already_applied"):
+        # A mutation receipt is not an authentication grant. Only an
+        # independently verified original outcome may be acknowledged.
+        _raise_unverified(result)
     if auth_grant and result.get("status") in (
             "committed_unverified", "effect_unknown"):
         _raise_unverified(result)

@@ -28,7 +28,7 @@ from sqlalchemy.pool import StaticPool
 from api.auth_2fa_routes import router as auth_2fa_router
 from core.auth import get_current_user
 from core.database import Base, get_db
-from core.models import HITLAction, User
+from core.models import AuditLog, HITLAction, User
 
 AUTH_HEADERS = {"Authorization": "Bearer test-token"}
 
@@ -204,20 +204,21 @@ class TestEnableDisable:
     def test_enable_success_generates_backup_codes(self, client_factory, db):
         _make_user(db, "setup-user", two_factor_secret=TEST_SECRET)
         client = client_factory("setup-user")
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client.post("/api/auth/2fa/enable",
-                               json={"code": self._valid_code()},
-                               headers=AUTH_HEADERS)
-        assert resp.status_code == 200
+        resp = client.post("/api/auth/2fa/enable",
+                           json={"code": self._valid_code()},
+                           headers=AUTH_HEADERS)
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
+        assert body["verification"]["status"] == "verified"
         codes = body["data"]["backup_codes"]
         assert len(codes) == 5
         assert all(len(c) == 19 for c in codes)
         db.expire_all()
         user = db.query(User).filter(User.id == "setup-user").first()
         assert user.two_factor_enabled is True
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_enabled").count() == 1
 
     def test_enable_already_enabled_409(self, client_factory, db):
         _make_user(db, "enabled-user", two_factor_enabled=True,
@@ -255,18 +256,19 @@ class TestEnableDisable:
         _make_user(db, "enabled-user", two_factor_enabled=True,
                    two_factor_secret=TEST_SECRET, two_factor_backup_codes=["X"])
         client = client_factory("enabled-user")
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client.post("/api/auth/2fa/disable",
-                               json={"code": self._valid_code()},
-                               headers=AUTH_HEADERS)
-        assert resp.status_code == 200
+        resp = client.post("/api/auth/2fa/disable",
+                           json={"code": self._valid_code()},
+                           headers=AUTH_HEADERS)
+        assert resp.status_code == 200, resp.text
         assert resp.json()["success"] is True
+        assert resp.json()["verification"]["status"] == "verified"
         db.expire_all()
         user = db.query(User).filter(User.id == "enabled-user").first()
         assert user.two_factor_enabled is False
         assert user.two_factor_secret is None
         assert user.two_factor_backup_codes is None
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_disabled").count() == 1
 
     def test_disable_not_enabled_422(self, client):
         resp = client.post("/api/auth/2fa/disable",
