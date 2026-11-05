@@ -11,6 +11,7 @@ failures). Targets:
 - put_canvas_logic / run_canvas_logic branches
 - list_canvas_types, read/update/delete canvas, list recordings/get recording
 """
+import contextlib
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -73,12 +74,19 @@ def user(db):
 
 
 @pytest.fixture
-def client(db, user):
+def client(db, user, monkeypatch):
     app = FastAPI()
     app.include_router(router)
 
     from core.database import get_db
     from core.security_dependencies import get_current_user
+
+    @contextlib.contextmanager
+    def _get_db_session():
+        yield db
+
+    monkeypatch.setattr("core.database.get_db_session", _get_db_session)
+    monkeypatch.setattr("core.database.SessionLocal", lambda: db)
 
     def _get_db():
         try:
@@ -94,6 +102,34 @@ def client(db, user):
     c = TestClient(app, raise_server_exceptions=False)
     yield c
     app.dependency_overrides.clear()
+
+
+def _unscoped_canvas(db, user):
+    """A legacy canvas with no workspace scope, owned by the test user."""
+    canvas = Canvas(
+        id=f"c-update-{uuid.uuid4().hex[:8]}",
+        tenant_id=user.tenant_id,
+        workspace_id=None,
+        created_by=user.id,
+        name="Update Canvas",
+        canvas_type="document",
+        content={"blocks": []},
+        status="active",
+    )
+    db.add(canvas)
+    db.add(CanvasAudit(
+        canvas_id=canvas.id,
+        tenant_id=user.tenant_id,
+        action_type="create",
+        user_id=user.id,
+        canvas_type="document",
+        details_json={
+            "content": {"blocks": []},
+            "review_status": "accepted",
+        },
+    ))
+    db.commit()
+    return canvas
 
 
 def _canvas(db, canvas_id="c-1", user_id=None, name="My Canvas",
@@ -378,16 +414,19 @@ class TestCanvasCRUD:
         assert response.status_code == 404
 
     def test_update_canvas_success(self, client, db, user):
+        canvas = _unscoped_canvas(db, user)
         with patch("tools.canvas_crud_tool.update_canvas_content",
                    new=AsyncMock(return_value={"success": True})):
-            response = client.put("/api/canvas/c-1", json={"blocks": []})
+            response = client.put(
+                f"/api/canvas/{canvas.id}", json={"blocks": []})
         assert response.status_code == 200
 
     def test_update_canvas_error(self, client, db, user):
+        canvas = _unscoped_canvas(db, user)
         with patch("tools.canvas_crud_tool.update_canvas_content",
                    new=AsyncMock(return_value={"success": False,
                                                "error": "boom"})):
-            response = client.put("/api/canvas/c-1", json={})
+            response = client.put(f"/api/canvas/{canvas.id}", json={})
         assert response.status_code == 400
 
     def test_delete_canvas_success(self, client, db, user):

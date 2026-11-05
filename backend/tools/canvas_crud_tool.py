@@ -87,6 +87,98 @@ def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
     return authorship is not None
 
 
+def _scope_allows(scope_value: Any, principal_value: Any) -> bool:
+    """Whether a canvas/audit scope admits the authenticated principal.
+
+    An unscoped canvas (NULL/empty scope) is legacy and remains available to
+    an authorized same-tenant editor. A real canvas scope admits only an exact
+    principal match. A principal with no workspace/tenant claim is treated as
+    the legacy ``default`` scope ONLY when the canvas itself is unscoped or
+    ``default`` — a real foreign scope is never silently mapped into default.
+    """
+    scope = str(scope_value or "").strip()
+    principal = str(principal_value or "").strip()
+    if not scope:
+        return True
+    if principal:
+        return scope == principal
+    return scope.lower() == "default"
+
+
+def canvas_write_scope_error(
+    db,
+    canvas_id: str,
+    user_id: str,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    target_audit_id: Optional[str] = None,
+    lock: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Return a pre-effect refusal for an out-of-scope canvas write.
+
+    Read-only. The direct HTTP service calls this before dispatch and the
+    writer calls it again inside the mutation transaction, so a separate
+    preflight cannot create a TOCTOU window. Ownership is still the first
+    gate; creator/audit authorship is not a cross-tenant or cross-workspace
+    grant.
+
+    The authoritative Canvas row carries the scope. A target audit (restore)
+    must belong to the same canvas and tenant. New audit rows are stamped with
+    the Canvas tenant, never a foreign audit's tenant.
+    """
+    from core.models import Canvas, CanvasAudit
+    from sqlalchemy import desc
+
+    canvas_query = db.query(Canvas).filter(Canvas.id == canvas_id)
+    if lock:
+        # Bind the scope decision to the same row version the append commits
+        # against. SQLite ignores FOR UPDATE; PostgreSQL takes the row lock.
+        canvas_query = canvas_query.with_for_update()
+    canvas = canvas_query.first()
+    if canvas is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+    if not _verify_canvas_owner(db, canvas_id, user_id):
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+
+    if not _scope_allows(canvas.tenant_id, tenant_id):
+        return {
+            "http_status": 403,
+            "error": "Canvas belongs to a different tenant",
+        }
+    if not _scope_allows(canvas.workspace_id, workspace_id):
+        return {
+            "http_status": 403,
+            "error": "Canvas belongs to a different workspace",
+        }
+
+    latest = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+        .first()
+    )
+    if latest is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+
+    if target_audit_id:
+        target = (
+            db.query(CanvasAudit)
+            .filter(
+                CanvasAudit.id == str(target_audit_id),
+                CanvasAudit.canvas_id == canvas_id,
+            )
+            .first()
+        )
+        if target is None:
+            return {"http_status": 404, "error": "Version not found"}
+        if not _scope_allows(target.tenant_id, canvas.tenant_id):
+            return {
+                "http_status": 403,
+                "error": "Version belongs to a different tenant",
+            }
+    return None
+
+
 def deleted_canvas_ids(db, canvas_ids) -> set:
     """Subset of ``canvas_ids`` whose NEWEST audit row is a delete tombstone.
 
@@ -338,6 +430,11 @@ def _operation_audit_row(db: Any, canvas_id: str, operation_id: str):
     return None
 
 
+def find_operation_audit(db: Any, canvas_id: str, operation_id: str):
+    """Public lookup for the direct verified-write service."""
+    return _operation_audit_row(db, canvas_id, operation_id)
+
+
 def canonical_update_content(
     latest: Any,
     requested_type: Optional[str],
@@ -423,6 +520,10 @@ async def update_canvas_content(
     manual_retype: bool = False,
     operation_id: Optional[str] = None,
     expected_prior_audit_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    scope_required: bool = False,
+    bind_operation_material: bool = False,
     pending_review: bool = False,
     evidence_refs: Optional[List[str]] = None,
     postconditions: Optional[List[Dict[str, Any]]] = None,
@@ -487,14 +588,31 @@ async def update_canvas_content(
     write_outcome = WRITE_NOT_ATTEMPTED
     try:
         from core.database import get_db_session
-        from core.models import CanvasAudit
+        from core.models import Canvas, CanvasAudit
         from sqlalchemy import desc
 
         with get_db_session() as db:
-            # IDOR guard: only the owner may update this canvas.
-            if not _verify_canvas_owner(db, canvas_id, user_id):
+            if scope_required:
+                # Authoritative scope gate in the SAME transaction as the
+                # append. A separate HTTP preflight alone would leave a
+                # TOCTOU window if the canvas moved between check and write.
+                scope_error = canvas_write_scope_error(
+                    db, canvas_id, user_id, tenant_id, workspace_id,
+                    lock=True)
+                if scope_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **scope_error,
+                    }
+            elif not _verify_canvas_owner(db, canvas_id, user_id):
+                # IDOR guard: only the owner may update this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
+
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
 
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
@@ -511,12 +629,41 @@ async def update_canvas_content(
                 return {"success": False, "write_outcome": write_outcome,
                         "error": "Cannot update a deleted canvas"}
 
+            # Type resolution is shared with the direct-HTTP verifier:
+            # manual retype wins and pins; an existing pin survives; a generic
+            # request preserves the canvas's own type; otherwise the same
+            # email coercion runs. ONE canonical persisted representation.
+            requested_type = (canvas_type or "").strip().lower()
+            canvas_type, content = canonical_update_content(
+                latest, requested_type, content, manual_retype)
+
             review_status = "pending_review" if pending_review else "accepted"
             if operation_id:
                 existing = _operation_audit_row(db, canvas_id, operation_id)
                 if existing is not None:
                     existing_details = existing.details_json or {}
                     existing_status = existing_details.get("review_status", "unknown")
+                    if bind_operation_material:
+                        # A supplied logical-operation id is a retry, not a
+                        # license to reuse the id for different material.
+                        from core.oracle.postcondition_verifiers import (
+                            canvas_content_digest,
+                        )
+
+                        existing_content = existing_details.get(
+                            "content", existing_details.get("data"))
+                        if (existing_status != "accepted"
+                                or existing_content is None
+                                or canvas_content_digest(existing_content)
+                                != canvas_content_digest(content)):
+                            return {
+                                "success": False,
+                                "conflict": True,
+                                "write_outcome": write_outcome,
+                                "error": (
+                                    "operation_id already used with different "
+                                    "material or is not an accepted save"),
+                            }
                     if existing_status == "accepted":
                         existing_content = existing_details.get(
                             "content", existing_details.get("data"))
@@ -563,22 +710,6 @@ async def update_canvas_content(
                         f"latest {str(latest.id)[:12]}…) — write refused"),
                 }
 
-
-            # ATOMIC REVISION DOOR (2026-09-22): the caller planned against a
-            # specific revision; if anything has appended since, refuse — a
-            # background write over a concurrently-edited canvas is never
-            # acceptable. Same DB session as the append below, so the
-            # check-then-write window is the transaction itself.
-            if expected_prior_audit_id and latest.id != expected_prior_audit_id:
-                return {
-                    "success": False,
-                    "conflict": True,
-                    "error": (
-                        "canvas changed since the edit was planned "
-                        f"(expected audit {expected_prior_audit_id[:12]}…, "
-                        f"latest {str(latest.id)[:12]}…) — write refused"),
-                }
-
             # Merge new content into the existing details.
             details = dict(latest.details_json or {})
             details.pop("operation_id", None)
@@ -594,21 +725,14 @@ async def update_canvas_content(
                 details["postconditions"] = list(postconditions)[:50]
             if title:
                 details["title"] = title
-
-            # Type resolution is shared with the direct-HTTP verifier:
-            # manual retype wins and pins; an existing pin survives; a generic
-            # request preserves the canvas's own type; otherwise the same
-            # email coercion runs. ONE canonical persisted representation.
-            requested_type = (canvas_type or "").strip().lower()
-            canvas_type, content = canonical_update_content(
-                latest, requested_type, content, manual_retype)
             if manual_retype:
                 details["type_pinned"] = True
-            details["content"] = content
 
-            # Append a new audit row (append-only trail). Carry the tenant_id
-            # from the latest audit row (CanvasAudit.tenant_id is NOT NULL).
-            # STRICT RECENCY: legacy audit rows carry SECOND-precision
+            # Append a new audit row (append-only trail). The authoritative
+            # Canvas tenant wins over a legacy audit row's tenant so a new
+            # save cannot inherit a foreign scope (CanvasAudit.tenant_id is
+            # NOT NULL). STRICT RECENCY: legacy audit rows carry
+            # SECOND-precision
             # timestamps, so an update fired in the same second as the row it
             # supersedes tied on created_at and ordering could serve the OLD
             # content (same incident class as the delete tombstone — pinned
@@ -620,7 +744,10 @@ async def update_canvas_content(
                 _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
-                tenant_id=latest.tenant_id,
+                tenant_id=(
+                    (canvas_row.tenant_id if canvas_row is not None else None)
+                    or latest.tenant_id
+                ),
                 session_id=audit_session_id(None),
                 agent_id=audit_agent_id(None),
                 canvas_type=canvas_type,
@@ -802,6 +929,10 @@ async def restore_canvas_version(
     user_id: str,
     canvas_id: str,
     audit_id: str,
+    operation_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    scope_required: bool = False,
 ) -> Dict[str, Any]:
     """Restore an earlier version from the append-only audit trail.
 
@@ -826,14 +957,30 @@ async def restore_canvas_version(
     write_outcome = WRITE_NOT_ATTEMPTED
     try:
         from core.database import get_db_session
-        from core.models import CanvasAudit
+        from core.models import Canvas, CanvasAudit
         from sqlalchemy import desc
 
         with get_db_session() as db:
-            # IDOR guard: only the owner may restore this canvas.
-            if not _verify_canvas_owner(db, canvas_id, user_id):
+            if scope_required:
+                # Same-transaction scope gate as the update path. The target
+                # audit is checked against the authoritative canvas tenant.
+                scope_error = canvas_write_scope_error(
+                    db, canvas_id, user_id, tenant_id, workspace_id,
+                    target_audit_id=str(audit_id), lock=True)
+                if scope_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **scope_error,
+                    }
+            elif not _verify_canvas_owner(db, canvas_id, user_id):
+                # IDOR guard: only the owner may restore this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
+
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
 
             target = (
                 db.query(CanvasAudit)
@@ -893,6 +1040,8 @@ async def restore_canvas_version(
             new_details.pop("postconditions", None)
             new_details["content"] = content
             new_details["review_status"] = "accepted"
+            if operation_id:
+                new_details["operation_id"] = operation_id
             if target_details.get("title"):
                 new_details["title"] = target_details["title"]
             new_details["restored_from"] = {
@@ -912,7 +1061,10 @@ async def restore_canvas_version(
                 _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
-                tenant_id=latest.tenant_id,
+                tenant_id=(
+                    (canvas_row.tenant_id if canvas_row is not None else None)
+                    or latest.tenant_id
+                ),
                 session_id=audit_session_id(None),
                 agent_id=audit_agent_id(None),
                 canvas_type=canvas_type,
@@ -947,6 +1099,7 @@ async def restore_canvas_version(
             "canvas_id": canvas_id,
             "canvas_type": canvas_type,
             "audit_id": str(new_audit.id),
+            "operation_id": operation_id,
             "review_status": "accepted",
             "restored_from": audit_id,
             "message": "Version restored (appended as the newest version)",
