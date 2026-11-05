@@ -1,0 +1,140 @@
+{
+  "schema": "atom-oracle-direct-canvas-routes-repair-1",
+  "repair_source": "21c32937a87544f7ba2249f76c5be605d039bc17",
+  "previous_withheld_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+  "prefix": "/api/canvas",
+  "mount": {
+    "file": "backend/main_api_app.py",
+    "http_router": "api.canvas_routes.router",
+    "websocket_router": "api.canvas_routes.ws_router",
+    "http_dependency": "require_pilot_user",
+    "user_dependency": "get_current_user"
+  },
+  "routes": [
+    {
+      "method": "PUT",
+      "path": "/api/canvas/{canvas_id}",
+      "handler": "api.canvas_routes.update_canvas_content",
+      "service": "core.canvas_write_service.update_canvas_verified",
+      "writer": "tools.canvas_crud_tool.update_canvas_content",
+      "verifier": "canvas.update",
+      "pre_effect_scope": {
+        "service_preflight": "canvas_write_scope_error before dispatch",
+        "writer_recheck": "same function inside the mutation transaction with row lock",
+        "principal_scope": ["tenant_id", "workspace_id"],
+        "authoritative_scope": ["Canvas.tenant_id", "Canvas.workspace_id"],
+        "foreign_tenant_http": 403,
+        "foreign_workspace_http": 403,
+        "missing_or_foreign_owner_http": 404,
+        "effect_on_refusal": "none",
+        "legacy_rule": "unscoped canvas remains available to an authorized same-tenant editor; null principal maps only to unscoped/default; real foreign scope is never mapped to default"
+      },
+      "operation_identity": {
+        "server_owned_when_omitted": "http-canvas-update:<uuid>",
+        "supplied_id": "idempotent retry bound to exact canonical material and accepted review state",
+        "different_material_same_id": "409 before effect",
+        "durable_evidence": "details_json.operation_id",
+        "verifier_requirement": "returned audit must carry the frozen operation id and be the current content revision"
+      },
+      "request": {
+        "body": "the canvas content JSON value, stored verbatim",
+        "query": {
+          "canvas_type": "optional, default generic",
+          "title": "optional",
+          "retype": "optional manual type pin",
+          "operation_id": "optional stable logical operation identity",
+          "expected_prior_audit_id": "optional optimistic-concurrency token"
+        }
+      },
+      "outcomes": [
+        "verified",
+        "no_change",
+        "committed_unverified",
+        "no_change_unverified",
+        "effect_unknown",
+        "refused"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/canvas/{canvas_id}/restore",
+      "handler": "api.canvas_routes.restore_canvas_version",
+      "service": "core.canvas_write_service.restore_canvas_verified",
+      "writer": "tools.canvas_crud_tool.restore_canvas_version",
+      "verifier": "canvas.restore_version",
+      "pre_effect_scope": {
+        "service_preflight": "canvas_write_scope_error before dispatch, including target audit",
+        "writer_recheck": "same function inside the mutation transaction with row lock",
+        "principal_scope": ["tenant_id", "workspace_id"],
+        "authoritative_scope": ["Canvas.tenant_id", "Canvas.workspace_id"],
+        "target_scope": "target audit must belong to the canvas and match the canvas tenant",
+        "foreign_tenant_http": 403,
+        "foreign_workspace_http": 403,
+        "foreign_target_tenant_http": 403,
+        "missing_or_foreign_owner_http": 404,
+        "effect_on_refusal": "none"
+      },
+      "operation_identity": {
+        "server_owned": "http-canvas-restore:<uuid>",
+        "durable_evidence": "new audit details_json.operation_id",
+        "verifier_requirement": "new audit must carry the frozen restore operation id and be the current content revision",
+        "no_change": "no audit_id/operation_id receipt; separate zero-effect contract"
+      },
+      "request": {
+        "body": {
+          "audit_id": "the CanvasAudit row to restore"
+        }
+      },
+      "outcomes": [
+        "verified",
+        "no_change",
+        "committed_unverified",
+        "no_change_unverified",
+        "effect_unknown",
+        "refused"
+      ]
+    }
+  ],
+  "no_change_verification": {
+    "target_action_type": "must not be delete",
+    "target_content": "must be present",
+    "target_tenant": "must match the authoritative canvas tenant",
+    "current_revision": "latest content-bearing audit",
+    "mirror": "Canvas.content digest must equal the current/target content digest",
+    "scope": "actor/tenant/workspace checked; no write receipt invented",
+    "stale_mirror_result": "no_change_unverified with verification.status=refuted and replay=do_not_repeat"
+  },
+  "covered_controls": [
+    "39 direct controls and 6 independent verifier probe cases",
+    "foreign workspace/tenant PUT and restore refusal with unchanged audit/mirror",
+    "foreign target audit tenant refusal",
+    "writer same-transaction scope recheck after preflight bypass",
+    "server-owned operation identity for manual updates and restores",
+    "supplied operation id material binding and 409 on different material",
+    "old identical audit cannot certify a new save",
+    "current content revision required for verified update/restore",
+    "stale-mirror no-change is refuted without state change",
+    "post-commit stale mirror and scope change retain identity and are not verified",
+    "same-scope co-editing and explicit legacy/default scope behavior",
+    "real separate-session committed readback"
+  ],
+  "not_covered": [
+    "other canvas routes (context/state, logic, WebSocket state updates, submit, fork, delete)",
+    "goals routes",
+    "provider writes",
+    "PostgreSQL concurrency/soak",
+    "the whole-app ORACLE-01 mutation inventory"
+  ],
+  "authority": {
+    "approval_flow_added": false,
+    "cross_workspace_restore": false,
+    "tenant_inferred_from_model_content": false,
+    "live_model": false,
+    "live_provider": false,
+    "credential_change": false,
+    "spend": false,
+    "send": false,
+    "download": false,
+    "deployment": false
+  }
+}

@@ -1,0 +1,1530 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 08:20:09 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:10 [    INFO] MCP Service initialized
+2026-11-05 08:20:10 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 08:20:10 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 08:20:10 [    INFO] No token storage file found, starting empty
+2026-11-05 08:20:10 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:10 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_chat_canvas_editor.py::test_plan_returns_none_without_llm_service 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:20:10 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_chat_canvas_editor.py::test_plan_returns_none_without_canvas_id PASSED [  1%]
+tests/test_chat_canvas_editor.py::test_plan_builds_prompt_with_canvas_content_and_routes_via_bpc 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 113, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=True restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1483
+PASSED                                                                   [  2%]
+tests/test_chat_canvas_editor.py::test_plan_raises_when_llm_fails_entirely 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 52, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=1 contract=- detail=structured call returned None
+PASSED                                                                   [  3%]
+tests/test_chat_canvas_editor.py::test_history_transcript_includes_agent_findings_and_skips_errors PASSED [  4%]
+tests/test_chat_canvas_editor.py::test_editor_prompt_demands_preservation_and_excludes_sends 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 70, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-11-05 08:20:10 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-11-05 08:20:10 [    INFO] canvas edit: planner input identity | prompt_chars=10535 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=87af8c9a2ad9 request_value_occurrences_in_body=0
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [  5%]
+tests/test_chat_canvas_editor.py::test_editor_prompt_excludes_teaching_points_and_pure_lookups 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 71, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-11-05 08:20:10 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-11-05 08:20:10 [    INFO] canvas edit: planner input identity | prompt_chars=10537 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=c0dcac36a69e request_value_occurrences_in_body=0
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [  6%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_carries_sender_identity_and_bans_cc_guessing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=declined attempts=1 contract=valid detail=served decline
+2026-11-05 08:20:10 [    INFO] canvas edit: plan DECLINED | wants_edit=False ops=0 replacement=False restore=False contract_violation=None
+2026-11-05 08:20:10 [    INFO] canvas edit: planner input identity | prompt_chars=1804 canvas_type='document' history_msgs=0 canvas_body_sha256_12=185f8db32271 request_sha256_12=4343e89f29b2 request_value_occurrences_in_body=0
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=schema+scope valid on attempt 1
+PASSED                                                                   [  7%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_recent_supervisor_corrections 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 10, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 350, "included": true, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "t
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [  8%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_omits_corrections_section_when_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [  9%]
+tests/test_chat_canvas_editor.py::test_corrections_section_bounds_huge_entries PASSED [ 10%]
+tests/test_chat_canvas_editor.py::test_patch_ops_match_is_validated_against_current_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 51, "included": true, "truncated": false}, {"section": "history", "size": 70, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1436 ops_match_current_content=true
+PASSED                                                                   [ 11%]
+tests/test_chat_canvas_editor.py::test_failed_patch_ops_get_one_replace_mode_reask 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 71, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+PASSED                                                                   [ 12%]
+tests/test_chat_canvas_editor.py::test_double_failed_patch_plan_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 57, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+2026-11-05 08:20:10 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 13%]
+tests/test_chat_canvas_editor.py::test_apply_patch_preserves_untouched_bytes PASSED [ 14%]
+tests/test_chat_canvas_editor.py::test_apply_patch_edits_only_the_named_field_of_object_content PASSED [ 15%]
+tests/test_chat_canvas_editor.py::test_apply_refuses_patch_when_content_moved_under_the_plan 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [ WARNING] canvas edit: patch ops no longer match — refusing partial write
+PASSED                                                                   [ 16%]
+tests/test_chat_canvas_editor.py::test_apply_detects_noop_and_skips_the_write PASSED [ 17%]
+tests/test_chat_canvas_editor.py::test_describe_apply_failure_no_change_reads_honestly PASSED [ 18%]
+tests/test_chat_canvas_editor.py::test_patch_ops_edit_one_cell_of_rows_grid PASSED [ 19%]
+tests/test_chat_canvas_editor.py::test_patch_ops_edit_bare_list_grid_and_cells_dict PASSED [ 20%]
+tests/test_chat_canvas_editor.py::test_patch_ops_cell_mismatch_fails_that_op_only PASSED [ 20%]
+tests/test_chat_canvas_editor.py::test_plan_validation_routes_grid_mismatch_to_replace_reask 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 52, "included": true, "truncated": false}, {"section": "history", "size": 65, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:10 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=1 replacement=False restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:10 [    INFO] canvas edit: 1/1 patch op(s) failed to match — falling back to a replace-mode re-ask
+PASSED                                                                   [ 21%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_plans_against_durable_store_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:10 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:10 [   ERROR] No access token available for user user-1
+2026-11-05 08:20:10 [   ERROR] No access token available for user user-1
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:10 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 22%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_supervisor_corrections_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:10 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:10 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:10 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:10 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:10 [    INFO] EscalationManager initialized
+2026-11-05 08:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:10 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.1s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 23%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_survives_corrections_lookup_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 24%]
+tests/test_chat_canvas_editor.py::test_canvas_action_plans_against_durable_store_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [ WARNING] canvas action planning skipped: test_canvas_action_plans_against_durable_store_content.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+FAILED                                                                   [ 25%]
+tests/test_chat_canvas_editor.py::test_canvas_action_plan_overlaps_edit_plan_singleflight 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+2026-11-05 08:20:11 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 26%]
+tests/test_chat_canvas_editor.py::test_canvas_action_leg_still_plans_when_not_prestarted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 27%]
+tests/test_chat_canvas_editor.py::test_apply_persists_full_content_through_crud_tool PASSED [ 28%]
+tests/test_chat_canvas_editor.py::test_apply_discards_malformed_json_for_object_content PASSED [ 29%]
+tests/test_chat_canvas_editor.py::test_apply_accepts_bare_string_for_string_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [ WARNING] canvas edit: updated_content_json is not valid JSON even after repair — discarding. Payload head: 'plain new body'
+PASSED                                                                   [ 30%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_when_no_edit_requested PASSED [ 31%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_when_crud_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [ WARNING] canvas edit store reported failure for c-123 with write_outcome='(not reported)' — the write may already be durable: Canvas c-123 not found
+PASSED                                                                   [ 32%]
+tests/test_chat_canvas_editor.py::test_apply_returns_none_on_crud_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [ WARNING] canvas edit apply failed for c-123: db down
+PASSED                                                                   [ 33%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_planning_failure_replies_honestly 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-11-05 08:20:11 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-11-05 08:20:11 [ WARNING] canvas edit planning unavailable for c-123: provider down — replying honestly instead of falling through to conversation
+PASSED                                                                   [ 34%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_evidence_failure_flags_turn_as_unedited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] canvas edit declined: the turn needs live data and the lookup failed — falling through to the tool path instead of editing without evidence
+PASSED                                                                   [ 35%]
+tests/test_chat_canvas_editor.py::test_canvas_no_edit_note_forbids_claiming_an_edit PASSED [ 36%]
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [MEMCTX] agent_id=None
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 08:20:11 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5172458064. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5170025872. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory/default with storage_options=None
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5170285168. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory/default with storage_options=None
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 08:20:11 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5217275232. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5169708256. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory/default with storage_options=None
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-05 08:20:11 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-05 08:20:11 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5217372640. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [ WARNING] sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+2026-11-05 08:20:11 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-05 08:20:11 [    INFO] Opened existing atom_communications table
+2026-11-05 08:20:11 [    INFO] FTS index enabled on 'content' column
+2026-11-05 08:20:11 [    INFO] Opened existing ingestion_metadata table
+2026-11-05 08:20:11 [    INFO] LanceDB memory manager initialized successfully
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [stage-timing] tool plan (overlapped=False): 0.1s
+2026-11-05 08:20:11 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-05 08:20:11 [    INFO] [source-requirements] required=[] evidence=[] candidates=[]
+2026-11-05 08:20:11 [    INFO] [planner-boundary] research turn recovery state: research=True required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-05 08:20:11 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-11-05 08:20:11 [    INFO] [prompt-budget] routing-default model=auto: input=1074 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-05 08:20:11 [    INFO] [stage-timing] reply generation: 0.2s (incl. tool plan + exec above)
+2026-11-05 08:20:11 [ WARNING] reply is a generic non-answer despite tool results — grounded regeneration
+2026-11-05 08:20:11 [    INFO] tool-turn reply was protocol syntax; retrying firmly
+2026-11-05 08:20:11 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-11-05 08:20:11 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-11-05 08:20:11 [    INFO] [review-diag] generation_completed content_len=15 review_ask=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [MEMCTX] agent_id=None
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5219904208. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5235425616. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-05 08:20:11 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:20:11 [    INFO] LanceDBHandler initialized. ID: 5219971664. LANCEDB_AVAILABLE: True
+2026-11-05 08:20:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 08:20:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-base-81c/backend/data/atom_memory with storage_options=None
+2026-11-05 08:20:11 [    INFO] LanceDB connected successfully
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-11-05 08:20:11 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-05 08:20:11 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-05 08:20:11 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-11-05 08:20:11 [    INFO] [prompt-budget] routing-default model=auto: input=1019 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-05 08:20:11 [    INFO] [stage-timing] reply generation: 0.0s (incl. tool plan + exec above)
+2026-11-05 08:20:11 [ WARNING] reply is a generic non-answer despite tool results — grounded regeneration
+2026-11-05 08:20:11 [    INFO] tool-turn reply was protocol syntax; retrying firmly
+2026-11-05 08:20:11 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-11-05 08:20:11 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-11-05 08:20:11 [    INFO] [review-diag] generation_completed content_len=15 review_ask=False
+PASSED                                                                   [ 37%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_replies_honestly_on_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-11-05 08:20:11 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] canvas edit was a no-op for c-123 — replying honestly instead of claiming an update
+PASSED                                                                   [ 38%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_sender_identity_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+2026-11-05 08:20:11 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 39%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_turn_returns_early_without_feature_routing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-11-05 08:20:11 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] canvas co-editor edit applied: canvas=c-123 type=document
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=75.0s (remaining=115.0s reserve=35.0s)
+2026-11-05 08:20:11 [    INFO] LocalOnlyGuard initialized
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [tool-plan] pre-start skipped — the accepted request requires no live evidence and the edit lane owns this turn (self-contained edit)
+2026-11-05 08:20:11 [    INFO] [stage-timing] canvas-edit plan: 0.0s
+PASSED                                                                   [ 40%]
+tests/test_chat_canvas_editor.py::test_non_edit_canvas_turn_falls_through_to_normal_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [stage-timing] canvas-edit leg skipped — the turn's own words do not authorize a canvas mutation (deterministic authorization: 'needs_grant')
+2026-11-05 08:20:11 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 40%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[set a follow-up for tomorrow] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 41%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[remove this task] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 42%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_canvas_task_commands_use_normal_route[create a task for the email] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=False outcome=failed review_required=False
+PASSED                                                                   [ 43%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[remove the sign-off from the draft] PASSED [ 44%]
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[update the email body] PASSED [ 45%]
+tests/test_chat_canvas_editor.py::test_genuine_canvas_edit_requests_remain_editor_candidates[tighten the draft] PASSED [ 46%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_decline_marks_explicit_no_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-11-05 08:20:11 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+PASSED                                                                   [ 47%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_none_marks_retryable_no_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=canvas_refresh_heal
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=corrections_versions_lessons
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=job_findings
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=cross_canvas_learning
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=identity_playbooks
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage] eid=exec-2 stage=fresh_data edit_requested=True
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=fresh_data_lookup
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=outcome_values
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=catalog_probe
+2026-11-05 08:20:11 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:11 [    INFO] [lane-stage-begin] eid=exec-2 stage=edit_plan
+2026-11-05 08:20:11 [    INFO] [lane-stage-end] eid=exec-2 stage=edit_plan elapsed=0.0s
+PASSED                                                                   [ 48%]
+tests/test_chat_canvas_editor.py::test_no_apply_message_does_not_reask_an_explicit_assignment PASSED [ 49%]
+tests/test_chat_canvas_editor.py::test_no_apply_message_keeps_naming_advice_without_an_assignment PASSED [ 50%]
+tests/test_chat_canvas_editor.py::test_process_edit_no_apply_stops_before_conversation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=75.0s (remaining=115.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [stage-timing] canvas-edit plan: 0.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] canvas-action plan: 0.0s (overlapped with canvas-edit plan)
+FAILED                                                                   [ 51%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_canvas_no_apply_is_not_an_agent_success_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 52%]
+tests/test_chat_canvas_editor.py::test_turn_without_canvas_context_skips_edit_step_entirely 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:11 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:11 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:11 [    INFO] [DBG4] continuation-detection reached; bare=False
+2026-11-05 08:20:11 [    INFO] EscalationManager initialized
+2026-11-05 08:20:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] bounded wait=60.0s (remaining=95.0s reserve=35.0s)
+2026-11-05 08:20:11 [ WARNING] No LLM clients available
+2026-11-05 08:20:11 [    INFO] [turn-interpretation] empty reason=missing_scope
+2026-11-05 08:20:11 [    INFO] [deadline] chat-request stage=legacy-features dur=0.0s turn_offset=0.0s elapsed=0.0s remaining=95.0s budget=95.0s
+2026-11-05 08:20:11 [    INFO] [stage-timing] turn finalization: elapsed_s=0.0 review_at_s=None success=True outcome=None review_required=False
+PASSED                                                                   [ 53%]
+------------------------------ live log teardown -------------------------------
+2026-11-05 08:20:11 [    INFO] [timeline] chat planner finished: 0.0s after the turn's canvas-edit clock started
+
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_persists_binding PASSED [ 54%]
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_skips_placeholder_ids PASSED [ 55%]
+tests/test_chat_canvas_editor.py::test_bind_canvas_chat_session_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:11 [ WARNING] canvas chat-session binding skipped: db down
+PASSED                                                                   [ 56%]
+tests/test_chat_canvas_editor.py::test_binding_works_on_fresh_install_and_survives_restart PASSED [ 57%]
+tests/test_chat_canvas_editor.py::test_binding_is_idempotent_and_latest_session_wins PASSED [ 58%]
+tests/test_chat_canvas_editor.py::test_resolve_canvas_agent_prefers_context_binding PASSED [ 59%]
+tests/test_chat_canvas_editor.py::test_resolve_canvas_agent_falls_back_to_audit_and_skips_dead_agents PASSED [ 60%]
+tests/test_chat_canvas_editor.py::test_immature_hire_edits_in_learning_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:14 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:14 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 60%]
+tests/test_chat_canvas_editor.py::test_mature_hire_edits_normally 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:14 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:14 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 61%]
+tests/test_chat_canvas_editor.py::test_human_always_edit_policy_forces_proposal_even_for_mature_hire 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:14 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:14 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 62%]
+tests/test_chat_canvas_editor.py::test_no_agent_means_no_governance_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] EscalationManager initialized
+2026-11-05 08:20:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:14 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:14 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:14 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:14 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:14 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:14 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 63%]
+tests/test_chat_canvas_editor.py::test_supervisor_correction_feeds_learning_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:15 [    INFO] [LEARNING] Recorded user correction for agent hire-9
+2026-11-05 08:20:15 [    INFO] Capability 'canvas_edit' for agent hire-9 graduated to student
+2026-11-05 08:20:15 [    INFO] Reset maturity for hire-9:canvas_edit to STUDENT. Reason: canvas correction
+2026-11-05 08:20:15 [    INFO] autonomy cycle reset: hire-9 lost earned canvas_edit autonomy (canvas correction)
+2026-11-05 08:20:15 [    INFO] Initialized global governance cache
+2026-11-05 08:20:15 [    INFO] [LEARNING] Correction journaled as work-time lesson for hire-9
+2026-11-05 08:20:15 [    INFO] incident eval generated: canvas=c-corr class=persistence property=changed
+2026-11-05 08:20:15 [    INFO] [LEARNING] real-time rule journaled for agent hire-9: Persistence: report honestly when an edit changes nothing; never claim an update
+2026-11-05 08:20:15 [    INFO] canvas correction recorded for agent hire-9 on c-corr (learning signal)
+PASSED                                                                   [ 64%]
+tests/test_chat_canvas_editor.py::test_correction_capture_noops_without_agent_draft PASSED [ 65%]
+tests/test_chat_canvas_editor.py::test_autonomy_policy_defaults_and_override PASSED [ 66%]
+tests/test_chat_canvas_editor.py::test_send_action_always_proposes_when_policy_demands_human 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 67%]
+tests/test_chat_canvas_editor.py::test_send_action_executes_when_autonomous_mature_and_allowlisted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 68%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_when_trust_below_bar 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 69%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_for_external_recipient_even_when_mature 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 70%]
+tests/test_chat_canvas_editor.py::test_send_action_proposes_when_autonomous_but_immature 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 71%]
+tests/test_chat_canvas_editor.py::test_non_action_messages_fall_through 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] EscalationManager initialized
+2026-11-05 08:20:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:16 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:16 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 72%]
+tests/test_chat_canvas_editor.py::test_send_email_proposal_row_created 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:17 [    INFO] canvas action proposal filed: bb5262dc-8d78-482a-8954-7e7805369a77 (send_email, canvas=c-p)
+PASSED                                                                   [ 73%]
+tests/test_chat_canvas_editor.py::test_journey_events_expose_actual_content PASSED [ 74%]
+tests/test_chat_canvas_editor.py::test_identical_feedback_resubmit_creates_no_duplicate_training_rows PASSED [ 75%]
+tests/test_chat_canvas_editor.py::test_canvas_chat_feedback_persists_and_clears PASSED [ 76%]
+tests/test_chat_canvas_editor.py::test_versions_section_renders_skips_current_and_trims PASSED [ 77%]
+tests/test_chat_canvas_editor.py::test_versions_section_empty_when_nothing_restorable PASSED [ 78%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_recent_versions_with_restore_rule 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 10121, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 11, "included": true, "truncated": false}, {"section": "history", "size": 78, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 624, "included": true, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 79%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_recent_versions_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:19 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=outcome_values
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=catalog_probe
+2026-11-05 08:20:19 [    INFO] [tbc-probe] probe produced no section (no unpriced rows or empty body)
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=edit_plan
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+2026-11-05 08:20:19 [ WARNING] canvas edit planning skipped: test_canvas_edit_passes_recent_versions_to_planner.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+FAILED                                                                   [ 80%]
+tests/test_chat_canvas_editor.py::test_history_transcript_gives_last_agent_reply_full_budget PASSED [ 80%]
+tests/test_chat_canvas_editor.py::test_degenerate_replace_plan_reasks_instead_of_reaching_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 45, "included": true, "truncated": false}, {"section": "history", "size": 67, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+PASSED                                                                   [ 81%]
+tests/test_chat_canvas_editor.py::test_degenerate_replace_plan_still_empty_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 4, "included": true, "truncated": false}, {"section": "history", "size": 67, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 82%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_includes_taught_lessons 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 5, "included": true, "truncated": false}, {"section": "history", "size": 69, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 605, "included": true, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 83%]
+tests/test_chat_canvas_editor.py::test_plan_prompt_omits_lessons_section_when_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 41, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: replace plan carried no ops and no content — falling back to a replace-mode re-ask
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=unavailable attempts=3 contract=- detail=replace fallbacks exhausted
+PASSED                                                                   [ 84%]
+tests/test_chat_canvas_editor.py::test_plan_lessons_section_survives_renderer_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 4, "included": true, "truncated": false}, {"section": "history", "size": 54, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=True restore=False contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1357
+PASSED                                                                   [ 85%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_passes_taught_lessons_to_planner 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:19 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:19 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 86%]
+tests/test_chat_canvas_editor.py::test_canvas_edit_without_agent_passes_no_lessons 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:19 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=job_findings
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+2026-11-05 08:20:19 [    INFO] [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+2026-11-05 08:20:19 [    INFO] [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+2026-11-05 08:20:19 [    INFO] [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+FAILED                                                                   [ 87%]
+tests/test_chat_canvas_editor.py::test_direct_agent_send_carries_cc 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:19 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 88%]
+tests/test_chat_canvas_editor.py::test_send_proposal_carries_cc_from_canvas_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] EscalationManager initialized
+2026-11-05 08:20:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:20:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:20:19 [    INFO] Slack Enhanced Service initialized
+2026-11-05 08:20:19 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 08:20:19 [    INFO] canvas action proposal filed: prop-cc-1 (send_email, canvas=c-123)
+PASSED                                                                   [ 89%]
+tests/test_chat_canvas_editor.py::test_approved_proposal_execution_sends_cc PASSED [ 90%]
+tests/test_chat_canvas_editor.py::test_approved_proposal_send_refusal_still_records_failed_execution PASSED [ 91%]
+tests/test_chat_canvas_editor.py::test_apply_restore_routes_through_audit_trail_restore PASSED [ 92%]
+tests/test_chat_canvas_editor.py::test_apply_restore_without_explicit_mode_still_routes_by_id PASSED [ 93%]
+tests/test_chat_canvas_editor.py::test_apply_restore_noop_reports_honestly PASSED [ 94%]
+tests/test_chat_canvas_editor.py::test_apply_restore_unknown_version_maps_to_honest_reason PASSED [ 95%]
+tests/test_chat_canvas_editor.py::test_describe_apply_failure_version_not_found_is_actionable PASSED [ 96%]
+tests/test_chat_canvas_editor.py::test_restore_plan_with_version_id_needs_no_reask 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 12, "included": true, "truncated": false}, {"section": "history", "size": 75, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tr
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=True contract_violation=None (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] [plan-stage] eid=- stage=canvas_edit_plan outcome=edit attempts=1 contract=valid detail=prompt_chars=1407
+PASSED                                                                   [ 97%]
+tests/test_chat_canvas_editor.py::test_restore_plan_without_version_id_gets_one_reask 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:20:19 [    INFO] [plan-prompt] eid=- sections=[{"section": "instructions", "size": 1012, "included": true, "truncated": false}, {"section": "app", "size": 161, "included": true, "truncated": false}, {"section": "canvas", "size": 7, "included": true, "truncated": false}, {"section": "history", "size": 57, "included": true, "truncated": false}, {"section": "scope", "size": 0, "included": false, "truncated": false}, {"section": "corrections", "size": 0, "included": false, "truncated": false}, {"section": "versions", "size": 0, "included": false, "truncated": false}, {"section": "fresh", "size": 0, "included": false, "truncated": false}, {"section": "findings", "size": 0, "included": false, "truncated": false}, {"section": "lessons", "size": 0, "included": false, "truncated": false}, {"section": "cross", "size": 0, "included": false, "tru
+2026-11-05 08:20:19 [    INFO] canvas edit: plan AUTHORIZED by the planner | wants_edit=True ops=0 replacement=False restore=False contract_violation=wants_edit=true but ops=[] AND updated_content_json=<empty> AND restore_audit_id=<empty> (an edit claim with no work) (this is a planning fact, not an authorization to change the canvas)
+2026-11-05 08:20:19 [    INFO] canvas edit: restore plan carried no version id — falling back to a replace-mode re-ask
+PASSED                                                                   [ 98%]
+tests/test_chat_canvas_editor.py::test_versions_section_carries_version_ids PASSED [ 99%]
+tests/test_chat_canvas_editor.py::test_versions_section_dropped_when_versions_match_current PASSED [100%]
+
+=================================== FAILURES ===================================
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+ERROR    integrations.outlook_service:outlook_service.py:472 No access token available for user user-1
+ERROR    integrations.outlook_service:outlook_service.py:472 No access token available for user user-1
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:495: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.embedding_service:embedding_service.py:290 Loading FastEmbed model: BAAI/bge-small-en-v1.5
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.1s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:529: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:553: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+WARNING  integrations.chat_orchestrator:chat_orchestrator.py:33631 canvas action planning skipped: test_canvas_action_plans_against_durable_store_content.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:593: assert (None)
+E   assert (None is not None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:638: assert (None is not None)
+E   KeyError: 'identity'
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=False
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:903: KeyError: 'identity'
+E   assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:10239 [DBG4] continuation-detection reached; bare=False
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:11743 [turn-interpretation] bounded wait=75.0s (remaining=115.0s reserve=35.0s)
+WARNING  core.llm.byok_handler:byok_handler.py:8172 No LLM clients available
+INFO     core.turn_decision:turn_decision.py:2662 [turn-interpretation] empty reason=missing_scope
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:16907 [stage-timing] canvas-edit plan: 0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:17450 [stage-timing] canvas-action plan: 0.0s (overlapped with canvas-edit plan)
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:1169: assert False is True
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:1478: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:1508: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:1544: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:1567: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=fresh_data_lookup
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=fresh_data_lookup elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=outcome_values
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=outcome_values elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=catalog_probe
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32828 [tbc-probe] probe produced no section (no unpriced rows or empty body)
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=catalog_probe elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=edit_plan
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=edit_plan elapsed=0.0s
+WARNING  integrations.chat_orchestrator:chat_orchestrator.py:32977 canvas edit planning skipped: test_canvas_edit_passes_recent_versions_to_planner.<locals>.fake_plan() got an unexpected keyword argument 'workspace_id'
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:2207: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:2342: assert (None)
+E   assert (None)
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8510 ChatOrchestrator initialized with LLMService for tenant: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     ai.nlp_engine:nlp_engine.py:143 NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO     integrations.slack_enhanced_service:slack_enhanced_service.py:316 Slack Enhanced Service initialized
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:8603 Loaded 0 persisted sessions from file.
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=canvas_refresh_heal
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=canvas_refresh_heal elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=corrections_versions_lessons
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=corrections_versions_lessons elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=job_findings
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=job_findings elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=cross_canvas_learning
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=cross_canvas_learning elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32338 [lane-stage-begin] eid=exec-1 stage=identity_playbooks
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32349 [lane-stage-end] eid=exec-1 stage=identity_playbooks elapsed=0.0s
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32489 [lane-stage] eid=exec-1 stage=fresh_data edit_requested=True
+INFO     integrations.chat_orchestrator:chat_orchestrator.py:32527 [canvas-edit] lane refused pre-planning: the turn's own words do not authorize a canvas mutation — canvas access is retained for research/comparison
+/private/tmp/atom-base-81c/backend/tests/test_chat_canvas_editor.py:2364: assert (None)
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-base-81c/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+core/token_storage.py:17
+  /private/tmp/atom-base-81c/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 210 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+  /private/tmp/atom-base-81c/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_chat_canvas_editor.py: 27 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+  /private/tmp/atom-base-81c/backend/core/memory_context_assembler.py:1017: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    t for t in handler.db.table_names() if str(t).startswith("integration_")
+
+tests/test_chat_canvas_editor.py: 12 warnings
+  /private/tmp/atom-base-81c/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+  /private/tmp/atom-base-81c/backend/integrations/atom_communication_ingestion_pipeline.py:676: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_chat_canvas_editor.py::test_reply_prompt_carries_no_edit_directive_when_flagged
+  /private/tmp/atom-base-81c/backend/integrations/atom_communication_ingestion_pipeline.py:758: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_chat_canvas_editor.py::test_supervisor_correction_feeds_learning_loop
+  /private/tmp/atom-base-81c/backend/core/agent_world_model.py:132: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.table_name not in self.db.db.table_names():
+
+tests/test_chat_canvas_editor.py::test_supervisor_correction_feeds_learning_loop
+  /private/tmp/atom-base-81c/backend/core/agent_world_model.py:137: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.facts_table_name not in self.db.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_plans_against_durable_store_content
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_supervisor_corrections_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_survives_corrections_lookup_failure
+FAILED tests/test_chat_canvas_editor.py::test_canvas_action_plans_against_durable_store_content
+FAILED tests/test_chat_canvas_editor.py::test_canvas_action_plan_overlaps_edit_plan_singleflight
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_sender_identity_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_process_edit_no_apply_stops_before_conversation
+FAILED tests/test_chat_canvas_editor.py::test_immature_hire_edits_in_learning_mode
+FAILED tests/test_chat_canvas_editor.py::test_mature_hire_edits_normally - as...
+FAILED tests/test_chat_canvas_editor.py::test_human_always_edit_policy_forces_proposal_even_for_mature_hire
+FAILED tests/test_chat_canvas_editor.py::test_no_agent_means_no_governance_gate
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_recent_versions_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_passes_taught_lessons_to_planner
+FAILED tests/test_chat_canvas_editor.py::test_canvas_edit_without_agent_passes_no_lessons
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 14 failed, 91 passed, 272 warnings in 18.40s =================
