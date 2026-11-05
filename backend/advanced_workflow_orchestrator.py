@@ -39,6 +39,9 @@ SERVICES_AVAILABLE = True
 
 class WorkflowStepType(Enum):
     """Types of workflow steps"""
+    # ORCH-01: a design-time start marker. It performs no external effect;
+    # recurring activation is deliberately separate from blueprint design.
+    TRIGGER = "trigger"
     NLU_ANALYSIS = "nlu_analysis"
     TASK_CREATION = "task_creation"
     EMAIL_SEND = "email_send"
@@ -1830,6 +1833,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 connector_id = self.STEP_TYPE_TO_CONNECTOR[step.step_type]
                 result = await self._execute_registry_step(connector_id, step, context)
             
+            elif step.step_type == WorkflowStepType.TRIGGER:
+                # A trigger node is a design-time start marker. Executing the
+                # workflow manually passes through it without activating a
+                # recurring schedule/event.
+                result = {
+                    "status": "completed",
+                    "trigger": step.parameters.get(
+                        "trigger_event") or step.parameters.get(
+                        "schedule") or step.parameters.get("condition") or (
+                        "manual"),
+                }
             elif step.step_type == WorkflowStepType.NLU_ANALYSIS:
                 result = await self._execute_nlu_analysis(step, context)
             elif step.step_type == WorkflowStepType.CONDITIONAL_LOGIC:

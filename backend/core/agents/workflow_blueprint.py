@@ -1,0 +1,349 @@
+"""Validated, server-compiled workflow blueprints (ORCH-01).
+
+The model may propose a blueprint, but it does not author executable mechanics.
+This module validates the proposal as a DAG, rejects unsupported/ambiguous
+shapes, inserts the mandatory approval checkpoint before a governed mutation,
+and compiles the existing workflow step representation. Persistence and route
+scope live in ``core.workflow_blueprint_service``.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import uuid
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+NodeType = Literal["trigger", "skill", "agent", "entity"]
+ActionKind = Literal["read", "compute", "notify", "write", "approval"]
+ExecutionMode = Literal["one_off", "recurring_automation"]
+
+
+class WorkflowNodeAction(BaseModel):
+    """The design intent of one node, never executable plumbing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ActionKind
+    service: Optional[str] = Field(default=None, max_length=80)
+    action: Optional[str] = Field(default=None, max_length=80)
+
+
+class WorkflowBlueprintNode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(
+        min_length=1, max_length=80,
+        pattern=r"^[A-Za-z][A-Za-z0-9_-]*$")
+    type: NodeType
+    name: str = Field(min_length=1, max_length=200)
+    capability_required: Optional[str] = Field(
+        default=None, max_length=120)
+    dependencies: List[str] = Field(default_factory=list, max_length=40)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    action: Optional[WorkflowNodeAction] = None
+
+
+class MissingCapability(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=500)
+
+
+class WorkflowBlueprintDraft(BaseModel):
+    """The model-owned shape. Server fields are added by the compiler."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    architecture_name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+    execution_mode: ExecutionMode = "one_off"
+    nodes: List[WorkflowBlueprintNode] = Field(
+        min_length=1, max_length=60)
+    required_integrations: List[str] = Field(
+        default_factory=list, max_length=20)
+    missing_capabilities: List[MissingCapability] = Field(
+        default_factory=list, max_length=20)
+
+
+class BlueprintValidationError(ValueError):
+    """A safe, typed refusal before any durable/executable write."""
+
+    def __init__(
+        self, code: str, message: str,
+        details: Optional[Sequence[Any]] = None,
+    ):
+        self.code = str(code)
+        self.message = str(message)
+        self.details = list(details or [])
+        super().__init__(self.message)
+
+
+class BlueprintGenerationError(RuntimeError):
+    """A model/route failure that must not become a fallback workflow."""
+
+    def __init__(
+        self, code: str, message: str, status_code: int = 503,
+        details: Optional[Sequence[Any]] = None,
+    ):
+        self.code = str(code)
+        self.message = str(message)
+        self.status_code = int(status_code)
+        self.details = list(details or [])
+        super().__init__(self.message)
+
+
+def _cycle_or_missing(
+    nodes: Sequence[Dict[str, Any]],
+) -> Tuple[List[str], Dict[str, List[str]]]:
+    """Return topological order and adjacency, raising on a bad graph."""
+    ids = [node["id"] for node in nodes]
+    if len(ids) != len(set(ids)):
+        raise BlueprintValidationError(
+            "workflow_node_duplicate",
+            "workflow node ids must be unique",
+            details=sorted({node_id for node_id in ids
+                           if ids.count(node_id) > 1}))
+    by_id = {node["id"]: node for node in nodes}
+    adjacency: Dict[str, List[str]] = {node["id"]: [] for node in nodes}
+    indegree = {node["id"]: 0 for node in nodes}
+    for node in nodes:
+        for dependency in node.get("dependencies") or []:
+            if dependency not in by_id:
+                raise BlueprintValidationError(
+                    "workflow_dependency_missing",
+                    f"node {node['id']!r} depends on unknown node "
+                    f"{dependency!r}",
+                    details=[node["id"], dependency])
+            if dependency == node["id"]:
+                raise BlueprintValidationError(
+                    "workflow_dependency_self",
+                    f"node {node['id']!r} depends on itself")
+            adjacency[dependency].append(node["id"])
+            indegree[node["id"]] += 1
+    ready = [node_id for node_id, degree in indegree.items() if degree == 0]
+    ordered: List[str] = []
+    while ready:
+        node_id = ready.pop(0)
+        ordered.append(node_id)
+        for successor in adjacency[node_id]:
+            indegree[successor] -= 1
+            if indegree[successor] == 0:
+                ready.append(successor)
+    if len(ordered) != len(nodes):
+        raise BlueprintValidationError(
+            "workflow_cycle",
+            "the workflow dependency graph contains a cycle")
+    return ordered, adjacency
+
+
+def _is_mutating(node: Dict[str, Any]) -> bool:
+    action = node.get("action") or {}
+    kind = str(action.get("kind") or "").strip().lower()
+    if node.get("type") == "entity":
+        # An entity node represents persistent state. A lookup/query must say
+        # so explicitly; the default is a mutation and therefore gated.
+        return kind not in ("read", "compute")
+    return kind in ("write", "notify")
+
+
+def _step_type(node_type: str) -> str:
+    if node_type == "trigger":
+        return "trigger"
+    if node_type == "entity":
+        return "entity"
+    if node_type == "approval":
+        return "approval_required"
+    # A skill or agent is a reasoning/execution request owned by the business
+    # agent. It is never silently mapped to a universal external integration.
+    return "business_agent_execution"
+
+
+def _approval_node(node: Dict[str, Any]) -> Dict[str, Any]:
+    approval_id = f"approval_{node['id']}"
+    return {
+        "id": approval_id,
+        "type": "approval",
+        "name": f"Approve {node['name']}",
+        "capability_required": None,
+        "dependencies": list(node.get("dependencies") or []),
+        "metadata": {
+            "checkpoint": "approval_required",
+            "guarded_step": node["id"],
+            "reason": (
+                f"Human approval is required before {node['name']} "
+                "mutates governed state or sends an external effect."),
+        },
+        "action": {"kind": "approval"},
+    }
+
+
+def compile_blueprint(
+    draft: WorkflowBlueprintDraft | Dict[str, Any],
+    *,
+    execution_mode: Optional[ExecutionMode] = None,
+) -> Dict[str, Any]:
+    """Validate one model draft and compile the server-owned plan.
+
+    Raises ``BlueprintValidationError`` for any refusal. No persistence or
+    workflow registration occurs here.
+    """
+    if not isinstance(draft, WorkflowBlueprintDraft):
+        try:
+            draft = WorkflowBlueprintDraft.model_validate(draft)
+        except Exception as exc:  # pydantic validation is a typed refusal
+            raise BlueprintValidationError(
+                "workflow_blueprint_invalid",
+                "the workflow blueprint is malformed",
+                details=[str(exc)]) from exc
+    mode: str = str(execution_mode or draft.execution_mode)
+    if mode not in ("one_off", "recurring_automation"):
+        raise BlueprintValidationError(
+            "workflow_execution_mode_invalid",
+            "execution_mode must be one_off or recurring_automation")
+    if execution_mode and draft.execution_mode != execution_mode:
+        raise BlueprintValidationError(
+            "workflow_execution_mode_mismatch",
+            "the model execution_mode does not match the classified request",
+            details=[draft.execution_mode, execution_mode])
+    if draft.missing_capabilities:
+        raise BlueprintValidationError(
+            "workflow_capability_missing",
+            "the workflow needs capabilities that are not available; no "
+            "runnable workflow was created",
+            details=[item.model_dump() for item in draft.missing_capabilities])
+
+    nodes = [node.model_dump() for node in draft.nodes]
+    ordered, adjacency = _cycle_or_missing(nodes)
+    roots = [node["id"] for node in nodes if not node.get("dependencies")]
+    if len(roots) != 1:
+        raise BlueprintValidationError(
+            "workflow_start_ambiguous",
+            "the workflow must have exactly one start node",
+            details=roots)
+    triggers = [node for node in nodes if node.get("type") == "trigger"]
+    if len(triggers) > 1:
+        raise BlueprintValidationError(
+            "workflow_trigger_duplicate",
+            "a workflow may declare at most one trigger",
+            details=[node["id"] for node in triggers])
+    if mode == "recurring_automation":
+        if len(triggers) != 1:
+            raise BlueprintValidationError(
+                "workflow_trigger_required",
+                "recurring automation requires exactly one trigger node")
+        if triggers[0]["id"] != roots[0]:
+            raise BlueprintValidationError(
+                "workflow_trigger_start",
+                "the recurring trigger must be the workflow start node")
+        metadata = triggers[0].get("metadata") or {}
+        if not any(str(metadata.get(key) or "").strip() for key in (
+                "trigger_event", "schedule", "condition")):
+            raise BlueprintValidationError(
+                "workflow_trigger_metadata_required",
+                "the recurring trigger must declare an event, schedule or "
+                "condition")
+    elif triggers and triggers[0]["id"] != roots[0]:
+        raise BlueprintValidationError(
+            "workflow_trigger_start",
+            "the trigger node must be the workflow start node")
+
+    # A trigger is a design-time start marker. Any model-supplied action on it
+    # is not an executable effect and must not create a spurious HITL gate.
+    for node in nodes:
+        if node.get("type") == "trigger":
+            node["action"] = {"kind": "read"}
+
+    # A generated workflow must never contain an ungated governed mutation.
+    compiled_nodes: List[Dict[str, Any]] = []
+    approval_ids: List[str] = []
+    for node in nodes:
+        if _is_mutating(node):
+            approval = _approval_node(node)
+            if any(existing.get("id") == approval["id"]
+                   for existing in compiled_nodes):
+                raise BlueprintValidationError(
+                    "workflow_approval_id_conflict",
+                    f"approval node id {approval['id']!r} is not unique")
+            compiled_nodes.append(approval)
+            approval_ids.append(approval["id"])
+            node["dependencies"] = [approval["id"]]
+        compiled_nodes.append(node)
+
+    # Recompute adjacency after the HITL insertion.
+    ordered, adjacency = _cycle_or_missing(compiled_nodes)
+    roots = [
+        node["id"] for node in compiled_nodes
+        if not node.get("dependencies")
+    ]
+    if len(roots) != 1:
+        raise BlueprintValidationError(
+            "workflow_start_ambiguous",
+            "the compiled workflow must have exactly one start node",
+            details=roots)
+
+    steps: List[Dict[str, Any]] = []
+    for node in compiled_nodes:
+        parameters = dict(node.get("metadata") or {})
+        parameters.update({
+            "capability_required": node.get("capability_required"),
+            "design_action": node.get("action") or {},
+            "hitl": node.get("type") == "approval",
+        })
+        if node.get("type") == "approval":
+            parameters["action"] = "workflow_step"
+        steps.append({
+            "step_id": node["id"],
+            "step_type": _step_type(node["type"]),
+            "description": node["name"],
+            "parameters": parameters,
+            "next_steps": list(adjacency.get(node["id"]) or []),
+        })
+
+    workflow_id = f"ai_wf_{uuid.uuid4().hex[:12]}"
+    trigger_descriptors = [
+        {
+            "node_id": node["id"],
+            "trigger_event": (node.get("metadata") or {}).get(
+                "trigger_event") or "",
+            "schedule": (node.get("metadata") or {}).get("schedule") or "",
+            "condition": (node.get("metadata") or {}).get("condition") or "",
+        }
+        for node in triggers
+    ]
+    definition_material = {
+        "architecture_name": draft.architecture_name,
+        "description": draft.description,
+        "execution_mode": mode,
+        "start_step": roots[0],
+        "nodes": compiled_nodes,
+        "steps": steps,
+        "triggers": trigger_descriptors,
+        "required_integrations": list(draft.required_integrations),
+    }
+    digest = hashlib.sha256(json.dumps(
+        definition_material, sort_keys=True, default=str).encode()).hexdigest()
+    return {
+        "workflow_id": workflow_id,
+        "blueprint_id": str(uuid.uuid4()),
+        "status": "designed",
+        "source": "model",
+        "schema": "orch-workflow-blueprint-1",
+        "architecture_name": draft.architecture_name,
+        "name": draft.architecture_name,
+        "description": draft.description,
+        "execution_mode": mode,
+        "start_step": roots[0],
+        "nodes": compiled_nodes,
+        "steps": steps,
+        "triggers": trigger_descriptors,
+        "required_integrations": list(draft.required_integrations),
+        "missing_capabilities": [],
+        "hitl_gates": approval_ids,
+        "step_count": len(steps),
+        "definition_digest": digest,
+        "definition": definition_material,
+    }
